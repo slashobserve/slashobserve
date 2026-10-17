@@ -6,6 +6,8 @@ const (
 	TypeVersionCreated = "version.created"
 	TypeCommentCreated = "comment.created"
 	TypeCommentUpdated = "comment.updated"
+
+	TypeRevisionUpdated = "revision.updated"
 )
 
 type Author struct {
@@ -24,6 +26,7 @@ type Event struct {
 	Author        *Author `json:"author,omitempty"`
 	CreatedAt     string  `json:"created_at,omitempty"`
 	CommentID     string  `json:"comment_id,omitempty"`
+	RevisionID    string  `json:"revision_id,omitempty"`
 	PanelID       string  `json:"panel_id,omitempty"`
 	Status        string  `json:"status,omitempty"`
 }

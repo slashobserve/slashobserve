@@ -1,0 +1,208 @@
+package revisions
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/events"
+)
+
+const (
+	defaultWorkers    = 2
+	defaultPoll       = 5 * time.Second
+	defaultRunTimeout = 3 * time.Minute
+	finishTimeout     = 15 * time.Second
+	listenBackoff     = time.Second
+	maxListenBackoff  = 30 * time.Second
+
+	timedOutMessage = "the agent run timed out"
+	crashedMessage  = "the agent run crashed"
+)
+
+type WorkerOptions struct {
+	Workers    int
+	Poll       time.Duration
+	RunTimeout time.Duration
+}
+
+type Worker struct {
+	service *Service
+	listen  events.Listener
+	logger  *slog.Logger
+	opts    WorkerOptions
+}
+
+func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, opts WorkerOptions) *Worker {
+	if opts.Workers <= 0 {
+		opts.Workers = defaultWorkers
+	}
+	if opts.Poll <= 0 {
+		opts.Poll = defaultPoll
+	}
+	if opts.RunTimeout <= 0 {
+		opts.RunTimeout = defaultRunTimeout
+	}
+	return &Worker{service: service, listen: listen, logger: logger, opts: opts}
+}
+
+func (w *Worker) Run(ctx context.Context) {
+	wakes := make([]chan struct{}, w.opts.Workers)
+	for i := range wakes {
+		wakes[i] = make(chan struct{}, 1)
+	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		w.relayWakeups(ctx, wakes)
+	}()
+	for _, wake := range wakes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.loop(ctx, wake)
+		}()
+	}
+	wg.Wait()
+}
+
+func (w *Worker) relayWakeups(ctx context.Context, wakes []chan struct{}) {
+	backoff := listenBackoff
+	for ctx.Err() == nil {
+		established := false
+		err := w.listen(ctx, WakeChannel, func() {
+			established = true
+			signal(wakes)
+		}, func(string) { signal(wakes) })
+		if ctx.Err() != nil {
+			return
+		}
+		w.logger.Warn("agent request listener failed", slog.Any("error", err), slog.Duration("retry_in", backoff))
+		if established {
+			backoff = listenBackoff
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, maxListenBackoff)
+	}
+}
+
+func signal(wakes []chan struct{}) {
+	for _, wake := range wakes {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (w *Worker) loop(ctx context.Context, wake <-chan struct{}) {
+	for ctx.Err() == nil {
+		worked, err := w.step(ctx)
+		if err != nil && ctx.Err() == nil {
+			w.logger.Error("agent request worker step failed", slog.Any("error", err))
+		}
+		if worked && err == nil {
+			continue
+		}
+		timer := time.NewTimer(w.opts.Poll)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-wake:
+			timer.Stop()
+		case <-timer.C:
+		}
+	}
+}
+
+func (w *Worker) step(ctx context.Context) (bool, error) {
+	claimed, found, err := w.service.claim(ctx)
+	if err != nil || !found {
+		return false, err
+	}
+	w.process(ctx, claimed)
+	return true, nil
+}
+
+func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) {
+	version, saved, err := w.service.existingVersion(ctx, claimed)
+	if err != nil {
+		w.logger.ErrorContext(ctx, "check agent request result", slog.String("revision_id", claimed.ID.String()), slog.Any("error", err))
+		return
+	}
+	if saved {
+		w.finish(ctx, claimed, outcome{version: &version})
+		return
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, w.opts.RunTimeout)
+	result, err := w.revise(runCtx, requestFrom(claimed))
+	timedOut := errors.Is(runCtx.Err(), context.DeadlineExceeded)
+	cancel()
+
+	switch {
+	case err == nil:
+		w.finish(ctx, claimed, outcome{version: &result.Version})
+	case ctx.Err() != nil:
+		w.logger.InfoContext(ctx, "agent request interrupted; its lease will expire", slog.String("revision_id", claimed.ID.String()))
+	case timedOut:
+		w.finish(ctx, claimed, outcome{message: timedOutMessage})
+	default:
+		w.finish(ctx, claimed, outcome{message: err.Error()})
+	}
+}
+
+func (w *Worker) revise(ctx context.Context, req Request) (result Result, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			w.logger.ErrorContext(ctx, "agent run panicked", slog.String("revision_id", req.ID), slog.String("panic_type", fmt.Sprintf("%T", p)))
+			result, err = Result{}, errors.New(crashedMessage)
+		}
+	}()
+	return w.service.reviser.Revise(ctx, req)
+}
+
+func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outcome) {
+	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	finished, err := w.service.finish(finishCtx, claimed, o)
+	attrs := []any{slog.String("revision_id", claimed.ID.String()), slog.String("dashboard_id", claimed.DashboardID.String())}
+	switch {
+	case err != nil:
+		w.logger.ErrorContext(ctx, "finish agent request", append(attrs, slog.Any("error", err))...)
+	case !finished:
+		w.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
+	case o.version != nil:
+		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(claimed.Attempts)))...)
+	default:
+		w.logger.WarnContext(ctx, "agent request failed", append(attrs, slog.String("error", truncateError(o.message)), slog.Int("attempt", int(claimed.Attempts)))...)
+	}
+}
+
+func requestFrom(row dbsqlc.AgentRequest) Request {
+	return Request{
+		ID:          row.ID.String(),
+		DashboardID: row.DashboardID.String(),
+		Source:      Source(row.Source),
+		Prompt:      row.Prompt,
+		PanelID:     row.PanelID.String,
+		BaseVersion: int(row.BaseVersion),
+		RequestedBy: auth.Principal{
+			Kind:  auth.PrincipalKind(row.RequestedByKind),
+			ID:    row.RequestedByID.String(),
+			Name:  row.RequestedByName,
+			Email: row.RequestedByEmail.String,
+		},
+	}
+}
