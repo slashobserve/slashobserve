@@ -54,9 +54,25 @@ const useThemeStore = create<ThemeState>((set, get) => ({
   },
 }))
 
-media.addEventListener("change", (event) => {
+function onMediaChange(event: MediaQueryListEvent) {
   useThemeStore.setState({ systemDark: event.matches })
   apply(resolve(useThemeStore.getState().preference, event.matches))
+}
+
+media.addEventListener("change", onMediaChange)
+
+function onStorage(event: StorageEvent) {
+  if (event.storageArea !== localStorage) return
+  if (event.key !== null && event.key !== storageKey) return
+  const preference = readPreference()
+  useThemeStore.setState({ preference })
+  apply(resolve(preference, useThemeStore.getState().systemDark))
+}
+
+window.addEventListener("storage", onStorage)
+import.meta.hot?.dispose(() => {
+  window.removeEventListener("storage", onStorage)
+  media.removeEventListener("change", onMediaChange)
 })
 
 export function resolvedTheme(): ResolvedTheme {
