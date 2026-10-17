@@ -283,6 +283,32 @@ func TestLintVariableInMatchers(t *testing.T) {
 	}
 }
 
+func TestLintQuotedMetricNames(t *testing.T) {
+	ds := newDS(t)
+	cases := []struct{ query, covers, metric string }{
+		{`rate({"nope.x", job=~"$job"}[5m])`, `"nope.x"`, "nope.x"},
+		{`{"nope_m", job="$job"}`, `"nope_m"`, "nope_m"},
+		{`rate({"nope.y"}[5m])`, `"nope.y"`, "nope.y"},
+		{`sum({ "nope.z" , job="a,}b"})`, `"nope.z"`, "nope.z"},
+		{`{job="x", "nope.w"}`, `"nope.w"`, "nope.w"},
+		{`{__name__="nope_n", job=~"$job"}`, `"nope_n"`, "nope_n"},
+		{`{job=~"$job", "nope.a"}`, `"nope.a"`, "nope.a"},
+		{`{"__name__"="nope_f", job=~"$job"}`, `"nope_f"`, "nope_f"},
+		{`{job="x", "__name__" = 'nope_g'}`, `'nope_g'`, "nope_g"},
+	}
+	for _, c := range cases {
+		t.Run(c.query, func(t *testing.T) {
+			diags := ds.Lint(context.Background(), c.query)
+			if len(diags) != 1 || diags[0].Severity != datasource.SeverityError || !strings.Contains(diags[0].Message, c.metric) {
+				t.Fatalf("want one error naming %s, got %+v", c.metric, diags)
+			}
+			if got := c.query[diags[0].Start:diags[0].End]; got != c.covers {
+				t.Errorf("diagnostic covers %q, want %q", got, c.covers)
+			}
+		})
+	}
+}
+
 func TestLintExistenceUsesOneRequest(t *testing.T) {
 	ds, rec := recordingDS(t)
 	query := `rate(nope_one_total[5m]) + rate(nope_two_total[5m]) + up + sum(prometheus_http_requests_total)`
@@ -351,5 +377,59 @@ func TestDiscoverMetricsDoesNotDownloadWholeMetadata(t *testing.T) {
 	}
 	if len(rec.to("/api/v1/metadata")) == 0 {
 		t.Error("no metadata request sent")
+	}
+}
+
+type clampMetadataLimit struct{ next http.RoundTripper }
+
+func (c clampMetadataLimit) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Path == "/api/v1/metadata" && req.URL.Query().Has("limit") {
+		clone := req.Clone(req.Context())
+		q := clone.URL.Query()
+		q.Set("limit", "1")
+		clone.URL.RawQuery = q.Encode()
+		req = clone
+	}
+	return c.next.RoundTrip(req)
+}
+
+func TestDiscoverMetricsTargetsFirstMissingMetadata(t *testing.T) {
+	rec := &recorder{}
+	ds := newDS(t, func(o *prometheus.Options) {
+		o.HTTPClient = &http.Client{Transport: clampMetadataLimit{next: rec}}
+	})
+	cat, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.Metrics) < 30 {
+		t.Fatalf("want at least 30 metrics, got %d", len(cat.Metrics))
+	}
+	var targeted []string
+	for _, q := range rec.to("/api/v1/metadata") {
+		if m := q.form.Get("metric"); m != "" {
+			targeted = append(targeted, m)
+		}
+	}
+	if len(targeted) != 10 {
+		t.Fatalf("want 10 targeted metadata requests, got %v", targeted)
+	}
+	first := map[string]bool{}
+	for _, m := range cat.Metrics[:11] {
+		first[m.Name] = true
+	}
+	for _, name := range targeted {
+		if !first[name] {
+			t.Errorf("targeted %q is not among the first missing names", name)
+		}
+	}
+	typed := 0
+	for _, m := range cat.Metrics {
+		if m.Type != "" {
+			typed++
+		}
+	}
+	if typed < 5 || typed > 11 {
+		t.Errorf("%d metrics carry metadata, want 5 to 11 (series such as up have none)", typed)
 	}
 }

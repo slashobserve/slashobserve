@@ -115,9 +115,10 @@ func (d *Datasource) completeMetadata(ctx context.Context, metadata map[string][
 			missing = append(missing, name)
 		}
 	}
-	if len(missing) == 0 || len(missing) > maxTargetedMetadata {
+	if len(missing) == 0 {
 		return
 	}
+	missing = missing[:min(len(missing), maxTargetedMetadata)]
 	var (
 		wg sync.WaitGroup
 		mu sync.Mutex

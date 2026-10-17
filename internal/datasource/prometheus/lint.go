@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -50,11 +51,13 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 			return nil
 		}
 		pos := vs.PositionRange()
-		spanEnd := int(pos.End)
+		spanStart, spanEnd := int(pos.Start), int(pos.End)
 		if vs.Name != "" {
-			spanEnd = int(pos.Start) + len(vs.Name)
+			spanEnd = spanStart + len(vs.Name)
+		} else if nameStart, nameEnd, ok := braceNameSpan(exp.Text, spanStart); ok {
+			spanStart, spanEnd = nameStart, nameEnd
 		}
-		start, end, inVariable := exp.Locate(clampOffset(int(pos.Start), len(exp.Text)), clampOffset(spanEnd, len(exp.Text)))
+		start, end, inVariable := exp.Locate(clampOffset(spanStart, len(exp.Text)), clampOffset(spanEnd, len(exp.Text)))
 		if inVariable || slices.ContainsFunc(refs, func(r metricRef) bool { return r.name == name }) {
 			return nil
 		}
@@ -65,6 +68,93 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 		refs = refs[:maxLintMetrics]
 	}
 	return append(diags, d.existenceDiagnostics(ctx, refs)...)
+}
+
+func braceNameSpan(text string, open int) (int, int, bool) {
+	if open < 0 || open >= len(text) || text[open] != '{' {
+		return 0, 0, false
+	}
+	i := open + 1
+	for i < len(text) {
+		i = skipSpace(text, i)
+		if i >= len(text) || text[i] == '}' {
+			return 0, 0, false
+		}
+		if end := quotedEnd(text, i); end > 0 {
+			if next := skipSpace(text, end); next < len(text) && (text[next] == ',' || text[next] == '}') {
+				return i, end, true
+			}
+		}
+		if start, end := nameMatcherSpan(text, i); end > 0 {
+			return start, end, true
+		}
+		i = nextMatcher(text, i)
+	}
+	return 0, 0, false
+}
+
+func nameMatcherSpan(text string, i int) (int, int) {
+	labelEnd := i + len(metricNameLabel)
+	if quoted := quotedEnd(text, i); quoted > 0 {
+		if text[i+1:quoted-1] != metricNameLabel {
+			return 0, 0
+		}
+		labelEnd = quoted
+	} else if !strings.HasPrefix(text[i:], metricNameLabel) {
+		return 0, 0
+	}
+	j := skipSpace(text, labelEnd)
+	if j >= len(text) || text[j] != '=' || strings.HasPrefix(text[j:], "=~") {
+		return 0, 0
+	}
+	start := skipSpace(text, j+1)
+	return start, quotedEnd(text, start)
+}
+
+func nextMatcher(text string, i int) int {
+	for i < len(text) {
+		switch c := text[i]; c {
+		case ',':
+			return i + 1
+		case '}':
+			return len(text)
+		case '"', '\'', '`':
+			end := quotedEnd(text, i)
+			if end <= 0 {
+				return len(text)
+			}
+			i = end
+		default:
+			i++
+		}
+	}
+	return i
+}
+
+func skipSpace(text string, i int) int {
+	for i < len(text) && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r') {
+		i++
+	}
+	return i
+}
+
+func quotedEnd(text string, i int) int {
+	if i >= len(text) {
+		return 0
+	}
+	quote := text[i]
+	if quote != '"' && quote != '\'' && quote != '`' {
+		return 0
+	}
+	for j := i + 1; j < len(text); j++ {
+		switch {
+		case text[j] == '\\' && quote != '`':
+			j++
+		case text[j] == quote:
+			return j + 1
+		}
+	}
+	return 0
 }
 
 func selectorName(vs *parser.VectorSelector) string {
