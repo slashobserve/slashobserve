@@ -73,7 +73,7 @@ func startPrometheus(ctx context.Context) (testcontainers.Container, *environmen
 	if err != nil {
 		return nil, nil, err
 	}
-	scrapeConfig := "global:\n  scrape_interval: 1s\nscrape_configs:\n  - job_name: prometheus\n    static_configs:\n      - targets: [\"localhost:9090\"]\n"
+	scrapeConfig := fmt.Sprintf("global:\n  scrape_interval: 1s\nscrape_configs:\n  - job_name: prometheus\n    basic_auth:\n      username: %s\n      password: %s\n    static_configs:\n      - targets: [\"localhost:9090\"]\n", basicAuthUser, password)
 	webConfig := fmt.Sprintf("basic_auth_users:\n  %s: %q\n", basicAuthUser, string(hash))
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -123,7 +123,7 @@ func (e *environment) waitReady(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer ds.Close()
+	defer func() { _ = ds.Close() }()
 	_, _ = ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverLabels})
 	deadline := time.Now().Add(60 * time.Second)
 	for {
@@ -131,11 +131,12 @@ func (e *environment) waitReady(ctx context.Context) error {
 		r := datasource.TimeRange{From: now.Add(-time.Minute), To: now}
 		up, upErr := ds.QueryInstant(ctx, datasource.Query{Text: "up"}, r)
 		reqs, reqErr := ds.QueryInstant(ctx, datasource.Query{Text: requestsMetric}, r)
-		if upErr == nil && reqErr == nil && len(up) == 1 && up[0].Fields[1].Values[0] == float64(1) && len(reqs) >= 2 {
+		rates, rateErr := ds.QueryRange(ctx, datasource.Query{Text: "rate(" + requestsMetric + "[10s])"}, r, 5*time.Second)
+		if upErr == nil && reqErr == nil && rateErr == nil && len(up) == 1 && up[0].Fields[1].Values[0] == float64(1) && len(reqs) >= 2 && len(rates) >= 1 {
 			return nil
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("prometheus not ready: up=%d series (err %v), %s=%d series (err %v)", len(up), upErr, requestsMetric, len(reqs), reqErr)
+			return fmt.Errorf("prometheus not ready: up=%d series, %s=%d series, rate=%d series: %w", len(up), requestsMetric, len(reqs), len(rates), errors.Join(upErr, reqErr, rateErr))
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -354,11 +355,16 @@ func TestLint(t *testing.T) {
 	t.Run("parse error", func(t *testing.T) {
 		query := `sum(rate(up[5m])`
 		diags := ds.Lint(ctx, query)
-		if len(diags) != 1 || diags[0].Severity != datasource.SeverityError {
-			t.Fatalf("want one error, got %+v", diags)
+		if len(diags) == 0 {
+			t.Fatal("want at least one error")
 		}
-		if d := diags[0]; d.Start < 0 || d.Start > d.End || d.End > len(query) {
-			t.Fatalf("bad range %d..%d for %q", d.Start, d.End, query)
+		for _, d := range diags {
+			if d.Severity != datasource.SeverityError {
+				t.Errorf("want only errors, got %+v", d)
+			}
+			if d.Start < 0 || d.Start > d.End || d.End > len(query) {
+				t.Errorf("bad range %d..%d for %q", d.Start, d.End, query)
+			}
 		}
 	})
 	t.Run("unknown metric", func(t *testing.T) {

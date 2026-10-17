@@ -68,7 +68,7 @@ func selectorName(vs *parser.VectorSelector) string {
 		return vs.Name
 	}
 	for _, m := range vs.LabelMatchers {
-		if m.Name == labels.MetricName && m.Type == labels.MatchEqual {
+		if m.Name == metricNameLabel && m.Type == labels.MatchEqual {
 			return m.Value
 		}
 	}

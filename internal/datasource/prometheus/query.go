@@ -105,7 +105,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 }
 
 func (d *Datasource) variableInterval(r datasource.TimeRange) time.Duration {
-	return max(d.opts.ScrapeInterval, (r.To.Sub(r.From)/1000).Truncate(time.Second))
+	return max(d.opts.ScrapeInterval, (r.To.Sub(r.From) / 1000).Truncate(time.Second))
 }
 
 func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval time.Duration) (string, error) {

@@ -171,31 +171,40 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 }
 
 func splitLabelValuesArgs(args string) (selector, label string) {
+	last := lastTopLevelComma(args)
+	if last < 0 {
+		return "", strings.TrimSpace(args)
+	}
+	return strings.TrimSpace(args[:last]), strings.TrimSpace(args[last+1:])
+}
+
+func lastTopLevelComma(s string) int {
 	last := -1
 	depth := 0
 	var quote byte
-	for i := 0; i < len(args); i++ {
-		c := args[i]
-		switch {
-		case quote != 0:
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
 			switch {
 			case c == '\\' && quote != '`':
 				i++
 			case c == quote:
 				quote = 0
 			}
-		case c == '"' || c == '\'' || c == '`':
+			continue
+		}
+		switch c {
+		case '"', '\'', '`':
 			quote = c
-		case c == '{' || c == '(':
+		case '{', '(':
 			depth++
-		case c == '}' || c == ')':
+		case '}', ')':
 			depth--
-		case c == ',' && depth == 0:
-			last = i
+		case ',':
+			if depth == 0 {
+				last = i
+			}
 		}
 	}
-	if last < 0 {
-		return "", strings.TrimSpace(args)
-	}
-	return strings.TrimSpace(args[:last]), strings.TrimSpace(args[last+1:])
+	return last
 }

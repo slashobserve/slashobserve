@@ -45,19 +45,35 @@ func New(opts Options) (*Datasource, error) {
 	if opts.ScrapeInterval < 0 {
 		return nil, errors.New("prometheus: scrape interval must not be negative")
 	}
+	if opts.MaxResponseBytes < 0 {
+		return nil, errors.New("prometheus: max response bytes must not be negative")
+	}
 	if opts.ScrapeInterval == 0 {
 		opts.ScrapeInterval = defaultScrapeInterval
+	}
+	if opts.MaxResponseBytes == 0 {
+		opts.MaxResponseBytes = defaultMaxResponseBytes
 	}
 	opts.Limits = opts.Limits.WithDefaults(datasource.DefaultLimits)
 	if err := opts.Limits.Validate(); err != nil {
 		return nil, fmt.Errorf("prometheus: %w", err)
 	}
-	if opts.MaxResponseBytes < 0 {
-		return nil, errors.New("prometheus: max response bytes must not be negative")
+	if opts.Headers, err = validateAuth(opts); err != nil {
+		return nil, err
 	}
-	if opts.MaxResponseBytes == 0 {
-		opts.MaxResponseBytes = defaultMaxResponseBytes
+	client := opts.HTTPClient
+	if client == nil {
+		client = &http.Client{
+			Transport: http.DefaultTransport.(*http.Transport).Clone(),
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
 	}
+	return &Datasource{opts: opts, prefix: prefix, client: client}, nil
+}
+
+func validateAuth(opts Options) (map[string]string, error) {
 	if opts.BasicAuthUser == "" && !opts.BasicAuthPassword.IsZero() {
 		return nil, errors.New("prometheus: basic auth password requires a user")
 	}
@@ -74,17 +90,7 @@ func New(opts Options) (*Datasource, error) {
 		}
 		headers[name] = value
 	}
-	opts.Headers = headers
-	client := opts.HTTPClient
-	if client == nil {
-		client = &http.Client{
-			Transport: http.DefaultTransport.(*http.Transport).Clone(),
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		}
-	}
-	return &Datasource{opts: opts, prefix: prefix, client: client}, nil
+	return headers, nil
 }
 
 func parseBaseURL(raw string) (string, error) {
