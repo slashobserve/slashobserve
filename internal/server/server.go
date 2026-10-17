@@ -60,5 +60,7 @@ func logRequests(logger *slog.Logger) gin.HandlerFunc {
 func securityHeaders(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+	c.Header("Content-Security-Policy", "frame-ancestors 'none'")
+	c.Header("X-Frame-Options", "DENY")
 	c.Next()
 }
