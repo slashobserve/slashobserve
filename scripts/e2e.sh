@@ -324,6 +324,31 @@ suite() {
   out="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$BASE_URL/api/v1/me")"
   [[ "$out" == 401 ]] || fail "revoked key /api/v1/me ($out)"
   pass "revoked keys stop working"
+
+  check_datasources "$TMP/sa-jar"
+}
+
+check_datasources() {
+  local jar="$1" out body="" healthy=0 leak
+
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/datasources")"
+  [[ "$out" == 401 ]] || fail "unauthenticated datasource list ($out)"
+  pass "datasource list requires authentication"
+
+  for _ in $(seq 1 60); do
+    body="$(curl -sS -b "$jar" "$BASE_URL/api/v1/datasources" || true)"
+    healthy="$(grep -o '"healthy":true' <<<"$body" | wc -l | tr -d ' ')"
+    if [[ "$healthy" == 2 ]] && grep -q '"uid":"prom"' <<<"$body" && grep -q '"uid":"ch"' <<<"$body"; then
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$healthy" != 2 ]] || ! grep -q '"uid":"prom"' <<<"$body" || ! grep -q '"uid":"ch"' <<<"$body"; then
+    fail "datasources did not report healthy within 60s ($body)"
+  fi
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' <<<"$body" || true)"
+  [[ -z "$leak" ]] || fail "datasource list exposes connection details ($leak)"
+  pass "datasources report healthy without exposing connection details"
 }
 
 stack_suite() {
