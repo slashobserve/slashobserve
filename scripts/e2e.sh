@@ -196,6 +196,62 @@ suite() {
   curl -sS -o "$TMP/refused.html" "$BASE_URL/login?error=email_not_allowed"
   [[ "$(grep -c 'example.com' "$TMP/refused.html" || true)" == 0 ]] || fail "refusal page leaks the allowed domains"
   pass "accounts outside the allowed email domains are refused"
+
+  local sa_id token key_id json_headers=(-H "Origin: $BASE_URL" -H 'Content-Type: application/json')
+  dex_login "$TMP/sa-jar" / "$BASE_URL/"
+
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/sa.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"e2e-bot"}' "$BASE_URL/api/v1/service-accounts")"
+  if [[ "$out" != 201 ]] || ! grep -q '"name":"e2e-bot"' "$TMP/sa.json"; then
+    fail "create service account ($out: $(cat "$TMP/sa.json"))"
+  fi
+  sa_id="$(grep -o '"id":"[^"]*"' "$TMP/sa.json" | head -1 | cut -d'"' -f4)"
+  [[ -n "$sa_id" ]] || fail "service account response has no id ($(cat "$TMP/sa.json"))"
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/sa-dup.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"e2e-bot"}' "$BASE_URL/api/v1/service-accounts")"
+  if [[ "$out" != 409 ]] || ! grep -q '"code":"conflict"' "$TMP/sa-dup.json"; then
+    fail "duplicate service account name ($out: $(cat "$TMP/sa-dup.json"))"
+  fi
+  pass "service accounts are created with unique names"
+
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/key.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"ci"}' "$BASE_URL/api/v1/service-accounts/$sa_id/keys")"
+  [[ "$out" == 201 ]] || fail "create key ($out: $(cat "$TMP/key.json"))"
+  token="$(grep -o '"token":"sok_[^"]*"' "$TMP/key.json" | cut -d'"' -f4)"
+  key_id="$(grep -o '"id":"[^"]*"' "$TMP/key.json" | head -1 | cut -d'"' -f4)"
+  if [[ "${#token}" != 47 || "$token" != sok_* || -z "$key_id" ]]; then
+    fail "issued key has the wrong shape (token length ${#token}, key id '$key_id')"
+  fi
+  pass "service-account keys are issued once"
+
+  out="$(curl -sS -o "$TMP/me-bearer" -w '%{http_code}' -H "Authorization: Bearer $token" "$BASE_URL/api/v1/me")"
+  if [[ "$out" != 200 ]] || ! grep -q '"kind":"service_account"' "$TMP/me-bearer" || ! grep -q '"name":"e2e-bot"' "$TMP/me-bearer"; then
+    fail "/api/v1/me with a bearer key ($out: $(cat "$TMP/me-bearer"))"
+  fi
+  pass "a service-account key works as a bearer token"
+
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/keys.json" -w '%{http_code}' "$BASE_URL/api/v1/service-accounts/$sa_id/keys")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"display_prefix\":\"${token:0:12}\"" "$TMP/keys.json"; then
+    fail "key listing ($out: $(cat "$TMP/keys.json"))"
+  fi
+  [[ "$(grep -c "$token" "$TMP/keys.json" || true)" == 0 ]] || fail "key listing contains the full token"
+  [[ "$(grep -c '"token' "$TMP/keys.json" || true)" == 0 ]] || fail "key listing contains a token field"
+  pass "key listings never expose secrets"
+
+  out="$(curl -sS -o "$TMP/escalate.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d '{"name":"escalate"}' "$BASE_URL/api/v1/service-accounts")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/escalate.json"; then
+    fail "service account creating a service account ($out: $(cat "$TMP/escalate.json"))"
+  fi
+  pass "service accounts cannot mint keys"
+
+  out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer sok_invalid' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "invalid bearer with a valid session ($out)"
+  pass "an invalid bearer key is rejected even with a session"
+
+  for _ in 1 2; do
+    out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/service-accounts/$sa_id/keys/$key_id")"
+    [[ "$out" == 204 ]] || fail "revoke key ($out)"
+  done
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "revoked key /api/v1/me ($out)"
+  pass "revoked keys stop working"
 }
 
 ensure_stack() {
