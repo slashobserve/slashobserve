@@ -495,6 +495,7 @@ browser() {
   cd "$ROOT/web"
   bun run e2e:install
   SLASHOBSERVE_E2E_BASE_URL="$BASE_URL" bun run e2e
+  check_api_contract
 }
 
 case "${1:-run}" in
