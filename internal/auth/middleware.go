@@ -16,6 +16,7 @@ const (
 	keyPrefix        = "sok_"
 	keyLength        = 47
 	keyTouchInterval = 5 * time.Minute
+	keyTouchTimeout  = 2 * time.Second
 )
 
 func (s *Service) require(c *gin.Context) {
@@ -83,7 +84,10 @@ func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal
 		return Principal{}, false, err
 	}
 	if !row.LastUsedAt.Valid || time.Since(row.LastUsedAt.Time) > keyTouchInterval {
-		if err := s.queries.TouchServiceAccountKey(ctx, row.KeyID); err != nil {
+		tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keyTouchTimeout)
+		err = s.queries.TouchServiceAccountKey(tctx, row.KeyID)
+		cancel()
+		if err != nil {
 			s.logger.WarnContext(ctx, "update key last used", "error", err)
 		}
 	}

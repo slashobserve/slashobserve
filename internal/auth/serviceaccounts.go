@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -77,8 +79,8 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, "invalid_request", "name must match ^[a-z0-9][a-z0-9-]{0,62}$")
 		return
 	}
-	if utf8.RuneCountInString(req.Description) > maxDescriptionLength {
-		abortError(c, http.StatusBadRequest, "invalid_request", "description must be at most 256 characters")
+	if utf8.RuneCountInString(req.Description) > maxDescriptionLength || hasControlChars(req.Description) {
+		abortError(c, http.StatusBadRequest, "invalid_request", "description must be at most 256 characters without control characters")
 		return
 	}
 	account, err := s.queries.CreateServiceAccount(c.Request.Context(), dbsqlc.CreateServiceAccountParams{
@@ -122,8 +124,8 @@ func (s *Service) createKey(c *gin.Context) {
 	if !decodeBody(c, &req) {
 		return
 	}
-	if n := utf8.RuneCountInString(req.Name); n < 1 || n > maxKeyNameLength {
-		abortError(c, http.StatusBadRequest, "invalid_request", "name must be 1 to 64 characters")
+	if n := utf8.RuneCountInString(req.Name); n < 1 || n > maxKeyNameLength || hasControlChars(req.Name) {
+		abortError(c, http.StatusBadRequest, "invalid_request", "name must be 1 to 64 characters without control characters")
 		return
 	}
 	var expiresAt pgtype.Timestamptz
@@ -232,6 +234,10 @@ func decodeBody(c *gin.Context, dst any) bool {
 		return false
 	}
 	return true
+}
+
+func hasControlChars(s string) bool {
+	return strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) })
 }
 
 func parseUUIDParam(c *gin.Context, name string) (pgtype.UUID, bool) {

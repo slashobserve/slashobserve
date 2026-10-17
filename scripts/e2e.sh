@@ -231,6 +231,7 @@ suite() {
   if [[ "$out" != 200 ]] || ! grep -q "\"display_prefix\":\"${token:0:12}\"" "$TMP/keys.json"; then
     fail "key listing ($out: $(cat "$TMP/keys.json"))"
   fi
+  grep -q '"last_used_at":"' "$TMP/keys.json" || fail "key listing has no last_used_at after a bearer call ($(cat "$TMP/keys.json"))"
   [[ "$(grep -c "$token" "$TMP/keys.json" || true)" == 0 ]] || fail "key listing contains the full token"
   [[ "$(grep -c '"token' "$TMP/keys.json" || true)" == 0 ]] || fail "key listing contains a token field"
   pass "key listings never expose secrets"
@@ -243,7 +244,19 @@ suite() {
 
   out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer sok_invalid' "$BASE_URL/api/v1/me")"
   [[ "$out" == 401 ]] || fail "invalid bearer with a valid session ($out)"
+  out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -H "Authorization: Bearer sok_$(printf 'A%.0s' {1..43})" "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "well-shaped unknown bearer key ($out)"
   pass "an invalid bearer key is rejected even with a session"
+
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/ctl-key.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"ci\u0001"}' "$BASE_URL/api/v1/service-accounts/$sa_id/keys")"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/ctl-key.json"; then
+    fail "key name with a control character ($out: $(cat "$TMP/ctl-key.json"))"
+  fi
+  out="$(curl -sS -b "$TMP/sa-jar" -o "$TMP/ctl-sa.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"ctl-bot","description":"a\u0000b"}' "$BASE_URL/api/v1/service-accounts")"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/ctl-sa.json"; then
+    fail "description with a control character ($out: $(cat "$TMP/ctl-sa.json"))"
+  fi
+  pass "control characters in names and descriptions are rejected"
 
   for _ in 1 2; do
     out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/service-accounts/$sa_id/keys/$key_id")"
