@@ -22,22 +22,25 @@ var ErrClosed = errors.New("event broker is closed")
 type Listener func(ctx context.Context, channel string, onListening func(), handle func(payload string)) error
 
 type Broker struct {
-	listen Listener
-	logger *slog.Logger
+	listen     Listener
+	logger     *slog.Logger
+	minBackoff time.Duration
+	maxBackoff time.Duration
 
-	mu       sync.Mutex
-	closed   bool
-	done     chan struct{}
-	byID     map[string]map[*Subscription]struct{}
-	listened bool
+	mu     sync.Mutex
+	closed bool
+	done   chan struct{}
+	byID   map[string]map[*Subscription]struct{}
 }
 
 func NewBroker(listen Listener, logger *slog.Logger) *Broker {
 	return &Broker{
-		listen: listen,
-		logger: logger,
-		done:   make(chan struct{}),
-		byID:   map[string]map[*Subscription]struct{}{},
+		listen:     listen,
+		logger:     logger,
+		minBackoff: minBackoff,
+		maxBackoff: maxBackoff,
+		done:       make(chan struct{}),
+		byID:       map[string]map[*Subscription]struct{}{},
 	}
 }
 
@@ -52,7 +55,7 @@ func (b *Broker) Run(ctx context.Context) {
 		}
 	}()
 
-	backoff := minBackoff
+	backoff := b.minBackoff
 	for ctx.Err() == nil {
 		established := false
 		onListening := func() {
@@ -65,14 +68,14 @@ func (b *Broker) Run(ctx context.Context) {
 		}
 		b.logger.Warn("event listener failed", slog.Any("error", err), slog.Duration("retry_in", backoff))
 		if established {
-			backoff = minBackoff
+			backoff = b.minBackoff
 		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
 		}
-		backoff = min(backoff*2, maxBackoff)
+		backoff = min(backoff*2, b.maxBackoff)
 	}
 }
 
@@ -116,11 +119,6 @@ func (b *Broker) Close() {
 func (b *Broker) listening() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	reconnected := b.listened
-	b.listened = true
-	if !reconnected {
-		return
-	}
 	for id, subs := range b.byID {
 		for s := range subs {
 			b.deliverLocked(s, Event{Type: TypeResync, DashboardID: id})
