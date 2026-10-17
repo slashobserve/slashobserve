@@ -37,6 +37,7 @@ const (
 	readAllUser = "slashobserve_read_all"
 	writeS3User = "slashobserve_write_s3"
 	tempUser    = "slashobserve_temp"
+	filteredURL = "slashobserve_filtered_url"
 	adminDB     = "otel"
 )
 
@@ -117,6 +118,10 @@ GRANT WRITE ON S3 TO ` + writeS3User + `;
 CREATE USER IF NOT EXISTS ` + tempUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
 GRANT SELECT ON otel.* TO ` + tempUser + `;
 GRANT CREATE TEMPORARY TABLE ON *.* TO ` + tempUser + `;
+CREATE USER IF NOT EXISTS ` + filteredURL + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + filteredURL + `;
+GRANT READ ON URL('http://127.0.0.1:1/.*') TO ` + filteredURL + `;
+GRANT CREATE TEMPORARY TABLE ON *.* TO ` + filteredURL + `;
 CREATE ROLE IF NOT EXISTS slashobserve_s3_role;
 GRANT S3 ON *.* TO slashobserve_s3_role;
 CREATE USER IF NOT EXISTS ` + roleUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
@@ -432,9 +437,19 @@ func TestGuardAndGrants(t *testing.T) {
 
 func TestSourceGrantsRefused(t *testing.T) {
 	ctx := context.Background()
+	conn, err := rawConn(filteredURL, roPass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	var readsURL uint8
+	if err := conn.QueryRow(ctx, "CHECK GRANT READ ON URL").Scan(&readsURL); err != nil || readsURL != 0 {
+		t.Fatalf("CHECK GRANT READ ON URL for a filtered grant = %d, %v; want 0, which only the CREATE TEMPORARY TABLE probe can catch", readsURL, err)
+	}
 	for _, tc := range []struct{ user, grant string }{
 		{urlUser, "URL"}, {roleUser, "S3"}, {readURLUser, "READ ON URL"}, {readAllUser, "READ ON"},
 		{writeS3User, "WRITE ON S3"}, {tempUser, "CREATE TEMPORARY TABLE"},
+		{filteredURL, "CREATE TEMPORARY TABLE"},
 	} {
 		ds := newDS(t, tc.user, roPass, datasource.Limits{})
 		err := ds.CheckHealth(ctx)
