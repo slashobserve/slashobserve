@@ -1,0 +1,18 @@
+{
+  "summary": "Summary with a NUL \u0000 character",
+  "spec": {
+    "specVersion": "0",
+    "title": "Title with a NUL \u0000 character",
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "panels": [
+      {
+        "id": "rps",
+        "type": "timeseries",
+        "title": "Panel with a NUL \u0000 character",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "sum(rate(http_requests_total[$__rate_interval]))"
+      }
+    ]
+  }
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
@@ -241,8 +242,8 @@ func hasControlChars(s string) bool {
 }
 
 func parseUUIDParam(c *gin.Context, name string) (pgtype.UUID, bool) {
-	var id pgtype.UUID
-	if err := id.Scan(c.Param(name)); err != nil {
+	id, err := db.ParseUUID(c.Param(name))
+	if err != nil {
 		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
 		return pgtype.UUID{}, false
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 
 const (
 	maxSummaryLength     = 500
+	maxNulIssues         = 50
 	maxInt32             = math.MaxInt32
 	defaultCreateSummary = "Create dashboard"
 )
@@ -61,11 +63,7 @@ func New(database *db.DB, runner *queryproxy.Runner, logger *slog.Logger) *Servi
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, rawSpec []byte, summary string) (Dashboard, Version, error) {
-	summary, err := summaryOrDefault(summary, defaultCreateSummary)
-	if err != nil {
-		return Dashboard{}, Version{}, err
-	}
-	parsed, canonical, err := parseSpec(rawSpec)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -76,11 +74,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, rawSpec []byte,
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
-	summary, err := summaryOrDefault(summary, "")
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	parsed, canonical, err := parseSpec(rawSpec)
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, "")
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -102,9 +96,9 @@ func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.U
 }
 
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
-	summary, err := summaryOrDefault(summary, "Restore version "+strconv.Itoa(from))
-	if err != nil {
-		return Dashboard{}, Version{}, err
+	summary, issues := checkSummary(summary, "Restore version "+strconv.Itoa(from))
+	if len(issues) > 0 {
+		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
 	}
 	stored, err := s.store.specBytes(ctx, id, from)
 	if err != nil {
@@ -222,7 +216,11 @@ func (s *Service) Diff(ctx context.Context, id pgtype.UUID, from, to *int) ([]sp
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	return spec.Diff(before, after), fromN, toN, nil
+	changes := spec.Diff(before, after)
+	if before == nil && len(changes) == 1 && changes[0].Op == spec.OpReplace && changes[0].Path == "" {
+		changes[0] = spec.Change{Op: spec.OpAdd, Path: "", To: changes[0].To}
+	}
+	return changes, fromN, toN, nil
 }
 
 func (s *Service) checkQueries(ctx context.Context, d *spec.Dashboard) error {
@@ -261,6 +259,22 @@ func (s *Service) conflict(ctx context.Context, id pgtype.UUID) error {
 	return &ConflictError{Latest: latest}
 }
 
+func validateSave(rawSpec []byte, summary, fallback string) (string, *spec.Dashboard, []byte, error) {
+	summary, issues := checkSummary(summary, fallback)
+	parsed, canonical, err := parseSpec(rawSpec)
+	if err != nil {
+		var invalid *InvalidSpecError
+		if !errors.As(err, &invalid) {
+			return "", nil, nil, err
+		}
+		issues = append(issues, invalid.Issues...)
+	}
+	if len(issues) > 0 {
+		return "", nil, nil, &InvalidSpecError{Issues: issues}
+	}
+	return summary, parsed, canonical, nil
+}
+
 func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	parsed, err := spec.Parse(raw)
 	if err != nil {
@@ -270,7 +284,62 @@ func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
 	}
+	if issues := nulIssues(canonical); len(issues) > 0 {
+		return nil, nil, &InvalidSpecError{Issues: issues}
+	}
 	return parsed, canonical, nil
+}
+
+func nulIssues(canonical []byte) []spec.Issue {
+	dec := json.NewDecoder(bytes.NewReader(canonical))
+	dec.UseNumber()
+	var tree any
+	if err := dec.Decode(&tree); err != nil {
+		return nil
+	}
+	var issues []spec.Issue
+	walkStrings(tree, "", func(pointer, kind string) bool {
+		issues = append(issues, spec.Issue{Path: pointer, Code: spec.CodeSchema, Message: kind + " must not contain the NUL character"})
+		return len(issues) < maxNulIssues
+	})
+	return issues
+}
+
+func walkStrings(node any, pointer string, report func(pointer, kind string) bool) bool {
+	switch v := node.(type) {
+	case string:
+		if strings.ContainsRune(v, 0) {
+			return report(pointer, "value")
+		}
+	case []any:
+		for i, child := range v {
+			if !walkStrings(child, pointer+"/"+strconv.Itoa(i), report) {
+				return false
+			}
+		}
+	case map[string]any:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		for _, k := range keys {
+			childPointer := pointer + "/" + escapePointer(k)
+			if strings.ContainsRune(k, 0) && !report(childPointer, "property name") {
+				return false
+			}
+			if !walkStrings(v[k], childPointer, report) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+var pointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
+
+func escapePointer(s string) string {
+	return pointerEscaper.Replace(s)
 }
 
 func asInvalidSpec(err error) error {
@@ -281,18 +350,24 @@ func asInvalidSpec(err error) error {
 	return err
 }
 
-func summaryOrDefault(summary, fallback string) (string, error) {
+func checkSummary(summary, fallback string) (string, []spec.Issue) {
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
 		summary = fallback
 	}
 	switch n := utf8.RuneCountInString(summary); {
 	case n == 0:
-		return "", &InvalidSpecError{Issues: []spec.Issue{{Path: "/summary", Code: spec.CodeSchema, Message: "summary must not be empty"}}}
+		return "", summaryIssue("summary must not be empty")
 	case n > maxSummaryLength:
-		return "", &InvalidSpecError{Issues: []spec.Issue{{Path: "/summary", Code: spec.CodeSchema, Message: fmt.Sprintf("summary must be at most %d characters", maxSummaryLength)}}}
+		return "", summaryIssue(fmt.Sprintf("summary must be at most %d characters", maxSummaryLength))
+	case strings.ContainsRune(summary, 0):
+		return "", summaryIssue("summary must not contain the NUL character")
 	}
 	return summary, nil
+}
+
+func summaryIssue(message string) []spec.Issue {
+	return []spec.Issue{{Path: "/summary", Code: spec.CodeSchema, Message: message}}
 }
 
 func authorOf(p auth.Principal) Author {
@@ -336,7 +411,7 @@ func decodeDashboardCursor(cursor string) (*dashboardCursor, error) {
 	if err != nil {
 		return nil, ErrInvalidCursor
 	}
-	id, err := parseUUID(idText)
+	id, err := db.ParseUUID(idText)
 	if err != nil {
 		return nil, ErrInvalidCursor
 	}

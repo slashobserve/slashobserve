@@ -17,9 +17,8 @@ dashboards:
                 description: The ObserveSpec document.
               summary:
                 type: string
-                minLength: 1
                 maxLength: 500
-                description: Defaults to `Create dashboard`.
+                description: A blank or missing summary uses the default `Create dashboard`.
     responses:
       "201":
         description: The dashboard and its first version.
@@ -292,9 +291,8 @@ dashboards-id-versions-version-restore:
                 maximum: 2147483647
               summary:
                 type: string
-                minLength: 1
                 maxLength: 500
-                description: Defaults to `Restore version {version}`.
+                description: A blank or missing summary uses the default `Restore version {version}`.
     responses:
       "201":
         description: The new version, with `restored_from` naming the restored one.
@@ -337,7 +335,10 @@ dashboards-id-diff:
     parameters:
       - name: from
         in: query
-        description: Defaults to `to` minus one; `0` diffs against an empty document.
+        description: >-
+          Defaults to `to` minus one.
+          `0` diffs against an empty document, which yields a single `add` change at the root path `""`
+          whose `to` is the whole Spec.
         schema:
           type: integer
           minimum: 0

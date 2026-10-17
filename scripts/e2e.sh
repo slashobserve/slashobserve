@@ -350,6 +350,10 @@ suite() {
   [[ "$out" == 401 ]] || fail "revoked key /api/v1/me ($out)"
   pass "revoked keys stop working"
 
+  out="$(curl -sS -b "$TMP/sa-jar" -o /dev/null -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/service-accounts/$sa_id/keys/$LOOKALIKE_UUID")"
+  [[ "$out" == 400 ]] || fail "revoke a key with misplaced dashes in its id ($out)"
+  pass "ids with misplaced dashes are not read as UUIDs"
+
   check_datasources "$TMP/sa-jar"
   dashboards_suite
   check_api_contract
@@ -400,6 +404,7 @@ check_datasources() {
 
 API_TOKEN=""
 FIXTURES="$ROOT/e2e/fixtures/api"
+LOOKALIKE_UUID=0000000000000x0000x0000x000000000000
 
 api_token() {
   [[ -z "$API_TOKEN" ]] || return 0
@@ -438,7 +443,7 @@ expect_rejected() {
 
 dashboards_suite() {
   api_token
-  local out id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor
+  local out id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   if [[ "$out" != 201 ]] || ! grep -q '"version":1' "$TMP/api.body" || ! grep -q '"parent_version":null' "$TMP/api.body"; then
@@ -450,6 +455,21 @@ dashboards_suite() {
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
   [[ -z "$leak" ]] || fail "create response exposes connection details ($leak)"
   pass "a valid dashboard is saved as version 1 without exposing connection details"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-blank-summary.json")"
+  if [[ "$out" != 201 ]] || ! grep -q '"summary":"Create dashboard"' "$TMP/api.body"; then
+    fail "create with a blank summary ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a blank summary falls back to the default"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-nul.json")"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/api.body"; then
+    fail "a NUL character should be rejected as an invalid Spec ($out: $(cat "$TMP/api.body"))"
+  fi
+  for path in /summary /title /panels/0/title; do
+    grep -q "\"path\":\"$path\",\"code\":\"schema\"" "$TMP/api.body" || fail "NUL rejection should point at $path in one response ($(cat "$TMP/api.body"))"
+  done
+  pass "NUL characters in the summary and the Spec are rejected together with their paths"
 
   expect_rejected dashboard-invalid-schema.json schema
   pass "a Spec that breaks the schema is rejected with its issues"
@@ -510,7 +530,7 @@ dashboards_suite() {
     fail "diff versions 1 and 2 ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/diff?from=0&to=1")"
-  if [[ "$out" != 200 ]] || ! grep -q '"from":0,"to":1,"changes":\[{"op":"[a-z]*","path":""' "$TMP/api.body"; then
+  if [[ "$out" != 200 ]] || ! grep -q '"from":0,"to":1,"changes":\[{"op":"add","path":"","to":{"' "$TMP/api.body" || grep -q '"from":null' "$TMP/api.body"; then
     fail "diff version 1 against an empty document ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/diff?from=2&to=1")"
@@ -523,6 +543,10 @@ dashboards_suite() {
   fi
   out="$(api POST "/dashboards/$id/versions/1/restore" -d '{"parent_version":2}')"
   [[ "$out" == 409 ]] || fail "restore on a stale parent ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$id/versions/1/restore" -d '{"parent_version":3,"summary":""}')"
+  if [[ "$out" != 201 ]] || ! grep -q '"version":4' "$TMP/api.body" || ! grep -q '"summary":"Restore version 1"' "$TMP/api.body"; then
+    fail "restore with a blank summary ($out: $(cat "$TMP/api.body"))"
+  fi
   pass "an earlier version is restored as a new version"
 
   out="$(api GET "/dashboards/$nil_id")"
@@ -531,7 +555,19 @@ dashboards_suite() {
   [[ "$out" == 400 ]] || fail "dashboard id that is not a UUID ($out)"
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/dashboards")"
   [[ "$out" == 401 ]] || fail "dashboard list without credentials ($out)"
+  out="$(api GET "/dashboards/$LOOKALIKE_UUID")"
+  [[ "$out" == 400 ]] || fail "dashboard id with misplaced dashes ($out: $(cat "$TMP/api.body"))"
+  cursor="$(printf '0:%s' "$LOOKALIKE_UUID" | base64 | tr '+/' '-_' | tr -d '=\n')"
+  out="$(api GET "/dashboards?cursor=$cursor")"
+  [[ "$out" == 400 ]] || fail "list cursor with misplaced dashes in its id ($out: $(cat "$TMP/api.body"))"
   pass "unknown, malformed and unauthenticated dashboard requests are refused"
+
+  head -c "$((3 * 512 * 1024))" /dev/zero | tr '\0' a | { printf '{"summary":"big","spec":{"pad":"'; cat; printf '"}}'; } >"$TMP/oversized.json"
+  out="$(api POST /dashboards --data-binary "@$TMP/oversized.json")"
+  if [[ "$out" != 413 ]] || ! grep -q '"code":"too_large"' "$TMP/api.body"; then
+    fail "oversized dashboard body ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "an oversized dashboard body is refused with 413"
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-all-variables.json")"
   [[ "$out" == 201 ]] || fail "dashboard with includeAll variables ($out: $(cat "$TMP/api.body"))"
@@ -539,13 +575,23 @@ dashboards_suite() {
 
   out="$(api GET "/dashboards?limit=1")"
   cursor="$(grep -o '"next_cursor":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4 || true)"
-  if [[ "$out" != 200 || -z "$cursor" ]] || ! grep -q '"title":"All variables"' "$TMP/api.body"; then
+  first_id="$(grep -o '"dashboards":\[{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6 || true)"
+  if [[ "$out" != 200 || -z "$cursor" || -z "$first_id" ]] || ! grep -q '"title":"All variables"' "$TMP/api.body"; then
     fail "the first page lists the most recently updated dashboard and a cursor ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(api GET "/dashboards?limit=1&cursor=$cursor")"
-  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$id\"" "$TMP/api.body"; then
-    fail "the second page lists the older dashboard ($out: $(cat "$TMP/api.body"))"
-  fi
+  found=0
+  for _ in $(seq 1 50); do
+    out="$(api GET "/dashboards?limit=1&cursor=$cursor")"
+    [[ "$out" == 200 ]] || fail "following the page cursor ($out: $(cat "$TMP/api.body"))"
+    ! grep -q "\"id\":\"$first_id\"" "$TMP/api.body" || fail "a later page repeats the first page's dashboard"
+    if grep -q "\"dashboards\":\[{\"id\":\"$id\"" "$TMP/api.body"; then
+      found=1
+      break
+    fi
+    cursor="$(grep -o '"next_cursor":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4 || true)"
+    [[ -n "$cursor" ]] || break
+  done
+  [[ "$found" == 1 ]] || fail "paging with the cursor never reached the older dashboard $id"
   pass "dashboards are paged newest first with an opaque cursor"
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-broken-variables.json")"

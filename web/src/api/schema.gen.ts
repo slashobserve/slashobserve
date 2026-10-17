@@ -422,7 +422,7 @@ export interface components {
         SpecChange: {
             /** @enum {string} */
             op: "add" | "remove" | "replace" | "reorder";
-            /** @description JSON Pointer into the Spec document. */
+            /** @description JSON Pointer into the Spec document; the empty string is the whole document. */
             path: string;
             /** @description The previous JSON value at the path. */
             from?: unknown;
@@ -836,7 +836,7 @@ export interface operations {
                     spec: {
                         [key: string]: unknown;
                     };
-                    /** @description Defaults to `Create dashboard`. */
+                    /** @description A blank or missing summary uses the default `Create dashboard`. */
                     summary?: string;
                 };
             };
@@ -1011,7 +1011,7 @@ export interface operations {
             content: {
                 "application/json": {
                     parent_version: number;
-                    /** @description Defaults to `Restore version {version}`. */
+                    /** @description A blank or missing summary uses the default `Restore version {version}`. */
                     summary?: string;
                 };
             };
@@ -1040,7 +1040,7 @@ export interface operations {
     diffDashboardVersions: {
         parameters: {
             query?: {
-                /** @description Defaults to `to` minus one; `0` diffs against an empty document. */
+                /** @description Defaults to `to` minus one. `0` diffs against an empty document, which yields a single `add` change at the root path `""` whose `to` is the whole Spec. */
                 from?: number;
                 /** @description Defaults to the latest version. */
                 to?: number;

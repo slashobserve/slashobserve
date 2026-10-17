@@ -17,6 +17,8 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
+const maxEventAuthorNameRunes = 256
+
 var errStaleParent = errors.New("parent version is no longer the latest")
 
 type Author struct {
@@ -110,7 +112,7 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 }
 
 func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number int) (VersionMeta, error) {
-	authorID, err := parseUUID(in.author.ID)
+	authorID, err := db.ParseUUID(in.author.ID)
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("author id: %w", err)
 	}
@@ -135,16 +137,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		return VersionMeta{}, fmt.Errorf("insert dashboard version: %w", err)
 	}
 	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt)
-	payload, err := json.Marshal(events.Event{
-		Type:          events.TypeVersionCreated,
-		DashboardID:   in.dashboardID.String(),
-		Version:       meta.Number,
-		ParentVersion: meta.ParentVersion,
-		RestoredFrom:  meta.RestoredFrom,
-		Summary:       meta.Summary,
-		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: meta.Author.Name},
-		CreatedAt:     formatTime(meta.CreatedAt),
-	})
+	payload, err := versionEventPayload(in.dashboardID, meta)
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("marshal event: %w", err)
 	}
@@ -152,6 +145,25 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		return VersionMeta{}, fmt.Errorf("notify event: %w", err)
 	}
 	return meta, nil
+}
+
+// pg_notify refuses payloads of 8000 bytes or more. With the summary capped at 500 characters and the
+// name at 256, even all-escaped characters (6 bytes each) leave this payload under 5000 bytes.
+func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, error) {
+	name := meta.Author.Name
+	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
+		name = string(r[:maxEventAuthorNameRunes])
+	}
+	return json.Marshal(events.Event{
+		Type:          events.TypeVersionCreated,
+		DashboardID:   dashboardID.String(),
+		Version:       meta.Number,
+		ParentVersion: meta.ParentVersion,
+		RestoredFrom:  meta.RestoredFrom,
+		Summary:       meta.Summary,
+		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: name},
+		CreatedAt:     formatTime(meta.CreatedAt),
+	})
 }
 
 func (st store) latestVersion(ctx context.Context, id pgtype.UUID) (int, error) {
@@ -304,10 +316,4 @@ func toInt32(n int) int32 {
 		panic("dashboards: integer outside the int32 range")
 	}
 	return int32(n)
-}
-
-func parseUUID(s string) (pgtype.UUID, error) {
-	var id pgtype.UUID
-	err := id.Scan(s)
-	return id, err
 }

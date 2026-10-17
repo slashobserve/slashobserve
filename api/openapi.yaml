@@ -363,7 +363,7 @@ components:
           enum: [add, remove, replace, reorder]
         path:
           type: string
-          description: JSON Pointer into the Spec document.
+          description: JSON Pointer into the Spec document; the empty string is the whole document.
         from:
           nullable: true
           description: The previous JSON value at the path.

@@ -13,14 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	maxBodyBytes  = spec.MaxBytes + 64<<10
-	defaultLimit  = 50
-	maxLimit      = 200
-	uuidTextBytes = 36
+	maxBodyBytes = spec.MaxBytes + 64<<10
+	defaultLimit = 50
+	maxLimit     = 200
+
+	statusClientClosedRequest = 499
 )
 
 type createRequest struct {
@@ -219,7 +221,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	switch {
 	case errors.Is(err, context.Canceled):
 		s.logger.DebugContext(ctx, action+": client went away")
-		c.Abort()
+		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound):
 		abortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.As(err, &conflict):
@@ -275,9 +277,8 @@ func caller(c *gin.Context) auth.Principal {
 }
 
 func uuidParam(c *gin.Context, name string) (pgtype.UUID, bool) {
-	raw := c.Param(name)
-	id, err := parseUUID(raw)
-	if err != nil || len(raw) != uuidTextBytes {
+	id, err := db.ParseUUID(c.Param(name))
+	if err != nil {
 		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
 		return pgtype.UUID{}, false
 	}
