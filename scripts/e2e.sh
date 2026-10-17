@@ -359,6 +359,7 @@ suite() {
   check_datasources "$TMP/sa-jar"
   dashboards_suite
   events_suite
+  comments_suite
   check_api_contract
 }
 
@@ -669,6 +670,166 @@ events_suite() {
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/dashboards/$id/events")"
   [[ "$out" == 401 ]] || fail "SSE without a token ($out)"
   pass "SSE refuses unknown dashboards, malformed ids and unauthenticated callers"
+}
+
+comment_body() {
+  printf '{"version":%s,"panel_id":"%s","body":"%s"}' "$1" "$2" "$3"
+}
+
+comment_ids() {
+  grep -o '{"id":"[^"]*","dashboard_id"' "$1" | cut -d'"' -f4
+}
+
+comments_suite() {
+  api_token
+  local out id panel second_panel cid cid2 cid3 cursor stream="$TMP/sse-comments.txt" updated page_ids
+  local nil_id=00000000-0000-0000-0000-000000000000 other_id
+
+  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
+  second_panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 2p)"
+  [[ -n "$panel" && -n "$second_panel" ]] || fail "dashboard-valid.json has no two panel ids ($panel, $second_panel)"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the comments dashboard ($out: $(cat "$TMP/api.body"))"
+  id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+
+  sse_open "$id" "$stream"
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$panel" 'The rate looks high after the deploy.')")"
+  if [[ "$out" != 201 ]] || ! grep -q '"status":"open"' "$TMP/api.body" || ! grep -q '"revision":null' "$TMP/api.body" \
+    || ! grep -q '"panel_present":true' "$TMP/api.body" || ! grep -q '"resolved_at":null' "$TMP/api.body" \
+    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
+    fail "comment on panel $panel ($out: $(cat "$TMP/api.body"))"
+  fi
+  cid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$cid" ]] || fail "created comment has no id ($(cat "$TMP/api.body"))"
+  grep -qi "^location: /api/v1/dashboards/$id/comments/$cid" "$TMP/api.headers" || fail "comment response has no Location header ($(cat "$TMP/api.headers"))"
+  sse_wait "$stream" '^event: comment.created$' 10
+  sse_wait "$stream" "^data: {\"type\":\"comment.created\",\"dashboard_id\":\"$id\",.*\"comment_id\":\"$cid\",\"panel_id\":\"$panel\",\"status\":\"open\"}$" 10
+  pass "a comment on a panel is saved open with no revision and announced on the event stream"
+
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 no_such_panel 'x')")"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"unknown_panel"' "$TMP/api.body"; then
+    fail "comment on an unknown panel ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 99 "$panel" 'x')")"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
+    fail "comment on an unknown version ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$nil_id/comments" -d "$(comment_body 1 "$panel" 'x')")"
+  [[ "$out" == 404 ]] || fail "comment on an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST /dashboards/not-a-uuid/comments -d "$(comment_body 1 "$panel" 'x')")"
+  [[ "$out" == 400 ]] || fail "comment on a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
+  for bad in "$(comment_body 1 "$panel" '')" "$(comment_body 1 "$panel" '   ')" "$(comment_body 1 "$panel" 'a\u0000b')" \
+    "$(comment_body 1 "$panel" "$(printf 'a%.0s' $(seq 1 4001))")" "$(comment_body 1 'p\u0000' 'x')" "$(comment_body 1 '' 'x')" \
+    "$(comment_body 1 "$(printf 'p%.0s' $(seq 1 65))" 'x')" "$(comment_body 0 "$panel" 'x')" '{"version":1,"panel_id":"p"}' \
+    "$(comment_body 1 "$panel" 'x' | sed 's/}$/,"extra":1}/')" '{"version":"1","panel_id":"p","body":"x"}'; do
+    out="$(api POST "/dashboards/$id/comments" -d "$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "invalid comment ${bad:0:80} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  pass "comments on unknown panels, versions and dashboards, and invalid comment bodies, are rejected"
+
+  out="$(api PATCH "/dashboards/$id/comments/$cid" -d '{"status":"resolved"}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"status":"resolved"' "$TMP/api.body" || ! grep -q '"resolved_at":"20' "$TMP/api.body" \
+    || ! grep -q '"resolved_by":{"kind":"service_account"' "$TMP/api.body"; then
+    fail "resolve the comment ($out: $(cat "$TMP/api.body"))"
+  fi
+  sse_wait "$stream" '^event: comment.updated$' 10
+  sse_wait "$stream" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$id\",.*\"comment_id\":\"$cid\",\"panel_id\":\"$panel\",\"status\":\"resolved\"}$" 10
+  out="$(api PATCH "/dashboards/$id/comments/$cid" -d '{"status":"resolved"}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"status":"resolved"' "$TMP/api.body"; then
+    fail "resolve the comment again ($out: $(cat "$TMP/api.body"))"
+  fi
+  sleep 2
+  updated="$(grep -c '^event: comment.updated$' "$stream" || true)"
+  [[ "$updated" == 1 ]] || fail "resolving twice sent $updated comment.updated events"
+  pass "resolving a comment is idempotent and sends one comment.updated event"
+
+  out="$(api PATCH "/dashboards/$id/comments/$cid" -d '{"status":"open"}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"status":"open"' "$TMP/api.body" || ! grep -q '"resolved_at":null' "$TMP/api.body" \
+    || ! grep -q '"resolved_by":null' "$TMP/api.body"; then
+    fail "reopen the comment ($out: $(cat "$TMP/api.body"))"
+  fi
+  sse_wait "$stream" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$id\",.*\"comment_id\":\"$cid\",\"panel_id\":\"$panel\",\"status\":\"open\"}$" 10
+  pass "reopening a comment clears its resolution"
+
+  out="$(api PATCH "/dashboards/$id/comments/$cid" -d '{"status":"archived"}')"
+  [[ "$out" == 400 ]] || fail "an unknown comment status ($out: $(cat "$TMP/api.body"))"
+  out="$(api PATCH "/dashboards/$id/comments/$cid" -d '{}')"
+  [[ "$out" == 400 ]] || fail "a status change with no status ($out: $(cat "$TMP/api.body"))"
+  out="$(api PATCH "/dashboards/$id/comments/$nil_id" -d '{"status":"resolved"}')"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
+    fail "resolve an unknown comment ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api PATCH "/dashboards/$nil_id/comments/$cid" -d '{"status":"resolved"}')"
+  [[ "$out" == 404 ]] || fail "resolve a comment under an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the second comments dashboard ($out: $(cat "$TMP/api.body"))"
+  other_id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  out="$(api PATCH "/dashboards/$other_id/comments/$cid" -d '{"status":"resolved"}')"
+  [[ "$out" == 404 ]] || fail "resolve a comment through another dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id/comments")"
+  [[ "$out" == 200 ]] && grep -q '"status":"open"' "$TMP/api.body" || fail "the comment changed through another dashboard ($out: $(cat "$TMP/api.body"))"
+  pass "status changes refuse unknown statuses, unknown comments and comments of another dashboard"
+  sse_close
+
+  out="$(api GET "/dashboards/$id/comments?status=open")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$cid\"" "$TMP/api.body"; then
+    fail "list open comments ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/comments?status=resolved")"
+  if [[ "$out" != 200 ]] || grep -q "\"id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"comments":\[\]' "$TMP/api.body"; then
+    fail "list resolved comments ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "comments are filtered by status"
+
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$second_panel" 'The table is empty.')")"
+  [[ "$out" == 201 ]] || fail "second comment ($out: $(cat "$TMP/api.body"))"
+  cid2="$(comment_ids "$TMP/api.body")"
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$panel" 'Any update?')")"
+  [[ "$out" == 201 ]] || fail "third comment ($out: $(cat "$TMP/api.body"))"
+  cid3="$(comment_ids "$TMP/api.body")"
+  out="$(api GET "/dashboards/$id/comments?limit=2")"
+  cursor="$(grep -o '"next_cursor":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4)"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  if [[ "$out" != 200 || -z "$cursor" || "$page_ids" != "$cid $cid2 " ]]; then
+    fail "first page of comments ($out, cursor '$cursor', ids '$page_ids': $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/comments?limit=2&cursor=$cursor")"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  if [[ "$out" != 200 || "$page_ids" != "$cid3 " ]] || ! grep -q '"next_cursor":null' "$TMP/api.body"; then
+    fail "second page of comments (ids '$page_ids': $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/comments?panel_id=$second_panel")"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  [[ "$out" == 200 && "$page_ids" == "$cid2 " ]] || fail "comments filtered by panel (ids '$page_ids': $(cat "$TMP/api.body"))"
+  for bad in 'status=archived' 'limit=0' 'limit=501' 'limit=x' 'cursor=!!!' cursor=MTox 'panel_id=%00' 'panel_id='"$(printf 'p%.0s' $(seq 1 65))"; do
+    out="$(api GET "/dashboards/$id/comments?$bad")"
+    [[ "$out" == 400 ]] || fail "list comments with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
+  done
+  out="$(api GET "/dashboards/$nil_id/comments")"
+  [[ "$out" == 404 ]] || fail "list comments of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  pass "comments list oldest first with cursors, panel filters and validated parameters"
+
+  printf '{"parent_version":1,"summary":"Drop the first panel","spec":{"specVersion":"0","title":"E2E dashboard","timeRange":{"from":"now-15m","to":"now"},"panels":[{"id":"%s","type":"table","title":"Log rows by service","gridPos":{"x":0,"y":0,"w":24,"h":8},"datasource":{"type":"clickhouse","uid":"ch"},"query":"SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"}]}}' "$second_panel" >"$TMP/comments-v2.json"
+  out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/comments-v2.json")"
+  [[ "$out" == 201 ]] || fail "add a version without the first panel ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id/comments?panel_id=$panel")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$cid\"" "$TMP/api.body" || grep -q '"panel_present":true' "$TMP/api.body" || ! grep -q '"panel_present":false' "$TMP/api.body"; then
+    fail "comments on a removed panel ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/comments?panel_id=$second_panel")"
+  if [[ "$out" != 200 ]] || ! grep -q '"panel_present":true' "$TMP/api.body" || grep -q '"panel_present":false' "$TMP/api.body"; then
+    fail "comments on a kept panel ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$panel" 'Still anchored to version 1.')")"
+  if [[ "$out" != 201 ]] || ! grep -q '"panel_present":false' "$TMP/api.body"; then
+    fail "comment on a panel of an older version ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'x')")"
+  [[ "$out" == 422 ]] || fail "comment on a panel the newest version dropped ($out: $(cat "$TMP/api.body"))"
+  pass "comments stay on the version they were made on and report whether their panel is still present"
 }
 
 stack_suite() {
