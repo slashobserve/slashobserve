@@ -1,0 +1,149 @@
+package prometheus
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
+)
+
+const maxUpstreamTextBytes = 512
+
+type timeoutKey struct{}
+
+type envelope struct {
+	Status    string          `json:"status"`
+	Data      json.RawMessage `json:"data"`
+	ErrorType string          `json:"errorType"`
+	Error     string          `json:"error"`
+}
+
+func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	ctx = context.WithValue(ctx, timeoutKey{}, timeout)
+	return context.WithTimeout(ctx, timeout)
+}
+
+func timeoutError(ctx context.Context) error {
+	if t, ok := ctx.Value(timeoutKey{}).(time.Duration); ok {
+		return datasource.Errorf(datasource.ErrTimeout, "query timed out after %s", t)
+	}
+	return datasource.Errorf(datasource.ErrTimeout, "query timed out")
+}
+
+func contextError(ctx context.Context, err error) error {
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded):
+		return timeoutError(ctx)
+	case errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled):
+		return context.Canceled
+	}
+	return nil
+}
+
+func transportError(ctx context.Context, err error) error {
+	if cerr := contextError(ctx, err); cerr != nil {
+		return cerr
+	}
+	return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+}
+
+func (d *Datasource) do(ctx context.Context, method, path string, form url.Values) (json.RawMessage, error) {
+	target := d.prefix + path
+	var body io.Reader
+	if method == http.MethodPost {
+		body = strings.NewReader(form.Encode())
+	} else if len(form) > 0 {
+		target += "?" + form.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, body)
+	if err != nil {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	}
+	if method == http.MethodPost {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	req.Header.Set("Accept", "application/json")
+	for name, value := range d.opts.Headers {
+		req.Header.Set(name, value)
+	}
+	switch {
+	case d.opts.BasicAuthUser != "":
+		req.SetBasicAuth(d.opts.BasicAuthUser, d.opts.BasicAuthPassword.Reveal())
+	case !d.opts.BearerToken.IsZero():
+		req.Header.Set("Authorization", "Bearer "+d.opts.BearerToken.Reveal())
+	}
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return nil, transportError(ctx, err)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
+	if err != nil {
+		return nil, transportError(ctx, err)
+	}
+	if int64(len(raw)) > d.opts.MaxResponseBytes {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
+	}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "authentication failed (HTTP %d)", resp.StatusCode)
+	case http.StatusTooManyRequests:
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
+	}
+	var env envelope
+	if err := json.Unmarshal(raw, &env); err != nil || (env.Status != "success" && env.Status != "error") {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", resp.StatusCode)
+	}
+	if env.Status == "error" {
+		return nil, upstreamError(env)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP %d", resp.StatusCode)
+	}
+	return env.Data, nil
+}
+
+func upstreamError(env envelope) error {
+	text := truncateText(env.Error)
+	if text == "" {
+		text = "upstream error"
+	}
+	lower := strings.ToLower(env.Error)
+	switch {
+	case env.ErrorType == "bad_data":
+		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", text)
+	case env.ErrorType == "timeout":
+		return datasource.Errorf(datasource.ErrTimeout, "%s", text)
+	case env.ErrorType == "execution" && (strings.Contains(lower, "too many") || strings.Contains(lower, "limit")):
+		return datasource.Errorf(datasource.ErrLimitExceeded, "%s", text)
+	}
+	return datasource.Errorf(datasource.ErrUnavailable, "%s", text)
+}
+
+func truncateText(s string) string {
+	if len(s) > maxUpstreamTextBytes {
+		s = s[:maxUpstreamTextBytes]
+	}
+	return strings.ToValidUTF8(s, "")
+}
+
+func promDuration(d time.Duration) string {
+	return strconv.FormatInt(max(d.Milliseconds(), 1), 10) + "ms"
+}
+
+func unixSeconds(t time.Time) string {
+	ms := t.UnixMilli()
+	return strconv.FormatInt(ms/1000, 10) + "." + leftPad3(ms%1000)
+}
+
+func leftPad3(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	return strings.Repeat("0", 3-len(s)) + s
+}
