@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"slices"
@@ -27,6 +28,8 @@ const (
 	apiPrefix            = "/api/v1"
 	eventStreamMediaType = "text/event-stream"
 	contractViolation    = "api contract violation"
+
+	maxContractBodyBytes = 1 << 20
 )
 
 var defineFormats = sync.OnceFunc(func() {
@@ -74,9 +77,13 @@ func (ct *contract) middleware(c *gin.Context) {
 		Route:      route,
 		Options:    ct.options,
 	}
-	body, err := io.ReadAll(c.Request.Body)
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxContractBodyBytes+1))
 	if err != nil {
 		ct.violation(c, route, "request body is unreadable")
+		return
+	}
+	if len(body) > maxContractBodyBytes {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "request body is too large", "code": "invalid_request"})
 		return
 	}
 	restoreBody(c.Request, body)
@@ -93,7 +100,7 @@ func (ct *contract) middleware(c *gin.Context) {
 	}
 
 	original := c.Writer
-	buffered := &bufferedWriter{ResponseWriter: original, status: http.StatusOK}
+	buffered := &bufferedWriter{ResponseWriter: original, header: original.Header().Clone(), status: http.StatusOK}
 	c.Writer = buffered
 	defer func() { c.Writer = original }()
 	c.Next()
@@ -106,7 +113,7 @@ func (ct *contract) middleware(c *gin.Context) {
 	responseInput := &openapi3filter.ResponseValidationInput{
 		RequestValidationInput: input,
 		Status:                 buffered.status,
-		Header:                 original.Header(),
+		Header:                 buffered.header,
 		Options:                ct.options,
 	}
 	responseInput.SetBodyBytes(buffered.body.Bytes())
@@ -114,6 +121,8 @@ func (ct *contract) middleware(c *gin.Context) {
 		ct.violation(c, route, describe(err))
 		return
 	}
+	clear(original.Header())
+	maps.Copy(original.Header(), buffered.header)
 	original.WriteHeader(buffered.status)
 	_, _ = original.Write(buffered.body.Bytes())
 }
@@ -209,12 +218,12 @@ func describe(err error) string {
 	var schemaErr *openapi3.SchemaError
 	switch {
 	case errors.As(err, &responseErr):
-		parts = append(parts, responseErr.Reason)
+		parts = append(parts, reasonOrFallback(responseErr.Reason, "response does not match the document", responseErr.Err))
 	case errors.As(err, &requestErr):
 		if p := requestErr.Parameter; p != nil {
 			parts = append(parts, "parameter "+p.In+" "+p.Name)
 		}
-		parts = append(parts, requestErr.Reason)
+		parts = append(parts, reasonOrFallback(requestErr.Reason, "request does not match the document", requestErr.Err))
 	default:
 		parts = append(parts, "validation failed")
 	}
@@ -224,12 +233,25 @@ func describe(err error) string {
 	return strings.Join(parts, ": ")
 }
 
+func reasonOrFallback(reason, fallback string, cause error) string {
+	if reason != "" {
+		return reason
+	}
+	if cause != nil {
+		return fmt.Sprintf("%s (%T)", fallback, cause)
+	}
+	return fallback
+}
+
 type bufferedWriter struct {
 	gin.ResponseWriter
+	header  http.Header
 	status  int
 	body    bytes.Buffer
 	written bool
 }
+
+func (w *bufferedWriter) Header() http.Header { return w.header }
 
 func (w *bufferedWriter) WriteHeader(code int) {
 	if !w.written {
