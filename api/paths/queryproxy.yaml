@@ -1,0 +1,208 @@
+dashboards-id-versions-version-panels-panel-id-data:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: version
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 2147483647
+    - name: panel_id
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getPanelData
+    summary: Run the saved query of one panel in one dashboard version and return its frames.
+    description: >-
+      The query is fixed by the saved version, so the request names a panel and never carries query text;
+      the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec`, and any other unknown parameter with 400.
+      Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`,
+      and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below.
+      A variable that is not given gets its default, and a request for an undeclared variable is a 400.
+      `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds,
+      default to the version's `timeRange`, and may span at most 400 days.
+      A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds;
+      the aligned range comes back in `meta`.
+      Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: max_data_points
+        in: query
+        schema:
+          type: integer
+          minimum: 10
+          maximum: 11000
+          default: 1000
+    responses:
+      "200":
+        description: The frames the saved query returned, an empty list when the result is empty.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text; the code is `query_not_in_spec`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: The dashboard or version does not exist (`not_found`), or the version has no such panel (`panel_not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: >-
+          The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
+          `unknown_datasource`, `datasource_type_mismatch` or `variable_empty`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+      "504":
+        $ref: "../openapi.yaml#/components/responses/QueryTimeout"
+dashboards-id-versions-version-variables-name-values:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: version
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 2147483647
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getVariableValues
+    summary: List the values of one variable in one dashboard version.
+    description: >-
+      A custom variable returns its options without an upstream call.
+      A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters
+      (not listed below, see the panel data operation); an earlier variable without a selection gets its default,
+      and a selection for the listed variable or a later one is a 400.
+      `from` and `to` behave as for panel data.
+      The same query-text refusal and in-flight limit apply.
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: to
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+    responses:
+      "200":
+        description: Up to 1000 values; `truncated` is true when there were more.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/VariableValues"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The request carried query text; the code is `query_not_in_spec`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/QueryUnprocessable"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+      "504":
+        $ref: "../openapi.yaml#/components/responses/QueryTimeout"
+datasources-uid-lint:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: lintDatasourceQuery
+    summary: Parse a query for a datasource and return diagnostics, without executing it or returning data.
+    description: >-
+      Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`.
+      The call times out after 5 seconds and counts against the same in-flight limit as panel data.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [query]
+            properties:
+              query:
+                type: string
+                minLength: 1
+                maxLength: 65536
+    responses:
+      "200":
+        description: The diagnostics, empty when the query is clean.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/LintResult"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

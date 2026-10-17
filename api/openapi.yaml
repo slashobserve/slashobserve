@@ -44,6 +44,12 @@ paths:
     $ref: "./paths/comments.yaml#/dashboards-id-comments"
   /dashboards/{id}/comments/{comment_id}:
     $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
+  /dashboards/{id}/versions/{version}/panels/{panel_id}/data:
+    $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
+  /dashboards/{id}/versions/{version}/variables/{name}/values:
+    $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
+  /datasources/{uid}/lint:
+    $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
 components:
   securitySchemes:
     sessionCookie:
@@ -460,6 +466,115 @@ components:
       properties:
         comment:
           $ref: "#/components/schemas/Comment"
+    Field:
+      type: object
+      additionalProperties: false
+      required: [name, type, values]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [time, number, string, bool, other]
+        values:
+          type: array
+          description: >-
+            Time fields hold epoch milliseconds as integers, number fields hold numbers with `null` for gaps,
+            and `other` fields hold JSON exactly as the datasource adapter produced it.
+          items:
+            nullable: true
+    Frame:
+      type: object
+      additionalProperties: false
+      required: [fields]
+      properties:
+        name:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/Field"
+    DataMeta:
+      type: object
+      additionalProperties: false
+      required: [kind, from, to, step_ms, cached, executed_at]
+      properties:
+        kind:
+          type: string
+          enum: [range, instant]
+        from:
+          type: string
+          format: date-time
+          description: The start of the aligned range the query ran over.
+        to:
+          type: string
+          format: date-time
+          description: The end of the aligned range the query ran over.
+        step_ms:
+          type: integer
+          minimum: 0
+          description: The query resolution; 0 for an instant panel.
+        cached:
+          type: boolean
+        executed_at:
+          type: string
+          format: date-time
+          description: When the query ran upstream, which for a cached response is earlier than the request.
+    PanelData:
+      type: object
+      additionalProperties: false
+      required: [frames, meta]
+      properties:
+        frames:
+          type: array
+          items:
+            $ref: "#/components/schemas/Frame"
+        meta:
+          $ref: "#/components/schemas/DataMeta"
+    VariableValues:
+      type: object
+      additionalProperties: false
+      required: [values, truncated, cached]
+      properties:
+        values:
+          type: array
+          items:
+            type: string
+        truncated:
+          type: boolean
+        cached:
+          type: boolean
+    Diagnostic:
+      type: object
+      additionalProperties: false
+      required: [severity, message, start, end]
+      properties:
+        severity:
+          type: string
+          enum: [error, warning]
+        message:
+          type: string
+        start:
+          type: integer
+          minimum: 0
+          description: Byte offset of the first byte the diagnostic covers.
+        end:
+          type: integer
+          minimum: 0
+          description: Byte offset just past the last byte the diagnostic covers.
+    LintResult:
+      type: object
+      additionalProperties: false
+      required: [diagnostics]
+      properties:
+        diagnostics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Diagnostic"
   responses:
     BadRequest:
       description: The request is malformed or fails validation.
@@ -520,3 +635,32 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/VersionConflict"
+    TooManyRequests:
+      description: The caller already has the maximum number of query requests in flight.
+      headers:
+        Retry-After:
+          required: true
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    QueryUnprocessable:
+      description: The query or its variables cannot run, or its result exceeds a limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    QueryBadGateway:
+      description: The datasource is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    QueryTimeout:
+      description: The datasource did not answer within the query timeout.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

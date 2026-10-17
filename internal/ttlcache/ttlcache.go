@@ -44,20 +44,22 @@ func (c *Cache[K, V]) Get(key K) (value V, stored time.Time, ok bool) {
 	return e.value, e.stored, true
 }
 
-func (c *Cache[K, V]) Put(key K, value V, cost int64) {
+func (c *Cache[K, V]) Put(key K, value V, cost int64) (stored time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	stored = time.Now()
 	if el, found := c.items[key]; found {
 		c.remove(el)
 	}
 	if cost > c.maxCost {
-		return
+		return stored
 	}
-	c.items[key] = c.order.PushFront(&entry[K, V]{key: key, value: value, cost: cost, stored: time.Now()})
+	c.items[key] = c.order.PushFront(&entry[K, V]{key: key, value: value, cost: cost, stored: stored})
 	c.cost += cost
 	for c.cost > c.maxCost {
 		c.remove(c.order.Back())
 	}
+	return stored
 }
 
 func (c *Cache[K, V]) remove(el *list.Element) {

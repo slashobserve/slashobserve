@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 )
@@ -119,6 +120,8 @@ func run() error {
 
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, logger)
+	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
+	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, registry, logger)
 
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -135,7 +138,7 @@ func run() error {
 		Logger:      logger,
 		Auth:        authService,
 		Datasources: registry,
-		API:         []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService)},
+		API:         []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService), proxyHandler},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),

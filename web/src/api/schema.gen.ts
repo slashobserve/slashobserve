@@ -350,6 +350,76 @@ export interface paths {
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
     };
+    "/dashboards/{id}/versions/{version}/panels/{panel_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Run the saved query of one panel in one dashboard version and return its frames.
+         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec`, and any other unknown parameter with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `timeRange`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+         */
+        get: operations["getPanelData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/versions/{version}/variables/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one variable in one dashboard version.
+         * @description A custom variable returns its options without an upstream call. A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters (not listed below, see the panel data operation); an earlier variable without a selection gets its default, and a selection for the listed variable or a later one is a 400. `from` and `to` behave as for panel data. The same query-text refusal and in-flight limit apply.
+         */
+        get: operations["getVariableValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/lint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Parse a query for a datasource and return diagnostics, without executing it or returning data.
+         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds and counts against the same in-flight limit as panel data.
+         */
+        post: operations["lintDatasourceQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -532,6 +602,63 @@ export interface components {
         CommentEnvelope: {
             comment: components["schemas"]["Comment"];
         };
+        Field: {
+            name: string;
+            /** @enum {string} */
+            type: "time" | "number" | "string" | "bool" | "other";
+            /** @description Time fields hold epoch milliseconds as integers, number fields hold numbers with `null` for gaps, and `other` fields hold JSON exactly as the datasource adapter produced it. */
+            values: unknown[];
+        };
+        Frame: {
+            name?: string;
+            labels?: {
+                [key: string]: string;
+            };
+            fields: components["schemas"]["Field"][];
+        };
+        DataMeta: {
+            /** @enum {string} */
+            kind: "range" | "instant";
+            /**
+             * Format: date-time
+             * @description The start of the aligned range the query ran over.
+             */
+            from: string;
+            /**
+             * Format: date-time
+             * @description The end of the aligned range the query ran over.
+             */
+            to: string;
+            /** @description The query resolution; 0 for an instant panel. */
+            step_ms: number;
+            cached: boolean;
+            /**
+             * Format: date-time
+             * @description When the query ran upstream, which for a cached response is earlier than the request.
+             */
+            executed_at: string;
+        };
+        PanelData: {
+            frames: components["schemas"]["Frame"][];
+            meta: components["schemas"]["DataMeta"];
+        };
+        VariableValues: {
+            values: string[];
+            truncated: boolean;
+            cached: boolean;
+        };
+        Diagnostic: {
+            /** @enum {string} */
+            severity: "error" | "warning";
+            message: string;
+            /** @description Byte offset of the first byte the diagnostic covers. */
+            start: number;
+            /** @description Byte offset just past the last byte the diagnostic covers. */
+            end: number;
+        };
+        LintResult: {
+            diagnostics: components["schemas"]["Diagnostic"][];
+        };
     };
     responses: {
         /** @description The request is malformed or fails validation. */
@@ -614,6 +741,43 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["VersionConflict"];
+            };
+        };
+        /** @description The caller already has the maximum number of query requests in flight. */
+        TooManyRequests: {
+            headers: {
+                "Retry-After": string;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The query or its variables cannot run, or its result exceeds a limit. */
+        QueryUnprocessable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The datasource is unavailable. */
+        QueryBadGateway: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The datasource did not answer within the query timeout. */
+        QueryTimeout: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
             };
         };
     };
@@ -1328,6 +1492,144 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getPanelData: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                max_data_points?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+                panel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The frames the saved query returned, an empty list when the result is empty. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard or version does not exist (`not_found`), or the version has no such panel (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `datasource_type_mismatch` or `variable_empty`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    getVariableValues: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 1000 values; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableValues"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The request carried query text; the code is `query_not_in_spec`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    lintDatasourceQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    query: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The diagnostics, empty when the query is clean. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LintResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
             500: components["responses"]["Internal"];
         };
     };
