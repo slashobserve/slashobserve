@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { getSession, invalidateSession, logout } from "@/lib/auth"
 
@@ -48,6 +49,7 @@ function AuthedLayout() {
           SlashObserve
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <ThemeToggle />
           <span>{principal.email || principal.name}</span>
           {failed ? (
             <p role="alert" className="text-destructive">
