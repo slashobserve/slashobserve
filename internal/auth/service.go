@@ -80,6 +80,7 @@ func (s *Service) Mount(api *gin.RouterGroup) *gin.RouterGroup {
 
 	authenticated := api.Group("", s.require)
 	authenticated.GET("/me", s.me)
+	s.mountServiceAccounts(authenticated)
 	return authenticated
 }
 
