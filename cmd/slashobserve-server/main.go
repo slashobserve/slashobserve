@@ -50,6 +50,8 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// Restore default signal handling so a second signal force-exits during shutdown.
+	context.AfterFunc(ctx, stop)
 
 	connectCtx, cancelConnect := context.WithTimeout(ctx, connectTimeout)
 	database, err := db.Open(connectCtx, cfg.DatabaseURL, logger)
