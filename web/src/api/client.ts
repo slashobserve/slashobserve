@@ -1,6 +1,7 @@
 import createClient, { type Middleware } from "openapi-fetch"
 
 import { invalidateSession } from "@/lib/auth"
+import { NetworkError } from "./errors"
 import type { paths } from "./schema.gen"
 
 let onUnauthorized: () => void = () => {}
@@ -19,7 +20,22 @@ const unauthorized: Middleware = {
   },
 }
 
+async function fetchOrThrowNetworkError(
+  request: Request,
+  init?: RequestInit
+): Promise<Response> {
+  try {
+    return await globalThis.fetch(request, init)
+  } catch (cause) {
+    if (cause instanceof TypeError) {
+      throw new NetworkError(cause.message, { cause })
+    }
+    throw cause
+  }
+}
+
 export const api = createClient<paths>({
+  fetch: fetchOrThrowNetworkError,
   baseUrl: "/api/v1",
   credentials: "same-origin",
   headers: { Accept: "application/json" },

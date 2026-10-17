@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest"
 
-import { ApiError, isRetryable, toApiError, unwrap } from "./errors"
+import {
+  ApiError,
+  isRetryable,
+  maxRetryDelayMs,
+  NetworkError,
+  toApiError,
+  unwrap,
+} from "./errors"
 
 function response(status: number, headers?: Record<string, string>) {
   return new Response(null, { status, headers })
@@ -89,7 +96,20 @@ describe("unwrap", () => {
 
 describe("isRetryable", () => {
   test("retries network failures", () => {
-    expect(isRetryable(new TypeError("Failed to fetch"))).toBe(true)
+    const cause = new TypeError("Failed to fetch")
+    expect(isRetryable(new NetworkError(cause.message, { cause }))).toBe(true)
+  })
+
+  test("does not retry a TypeError thrown by application code", () => {
+    expect(isRetryable(new TypeError("x is not a function"))).toBe(false)
+  })
+
+  test("retries a Retry-After up to the ceiling and no longer", () => {
+    const withDelay = (ms: number) =>
+      new ApiError(429, "x", "x", [], undefined, ms)
+    expect(isRetryable(withDelay(0))).toBe(true)
+    expect(isRetryable(withDelay(maxRetryDelayMs))).toBe(true)
+    expect(isRetryable(withDelay(maxRetryDelayMs + 1))).toBe(false)
   })
 
   test("retries 429, 502, 503 and 504 only", () => {

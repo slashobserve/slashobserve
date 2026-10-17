@@ -25,6 +25,13 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = "NetworkError"
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -91,7 +98,14 @@ export function unwrap<T>(result: {
 
 const retryableStatuses = new Set([429, 502, 503, 504])
 
+export const maxRetryDelayMs = 30_000
+
 export function isRetryable(error: unknown): boolean {
-  if (error instanceof TypeError) return true
-  return error instanceof ApiError && retryableStatuses.has(error.status)
+  if (error instanceof NetworkError) return true
+  if (!(error instanceof ApiError) || !retryableStatuses.has(error.status)) {
+    return false
+  }
+  return (
+    error.retryAfterMs === undefined || error.retryAfterMs <= maxRetryDelayMs
+  )
 }

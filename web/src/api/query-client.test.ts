@@ -36,6 +36,16 @@ describe("createQueryClient", () => {
     ).toBe(2500)
   })
 
+  test("does not retry when Retry-After exceeds thirty seconds", () => {
+    const { retry } = queryDefaults()
+    expect(retry(0, new ApiError(429, "x", "x", [], undefined, 30_000))).toBe(
+      true
+    )
+    expect(retry(0, new ApiError(429, "x", "x", [], undefined, 30_001))).toBe(
+      false
+    )
+  })
+
   test("backs off exponentially up to eight seconds otherwise", () => {
     const { retryDelay } = queryDefaults()
     const error = new ApiError(503, "x", "x")
