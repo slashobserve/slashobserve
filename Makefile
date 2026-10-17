@@ -49,6 +49,7 @@ ci:
 demo:
 	SLASHOBSERVE_IMAGE=slashobserve-server:local $(COMPOSE) up -d --build --wait --wait-timeout 180
 	@echo "SlashObserve is running at http://localhost:$${SLASHOBSERVE_HOST_PORT:-8080}"
+	@echo "Sign in as admin@example.com / password (Dex, development only)"
 
 demo-down:
 	$(COMPOSE) down

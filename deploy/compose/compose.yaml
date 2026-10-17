@@ -1,5 +1,8 @@
 name: slashobserve
 
+# Development-only OAuth client secret shared by Dex and the server.
+x-dex-client-secret: &dex-client-secret slashobserve-dev-client-secret
+
 services:
   postgres:
     image: postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1
@@ -16,6 +19,24 @@ services:
       timeout: 3s
       retries: 30
 
+  dex:
+    # v2.46.0 (2026-10-07) is younger than 14 days; v2.45.1 is the newest allowed.
+    image: ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462
+    command: ["dex", "serve", "/etc/dex/config.yaml.tmpl"]
+    environment:
+      DEX_ISSUER: http://localhost:${SLASHOBSERVE_DEX_HOST_PORT:-5556}/dex
+      DEX_REDIRECT_URI: http://localhost:${SLASHOBSERVE_HOST_PORT:-8080}/api/v1/auth/callback
+      DEX_CLIENT_SECRET: *dex-client-secret
+    volumes:
+      - ./dex/config.yaml.tmpl:/etc/dex/config.yaml.tmpl:ro
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_DEX_HOST_PORT:-5556}:5556"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5556/dex/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   server:
     build:
       context: ../..
@@ -24,10 +45,18 @@ services:
     environment:
       SLASHOBSERVE_DATABASE_URL: postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable
       SLASHOBSERVE_LOG_LEVEL: ${SLASHOBSERVE_LOG_LEVEL:-info}
+      SLASHOBSERVE_PUBLIC_URL: http://localhost:${SLASHOBSERVE_HOST_PORT:-8080}
+      SLASHOBSERVE_OIDC_ISSUER_URL: http://localhost:${SLASHOBSERVE_DEX_HOST_PORT:-5556}/dex
+      SLASHOBSERVE_OIDC_INTERNAL_URL: http://dex:5556
+      SLASHOBSERVE_OIDC_CLIENT_ID: slashobserve
+      SLASHOBSERVE_OIDC_CLIENT_SECRET: *dex-client-secret
+      SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS: ${SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS:-example.com}
     ports:
       - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-8080}:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      dex:
         condition: service_healthy
 
 volumes:

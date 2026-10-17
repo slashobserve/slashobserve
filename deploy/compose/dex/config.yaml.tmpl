@@ -1,0 +1,25 @@
+issuer: {{ getenv "DEX_ISSUER" }}
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+staticClients:
+  - id: slashobserve
+    name: SlashObserve
+    secret: {{ getenv "DEX_CLIENT_SECRET" }}
+    redirectURIs:
+      - {{ getenv "DEX_REDIRECT_URI" }}
+enablePasswordDB: true
+staticPasswords:
+  # Development-only logins, both with password "password" (Dex's documented example hash).
+  # admin@example.com is on the allowed domain; outsider@example.org exists to prove refusal.
+  - email: "admin@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+    userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+  - email: "outsider@example.org"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "outsider"
+    userID: "5f0c7c1e-3f8e-4c1a-9d2b-6a4e8b7d9c10"
