@@ -436,6 +436,9 @@ func TestGuardAndGrants(t *testing.T) {
 }
 
 func TestSourceGrantsRefused(t *testing.T) {
+	if testsSkipped {
+		t.Skip("integration tests need Docker")
+	}
 	ctx := context.Background()
 	conn, err := rawConn(filteredURL, roPass)
 	if err != nil {
