@@ -3,7 +3,6 @@ package spec
 import (
 	"errors"
 	"fmt"
-	"math"
 	"regexp"
 	"strconv"
 	"time"
@@ -101,10 +100,8 @@ func resolveRelative(m []string, now time.Time, roundUp bool) time.Time {
 
 func offset(t time.Time, n int64, unit string) time.Time {
 	if d, ok := fixedUnits[unit]; ok {
-		if n > math.MaxInt64/int64(d) || n < math.MinInt64/int64(d) {
-			return time.Time{}
-		}
-		return t.Add(time.Duration(n) * d)
+		seconds := n * int64(d/time.Second)
+		return time.Unix(t.Unix()+seconds, int64(t.Nanosecond())).UTC()
 	}
 	return advance(t, int(n), unit)
 }

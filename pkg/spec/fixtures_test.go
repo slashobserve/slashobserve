@@ -166,6 +166,7 @@ func TestRejectedDocuments(t *testing.T) {
 		{"whole previous month", with(`"from": "now-15m", "to": "now"`, `"from": "now-1M/M", "to": "now-1M/M"`), "", ""},
 		{"two whole months", with(`"from": "now-15m", "to": "now"`, `"from": "now-2M/M", "to": "now-1M/M"`), "", ""},
 		{"this month so far", with(`"from": "now-15m", "to": "now"`, `"from": "now/M", "to": "now"`), "", ""},
+		{"seconds count beyond int32", with(`"from": "now-15m"`, `"from": "now-9999999999s"`), spec.CodeSchema, "/timeRange/from"},
 		{"float out of range", with(`"query":`, `"min": 1e999, "query":`), spec.CodeSchema, "/panels/0/min"},
 	}
 	for _, c := range cases {
