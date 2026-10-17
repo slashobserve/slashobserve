@@ -1,0 +1,2 @@
+# Untracked local files that worktrees need copied in to build and test.
+# One path per line. Never list secrets or production credentials.
