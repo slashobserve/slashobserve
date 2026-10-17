@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
+import { authFile } from "./e2e/auth-file"
+
 const baseURL =
   process.env.SLASHOBSERVE_E2E_BASE_URL ?? "http://localhost:18080"
 
@@ -21,5 +23,12 @@ export default defineConfig({
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], storageState: authFile },
+      dependencies: ["setup"],
+    },
+  ],
 })
