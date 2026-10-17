@@ -43,16 +43,15 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 	if !v.All && len(v.Values) == 0 {
 		return "", refErrorf(ref, "no value selected for %s", refLabel(ref))
 	}
-	for _, value := range v.Values {
-		if hasControlByte(value) {
-			return "", refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
-		}
+	if slices.ContainsFunc(v.Values, hasControlByte) {
+		return "", refErrorf(ref, "variable %s has a value with a control character", refLabel(ref))
 	}
 	format := ref.Format
 	if format == "" {
 		format = defaultFormat(d, c)
 	}
-	text, err := applyFormat(ref, format, v)
+	regexMatcher := d == PromQL && c.kind == ctxString && c.matcher == matcherRegex
+	text, err := applyFormat(ref, format, v, regexMatcher)
 	if err != nil {
 		return "", err
 	}
@@ -91,19 +90,22 @@ func defaultFormat(d Dialect, c ctx) string {
 	}
 }
 
-func applyFormat(ref spec.Reference, format string, v datasource.Variable) (string, error) {
+func applyFormat(ref spec.Reference, format string, v datasource.Variable, regexMatcher bool) (string, error) {
 	values := v.Values
 	if format == "regex" && v.All {
 		return ".*", nil
 	}
 	if format == "raw" {
-		if v.All || len(values) != 1 {
-			return "", refErrorf(ref, "%s has %d values; use a multi-value format", refLabel(ref), len(values))
-		}
-		return values[0], nil
+		return applyRaw(ref, v, regexMatcher)
 	}
 	if len(values) == 0 {
 		return "", refErrorf(ref, "%s has no values", refLabel(ref))
+	}
+	if regexMatcher && format != "regex" {
+		if slices.Contains([]string{"singlequote", "doublequote", "sqlstring"}, format) {
+			return "", refErrorf(ref, "format %q is not allowed in a regex matcher for variable %s", format, refLabel(ref))
+		}
+		values = quoteMetaEach(values)
 	}
 	switch format {
 	case "csv":
@@ -111,10 +113,7 @@ func applyFormat(ref spec.Reference, format string, v datasource.Variable) (stri
 	case "pipe":
 		return strings.Join(values, "|"), nil
 	case "regex":
-		quoted := make([]string, len(values))
-		for i, value := range values {
-			quoted[i] = regexp.QuoteMeta(value)
-		}
+		quoted := quoteMetaEach(values)
 		if len(quoted) == 1 {
 			return quoted[0], nil
 		}
@@ -127,6 +126,24 @@ func applyFormat(ref spec.Reference, format string, v datasource.Variable) (stri
 		return quoteEach(values, '\'', sqlStringEscaper), nil
 	}
 	return "", refErrorf(ref, "unknown format %q for variable %s", format, refLabel(ref))
+}
+
+func applyRaw(ref spec.Reference, v datasource.Variable, regexMatcher bool) (string, error) {
+	if v.All || len(v.Values) != 1 {
+		return "", refErrorf(ref, "%s has %d values; use a multi-value format", refLabel(ref), len(v.Values))
+	}
+	if regexMatcher && regexp.QuoteMeta(v.Values[0]) != v.Values[0] {
+		return "", refErrorf(ref, "format \"raw\" is not allowed in a regex matcher for a value with regex metacharacters in %s", refLabel(ref))
+	}
+	return v.Values[0], nil
+}
+
+func quoteMetaEach(values []string) []string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = regexp.QuoteMeta(value)
+	}
+	return quoted
 }
 
 func quoteEach(values []string, quote byte, escaper *strings.Replacer) string {
@@ -154,7 +171,12 @@ func escapeForContext(d Dialect, ref spec.Reference, c ctx, format, text string,
 		}
 	}
 	switch format {
-	case "singlequote", "doublequote", "sqlstring":
+	case "doublequote":
+		if d == ClickHouse {
+			return "", refErrorf(ref, "format \"doublequote\" is not allowed in code for variable %s", refLabel(ref))
+		}
+		return text, nil
+	case "singlequote", "sqlstring":
 		return text, nil
 	case "regex":
 		return "", refErrorf(ref, "format \"regex\" is not allowed in code for variable %s", refLabel(ref))

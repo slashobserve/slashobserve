@@ -2,6 +2,7 @@ package macros
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ const (
 	PromQL Dialect = iota + 1
 	ClickHouse
 )
+
+var columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$`)
 
 const defaultScrapeInterval = 15 * time.Second
 
@@ -83,21 +86,45 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 	if err != nil {
 		return Expansion{}, err
 	}
-	if err := env.Range.Validate(); err != nil {
+	if err := validateEnv(env); err != nil {
 		return Expansion{}, err
-	}
-	if env.Interval <= 0 {
-		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "interval must be positive")
 	}
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
 		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
 	}
-	lx := newLexer(d, query)
+	lx, err := newLexer(d, query, refs)
+	if err != nil {
+		return Expansion{}, err
+	}
+	exp, err := substitute(d, dsType, query, refs, lx, env)
+	if err != nil {
+		return Expansion{}, err
+	}
+	if err := verifyExpansion(d, query, lx.units, exp); err != nil {
+		return Expansion{}, err
+	}
+	return exp, nil
+}
+
+func validateEnv(env Env) error {
+	if err := env.Range.Validate(); err != nil {
+		return err
+	}
+	if env.Interval <= 0 {
+		return datasource.Errorf(datasource.ErrInvalidQuery, "interval must be positive")
+	}
+	return nil
+}
+
+func substitute(d Dialect, dsType spec.DatasourceType, query string, refs []spec.Reference, lx lexer, env Env) (Expansion, error) {
 	var b strings.Builder
 	var spans []span
 	last := 0
 	for _, ref := range refs {
+		if lx.startsInDelimiter(ref) {
+			continue
+		}
 		c := lx.contextAt(ref.Start)
 		if lx.contextAt(ref.End-1).region != c.region {
 			return Expansion{}, refErrorf(ref, "reference %s crosses a string, comment or identifier boundary", refLabel(ref))
@@ -105,13 +132,7 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 		if c.kind == ctxComment {
 			continue
 		}
-		var out string
-		switch ref.Kind {
-		case spec.MacroRef:
-			out, err = expandMacro(d, dsType, ref, c, env)
-		default:
-			out, err = expandVariable(d, query, ref, c, env.Variables)
-		}
+		out, err := expandRef(d, dsType, query, ref, c, env)
 		if err != nil {
 			return Expansion{}, err
 		}
@@ -129,6 +150,19 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 	}
 	b.WriteString(query[last:])
 	return Expansion{Text: b.String(), spans: spans}, nil
+}
+
+func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Reference, c ctx, env Env) (string, error) {
+	if c.kind == ctxOpaque {
+		return "", refErrorf(ref, "reference %s is not allowed in a heredoc or unicode quoted literal", refLabel(ref))
+	}
+	if unquotedCode(d, ref, c) && fusesWithNeighbors(d, query, ref) {
+		return "", refErrorf(ref, "reference %s must not touch a word character, \".\" or \"$\"", refLabel(ref))
+	}
+	if ref.Kind == spec.MacroRef {
+		return expandMacro(d, dsType, ref, c, env)
+	}
+	return expandVariable(d, query, ref, c, env.Variables)
 }
 
 func ExpandForLint(d Dialect, query string) (Expansion, error) {
@@ -212,6 +246,8 @@ func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (strin
 		return "", refErrorf(ref, "macro %s requires an argument", refLabel(ref))
 	case strings.ContainsAny(args, "$;"):
 		return "", refErrorf(ref, "macro %s argument must not contain \"$\" or \";\"", refLabel(ref))
+	case !columnPattern.MatchString(args):
+		return "", refErrorf(ref, "macro %s argument must be a column name", refLabel(ref))
 	case c.kind != ctxCode:
 		return "", refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
 	}

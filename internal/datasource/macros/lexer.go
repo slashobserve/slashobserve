@@ -3,6 +3,9 @@ package macros
 import (
 	"sort"
 	"strings"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 type ctxKind int
@@ -12,6 +15,7 @@ const (
 	ctxString
 	ctxComment
 	ctxQuotedIdent
+	ctxOpaque
 )
 
 type matcherKind int
@@ -27,6 +31,7 @@ type ctx struct {
 	quote   byte
 	matcher matcherKind
 	region  int
+	tagLen  int
 }
 
 type region struct {
@@ -36,9 +41,32 @@ type region struct {
 
 type lexer struct {
 	regions []region
+	units   []unit
 }
 
-func newLexer(d Dialect, query string) lexer {
+type refIndex struct {
+	covered []bool
+	endsAt  map[int]bool
+}
+
+func newRefIndex(query string, refs []spec.Reference, skip func(spec.Reference) bool) refIndex {
+	ri := refIndex{covered: make([]bool, len(query)+1), endsAt: map[int]bool{}}
+	for _, ref := range refs {
+		if skip != nil && skip(ref) {
+			continue
+		}
+		for j := ref.Start; j < ref.End; j++ {
+			ri.covered[j] = true
+		}
+		ri.endsAt[ref.End] = true
+	}
+	return ri
+}
+
+func newLexer(d Dialect, query string, refs []spec.Reference) (lexer, error) {
+	if d == ClickHouse {
+		return newClickHouseLexer(query, refs)
+	}
 	var l lexer
 	codeStart := 0
 	add := func(start, end int, c ctx) {
@@ -46,8 +74,11 @@ func newLexer(d Dialect, query string) lexer {
 		l.regions = append(l.regions, region{start: start, end: end, ctx: c})
 	}
 	for i := 0; i < len(query); {
-		end, c, ok := lexRegion(d, query, i)
-		if !ok {
+		end, c, err := lexPromQL(query, i)
+		if err != nil {
+			return lexer{}, err
+		}
+		if c.kind == 0 {
 			i++
 			continue
 		}
@@ -60,7 +91,98 @@ func newLexer(d Dialect, query string) lexer {
 	if len(query) > codeStart {
 		add(codeStart, len(query), ctx{kind: ctxCode})
 	}
-	return l
+	for i := range l.regions {
+		if l.regions[i].ctx.kind == ctxString {
+			l.regions[i].ctx.matcher = l.promMatcher(query, i)
+		}
+	}
+	l.units = promUnits(l.regions)
+	return l, nil
+}
+
+func newClickHouseLexer(query string, refs []spec.Reference) (lexer, error) {
+	tokens, err := TokenizeClickHouse(query)
+	if err != nil {
+		return lexer{}, err
+	}
+	var l lexer
+	add := func(start, end int, c ctx) {
+		c.region = len(l.regions)
+		l.regions = append(l.regions, region{start: start, end: end, ctx: c})
+	}
+	codeStart := -1
+	flushCode := func(end int) {
+		if codeStart >= 0 {
+			add(codeStart, end, ctx{kind: ctxCode})
+			codeStart = -1
+		}
+	}
+	for _, tok := range tokens {
+		c, ok := regionCtx(query, tok)
+		if !ok {
+			if codeStart < 0 {
+				codeStart = tok.Start
+			}
+			continue
+		}
+		flushCode(tok.Start)
+		add(tok.Start, tok.End, c)
+	}
+	flushCode(len(query))
+	l.units = clickHouseUnits(query, tokens)
+	ri := newRefIndex(query, refs, l.startsInDelimiter)
+	if err := rejectStrayDollars(query, tokens, ri); err != nil {
+		return lexer{}, err
+	}
+	for _, r := range l.regions {
+		if r.ctx.kind == ctxOpaque && r.ctx.tagLen > 0 && ri.endsAt[r.start] {
+			return lexer{}, datasource.Errorf(datasource.ErrInvalidQuery, "heredoc follows a reference at offset %d", r.start)
+		}
+	}
+	return l, nil
+}
+
+func rejectStrayDollars(query string, tokens []Token, ri refIndex) error {
+	for _, tok := range tokens {
+		if tok.Kind != TokenWord && tok.Kind != TokenPunct {
+			continue
+		}
+		for j := tok.Start; j < tok.End; j++ {
+			if query[j] == '$' && !ri.covered[j] {
+				return datasource.Errorf(datasource.ErrInvalidQuery, "unexpected \"$\" at offset %d", j)
+			}
+		}
+	}
+	return nil
+}
+
+func regionCtx(q string, tok Token) (ctx, bool) {
+	switch tok.Kind {
+	case TokenComment:
+		return ctx{kind: ctxComment}, true
+	case TokenString:
+		if q[tok.Start] == 0xE2 {
+			return ctx{kind: ctxOpaque}, true
+		}
+		return ctx{kind: ctxString, quote: '\''}, true
+	case TokenQuotedIdent:
+		if q[tok.Start] == 0xE2 {
+			return ctx{kind: ctxOpaque}, true
+		}
+		return ctx{kind: ctxQuotedIdent, quote: q[tok.Start]}, true
+	case TokenHeredoc:
+		return ctx{kind: ctxOpaque, tagLen: strings.IndexByte(q[tok.Start+1:], '$') + 2}, true
+	}
+	return ctx{}, false
+}
+
+func (l lexer) startsInDelimiter(ref spec.Reference) bool {
+	c := l.contextAt(ref.Start)
+	if c.kind != ctxOpaque || c.tagLen == 0 {
+		return false
+	}
+	r := l.regions[c.region]
+	return ref.Start < r.start+c.tagLen || ref.Start >= r.end-c.tagLen
 }
 
 func (l lexer) contextAt(offset int) ctx {
@@ -71,52 +193,28 @@ func (l lexer) contextAt(offset int) ctx {
 	return l.regions[i].ctx
 }
 
-func lexRegion(d Dialect, q string, i int) (int, ctx, bool) {
-	switch d {
-	case PromQL:
-		return lexPromQL(q, i)
-	case ClickHouse:
-		return lexClickHouse(q, i)
-	}
-	return 0, ctx{}, false
+func unterminated(what string, offset int) error {
+	return datasource.Errorf(datasource.ErrInvalidQuery, "unterminated %s at offset %d", what, offset)
 }
 
-func lexPromQL(q string, i int) (int, ctx, bool) {
+func lexPromQL(q string, i int) (int, ctx, error) {
 	switch q[i] {
 	case '"', '\'':
-		return scanQuoted(q, i, false), ctx{kind: ctxString, quote: q[i], matcher: promMatcher(q, i)}, true
+		end := scanQuoted(q, i, false)
+		if end < 0 || strings.IndexByte(q[i:end], '\n') >= 0 {
+			return 0, ctx{}, unterminated("string", i)
+		}
+		return end, ctx{kind: ctxString, quote: q[i]}, nil
 	case '`':
-		end := len(q)
-		if n := strings.IndexByte(q[i+1:], '`'); n >= 0 {
-			end = i + 1 + n + 1
+		n := strings.IndexByte(q[i+1:], '`')
+		if n < 0 {
+			return 0, ctx{}, unterminated("raw string", i)
 		}
-		return end, ctx{kind: ctxString, quote: '`', matcher: promMatcher(q, i)}, true
+		return i + 1 + n + 1, ctx{kind: ctxString, quote: '`'}, nil
 	case '#':
-		return lineEnd(q, i), ctx{kind: ctxComment}, true
+		return lineEnd(q, i, true), ctx{kind: ctxComment}, nil
 	}
-	return 0, ctx{}, false
-}
-
-func lexClickHouse(q string, i int) (int, ctx, bool) {
-	switch q[i] {
-	case '\'':
-		return scanQuoted(q, i, true), ctx{kind: ctxString, quote: '\''}, true
-	case '"', '`':
-		return scanQuoted(q, i, true), ctx{kind: ctxQuotedIdent, quote: q[i]}, true
-	case '-':
-		if i+1 < len(q) && q[i+1] == '-' {
-			return lineEnd(q, i), ctx{kind: ctxComment}, true
-		}
-	case '/':
-		if i+1 < len(q) && q[i+1] == '*' {
-			end := len(q)
-			if n := strings.Index(q[i+2:], "*/"); n >= 0 {
-				end = i + 2 + n + 2
-			}
-			return end, ctx{kind: ctxComment}, true
-		}
-	}
-	return 0, ctx{}, false
+	return 0, ctx{}, nil
 }
 
 func scanQuoted(q string, open int, doubling bool) int {
@@ -133,39 +231,63 @@ func scanQuoted(q string, open int, doubling bool) int {
 			j++
 		}
 	}
-	return len(q)
+	return -1
 }
 
-func lineEnd(q string, i int) int {
-	if n := strings.IndexByte(q[i:], '\n'); n >= 0 {
+func lineEnd(q string, i int, cr bool) int {
+	chars := "\n"
+	if cr {
+		chars = "\r\n"
+	}
+	if n := strings.IndexAny(q[i:], chars); n >= 0 {
 		return i + n
 	}
 	return len(q)
 }
 
-func promMatcher(q string, open int) matcherKind {
-	k := open - 1
-	for k >= 0 && (q[k] == ' ' || q[k] == '\t' || q[k] == '\n' || q[k] == '\r') {
-		k--
-	}
-	if k < 0 {
-		return matcherNone
-	}
-	var prev byte
-	if k > 0 {
-		prev = q[k-1]
-	}
-	switch q[k] {
-	case '~':
-		if prev == '=' || prev == '!' {
-			return matcherRegex
+func (l lexer) promMatcher(q string, idx int) matcherKind {
+	k := -1
+	for r := idx - 1; r >= 0 && k < 0; r-- {
+		reg := l.regions[r]
+		if reg.ctx.kind != ctxCode {
+			if reg.ctx.kind == ctxComment {
+				continue
+			}
+			return matcherNone
 		}
+		k = reg.end - 1
+		for k >= reg.start && isSpace(q[k]) {
+			k--
+		}
+		if k < reg.start {
+			k = -1
+			continue
+		}
+		var prev byte
+		if k > reg.start {
+			prev = q[k-1]
+		}
+		return promOperator(q[k], prev)
+	}
+	return matcherNone
+}
+
+func promOperator(op, prev byte) matcherKind {
+	switch op {
+	case '~':
+		return matcherRegex
 	case '=':
 		switch prev {
-		case '=', '<', '>', '~':
+		case '~':
+			return matcherRegex
+		case '=', '<', '>':
 			return matcherNone
 		}
 		return matcherEquality
 	}
 	return matcherNone
+}
+
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }

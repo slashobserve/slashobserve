@@ -130,7 +130,8 @@ func TestClickHouseVariables(t *testing.T) {
 		{name: "code sqlstring all with no options", d: macros.ClickHouse, query: `SELECT 1 WHERE svc IN ($svc)`, env: envWith(all("svc")), err: true},
 		{name: "code sqlstring unicode", d: macros.ClickHouse, query: `SELECT 1 WHERE svc IN ($svc)`, env: envWith(val("svc", "héllo✓名前")), want: `SELECT 1 WHERE svc IN ('héllo✓名前')`},
 		{name: "code singlequote", d: macros.ClickHouse, query: `SELECT 1 WHERE svc IN (${svc:singlequote})`, env: envWith(val("svc", "it's", "b")), want: `SELECT 1 WHERE svc IN ('it\'s','b')`},
-		{name: "code doublequote", d: macros.ClickHouse, query: `SELECT ${c:doublequote}`, env: envWith(val("c", `a"b`)), want: `SELECT "a\"b"`},
+		{name: "code doublequote is a quoted identifier", d: macros.ClickHouse, query: `SELECT ${c:doublequote}`, env: envWith(val("c", `a"b`)), err: true},
+		{name: "string doublequote", d: macros.ClickHouse, query: `SELECT '${c:doublequote}'`, env: envWith(val("c", `a"b`)), want: `SELECT '"a\\"b"'`},
 		{name: "code csv identifiers", d: macros.ClickHouse, query: `SELECT ${cols:csv} FROM t`, env: envWith(val("cols", "a", "b")), want: `SELECT a,b FROM t`},
 		{name: "code raw identifier", d: macros.ClickHouse, query: `SELECT 1 ORDER BY ${col:raw}`, env: envWith(val("col", "ts")), want: `SELECT 1 ORDER BY ts`},
 		{name: "code raw number", d: macros.ClickHouse, query: `SELECT 1 LIMIT ${n:raw}`, env: envWith(val("n", "10")), want: `SELECT 1 LIMIT 10`},
@@ -205,7 +206,8 @@ func TestClickHouseMacros(t *testing.T) {
 		{name: "interval minimum one", d: macros.ClickHouse, query: `SELECT $__interval`, env: env(100 * time.Millisecond), want: `SELECT 1`},
 		{name: "interval in string", d: macros.ClickHouse, query: `SELECT '$__interval'`, env: env(30 * time.Second), want: `SELECT '30'`},
 		{name: "time filter", d: macros.ClickHouse, query: `SELECT 1 FROM t WHERE $__timeFilter(Timestamp)`, env: env(time.Minute), want: `SELECT 1 FROM t WHERE ` + filter("Timestamp")},
-		{name: "time filter with expression", d: macros.ClickHouse, query: `SELECT 1 FROM t WHERE $__timeFilter(toDateTime(ts))`, env: env(time.Minute), want: `SELECT 1 FROM t WHERE ` + filter("toDateTime(ts)")},
+		{name: "time filter dotted column", d: macros.ClickHouse, query: `SELECT 1 FROM t WHERE $__timeFilter(otel_logs.Timestamp)`, env: env(time.Minute), want: `SELECT 1 FROM t WHERE ` + filter("otel_logs.Timestamp")},
+		{name: "time filter function call refused", d: macros.ClickHouse, query: `SELECT 1 FROM t WHERE $__timeFilter(toDateTime(ts))`, env: env(time.Minute), err: true},
 		{name: "time filter trims args", d: macros.ClickHouse, query: `SELECT 1 FROM t WHERE $__timeFilter( ts )`, env: env(time.Minute), want: `SELECT 1 FROM t WHERE ` + filter("ts")},
 		{name: "time group", d: macros.ClickHouse, query: `SELECT $__timeGroup(ts) FROM t GROUP BY 1`, env: env(30 * time.Second), want: `SELECT toStartOfInterval(ts, INTERVAL 30 SECOND) FROM t GROUP BY 1`},
 		{name: "time group rounds interval up", d: macros.ClickHouse, query: `SELECT $__timeGroup(ts)`, env: env(90500 * time.Millisecond), want: `SELECT toStartOfInterval(ts, INTERVAL 91 SECOND)`},
@@ -571,5 +573,189 @@ func TestUnknownDialect(t *testing.T) {
 	_, err := macros.Expand(0, "up", envWith())
 	if !errors.Is(err, datasource.ErrInvalidQuery) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestTimeMacroColumnArgumentRejections(t *testing.T) {
+	for _, arg := range []string{
+		"ts -- x", "ts --", "ts #", "ts /* x", "ts */", "*/ ts", "a'b", `"a"`, "`a`", "a b", "a,b", "a..b", ".a", "a.", "1a",
+		"toDateTime(ts)", "(ts", "ts OR 1=1", "t\ns", "ts\x00",
+	} {
+		for _, macro := range []string{"__timeFilter", "__timeGroup"} {
+			query := "SELECT 1 FROM t WHERE $" + macro + "(" + arg + ")"
+			if got, err := macros.Expand(macros.ClickHouse, query, envWith()); err == nil {
+				t.Fatalf("Expand(%q) = %q, want error", query, got.Text)
+			} else if !errors.Is(err, datasource.ErrInvalidQuery) {
+				t.Fatalf("Expand(%q): error is not ErrInvalidQuery: %v", query, err)
+			}
+		}
+	}
+}
+
+func TestLexerContextCorpus(t *testing.T) {
+	hostile := envWith(val("v", "1 OR 1=1"))
+	cases := []expandCase{
+		{name: "hash comment with quote", d: macros.ClickHouse, query: "SELECT 1 FROM t # don't\nWHERE id = $v", env: hostile, want: "SELECT 1 FROM t # don't\nWHERE id = '1 OR 1=1'"},
+		{name: "nested block comment", d: macros.ClickHouse, query: "SELECT 1 FROM t /* /* */ it's */ WHERE id = $v", env: hostile, want: "SELECT 1 FROM t /* /* */ it's */ WHERE id = '1 OR 1=1'"},
+		{name: "dollar heredoc", d: macros.ClickHouse, query: "SELECT $$ it's $$ AS a, id FROM t WHERE id = $v", env: hostile, want: "SELECT $$ it's $$ AS a, id FROM t WHERE id = '1 OR 1=1'"},
+		{name: "hash bang comment", d: macros.ClickHouse, query: "SELECT 1 #! x'\n, $v", env: hostile, want: "SELECT 1 #! x'\n, '1 OR 1=1'"},
+		{name: "nested depth three", d: macros.ClickHouse, query: "SELECT 1 /* a /* b /* c */ ' */ ' */ WHERE id = $v", env: hostile, want: "SELECT 1 /* a /* b /* c */ ' */ ' */ WHERE id = '1 OR 1=1'"},
+		{name: "nested depth three closes early is unterminated", d: macros.ClickHouse, query: "SELECT 1 /* a /* b /* c */ */ WHERE id = $v", env: hostile, err: true},
+		{name: "tagged heredoc", d: macros.ClickHouse, query: "SELECT $tag$ it's $tag$, id FROM t WHERE id = $v", env: hostile, want: "SELECT $tag$ it's $tag$, id FROM t WHERE id = '1 OR 1=1'"},
+		{name: "reference inside tagged heredoc", d: macros.ClickHouse, query: "SELECT $tag$ $v $tag$", env: hostile, err: true},
+		{name: "tagged heredoc without refs", d: macros.ClickHouse, query: "SELECT $tag$ it's $tag$, id FROM t WHERE id = 1", env: hostile, want: "SELECT $tag$ it's $tag$, id FROM t WHERE id = 1"},
+		{name: "heredoc containing other dollar tag", d: macros.ClickHouse, query: "SELECT $a1$ $$ ' $a1$ , $v", env: hostile, want: "SELECT $a1$ $$ ' $a1$ , '1 OR 1=1'"},
+		{name: "reference inside heredoc", d: macros.ClickHouse, query: "SELECT $$ $v $$", env: hostile, err: true},
+		{name: "macro inside heredoc", d: macros.ClickHouse, query: "SELECT $$ $__interval $$", env: hostile, err: true},
+		{name: "string after hash comment", d: macros.ClickHouse, query: "SELECT 1 # it's\nWHERE x = '$s'", env: envWith(val("s", "' OR 1=1 --")), want: "SELECT 1 # it's\nWHERE x = '\\' OR 1=1 --'"},
+		{name: "string after nested comment", d: macros.ClickHouse, query: "SELECT /* /* ' */ ' */ '$s'", env: envWith(val("s", "' OR 1=1 --")), want: "SELECT /* /* ' */ ' */ '\\' OR 1=1 --'"},
+		{name: "string after heredoc", d: macros.ClickHouse, query: "SELECT $$'$$, '$s'", env: envWith(val("s", "' OR 1=1 --")), want: "SELECT $$'$$, '\\' OR 1=1 --'"},
+		{name: "dollar in string is not a heredoc", d: macros.ClickHouse, query: "SELECT '$$', $v", env: hostile, want: "SELECT '$$', '1 OR 1=1'"},
+		{name: "dollar in comment is not a heredoc", d: macros.ClickHouse, query: "-- $$\nSELECT $v", env: hostile, want: "-- $$\nSELECT '1 OR 1=1'"},
+		{name: "double dash after hash", d: macros.ClickHouse, query: "SELECT 1 # -- '\n, $v", env: hostile, want: "SELECT 1 # -- '\n, '1 OR 1=1'"},
+		{name: "exotic heredoc tag with dash", d: macros.ClickHouse, query: "SELECT $a-b$ it's $a-b$, id FROM t WHERE id = $v", env: envWith(val("a", "x"), val("v", "1 OR 1=1")), err: true},
+		{name: "exotic heredoc tag with non ascii", d: macros.ClickHouse, query: "SELECT $\u00e4$ x' $\u00e4$ , $v", env: hostile, err: true},
+		{name: "exotic heredoc tag with space", d: macros.ClickHouse, query: "SELECT $ x $ it's $ x $, $v", env: hostile, err: true},
+		{name: "lone dollar in code", d: macros.ClickHouse, query: "SELECT $ FROM t WHERE id = $v", env: hostile, err: true},
+		{name: "trailing dollar in code", d: macros.ClickHouse, query: "SELECT 1 $", env: hostile, err: true},
+		{name: "digit dollar in code", d: macros.ClickHouse, query: "SELECT $1 FROM t", env: hostile, err: true},
+		{name: "braced digit dollar in code", d: macros.ClickHouse, query: "SELECT ${1} FROM t", env: hostile, err: true},
+		{name: "dollar inside a word", d: macros.ClickHouse, query: "SELECT a$b FROM t", env: hostile, err: true},
+		{name: "heredoc glued to a word", d: macros.ClickHouse, query: "SELECT abc$$ it's $$ , $v", env: hostile, err: true},
+		{name: "heredoc glued to a reference", d: macros.ClickHouse, query: "SELECT ${w}$$ it's $$ , $v", env: envWith(val("w", "abc"), val("v", "1 OR 1=1")), err: true},
+		{name: "heredoc after punctuation", d: macros.ClickHouse, query: "SELECT (1),$$ it's $$ , $v", env: hostile, want: "SELECT (1),$$ it's $$ , '1 OR 1=1'"},
+		{name: "reference adjacent to word", d: macros.ClickHouse, query: "SELECT abc$v", env: envWith(val("v", "x")), want: "SELECT abc'x'"},
+		{name: "legit references still expand", d: macros.ClickHouse, query: "SELECT ${v}, $v, ${v:csv} FROM t WHERE $__timeFilter(ts) AND $__interval > 0", env: envWith(val("v", "x")), want: "SELECT 'x', 'x', x FROM t WHERE (ts >= fromUnixTimestamp64Milli(toInt64(1767225600000), 'UTC') AND ts <= fromUnixTimestamp64Milli(toInt64(1767247200000), 'UTC')) AND 30 > 0"},
+		{name: "dollar in string and quoted identifier", d: macros.ClickHouse, query: "SELECT '$1', \"$1\", `$$` FROM t", env: hostile, want: "SELECT '$1', \"$1\", `$$` FROM t"},
+		{name: "unicode single quoted literal", d: macros.ClickHouse, query: "SELECT \u2018it's\u2019, $v", env: hostile, want: "SELECT \u2018it's\u2019, '1 OR 1=1'"},
+		{name: "unicode double quoted literal", d: macros.ClickHouse, query: "SELECT \u201cit's\u201d, $v", env: hostile, want: "SELECT \u201cit's\u201d, '1 OR 1=1'"},
+		{name: "reference in unicode quoted literal", d: macros.ClickHouse, query: "SELECT \u2018$v\u2019", env: hostile, err: true},
+		{name: "unterminated unicode quoted literal", d: macros.ClickHouse, query: "SELECT \u2018abc", env: hostile, err: true},
+		{name: "slash slash comment", d: macros.ClickHouse, query: "SELECT 1 // it's\n, $v", env: hostile, want: "SELECT 1 // it's\n, '1 OR 1=1'"},
+		{name: "hash without space is a syntax error", d: macros.ClickHouse, query: "SELECT 1 #x'\n, $v", env: hostile, err: true},
+		{name: "hash at end is a syntax error", d: macros.ClickHouse, query: "SELECT 1 #", env: hostile, err: true},
+		{name: "references in comments are never expanded: dash", d: macros.ClickHouse, query: "SELECT 1 -- $v ${v} $__interval $__timeFilter(ts)\n", env: hostile, want: "SELECT 1 -- $v ${v} $__interval $__timeFilter(ts)\n"},
+		{name: "references in comments are never expanded: hash", d: macros.ClickHouse, query: "SELECT 1 # $v ${v:raw} $__timeGroup(ts)\n", env: hostile, want: "SELECT 1 # $v ${v:raw} $__timeGroup(ts)\n"},
+		{name: "references in comments are never expanded: hash bang", d: macros.ClickHouse, query: "SELECT 1 #! $v\n", env: hostile, want: "SELECT 1 #! $v\n"},
+		{name: "references in comments are never expanded: slash slash", d: macros.ClickHouse, query: "SELECT 1 // $v\n", env: hostile, want: "SELECT 1 // $v\n"},
+		{name: "references in comments are never expanded: block", d: macros.ClickHouse, query: "SELECT 1 /* $v ${v} $__interval */", env: hostile, want: "SELECT 1 /* $v ${v} $__interval */"},
+		{name: "references in comments are never expanded: nested", d: macros.ClickHouse, query: "SELECT 1 /* a /* $v */ $v ${v:raw} */ , $v", env: hostile, want: "SELECT 1 /* a /* $v */ $v ${v:raw} */ , '1 OR 1=1'"},
+		{name: "references in comments are never expanded: promql", d: macros.PromQL, query: "up # $v ${v:raw} $__interval\n", env: hostile, want: "up # $v ${v:raw} $__interval\n"},
+		{name: "promql comment ends at carriage return", d: macros.PromQL, query: "up # c\r`\n{a=\"$v\"}`", env: envWith(val("v", `"} or vector(1) #`)), want: "up # c\r`\n{a=\"\"} or vector(1) #\"}`"},
+		{name: "promql comment ends at carriage return then string", d: macros.PromQL, query: "up{a=~ # c\r\"$v\"}", env: envWith(val("v", "a.b")), want: "up{a=~ # c\r\"a\\\\.b\"}"},
+		{name: "promql comment ends at newline", d: macros.PromQL, query: "up # c`\n{a=\"$v\"}", env: envWith(val("v", `x"`)), want: "up # c`\n{a=\"x\\\"\"}"},
+		{name: "promql newline in quoted string", d: macros.PromQL, query: "up{a=\"x\ny\"}", env: hostile, err: true},
+		{name: "promql newline in single quoted string", d: macros.PromQL, query: "up{a='x\ny'}", env: hostile, err: true},
+		{name: "promql newline in raw string", d: macros.PromQL, query: "up{a=`x\ny`}", env: hostile, want: "up{a=`x\ny`}"},
+		{name: "clickhouse dash comment survives carriage return", d: macros.ClickHouse, query: "SELECT 1 -- c\r'\n, $v", env: hostile, want: "SELECT 1 -- c\r'\n, '1 OR 1=1'"},
+		{name: "clickhouse hash comment survives carriage return", d: macros.ClickHouse, query: "SELECT 1 # c\r'\n, $v", env: hostile, want: "SELECT 1 # c\r'\n, '1 OR 1=1'"},
+		{name: "clickhouse slash comment survives carriage return", d: macros.ClickHouse, query: "SELECT 1 // c\r'\n, $v", env: hostile, want: "SELECT 1 // c\r'\n, '1 OR 1=1'"},
+		{name: "promql regex rejects sqlstring", d: macros.PromQL, query: `up{a=~"${v:sqlstring}"}`, env: envWith(val("v", "a.b")), err: true},
+		{name: "promql regex rejects singlequote", d: macros.PromQL, query: `up{a=~"${v:singlequote}"}`, env: envWith(val("v", "a.b")), err: true},
+		{name: "promql regex rejects doublequote", d: macros.PromQL, query: `up{a=~'${v:doublequote}'}`, env: envWith(val("v", ".*")), err: true},
+		{name: "promql negative regex rejects doublequote", d: macros.PromQL, query: "up{a!~`${v:doublequote}`}", env: envWith(val("v", ".*")), err: true},
+		{name: "promql equality keeps quote formats", d: macros.PromQL, query: `up{a="${v:sqlstring}"}`, env: envWith(val("v", "a")), want: `up{a="'a'"}`},
+		{name: "heredoc with empty tag and body", d: macros.ClickHouse, query: "SELECT $$hello$$", env: hostile, want: "SELECT $$hello$$"},
+		{name: "heredoc with tag and word body", d: macros.ClickHouse, query: "SELECT $tag$hello$tag$, $v", env: hostile, want: "SELECT $tag$hello$tag$, '1 OR 1=1'"},
+		{name: "heredoc body reference after word", d: macros.ClickHouse, query: "SELECT $$hello$v$$", env: hostile, err: true},
+		{name: "heredoc body macro", d: macros.ClickHouse, query: "SELECT $$a $__interval b$$", env: hostile, err: true},
+		{name: "reference starting in closing delimiter", d: macros.ClickHouse, query: "SELECT $$x$$hello, $v", env: hostile, want: "SELECT $$x$$hello, '1 OR 1=1'"},
+		{name: "macro starting in closing delimiter keeps its arguments checked", d: macros.ClickHouse, query: "SELECT $$x$$__timeFilter($ y)", env: hostile, err: true},
+		{name: "adjacent quoted references fuse into one literal", d: macros.ClickHouse, query: "SELECT $a$b FROM t", env: envWith(val("a", "foo"), val("b", "bar")), err: true},
+		{name: "adjacent raw references fuse into one word", d: macros.ClickHouse, query: "SELECT ${a:raw}${b:raw} FROM t", env: envWith(val("a", "foo"), val("b", "bar")), err: true},
+		{name: "adjacent references with a closer are a heredoc", d: macros.ClickHouse, query: "SELECT $a$b $a$ FROM t", env: envWith(val("a", "foo"), val("b", "bar")), want: "SELECT $a$b $a$ FROM t"},
+		{name: "adjacent references in a heredoc delimiter", d: macros.ClickHouse, query: "SELECT $a$b $a$ , $v", env: envWith(val("a", "foo"), val("b", "bar"), val("v", "1 OR 1=1")), want: "SELECT $a$b $a$ , '1 OR 1=1'"},
+		{name: "digit value fuses with a following exponent marker", d: macros.ClickHouse, query: "SELECT ${v:raw}e-- x'\n, '$w'", env: envWith(val("v", "5"), val("w", "' OR 1=1 --")), err: true},
+		{name: "letter value extends a following word and hides a quote", d: macros.ClickHouse, query: "SELECT ${v:raw}e-- x'\n, '$w'", env: envWith(val("v", "a"), val("w", "' OR 1=1 --")), err: true},
+		{name: "letter value swallows a heredoc opener", d: macros.ClickHouse, query: "SELECT ${v:raw}0b$$ x' $$, '$w'", env: envWith(val("v", "a"), val("w", "' OR 1=1 --")), err: true},
+		{name: "digit value fused with binary prefix", d: macros.ClickHouse, query: "SELECT ${v:raw}0b$$ x' $$, '$w'", env: envWith(val("v", "1"), val("w", "' OR 1=1 --")), err: true},
+		{name: "quoted value fuses with a following literal", d: macros.ClickHouse, query: "SELECT $v'abc', $w", env: envWith(val("v", "a"), val("w", "1 OR 1=1")), err: true},
+		{name: "quoted value fuses with a hex string prefix", d: macros.ClickHouse, query: "SELECT x$v, $w", env: envWith(val("v", "0F"), val("w", "1 OR 1=1")), err: true},
+		{name: "raw value after a word character", d: macros.ClickHouse, query: "SELECT a${v:raw} FROM t", env: envWith(val("v", "b")), err: true},
+		{name: "raw value after a dot", d: macros.ClickHouse, query: "SELECT db.${v:raw} FROM t", env: envWith(val("v", "b")), err: true},
+		{name: "raw value before a dot", d: macros.ClickHouse, query: "SELECT ${v:raw}.c FROM t", env: envWith(val("v", "b")), err: true},
+		{name: "raw value before a dollar", d: macros.ClickHouse, query: "SELECT ${v:raw}$$ x $$", env: envWith(val("v", "b")), err: true},
+		{name: "macro before a word character", d: macros.ClickHouse, query: "SELECT $__timeGroup(ts)x FROM t", env: envWith(), err: true},
+		{name: "macro value after a word character", d: macros.ClickHouse, query: "SELECT a${__interval} FROM t", env: envWith(), err: true},
+		{name: "raw value between separators", d: macros.ClickHouse, query: "SELECT (${v:raw}),${w:raw}+1 FROM t", env: envWith(val("v", "b"), val("w", "c")), want: "SELECT (b),c+1 FROM t"},
+		{name: "quoted value next to punctuation", d: macros.ClickHouse, query: "SELECT x IN ($v,$w) FROM t", env: envWith(val("v", "a"), val("w", "b")), want: "SELECT x IN ('a','b') FROM t"},
+		{name: "promql raw value after a word character", d: macros.PromQL, query: "sum by (a${v:raw}) (up)", env: envWith(val("v", "b")), err: true},
+		{name: "promql raw value after a colon", d: macros.PromQL, query: "sum by (a:${v:raw}) (up)", env: envWith(val("v", "b")), err: true},
+		{name: "promql duration macro after a digit", d: macros.PromQL, query: "rate(x[5${__interval}])", env: envWith(), err: true},
+		{name: "unterminated string", d: macros.ClickHouse, query: "SELECT 'abc", env: hostile, err: true},
+		{name: "unterminated string with escape", d: macros.ClickHouse, query: `SELECT 'abc\'`, env: hostile, err: true},
+		{name: "unterminated string with reference", d: macros.ClickHouse, query: "SELECT 'abc $v", env: hostile, err: true},
+		{name: "unterminated double quoted identifier", d: macros.ClickHouse, query: `SELECT "abc`, env: hostile, err: true},
+		{name: "unterminated backtick identifier", d: macros.ClickHouse, query: "SELECT `abc", env: hostile, err: true},
+		{name: "unterminated block comment", d: macros.ClickHouse, query: "SELECT 1 /* abc", env: hostile, err: true},
+		{name: "unterminated nested block comment", d: macros.ClickHouse, query: "SELECT 1 /* a /* b */ c", env: hostile, err: true},
+		{name: "unterminated empty block comment", d: macros.ClickHouse, query: "SELECT 1 /*/", env: hostile, err: true},
+		{name: "unterminated dollar heredoc", d: macros.ClickHouse, query: "SELECT $$ abc", env: hostile, err: true},
+		{name: "unterminated tagged heredoc", d: macros.ClickHouse, query: "SELECT $tag$ abc $other$", env: hostile, err: true},
+		{name: "unterminated string without references", d: macros.ClickHouse, query: "SELECT 'abc", env: envWith(), err: true},
+		{name: "line comment may end the query", d: macros.ClickHouse, query: "SELECT 1 # tail", env: envWith(), want: "SELECT 1 # tail"},
+		{name: "promql unterminated double quote", d: macros.PromQL, query: `up{a="x`, env: hostile, err: true},
+		{name: "promql unterminated single quote", d: macros.PromQL, query: `up{a='x`, env: hostile, err: true},
+		{name: "promql unterminated backtick", d: macros.PromQL, query: "up{a=`x", env: hostile, err: true},
+		{name: "promql unterminated escaped quote", d: macros.PromQL, query: `up{a="x\"`, env: hostile, err: true},
+		{name: "promql unterminated without references", d: macros.PromQL, query: `up{a="x`, env: envWith(), err: true},
+		{name: "promql regex after comment", d: macros.PromQL, query: "up{a=~ # note\n\"$v\"}", env: envWith(val("v", "a.b")), want: "up{a=~ # note\n\"a\\\\.b\"}"},
+		{name: "promql regex after comment containing equals", d: macros.PromQL, query: "up{a=~ # x =\n\"$v\"}", env: envWith(val("v", "a.b")), want: "up{a=~ # x =\n\"a\\\\.b\"}"},
+		{name: "promql regex after two comments", d: macros.PromQL, query: "up{a=~ # one\n # two\n\"$v\"}", env: envWith(val("v", "a.b")), want: "up{a=~ # one\n # two\n\"a\\\\.b\"}"},
+		{name: "promql equality after comment containing regex operator", d: macros.PromQL, query: "up{a= # =~\n\"$v\"}", env: envWith(val("v", "a.b")), want: "up{a= # =~\n\"a.b\"}"},
+		{name: "promql misplaced tilde is a regex", d: macros.PromQL, query: `up{a~"$v"}`, env: envWith(val("v", "a.b")), want: `up{a~"a\\.b"}`},
+		{name: "promql regex pipe quotes each value", d: macros.PromQL, query: `up{a=~"${v:pipe}"}`, env: envWith(val("v", ".*", "b")), want: `up{a=~"\\.\\*|b"}`},
+		{name: "promql regex csv quotes each value", d: macros.PromQL, query: `up{a=~"${v:csv}"}`, env: envWith(val("v", ".*", "b")), want: `up{a=~"\\.\\*,b"}`},
+		{name: "promql regex raw with metacharacters", d: macros.PromQL, query: `up{a=~"${v:raw}"}`, env: envWith(val("v", ".*")), err: true},
+		{name: "promql regex raw with alternation", d: macros.PromQL, query: `up{a=~"${v:raw}"}`, env: envWith(val("v", "a|b")), err: true},
+		{name: "promql regex raw safe value", d: macros.PromQL, query: `up{a=~"${v:raw}"}`, env: envWith(val("v", "abc_1:x")), want: `up{a=~"abc_1:x"}`},
+		{name: "promql negative regex raw with metacharacters", d: macros.PromQL, query: `up{a!~'${v:raw}'}`, env: envWith(val("v", "(?s).*")), err: true},
+		{name: "promql equality raw keeps metacharacters", d: macros.PromQL, query: `up{a="${v:raw}"}`, env: envWith(val("v", "a.*")), want: `up{a="a.*"}`},
+		{name: "promql all in regex is dot star", d: macros.PromQL, query: `up{a=~"$v"}`, env: envWith(all("v", "x", "y")), want: `up{a=~".*"}`},
+	}
+	runExpandCases(t, cases)
+}
+
+func TestLexerContextProbesWithInjectionCorpus(t *testing.T) {
+	sqlString := strings.NewReplacer(`\`, `\\`, `'`, `''`)
+	inString := strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+	codeProbes := []string{
+		"SELECT 1 FROM t # don't\nWHERE id = ",
+		"SELECT 1 FROM t /* /* */ it's */ WHERE id = ",
+		"SELECT 1 FROM t /* a /* b /* c */ ' */ ' */ WHERE id = ",
+		"SELECT $$ it's $$ AS a, id FROM t WHERE id = ",
+		"SELECT $tag$ it's $tag$ AS a, id FROM t WHERE id = ",
+		"SELECT 1 #! x'\nWHERE id = ",
+		"SELECT 1 # \"\nWHERE id = ",
+		"SELECT 1 -- it's\nWHERE id = ",
+	}
+	stringProbes := []string{
+		"SELECT 1 # don't\nWHERE id = '",
+		"SELECT 1 /* /* */ it's */ WHERE id = '",
+		"SELECT $$ it's $$ AS a WHERE id = '",
+		"SELECT 1 #! x'\nWHERE id = '",
+	}
+	for _, value := range append([]string{"1 OR 1=1"}, injectionCorpus...) {
+		if value == "" || strings.ContainsAny(value, "$") {
+			continue
+		}
+		for _, prefix := range codeProbes {
+			got, err := macros.Expand(macros.ClickHouse, prefix+"$v", envWith(val("v", value)))
+			if err != nil {
+				t.Fatalf("%q value %q: %v", prefix, value, err)
+			}
+			if want := prefix + "'" + sqlString.Replace(value) + "'"; got.Text != want {
+				t.Fatalf("%q value %q\n got: %s\nwant: %s", prefix, value, got.Text, want)
+			}
+		}
+		for _, prefix := range stringProbes {
+			got, err := macros.Expand(macros.ClickHouse, prefix+"$v'", envWith(val("v", value)))
+			if err != nil {
+				t.Fatalf("%q value %q: %v", prefix, value, err)
+			}
+			if want := prefix + inString.Replace(value) + "'"; got.Text != want {
+				t.Fatalf("%q value %q\n got: %s\nwant: %s", prefix, value, got.Text, want)
+			}
+		}
 	}
 }
