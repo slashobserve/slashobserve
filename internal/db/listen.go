@@ -6,9 +6,19 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const listenCloseTimeout = 5 * time.Second
+const (
+	listenCloseTimeout   = 5 * time.Second
+	listenLivenessPeriod = 30 * time.Second
+	listenPingTimeout    = 10 * time.Second
+)
+
+type notificationConn interface {
+	WaitForNotification(ctx context.Context) (*pgconn.Notification, error)
+	Ping(ctx context.Context) error
+}
 
 func (d *DB) Listen(ctx context.Context, channel string, onListening func(), handle func(payload string)) error {
 	pooled, err := d.pool.Acquire(ctx)
@@ -25,12 +35,28 @@ func (d *DB) Listen(ctx context.Context, channel string, onListening func(), han
 		return failOrCancel(ctx, "listen on "+channel, err)
 	}
 	onListening()
+	return waitForNotifications(ctx, conn, channel, listenLivenessPeriod, handle)
+}
+
+func waitForNotifications(ctx context.Context, conn notificationConn, channel string, livenessPeriod time.Duration, handle func(payload string)) error {
 	for {
-		notification, err := conn.WaitForNotification(ctx)
-		if err != nil {
+		waitCtx, cancel := context.WithTimeout(ctx, livenessPeriod)
+		notification, err := conn.WaitForNotification(waitCtx)
+		idle := waitCtx.Err() != nil
+		cancel()
+		if err == nil {
+			handle(notification.Payload)
+			continue
+		}
+		if ctx.Err() != nil || !idle {
 			return failOrCancel(ctx, "wait for notification on "+channel, err)
 		}
-		handle(notification.Payload)
+		pingCtx, cancelPing := context.WithTimeout(ctx, listenPingTimeout)
+		pingErr := conn.Ping(pingCtx)
+		cancelPing()
+		if pingErr != nil {
+			return failOrCancel(ctx, "ping listen connection on "+channel, pingErr)
+		}
 	}
 }
 
