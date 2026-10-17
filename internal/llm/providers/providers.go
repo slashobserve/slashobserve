@@ -7,6 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/anthropic"
+	"github.com/slashobserve/slashobserve/internal/llm/openaicompat"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
 )
 
@@ -19,6 +20,14 @@ func New(cfg config.LLM, logger *slog.Logger) (llm.Provider, error) {
 			APIKey:         cfg.APIKey,
 			Model:          cfg.Model,
 			Effort:         cfg.Effort,
+			BaseURL:        cfg.BaseURL,
+			MaxTokens:      cfg.MaxTokens,
+			RequestTimeout: cfg.RequestTimeout,
+		}, logger), nil
+	case config.LLMProviderOpenAI:
+		return openaicompat.New(openaicompat.Config{
+			APIKey:         cfg.APIKey,
+			Model:          cfg.Model,
 			BaseURL:        cfg.BaseURL,
 			MaxTokens:      cfg.MaxTokens,
 			RequestTimeout: cfg.RequestTimeout,
