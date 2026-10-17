@@ -38,7 +38,7 @@ type Status struct {
 	Name      string    `json:"name"`
 	Healthy   bool      `json:"healthy"`
 	Message   string    `json:"message,omitempty"`
-	CheckedAt time.Time `json:"checkedAt"`
+	CheckedAt time.Time `json:"checked_at"`
 }
 
 type Registry struct {

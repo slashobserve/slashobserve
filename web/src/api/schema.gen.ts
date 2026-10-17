@@ -245,7 +245,7 @@ export interface components {
             healthy: boolean;
             message?: string;
             /** Format: date-time */
-            checkedAt: string;
+            checked_at: string;
         };
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];

@@ -387,14 +387,14 @@ check_datasources() {
   pass "datasources report healthy without exposing connection details"
 
   while IFS= read -r entry; do
-    keys="$(grep -oE '"[A-Za-z]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
+    keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
     case "$keys" in
-      checkedAt,healthy,name,type,uid | checkedAt,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
+      checked_at,healthy,name,type,uid | checked_at,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
   [[ "$entries" == 2 ]] || fail "expected 2 datasource entries, found $entries"
-  pass "datasource entries carry exactly uid, type, name, healthy, checkedAt and an optional message"
+  pass "datasource entries carry exactly uid, type, name, healthy, checked_at and an optional message"
 }
 
 stack_suite() {

@@ -212,7 +212,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, healthy, checkedAt]
+      required: [uid, type, name, healthy, checked_at]
       properties:
         uid:
           type: string
@@ -224,7 +224,7 @@ components:
           type: boolean
         message:
           type: string
-        checkedAt:
+        checked_at:
           type: string
           format: date-time
     DatasourceList:
