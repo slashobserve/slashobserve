@@ -15,7 +15,10 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, ESLint, Prettier check. |
 | `make ci` | `lint`, `test`, `build`: what the CI `check` job runs. |
 | `make generate` | Regenerate sqlc code and the web Spec types/validator after editing migrations, queries or the schema. |
-| `make demo` / `make demo-down` | Run the compose stack in `deploy/compose` on http://localhost:8080. |
+| `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
+| `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request backfill runs again on the next `make demo`. |
+| `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
+| `make demo-fault-reset` | Clear the injected fault. |
 | `make e2e` | Reset and boot the isolated `slashobserve-e2e` stack on http://localhost:18080 and run `scripts/e2e.sh`; the stack is left running. |
 | `make e2e-browser` | Reuse the running, healthy e2e stack or boot one, then run Playwright in `web/e2e`; reuse does not rebuild, so rerun `make e2e` after code changes. |
 | `make e2e-all` | Both suites, as CI runs them. |
@@ -33,11 +36,13 @@ Directories are created when their phase starts; this is where things go.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`).
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`), later the MCP endpoint.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
-- Later: `internal/auth`, `internal/dashboards`, `internal/datasource/{prometheus,clickhouse,macros}`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `demo/shop/`, `deploy/helm/`.
+- Later: `internal/auth`, `internal/dashboards`, `internal/datasource/{prometheus,clickhouse,macros}`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
+- `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands; it emits the demo metrics, logs and traces.
+- `deploy/compose/{prometheus,clickhouse,otelcol}/`: the configs mounted into the demo stack's Prometheus, ClickHouse and OTel Collector.
 - `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint).
 
 ## Backend conventions
@@ -63,6 +68,7 @@ Directories are created when their phase starts; this is where things go.
   Queries live in `internal/db/queries`; sqlc generates `internal/db/dbsqlc` (committed, never hand-edited; run `make generate`).
 - Logging: `log/slog`, JSON by default; request logs record the path, never the query string.
 - Design: prefer deep modules (small interface, real behavior behind it); accept dependencies instead of creating them; add a seam only when two adapters exist.
+- ClickHouse in compose has a read-only user `slashobserve_ro`, created on first boot by `deploy/compose/clickhouse/initdb/10-readonly-user.sh` from `internal/datasource/clickhouse/testdata/readonly_user.sql` (`readonly=2` with constraints), the same definition the integration tests use.
 - Integration tests run against real Postgres, Prometheus and ClickHouse through testcontainers, never mocks.
 - Write no docstrings or comments unless they state a constraint the code cannot show.
 
@@ -85,7 +91,7 @@ Directories are created when their phase starts; this is where things go.
   `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
   Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line) and the `golang` image in `Dockerfile`; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/shop/go.mod`, and the `golang` image in `Dockerfile` and `demo/shop/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`.
 - Prefer boring, proven libraries; justify every new dependency in its PR.
 
 ## End-to-end tests
@@ -95,7 +101,10 @@ Directories are created when their phase starts; this is where things go.
 - The Playwright `setup` project (`web/e2e/auth.setup.ts`) signs in through Dex once and saves `web/e2e/.auth/user.json`.
   Every `chromium` spec reuses that session, and a spec that signs out must opt out with an empty `storageState` and sign in itself.
 - The e2e stack is compose project `slashobserve-e2e`, reset with `down -v` on every `make e2e`, on host port 18080 (`SLASHOBSERVE_E2E_PORT`), so it never touches a developer's `make demo` stack.
-  CI builds the server image once as `slashobserve-e2e:ci` and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
+  The e2e stack also publishes Prometheus on 19090 (`SLASHOBSERVE_E2E_PROMETHEUS_PORT`) and the shop fault API on 18081 (`SLASHOBSERVE_E2E_SHOP_PORT`).
+  CI builds the server image once as `slashobserve-e2e:ci` and the shop image as `slashobserve-demo-shop:ci` (`SLASHOBSERVE_SHOP_IMAGE`), and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
+- `scripts/e2e.sh` boot waits, with bounded polling, until Prometheus has scraped every target and ClickHouse has log and trace rows, so later checks never race a cold stack.
+  The shop contract (pods, routes, metric labels) is shared by the Prometheus backfill and the e2e checks, so change them together.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
