@@ -11,20 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const ensureInstance = `-- name: EnsureInstance :one
-INSERT INTO instance (singleton) VALUES (TRUE)
-ON CONFLICT (singleton) DO UPDATE SET singleton = EXCLUDED.singleton
-RETURNING id, created_at
+const getInstance = `-- name: GetInstance :one
+SELECT id, created_at FROM instance
 `
 
-type EnsureInstanceRow struct {
+type GetInstanceRow struct {
 	ID        pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 }
 
-func (q *Queries) EnsureInstance(ctx context.Context) (EnsureInstanceRow, error) {
-	row := q.db.QueryRow(ctx, ensureInstance)
-	var i EnsureInstanceRow
+func (q *Queries) GetInstance(ctx context.Context) (GetInstanceRow, error) {
+	row := q.db.QueryRow(ctx, getInstance)
+	var i GetInstanceRow
 	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
 }

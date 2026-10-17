@@ -5,5 +5,7 @@ CREATE TABLE instance (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+INSERT INTO instance DEFAULT VALUES;
+
 -- +goose Down
 DROP TABLE instance;

@@ -64,9 +64,9 @@ func run() error {
 	if err := database.Migrate(ctx); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
 	}
-	instance, err := database.Queries().EnsureInstance(ctx)
+	instance, err := database.Queries().GetInstance(ctx)
 	if err != nil {
-		return fmt.Errorf("ensure instance: %w", err)
+		return fmt.Errorf("get instance: %w", err)
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
