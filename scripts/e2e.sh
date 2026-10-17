@@ -136,6 +136,7 @@ boot() {
 TMP=""
 LOCK_DIR="${TMPDIR:-/tmp}/slashobserve-e2e-run.lock"
 LOCK_HELD=0
+SSE_PID=""
 
 acquire_lock() {
   mkdir "$LOCK_DIR" 2>/dev/null || fail "another e2e run is active (lock: $LOCK_DIR)"
@@ -143,6 +144,7 @@ acquire_lock() {
 }
 
 cleanup() {
+  sse_close
   if [[ "$LOCK_HELD" == 1 ]]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
   if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
   if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
@@ -356,6 +358,7 @@ suite() {
 
   check_datasources "$TMP/sa-jar"
   dashboards_suite
+  events_suite
   check_api_contract
 }
 
@@ -603,6 +606,67 @@ dashboards_suite() {
     fail "broken variables ($out: $(cat "$TMP/api.body"))"
   fi
   pass "broken variables are reported with the panels that depend on them"
+}
+
+sse_open() {
+  local id="$1" file="$2" tries=50
+  : >"$file"
+  command curl -sS -N --max-time 60 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" >"$file" &
+  SSE_PID=$!
+  disown "$SSE_PID"
+  until grep -q '^event: ready$' "$file"; do
+    ((--tries > 0)) || fail "SSE stream for $id sent no ready event ($(cat "$file"))"
+    sleep 0.2
+  done
+}
+
+sse_wait() {
+  local file="$1" pattern="$2" tries=$(($3 * 5))
+  until grep -q -- "$pattern" "$file"; do
+    ((--tries > 0)) || fail "SSE stream never matched '$pattern' ($(cat "$file"))"
+    sleep 0.2
+  done
+}
+
+sse_close() {
+  if [[ -n "$SSE_PID" ]]; then kill "$SSE_PID" 2>/dev/null || true; fi
+  SSE_PID=""
+}
+
+events_suite() {
+  api_token
+  local out id nil_id=00000000-0000-0000-0000-000000000000 stream="$TMP/sse-events.txt"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the SSE dashboard ($out: $(cat "$TMP/api.body"))"
+  id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+
+  sse_open "$id" "$stream"
+  grep -q "^data: {\"dashboard_id\":\"$id\",\"latest_version\":1}$" "$stream" || fail "SSE ready event should carry latest_version 1 ($(cat "$stream"))"
+  pass "SSE stream starts with a ready snapshot"
+
+  version_body dashboard-v2.json 1
+  out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/version-body.json")"
+  [[ "$out" == 201 ]] || fail "add a version to the SSE dashboard ($out: $(cat "$TMP/api.body"))"
+  sse_wait "$stream" '^event: version.created$' 10
+  sse_wait "$stream" "^data: {\"type\":\"version.created\",\"dashboard_id\":\"$id\",\"version\":2,\"parent_version\":1," 10
+  pass "SSE emits version.created for a new version"
+  sse_close
+
+  command curl -sS -o /dev/null -D "$TMP/sse.headers" --max-time 2 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" 2>/dev/null || true
+  grep -qi '^content-type: text/event-stream' "$TMP/sse.headers" || fail "SSE response is not text/event-stream ($(cat "$TMP/sse.headers"))"
+  grep -qi '^cache-control: no-store' "$TMP/sse.headers" || fail "SSE response is cacheable ($(cat "$TMP/sse.headers"))"
+  pass "SSE responses are uncacheable text/event-stream"
+
+  out="$(api GET "/dashboards/$nil_id/events")"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
+    fail "SSE for an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/not-a-uuid/events")"
+  [[ "$out" == 400 ]] || fail "SSE for a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/dashboards/$id/events")"
+  [[ "$out" == 401 ]] || fail "SSE without a token ($out)"
+  pass "SSE refuses unknown dashboards, malformed ids and unauthenticated callers"
 }
 
 stack_suite() {
