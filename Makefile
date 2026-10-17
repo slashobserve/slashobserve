@@ -10,8 +10,12 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
 COMPOSE := docker compose -f deploy/compose/compose.yaml
+SHOP_DIR := demo/shop
+SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
+TYPE ?= errors
+PCT ?= 30
 
-.PHONY: build server web web-deps generate test lint ci demo demo-down e2e e2e-browser e2e-all clean
+.PHONY: build server web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all clean
 
 build: web
 	$(MAKE) server
@@ -31,11 +35,14 @@ generate: web-deps
 
 test:
 	go test -race ./...
+	cd $(SHOP_DIR) && go test -race ./...
 
 lint: web-deps
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
+	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../../.golangci.yaml --diff
+	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../../.golangci.yaml ./...
 	$(SQLC) diff
 	cd web && bun run typecheck
 	cd web && bun run spec:check
@@ -47,12 +54,23 @@ ci:
 	$(MAKE) build
 
 demo:
-	SLASHOBSERVE_IMAGE=slashobserve-server:local $(COMPOSE) up -d --build --wait --wait-timeout 180
+	SLASHOBSERVE_IMAGE=slashobserve-server:local SLASHOBSERVE_SHOP_IMAGE=slashobserve-demo-shop:local $(COMPOSE) up -d --build --wait --wait-timeout 300
 	@echo "SlashObserve is running at http://localhost:$${SLASHOBSERVE_HOST_PORT:-8080}"
+	@echo "Prometheus is running at http://localhost:$${SLASHOBSERVE_PROMETHEUS_HOST_PORT:-9090}"
+	@echo "Shop fault API is at http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
 	@echo "Sign in as admin@example.com / password (Dex, development only)"
 
 demo-down:
 	$(COMPOSE) down
+
+demo-reset:
+	$(COMPOSE) down -v
+
+demo-fault:
+	curl -fsS -X POST "http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault?type=$(TYPE)&pct=$(PCT)"
+
+demo-fault-reset:
+	curl -fsS -X DELETE "http://localhost:$${SLASHOBSERVE_SHOP_HOST_PORT:-8081}/fault"
 
 e2e:
 	scripts/e2e.sh

@@ -8,13 +8,23 @@ BASE_URL="http://localhost:${PORT}"
 export SLASHOBSERVE_HOST_PORT="$PORT"
 DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
+export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
+export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
 
 curl() { command curl --max-time 10 "$@"; }
 
+pass() { printf 'PASS  %s\n' "$1"; }
+fail() {
+  printf 'FAIL  %s\n' "$1" >&2
+  exit 1
+}
+
 if [[ -n "${SLASHOBSERVE_IMAGE:-}" ]]; then
+  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
   BUILD_FLAGS=(--no-build --pull missing)
 else
   export SLASHOBSERVE_IMAGE="slashobserve-e2e:local"
+  export SLASHOBSERVE_SHOP_IMAGE="slashobserve-e2e-shop:local"
   BUILD_FLAGS=(--build)
 fi
 
@@ -31,9 +41,12 @@ Usage: scripts/e2e.sh [run|up|browser|down|logs]
   logs     print the stack's container logs
 
 Environment:
-  SLASHOBSERVE_E2E_PORT      host port of the e2e server (default 18080)
-  SLASHOBSERVE_E2E_DEX_PORT  host port of the e2e Dex (default 15556)
-  SLASHOBSERVE_IMAGE         run this prebuilt server image instead of building the checkout
+  SLASHOBSERVE_E2E_PORT             host port of the e2e server (default 18080)
+  SLASHOBSERVE_E2E_DEX_PORT         host port of the e2e Dex (default 15556)
+  SLASHOBSERVE_E2E_PROMETHEUS_PORT  host port of the e2e Prometheus (default 19090)
+  SLASHOBSERVE_E2E_SHOP_PORT        host port of the e2e shop fault API (default 18081)
+  SLASHOBSERVE_IMAGE                run this prebuilt server image instead of building the checkout
+  SLASHOBSERVE_SHOP_IMAGE           the prebuilt demo shop image, required with SLASHOBSERVE_IMAGE
 
 Requirements: docker with compose v2.20+, curl; 'browser' also needs bun and web dependencies.
 EOF
@@ -41,12 +54,6 @@ EOF
 
 compose() {
   docker compose -f "$ROOT/deploy/compose/compose.yaml" -p "$PROJECT" "$@"
-}
-
-pass() { printf 'PASS  %s\n' "$1"; }
-fail() {
-  printf 'FAIL  %s\n' "$1" >&2
-  exit 1
 }
 
 is_ready() { command curl -fsS --max-time 3 "$BASE_URL/readyz" >/dev/null 2>&1; }
@@ -57,7 +64,7 @@ stack_reusable() {
 
 boot() {
   compose down -v --remove-orphans >/dev/null 2>&1 || true
-  if ! compose up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 180; then
+  if ! compose up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
     compose logs --no-color --tail 200 >&2 || true
     fail "stack did not become healthy"
   fi

@@ -1,0 +1,16 @@
+# No secrets here: passwords are referenced by env var or file.
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+  - uid: ch
+    type: clickhouse
+    name: ClickHouse
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD

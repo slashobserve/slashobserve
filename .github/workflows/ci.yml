@@ -32,6 +32,7 @@ jobs:
             go.sum
             tools/sqlc/go.sum
             tools/golangci-lint/go.sum
+            demo/shop/go.sum
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -60,6 +61,7 @@ jobs:
     timeout-minutes: 30
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
+      SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,6 +82,15 @@ jobs:
             COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build demo shop image once
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: demo/shop
+          load: true
+          tags: slashobserve-demo-shop:ci
+          cache-from: type=gha,scope=demo-shop
+          cache-to: type=gha,mode=max,scope=demo-shop
 
       - name: API smoke suite
         run: scripts/e2e.sh

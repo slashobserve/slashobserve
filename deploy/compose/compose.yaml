@@ -3,6 +3,25 @@ name: slashobserve
 # Development-only OAuth client secret shared by Dex and the server.
 x-dex-client-secret: &dex-client-secret slashobserve-dev-client-secret
 
+x-shop: &shop
+  build:
+    context: ../../demo/shop
+  image: ${SLASHOBSERVE_SHOP_IMAGE:-slashobserve-demo-shop:local}
+  command: [serve]
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/shop", "healthcheck"]
+    interval: 5s
+    timeout: 3s
+    retries: 12
+  depends_on:
+    otel-collector:
+      condition: service_started
+  deploy:
+    resources:
+      limits:
+        memory: 64M
+        cpus: "0.5"
+
 services:
   postgres:
     image: postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1
@@ -18,6 +37,10 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   dex:
     # v2.46.0 (2026-10-07) is younger than 14 days; v2.45.1 is the newest allowed.
@@ -36,6 +59,10 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
   server:
     build:
@@ -51,6 +78,10 @@ services:
       SLASHOBSERVE_OIDC_CLIENT_ID: slashobserve
       SLASHOBSERVE_OIDC_CLIENT_SECRET: *dex-client-secret
       SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS: ${SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS:-example.com}
+      SLASHOBSERVE_DATASOURCES_FILE: /etc/slashobserve/datasources.yaml
+      SLASHOBSERVE_CLICKHOUSE_PASSWORD: slashobserve
+    volumes:
+      - ./datasources.yaml:/etc/slashobserve/datasources.yaml:ro
     ports:
       - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-8080}:8080"
     depends_on:
@@ -58,6 +89,170 @@ services:
         condition: service_healthy
       dex:
         condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    entrypoint: ["/bin/sh", "/etc/prometheus/entrypoint.sh"]
+    environment:
+      COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME}
+      PROMETHEUS_BACKFILL: ${SLASHOBSERVE_PROMETHEUS_BACKFILL:-1}
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($|/)
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=10s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
+      - --enable_metrics=cpu,memory,network
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.15.10@sha256:9716a352d25f538bd19d868b001141e7a60e4d035bc9b823658c6a071660aa61
+    environment:
+      # Development-only credentials; ClickHouse is reachable only on the compose network.
+      CLICKHOUSE_DB: otel
+      CLICKHOUSE_USER: otel
+      CLICKHOUSE_PASSWORD: otel
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      SLASHOBSERVE_RO_PASSWORD: slashobserve
+    volumes:
+      - ./clickhouse/config.d/slashobserve.xml:/etc/clickhouse-server/config.d/slashobserve.xml:ro
+      - ./clickhouse/initdb:/docker-entrypoint-initdb.d:ro
+      - ../../internal/datasource/clickhouse/testdata/readonly_user.sql:/slashobserve/readonly_user.sql:ro
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "otel", "--password", "otel", "-q", "SELECT 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+    environment:
+      CLICKHOUSE_USER: otel
+      CLICKHOUSE_PASSWORD: otel
+    volumes:
+      - ./otelcol/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  frontend-0:
+    <<: *shop
+    environment:
+      SHOP_SERVICE: frontend
+      SHOP_POD: frontend-0
+      SHOP_CHECKOUT_URLS: http://checkout-0:8080,http://checkout-1:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+  checkout-0:
+    <<: *shop
+    environment:
+      SHOP_SERVICE: checkout
+      SHOP_POD: checkout-0
+      SHOP_PAYMENTS_URL: http://payments-0:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - "127.0.0.1:${SLASHOBSERVE_SHOP_HOST_PORT:-8081}:8080"
+
+  checkout-1:
+    <<: *shop
+    environment:
+      SHOP_SERVICE: checkout
+      SHOP_POD: checkout-1
+      SHOP_PAYMENTS_URL: http://payments-0:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+  payments-0:
+    <<: *shop
+    environment:
+      SHOP_SERVICE: payments
+      SHOP_POD: payments-0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+
+  loadgen:
+    <<: *shop
+    command: [loadgen]
+    healthcheck:
+      disable: true
+    environment:
+      LOADGEN_TARGET: http://frontend-0:8080
+      LOADGEN_RPS: "20"
+      LOADGEN_SEED: "42"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      frontend-0:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 32M
 
 volumes:
   postgres-data:
+  prometheus-data:
+  clickhouse-data:
