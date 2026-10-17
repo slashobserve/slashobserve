@@ -22,6 +22,27 @@ type OidcLoginState struct {
 	ExpiresAt    pgtype.Timestamptz
 }
 
+type ServiceAccount struct {
+	ID          pgtype.UUID
+	Name        string
+	Description string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
+type ServiceAccountKey struct {
+	ID               pgtype.UUID
+	ServiceAccountID pgtype.UUID
+	Name             string
+	DisplayPrefix    string
+	TokenHash        []byte
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	ExpiresAt        pgtype.Timestamptz
+	LastUsedAt       pgtype.Timestamptz
+	RevokedAt        pgtype.Timestamptz
+}
+
 type Session struct {
 	ID        pgtype.UUID
 	TokenHash []byte
