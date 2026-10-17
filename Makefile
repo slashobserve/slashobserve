@@ -32,6 +32,7 @@ web: web-deps
 generate: web-deps
 	$(SQLC) generate
 	cd web && bun run spec:generate
+	cd web && bun run api:generate
 
 test:
 	go test -race ./...
@@ -46,6 +47,7 @@ lint: web-deps
 	$(SQLC) diff
 	cd web && bun run typecheck
 	cd web && bun run spec:check
+	cd web && bun run api:check
 	cd web && bun run lint
 	cd web && bun run format:check
 

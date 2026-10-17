@@ -12,6 +12,7 @@ export default defineConfig([
     "test-results",
     "src/routeTree.gen.ts",
     "src/spec/*.gen.ts",
+    "src/api/*.gen.ts",
   ]),
   {
     files: ["src/**/*.{ts,tsx}"],
