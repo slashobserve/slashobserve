@@ -10,6 +10,39 @@ test("shows the signed-in user", async ({ page }) => {
   ).toBeVisible()
 })
 
+test("shows the new user after the session changes in another tab", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await expect(page.getByText("admin@example.com")).toBeVisible()
+
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        authenticated: true,
+        principal: {
+          kind: "user",
+          id: "other-user",
+          email: "other@example.com",
+          name: "Other",
+        },
+      }),
+    })
+  )
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    })
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+
+  await expect(page.getByText("other@example.com")).toBeVisible()
+  await expect(page.getByText("admin@example.com")).toHaveCount(0)
+})
+
 test("falls back to the home page for an unsafe return_to", async ({
   page,
 }) => {

@@ -9,23 +9,48 @@ export type Session =
   { authenticated: false } | { authenticated: true; principal: Principal }
 
 let cachedSession: Promise<Session> | undefined
+let knownSession: Session | undefined
+let generation = 0
 
 export function getSession(): Promise<Session> {
-  cachedSession ??= fetchSession().catch((error: unknown) => {
-    cachedSession = undefined
-    throw error
-  })
-  return cachedSession
+  if (cachedSession) return cachedSession
+  const current = ++generation
+  const pending: Promise<Session> = fetchSession().then(
+    (session) => {
+      if (generation === current) knownSession = session
+      return session
+    },
+    (error: unknown) => {
+      if (cachedSession === pending) cachedSession = undefined
+      throw error
+    }
+  )
+  cachedSession = pending
+  return pending
 }
 
-export async function refreshSession(): Promise<Session> {
+export async function refreshSession(): Promise<{
+  session: Session
+  changed: boolean
+}> {
+  const current = ++generation
   const session = await fetchSession()
+  if (generation !== current) return { session, changed: false }
+  const changed = !sameSession(knownSession, session)
+  knownSession = session
   cachedSession = Promise.resolve(session)
-  return session
+  return { session, changed }
 }
 
 export function invalidateSession(): void {
+  generation++
   cachedSession = undefined
+}
+
+function sameSession(a: Session | undefined, b: Session): boolean {
+  if (!a || a.authenticated !== b.authenticated) return false
+  if (!a.authenticated || !b.authenticated) return true
+  return a.principal.id === b.principal.id
 }
 
 export async function apiFetch(
