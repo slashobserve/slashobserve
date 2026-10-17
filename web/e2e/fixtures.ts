@@ -1,4 +1,4 @@
-import { expect, test as base } from "@playwright/test"
+import { expect, test as base, type Page } from "@playwright/test"
 
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: [
@@ -15,4 +15,4 @@ export const test = base.extend<{ consoleErrors: string[] }>({
   ],
 })
 
-export { expect }
+export { expect, type Page }

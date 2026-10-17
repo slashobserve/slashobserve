@@ -5,7 +5,7 @@ test("loads the app shell", async ({ page }) => {
   expect(response?.status()).toBe(200)
   await expect(page).toHaveTitle("SlashObserve")
   await expect(
-    page.getByRole("heading", { level: 1, name: "SlashObserve" })
+    page.getByRole("heading", { level: 1, name: "Dashboards" })
   ).toBeVisible()
 })
 
@@ -18,6 +18,6 @@ test("serves deep links through the SPA fallback", async ({ page }) => {
   await page.getByRole("link", { name: "Back to home" }).click()
   await expect(page).toHaveURL("/")
   await expect(
-    page.getByRole("heading", { level: 1, name: "SlashObserve" })
+    page.getByRole("heading", { level: 1, name: "Dashboards" })
   ).toBeVisible()
 })

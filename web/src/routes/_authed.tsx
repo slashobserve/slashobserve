@@ -5,11 +5,10 @@ import {
   createFileRoute,
   redirect,
   useNavigate,
-  useRouter,
 } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
-import { getSession, logout } from "@/lib/auth"
+import { getSession, invalidateSession, logout } from "@/lib/auth"
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: async ({ location }) => {
@@ -24,7 +23,6 @@ export const Route = createFileRoute("/_authed")({
 
 function AuthedLayout() {
   const { principal } = Route.useRouteContext()
-  const router = useRouter()
   const navigate = useNavigate()
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -34,7 +32,7 @@ function AuthedLayout() {
     setFailed(false)
     try {
       await logout()
-      await router.invalidate()
+      invalidateSession()
       await navigate({ to: "/login" })
     } catch {
       setFailed(true)
@@ -50,7 +48,7 @@ function AuthedLayout() {
           SlashObserve
         </Link>
         <div className="flex items-center gap-3 text-sm">
-          <span>{principal.email ?? principal.name}</span>
+          <span>{principal.email || principal.name}</span>
           {failed ? (
             <p role="alert" className="text-destructive">
               Sign out failed. Try again.
@@ -60,6 +58,7 @@ function AuthedLayout() {
             variant="outline"
             size="sm"
             disabled={pending}
+            aria-busy={pending}
             onClick={signOut}
           >
             Sign out
