@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,6 +26,7 @@ const (
 	serverName       = "slashobserve"
 	maxBodyBytes     = 8 << 20
 	maxInFlight      = 8
+	maxTotalInFlight = 32
 	internalErrorMsg = "internal error"
 
 	instructions = "SlashObserve builds Grafana-style dashboards as ObserveSpec JSON. " +
@@ -44,7 +47,7 @@ type Options struct {
 }
 
 type handler struct {
-	registry  *tools.Registry
+	call      func(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
 	authn     Authenticator
 	logger    *slog.Logger
 	origin    *url.URL
@@ -57,7 +60,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{registry: reg, authn: authn, logger: logger, origin: opts.PublicURL, slots: slots{held: map[string]int{}}}
+	h := &handler{call: reg.Call, authn: authn, logger: logger, origin: opts.PublicURL, slots: slots{held: map[string]int{}}}
 	srv := mcpserver.NewMCPServer(serverName, opts.Version,
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithRecovery(),
@@ -83,11 +86,22 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 func toolFor(t tools.Tool) mcplib.Tool {
 	tool := mcplib.NewToolWithRawSchema(t.Name, t.Description, t.InputSchema)
 	tool.Annotations.ReadOnlyHint = mcplib.ToBoolPtr(t.ReadOnly)
+	if !t.ReadOnly {
+		tool.Annotations.DestructiveHint = mcplib.ToBoolPtr(false)
+	}
 	return tool
 }
 
 func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
-	return func(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	return func(ctx context.Context, req mcplib.CallToolRequest) (result *mcplib.CallToolResult, _ error) {
+		defer func() {
+			if p := recover(); p != nil {
+				h.logger.ErrorContext(ctx, "mcp tool call panicked",
+					slog.String("tool", name),
+					slog.String("panic_type", fmt.Sprintf("%T", p)))
+				result = mcplib.NewToolResultError(internalErrorMsg)
+			}
+		}()
 		start := time.Now()
 		principal, ok := auth.FromContext(ctx)
 		if !ok {
@@ -99,8 +113,16 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", slog.String("tool", name), slog.Any("error", err))
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
-		res, err := h.registry.Call(ctx, name, input)
+		res, err := h.call(ctx, name, input)
 		if err != nil {
+			if ctx.Err() != nil {
+				h.logger.InfoContext(ctx, "mcp tool call canceled by client",
+					slog.String("tool", name),
+					slog.String("principal_kind", string(principal.Kind)),
+					slog.String("principal_id", principal.ID),
+					slog.Any("error", err))
+				return mcplib.NewToolResultError(internalErrorMsg), nil
+			}
 			h.logger.ErrorContext(ctx, "mcp tool call failed", slog.String("tool", name), slog.Any("error", err))
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
@@ -173,6 +195,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
 	}
+	if !h.slots.acquireGlobal() {
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusServiceUnavailable, "busy", "server is busy")
+		return
+	}
+	defer h.slots.releaseGlobal()
 	h.transport.ServeHTTP(w, r.WithContext(auth.WithPrincipal(r.Context(), principal)))
 }
 
@@ -187,7 +215,20 @@ func (h *handler) originAllowed(origin string) bool {
 	if err != nil || u.Path != "" || u.RawQuery != "" || u.User != nil {
 		return false
 	}
-	return strings.EqualFold(u.Scheme, h.origin.Scheme) && strings.EqualFold(u.Host, h.origin.Host)
+	return strings.EqualFold(u.Scheme, h.origin.Scheme) && canonicalHost(u) == canonicalHost(h.origin)
+}
+
+func canonicalHost(u *url.URL) string {
+	port := u.Port()
+	if port == "" {
+		switch strings.ToLower(u.Scheme) {
+		case "https":
+			port = "443"
+		case "http":
+			port = "80"
+		}
+	}
+	return net.JoinHostPort(strings.ToLower(u.Hostname()), port)
 }
 
 func unauthenticated(w http.ResponseWriter, message string) {
@@ -203,8 +244,9 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 }
 
 type slots struct {
-	mu   sync.Mutex
-	held map[string]int
+	mu     sync.Mutex
+	held   map[string]int
+	global int
 }
 
 func (s *slots) acquire(key string) bool {
@@ -225,4 +267,20 @@ func (s *slots) release(key string) {
 		return
 	}
 	s.held[key]--
+}
+
+func (s *slots) acquireGlobal() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.global >= maxTotalInFlight {
+		return false
+	}
+	s.global++
+	return true
+}
+
+func (s *slots) releaseGlobal() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.global--
 }

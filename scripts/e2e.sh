@@ -871,6 +871,8 @@ mcp_suite() {
   if [[ "$out" != 401 ]] || ! grep -qi '^www-authenticate: Bearer' "$TMP/mcp.headers"; then
     fail "MCP without a key ($out: $(cat "$TMP/mcp.body"))"
   fi
+  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/dashboards")"
+  [[ "$out" == 200 ]] || fail "the session cookie is not live on the API ($out: $(cat "$TMP/mcp.body"))"
   out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -w '%{http_code}' -X POST -b "$TMP/api-jar" \
     -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE_URL/mcp")"
@@ -956,6 +958,10 @@ mcp_suite() {
   mcp_tool update_dashboard '{"spec":{"specVersion":"0","title":"x","panels":[]}}'
   if [[ "$MCP_ERROR" != true ]] || ! grep -q 'dashboard_id' "$TMP/mcp.body"; then
     fail "update_dashboard without a dashboard_id ($(cat "$TMP/mcp.body"))"
+  fi
+  mcp_tool update_dashboard "{\"dashboard_id\":\"$id\",\"spec\":{\"specVersion\":\"0\",\"title\":\"x\",\"panels\":[]}}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'parent_version' "$TMP/mcp.body"; then
+    fail "update_dashboard without a parent_version ($(cat "$TMP/mcp.body"))"
   fi
   pass "MCP update_dashboard demands dashboard_id and parent_version"
 

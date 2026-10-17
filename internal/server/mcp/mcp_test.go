@@ -11,10 +11,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	mcplib "github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -43,6 +46,9 @@ func (f *fakeAuth) BearerPrincipal(_ context.Context, header string) (auth.Princ
 		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other"}, true, nil
 	case errorKey:
 		return auth.Principal{}, false, errors.New("database exploded with secret-detail")
+	}
+	if id, ok := strings.CutPrefix(header, "Bearer pool-"); ok {
+		return auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool"}, true, nil
 	}
 	return auth.Principal{}, false, nil
 }
@@ -216,6 +222,7 @@ func TestOriginIsCheckedBeforeAuthentication(t *testing.T) {
 		{"https://observe.test:8080", false},
 		{"http://observe.test", false},
 		{"http://observe.test:8080/path", false},
+		{"http://observe.test:80", false},
 		{"null", false},
 	}
 	for _, tc := range cases {
@@ -293,7 +300,8 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 			Description string          `json:"description"`
 			InputSchema json.RawMessage `json:"inputSchema"`
 			Annotations struct {
-				ReadOnlyHint *bool `json:"readOnlyHint"`
+				ReadOnlyHint    *bool `json:"readOnlyHint"`
+				DestructiveHint *bool `json:"destructiveHint"`
 			} `json:"annotations"`
 		} `json:"tools"`
 	}
@@ -321,6 +329,9 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 		}
 		if g.Annotations.ReadOnlyHint == nil || *g.Annotations.ReadOnlyHint != want.ReadOnly {
 			t.Errorf("%s: readOnlyHint %v, want %v", want.Name, g.Annotations.ReadOnlyHint, want.ReadOnly)
+		}
+		if !want.ReadOnly && (g.Annotations.DestructiveHint == nil || *g.Annotations.DestructiveHint) {
+			t.Errorf("%s: destructiveHint %v, want false", want.Name, g.Annotations.DestructiveHint)
 		}
 		var gotSchema, wantSchema any
 		if err := json.Unmarshal(g.InputSchema, &gotSchema); err != nil {
@@ -503,4 +514,302 @@ func TestInFlightLimitIsPerPrincipalAndReleased(t *testing.T) {
 		_ = c.Close()
 	}
 	waitForStatus(goodKey, http.StatusOK)
+}
+
+func TestOriginNormalisesDefaultPorts(t *testing.T) {
+	cases := []struct {
+		public string
+		origin string
+		want   bool
+	}{
+		{"https://observe.test", "https://observe.test:443", true},
+		{"https://observe.test:443", "https://observe.test", true},
+		{"http://observe.test", "http://observe.test:80", true},
+		{"http://observe.test:80", "http://OBSERVE.test", true},
+		{"https://observe.test", "http://observe.test", false},
+		{"https://observe.test", "https://observe.test:80", false},
+		{"http://observe.test", "http://observe.test:443", false},
+		{"http://[::1]:8080", "http://[::1]:8080", true},
+		{"http://[::1]", "http://[::1]:80", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.public+" "+tc.origin, func(t *testing.T) {
+			base, err := url.Parse(tc.public)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := NewHandler(tools.New(tools.Deps{}), &fakeAuth{}, Options{PublicURL: base, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+			req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", nil)))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/json, text/event-stream")
+			req.Header.Set("Origin", tc.origin)
+			req.Header.Set("Authorization", goodKey)
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if tc.want && rec.Code != http.StatusOK {
+				t.Fatalf("origin %s was refused for %s: %d %s", tc.origin, tc.public, rec.Code, rec.Body.String())
+			}
+			if !tc.want {
+				assertErrorBody(t, rec, http.StatusForbidden, "forbidden_origin")
+			}
+		})
+	}
+}
+
+func TestToolCallWorksWithTheLatestProtocolVersionAndBearerPrincipal(t *testing.T) {
+	f := newFixture(t)
+	rec := f.post(rpc(1, "tools/call", map[string]any{
+		"name": "get_spec_guide",
+		"_meta": map[string]any{
+			"io.modelcontextprotocol/protocolVersion":    "2026-07-28",
+			"io.modelcontextprotocol/clientCapabilities": map[string]any{},
+		},
+	}), map[string]string{
+		"MCP-Protocol-Version": "2026-07-28",
+		"Mcp-Method":           "tools/call",
+		"Mcp-Name":             "get_spec_guide",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	resp := decodeRPC(t, rec)
+	if resp.Error != nil {
+		t.Fatalf("rpc error: %s", rec.Body.String())
+	}
+	var res toolResult
+	if err := json.Unmarshal(resp.Result, &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.IsError || res.StructuredContent["guide"] == nil {
+		t.Fatalf("tool call failed: %+v", res)
+	}
+	logs := f.logs.String()
+	for _, want := range []string{"principal_kind=service_account", "principal_id=sa-1"} {
+		if !strings.Contains(logs, want) {
+			t.Errorf("log lacks %q: %s", want, logs)
+		}
+	}
+}
+
+func callDirect(ctx context.Context, f *fixture, call func(context.Context, string, json.RawMessage) (tools.Result, error)) *mcplib.CallToolResult {
+	h := f.handler.(*handler)
+	h.call = call
+	ctx = auth.WithPrincipal(ctx, auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci"})
+	res, _ := h.callTool("get_spec_guide")(ctx, mcplib.CallToolRequest{})
+	return res
+}
+
+func resultText(t *testing.T, res *mcplib.CallToolResult) string {
+	t.Helper()
+	if res == nil || !res.IsError || len(res.Content) != 1 {
+		t.Fatalf("result %+v is not a single error content", res)
+	}
+	text, ok := res.Content[0].(mcplib.TextContent)
+	if !ok {
+		t.Fatalf("content %T is not text", res.Content[0])
+	}
+	return text.Text
+}
+
+func TestClientCancellationIsLoggedAtInfo(t *testing.T) {
+	f := newFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res := callDirect(ctx, f, func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+		return tools.Result{}, ctx.Err()
+	})
+	if got := resultText(t, res); got != internalErrorMsg {
+		t.Errorf("result text %q", got)
+	}
+	logs := f.logs.String()
+	for _, want := range []string{"level=INFO", "canceled by client", "tool=get_spec_guide", "principal_kind=service_account", "principal_id=sa-1"} {
+		if !strings.Contains(logs, want) {
+			t.Errorf("log lacks %q: %s", want, logs)
+		}
+	}
+	if strings.Contains(logs, "level=ERROR") {
+		t.Errorf("cancellation was logged as an error: %s", logs)
+	}
+}
+
+func TestInternalToolFailureIsLoggedAtError(t *testing.T) {
+	f := newFixture(t)
+	res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		return tools.Result{}, errors.New("upstream exploded with secret-detail")
+	})
+	if got := resultText(t, res); got != internalErrorMsg {
+		t.Errorf("result text %q", got)
+	}
+	logs := f.logs.String()
+	if !strings.Contains(logs, "level=ERROR") || !strings.Contains(logs, "secret-detail") {
+		t.Errorf("failure was not logged at error: %s", logs)
+	}
+}
+
+func TestPanicInToolGlueNeverReachesTheClient(t *testing.T) {
+	f := newFixture(t)
+	f.handler.(*handler).call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		panic("panic-secret-4d2e")
+	}
+	rec := f.post(rpc(1, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{"arg_marker": "arg-9b7c"}}), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "panic-secret-4d2e") {
+		t.Errorf("panic text reached the client: %s", rec.Body.String())
+	}
+	var res toolResult
+	if err := json.Unmarshal(decodeRPC(t, rec).Result, &res); err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != internalErrorMsg {
+		t.Errorf("result %+v", res)
+	}
+	logs := f.logs.String()
+	for _, want := range []string{"level=ERROR", "tool=get_spec_guide", "panic_type=string"} {
+		if !strings.Contains(logs, want) {
+			t.Errorf("log lacks %q: %s", want, logs)
+		}
+	}
+	if strings.Contains(logs, "panic-secret-4d2e") || strings.Contains(logs, "arg-9b7c") {
+		t.Errorf("panic value or arguments reached the log: %s", logs)
+	}
+}
+
+func TestGlobalInFlightLimitCoversOnlyRunningRequests(t *testing.T) {
+	f := newFixture(t)
+	h := f.handler.(*handler)
+	release := make(chan struct{})
+	entered := make(chan struct{}, maxTotalInFlight)
+	h.call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+		if p, _ := auth.FromContext(ctx); p.ID != "pool-free" {
+			entered <- struct{}{}
+			<-release
+		}
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+
+	post := func(key string) (int, string, string) {
+		req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader(rpc(1, "tools/call", map[string]any{"name": "get_spec_guide"})))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set("Authorization", key)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, resp.Header.Get("Retry-After"), string(body)
+	}
+
+	var running sync.WaitGroup
+	statuses := make(chan int, maxTotalInFlight)
+	for p := range maxTotalInFlight / maxInFlight {
+		for range maxInFlight {
+			running.Add(1)
+			go func() {
+				defer running.Done()
+				status, _, _ := post("Bearer pool-" + strconv.Itoa(p))
+				statuses <- status
+			}()
+		}
+	}
+	for range maxTotalInFlight {
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("running requests never reached the tool")
+		}
+	}
+
+	status, retryAfter, body := post("Bearer pool-extra")
+	if status != http.StatusServiceUnavailable || retryAfter != "1" || !strings.Contains(body, `"code":"busy"`) {
+		t.Errorf("over-capacity request: %d retry-after %q %s", status, retryAfter, body)
+	}
+	if status, _, body := post("Bearer pool-0"); status != http.StatusTooManyRequests || !strings.Contains(body, "too_many_requests") {
+		t.Errorf("principal at its own limit: %d %s", status, body)
+	}
+
+	close(release)
+	running.Wait()
+	close(statuses)
+	for status := range statuses {
+		if status != http.StatusOK {
+			t.Errorf("running request ended with %d", status)
+		}
+	}
+	if status, _, body := post("Bearer pool-extra"); status != http.StatusOK {
+		t.Errorf("slots were not released: %d %s", status, body)
+	}
+}
+
+func TestSlowUploadsHoldOnlyThePrincipalSlot(t *testing.T) {
+	f := newFixture(t)
+	srv := httptest.NewServer(f.handler)
+	t.Cleanup(srv.Close)
+	addr := strings.TrimPrefix(srv.URL, "http://")
+
+	post := func(key string) (int, string) {
+		req, err := http.NewRequest(http.MethodPost, srv.URL, strings.NewReader(rpc(1, "tools/list", nil)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", key)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(body)
+	}
+
+	var stalled []net.Conn
+	t.Cleanup(func() {
+		for _, c := range stalled {
+			_ = c.Close()
+		}
+	})
+	principals := maxTotalInFlight/maxInFlight + 1
+	for p := range principals {
+		for range maxInFlight {
+			conn, err := net.Dial("tcp", addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stalled = append(stalled, conn)
+			_, err = io.WriteString(conn, "POST /mcp HTTP/1.1\r\nHost: "+addr+"\r\nAuthorization: Bearer pool-"+strconv.Itoa(p)+
+				"\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n{")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if len(stalled) <= maxTotalInFlight {
+		t.Fatalf("only %d uploads are stalled, want more than the global cap %d", len(stalled), maxTotalInFlight)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for p := range principals {
+		for {
+			status, body := post("Bearer pool-" + strconv.Itoa(p))
+			if status == http.StatusTooManyRequests {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("pool-%d: status %d %s, want 429 once its uploads hold its slots", p, status, body)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if status, body := post("Bearer pool-free"); status != http.StatusOK {
+		t.Errorf("stalled uploads took global slots: %d %s", status, body)
+	}
 }
