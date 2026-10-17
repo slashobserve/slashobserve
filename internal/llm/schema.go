@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 )
 
 type ToolSchema struct {
 	Full       map[string]any
+	Normalized json.RawMessage
 	Properties map[string]any
 	Required   []string
 	Extra      map[string]any
@@ -18,9 +20,11 @@ func ParseToolSchema(spec ToolSpec) (ToolSchema, error) {
 	full := map[string]any{}
 	if len(bytes.TrimSpace(spec.InputSchema)) > 0 {
 		dec := json.NewDecoder(bytes.NewReader(spec.InputSchema))
-		dec.UseNumber()
 		if err := dec.Decode(&full); err != nil {
 			return ToolSchema{}, fmt.Errorf("tool %q: input schema is not a JSON object: %w", spec.Name, err)
+		}
+		if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+			return ToolSchema{}, fmt.Errorf("tool %q: input schema has content after the JSON object", spec.Name)
 		}
 		if full == nil {
 			full = map[string]any{}
@@ -31,7 +35,12 @@ func ParseToolSchema(spec ToolSpec) (ToolSchema, error) {
 	}
 	full["type"] = "object"
 
-	schema := ToolSchema{Full: full, Extra: map[string]any{}}
+	normalized, err := json.Marshal(full)
+	if err != nil {
+		return ToolSchema{}, fmt.Errorf("tool %q: input schema cannot be encoded: %w", spec.Name, err)
+	}
+
+	schema := ToolSchema{Full: full, Normalized: normalized, Extra: map[string]any{}}
 	for key, value := range full {
 		switch key {
 		case "type":

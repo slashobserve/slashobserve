@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	sdk "github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
 
 	"github.com/slashobserve/slashobserve/internal/llm"
 )
@@ -56,7 +58,7 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	tools := make([]sdk.ToolUnionParam, 0, len(req.Tools))
+	var tools []sdk.ToolUnionParam
 	for _, spec := range req.Tools {
 		tool, err := toolParam(spec)
 		if err != nil {
@@ -64,14 +66,18 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 		}
 		tools = append(tools, tool)
 	}
-	return &session{
-		provider: p,
-		system: []sdk.TextBlockParam{{
+	var system []sdk.TextBlockParam
+	if req.System != "" {
+		system = []sdk.TextBlockParam{{
 			Text:         req.System,
 			CacheControl: sdk.NewCacheControlEphemeralParam(),
-		}},
-		tools:   tools,
-		history: []sdk.MessageParam{sdk.NewUserMessage(sdk.NewTextBlock(req.UserMessage()))},
+		}}
+	}
+	return &session{
+		provider: p,
+		system:   system,
+		tools:    tools,
+		history:  []sdk.MessageParam{sdk.NewUserMessage(sdk.NewTextBlock(req.UserMessage()))},
 	}, nil
 }
 
@@ -81,14 +87,8 @@ func toolParam(spec llm.ToolSpec) (sdk.ToolUnionParam, error) {
 		return sdk.ToolUnionParam{}, err
 	}
 	tool := sdk.ToolParam{
-		Name: spec.Name,
-		InputSchema: sdk.ToolInputSchemaParam{
-			Required:    schema.Required,
-			ExtraFields: schema.Extra,
-		},
-	}
-	if schema.Properties != nil {
-		tool.InputSchema.Properties = schema.Properties
+		Name:        spec.Name,
+		InputSchema: param.Override[sdk.ToolInputSchemaParam](schema.Normalized),
 	}
 	if spec.Description != "" {
 		tool.Description = sdk.String(spec.Description)
@@ -109,7 +109,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := s.checkResults(results); err != nil {
+	if err := llm.CheckResults(name, s.calls > 0, s.pending, results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -122,18 +122,20 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 		messages = append(messages, sdk.NewUserMessage(blocks...))
 	}
 
-	resp, err := s.provider.messages.New(ctx, sdk.MessageNewParams{
+	callCtx, cancel := context.WithTimeout(ctx, s.provider.cfg.RequestTimeout)
+	defer cancel()
+	resp, err := s.provider.messages.New(callCtx, sdk.MessageNewParams{
 		Model:     s.provider.cfg.Model,
 		MaxTokens: int64(s.provider.cfg.MaxTokens),
 		System:    s.system,
 		Tools:     s.tools,
-		Messages:  messages,
+		Messages:  withCacheBreakpoint(messages),
 		OutputConfig: sdk.OutputConfigParam{
 			Effort: sdk.OutputConfigEffort(s.provider.cfg.Effort),
 		},
 	})
 	if err != nil {
-		return llm.Turn{}, s.provider.sanitize(ctx, err)
+		return llm.Turn{}, s.provider.sanitize(ctx, callCtx, err)
 	}
 
 	turn, err := parseResponse(resp)
@@ -144,26 +146,31 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	messages = append(messages, resp.ToParam())
 	s.history = messages
 	s.calls++
-	s.pending = nil
-	for _, c := range turn.ToolCalls {
-		s.pending = append(s.pending, c.ID)
-	}
+	s.pending = llm.PendingIDs(turn.ToolCalls)
 	return turn, nil
 }
 
-func (s *session) checkResults(results []llm.ToolResult) error {
-	if s.calls > 0 && len(s.pending) == 0 {
-		return errors.New("anthropic session: the previous turn made no tool calls, so the session has ended")
+func withCacheBreakpoint(messages []sdk.MessageParam) []sdk.MessageParam {
+	last := len(messages) - 1
+	msg := messages[last]
+	blocks := slices.Clone(msg.Content)
+	end := len(blocks) - 1
+	switch {
+	case blocks[end].OfText != nil:
+		text := *blocks[end].OfText
+		text.CacheControl = sdk.NewCacheControlEphemeralParam()
+		blocks[end].OfText = &text
+	case blocks[end].OfToolResult != nil:
+		result := *blocks[end].OfToolResult
+		result.CacheControl = sdk.NewCacheControlEphemeralParam()
+		blocks[end].OfToolResult = &result
+	default:
+		return messages
 	}
-	if len(results) != len(s.pending) {
-		return fmt.Errorf("anthropic session: got %d tool results for %d tool calls", len(results), len(s.pending))
-	}
-	for i, r := range results {
-		if r.CallID != s.pending[i] {
-			return fmt.Errorf("anthropic session: tool result %d answers %q, want %q", i, r.CallID, s.pending[i])
-		}
-	}
-	return nil
+	msg.Content = blocks
+	out := slices.Clone(messages)
+	out[last] = msg
+	return out
 }
 
 func parseResponse(resp *sdk.Message) (llm.Turn, error) {
@@ -203,7 +210,7 @@ func stopReason(reason sdk.StopReason) (llm.StopReason, error) {
 		return llm.StopToolUse, nil
 	case sdk.StopReasonEndTurn, sdk.StopReasonStopSequence:
 		return llm.StopEndTurn, nil
-	case sdk.StopReasonMaxTokens:
+	case sdk.StopReasonMaxTokens, sdk.StopReasonModelContextWindowExceeded:
 		return llm.StopMaxTokens, nil
 	case sdk.StopReasonRefusal:
 		return llm.StopRefusal, nil
@@ -212,19 +219,11 @@ func stopReason(reason sdk.StopReason) (llm.StopReason, error) {
 	}
 }
 
-func (p *Provider) sanitize(ctx context.Context, err error) error {
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return ctxErr
-	}
+func (p *Provider) sanitize(ctx, callCtx context.Context, err error) error {
+	var api *llm.APIError
 	var apiErr *sdk.Error
 	if errors.As(err, &apiErr) {
-		p.logger.Warn("llm request failed", slog.String("provider", name), slog.Int("status", apiErr.StatusCode))
-		return fmt.Errorf("%w: anthropic returned status %d", llm.ErrProvider, apiErr.StatusCode)
+		api = &llm.APIError{Status: apiErr.StatusCode, Type: string(apiErr.Type()), RequestID: apiErr.RequestID}
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		p.logger.Warn("llm request timed out", slog.String("provider", name))
-		return fmt.Errorf("%w: anthropic request timed out", llm.ErrProvider)
-	}
-	p.logger.Warn("llm request failed", slog.String("provider", name))
-	return fmt.Errorf("%w: anthropic request failed", llm.ErrProvider)
+	return llm.SanitizeError(ctx, callCtx, p.logger, name, err, api)
 }

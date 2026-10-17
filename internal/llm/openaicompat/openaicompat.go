@@ -1,6 +1,7 @@
 package openaicompat
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -58,7 +59,7 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	tools := make([]openai.ChatCompletionToolUnionParam, 0, len(req.Tools))
+	var tools []openai.ChatCompletionToolUnionParam
 	for _, spec := range req.Tools {
 		tool, err := toolParam(spec)
 		if err != nil {
@@ -66,14 +67,12 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 		}
 		tools = append(tools, tool)
 	}
-	return &session{
-		provider: p,
-		tools:    tools,
-		history: []openai.ChatCompletionMessageParamUnion{
-			openai.SystemMessage(req.System),
-			openai.UserMessage(req.UserMessage()),
-		},
-	}, nil
+	var history []openai.ChatCompletionMessageParamUnion
+	if req.System != "" {
+		history = append(history, openai.SystemMessage(req.System))
+	}
+	history = append(history, openai.UserMessage(req.UserMessage()))
+	return &session{provider: p, tools: tools, history: history}, nil
 }
 
 func toolParam(spec llm.ToolSpec) (openai.ChatCompletionToolUnionParam, error) {
@@ -103,7 +102,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if err := ctx.Err(); err != nil {
 		return llm.Turn{}, err
 	}
-	if err := s.checkResults(results); err != nil {
+	if err := llm.CheckResults(name, s.calls > 0, s.pending, results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -116,14 +115,16 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 		messages = append(messages, openai.ToolMessage(content, r.CallID))
 	}
 
-	resp, err := s.provider.chat.New(ctx, openai.ChatCompletionNewParams{
+	callCtx, cancel := context.WithTimeout(ctx, s.provider.cfg.RequestTimeout)
+	defer cancel()
+	resp, err := s.provider.chat.New(callCtx, openai.ChatCompletionNewParams{
 		Model:               s.provider.cfg.Model,
 		MaxCompletionTokens: openai.Int(int64(s.provider.cfg.MaxTokens)),
 		Messages:            messages,
 		Tools:               s.tools,
 	})
 	if err != nil {
-		return llm.Turn{}, s.provider.sanitize(ctx, err)
+		return llm.Turn{}, s.provider.sanitize(ctx, callCtx, err)
 	}
 	if len(resp.Choices) == 0 {
 		return llm.Turn{}, fmt.Errorf("%w: openai returned no choices", llm.ErrProvider)
@@ -136,56 +137,61 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	}
 	turn.Usage = usage(resp.Usage)
 
-	messages = append(messages, choice.Message.ToParam())
+	messages = append(messages, assistantMessage(choice.Message, turn.ToolCalls))
 	s.history = messages
 	s.calls++
-	s.pending = nil
-	for _, c := range turn.ToolCalls {
-		s.pending = append(s.pending, c.ID)
-	}
+	s.pending = llm.PendingIDs(turn.ToolCalls)
 	return turn, nil
 }
 
-func (s *session) checkResults(results []llm.ToolResult) error {
-	if s.calls > 0 && len(s.pending) == 0 {
-		return errors.New("openai session: the previous turn made no tool calls, so the session has ended")
+func assistantMessage(msg openai.ChatCompletionMessage, calls []llm.ToolCall) openai.ChatCompletionMessageParamUnion {
+	var asst openai.ChatCompletionAssistantMessageParam
+	if msg.Content != "" {
+		asst.Content.OfString = openai.String(msg.Content)
 	}
-	if len(results) != len(s.pending) {
-		return fmt.Errorf("openai session: got %d tool results for %d tool calls", len(results), len(s.pending))
+	if msg.Refusal != "" {
+		asst.Refusal = openai.String(msg.Refusal)
 	}
-	for i, r := range results {
-		if r.CallID != s.pending[i] {
-			return fmt.Errorf("openai session: tool result %d answers %q, want %q", i, r.CallID, s.pending[i])
-		}
+	for _, c := range calls {
+		asst.ToolCalls = append(asst.ToolCalls, openai.ChatCompletionMessageToolCallUnionParam{
+			OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
+				ID:       c.ID,
+				Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{Name: c.Name, Arguments: string(c.Input)},
+			},
+		})
 	}
-	return nil
+	return openai.ChatCompletionMessageParamUnion{OfAssistant: &asst}
 }
 
 func parseChoice(choice openai.ChatCompletionChoice) (llm.Turn, error) {
-	stop, err := stopReason(choice.FinishReason)
+	turn := llm.Turn{Text: choice.Message.Content}
+	for _, call := range choice.Message.ToolCalls {
+		if call.Type != "" && call.Type != "function" {
+			return llm.Turn{}, fmt.Errorf("%w: openai returned unsupported tool call type %q", llm.ErrProvider, call.Type)
+		}
+		args := json.RawMessage(call.Function.Arguments)
+		if len(bytes.TrimSpace(args)) == 0 {
+			args = json.RawMessage(`{}`)
+		}
+		turn.ToolCalls = append(turn.ToolCalls, llm.ToolCall{ID: call.ID, Name: call.Function.Name, Input: args})
+	}
+	stop, err := stopReason(choice.FinishReason, len(turn.ToolCalls) > 0, choice.Message.Refusal != "")
 	if err != nil {
 		return llm.Turn{}, err
 	}
-	turn := llm.Turn{Text: choice.Message.Content, Stop: stop}
-	for _, call := range choice.Message.ToolCalls {
-		fn, ok := call.AsAny().(openai.ChatCompletionMessageFunctionToolCall)
-		if !ok {
-			return llm.Turn{}, fmt.Errorf("%w: openai returned unsupported tool call type %q", llm.ErrProvider, call.Type)
-		}
-		turn.ToolCalls = append(turn.ToolCalls, llm.ToolCall{
-			ID:    fn.ID,
-			Name:  fn.Function.Name,
-			Input: json.RawMessage(fn.Function.Arguments),
-		})
-	}
+	turn.Stop = stop
 	return turn, nil
 }
 
-func stopReason(reason string) (llm.StopReason, error) {
-	switch reason {
-	case "tool_calls":
+func stopReason(reason string, hasToolCalls, refused bool) (llm.StopReason, error) {
+	if hasToolCalls {
 		return llm.StopToolUse, nil
-	case "stop":
+	}
+	if refused {
+		return llm.StopRefusal, nil
+	}
+	switch reason {
+	case "stop", "tool_calls":
 		return llm.StopEndTurn, nil
 	case "length":
 		return llm.StopMaxTokens, nil
@@ -198,26 +204,21 @@ func stopReason(reason string) (llm.StopReason, error) {
 
 func usage(u openai.CompletionUsage) llm.Usage {
 	return llm.Usage{
-		InputTokens:     u.PromptTokens,
+		InputTokens:     max(0, u.PromptTokens-u.PromptTokensDetails.CachedTokens),
 		OutputTokens:    u.CompletionTokens,
 		CacheReadTokens: u.PromptTokensDetails.CachedTokens,
 		Calls:           1,
 	}
 }
 
-func (p *Provider) sanitize(ctx context.Context, err error) error {
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return ctxErr
-	}
+func (p *Provider) sanitize(ctx, callCtx context.Context, err error) error {
+	var api *llm.APIError
 	var apiErr *openai.Error
 	if errors.As(err, &apiErr) {
-		p.logger.Warn("llm request failed", slog.String("provider", name), slog.Int("status", apiErr.StatusCode))
-		return fmt.Errorf("%w: openai returned status %d", llm.ErrProvider, apiErr.StatusCode)
+		api = &llm.APIError{Status: apiErr.StatusCode, Type: apiErr.Type}
+		if apiErr.Response != nil {
+			api.RequestID = apiErr.Response.Header.Get("x-request-id")
+		}
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		p.logger.Warn("llm request timed out", slog.String("provider", name))
-		return fmt.Errorf("%w: openai request timed out", llm.ErrProvider)
-	}
-	p.logger.Warn("llm request failed", slog.String("provider", name))
-	return fmt.Errorf("%w: openai request failed", llm.ErrProvider)
+	return llm.SanitizeError(ctx, callCtx, p.logger, name, err, api)
 }
