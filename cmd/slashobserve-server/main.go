@@ -100,15 +100,19 @@ func run() error {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
 
-	handler := server.New(server.Options{
-		Logger:      logger,
-		Auth:        authService,
-		Datasources: registry,
+	handler, err := server.New(server.Options{
+		Logger:        logger,
+		Auth:          authService,
+		Datasources:   registry,
+		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
 			{Name: "migrations", Run: database.CheckMigrations},
 		},
 	})
+	if err != nil {
+		return fmt.Errorf("build http handler: %w", err)
+	}
 	return serve(ctx, logger, cfg.HTTPAddr, handler)
 }
 

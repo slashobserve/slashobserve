@@ -1,0 +1,95 @@
+auth-login:
+  get:
+    operationId: authLogin
+    summary: Start the OIDC sign-in and redirect to the identity provider.
+    security: []
+    parameters:
+      - name: return_to
+        in: query
+        required: false
+        description: Local path to return to after sign-in; anything else is replaced by `/`.
+        schema:
+          type: string
+    responses:
+      "302":
+        description: Redirect to the identity provider, or to `/login?error=<code>` when sign-in cannot start.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+auth-callback:
+  get:
+    operationId: authCallback
+    summary: Complete the OIDC sign-in and redirect to the local return path.
+    security: []
+    parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: error
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: error_description
+        in: query
+        required: false
+        schema:
+          type: string
+    responses:
+      "302":
+        description: Redirect to the return path with a session cookie, or to `/login?error=<code>` on refusal.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+auth-logout:
+  post:
+    operationId: authLogout
+    summary: End the current session and clear its cookie.
+    security: []
+    responses:
+      "204":
+        description: The session cookie is cleared; nothing is returned.
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+auth-session:
+  get:
+    operationId: authSession
+    summary: Report whether the request carries a valid session.
+    security: []
+    responses:
+      "200":
+        description: The session state.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SessionState"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+me:
+  get:
+    operationId: getMe
+    summary: Return the authenticated caller.
+    responses:
+      "200":
+        description: The caller.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Principal"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

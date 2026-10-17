@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: SlashObserve API
+  version: "0"
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+  - bearerKey: []
+paths:
+  /auth/login:
+    $ref: "./paths/auth.yaml#/auth-login"
+  /auth/callback:
+    $ref: "./paths/auth.yaml#/auth-callback"
+  /auth/logout:
+    $ref: "./paths/auth.yaml#/auth-logout"
+  /auth/session:
+    $ref: "./paths/auth.yaml#/auth-session"
+  /me:
+    $ref: "./paths/auth.yaml#/me"
+  /service-accounts:
+    $ref: "./paths/service-accounts.yaml#/service-accounts"
+  /service-accounts/{id}/keys:
+    $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys"
+  /service-accounts/{id}/keys/{keyId}:
+    $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys-keyid"
+  /datasources:
+    $ref: "./paths/datasources.yaml#/datasources"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: so_session
+      description: Opaque session token set by the OIDC callback. The cookie is named `__Host-so_session` when the public URL is https.
+    bearerKey:
+      type: http
+      scheme: bearer
+      description: Service-account key issued by the keys endpoint, prefixed `sok_`.
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+    Issue:
+      type: object
+      additionalProperties: false
+      required: [path, code, message]
+      properties:
+        path:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+    ValidationError:
+      type: object
+      additionalProperties: false
+      required: [error, code, issues]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Issue"
+    Principal:
+      type: object
+      additionalProperties: false
+      required: [kind, id, name]
+      properties:
+        kind:
+          type: string
+          enum: [user, service_account]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    SessionState:
+      type: object
+      additionalProperties: false
+      required: [authenticated]
+      properties:
+        authenticated:
+          type: boolean
+        principal:
+          $ref: "#/components/schemas/Principal"
+    ServiceAccount:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    ServiceAccountList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceAccount"
+    CreateServiceAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+        description:
+          type: string
+          maxLength: 256
+    ServiceAccountKey:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - service_account_id
+        - name
+        - display_prefix
+        - created_by
+        - created_at
+        - expires_at
+        - last_used_at
+        - revoked_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        service_account_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_prefix:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+    ServiceAccountKeyList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceAccountKey"
+    CreateServiceAccountKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+    IssuedServiceAccountKey:
+      type: object
+      additionalProperties: false
+      required: [key, token]
+      properties:
+        key:
+          $ref: "#/components/schemas/ServiceAccountKey"
+        token:
+          type: string
+          description: The full key, returned only once.
+    DatasourceStatus:
+      type: object
+      additionalProperties: false
+      required: [uid, type, name, healthy, checkedAt]
+      properties:
+        uid:
+          type: string
+        type:
+          type: string
+        name:
+          type: string
+        healthy:
+          type: boolean
+        message:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+    DatasourceList:
+      type: object
+      additionalProperties: false
+      required: [datasources]
+      properties:
+        datasources:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasourceStatus"
+  responses:
+    BadRequest:
+      description: The request is malformed or fails validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication is missing or invalid.
+      headers:
+        WWW-Authenticate:
+          required: true
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: The caller is not allowed to perform the request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: The resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The request conflicts with existing state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Internal:
+      description: The server failed to handle the request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

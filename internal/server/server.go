@@ -26,18 +26,35 @@ type Options struct {
 	Readiness   []Check
 	Auth        Auth
 	Datasources *datasource.Registry
+
+	ContractCheck bool
 }
 
-func New(opts Options) http.Handler {
+func New(opts Options) (http.Handler, error) {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.ForwardedByClientIP = false
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
-	authenticated := opts.Auth.Mount(engine.Group("/api/v1"))
+	apiGroup := engine.Group(apiPrefix)
+	var checked *contract
+	if opts.ContractCheck {
+		var err error
+		if checked, err = newContract(context.Background(), opts.Logger); err != nil {
+			return nil, err
+		}
+		apiGroup.Use(checked.middleware)
+		opts.Logger.Warn("api contract check enabled")
+	}
+	authenticated := opts.Auth.Mount(apiGroup)
 	registerDatasourceRoutes(authenticated, opts.Datasources)
 	registerWebRoutes(engine)
-	return engine
+	if checked != nil {
+		if err := checked.checkRoutes(engine); err != nil {
+			return nil, err
+		}
+	}
+	return engine, nil
 }
 
 func recoverPanics(logger *slog.Logger) gin.HandlerFunc {

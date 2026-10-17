@@ -44,12 +44,14 @@ const (
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
 
 	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
+
+	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 )
 
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envAllowedEmailDomain, envDatasourcesFile,
+	envSessionTTL, envAllowedEmailDomain, envDatasourcesFile, envAPIContractCheck,
 }
 
 type Config struct {
@@ -69,6 +71,8 @@ type Config struct {
 
 	DatasourcesFile string
 	Datasources     []Datasource
+
+	APIContractCheck bool
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -113,6 +117,16 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 			errs = append(errs, fmt.Errorf("%s: %w", envDatasourcesFile, err))
 		}
 		cfg.Datasources = datasources
+	}
+
+	if v := get(lookup, envAPIContractCheck); v != "" {
+		switch v {
+		case "true":
+			cfg.APIContractCheck = true
+		case "false":
+		default:
+			errs = append(errs, fmt.Errorf("%s: must be true or false, got %q", envAPIContractCheck, v))
+		}
 	}
 
 	return cfg, errors.Join(errs...)
