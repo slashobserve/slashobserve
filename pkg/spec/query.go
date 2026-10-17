@@ -51,18 +51,25 @@ func Macros(t DatasourceType) []Macro {
 	return out
 }
 
+func knownMacro(name string) bool {
+	return slices.ContainsFunc(macroTable, func(m macroDef) bool { return m.Name == name })
+}
+
 func VariableFormats() []string {
 	return []string{"csv", "doublequote", "pipe", "raw", "regex", "singlequote", "sqlstring"}
 }
 
+const maxScanWork = 1 << 22
+
 func ScanQuery(query string) ([]Reference, error) {
 	var refs []Reference
+	budget := maxScanWork
 	for i := 0; i < len(query); {
 		if query[i] != '$' {
 			i++
 			continue
 		}
-		ref, next, err := scanReference(query, i)
+		ref, next, err := scanReference(query, i, &budget)
 		if err != nil {
 			return nil, err
 		}
@@ -74,7 +81,7 @@ func ScanQuery(query string) ([]Reference, error) {
 	return refs, nil
 }
 
-func scanReference(query string, start int) (*Reference, int, error) {
+func scanReference(query string, start int, budget *int) (*Reference, int, error) {
 	rest := query[start+1:]
 	if strings.HasPrefix(rest, "{") {
 		return scanBraced(query, start)
@@ -87,6 +94,12 @@ func scanReference(query string, start int) (*Reference, int, error) {
 	ref.Kind = referenceKind(ref.Name)
 	if ref.Kind == MacroRef && strings.HasPrefix(rest[n:], "(") {
 		args, end, ok := matchParen(query, ref.End)
+		if *budget -= matchedBytes(query, ref.End, end, ok); *budget < 0 {
+			return nil, 0, fmt.Errorf("too many unclosed \"(\" in macro arguments; stopped at offset %d", ref.End)
+		}
+		if !ok && !knownMacro(ref.Name) {
+			return ref, ref.End, nil
+		}
 		if !ok {
 			return nil, 0, fmt.Errorf("unclosed \"(\" at offset %d", ref.End)
 		}
@@ -102,6 +115,9 @@ func scanBraced(query string, start int) (*Reference, int, error) {
 	}
 	end := start + closing + 1
 	name, format, hasFormat := strings.Cut(query[start+2:end-1], ":")
+	if !hasFormat && isDigits(name) {
+		return nil, end, nil
+	}
 	if !validIdent(name) || (hasFormat && !validFormat(format)) {
 		return nil, 0, fmt.Errorf("invalid reference %q at offset %d", query[start:end], start)
 	}
@@ -115,13 +131,26 @@ func referenceKind(name string) ReferenceKind {
 	return VariableRef
 }
 
+func matchedBytes(query string, open, end int, ok bool) int {
+	if ok {
+		return end - open
+	}
+	return len(query) - open
+}
+
 func matchParen(s string, open int) (args string, end int, ok bool) {
 	depth := 0
 	for i := open; i < len(s); i++ {
-		switch s[i] {
-		case '(':
+		switch {
+		case isLineComment(s, i):
+			i = skipLine(s, i)
+		case strings.HasPrefix(s[i:], "/*"):
+			i = skipBlockComment(s, i)
+		case s[i] == '\'', s[i] == '"', s[i] == '`':
+			i = skipQuoted(s, i)
+		case s[i] == '(':
 			depth++
-		case ')':
+		case s[i] == ')':
 			depth--
 			if depth == 0 {
 				return s[open+1 : i], i + 1, true
@@ -129,6 +158,56 @@ func matchParen(s string, open int) (args string, end int, ok bool) {
 		}
 	}
 	return "", 0, false
+}
+
+func skipLine(s string, from int) int {
+	if end := strings.IndexByte(s[from:], '\n'); end >= 0 {
+		return from + end
+	}
+	return len(s)
+}
+
+func isLineComment(s string, at int) bool {
+	rest := s[at:]
+	if strings.HasPrefix(rest, "--") || strings.HasPrefix(rest, "//") {
+		return true
+	}
+	return rest[0] == '#' && len(rest) > 1 && (rest[1] == ' ' || rest[1] == '!')
+}
+
+func skipBlockComment(s string, open int) int {
+	depth := 0
+	for j := open; j < len(s)-1; {
+		switch {
+		case s[j] == '/' && s[j+1] == '*':
+			depth++
+			j += 2
+		case s[j] == '*' && s[j+1] == '/':
+			depth--
+			j += 2
+			if depth == 0 {
+				return j - 1
+			}
+		default:
+			j++
+		}
+	}
+	return len(s)
+}
+
+func skipQuoted(s string, open int) int {
+	quote := s[open]
+	for i := open + 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			if quote != '`' {
+				i++
+			}
+		case quote:
+			return i
+		}
+	}
+	return len(s)
 }
 
 func identLen(s string) int {

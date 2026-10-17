@@ -112,9 +112,9 @@ func offset(t time.Time, n int64, unit string) time.Time {
 func advance(t time.Time, n int, unit string) time.Time {
 	switch unit {
 	case "M":
-		return t.AddDate(0, n, 0)
+		return addMonthsClamped(t, n)
 	case "y":
-		return t.AddDate(n, 0, 0)
+		return addMonthsClamped(t, 12*n)
 	case "w":
 		return t.AddDate(0, 0, 7*n)
 	case "d":
@@ -122,6 +122,14 @@ func advance(t time.Time, n int, unit string) time.Time {
 	default:
 		return t.Add(time.Duration(n) * fixedUnits[unit])
 	}
+}
+
+func addMonthsClamped(t time.Time, months int) time.Time {
+	y, mo, d := t.Date()
+	first := time.Date(y, mo+time.Month(months), 1, 0, 0, 0, 0, time.UTC)
+	lastDay := first.AddDate(0, 1, -1).Day()
+	hh, mm, ss := t.Clock()
+	return time.Date(first.Year(), first.Month(), min(d, lastDay), hh, mm, ss, t.Nanosecond(), time.UTC)
 }
 
 func startOf(t time.Time, unit string) time.Time {

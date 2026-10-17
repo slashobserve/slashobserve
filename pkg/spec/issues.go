@@ -44,6 +44,9 @@ func (e *ValidationError) Error() string {
 		return "spec: 0 issue(s)"
 	}
 	first := e.Issues[0]
+	if first.Path == "" {
+		return fmt.Sprintf("spec: %d issue(s): %s", len(e.Issues), first.Message)
+	}
 	return fmt.Sprintf("spec: %d issue(s): %s: %s", len(e.Issues), first.Path, first.Message)
 }
 

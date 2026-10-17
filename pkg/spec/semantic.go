@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -96,48 +97,99 @@ func checkGridOverlap(panels []Panel) []Issue {
 	return issues
 }
 
-var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/[smhdwMy])?$`)
+var columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$`)
 
-var unitSeconds = map[string]float64{
-	"s": 1,
-	"m": 60,
-	"h": 3600,
-	"d": 86400,
-	"w": 7 * 86400,
-	"M": 30 * 86400,
-	"y": 365 * 86400,
+func IsColumnArg(arg string) bool {
+	return columnPattern.MatchString(arg)
 }
 
+var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/([smhdwMy]))?$`)
+
+type unitBounds struct{ min, max float64 }
+
+var timeUnits = map[string]unitBounds{
+	"s": {1, 1},
+	"m": {60, 60},
+	"h": {3600, 3600},
+	"d": {86400, 86400},
+	"w": {7 * 86400, 7 * 86400},
+	"M": {28 * 86400, 31 * 86400},
+	"y": {365 * 86400, 366 * 86400},
+}
+
+const maxOffsetYears = maxResolvedYear - minResolvedYear
+
+const maxOffsetSeconds = float64(maxOffsetYears) * 366 * 86400
+
 type timePoint struct {
-	relative bool
-	secsAgo  float64
-	at       time.Time
+	relative  bool
+	agoMin    float64
+	agoMax    float64
+	roundMax  float64
+	roundUnit string
+	fixed     bool
+	at        time.Time
 }
 
 func parseTimePoint(s string) (timePoint, bool) {
 	if strings.HasPrefix(s, "now") {
-		m := relativeTime.FindStringSubmatch(s)
-		if m == nil {
-			return timePoint{}, false
-		}
-		p := timePoint{relative: true}
-		if m[2] != "" {
-			n, err := strconv.ParseFloat(m[2], 64)
-			if err != nil {
-				return timePoint{}, false
-			}
-			p.secsAgo = n * unitSeconds[m[3]]
-			if m[1] == "+" {
-				p.secsAgo = -p.secsAgo
-			}
-		}
-		return p, true
+		return parseRelativeTime(s)
 	}
 	at, err := time.Parse(time.RFC3339, s)
-	if err != nil {
+	if err != nil || at.IsZero() {
+		return timePoint{}, false
+	}
+	if year := at.UTC().Year(); year < minResolvedYear || year > maxResolvedYear {
 		return timePoint{}, false
 	}
 	return timePoint{at: at}, true
+}
+
+func parseRelativeTime(s string) (timePoint, bool) {
+	m := relativeTime.FindStringSubmatch(s)
+	if m == nil {
+		return timePoint{}, false
+	}
+	p := timePoint{relative: true, fixed: true, roundUnit: m[4]}
+	if m[2] != "" {
+		n, err := strconv.ParseInt(m[2], 10, 32)
+		if err != nil {
+			return timePoint{}, false
+		}
+		u := timeUnits[m[3]]
+		if offsetOutOfRange(n, m[3]) {
+			return timePoint{}, false
+		}
+		p.agoMin, p.agoMax = float64(n)*u.min, float64(n)*u.max
+		p.fixed = u.min == u.max
+		if m[1] == "+" {
+			p.agoMin, p.agoMax = -p.agoMax, -p.agoMin
+		}
+	}
+	if m[4] != "" {
+		p.roundMax = timeUnits[m[4]].max
+	}
+	return p, true
+}
+
+func offsetOutOfRange(n int64, unit string) bool {
+	switch unit {
+	case "y":
+		return n > maxOffsetYears
+	case "M":
+		return n > 12*maxOffsetYears
+	}
+	return float64(n)*timeUnits[unit].min > maxOffsetSeconds
+}
+
+func relativeInOrder(from, to timePoint) bool {
+	if from.roundUnit != "" && from.roundUnit == to.roundUnit && from.fixed && to.fixed && timeUnits[from.roundUnit].min == timeUnits[from.roundUnit].max {
+		unit := timeUnits[from.roundUnit].max
+		if math.Mod(from.agoMax, unit) == 0 && math.Mod(to.agoMax, unit) == 0 {
+			return from.agoMax >= to.agoMax
+		}
+	}
+	return from.agoMax+from.roundMax > to.agoMin-to.roundMax
 }
 
 func checkTimeRange(tr TimeRange) []Issue {
@@ -162,7 +214,7 @@ func checkTimeRange(tr TimeRange) []Issue {
 	}
 	inOrder := from.at.Before(to.at)
 	if from.relative {
-		inOrder = from.secsAgo >= to.secsAgo
+		inOrder = relativeInOrder(from, to)
 	}
 	if !inOrder {
 		issues = append(issues, Issue{
@@ -291,6 +343,8 @@ func checkMacroRef(ref Reference, ds DatasourceType) *Issue {
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take a format", ref.Name)}
 	case macros[idx].Function && strings.TrimSpace(ref.Args) == "":
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
+	case macros[idx].Function && !IsColumnArg(strings.TrimSpace(ref.Args)):
+		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s argument must be a column name such as column or table.column", ref.Name)}
 	case !macros[idx].Function && ref.HasArgs:
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take arguments; remove the parentheses", ref.Name)}
 	}

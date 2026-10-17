@@ -2,6 +2,7 @@ package spec
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
@@ -49,6 +51,18 @@ func Parse(data []byte) (*Dashboard, error) {
 			Message: fmt.Sprintf("document is %d bytes; the limit is %d bytes", len(data), MaxBytes),
 		}})
 	}
+	if !utf8.Valid(data) {
+		return nil, newValidationError([]Issue{{
+			Code:    CodeMalformedJSON,
+			Message: "document is not valid UTF-8",
+		}})
+	}
+	if offset := loneSurrogate(data); offset >= 0 {
+		return nil, newValidationError([]Issue{{
+			Code:    CodeMalformedJSON,
+			Message: fmt.Sprintf("document has an unpaired UTF-16 surrogate escape at byte offset %d", offset),
+		}})
+	}
 	if issues := scanJSON(data); len(issues) > 0 {
 		return nil, newValidationError(issues)
 	}
@@ -69,6 +83,48 @@ func Parse(data []byte) (*Dashboard, error) {
 		return nil, newValidationError(issues)
 	}
 	return &d, nil
+}
+
+func loneSurrogate(data []byte) int {
+	inString := false
+	for i := 0; i < len(data); i++ {
+		switch {
+		case data[i] == '"':
+			inString = !inString
+		case !inString || data[i] != '\\':
+		case i+1 < len(data) && data[i+1] == 'u':
+			r, ok := hexEscape(data, i)
+			if !ok {
+				continue
+			}
+			switch {
+			case r >= 0xDC00 && r <= 0xDFFF:
+				return i
+			case r >= 0xD800 && r <= 0xDBFF:
+				low, ok := hexEscape(data, i+6)
+				if !ok || low < 0xDC00 || low > 0xDFFF {
+					return i
+				}
+				i += 11
+			default:
+				i += 5
+			}
+		default:
+			i++
+		}
+	}
+	return -1
+}
+
+func hexEscape(data []byte, at int) (rune, bool) {
+	if at+6 > len(data) || data[at] != '\\' || data[at+1] != 'u' {
+		return 0, false
+	}
+	b, err := hex.DecodeString(string(data[at+2 : at+6]))
+	if err != nil {
+		return 0, false
+	}
+	return rune(b[0])<<8 | rune(b[1]), true
 }
 
 type jsonScanner struct {
@@ -191,6 +247,18 @@ type issueCollector struct {
 func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	causes := ve.Causes
 	if _, ok := ve.ErrorKind.(*kind.OneOf); ok && len(causes) > 0 {
+		if missing, ok := commonMissing(ve.InstanceLocation, causes); ok {
+			c.issues = append(c.issues, Issue{
+				Path:    pointer(ve.InstanceLocation...),
+				Code:    CodeSchema,
+				Message: missingMessage(missing),
+			})
+			for _, message := range c.commonOwnErrors(ve.InstanceLocation, causes) {
+				c.issues = append(c.issues, Issue{Path: pointer(ve.InstanceLocation...), Code: CodeSchema, Message: message})
+			}
+			c.collectNested(ve.InstanceLocation, causes)
+			return
+		}
 		kept, wants := pruneWrongBranches(causes)
 		if len(kept) == 0 {
 			c.issues = append(c.issues, Issue{
@@ -237,6 +305,112 @@ func pruneWrongBranches(causes []*jsonschema.ValidationError) (kept []*jsonschem
 		kept = append(kept, cause)
 	}
 	return kept, wants
+}
+
+func quoteNames(names []string) string {
+	quoted := make([]string, len(names))
+	for i, name := range names {
+		quoted[i] = "'" + name + "'"
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func missingMessage(missing []string) string {
+	if len(missing) == 1 {
+		return "missing property " + quoteNames(missing)
+	}
+	return "missing properties " + quoteNames(missing)
+}
+
+func commonMissing(loc []string, causes []*jsonschema.ValidationError) ([]string, bool) {
+	var common []string
+	for i, cause := range causes {
+		missing, ok := requiredAt(loc, cause)
+		if !ok {
+			return nil, false
+		}
+		if i == 0 {
+			common = missing
+			continue
+		}
+		common = slices.DeleteFunc(common, func(name string) bool { return !slices.Contains(missing, name) })
+	}
+	return common, len(common) > 0
+}
+
+func requiredAt(loc []string, ve *jsonschema.ValidationError) ([]string, bool) {
+	if !slices.Equal(ve.InstanceLocation, loc) {
+		return nil, false
+	}
+	if r, ok := ve.ErrorKind.(*kind.Required); ok {
+		return slices.Clone(r.Missing), slices.Contains(r.Missing, "type")
+	}
+	for _, cause := range ve.Causes {
+		if missing, ok := requiredAt(loc, cause); ok {
+			return missing, true
+		}
+	}
+	return nil, false
+}
+
+func (c *issueCollector) commonOwnErrors(loc []string, causes []*jsonschema.ValidationError) []string {
+	var common, commonExtras []string
+	for i, cause := range causes {
+		own, extras := c.ownErrors(loc, cause)
+		if i == 0 {
+			common, commonExtras = own, extras
+			continue
+		}
+		common = slices.DeleteFunc(common, func(message string) bool { return !slices.Contains(own, message) })
+		commonExtras = slices.DeleteFunc(commonExtras, func(name string) bool { return !slices.Contains(extras, name) })
+	}
+	if len(commonExtras) > 0 {
+		slices.Sort(commonExtras)
+		common = append(common, fmt.Sprintf("additional properties %s not allowed", quoteNames(commonExtras)))
+	}
+	return common
+}
+
+func (c *issueCollector) ownErrors(loc []string, ve *jsonschema.ValidationError) (messages, extras []string) {
+	if !slices.Equal(ve.InstanceLocation, loc) {
+		return nil, nil
+	}
+	if len(ve.Causes) == 0 {
+		switch k := ve.ErrorKind.(type) {
+		case *kind.Required:
+			return nil, nil
+		case *kind.AdditionalProperties:
+			return nil, k.Properties
+		}
+		return []string{ve.ErrorKind.LocalizedString(c.printer)}, nil
+	}
+	for _, cause := range ve.Causes {
+		m, e := c.ownErrors(loc, cause)
+		messages, extras = append(messages, m...), append(extras, e...)
+	}
+	return messages, extras
+}
+
+func (c *issueCollector) collectNested(loc []string, causes []*jsonschema.ValidationError) {
+	nested := &issueCollector{printer: c.printer}
+	for _, cause := range causes {
+		nested.collectBelow(loc, cause)
+	}
+	for _, issue := range nested.issues {
+		if !slices.Contains(c.issues, issue) {
+			c.issues = append(c.issues, issue)
+		}
+	}
+}
+
+func (c *issueCollector) collectBelow(loc []string, ve *jsonschema.ValidationError) {
+	if len(ve.InstanceLocation) > len(loc) {
+		c.collect(ve)
+		return
+	}
+	for _, cause := range ve.Causes {
+		c.collectBelow(loc, cause)
+	}
 }
 
 func typeConstWants(ve *jsonschema.ValidationError) []string {
