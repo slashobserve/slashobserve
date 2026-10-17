@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -23,6 +24,9 @@ import (
 const (
 	loginStateTTL   = 10 * time.Minute
 	maxReturnToSize = 2048
+
+	maxDisplayNameRunes = 256
+	maxEmailBytes       = 254
 )
 
 type loginFailure struct {
@@ -149,8 +153,8 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	if err := idToken.Claims(&claims); err != nil {
 		return "", &loginFailure{code: "invalid_token", err: err}
 	}
-	if claims.Email == "" {
-		return "", &loginFailure{code: "email_missing"}
+	if failure := emailFailure(claims.Email); failure != nil {
+		return "", failure
 	}
 	if !s.cfg.AllowAnyEmailDomain && !emailAllowed(claims.Email, claims.EmailVerified, s.cfg.AllowedEmailDomains) {
 		reason := "domain_not_allowed"
@@ -164,7 +168,7 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		OidcIssuer:  idToken.Issuer,
 		OidcSubject: idToken.Subject,
 		Email:       claims.Email,
-		Name:        claims.Name,
+		Name:        truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
 	})
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
@@ -185,6 +189,25 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		s.logger.WarnContext(ctx, "delete expired sessions", slog.Any("error", err))
 	}
 	return token, nil
+}
+
+func emailFailure(email string) *loginFailure {
+	switch {
+	case email == "":
+		return &loginFailure{code: "email_missing"}
+	case len(email) > maxEmailBytes:
+		return &loginFailure{code: "email_not_allowed", reason: "email_too_long"}
+	case strings.ContainsFunc(email, unicode.IsControl):
+		return &loginFailure{code: "email_not_allowed", reason: "email_invalid"}
+	}
+	return nil
+}
+
+func truncateRunes(s string, limit int) string {
+	if r := []rune(s); len(r) > limit {
+		return string(r[:limit])
+	}
+	return s
 }
 
 func (s *Service) refuse(c *gin.Context, f *loginFailure) {
