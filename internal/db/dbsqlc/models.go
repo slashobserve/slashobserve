@@ -8,6 +8,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AgentRequest struct {
+	ID               pgtype.UUID
+	DashboardID      pgtype.UUID
+	Source           string
+	CommentID        pgtype.UUID
+	Prompt           string
+	PanelID          pgtype.Text
+	BaseVersion      int32
+	Status           string
+	Attempts         int32
+	LeaseUntil       pgtype.Timestamptz
+	ResultVersion    pgtype.Int4
+	Error            pgtype.Text
+	RequestedByKind  string
+	RequestedByID    pgtype.UUID
+	RequestedByName  string
+	RequestedByEmail pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	StartedAt        pgtype.Timestamptz
+	FinishedAt       pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID            pgtype.UUID
 	Title         string
@@ -37,17 +59,18 @@ type DashboardComment struct {
 }
 
 type DashboardVersion struct {
-	DashboardID   pgtype.UUID
-	Version       int32
-	ParentVersion pgtype.Int4
-	RestoredFrom  pgtype.Int4
-	Spec          []byte
-	Summary       string
-	AuthorKind    string
-	AuthorID      pgtype.UUID
-	AuthorName    string
-	AuthorEmail   pgtype.Text
-	CreatedAt     pgtype.Timestamptz
+	DashboardID    pgtype.UUID
+	Version        int32
+	ParentVersion  pgtype.Int4
+	RestoredFrom   pgtype.Int4
+	Spec           []byte
+	Summary        string
+	AuthorKind     string
+	AuthorID       pgtype.UUID
+	AuthorName     string
+	AuthorEmail    pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	AgentRequestID pgtype.UUID
 }
 
 type Instance struct {

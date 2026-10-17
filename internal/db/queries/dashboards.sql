@@ -5,10 +5,10 @@ RETURNING id, title, tags, latest_version, created_at, updated_at;
 -- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email
+  author_kind, author_id, author_name, author_email, agent_request_id
 ) VALUES (
   @dashboard_id, @version, @parent_version, @restored_from, @spec, @summary,
-  @author_kind, @author_id, @author_name, @author_email
+  @author_kind, @author_id, @author_name, @author_email, @agent_request_id
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
   author_kind, author_id, author_name, author_email, created_at;
