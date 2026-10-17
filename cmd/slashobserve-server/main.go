@@ -13,9 +13,11 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/server"
 )
 
@@ -111,10 +113,14 @@ func run() error {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
 
+	runner := queryproxy.NewRunner(registry, logger)
+	dashboardsService := dashboards.New(database, runner, logger)
+
 	handler, err := server.New(server.Options{
 		Logger:        logger,
 		Auth:          authService,
 		Datasources:   registry,
+		API:           []server.Registrar{dashboardsService},
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},

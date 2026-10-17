@@ -21,11 +21,16 @@ type Auth interface {
 	Mount(*gin.RouterGroup) *gin.RouterGroup
 }
 
+type Registrar interface {
+	Register(*gin.RouterGroup)
+}
+
 type Options struct {
 	Logger      *slog.Logger
 	Readiness   []Check
 	Auth        Auth
 	Datasources *datasource.Registry
+	API         []Registrar
 
 	ContractCheck bool
 }
@@ -48,6 +53,9 @@ func New(opts Options) (http.Handler, error) {
 	}
 	authenticated := opts.Auth.Mount(apiGroup)
 	registerDatasourceRoutes(authenticated, opts.Datasources)
+	for _, r := range opts.API {
+		r.Register(authenticated)
+	}
 	registerWebRoutes(engine)
 	if checked != nil {
 		if err := checked.checkRoutes(engine); err != nil {

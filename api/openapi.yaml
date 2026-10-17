@@ -26,6 +26,18 @@ paths:
     $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys-keyid"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
+  /dashboards:
+    $ref: "./paths/dashboards.yaml#/dashboards"
+  /dashboards/{id}:
+    $ref: "./paths/dashboards.yaml#/dashboards-id"
+  /dashboards/{id}/versions:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-versions"
+  /dashboards/{id}/versions/{version}:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version"
+  /dashboards/{id}/versions/{version}/restore:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version-restore"
+  /dashboards/{id}/diff:
+    $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
 components:
   securitySchemes:
     sessionCookie:
@@ -56,6 +68,12 @@ components:
           type: string
         code:
           type: string
+          description: >-
+            Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `duplicate_panel_id` and `unknown_variable`.
+            Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `datasource_type_mismatch`, `time_range_invalid` (path `/timeRange`),
+            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/query`),
+            and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal`
+            (paths `/panels/{i}/query` or `/panels/{i}/datasource/uid` and `/type`).
         message:
           type: string
     ValidationError:
@@ -236,6 +254,134 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DatasourceStatus"
+    Author:
+      type: object
+      additionalProperties: false
+      required: [kind, id, name]
+      properties:
+        kind:
+          type: string
+          enum: [user, service_account]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+    DashboardSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        latest_version:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          $ref: "#/components/schemas/Author"
+    VersionMeta:
+      type: object
+      additionalProperties: false
+      required: [version, parent_version, restored_from, summary, author, created_at]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        parent_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        restored_from:
+          type: integer
+          minimum: 1
+          nullable: true
+        summary:
+          type: string
+        author:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+    Version:
+      type: object
+      additionalProperties: false
+      required: [version, parent_version, restored_from, summary, author, created_at, spec]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        parent_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        restored_from:
+          type: integer
+          minimum: 1
+          nullable: true
+        summary:
+          type: string
+        author:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+        spec:
+          type: object
+          additionalProperties: true
+          description: The ObserveSpec document, validated against its own schema.
+    DashboardWithVersion:
+      type: object
+      additionalProperties: false
+      required: [dashboard, version]
+      properties:
+        dashboard:
+          $ref: "#/components/schemas/DashboardSummary"
+        version:
+          $ref: "#/components/schemas/Version"
+    SpecChange:
+      type: object
+      additionalProperties: false
+      required: [op, path]
+      properties:
+        op:
+          type: string
+          enum: [add, remove, replace, reorder]
+        path:
+          type: string
+          description: JSON Pointer into the Spec document.
+        from:
+          nullable: true
+          description: The previous JSON value at the path.
+        to:
+          nullable: true
+          description: The new JSON value at the path.
+    VersionConflict:
+      type: object
+      additionalProperties: false
+      required: [error, code, latest_version]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        latest_version:
+          type: integer
+          minimum: 1
   responses:
     BadRequest:
       description: The request is malformed or fails validation.
@@ -278,3 +424,21 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    TooLarge:
+      description: The request body exceeds the size limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InvalidSpec:
+      description: The Spec fails validation or one of its queries fails; every problem is listed in `issues`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    VersionConflict:
+      description: The parent version is no longer the latest; `latest_version` names the current one.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/VersionConflict"

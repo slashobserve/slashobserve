@@ -1,0 +1,379 @@
+dashboards:
+  post:
+    operationId: createDashboard
+    summary: Create a dashboard from a Spec, validating it and running every panel query.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [spec]
+            properties:
+              spec:
+                type: object
+                additionalProperties: true
+                description: The ObserveSpec document.
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 500
+                description: Defaults to `Create dashboard`.
+    responses:
+      "201":
+        description: The dashboard and its first version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listDashboards
+    summary: List dashboards, most recently updated first.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of dashboards.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [dashboards, next_cursor]
+              properties:
+                dashboards:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/DashboardSummary"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getDashboard
+    summary: Get a dashboard with its latest version.
+    responses:
+      "200":
+        description: The dashboard and its latest version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-versions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: listDashboardVersions
+    summary: List the versions of a dashboard without their Specs, newest first.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of version metadata.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [versions, next_cursor]
+              properties:
+                versions:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/VersionMeta"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createDashboardVersion
+    summary: Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
+    description: >-
+      A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly
+      (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [spec, summary, parent_version]
+            properties:
+              spec:
+                type: object
+                additionalProperties: true
+                description: The ObserveSpec document.
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 500
+              parent_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+    responses:
+      "200":
+        description: The request repeats the latest version, so that version is returned.
+        headers:
+          Idempotent-Replay:
+            required: true
+            schema:
+              type: string
+              enum: ["true"]
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "201":
+        description: The new version.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-versions-version:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: version
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 2147483647
+  get:
+    operationId: getDashboardVersion
+    summary: Get one version of a dashboard with its Spec.
+    responses:
+      "200":
+        description: The dashboard summary and the requested version.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-versions-version-restore:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: version
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 2147483647
+  post:
+    operationId: restoreDashboardVersion
+    summary: Save a copy of an earlier version as a new version.
+    description: >-
+      The stored Spec is parsed again and its datasource references are checked, but its queries are not run,
+      so restoring a known-good state does not fail because an upstream is briefly down.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [parent_version]
+            properties:
+              parent_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+              summary:
+                type: string
+                minLength: 1
+                maxLength: 500
+                description: Defaults to `Restore version {version}`.
+    responses:
+      "201":
+        description: The new version, with `restored_from` naming the restored one.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/InvalidSpec"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-diff:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: diffDashboardVersions
+    summary: List the structural changes between two versions of a dashboard.
+    parameters:
+      - name: from
+        in: query
+        description: Defaults to `to` minus one; `0` diffs against an empty document.
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+      - name: to
+        in: query
+        description: Defaults to the latest version.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+    responses:
+      "200":
+        description: The changes from `from` to `to`.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [from, to, changes]
+              properties:
+                from:
+                  type: integer
+                  minimum: 0
+                to:
+                  type: integer
+                  minimum: 1
+                changes:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/SpecChange"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

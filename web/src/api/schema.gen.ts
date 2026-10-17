@@ -160,6 +160,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List dashboards, most recently updated first. */
+        get: operations["listDashboards"];
+        put?: never;
+        /** Create a dashboard from a Spec, validating it and running every panel query. */
+        post: operations["createDashboard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Get a dashboard with its latest version. */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** List the versions of a dashboard without their Specs, newest first. */
+        get: operations["listDashboardVersions"];
+        put?: never;
+        /**
+         * Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
+         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`.
+         */
+        post: operations["createDashboardVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        /** Get one version of a dashboard with its Spec. */
+        get: operations["getDashboardVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/versions/{version}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a copy of an earlier version as a new version.
+         * @description The stored Spec is parsed again and its datasource references are checked, but its queries are not run, so restoring a known-good state does not fail because an upstream is briefly down.
+         */
+        post: operations["restoreDashboardVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** List the structural changes between two versions of a dashboard. */
+        get: operations["diffDashboardVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -170,6 +292,7 @@ export interface components {
         };
         Issue: {
             path: string;
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `duplicate_panel_id` and `unknown_variable`. Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `datasource_type_mismatch`, `time_range_invalid` (path `/timeRange`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/query`), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/query` or `/panels/{i}/datasource/uid` and `/type`). */
             code: string;
             message: string;
         };
@@ -250,6 +373,67 @@ export interface components {
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];
         };
+        Author: {
+            /** @enum {string} */
+            kind: "user" | "service_account";
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email?: string;
+        };
+        DashboardSummary: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            tags: string[];
+            latest_version: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            updated_by: components["schemas"]["Author"];
+        };
+        VersionMeta: {
+            version: number;
+            parent_version: number | null;
+            restored_from: number | null;
+            summary: string;
+            author: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        Version: {
+            version: number;
+            parent_version: number | null;
+            restored_from: number | null;
+            summary: string;
+            author: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+            /** @description The ObserveSpec document, validated against its own schema. */
+            spec: {
+                [key: string]: unknown;
+            };
+        };
+        DashboardWithVersion: {
+            dashboard: components["schemas"]["DashboardSummary"];
+            version: components["schemas"]["Version"];
+        };
+        SpecChange: {
+            /** @enum {string} */
+            op: "add" | "remove" | "replace" | "reorder";
+            /** @description JSON Pointer into the Spec document. */
+            path: string;
+            /** @description The previous JSON value at the path. */
+            from?: unknown;
+            /** @description The new JSON value at the path. */
+            to?: unknown;
+        };
+        VersionConflict: {
+            error: string;
+            code: string;
+            latest_version: number;
+        };
     };
     responses: {
         /** @description The request is malformed or fails validation. */
@@ -305,6 +489,33 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The request body exceeds the size limit. */
+        TooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The Spec fails validation or one of its queries fails; every problem is listed in `issues`. */
+        InvalidSpec: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ValidationError"];
+            };
+        };
+        /** @description The parent version is no longer the latest; `latest_version` names the current one. */
+        VersionConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["VersionConflict"];
             };
         };
     };
@@ -579,6 +790,285 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listDashboards: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of dashboards. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        dashboards: components["schemas"]["DashboardSummary"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The ObserveSpec document. */
+                    spec: {
+                        [key: string]: unknown;
+                    };
+                    /** @description Defaults to `Create dashboard`. */
+                    summary?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The dashboard and its first version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard and its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listDashboardVersions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of version metadata. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        versions: components["schemas"]["VersionMeta"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createDashboardVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The ObserveSpec document. */
+                    spec: {
+                        [key: string]: unknown;
+                    };
+                    summary: string;
+                    parent_version: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The request repeats the latest version, so that version is returned. */
+            200: {
+                headers: {
+                    "Idempotent-Replay": "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new version. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDashboardVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The dashboard summary and the requested version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    restoreDashboardVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    parent_version: number;
+                    /** @description Defaults to `Restore version {version}`. */
+                    summary?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new version, with `restored_from` naming the restored one. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["VersionConflict"];
+            413: components["responses"]["TooLarge"];
+            422: components["responses"]["InvalidSpec"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    diffDashboardVersions: {
+        parameters: {
+            query?: {
+                /** @description Defaults to `to` minus one; `0` diffs against an empty document. */
+                from?: number;
+                /** @description Defaults to the latest version. */
+                to?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The changes from `from` to `to`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        from: number;
+                        to: number;
+                        changes: components["schemas"]["SpecChange"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
     };
