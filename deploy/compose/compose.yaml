@@ -4,9 +4,8 @@ name: slashobserve
 x-dex-client-secret: &dex-client-secret slashobserve-dev-client-secret
 
 x-shop: &shop
-  build:
-    context: ../../demo/shop
   image: ${SLASHOBSERVE_SHOP_IMAGE:-slashobserve-demo-shop:local}
+  pull_policy: never
   command: [serve]
   healthcheck:
     test: ["CMD", "/usr/local/bin/shop", "healthcheck"]
@@ -165,6 +164,7 @@ services:
       CLICKHOUSE_USER: otel
       CLICKHOUSE_PASSWORD: otel
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      # Letters, digits, '.', '_' and '-' only: initdb splices it into SQL.
       SLASHOBSERVE_RO_PASSWORD: slashobserve
     volumes:
       - ./clickhouse/config.d/slashobserve.xml:/etc/clickhouse-server/config.d/slashobserve.xml:ro
@@ -176,10 +176,11 @@ services:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "otel", "--password", "otel", "-q", "SELECT 1"]
+      test: ["CMD-SHELL", "clickhouse-client --user slashobserve_ro --password \"$$SLASHOBSERVE_RO_PASSWORD\" -q 'SELECT 1'"]
       interval: 3s
       timeout: 3s
       retries: 40
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -203,6 +204,9 @@ services:
 
   frontend-0:
     <<: *shop
+    build:
+      context: ../../demo/shop
+    pull_policy: build
     environment:
       SHOP_SERVICE: frontend
       SHOP_POD: frontend-0
@@ -251,6 +255,7 @@ services:
       resources:
         limits:
           memory: 32M
+          cpus: "0.5"
 
 volumes:
   postgres-data:

@@ -25,6 +25,8 @@ Prometheus backfills 26 hours of synthetic `http_requests_total` on first boot s
 Latency histograms, node and container metrics, logs and traces start when the stack starts.
 `make demo-reset` drops the volumes so the backfill replays.
 
+If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the `slashobserve_ro` user or holds another password for it; run `make demo-reset` to recreate the volumes.
+
 ## Develop
 
 Requirements: Go 1.27.2 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2, Docker.

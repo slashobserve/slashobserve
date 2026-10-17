@@ -13,7 +13,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make test` | `go test -race ./...`. |
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, ESLint, Prettier check. |
-| `make ci` | `lint`, `test`, `build`: what the CI `check` job runs. |
+| `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for `demo/shop`), `build`: what the CI `check` job runs. |
 | `make generate` | Regenerate sqlc code and the web Spec types/validator after editing migrations, queries or the schema. |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
 | `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request backfill runs again on the next `make demo`. |
@@ -34,10 +34,11 @@ Directories are created when their phase starts; this is where things go.
   `cmd/observe/` (CLI) comes later.
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`).
+- `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`), later the MCP endpoint.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
-- Later: `internal/auth`, `internal/dashboards`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `deploy/helm/`.
+- Later: `internal/dashboards`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
@@ -53,8 +54,10 @@ Directories are created when their phase starts; this is where things go.
   Auth settings: `SLASHOBSERVE_PUBLIC_URL` (required; http or https origin with no path, query or user info), `SLASHOBSERVE_OIDC_ISSUER_URL` (required; used exactly as given because issuer comparison is exact), `SLASHOBSERVE_OIDC_INTERNAL_URL` (optional origin the server's back-channel uses instead of the issuer's scheme and host), `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` (required), `SLASHOBSERVE_SESSION_TTL` (default `168h`, between `5m` and `720h`), and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`.
   `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is required: a comma-separated list of domains matched exactly against the verified email's domain, or `*` as an explicit allow-all that logs a startup warning.
   `SLASHOBSERVE_DATASOURCES_FILE` is optional: a YAML file listing datasources, and unset means none.
-  The file never holds a secret: passwords and tokens are referenced by `passwordEnv` or `bearerTokenEnv` names that start with `SLASHOBSERVE_`, or by `passwordFile` or `bearerTokenFile` paths.
-  Unknown fields are rejected, and `deploy/compose/datasources.yaml` is the exemplar.
+  The file never holds a secret: passwords and tokens are referenced by `passwordEnv`, `bearerTokenEnv` or `headersFromEnv` (a map of header name to variable name) names that start with `SLASHOBSERVE_`, or by `passwordFile`, `bearerTokenFile` or `headersFromFile` paths.
+  An env name the server's own config reads (such as `SLASHOBSERVE_DATABASE_URL`) is refused, and a header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
+  The file needs a top-level `datasources` key and one YAML document; unknown fields are rejected, and `deploy/compose/datasources.yaml` is the exemplar.
+  An empty list logs a startup warning.
   Never log secret values, the database URL and the OIDC client secret included.
 - HTTP: Gin, assembled in `internal/server.New`.
   JSON API under `/api/v1`; `/healthz` is liveness with no dependencies; `/readyz` is readiness (database ping and no pending migrations).
@@ -109,9 +112,11 @@ Directories are created when their phase starts; this is where things go.
 - The Playwright `setup` project (`web/e2e/auth.setup.ts`) signs in through Dex once and saves `web/e2e/.auth/user.json`.
   Every `chromium` spec reuses that session, and a spec that signs out must opt out with an empty `storageState` and sign in itself.
 - The e2e stack is compose project `slashobserve-e2e`, reset with `down -v` on every `make e2e`, on host port 18080 (`SLASHOBSERVE_E2E_PORT`), so it never touches a developer's `make demo` stack.
+  `scripts/e2e.sh` run, up, browser and down take a run lock, the directory `${TMPDIR:-/tmp}/slashobserve-e2e-run.lock`, so two invocations never reset the same stack; a second one fails at once with "another e2e run is active".
+  The EXIT trap removes the lock; after a kill -9 or a crash, `rmdir` that directory to clear a stale one.
   The e2e stack also publishes Prometheus on 19090 (`SLASHOBSERVE_E2E_PROMETHEUS_PORT`) and the shop fault API on 18081 (`SLASHOBSERVE_E2E_SHOP_PORT`).
   CI builds the server image once as `slashobserve-e2e:ci` and the shop image as `slashobserve-demo-shop:ci` (`SLASHOBSERVE_SHOP_IMAGE`), and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
-- `scripts/e2e.sh` boot waits, with bounded polling, until Prometheus has scraped every target and ClickHouse has log and trace rows, so later checks never race a cold stack.
+- `scripts/e2e.sh` boot waits, with bounded polling, until Prometheus has scraped every target and ClickHouse has log and trace rows, so later checks start on a stack that is already exporting; checks on telemetry that may still be arriving poll instead of asserting once.
   The shop contract (pods, routes, metric labels) is shared by the Prometheus backfill and the e2e checks, so change them together.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
@@ -119,6 +124,7 @@ Directories are created when their phase starts; this is where things go.
 - Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`) once the agent exists.
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
+  Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.
 
 ## Product rules
 

@@ -15,7 +15,7 @@ SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
 
-.PHONY: build server web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all clean
+.PHONY: build server web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all tidy-check clean
 
 build: web
 	$(MAKE) server
@@ -49,8 +49,12 @@ lint: web-deps
 	cd web && bun run lint
 	cd web && bun run format:check
 
+tidy-check:
+	go mod tidy -diff
+	cd $(SHOP_DIR) && go mod tidy -diff
+
 ci:
-	$(MAKE) lint test
+	$(MAKE) lint test tidy-check
 	$(MAKE) build
 
 demo:

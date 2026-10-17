@@ -20,7 +20,6 @@ fail() {
 }
 
 if [[ -n "${SLASHOBSERVE_IMAGE:-}" ]]; then
-  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
   BUILD_FLAGS=(--no-build --pull missing)
 else
   export SLASHOBSERVE_IMAGE="slashobserve-e2e:local"
@@ -66,39 +65,46 @@ prom_scalar() {
 }
 
 ch() {
-  compose exec -T clickhouse clickhouse-client --user slashobserve_ro --password slashobserve -q "$1"
+  compose exec -T clickhouse sh -c \
+    'exec clickhouse-client --connect_timeout=5 --receive_timeout=10 --user slashobserve_ro --password "$SLASHOBSERVE_RO_PASSWORD" -q "$1"' \
+    sh "$1"
 }
 
-positive() { awk -v v="$1" 'BEGIN { exit !(v + 0 > 0) }'; }
-prom_is() { [[ "$(prom_scalar "$1")" == "$2" ]]; }
-prom_positive() { positive "$(prom_scalar "$1")"; }
-ch_is() { [[ "$(ch "$1" 2>/dev/null)" == "$2" ]]; }
-ch_positive() { positive "$(ch "$1" 2>/dev/null)"; }
+LAST=""
+above() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 > t + 0) }'; }
+positive() { above "$1" 0; }
+prom_is() { LAST="$(prom_scalar "$1")"; [[ "$LAST" == "$2" ]]; }
+prom_positive() { prom_above "$1" 0; }
+prom_above() { LAST="$(prom_scalar "$1")"; above "$LAST" "$2"; }
+ch_is() { LAST="$(ch "$1" 2>/dev/null || true)"; [[ "$LAST" == "$2" ]]; }
+ch_positive() { LAST="$(ch "$1" 2>/dev/null || true)"; positive "$LAST"; }
 
 poll() {
   local timeout="$1" desc="$2"
   shift 2
   local deadline=$((SECONDS + timeout))
+  LAST=""
   until "$@"; do
     ((SECONDS < deadline)) || {
       compose logs --no-color --tail 50 >&2 || true
-      fail "$desc (not true after ${timeout}s)"
+      fail "$desc (not true after ${timeout}s, last observed: '${LAST}')"
     }
     sleep 2
   done
 }
 
 targets_scraped() {
-  prom_is 'sum(up{job="shop"})' 4 \
-    && prom_is 'count(up{job=~"prometheus|node|cadvisor|otel-collector"})' 4 \
-    && prom_is 'min(up{job=~"prometheus|node|cadvisor|otel-collector"})' 1
+  prom_is 'count(up{job=~"shop|prometheus|node|cadvisor|otel-collector"} == 1)' 8
+}
+
+logs_and_traces_present() {
+  ch_is "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
 }
 
 wait_for_data() {
   poll 180 "Prometheus scraped all targets" targets_scraped
   pass "Prometheus scraped all targets"
-  poll 180 "ClickHouse has log and trace rows" ch_is \
-    "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
+  poll 180 "ClickHouse has log and trace rows" logs_and_traces_present
   pass "ClickHouse has log and trace rows"
 }
 
@@ -109,6 +115,7 @@ stack_reusable() {
 }
 
 boot() {
+  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
   compose down -v --remove-orphans >/dev/null 2>&1 || true
   if ! compose up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
     compose logs --no-color --tail 200 >&2 || true
@@ -125,11 +132,21 @@ boot() {
 }
 
 TMP=""
+LOCK_DIR="${TMPDIR:-/tmp}/slashobserve-e2e-run.lock"
+LOCK_HELD=0
+
+acquire_lock() {
+  mkdir "$LOCK_DIR" 2>/dev/null || fail "another e2e run is active (lock: $LOCK_DIR)"
+  LOCK_HELD=1
+}
+
 cleanup() {
+  if [[ "$LOCK_HELD" == 1 ]]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
   if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
   if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
 }
 trap cleanup EXIT
+trap 'exit 1' INT TERM HUP
 
 dex_login() {
   local jar="$1" return_to="$2" expected="$3" user="${4:-admin@example.com}" authorize form_url final
@@ -329,7 +346,7 @@ suite() {
 }
 
 check_datasources() {
-  local jar="$1" out body="" healthy=0 leak
+  local jar="$1" out body="" healthy=0 leak entry keys entries=0
 
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/datasources")"
   [[ "$out" == 401 ]] || fail "unauthenticated datasource list ($out)"
@@ -349,80 +366,109 @@ check_datasources() {
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' <<<"$body" || true)"
   [[ -z "$leak" ]] || fail "datasource list exposes connection details ($leak)"
   pass "datasources report healthy without exposing connection details"
+
+  while IFS= read -r entry; do
+    keys="$(grep -oE '"[A-Za-z]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
+    case "$keys" in
+      checkedAt,healthy,name,type,uid | checkedAt,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
+      *) fail "datasource entry has unexpected keys ($keys)" ;;
+    esac
+  done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
+  [[ "$entries" == 2 ]] || fail "expected 2 datasource entries, found $entries"
+  pass "datasource entries carry exactly uid, type, name, healthy, checkedAt and an optional message"
 }
 
 stack_suite() {
   [[ -n "$TMP" ]] || TMP="$(mktemp -d)"
   local out ro_out
 
-  prom_is 'count(count by (pod) (http_requests_total{service="checkout"}))' 2 || fail "checkout metrics should carry 2 pods"
+  prom_is 'count(count by (pod) (http_requests_total{service="checkout"}))' 2 || fail "checkout metrics should carry 2 pods (got: $LAST)"
   pass "shop metrics vary by pod"
-  prom_is 'count(count by (service) (http_requests_total))' 3 || fail "http_requests_total should carry 3 services"
+  prom_is 'count(count by (service) (http_requests_total))' 3 || fail "http_requests_total should carry 3 services (got: $LAST)"
   pass "shop metrics vary by service"
-  prom_positive 'count(http_request_duration_seconds_bucket{service="checkout"})' || fail "checkout latency histogram missing"
+  prom_positive 'count(http_request_duration_seconds_bucket{service="checkout"})' || fail "checkout latency histogram missing (got: $LAST)"
   pass "latency histogram exported"
   prom_is 'count(count by (pod) (container_memory_working_set_bytes{pod=~"frontend-0|checkout-0|checkout-1|payments-0"}))' 4 \
-    || fail "cAdvisor should label the 4 shop containers by pod"
+    || fail "cAdvisor should label the 4 shop containers by pod (got: $LAST)"
   pass "cAdvisor labels containers by pod"
-  prom_is 'count(count by (compose_project) (container_memory_working_set_bytes))' 1 || fail "cAdvisor should see exactly one compose project"
+  prom_positive 'count(container_cpu_usage_seconds_total{service="checkout"})' || fail "cAdvisor CPU series should carry the service label (got: $LAST)"
+  pass "cAdvisor labels containers by service"
+  prom_is 'count(count by (compose_project) (container_memory_working_set_bytes))' 1 || fail "cAdvisor should see exactly one compose project (got: $LAST)"
   pass "cAdvisor metrics limited to this stack"
   { prom_positive 'count(node_filesystem_avail_bytes{instance="demo-node"})' \
     && prom_positive 'count(node_filesystem_files_free{instance="demo-node"})'; } \
-    || fail "node disk and inode metrics missing for demo-node"
+    || fail "node disk and inode metrics missing for demo-node (last: $LAST)"
   pass "node disk and inode metrics present"
-  prom_positive 'sum(rate(http_requests_total{service="checkout"}[5m] offset 1d))' || fail "no checkout request rate one day ago"
+  prom_positive 'sum(rate(http_requests_total{service="checkout"}[5m] offset 1d))' || fail "no checkout request rate one day ago (got: $LAST)"
   pass "yesterday's request rate is backfilled"
 
-  ch_is "SELECT getSetting('readonly')" 2 || fail "ClickHouse readonly setting is not 2 ($(ch "SELECT getSetting('readonly')" 2>&1 || true))"
-  if ch "SELECT 1 SETTINGS max_result_rows = 0" >/dev/null 2>&1; then
+  ch_is "SELECT getSetting('readonly')" 2 \
+    || fail "ClickHouse readonly setting is not 2 (got: '$LAST', client: $(ch "SELECT getSetting('readonly')" 2>&1 >/dev/null | tail -3 || true))"
+  if ro_out="$(ch "SELECT 1 SETTINGS max_result_rows = 0" 2>&1)"; then
     fail "ClickHouse user lifted max_result_rows"
   fi
+  [[ "$ro_out" == *SETTING_CONSTRAINT_VIOLATION* || "$ro_out" == *"Code: 452"* ]] \
+    || fail "ClickHouse max_result_rows refusal is not a constraint violation ($ro_out)"
   if ro_out="$(ch "INSERT INTO otel.otel_logs (Body) VALUES ('x')" 2>&1)"; then
     fail "ClickHouse user inserted a row"
   fi
   [[ "$ro_out" == *READONLY* || "$ro_out" == *"Code: 164"* || "$ro_out" == *ACCESS_DENIED* || "$ro_out" == *"Code: 497"* ]] || fail "ClickHouse insert refusal is not READONLY ($ro_out)"
   pass "ClickHouse user is read-only"
-  ch_positive "SELECT count() FROM (SELECT TraceId FROM otel.otel_traces GROUP BY TraceId HAVING uniqExact(ServiceName) = 3)" \
-    || fail "no trace spans frontend, checkout and payments"
+  poll 60 "traces span frontend, checkout and payments" ch_positive \
+    "SELECT count() FROM (SELECT TraceId FROM otel.otel_traces GROUP BY TraceId HAVING uniqExact(ServiceName) = 3)"
   pass "traces span frontend, checkout and payments"
-  ch_is "SELECT uniqExact(ResourceAttributes['k8s.pod.name']) FROM otel.otel_logs WHERE ServiceName = 'checkout'" 2 \
-    || fail "checkout logs should carry 2 pods"
+  poll 60 "checkout logs carry 2 pods" ch_is \
+    "SELECT uniqExact(ResourceAttributes['k8s.pod.name']) FROM otel.otel_logs WHERE ServiceName = 'checkout'" 2
   pass "logs vary by pod"
   poll 60 "checkout error logs present" ch_positive \
     "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR'"
   pass "checkout error logs present"
-  ch_is "SELECT countIf(TraceId != '') > 0 FROM otel.otel_logs" 1 || fail "no log carries a trace id"
+  poll 60 "logs carry trace ids" ch_is "SELECT countIf(TraceId != '') > 0 FROM otel.otel_logs" 1
   pass "logs carry trace ids"
 
   FAULT_SET=1
-  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X POST "$SHOP_URL/fault?type=errors&pct=100")"
+  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X POST "$SHOP_URL/fault?type=errors&pct=100" || true)"
   if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":100' "$TMP/fault"; then
     fail "set error fault ($out: $(cat "$TMP/fault"))"
   fi
   pass "error fault accepted"
-  poll 60 "error fault shows in metrics" prom_positive 'sum(increase(http_requests_total{pod="checkout-0",status="500"}[30s]))'
+  poll 90 "checkout-0 serves mostly 500s" prom_above \
+    'sum(increase(http_requests_total{pod="checkout-0",status="500"}[30s])) / sum(increase(http_requests_total{pod="checkout-0"}[30s]))' 0.9
   pass "error fault shows in metrics"
   poll 60 "error fault shows in logs" ch_positive \
     "SELECT count() FROM otel.otel_logs WHERE ResourceAttributes['k8s.pod.name'] = 'checkout-0' AND Body = 'database connection refused'"
   pass "error fault shows in logs"
-  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X DELETE "$SHOP_URL/fault")"
+  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X DELETE "$SHOP_URL/fault" || true)"
   if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":0' "$TMP/fault"; then
     fail "reset fault ($out: $(cat "$TMP/fault"))"
   fi
   FAULT_SET=0
   pass "fault resets"
-  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL/fault?type=bogus")"
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL/fault?type=bogus" || true)"
   [[ "$out" == 400 ]] || fail "invalid fault type ($out)"
   pass "invalid fault rejected"
 }
 
+data_ready() { targets_scraped && logs_and_traces_present; }
+
+wait_quiet() {
+  local deadline=$((SECONDS + $1))
+  shift
+  until "$@"; do
+    ((SECONDS < deadline)) || return 1
+    sleep 2
+  done
+}
+
 ensure_stack() {
   if stack_reusable; then
-    echo "Reusing the healthy $PROJECT stack at $BASE_URL"
-    wait_for_data
-  else
-    boot
+    if wait_quiet 30 data_ready; then
+      echo "Reusing the healthy $PROJECT stack at $BASE_URL"
+      return 0
+    fi
+    echo "Stack $PROJECT not serving data within 30s (last: $LAST); rebooting"
   fi
+  boot
 }
 
 browser() {
@@ -431,6 +477,10 @@ browser() {
   bun run e2e:install
   SLASHOBSERVE_E2E_BASE_URL="$BASE_URL" bun run e2e
 }
+
+case "${1:-run}" in
+  run | up | browser | down) acquire_lock ;;
+esac
 
 case "${1:-run}" in
   run)

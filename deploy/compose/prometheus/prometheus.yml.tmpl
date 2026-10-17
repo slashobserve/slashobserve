@@ -36,6 +36,9 @@ scrape_configs:
         action: drop
       - source_labels: [container_label_com_docker_compose_service]
         target_label: pod
+      - source_labels: [container_label_com_docker_compose_service]
+        regex: "(.+)-[0-9]+"
+        target_label: service
       - source_labels: [container_label_com_docker_compose_project]
         target_label: compose_project
       - regex: "__tmp_same_project|container_label_.+"
