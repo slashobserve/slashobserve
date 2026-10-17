@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,7 @@ func (s *Service) require(c *gin.Context) {
 	}
 	p, ok, err := s.sessionPrincipal(c)
 	if err != nil {
-		s.logger.ErrorContext(c.Request.Context(), "resolve session", "error", err)
+		s.logger.ErrorContext(c.Request.Context(), "resolve session", slog.Any("error", err))
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}

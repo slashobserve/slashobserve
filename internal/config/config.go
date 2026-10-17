@@ -190,6 +190,7 @@ func parseBaseURL(v string) (*url.URL, error) {
 		return nil, errors.New("must not have a query, fragment or user info")
 	}
 	u.Path, u.RawPath = "", ""
+	u.Host = strings.ToLower(u.Host)
 	return u, nil
 }
 

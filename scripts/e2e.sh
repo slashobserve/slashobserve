@@ -172,6 +172,7 @@ suite() {
   pass "callback with a forged state is rejected"
 
   dex_login "$TMP/jar2" //evil.example "$BASE_URL/"
+  dex_login "$TMP/jar3" $'/\t/evil.example' "$BASE_URL/"
   pass "login redirects only to local paths"
 
   out="$(curl -sS -b "$TMP/jar" -o "$TMP/csrf-origin" -w '%{http_code}' -X POST -H 'Origin: http://evil.example' "$BASE_URL/api/v1/auth/logout")"

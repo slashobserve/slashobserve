@@ -39,16 +39,25 @@ func (s *Service) backChannel(ctx context.Context) context.Context {
 
 func (s *Service) provider(ctx context.Context) (*oidc.Provider, error) {
 	s.providerMu.Lock()
-	defer s.providerMu.Unlock()
-	if s.oidcProvider != nil {
-		return s.oidcProvider, nil
+	p := s.oidcProvider
+	s.providerMu.Unlock()
+	if p != nil {
+		return p, nil
 	}
-	p, err := oidc.NewProvider(s.backChannel(ctx), s.cfg.IssuerURL)
+	v, err, _ := s.discovery.Do("discovery", func() (any, error) {
+		fetched, err := oidc.NewProvider(s.backChannel(context.WithoutCancel(ctx)), s.cfg.IssuerURL)
+		if err != nil {
+			return nil, err
+		}
+		s.providerMu.Lock()
+		s.oidcProvider = fetched
+		s.providerMu.Unlock()
+		return fetched, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	s.oidcProvider = p
-	return p, nil
+	return v.(*oidc.Provider), nil
 }
 
 func (s *Service) oauthConfig(p *oidc.Provider) *oauth2.Config {

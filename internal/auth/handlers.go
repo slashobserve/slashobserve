@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
@@ -108,6 +109,11 @@ func (s *Service) callback(c *gin.Context) {
 	if failure != nil {
 		s.refuse(c, failure)
 		return
+	}
+	if old, err := c.Request.Cookie(s.sessionCookie); err == nil && old.Value != "" {
+		if err := s.queries.DeleteSession(ctx, hashToken(old.Value)); err != nil {
+			s.logger.WarnContext(ctx, "delete previous session", slog.Any("error", err))
+		}
 	}
 	s.setCookie(c, s.sessionCookie, token, int(s.cfg.SessionTTL.Seconds()))
 	c.Redirect(http.StatusFound, stored.ReturnTo)
@@ -255,11 +261,18 @@ func loginErrorPath(code string) string {
 }
 
 func safeReturnTo(v string) string {
-	if !strings.HasPrefix(v, "/") || strings.HasPrefix(v, "//") || strings.HasPrefix(v, `/\`) ||
-		strings.ContainsAny(v, "\r\n\\") || len(v) > maxReturnToSize {
+	if !strings.HasPrefix(v, "/") || strings.HasPrefix(v, "//") ||
+		strings.Contains(v, `\`) || len(v) > maxReturnToSize || slices.ContainsFunc([]byte(v), isControlByte) {
+		return "/"
+	}
+	if u, err := url.Parse(v); err != nil || u.Scheme != "" || u.Host != "" {
 		return "/"
 	}
 	return v
+}
+
+func isControlByte(b byte) bool {
+	return b < 0x20 || b == 0x7f
 }
 
 func emailDomain(email string) string {
@@ -267,7 +280,11 @@ func emailDomain(email string) string {
 	if i < 0 {
 		return ""
 	}
-	return strings.ToLower(email[i+1:])
+	domain := email[i+1:]
+	if slices.ContainsFunc([]byte(domain), func(b byte) bool { return b >= utf8.RuneSelf }) {
+		return ""
+	}
+	return strings.ToLower(domain)
 }
 
 func emailAllowed(email string, verified bool, domains []string) bool {

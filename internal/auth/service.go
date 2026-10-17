@@ -11,6 +11,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
@@ -37,6 +38,7 @@ type Service struct {
 	loginCookie   string
 
 	providerMu   sync.Mutex
+	discovery    singleflight.Group
 	oidcProvider *oidc.Provider
 }
 
