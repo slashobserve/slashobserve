@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"sync/atomic"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -28,6 +29,8 @@ type DB struct {
 	migrator *goose.Provider
 	queries  *dbsqlc.Queries
 	logger   *slog.Logger
+
+	migrationsApplied atomic.Bool
 }
 
 func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*DB, error) {
@@ -74,6 +77,7 @@ func (d *DB) Migrate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
+	d.migrationsApplied.Store(true)
 	for _, result := range results {
 		d.logger.InfoContext(ctx, "applied migration",
 			slog.Int64("version", result.Source.Version),
@@ -87,6 +91,9 @@ func (d *DB) Ping(ctx context.Context) error {
 }
 
 func (d *DB) CheckMigrations(ctx context.Context) error {
+	if d.migrationsApplied.Load() {
+		return nil
+	}
 	pending, err := d.migrator.HasPending(ctx)
 	if err != nil {
 		return fmt.Errorf("check migrations: %w", err)
