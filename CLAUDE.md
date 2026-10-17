@@ -35,7 +35,8 @@ Directories are created when their phase starts; this is where things go.
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`).
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
-- `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`), later the MCP endpoint.
+- `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
+- `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
 - `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
@@ -77,6 +78,9 @@ Directories are created when their phase starts; this is where things go.
   JSON API under `/api/v1`; `/healthz` is liveness with no dependencies; `/readyz` is readiness (database ping and no pending migrations).
   Every other GET is the SPA: build files from the embedded `webdist`, `/assets/*` cached as immutable, unknown `/api/*` paths get a JSON 404, missing `/assets/*` files and missing top-level names with an extension (like `/robots.txt`) get 404, and every other path gets `index.html`.
   Responses forbid framing (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`).
+- MCP: `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
+  It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB and 429 above 8 in-flight requests per principal, and keeps no session state.
+  Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
 - Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
@@ -132,6 +136,7 @@ Directories are created when their phase starts; this is where things go.
 - Go dependencies are exact in `go.mod`.
   `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
   Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
+- MCP: `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it.
 - LLM SDKs: `anthropic-sdk-go` and `openai-go/v3` are the only model clients; adapters keep provider history append-only and pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact.
   The OpenAI-compatible adapter rebuilds assistant history with its own helper instead of `ToParam`, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
@@ -140,7 +145,7 @@ Directories are created when their phase starts; this is where things go.
 
 ## End-to-end tests
 
-- Two suites, both required to merge: `scripts/e2e.sh`, curl-driven checks against the compose stack (API today; CLI and MCP as they land), and Playwright in `web/e2e` (Chromium, one worker, retries only in CI).
+- Two suites, both required to merge: `scripts/e2e.sh`, curl-driven checks against the compose stack (API and MCP today; CLI as it lands), and Playwright in `web/e2e` (Chromium, one worker, retries only in CI).
 - Playwright specs import `test` and `expect` from `web/e2e/fixtures.ts`, which fails any test whose page logs a console error.
 - The Playwright `setup` project (`web/e2e/auth.setup.ts`) signs in through Dex once and saves `web/e2e/.auth/user.json`.
   Every `chromium` spec reuses that session, and a spec that signs out must opt out with an empty `storageState` and sign in itself.
