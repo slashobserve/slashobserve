@@ -37,7 +37,7 @@ function toIssue(error: AjvError): SpecIssue {
   return { path: error.instancePath, message: error.message ?? "invalid value" }
 }
 
-export function validateSpec(value: unknown): SpecValidation {
+export function validateSpecSchema(value: unknown): SpecValidation {
   if (run(value)) {
     return { valid: true, spec: value as Dashboard }
   }

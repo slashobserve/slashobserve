@@ -143,139 +143,7 @@ export interface Dashboard {
   /**
    * @maxItems 20
    */
-  tags?:
-    | []
-    | [string]
-    | [string, string]
-    | [string, string, string]
-    | [string, string, string, string]
-    | [string, string, string, string, string]
-    | [string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string, string, string, string, string]
-    | [string, string, string, string, string, string, string, string, string, string, string, string, string, string]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ]
-    | [
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string,
-        string
-      ];
+  tags?: string[];
   timeRange: TimeRange;
   /**
    * Auto-refresh interval such as 30s, 1m or 1h.
@@ -284,186 +152,12 @@ export interface Dashboard {
   /**
    * @maxItems 20
    */
-  variables?:
-    | []
-    | [Variable]
-    | [Variable, Variable]
-    | [Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable]
-    | [Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable, Variable]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ]
-    | [
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable,
-        Variable
-      ];
+  variables?: Variable[];
   /**
    * @minItems 1
    * @maxItems 100
    */
-  panels: [Panel, ...Panel[]];
+  panels: Panel[];
 }
 export interface TimeRange {
   from: TimeExpression;
@@ -490,7 +184,7 @@ export interface CustomVariable {
    * @minItems 1
    * @maxItems 200
    */
-  options: [string, ...string[]];
+  options: string[];
   multi?: boolean;
   includeAll?: boolean;
 }
@@ -516,17 +210,7 @@ export interface Panel {
    * @minItems 1
    * @maxItems 10
    */
-  thresholds?:
-    | [Threshold]
-    | [Threshold, Threshold]
-    | [Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold]
-    | [Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold, Threshold];
+  thresholds?: Threshold[];
 }
 /**
  * Position on the 24-column grid; x + w must not exceed 24.

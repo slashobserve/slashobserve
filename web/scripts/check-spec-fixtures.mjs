@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { validateSpec } from "../src/spec/index.ts"
+import { validateSpecSchema } from "../src/spec/index.ts"
 
 const examplesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -21,7 +21,7 @@ const valid = fs
   .filter((name) => name.endsWith(".json"))
   .sort()
 for (const name of valid) {
-  const result = validateSpec(readJSON(path.join(examplesDir, name)))
+  const result = validateSpecSchema(readJSON(path.join(examplesDir, name)))
   record(
     name,
     result.valid ? "" : `expected valid, got ${JSON.stringify(result.issues)}`
@@ -30,8 +30,20 @@ for (const name of valid) {
 
 const invalidDir = path.join(examplesDir, "invalid")
 const manifest = readJSON(path.join(invalidDir, "expected.json"))
+const listed = new Set(manifest.cases.map((c) => c.file))
+for (const layer of ["schema", "semantic"]) {
+  for (const name of fs.readdirSync(path.join(invalidDir, layer))) {
+    if (!listed.has(`${layer}/${name}`)) {
+      record(`${layer}/${name}`, "fixture is not listed in expected.json")
+    }
+  }
+}
 for (const c of manifest.cases) {
-  const result = validateSpec(readJSON(path.join(invalidDir, c.file)))
+  if (!fs.existsSync(path.join(invalidDir, c.file))) {
+    record(c.file, "listed in expected.json but missing on disk")
+    continue
+  }
+  const result = validateSpecSchema(readJSON(path.join(invalidDir, c.file)))
   if (c.layer === "schema") {
     if (result.valid) {
       record(c.file, "expected schema issues, got valid")
@@ -41,7 +53,16 @@ for (const c of manifest.cases) {
         `no issue at ${JSON.stringify(c.path)}, got ${JSON.stringify(result.issues)}`
       )
     } else {
-      record(c.file, "")
+      const outside = result.issues.filter(
+        (issue) =>
+          !(issue.path === c.path || issue.path.startsWith(c.path + "/"))
+      )
+      record(
+        c.file,
+        outside.length === 0
+          ? ""
+          : `issues outside ${JSON.stringify(c.path)}: ${JSON.stringify(outside)}`
+      )
     }
   } else {
     record(

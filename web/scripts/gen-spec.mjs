@@ -16,6 +16,7 @@ const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"))
 const types = await compile(schema, "Dashboard", {
   bannerComment: banner,
   additionalProperties: false,
+  ignoreMinAndMaxItems: true,
 })
 
 const ajv = new Ajv2020({
@@ -30,7 +31,11 @@ code = code.replace(
   /const (\w+) = require\("ajv\/dist\/runtime\/ucs2length"\)\.default;/g,
   "const $1 = (s) => Array.from(s).length;"
 )
-if (/\brequire\(|^\s*import\s/m.test(code)) {
+if (
+  /\brequire\(|\bimport\s*\(|^\s*import\s|^\s*export\s[^\n]*\sfrom\s/m.test(
+    code
+  )
+) {
   throw new Error(
     "standalone validator still imports a runtime module; extend the inlining in gen-spec.mjs"
   )
@@ -40,6 +45,11 @@ const validator = `${banner}\n// @ts-nocheck\n${code}\n`
 const outputs = { "observespec.gen.ts": types, "validate.gen.ts": validator }
 const check = process.argv.includes("--check")
 const stale = []
+if (check && fs.existsSync(outDir)) {
+  for (const name of fs.readdirSync(outDir)) {
+    if (name.endsWith(".gen.ts") && !(name in outputs)) stale.push(name)
+  }
+}
 for (const [name, content] of Object.entries(outputs)) {
   const file = path.join(outDir, name)
   if (check) {
