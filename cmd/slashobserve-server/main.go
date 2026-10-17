@@ -1,0 +1,117 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/server"
+)
+
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
+const (
+	connectTimeout    = 30 * time.Second
+	readHeaderTimeout = 10 * time.Second
+	readTimeout       = 60 * time.Second
+	idleTimeout       = 120 * time.Second
+	shutdownTimeout   = 15 * time.Second
+)
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck(os.LookupEnv))
+	}
+	if err := run(); err != nil {
+		slog.Error("server exiting", slog.Any("error", err))
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	cfg, err := config.Load(os.LookupEnv)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	logger := newLogger(cfg)
+	slog.SetDefault(logger)
+	logger.Info("starting slashobserve-server", slog.String("version", version), slog.String("commit", commit))
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	connectCtx, cancelConnect := context.WithTimeout(ctx, connectTimeout)
+	database, err := db.Open(connectCtx, cfg.DatabaseURL, logger)
+	cancelConnect()
+	if err != nil {
+		return err
+	}
+	defer database.Close()
+
+	if err := database.Migrate(ctx); err != nil {
+		return fmt.Errorf("migrate database: %w", err)
+	}
+	instance, err := database.Queries().EnsureInstance(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure instance: %w", err)
+	}
+	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
+
+	handler := server.New(server.Options{
+		Logger: logger,
+		Readiness: []server.Check{
+			{Name: "database", Run: database.Ping},
+			{Name: "migrations", Run: database.CheckMigrations},
+		},
+	})
+	return serve(ctx, logger, cfg.HTTPAddr, handler)
+}
+
+func newLogger(cfg config.Config) *slog.Logger {
+	opts := &slog.HandlerOptions{Level: cfg.LogLevel}
+	if cfg.LogFormat == config.LogFormatText {
+		return slog.New(slog.NewTextHandler(os.Stderr, opts))
+	}
+	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
+}
+
+func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler) error {
+	// WriteTimeout is deliberately unset: SSE streams added later would be cut by a write deadline.
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		IdleTimeout:       idleTimeout,
+		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
+	}
+	serveErr := make(chan error, 1)
+	go func() {
+		logger.Info("listening", slog.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
+		}
+	}()
+
+	select {
+	case err := <-serveErr:
+		return fmt.Errorf("http server: %w", err)
+	case <-ctx.Done():
+	}
+
+	logger.Info("shutting down", slog.Duration("timeout", shutdownTimeout))
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
+}
