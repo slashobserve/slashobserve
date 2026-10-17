@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -42,7 +43,12 @@ type Registry struct {
 	group     singleflight.Group
 
 	mu     sync.Mutex
-	cached map[string]Status
+	cached map[string]cacheEntry
+}
+
+type cacheEntry struct {
+	status Status
+	at     time.Time
 }
 
 func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) {
@@ -52,7 +58,7 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 	r := &Registry{
 		logger:    logger,
 		instances: make(map[string]Instance, len(instances)),
-		cached:    make(map[string]Status, len(instances)),
+		cached:    make(map[string]cacheEntry, len(instances)),
 	}
 	for _, in := range instances {
 		switch {
@@ -115,29 +121,40 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 	if s, ok := r.fresh(in.UID); ok {
 		return s
 	}
-	v, _, _ := r.group.Do(in.UID, func() (any, error) {
+	ch := r.group.DoChan(in.UID, func() (any, error) {
 		if s, ok := r.fresh(in.UID); ok {
 			return s, nil
 		}
 		return r.check(ctx, in), nil
 	})
-	return v.(Status)
+	select {
+	case res := <-ch:
+		return res.Val.(Status)
+	case <-ctx.Done():
+		return Status{
+			UID:       in.UID,
+			Type:      in.Datasource.Type(),
+			Name:      in.Name,
+			Message:   "health check cancelled: " + ctx.Err().Error(),
+			CheckedAt: time.Now().UTC(),
+		}
+	}
 }
 
 func (r *Registry) fresh(uid string) (Status, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	s, ok := r.cached[uid]
-	if !ok || time.Since(s.CheckedAt) >= healthTTL {
+	e, ok := r.cached[uid]
+	if !ok || time.Since(e.at) >= healthTTL {
 		return Status{}, false
 	}
-	return s, true
+	return e.status, true
 }
 
 func (r *Registry) check(ctx context.Context, in Instance) Status {
 	checkCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), healthTimeout)
 	defer cancel()
-	err := in.Datasource.CheckHealth(checkCtx)
+	err := r.safeCheckHealth(checkCtx, in)
 
 	s := Status{
 		UID:       in.UID,
@@ -152,11 +169,22 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 
 	r.mu.Lock()
 	prev, seen := r.cached[in.UID]
-	r.cached[in.UID] = s
+	r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
 	r.mu.Unlock()
 
-	if err != nil && (!seen || prev.Healthy) {
+	if err != nil && (!seen || prev.status.Healthy) {
 		r.logger.Warn("datasource unhealthy", "uid", in.UID, "type", s.Type)
 	}
 	return s
+}
+
+func (r *Registry) safeCheckHealth(ctx context.Context, in Instance) (err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			r.logger.ErrorContext(ctx, "datasource health check panicked",
+				slog.String("uid", in.UID), slog.Any("panic", p), slog.String("stack", string(debug.Stack())))
+			err = errors.New("health check panicked")
+		}
+	}()
+	return in.Datasource.CheckHealth(ctx)
 }

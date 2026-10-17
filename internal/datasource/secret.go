@@ -4,13 +4,20 @@ import "log/slog"
 
 const redacted = "[redacted]"
 
-type Secret struct{ value string }
+type Secret struct{ value *string }
 
-func NewSecret(v string) Secret { return Secret{value: v} }
+func NewSecret(v string) Secret { return Secret{value: &v} }
 
-func (s Secret) Reveal() string { return s.value }
+func (s Secret) Reveal() string {
+	if s.value == nil {
+		return ""
+	}
+	return *s.value
+}
 
-func (s Secret) IsZero() bool { return s.value == "" }
+func (s Secret) IsZero() bool { return s.value == nil || *s.value == "" }
+
+func (s Secret) Equal(o Secret) bool { return s.Reveal() == o.Reveal() }
 
 func (s Secret) String() string { return redacted }
 

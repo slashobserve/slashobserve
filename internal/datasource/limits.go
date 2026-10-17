@@ -3,7 +3,7 @@ package datasource
 import "time"
 
 type Limits struct {
-	Timeout   time.Duration `json:"timeout"`
+	Timeout   time.Duration `json:"-"`
 	MaxSeries int           `json:"maxSeries"`
 	MaxPoints int           `json:"maxPoints"`
 	MaxRows   int           `json:"maxRows"`
@@ -25,8 +25,24 @@ func (l Limits) Tighten(o Limits) Limits {
 	}
 }
 
+func (l Limits) WithDefaults(d Limits) Limits {
+	return Limits{
+		Timeout:   orDefault(l.Timeout, d.Timeout),
+		MaxSeries: orDefault(l.MaxSeries, d.MaxSeries),
+		MaxPoints: orDefault(l.MaxPoints, d.MaxPoints),
+		MaxRows:   orDefault(l.MaxRows, d.MaxRows),
+	}
+}
+
+func orDefault[T time.Duration | int](v, d T) T {
+	if v == 0 {
+		return d
+	}
+	return v
+}
+
 func tighter[T time.Duration | int](base, override T) T {
-	if override == 0 {
+	if override <= 0 {
 		return base
 	}
 	return min(base, override)

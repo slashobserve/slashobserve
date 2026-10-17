@@ -19,10 +19,18 @@ type UpstreamError struct {
 	Message string
 }
 
-func (e *UpstreamError) Error() string { return e.Kind.Error() + ": " + e.Message }
+func (e *UpstreamError) Error() string {
+	if e.Kind == nil {
+		return e.Message
+	}
+	return e.Kind.Error() + ": " + e.Message
+}
 
 func (e *UpstreamError) Unwrap() error { return e.Kind }
 
 func Errorf(kind error, format string, args ...any) error {
+	if kind == nil {
+		kind = ErrUnavailable
+	}
 	return &UpstreamError{Kind: kind, Message: fmt.Sprintf(format, args...)}
 }
