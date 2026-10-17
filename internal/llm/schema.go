@@ -11,9 +11,6 @@ import (
 type ToolSchema struct {
 	Full       map[string]any
 	Normalized json.RawMessage
-	Properties map[string]any
-	Required   []string
-	Extra      map[string]any
 }
 
 func ParseToolSchema(spec ToolSpec) (ToolSchema, error) {
@@ -40,43 +37,30 @@ func ParseToolSchema(spec ToolSpec) (ToolSchema, error) {
 		return ToolSchema{}, fmt.Errorf("tool %q: input schema cannot be encoded: %w", spec.Name, err)
 	}
 
-	schema := ToolSchema{Full: full, Normalized: normalized, Extra: map[string]any{}}
-	for key, value := range full {
-		switch key {
-		case "type":
-		case "properties":
-			props, ok := value.(map[string]any)
-			if !ok {
-				return ToolSchema{}, fmt.Errorf("tool %q: input schema properties must be an object", spec.Name)
-			}
-			schema.Properties = props
-		case "required":
-			required, err := stringList(value)
-			if err != nil {
-				return ToolSchema{}, fmt.Errorf("tool %q: input schema required %w", spec.Name, err)
-			}
-			schema.Required = required
-		default:
-			schema.Extra[key] = value
+	if value, ok := full["properties"]; ok {
+		if _, ok := value.(map[string]any); !ok {
+			return ToolSchema{}, fmt.Errorf("tool %q: input schema properties must be an object", spec.Name)
 		}
 	}
-	return schema, nil
+	if value, ok := full["required"]; ok {
+		if err := checkStringList(value); err != nil {
+			return ToolSchema{}, fmt.Errorf("tool %q: input schema required %w", spec.Name, err)
+		}
+	}
+	return ToolSchema{Full: full, Normalized: normalized}, nil
 }
 
 var errNotStringList = errors.New("must be an array of strings")
 
-func stringList(value any) ([]string, error) {
+func checkStringList(value any) error {
 	items, ok := value.([]any)
 	if !ok {
-		return nil, errNotStringList
+		return errNotStringList
 	}
-	out := make([]string, 0, len(items))
 	for _, item := range items {
-		s, ok := item.(string)
-		if !ok {
-			return nil, errNotStringList
+		if _, ok := item.(string); !ok {
+			return errNotStringList
 		}
-		out = append(out, s)
 	}
-	return out, nil
+	return nil
 }

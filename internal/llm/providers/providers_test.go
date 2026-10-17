@@ -540,7 +540,12 @@ func TestStopReasons(t *testing.T) {
 		{"refusal field", openAIMessage("stop", `{"role":"assistant","content":null,"refusal":"I cannot help"}`), llm.StopRefusal, false, 0},
 		{"missing tool call type", openAIMessage("tool_calls", `{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","function":{"name":"query","arguments":"{\"limit\":1}"}}]}`), llm.StopToolUse, false, 1},
 		{"custom tool call", openAIMessage("tool_calls", `{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"custom","custom":{"name":"x","input":"y"}}]}`), "", true, 0},
-		{"unknown", openAIFlavor.withStop("something_new"), "", true, 0},
+		{"unknown", openAIFlavor.withStop("something_new"), llm.StopEndTurn, false, 0},
+		{"eos", openAIFlavor.withStop("eos"), llm.StopEndTurn, false, 0},
+		{"empty", openAIFlavor.withStop(""), llm.StopEndTurn, false, 0},
+		{"null", strings.Replace(openAIFlavor.withStop("stop"), `"finish_reason":"stop"`, `"finish_reason":null`, 1), llm.StopEndTurn, false, 0},
+		{"unknown with refusal", openAIMessage("eos", `{"role":"assistant","content":null,"refusal":"I cannot help"}`), llm.StopRefusal, false, 0},
+		{"unknown with tool calls", openAIMessage("eos", `{"role":"assistant","content":null,"tool_calls":[`+oneCall+`]}`), llm.StopToolUse, false, 1},
 	}
 	run := func(f flavor, cases []tc) {
 		for _, c := range cases {

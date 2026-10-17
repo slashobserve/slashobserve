@@ -131,7 +131,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	}
 	choice := resp.Choices[0]
 
-	turn, err := parseChoice(choice)
+	turn, err := s.provider.parseChoice(ctx, choice)
 	if err != nil {
 		return llm.Turn{}, err
 	}
@@ -163,7 +163,7 @@ func assistantMessage(msg openai.ChatCompletionMessage, calls []llm.ToolCall) op
 	return openai.ChatCompletionMessageParamUnion{OfAssistant: &asst}
 }
 
-func parseChoice(choice openai.ChatCompletionChoice) (llm.Turn, error) {
+func (p *Provider) parseChoice(ctx context.Context, choice openai.ChatCompletionChoice) (llm.Turn, error) {
 	turn := llm.Turn{Text: choice.Message.Content}
 	for _, call := range choice.Message.ToolCalls {
 		if call.Type != "" && call.Type != "function" {
@@ -175,30 +175,31 @@ func parseChoice(choice openai.ChatCompletionChoice) (llm.Turn, error) {
 		}
 		turn.ToolCalls = append(turn.ToolCalls, llm.ToolCall{ID: call.ID, Name: call.Function.Name, Input: args})
 	}
-	stop, err := stopReason(choice.FinishReason, len(turn.ToolCalls) > 0, choice.Message.Refusal != "")
-	if err != nil {
-		return llm.Turn{}, err
-	}
-	turn.Stop = stop
+	turn.Stop = p.stopReason(ctx, choice.FinishReason, len(turn.ToolCalls) > 0, choice.Message.Refusal != "")
 	return turn, nil
 }
 
-func stopReason(reason string, hasToolCalls, refused bool) (llm.StopReason, error) {
+func (p *Provider) stopReason(ctx context.Context, reason string, hasToolCalls, refused bool) llm.StopReason {
 	if hasToolCalls {
-		return llm.StopToolUse, nil
+		return llm.StopToolUse
 	}
 	if refused {
-		return llm.StopRefusal, nil
+		return llm.StopRefusal
 	}
 	switch reason {
 	case "stop", "tool_calls":
-		return llm.StopEndTurn, nil
+		return llm.StopEndTurn
 	case "length":
-		return llm.StopMaxTokens, nil
+		return llm.StopMaxTokens
 	case "content_filter":
-		return llm.StopRefusal, nil
+		return llm.StopRefusal
 	default:
-		return "", fmt.Errorf("%w: openai returned unexpected finish reason %q", llm.ErrProvider, reason)
+		attrs := []any{slog.String("provider", name)}
+		if llm.IsPlainToken(reason) {
+			attrs = append(attrs, slog.String("finish_reason", reason))
+		}
+		p.logger.DebugContext(ctx, "llm finish reason treated as end of turn", attrs...)
+		return llm.StopEndTurn
 	}
 }
 

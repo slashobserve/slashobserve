@@ -39,6 +39,8 @@ type APIError struct {
 
 var safeToken = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
 
+func IsPlainToken(s string) bool { return safeToken.MatchString(s) }
+
 // Only the status, error type and request id may reach the log or the returned
 // error: the response body, URL and credentials can carry secrets.
 func SanitizeError(callerCtx, callCtx context.Context, logger *slog.Logger, provider string, err error, api *APIError) error {
@@ -47,10 +49,10 @@ func SanitizeError(callerCtx, callCtx context.Context, logger *slog.Logger, prov
 	}
 	if api != nil {
 		attrs := []any{slog.String("provider", provider), slog.Int("status", api.Status)}
-		if safeToken.MatchString(api.Type) {
+		if IsPlainToken(api.Type) {
 			attrs = append(attrs, slog.String("error_type", api.Type))
 		}
-		if safeToken.MatchString(api.RequestID) {
+		if IsPlainToken(api.RequestID) {
 			attrs = append(attrs, slog.String("request_id", api.RequestID))
 		}
 		logger.Warn("llm request failed", attrs...)
