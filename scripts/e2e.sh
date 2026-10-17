@@ -10,6 +10,7 @@ DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
 export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
+export SLASHOBSERVE_API_CONTRACT_CHECK=true
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -343,6 +344,17 @@ suite() {
   pass "revoked keys stop working"
 
   check_datasources "$TMP/sa-jar"
+  check_api_contract
+}
+
+check_api_contract() {
+  local logs violations
+  logs="$(compose logs --no-color server 2>&1)"
+  grep -q 'api contract check enabled' <<<"$logs" || fail "server did not enable the API contract check"
+  pass "server runs with the API contract check enabled"
+  violations="$(grep 'api contract violation' <<<"$logs" || true)"
+  [[ -z "$violations" ]] || fail "API calls broke the OpenAPI contract:"$'\n'"$violations"
+  pass "every API call matched the OpenAPI contract"
 }
 
 check_datasources() {
