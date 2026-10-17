@@ -58,6 +58,9 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, panelID string,
 	if err != nil {
 		return "", fmt.Errorf("marshal current spec: %w", err)
 	}
+	if len(body) > tools.MaxModelSpecBytes {
+		return "", ErrTooLarge
+	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 	if panelID != "" {
 		if title, ok := panelTitle(current.spec, panelID); ok {

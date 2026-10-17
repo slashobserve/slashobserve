@@ -34,6 +34,8 @@ const (
 	codeNotFound        = "not_found"
 
 	internalStep = "internal error"
+
+	messageTurnLimit = "turn limit reached; only a save can run"
 )
 
 type safeError struct {
@@ -59,12 +61,13 @@ type turnOutcome struct {
 }
 
 type runState struct {
-	tools      ToolSet
-	progress   func(Step)
-	logger     *slog.Logger
-	mode       tools.Mode
-	rejections int
-	repairs    int
+	tools         ToolSet
+	progress      func(Step)
+	logger        *slog.Logger
+	mode          tools.Mode
+	parentVersion int
+	rejections    int
+	repairs       int
 }
 
 type callSlot struct {
@@ -73,6 +76,7 @@ type callSlot struct {
 	result   tools.Result
 	content  []byte
 	duration time.Duration
+	end      time.Time
 	err      error
 }
 
@@ -95,7 +99,7 @@ func phaseFor(name string, repairing bool) string {
 	return phaseDiscover
 }
 
-func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall) ([]llm.ToolResult, turnOutcome, error) {
+func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, lastTurn bool) ([]llm.ToolResult, turnOutcome, error) {
 	repairing := s.rejections > 0
 	slots := make([]callSlot, len(calls))
 	var reads []int
@@ -115,6 +119,10 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall) ([]llm
 	sem := make(chan struct{}, maxParallelTools)
 	var wg sync.WaitGroup
 	for _, i := range reads {
+		if lastTurn {
+			slots[i] = rejectCall(calls[i], repairing, messageTurnLimit)
+			continue
+		}
 		sem <- struct{}{}
 		wg.Go(func() {
 			defer func() { <-sem }()
@@ -141,12 +149,12 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall) ([]llm
 			return nil, turnOutcome{}, s.internal(ctx, *slot)
 		}
 		var err error
-		if outcome, err = s.classifySave(*slot); err != nil {
+		if outcome, err = s.classifySave(ctx, *slot); err != nil {
 			return nil, turnOutcome{}, err
 		}
 	}
 	for _, i := range extraSaves {
-		slots[i] = rejectExtraSave(calls[i], repairing)
+		slots[i] = rejectCall(calls[i], repairing, "only one save per turn")
 		s.report(slots[i])
 	}
 
@@ -161,7 +169,8 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	slot := callSlot{name: c.Name, phase: phaseFor(c.Name, repairing)}
 	start := time.Now()
 	slot.result, slot.err = s.tools.Call(ctx, c.Name, c.Input)
-	slot.duration = time.Since(start)
+	slot.end = time.Now()
+	slot.duration = slot.end.Sub(start)
 	if slot.err != nil {
 		return slot
 	}
@@ -169,13 +178,13 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	return slot
 }
 
-func rejectExtraSave(c llm.ToolCall, repairing bool) callSlot {
-	content, _ := json.Marshal(map[string]string{"code": codeInvalidRequest, "message": "only one save per turn"})
+func rejectCall(c llm.ToolCall, repairing bool, reason string) callSlot {
+	content, _ := json.Marshal(map[string]string{"code": codeInvalidRequest, "message": reason})
 	return callSlot{
 		name:    c.Name,
 		phase:   phaseFor(c.Name, repairing),
 		content: content,
-		result:  tools.Result{IsError: true, Step: "Rejected " + c.Name + " input: only one save per turn"},
+		result:  tools.Result{IsError: true, Step: "Rejected " + c.Name + " input: " + reason},
 	}
 }
 
@@ -183,8 +192,12 @@ func (s *runState) report(slot callSlot) {
 	if s.progress == nil {
 		return
 	}
+	at := slot.end
+	if at.IsZero() {
+		at = time.Now()
+	}
 	step := Step{
-		At:         time.Now().UTC(),
+		At:         at.UTC(),
 		Phase:      slot.phase,
 		Tool:       slot.name,
 		Status:     statusOK,
@@ -212,23 +225,24 @@ func (s *runState) internal(ctx context.Context, slot callSlot) error {
 }
 
 type saveBody struct {
-	Code        string `json:"code"`
-	DashboardID string `json:"dashboard_id"`
-	Version     int    `json:"version"`
-	Replayed    *bool  `json:"replayed"`
-	Issues      []struct {
+	Code          string `json:"code"`
+	DashboardID   string `json:"dashboard_id"`
+	Version       int    `json:"version"`
+	LatestVersion int    `json:"latest_version"`
+	Replayed      *bool  `json:"replayed"`
+	Issues        []struct {
 		Code string `json:"code"`
 	} `json:"issues"`
 }
 
-func (s *runState) classifySave(slot callSlot) (turnOutcome, error) {
+func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome, error) {
 	var body saveBody
 	if err := json.Unmarshal(slot.content, &body); err != nil {
-		return turnOutcome{}, s.malformed(slot)
+		return turnOutcome{}, s.malformed(ctx, slot)
 	}
 	if !slot.result.IsError {
 		if body.DashboardID == "" || body.Version < 1 {
-			return turnOutcome{}, s.malformed(slot)
+			return turnOutcome{}, s.malformed(ctx, slot)
 		}
 		return turnOutcome{saved: &savedVersion{
 			dashboardID: body.DashboardID,
@@ -238,8 +252,8 @@ func (s *runState) classifySave(slot callSlot) (turnOutcome, error) {
 	}
 	switch {
 	case body.Code == "":
-		return turnOutcome{}, s.malformed(slot)
-	case body.Code == codeVersionConflict && s.mode == tools.ModeRevise:
+		return turnOutcome{}, s.malformed(ctx, slot)
+	case body.Code == codeVersionConflict && s.mode == tools.ModeRevise && body.LatestVersion != s.parentVersion:
 		return turnOutcome{conflict: true}, nil
 	case body.Code == codeNotFound && s.mode == tools.ModeRevise:
 		return turnOutcome{notFound: true}, nil
@@ -264,8 +278,8 @@ func (b saveBody) issueCodes() []string {
 	return codes
 }
 
-func (s *runState) malformed(slot callSlot) error {
-	s.logger.Error("agent save result is malformed", slog.String("tool", slot.name))
+func (s *runState) malformed(ctx context.Context, slot callSlot) error {
+	s.logger.ErrorContext(ctx, "agent save result is malformed", slog.String("tool", slot.name))
 	return &safeError{
 		message: "the " + slot.name + " tool returned an unreadable result",
 		err:     errors.New("save result is malformed"),

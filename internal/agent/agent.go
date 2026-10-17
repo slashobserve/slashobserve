@@ -30,11 +30,12 @@ const (
 
 var (
 	ErrNoSave          = errors.New("the model finished without saving a dashboard")
-	ErrRepairExhausted = errors.New("the dashboard still failed validation after 3 repair rounds")
+	ErrRepairExhausted = fmt.Errorf("the dashboard still failed validation after %d repair rounds", maxRepairRounds)
 	ErrTurnLimit       = errors.New("the agent reached its turn limit without saving")
 	ErrRefused         = errors.New("the model declined the request")
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
+	ErrTooLarge        = errors.New("the dashboard is too large for the agent to revise")
 )
 
 var panelIDPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
@@ -207,7 +208,7 @@ func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID) (*revision, erro
 func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.Mode, statuses []datasource.Status, current *revision, out *Outcome) (bool, error) {
 	contextText, err := buildContext(statuses, mode, t.PanelID, current)
 	if err != nil {
-		return false, &safeError{message: "could not build the request context", err: err}
+		return false, contextError(err)
 	}
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
 	if current != nil {
@@ -215,7 +216,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		run.ParentVersion = current.number
 	}
 	ctx = tools.WithRun(ctx, run)
-	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode}
+	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
 	defer func() { out.RepairRounds += state.repairs }()
 
 	chat, err := a.provider.Start(ctx, llm.Request{System: a.system, Tools: a.toolSpecs, Prompt: prompt, Context: contextText})
@@ -223,7 +224,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		return false, providerError(ctx, err)
 	}
 	var results []llm.ToolResult
-	for range maxModelCalls {
+	for modelCall := 1; modelCall <= maxModelCalls; modelCall++ {
 		turn, err := chat.Next(ctx, results)
 		if err != nil {
 			return false, providerError(ctx, err)
@@ -232,14 +233,14 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		if turn.Stop == llm.StopRefusal {
 			return false, ErrRefused
 		}
+		if turn.Stop == llm.StopMaxTokens {
+			return false, fmt.Errorf("%w after reaching max tokens", ErrNoSave)
+		}
 		if len(turn.ToolCalls) == 0 {
-			if turn.Stop == llm.StopMaxTokens {
-				return false, fmt.Errorf("%w after reaching max tokens", ErrNoSave)
-			}
 			return false, ErrNoSave
 		}
 		var outcome turnOutcome
-		if results, outcome, err = state.executeTurn(ctx, turn.ToolCalls); err != nil {
+		if results, outcome, err = state.executeTurn(ctx, turn.ToolCalls, modelCall == maxModelCalls); err != nil {
 			return false, err
 		}
 		switch {
@@ -257,6 +258,13 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		}
 	}
 	return false, ErrTurnLimit
+}
+
+func contextError(err error) error {
+	if errors.Is(err, ErrTooLarge) {
+		return err
+	}
+	return &safeError{message: "could not build the request context", err: err}
 }
 
 func providerError(ctx context.Context, err error) error {

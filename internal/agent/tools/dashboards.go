@@ -177,8 +177,8 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	if len(body) > getDashboardLimit {
-		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), getDashboardLimit)), nil
+	if len(body) > MaxModelSpecBytes {
+		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), MaxModelSpecBytes)), nil
 	}
 	return success("Read version "+strconv.Itoa(ver.Number), out), nil
 }

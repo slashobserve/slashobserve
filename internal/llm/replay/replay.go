@@ -22,6 +22,7 @@ const (
 
 type Provider struct {
 	fixtures map[string]*fixture
+	logger   *slog.Logger
 }
 
 func New(dir string, logger *slog.Logger) (*Provider, error) {
@@ -33,7 +34,7 @@ func New(dir string, logger *slog.Logger) (*Provider, error) {
 		return nil, fmt.Errorf("read replay fixture directory: %w", err)
 	}
 
-	p := &Provider{fixtures: map[string]*fixture{}}
+	p := &Provider{fixtures: map[string]*fixture{}, logger: logger}
 	var errs []error
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), fixtureFileSuffix) {
@@ -77,13 +78,15 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 	}
 	f, ok := p.fixtures[promptKey(req.Prompt)]
 	if !ok {
-		return nil, fmt.Errorf("%w for prompt %q", llm.ErrNoFixture, quote(req.Prompt, maxPromptQuote))
+		p.logger.DebugContext(ctx, "replay found no fixture for the prompt", slog.String("prompt_excerpt", quote(req.Prompt, maxPromptQuote)))
+		return nil, llm.ErrNoFixture
 	}
-	return &session{fixture: f}, nil
+	return &session{fixture: f, logger: p.logger}, nil
 }
 
 type session struct {
 	fixture  *fixture
+	logger   *slog.Logger
 	next     int
 	previous []llm.ToolCall
 }
@@ -96,7 +99,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	if index >= len(s.fixture.Turns) {
 		return llm.Turn{}, fmt.Errorf("replay fixture %s: no turn %d", s.fixture.File, index)
 	}
-	if err := s.checkResults(index, results); err != nil {
+	if err := s.checkResults(ctx, index, results); err != nil {
 		return llm.Turn{}, err
 	}
 
@@ -117,7 +120,7 @@ func (s *session) Next(ctx context.Context, results []llm.ToolResult) (llm.Turn,
 	return out, nil
 }
 
-func (s *session) checkResults(index int, results []llm.ToolResult) error {
+func (s *session) checkResults(ctx context.Context, index int, results []llm.ToolResult) error {
 	if len(results) != len(s.previous) {
 		return fmt.Errorf("replay fixture %s: turn %d: got %d tool results for %d tool calls", s.fixture.File, index, len(results), len(s.previous))
 	}
@@ -128,14 +131,14 @@ func (s *session) checkResults(index int, results []llm.ToolResult) error {
 	}
 	expect := s.fixture.Turns[index].Expect
 	for i, r := range results {
-		if err := s.checkResult(index, i, r, expect); err != nil {
+		if err := s.checkResult(ctx, index, i, r, expect); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *session) checkResult(index, i int, r llm.ToolResult, expect []expectation) error {
+func (s *session) checkResult(ctx context.Context, index, i int, r llm.ToolResult, expect []expectation) error {
 	call := s.previous[i]
 	where := fmt.Sprintf("replay fixture %s: turn %d: tool call %d (%s)", s.fixture.File, index, i, call.Name)
 	wantError := false
@@ -143,12 +146,18 @@ func (s *session) checkResult(index, i int, r llm.ToolResult, expect []expectati
 		wantError = *expect[i].IsError
 	}
 	if r.IsError != wantError {
-		return fmt.Errorf("%s: is_error was %t, expected %t: %s", where, r.IsError, wantError, quote(r.Content, maxResultQuote))
+		s.logExcerpt(ctx, where, r.Content)
+		return fmt.Errorf("%s: is_error was %t, expected %t", where, r.IsError, wantError)
 	}
 	if expect != nil && !strings.Contains(r.Content, expect[i].Contains) {
-		return fmt.Errorf("%s: result does not contain %q: %s", where, expect[i].Contains, quote(r.Content, maxResultQuote))
+		s.logExcerpt(ctx, where, r.Content)
+		return fmt.Errorf("%s: result does not contain %q", where, expect[i].Contains)
 	}
 	return nil
+}
+
+func (s *session) logExcerpt(ctx context.Context, where, content string) {
+	s.logger.DebugContext(ctx, "replay expectation failed", slog.String("where", where), slog.String("result_excerpt", quote(content, maxResultQuote)))
 }
 
 func quote(s string, limit int) string {

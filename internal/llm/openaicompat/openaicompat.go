@@ -180,7 +180,7 @@ func (p *Provider) parseChoice(ctx context.Context, choice openai.ChatCompletion
 }
 
 func (p *Provider) stopReason(ctx context.Context, reason string, hasToolCalls, refused bool) llm.StopReason {
-	if hasToolCalls {
+	if hasToolCalls && reason != "length" {
 		return llm.StopToolUse
 	}
 	if refused {

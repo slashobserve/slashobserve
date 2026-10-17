@@ -227,18 +227,18 @@ func TestCallResultCaps(t *testing.T) {
 		t.Fatalf("oversized result accepted: err = %v", err)
 	}
 
-	if getDashboardLimit != 128<<10 {
-		t.Fatalf("get_dashboard cap = %d, want 128 KiB", getDashboardLimit)
+	if MaxModelSpecBytes != 128<<10 {
+		t.Fatalf("get_dashboard cap = %d, want 128 KiB", MaxModelSpecBytes)
 	}
 	r.entries[nameGetDashboard] = entry{handle: big(maxContentBytes * 4)}
 	if _, err := call(t, r, nameGetDashboard, `{}`); err != nil {
 		t.Fatalf("get_dashboard result above 16 KiB rejected: %v", err)
 	}
-	r.entries[nameGetDashboard] = entry{handle: big(getDashboardLimit - 20)}
+	r.entries[nameGetDashboard] = entry{handle: big(MaxModelSpecBytes - 20)}
 	if _, err := call(t, r, nameGetDashboard, `{}`); err != nil {
 		t.Fatalf("get_dashboard result at its cap rejected: %v", err)
 	}
-	r.entries[nameGetDashboard] = entry{handle: big(getDashboardLimit)}
+	r.entries[nameGetDashboard] = entry{handle: big(MaxModelSpecBytes)}
 	if res, err := call(t, r, nameGetDashboard, `{}`); err == nil || res.Content != nil {
 		t.Fatalf("get_dashboard result over its cap accepted: err = %v", err)
 	}

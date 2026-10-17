@@ -523,6 +523,7 @@ func TestStopReasons(t *testing.T) {
 		{"context window exceeded", anthropicFlavor.withStop("model_context_window_exceeded"), llm.StopMaxTokens, false, 0},
 		{"refusal", anthropicFlavor.withStop("refusal"), llm.StopRefusal, false, 0},
 		{"tool_use", anthropicFlavor.toolCalls(call), llm.StopToolUse, false, 1},
+		{"max_tokens with tool calls", strings.Replace(anthropicFlavor.toolCalls(call), `"stop_reason":"tool_use"`, `"stop_reason":"max_tokens"`, 1), llm.StopMaxTokens, false, 1},
 		{"pause_turn", anthropicFlavor.withStop("pause_turn"), "", true, 0},
 		{"unknown", anthropicFlavor.withStop("something_new"), "", true, 0},
 	}
@@ -534,6 +535,7 @@ func TestStopReasons(t *testing.T) {
 		{"stop", openAIFlavor.withStop("stop"), llm.StopEndTurn, false, 0},
 		{"length", openAIFlavor.withStop("length"), llm.StopMaxTokens, false, 0},
 		{"content_filter", openAIFlavor.withStop("content_filter"), llm.StopRefusal, false, 0},
+		{"length with tool calls", strings.Replace(openAIFlavor.toolCalls(call), `"finish_reason":"tool_calls"`, `"finish_reason":"length"`, 1), llm.StopMaxTokens, false, 1},
 		{"tool_calls", openAIFlavor.toolCalls(call), llm.StopToolUse, false, 1},
 		{"stop with tool calls", openAIMessage("stop", `{"role":"assistant","content":null,"tool_calls":[`+oneCall+`]}`), llm.StopToolUse, false, 1},
 		{"tool_calls without calls", openAIMessage("tool_calls", `{"role":"assistant","content":"hi"}`), llm.StopEndTurn, false, 0},

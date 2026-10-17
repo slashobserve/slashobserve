@@ -30,10 +30,10 @@ const (
 	codeInvalidRequest = "invalid_request"
 	codeTooLarge       = "too_large"
 
-	getDashboardLimit = 128 << 10
+	MaxModelSpecBytes = 128 << 10
 )
 
-var resultLimits = map[string]int{nameGetDashboard: getDashboardLimit}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes}
 
 type Tool struct {
 	Name        string
