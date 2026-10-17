@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/server"
 )
 
@@ -59,6 +60,16 @@ func run() error {
 		logger.Warn("datasources file lists no datasources", slog.String("path", cfg.DatasourcesFile))
 	}
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
+
+	llmProvider, err := providers.New(cfg.LLM, logger)
+	if err != nil {
+		return fmt.Errorf("configure llm provider: %w", err)
+	}
+	if llmProvider != nil {
+		logger.Info("llm provider configured", slog.String("provider", llmProvider.Name()), slog.String("model", llmProvider.Model()))
+	} else {
+		logger.Info("no llm provider configured; the agent is off")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
