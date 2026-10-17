@@ -89,13 +89,40 @@ func (d *differ) walkObject(path string, from, to map[string]any) {
 		t, inTo := to[k]
 		switch {
 		case inFrom && !inTo:
-			d.changes = append(d.changes, Change{Op: OpRemove, Path: child, From: raw(f)})
+			if !d.walkMissingKeyed(child, f, nil) {
+				d.changes = append(d.changes, Change{Op: OpRemove, Path: child, From: raw(f)})
+			}
 		case !inFrom && inTo:
-			d.changes = append(d.changes, Change{Op: OpAdd, Path: child, To: raw(t)})
+			if !d.walkMissingKeyed(child, nil, t) {
+				d.changes = append(d.changes, Change{Op: OpAdd, Path: child, To: raw(t)})
+			}
 		default:
 			d.walk(child, f, t)
 		}
 	}
+}
+
+func (d *differ) walkMissingKeyed(path string, from, to any) bool {
+	key, keyed := keyedArrays[path]
+	if !keyed {
+		return false
+	}
+	f, t := []any{}, []any{}
+	if from != nil {
+		arr, ok := from.([]any)
+		if !ok {
+			return false
+		}
+		f = arr
+	}
+	if to != nil {
+		arr, ok := to.([]any)
+		if !ok {
+			return false
+		}
+		t = arr
+	}
+	return d.walkKeyed(path, key, f, t)
 }
 
 func (d *differ) walkKeyed(path, key string, from, to []any) bool {

@@ -185,3 +185,73 @@ func TestDiffDeterministic(t *testing.T) {
 		}
 	}
 }
+
+func withVariables(d *spec.Dashboard, vars []spec.Variable) *spec.Dashboard {
+	out := *d
+	out.Variables = vars
+	return &out
+}
+
+func TestDiffFirstVariableAdded(t *testing.T) {
+	to := diffBase(t)
+	from := withVariables(to, nil)
+	var all []spec.Change
+	for _, v := range to.Variables {
+		all = append(all, spec.Change{Op: spec.OpAdd, Path: "/variables/" + v.Name, To: canonicalJSON(t, v)})
+	}
+	assertChanges(t, spec.Diff(from, to), all)
+
+	one := withVariables(to, to.Variables[:1])
+	assertChanges(t, spec.Diff(from, one), all[:1])
+}
+
+func TestDiffLastVariableRemoved(t *testing.T) {
+	base := diffBase(t)
+	from := withVariables(base, base.Variables[:1])
+	to := withVariables(base, nil)
+	assertChanges(t, spec.Diff(from, to), []spec.Change{
+		{Op: spec.OpRemove, Path: "/variables/service", From: canonicalJSON(t, from.Variables[0])},
+	})
+}
+
+func TestDiffVariableFieldChanged(t *testing.T) {
+	base := diffBase(t)
+	to := diffMutated(t, func(d *spec.Dashboard) { d.Variables[1].Query = "label_values(up, route)" })
+	assertChanges(t, spec.Diff(base, to), []spec.Change{
+		{Op: spec.OpReplace, Path: "/variables/route/query", From: json.RawMessage(marshalJSON(t, base.Variables[1].Query)), To: json.RawMessage(`"label_values(up, route)"`)},
+	})
+}
+
+func TestDiffDuplicatePanelIDsFallBackToWholeArray(t *testing.T) {
+	base := diffBase(t)
+	dup := *base
+	dup.Panels = []spec.Panel{base.Panels[0], base.Panels[0]}
+	got := spec.Diff(base, &dup)
+	assertChanges(t, got, []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels", From: canonicalJSON(t, base.Panels), To: canonicalJSON(t, dup.Panels)},
+	})
+}
+
+func TestDiffEscapesKeysInPointerPaths(t *testing.T) {
+	const name = "a/b~c"
+	dashboard := func(vars ...spec.Variable) *spec.Dashboard {
+		return &spec.Dashboard{SpecVersion: spec.Version, Title: "t", Variables: vars, Panels: []spec.Panel{}}
+	}
+	v := spec.Variable{Name: name, Type: spec.CustomVariable, Options: []string{"x"}}
+	changed := v
+	changed.Label = "L"
+	cases := []struct {
+		name     string
+		from, to *spec.Dashboard
+		want     spec.Change
+	}{
+		{"add", dashboard(), dashboard(v), spec.Change{Op: spec.OpAdd, Path: "/variables/a~1b~0c", To: canonicalJSON(t, v)}},
+		{"remove", dashboard(v), dashboard(), spec.Change{Op: spec.OpRemove, Path: "/variables/a~1b~0c", From: canonicalJSON(t, v)}},
+		{"nested", dashboard(v), dashboard(changed), spec.Change{Op: spec.OpAdd, Path: "/variables/a~1b~0c/label", To: json.RawMessage(`"L"`)}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assertChanges(t, spec.Diff(c.from, c.to), []spec.Change{c.want})
+		})
+	}
+}
