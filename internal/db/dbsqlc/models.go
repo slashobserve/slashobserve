@@ -13,3 +13,29 @@ type Instance struct {
 	ID        pgtype.UUID
 	CreatedAt pgtype.Timestamptz
 }
+
+type OidcLoginState struct {
+	StateHash    []byte
+	Nonce        string
+	CodeVerifier string
+	ReturnTo     string
+	ExpiresAt    pgtype.Timestamptz
+}
+
+type Session struct {
+	ID        pgtype.UUID
+	TokenHash []byte
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
+type User struct {
+	ID          pgtype.UUID
+	OidcIssuer  string
+	OidcSubject string
+	Email       string
+	Name        string
+	CreatedAt   pgtype.Timestamptz
+	LastLoginAt pgtype.Timestamptz
+}
