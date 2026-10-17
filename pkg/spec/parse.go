@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -132,7 +133,7 @@ func (s *jsonScanner) object(path []string, depth int) error {
 			return err
 		}
 		key, _ := tok.(string)
-		child := append(path[:len(path):len(path)], key)
+		child := slices.Concat(path, []string{key})
 		if _, dup := seen[key]; dup {
 			s.issues = append(s.issues, Issue{
 				Path:    pointer(child...),
@@ -151,7 +152,7 @@ func (s *jsonScanner) object(path []string, depth int) error {
 
 func (s *jsonScanner) array(path []string, depth int) error {
 	for i := 0; s.dec.More(); i++ {
-		child := append(path[:len(path):len(path)], strconv.Itoa(i))
+		child := slices.Concat(path, []string{strconv.Itoa(i)})
 		if err := s.value(child, depth+1); err != nil {
 			return err
 		}
@@ -269,7 +270,7 @@ func numberIssues(v any, t reflect.Type, path []string) []Issue {
 		}
 		var out []Issue
 		for i, item := range val {
-			out = append(out, numberIssues(item, t.Elem(), append(path[:len(path):len(path)], strconv.Itoa(i)))...)
+			out = append(out, numberIssues(item, t.Elem(), slices.Concat(path, []string{strconv.Itoa(i)}))...)
 		}
 		return out
 	case json.Number:
@@ -287,7 +288,7 @@ func structNumberIssues(obj map[string]any, t reflect.Type, path []string) []Iss
 		if !ok {
 			continue
 		}
-		out = append(out, numberIssues(item, f.Type, append(path[:len(path):len(path)], name))...)
+		out = append(out, numberIssues(item, f.Type, slices.Concat(path, []string{name}))...)
 	}
 	return out
 }

@@ -1,0 +1,166 @@
+package spec
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
+
+type ReferenceKind int
+
+const (
+	VariableRef ReferenceKind = iota + 1
+	MacroRef
+)
+
+type Reference struct {
+	Kind    ReferenceKind
+	Name    string
+	Format  string
+	Args    string
+	HasArgs bool
+	Start   int
+	End     int
+}
+
+type Macro struct {
+	Name     string
+	Function bool
+}
+
+type macroDef struct {
+	Macro
+	datasources []DatasourceType
+}
+
+var macroTable = []macroDef{
+	{Macro{"__interval", false}, []DatasourceType{Prometheus, ClickHouse}},
+	{Macro{"__range", false}, []DatasourceType{Prometheus}},
+	{Macro{"__rate_interval", false}, []DatasourceType{Prometheus}},
+	{Macro{"__timeFilter", true}, []DatasourceType{ClickHouse}},
+	{Macro{"__timeGroup", true}, []DatasourceType{ClickHouse}},
+}
+
+func Macros(t DatasourceType) []Macro {
+	var out []Macro
+	for _, m := range macroTable {
+		if slices.Contains(m.datasources, t) {
+			out = append(out, m.Macro)
+		}
+	}
+	return out
+}
+
+func VariableFormats() []string {
+	return []string{"csv", "doublequote", "pipe", "raw", "regex", "singlequote", "sqlstring"}
+}
+
+func ScanQuery(query string) ([]Reference, error) {
+	var refs []Reference
+	for i := 0; i < len(query); {
+		if query[i] != '$' {
+			i++
+			continue
+		}
+		ref, next, err := scanReference(query, i)
+		if err != nil {
+			return nil, err
+		}
+		if ref != nil {
+			refs = append(refs, *ref)
+		}
+		i = next
+	}
+	return refs, nil
+}
+
+func scanReference(query string, start int) (*Reference, int, error) {
+	rest := query[start+1:]
+	if strings.HasPrefix(rest, "{") {
+		return scanBraced(query, start)
+	}
+	n := identLen(rest)
+	if n == 0 {
+		return nil, start + 1, nil
+	}
+	ref := &Reference{Name: rest[:n], Start: start, End: start + 1 + n}
+	ref.Kind = referenceKind(ref.Name)
+	if ref.Kind == MacroRef && strings.HasPrefix(rest[n:], "(") {
+		args, end, ok := matchParen(query, ref.End)
+		if !ok {
+			return nil, 0, fmt.Errorf("unclosed \"(\" at offset %d", ref.End)
+		}
+		ref.Args, ref.HasArgs, ref.End = args, true, end
+	}
+	return ref, ref.End, nil
+}
+
+func scanBraced(query string, start int) (*Reference, int, error) {
+	closing := strings.IndexByte(query[start:], '}')
+	if closing < 0 {
+		return nil, 0, fmt.Errorf("unterminated \"${\" at offset %d", start)
+	}
+	end := start + closing + 1
+	name, format, hasFormat := strings.Cut(query[start+2:end-1], ":")
+	if !validIdent(name) || (hasFormat && !validFormat(format)) {
+		return nil, 0, fmt.Errorf("invalid reference %q at offset %d", query[start:end], start)
+	}
+	return &Reference{Kind: referenceKind(name), Name: name, Format: format, Start: start, End: end}, end, nil
+}
+
+func referenceKind(name string) ReferenceKind {
+	if strings.HasPrefix(name, "__") {
+		return MacroRef
+	}
+	return VariableRef
+}
+
+func matchParen(s string, open int) (args string, end int, ok bool) {
+	depth := 0
+	for i := open; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return s[open+1 : i], i + 1, true
+			}
+		}
+	}
+	return "", 0, false
+}
+
+func identLen(s string) int {
+	n := 0
+	for n < len(s) && isIdentByte(s[n], n == 0) {
+		n++
+	}
+	return n
+}
+
+func isIdentByte(b byte, first bool) bool {
+	switch {
+	case b == '_', b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z':
+		return true
+	case b >= '0' && b <= '9':
+		return !first
+	}
+	return false
+}
+
+func validIdent(s string) bool {
+	return s != "" && identLen(s) == len(s)
+}
+
+func validFormat(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := range len(s) {
+		if s[i] < 'a' || s[i] > 'z' {
+			return false
+		}
+	}
+	return true
+}
