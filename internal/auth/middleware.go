@@ -1,18 +1,38 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
 
+const (
+	keyPrefix        = "sok_"
+	keyLength        = 47
+	keyTouchInterval = 5 * time.Minute
+)
+
 func (s *Service) require(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	if h := c.GetHeader("Authorization"); h != "" {
-		abortError(c, http.StatusUnauthorized, "unauthenticated", "invalid credentials")
+		p, ok, err := s.bearerPrincipal(c.Request.Context(), h)
+		if err != nil {
+			s.logger.ErrorContext(c.Request.Context(), "resolve bearer key", "error", err)
+			abortError(c, http.StatusInternalServerError, "internal", "internal error")
+			return
+		}
+		if !ok {
+			abortError(c, http.StatusUnauthorized, "unauthenticated", "invalid credentials")
+			return
+		}
+		c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), p))
+		c.Next()
 		return
 	}
 	p, ok, err := s.sessionPrincipal(c)
@@ -48,6 +68,26 @@ func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
 		return Principal{}, false, err
 	}
 	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name}, true, nil
+}
+
+func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal, bool, error) {
+	scheme, token, found := strings.Cut(header, " ")
+	if !found || !strings.EqualFold(scheme, "Bearer") || len(token) != keyLength || !strings.HasPrefix(token, keyPrefix) {
+		return Principal{}, false, nil
+	}
+	row, err := s.queries.GetKeyPrincipal(ctx, hashToken(token))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Principal{}, false, nil
+	}
+	if err != nil {
+		return Principal{}, false, err
+	}
+	if !row.LastUsedAt.Valid || time.Since(row.LastUsedAt.Time) > keyTouchInterval {
+		if err := s.queries.TouchServiceAccountKey(ctx, row.KeyID); err != nil {
+			s.logger.WarnContext(ctx, "update key last used", "error", err)
+		}
+	}
+	return Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name}, true, nil
 }
 
 func isSafeMethod(method string) bool {
