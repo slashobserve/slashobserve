@@ -21,8 +21,8 @@ const (
 	maxRPS         = 1000
 	defaultSeed    = 42
 	maxInFlight    = 200
-	requestTimeout = 5 * time.Second
-	drainTimeout   = 5 * time.Second
+	requestTimeout = 7 * time.Second
+	drainTimeout   = 8 * time.Second
 	summaryEvery   = 30 * time.Second
 	emptyCartPct   = 3
 	productCount   = 20

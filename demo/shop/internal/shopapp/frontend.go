@@ -62,7 +62,7 @@ func (a *app) frontendCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBody))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "unreadable request body")
+		a.writeBodyError(w, r, err, "request body too large", "unreadable request body")
 		return
 	}
 	a.forwardToCheckout(w, r, http.MethodPost, "/checkout", body)
@@ -79,6 +79,9 @@ func (a *app) forwardToCheckout(w http.ResponseWriter, r *http.Request, method, 
 	n := uint64(len(a.cfg.CheckoutURLs))
 	base := a.cfg.CheckoutURLs[(a.rotation.Add(1)-1)%n]
 	status, payload, err := a.call(r.Context(), method, base+path, body)
+	if r.Context().Err() != nil {
+		return
+	}
 	if err != nil || status >= http.StatusInternalServerError {
 		a.log.ErrorContext(r.Context(), "upstream checkout failed", upstreamAttrs(base, status, err)...)
 		writeError(w, http.StatusBadGateway, "checkout unavailable")

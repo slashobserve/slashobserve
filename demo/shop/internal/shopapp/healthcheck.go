@@ -11,10 +11,7 @@ import (
 const healthcheckTimeout = 2 * time.Second
 
 func Healthcheck(ctx context.Context, lookup func(string) (string, bool)) error {
-	addr, _ := lookup("SHOP_ADDR")
-	if addr == "" {
-		addr = defaultAddr
-	}
+	addr := listenAddr(lookup)
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return fmt.Errorf("parse SHOP_ADDR %q: %w", addr, err)

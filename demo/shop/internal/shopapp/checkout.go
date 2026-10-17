@@ -10,6 +10,8 @@ import (
 
 const (
 	invalidCartMessage = "invalid cart: empty items"
+	malformedCartMsg   = "invalid cart: malformed json"
+	requestTooLargeMsg = "invalid cart: request body too large"
 	reserveTimeoutMsg  = "inventory reservation timed out"
 	insertDeadlockMsg  = "order insert failed: deadlock detected"
 	checkoutFailRate   = 0.005
@@ -33,7 +35,11 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		err = json.Unmarshal(body, &c)
 	}
-	if err != nil || len(c.Items) == 0 {
+	if err != nil {
+		a.writeBodyError(w, r, err, requestTooLargeMsg, malformedCartMsg)
+		return
+	}
+	if len(c.Items) == 0 {
 		a.log.WarnContext(ctx, invalidCartMessage)
 		writeError(w, http.StatusBadRequest, invalidCartMessage)
 		return
@@ -82,6 +88,9 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 func (a *app) authorizePayment(w http.ResponseWriter, r *http.Request, body []byte) bool {
 	ctx := r.Context()
 	status, payload, err := a.call(ctx, http.MethodPost, a.cfg.PaymentsURL+"/charge", body)
+	if ctx.Err() != nil {
+		return false
+	}
 	switch {
 	case err != nil || status >= http.StatusInternalServerError:
 		a.log.ErrorContext(ctx, "payment service unavailable", upstreamAttrs(a.cfg.PaymentsURL, status, err)...)

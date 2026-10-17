@@ -23,7 +23,7 @@ const (
 	ServicePayments = "payments"
 
 	defaultAddr     = ":8080"
-	upstreamTimeout = 3 * time.Second
+	upstreamTimeout = 4 * time.Second
 )
 
 type Config struct {
@@ -34,6 +34,14 @@ type Config struct {
 	PaymentsURL  string
 }
 
+func listenAddr(lookup func(string) (string, bool)) string {
+	value, _ := lookup("SHOP_ADDR")
+	if value = strings.TrimSpace(value); value != "" {
+		return value
+	}
+	return defaultAddr
+}
+
 func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 	get := func(key string) string {
 		value, _ := lookup(key)
@@ -42,11 +50,8 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 	cfg := Config{
 		Service:     get("SHOP_SERVICE"),
 		Pod:         get("SHOP_POD"),
-		Addr:        get("SHOP_ADDR"),
+		Addr:        listenAddr(lookup),
 		PaymentsURL: strings.TrimRight(get("SHOP_PAYMENTS_URL"), "/"),
-	}
-	if cfg.Addr == "" {
-		cfg.Addr = defaultAddr
 	}
 	for _, raw := range strings.Split(get("SHOP_CHECKOUT_URLS"), ",") {
 		if raw = strings.TrimRight(strings.TrimSpace(raw), "/"); raw != "" {
@@ -122,6 +127,20 @@ func newApp(cfg Config, logger *slog.Logger) http.Handler {
 		a.business("POST /charge", a.charge)
 	}
 	return a.mux
+}
+
+func (a *app) writeBodyError(w http.ResponseWriter, r *http.Request, err error, tooLargeMessage, badMessage string) {
+	if r.Context().Err() != nil {
+		return
+	}
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		a.log.WarnContext(r.Context(), tooLargeMessage)
+		writeError(w, http.StatusRequestEntityTooLarge, tooLargeMessage)
+		return
+	}
+	a.log.WarnContext(r.Context(), badMessage)
+	writeError(w, http.StatusBadRequest, badMessage)
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

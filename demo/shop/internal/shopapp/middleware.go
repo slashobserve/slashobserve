@@ -17,6 +17,8 @@ import (
 const (
 	minFaultLatency = 500 * time.Millisecond
 	maxFaultLatency = 1500 * time.Millisecond
+
+	statusClientClosedRequest = 499
 )
 
 type statusWriter struct {
@@ -54,7 +56,12 @@ func (a *app) instrument(method, route string, next http.Handler) http.Handler {
 		sw := &statusWriter{ResponseWriter: w}
 		next.ServeHTTP(sw, r)
 		if sw.status == 0 {
-			sw.status = http.StatusOK
+			if r.Context().Err() != nil {
+				sw.WriteHeader(statusClientClosedRequest)
+				trace.SpanFromContext(r.Context()).AddEvent("client canceled")
+			} else {
+				sw.status = http.StatusOK
+			}
 		}
 		elapsed := time.Since(start)
 		a.recorder.Observe(route, sw.status, elapsed)
