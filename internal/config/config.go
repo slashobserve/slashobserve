@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +27,22 @@ const (
 	minSessionTTL     = 5 * time.Minute
 	maxSessionTTL     = 720 * time.Hour
 	allowAnyDomain    = "*"
+
+	LLMProviderAnthropic = "anthropic"
+	LLMProviderOpenAI    = "openai"
+	LLMProviderReplay    = "replay"
+
+	defaultLLMModel          = "claude-sonnet-5-5"
+	defaultLLMEffort         = "medium"
+	defaultLLMMaxTokens      = 16000
+	minLLMMaxTokens          = 1024
+	maxLLMMaxTokens          = 64000
+	defaultLLMRequestTimeout = 120 * time.Second
+	minLLMRequestTimeout     = 10 * time.Second
+	maxLLMRequestTimeout     = 10 * time.Minute
 )
+
+var llmEfforts = []string{"low", "medium", "high", "xhigh", "max"}
 
 var emailDomainPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
@@ -46,12 +63,35 @@ const (
 	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
 
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
+
+	envLLMProvider       = "SLASHOBSERVE_LLM_PROVIDER"
+	envLLMModel          = "SLASHOBSERVE_LLM_MODEL"
+	envLLMAPIKey         = "SLASHOBSERVE_LLM_API_KEY"      //nolint:gosec // an environment variable name, not a credential
+	envLLMAPIKeyFile     = "SLASHOBSERVE_LLM_API_KEY_FILE" //nolint:gosec // an environment variable name, not a credential
+	envLLMBaseURL        = "SLASHOBSERVE_LLM_BASE_URL"
+	envLLMEffort         = "SLASHOBSERVE_LLM_EFFORT"
+	envLLMMaxTokens      = "SLASHOBSERVE_LLM_MAX_TOKENS" //nolint:gosec // an environment variable name, not a credential
+	envLLMRequestTimeout = "SLASHOBSERVE_LLM_REQUEST_TIMEOUT"
+	envLLMReplayDir      = "SLASHOBSERVE_LLM_REPLAY_DIR"
 )
 
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
 	envSessionTTL, envAllowedEmailDomain, envDatasourcesFile, envAPIContractCheck,
+	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
+	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
+}
+
+type LLM struct {
+	Provider       string
+	Model          string
+	APIKey         string
+	BaseURL        *url.URL
+	Effort         string
+	MaxTokens      int
+	RequestTimeout time.Duration
+	ReplayDir      string
 }
 
 type Config struct {
@@ -73,6 +113,7 @@ type Config struct {
 	Datasources     []Datasource
 
 	APIContractCheck bool
+	LLM              LLM
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -128,6 +169,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 			errs = append(errs, fmt.Errorf("%s: must be true or false, got %q", envAPIContractCheck, v))
 		}
 	}
+	errs = append(errs, loadLLM(lookup, &cfg)...)
 
 	return cfg, errors.Join(errs...)
 }
@@ -210,6 +252,124 @@ func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {
 	}
 
 	return errs
+}
+
+func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
+	llm := LLM{
+		Effort:         defaultLLMEffort,
+		MaxTokens:      defaultLLMMaxTokens,
+		RequestTimeout: defaultLLMRequestTimeout,
+		Model:          get(lookup, envLLMModel),
+		ReplayDir:      get(lookup, envLLMReplayDir),
+	}
+	var errs []error
+
+	switch provider := strings.ToLower(get(lookup, envLLMProvider)); provider {
+	case "", LLMProviderAnthropic, LLMProviderOpenAI, LLMProviderReplay:
+		llm.Provider = provider
+	default:
+		errs = append(errs, fmt.Errorf("%s: must be %s, %s or %s, got %q", envLLMProvider, LLMProviderAnthropic, LLMProviderOpenAI, LLMProviderReplay, provider))
+	}
+
+	key, err := loadLLMAPIKey(lookup)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	llm.APIKey = key
+
+	if v := get(lookup, envLLMBaseURL); v != "" {
+		if u, err := parseLLMBaseURL(v); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", envLLMBaseURL, err))
+		} else {
+			llm.BaseURL = u
+		}
+	}
+
+	if v := strings.ToLower(get(lookup, envLLMEffort)); v != "" {
+		if !slices.Contains(llmEfforts, v) {
+			errs = append(errs, fmt.Errorf("%s: must be one of %s, got %q", envLLMEffort, strings.Join(llmEfforts, ", "), v))
+		} else {
+			llm.Effort = v
+		}
+	}
+
+	if v := get(lookup, envLLMMaxTokens); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < minLLMMaxTokens || n > maxLLMMaxTokens {
+			errs = append(errs, fmt.Errorf("%s: must be a number between %d and %d, got %q", envLLMMaxTokens, minLLMMaxTokens, maxLLMMaxTokens, v))
+		} else {
+			llm.MaxTokens = n
+		}
+	}
+
+	if v := get(lookup, envLLMRequestTimeout); v != "" {
+		d, err := time.ParseDuration(v)
+		switch {
+		case err != nil:
+			errs = append(errs, fmt.Errorf("%s: %w", envLLMRequestTimeout, err))
+		case d < minLLMRequestTimeout || d > maxLLMRequestTimeout:
+			errs = append(errs, fmt.Errorf("%s: must be between %s and %s, got %q", envLLMRequestTimeout, minLLMRequestTimeout, maxLLMRequestTimeout, v))
+		default:
+			llm.RequestTimeout = d
+		}
+	}
+
+	errs = append(errs, requireLLMSettings(&llm)...)
+	cfg.LLM = llm
+	return errs
+}
+
+func requireLLMSettings(llm *LLM) []error {
+	var errs []error
+	switch llm.Provider {
+	case LLMProviderAnthropic:
+		if llm.Model == "" {
+			llm.Model = defaultLLMModel
+		}
+		if llm.APIKey == "" {
+			errs = append(errs, fmt.Errorf("%s or %s is required when %s is %s", envLLMAPIKey, envLLMAPIKeyFile, envLLMProvider, llm.Provider))
+		}
+	case LLMProviderOpenAI:
+		if llm.Model == "" {
+			errs = append(errs, fmt.Errorf("%s is required when %s is %s", envLLMModel, envLLMProvider, llm.Provider))
+		}
+	case LLMProviderReplay:
+		if llm.ReplayDir == "" {
+			errs = append(errs, fmt.Errorf("%s is required when %s is %s", envLLMReplayDir, envLLMProvider, llm.Provider))
+		}
+	}
+	return errs
+}
+
+func loadLLMAPIKey(lookup func(string) (string, bool)) (string, error) {
+	key, file := get(lookup, envLLMAPIKey), get(lookup, envLLMAPIKeyFile)
+	switch {
+	case key != "" && file != "":
+		return "", fmt.Errorf("%s and %s are mutually exclusive", envLLMAPIKey, envLLMAPIKeyFile)
+	case file == "":
+		return key, nil
+	}
+	b, err := os.ReadFile(file) //nolint:gosec // the path is operator configuration
+	if err != nil {
+		return "", fmt.Errorf("%s: cannot read the file: %w", envLLMAPIKeyFile, err)
+	}
+	key = strings.TrimSpace(string(b))
+	if key == "" {
+		return "", fmt.Errorf("%s: the file is empty", envLLMAPIKeyFile)
+	}
+	return key, nil
+}
+
+func parseLLMBaseURL(v string) (*url.URL, error) {
+	u, err := url.Parse(v)
+	if err != nil || !isAbsoluteHTTP(u) {
+		return nil, errors.New("must be an absolute http or https URL")
+	}
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.User != nil {
+		return nil, errors.New("must not have a query, fragment or user info")
+	}
+	u.Host = strings.ToLower(u.Host)
+	return u, nil
 }
 
 func parseBaseURL(v string) (*url.URL, error) {
