@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/server"
 )
@@ -48,6 +49,13 @@ func run() error {
 	logger := newLogger(cfg)
 	slog.SetDefault(logger)
 	logger.Info("starting slashobserve-server", slog.String("version", version), slog.String("commit", commit))
+
+	registry, err := provision.Build(logger, cfg.Datasources)
+	if err != nil {
+		return fmt.Errorf("configure datasources: %w", err)
+	}
+	defer func() { _ = registry.Close() }()
+	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -90,8 +98,9 @@ func run() error {
 	}
 
 	handler := server.New(server.Options{
-		Logger: logger,
-		Auth:   authService,
+		Logger:      logger,
+		Auth:        authService,
+		Datasources: registry,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
 			{Name: "migrations", Run: database.CheckMigrations},

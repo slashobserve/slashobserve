@@ -58,6 +58,8 @@ type Config struct {
 	SessionTTL          time.Duration
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
+
+	Datasources []Datasource
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -94,6 +96,14 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadClient(lookup, &cfg)...)
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
+
+	if path := get(lookup, envDatasourcesFile); path != "" {
+		datasources, err := loadDatasources(path, lookup)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", envDatasourcesFile, err))
+		}
+		cfg.Datasources = datasources
+	}
 
 	return cfg, errors.Join(errs...)
 }

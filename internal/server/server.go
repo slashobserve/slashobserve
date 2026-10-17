@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 type Check struct {
@@ -20,9 +22,10 @@ type Auth interface {
 }
 
 type Options struct {
-	Logger    *slog.Logger
-	Readiness []Check
-	Auth      Auth
+	Logger      *slog.Logger
+	Readiness   []Check
+	Auth        Auth
+	Datasources *datasource.Registry
 }
 
 func New(opts Options) http.Handler {
@@ -31,7 +34,8 @@ func New(opts Options) http.Handler {
 	engine.ForwardedByClientIP = false
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
-	_ = opts.Auth.Mount(engine.Group("/api/v1"))
+	authenticated := opts.Auth.Mount(engine.Group("/api/v1"))
+	registerDatasourceRoutes(authenticated, opts.Datasources)
 	registerWebRoutes(engine)
 	return engine
 }

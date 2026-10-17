@@ -1,0 +1,296 @@
+package config
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/goccy/go-yaml"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
+)
+
+const (
+	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
+	secretEnvPrefix    = "SLASHOBSERVE_"
+
+	typePrometheus = "prometheus"
+	typeClickHouse = "clickhouse"
+)
+
+var datasourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
+
+type Datasource struct {
+	UID, Type, Name string
+	Prometheus      *PrometheusDatasource
+	ClickHouse      *ClickHouseDatasource
+	Limits          datasource.Limits
+}
+
+type PrometheusDatasource struct {
+	URL               string
+	ScrapeInterval    time.Duration
+	Headers           map[string]string
+	BasicAuthUser     string
+	BasicAuthPassword datasource.Secret
+	BearerToken       datasource.Secret
+}
+
+type ClickHouseDatasource struct {
+	Addr, Database, Username string
+	Password                 datasource.Secret
+	TLS                      bool
+}
+
+type datasourcesFile struct {
+	Datasources []fileDatasource `yaml:"datasources"`
+}
+
+type fileDatasource struct {
+	UID        string          `yaml:"uid"`
+	Type       string          `yaml:"type"`
+	Name       string          `yaml:"name"`
+	Prometheus *filePrometheus `yaml:"prometheus"`
+	ClickHouse *fileClickHouse `yaml:"clickhouse"`
+	Limits     fileLimits      `yaml:"limits"`
+}
+
+type filePrometheus struct {
+	URL             string            `yaml:"url"`
+	ScrapeInterval  string            `yaml:"scrapeInterval"`
+	Headers         map[string]string `yaml:"headers"`
+	BasicAuth       *fileBasicAuth    `yaml:"basicAuth"`
+	BearerTokenEnv  string            `yaml:"bearerTokenEnv"`
+	BearerTokenFile string            `yaml:"bearerTokenFile"`
+}
+
+type fileBasicAuth struct {
+	Username     string `yaml:"username"`
+	PasswordEnv  string `yaml:"passwordEnv"`
+	PasswordFile string `yaml:"passwordFile"`
+}
+
+type fileClickHouse struct {
+	Addr         string `yaml:"addr"`
+	Database     string `yaml:"database"`
+	Username     string `yaml:"username"`
+	PasswordEnv  string `yaml:"passwordEnv"`
+	PasswordFile string `yaml:"passwordFile"`
+	TLS          bool   `yaml:"tls"`
+}
+
+type fileLimits struct {
+	Timeout   string `yaml:"timeout"`
+	MaxSeries int    `yaml:"maxSeries"`
+	MaxPoints int    `yaml:"maxPoints"`
+	MaxRows   int    `yaml:"maxRows"`
+}
+
+func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasource, error) {
+	content, err := os.ReadFile(path) //nolint:gosec // the path is operator configuration
+	if err != nil {
+		return nil, err
+	}
+
+	var doc datasourcesFile
+	if err := yaml.NewDecoder(bytes.NewReader(content), yaml.DisallowUnknownField()).Decode(&doc); err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("invalid datasources file: %s", decodeMessage(err))
+	}
+
+	var errs []error
+	seen := map[string]bool{}
+	out := make([]Datasource, 0, len(doc.Datasources))
+	for i, raw := range doc.Datasources {
+		entryPath := fmt.Sprintf("datasources[%d]", i)
+		ds, dsErrs := convertDatasource(entryPath, raw, lookup)
+		errs = append(errs, dsErrs...)
+		if datasourceUIDPattern.MatchString(raw.UID) {
+			if seen[raw.UID] {
+				errs = append(errs, fmt.Errorf("%s.uid: duplicate %q", entryPath, raw.UID))
+			}
+			seen[raw.UID] = true
+		}
+		out = append(out, ds)
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func decodeMessage(err error) string {
+	var yerr yaml.Error
+	if errors.As(err, &yerr) {
+		msg := yerr.GetMessage()
+		if tok := yerr.GetToken(); tok != nil && tok.Position != nil {
+			return fmt.Sprintf("line %d column %d: %s", tok.Position.Line, tok.Position.Column, msg)
+		}
+		return msg
+	}
+	return "cannot parse"
+}
+
+func convertDatasource(path string, raw fileDatasource, lookup func(string) (string, bool)) (Datasource, []error) {
+	var errs []error
+	fail := func(field, format string, args ...any) {
+		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
+	}
+
+	ds := Datasource{UID: raw.UID, Type: raw.Type, Name: raw.Name}
+	if !datasourceUIDPattern.MatchString(raw.UID) {
+		fail("uid", "must match %s", datasourceUIDPattern)
+	}
+
+	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
+	errs = append(errs, limitErrs...)
+	ds.Limits = limits
+
+	switch raw.Type {
+	case typePrometheus:
+		if raw.ClickHouse != nil {
+			fail("clickhouse", "not allowed for type %s", typePrometheus)
+		}
+		if raw.Prometheus == nil {
+			fail("prometheus", "required for type %s", typePrometheus)
+			break
+		}
+		p, pErrs := convertPrometheus(path+".prometheus", *raw.Prometheus, lookup)
+		errs = append(errs, pErrs...)
+		ds.Prometheus = &p
+	case typeClickHouse:
+		if raw.Prometheus != nil {
+			fail("prometheus", "not allowed for type %s", typeClickHouse)
+		}
+		if raw.ClickHouse == nil {
+			fail("clickhouse", "required for type %s", typeClickHouse)
+			break
+		}
+		c, cErrs := convertClickHouse(path+".clickhouse", *raw.ClickHouse, lookup)
+		errs = append(errs, cErrs...)
+		ds.ClickHouse = &c
+	default:
+		fail("type", "must be %s or %s, got %q", typePrometheus, typeClickHouse, raw.Type)
+	}
+	return ds, errs
+}
+
+func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
+	var errs []error
+	for _, f := range []struct {
+		name  string
+		value int
+	}{{"maxSeries", raw.MaxSeries}, {"maxPoints", raw.MaxPoints}, {"maxRows", raw.MaxRows}} {
+		if f.value < 0 {
+			errs = append(errs, fmt.Errorf("%s.%s: must not be negative", path, f.name))
+		}
+	}
+	timeout, err := parseOptionalDuration(raw.Timeout)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%s.timeout: %w", path, err))
+	}
+	return datasource.Limits{Timeout: timeout, MaxSeries: raw.MaxSeries, MaxPoints: raw.MaxPoints, MaxRows: raw.MaxRows}, errs
+}
+
+func convertPrometheus(path string, raw filePrometheus, lookup func(string) (string, bool)) (PrometheusDatasource, []error) {
+	var errs []error
+	out := PrometheusDatasource{URL: raw.URL, Headers: raw.Headers}
+	if raw.URL == "" {
+		errs = append(errs, fmt.Errorf("%s.url: required", path))
+	}
+	interval, err := parseOptionalDuration(raw.ScrapeInterval)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%s.scrapeInterval: %w", path, err))
+	}
+	out.ScrapeInterval = interval
+
+	hasBasic := raw.BasicAuth != nil
+	hasBearer := raw.BearerTokenEnv != "" || raw.BearerTokenFile != ""
+	if hasBasic && hasBearer {
+		errs = append(errs, fmt.Errorf("%s: basicAuth and bearerToken are mutually exclusive", path))
+	}
+	if hasBasic {
+		if raw.BasicAuth.Username == "" {
+			errs = append(errs, fmt.Errorf("%s.basicAuth.username: required", path))
+		}
+		out.BasicAuthUser = raw.BasicAuth.Username
+		secret, secretErrs := resolveSecret(path+".basicAuth", "password", raw.BasicAuth.PasswordEnv, raw.BasicAuth.PasswordFile, true, lookup)
+		errs = append(errs, secretErrs...)
+		out.BasicAuthPassword = secret
+	}
+	if hasBearer {
+		secret, secretErrs := resolveSecret(path, "bearerToken", raw.BearerTokenEnv, raw.BearerTokenFile, false, lookup)
+		errs = append(errs, secretErrs...)
+		out.BearerToken = secret
+	}
+	return out, errs
+}
+
+func convertClickHouse(path string, raw fileClickHouse, lookup func(string) (string, bool)) (ClickHouseDatasource, []error) {
+	var errs []error
+	if raw.Addr == "" {
+		errs = append(errs, fmt.Errorf("%s.addr: required", path))
+	}
+	if raw.Username == "" {
+		errs = append(errs, fmt.Errorf("%s.username: required", path))
+	}
+	secret, secretErrs := resolveSecret(path, "password", raw.PasswordEnv, raw.PasswordFile, true, lookup)
+	errs = append(errs, secretErrs...)
+	return ClickHouseDatasource{
+		Addr:     raw.Addr,
+		Database: raw.Database,
+		Username: raw.Username,
+		Password: secret,
+		TLS:      raw.TLS,
+	}, errs
+}
+
+func resolveSecret(path, name, envName, file string, required bool, lookup func(string) (string, bool)) (datasource.Secret, []error) {
+	envField, fileField := name+"Env", name+"File"
+	switch {
+	case envName != "" && file != "":
+		return datasource.Secret{}, []error{fmt.Errorf("%s: %s and %s are mutually exclusive", path, envField, fileField)}
+	case envName == "" && file == "":
+		if required {
+			return datasource.Secret{}, []error{fmt.Errorf("%s: one of %s or %s is required", path, envField, fileField)}
+		}
+		return datasource.Secret{}, nil
+	case envName != "":
+		if !strings.HasPrefix(envName, secretEnvPrefix) {
+			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: must start with %s", path, envField, secretEnvPrefix)}
+		}
+		v, _ := lookup(envName)
+		if v == "" {
+			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %s is not set or empty", path, envField, envName)}
+		}
+		return datasource.NewSecret(v), nil
+	default:
+		b, err := os.ReadFile(file) //nolint:gosec // the path is operator configuration
+		if err != nil {
+			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %w", path, fileField, err)}
+		}
+		v := strings.TrimRight(string(b), "\r\n")
+		if v == "" {
+			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %s is empty", path, fileField, file)}
+		}
+		return datasource.NewSecret(v), nil
+	}
+}
+
+func parseOptionalDuration(v string) (time.Duration, error) {
+	if v == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return 0, errors.New("invalid duration")
+	}
+	if d < 0 {
+		return 0, errors.New("must not be negative")
+	}
+	return d, nil
+}
