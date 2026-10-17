@@ -27,11 +27,11 @@ func registerWebRoutes(engine *gin.Engine) {
 	engine.NoRoute(func(c *gin.Context) {
 		urlPath := c.Request.URL.Path
 		if urlPath == "/api" || strings.HasPrefix(urlPath, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found", "code": "not_found"})
 			return
 		}
 		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found", "code": "not_found"})
 			return
 		}
 		name := strings.TrimPrefix(path.Clean("/"+urlPath), "/")

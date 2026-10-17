@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/server"
@@ -70,8 +71,27 @@ func run() error {
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
+	authService, err := auth.New(auth.Config{
+		PublicURL:           cfg.PublicURL,
+		IssuerURL:           cfg.OIDCIssuerURL,
+		InternalURL:         cfg.OIDCInternalURL,
+		ClientID:            cfg.OIDCClientID,
+		ClientSecret:        cfg.OIDCClientSecret,
+		SessionTTL:          cfg.SessionTTL,
+		AllowedEmailDomains: cfg.AllowedEmailDomains,
+		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
+	}, database.Queries(), logger)
+	if err != nil {
+		return fmt.Errorf("create auth service: %w", err)
+	}
+	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
+	if cfg.AllowAnyEmailDomain {
+		logger.Warn("all identity-provider accounts may sign in")
+	}
+
 	handler := server.New(server.Options{
 		Logger: logger,
+		Auth:   authService,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
 			{Name: "migrations", Run: database.CheckMigrations},

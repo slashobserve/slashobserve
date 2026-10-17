@@ -15,9 +15,14 @@ type Check struct {
 	Run  func(context.Context) error
 }
 
+type Auth interface {
+	Mount(*gin.RouterGroup) *gin.RouterGroup
+}
+
 type Options struct {
 	Logger    *slog.Logger
 	Readiness []Check
+	Auth      Auth
 }
 
 func New(opts Options) http.Handler {
@@ -26,6 +31,7 @@ func New(opts Options) http.Handler {
 	engine.ForwardedByClientIP = false
 	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
+	_ = opts.Auth.Mount(engine.Group("/api/v1"))
 	registerWebRoutes(engine)
 	return engine
 }
