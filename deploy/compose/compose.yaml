@@ -80,8 +80,14 @@ services:
       SLASHOBSERVE_DATASOURCES_FILE: /etc/slashobserve/datasources.yaml
       SLASHOBSERVE_CLICKHOUSE_PASSWORD: slashobserve
       SLASHOBSERVE_API_CONTRACT_CHECK: ${SLASHOBSERVE_API_CONTRACT_CHECK:-false}
+      SLASHOBSERVE_LLM_PROVIDER: ${SLASHOBSERVE_LLM_PROVIDER:-}
+      SLASHOBSERVE_LLM_MODEL: ${SLASHOBSERVE_LLM_MODEL:-}
+      SLASHOBSERVE_LLM_API_KEY: ${SLASHOBSERVE_LLM_API_KEY:-}
+      SLASHOBSERVE_LLM_BASE_URL: ${SLASHOBSERVE_LLM_BASE_URL:-}
+      SLASHOBSERVE_LLM_REPLAY_DIR: /etc/slashobserve/llm-fixtures
     volumes:
       - ./datasources.yaml:/etc/slashobserve/datasources.yaml:ro
+      - ../../e2e/fixtures/llm:/etc/slashobserve/llm-fixtures:ro
     ports:
       - "127.0.0.1:${SLASHOBSERVE_HOST_PORT:-8080}:8080"
     depends_on:

@@ -11,6 +11,7 @@ export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
 export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
 export SLASHOBSERVE_API_CONTRACT_CHECK=true
+export SLASHOBSERVE_LLM_PROVIDER=replay
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -163,7 +164,7 @@ dex_login() {
 
 suite() {
   TMP="$(mktemp -d)"
-  local out asset
+  local out asset llm_line
 
   out="$(curl -sS -o "$TMP/healthz" -w '%{http_code}' "$BASE_URL/healthz")"
   if [[ "$out" != 200 ]] || ! grep -q '"status":"ok"' "$TMP/healthz"; then
@@ -176,6 +177,12 @@ suite() {
     fail "/readyz ($out: $(cat "$TMP/readyz"))"
   fi
   pass "/readyz reports database and migrations ok"
+
+  llm_line="$(compose logs --no-color server | grep -F '"msg":"llm provider configured"' || true)"
+  if [[ "$llm_line" != *'"provider":"replay"'* ]]; then
+    fail "server did not boot with the replay LLM provider ($(compose logs --no-color --tail 50 server 2>&1))"
+  fi
+  pass "server boots with the replay LLM provider"
 
   out="$(curl -sS -o "$TMP/index.html" -w '%{http_code} %{content_type}' "$BASE_URL/")"
   [[ "$out" == "200 text/html; charset=utf-8" ]] || fail "web app index ($out)"

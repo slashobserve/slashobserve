@@ -38,7 +38,9 @@ Directories are created when their phase starts; this is where things go.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`), later the MCP endpoint.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
-- Later: `internal/dashboards`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `deploy/helm/`.
+- `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
+  `e2e/fixtures/llm/` holds the replay fixtures.
+- Later: `internal/dashboards`, `internal/agent/{prompts,tools}`, `pkg/extension`, `evals/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
@@ -59,6 +61,11 @@ Directories are created when their phase starts; this is where things go.
   An env name the server's own config reads (such as `SLASHOBSERVE_DATABASE_URL`) is refused, and a header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
   The file needs a top-level `datasources` key and one YAML document; unknown fields are rejected, and `deploy/compose/datasources.yaml` is the exemplar.
   An empty list logs a startup warning.
+  LLM settings are all optional: `SLASHOBSERVE_LLM_PROVIDER` (`anthropic|openai|replay`; unset means no agent, so the revision and observe endpoints answer 503 `agent_unavailable`) and `SLASHOBSERVE_LLM_MODEL` (default `claude-sonnet-5-5` for `anthropic`, required for `openai`, ignored by `replay`).
+  `SLASHOBSERVE_LLM_API_KEY` or `SLASHOBSERVE_LLM_API_KEY_FILE` (at most one; required for `anthropic`, optional for `openai`) supplies the credential, and `SLASHOBSERVE_LLM_BASE_URL` (absolute http or https URL, a path is allowed) overrides the provider endpoint.
+  `SLASHOBSERVE_LLM_EFFORT` (`low|medium|high|xhigh|max`, default `medium`, Anthropic only), `SLASHOBSERVE_LLM_MAX_TOKENS` (`1024` to `64000`, default `16000`) and `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` (`10s` to `10m`, default `120s`) bound each model call.
+  `SLASHOBSERVE_LLM_REPLAY_DIR` is required for `replay`.
+  The LLM API key is never logged or echoed in an error.
   Never log secret values, the database URL and the OIDC client secret included.
   `SLASHOBSERVE_API_CONTRACT_CHECK` (`true|false`, default `false`) is for the e2e stack only: it validates every `/api/v1` request and response against `api/openapi.yaml`, and never belongs in production.
 - HTTP: Gin, assembled in `internal/server.New`.
@@ -131,7 +138,8 @@ Directories are created when their phase starts; this is where things go.
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
 - Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
-- E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`) once the agent exists.
+- E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`).
+  A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
   Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.
 
