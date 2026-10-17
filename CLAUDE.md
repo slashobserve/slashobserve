@@ -43,7 +43,8 @@ Directories are created when their phase starts; this is where things go.
 - `internal/dashboards/`: dashboard and version storage, the save validation pipeline and the `/api/v1/dashboards` routes (`Service.Register`).
 - `internal/events/`: the event payload, the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream, and the `Broker` that fans notifications out to subscribers; `internal/events/stream/` serves them over SSE.
 - `internal/agent/tools/`: the only place agent tools are defined (14 tools, sorted, constant schemas); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
-- `internal/agent/prompts/`: embedded prompts, including the Spec authoring guide.
+- `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
+- `internal/agent/prompts/`: embedded prompts, including the system prompt and the Spec authoring guide.
 - Later: `pkg/extension`, `evals/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
@@ -166,6 +167,7 @@ Directories are created when their phase starts; this is where things go.
 - Datasource credentials never reach the browser; all panel data goes through the query proxy, which only runs queries from a saved Spec.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
 - Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them.
+- The agent's text output is discarded; only tool-saved Specs leave a run.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.
 

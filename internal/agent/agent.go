@@ -1,0 +1,295 @@
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"regexp"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/llm"
+)
+
+const (
+	maxPromptRunes  = 4000
+	maxRepairRounds = 3
+	maxModelCalls   = 20
+	maxRestarts     = 1
+)
+
+var (
+	ErrNoSave          = errors.New("the model finished without saving a dashboard")
+	ErrRepairExhausted = errors.New("the dashboard still failed validation after 3 repair rounds")
+	ErrTurnLimit       = errors.New("the agent reached its turn limit without saving")
+	ErrRefused         = errors.New("the model declined the request")
+	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
+	ErrInvalidTask     = errors.New("invalid agent task")
+)
+
+var panelIDPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
+
+type ToolSet interface {
+	List() []tools.Tool
+	Call(ctx context.Context, name string, input json.RawMessage) (tools.Result, error)
+}
+
+type DashboardReader interface {
+	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
+}
+
+type DatasourceHealth interface {
+	Health(ctx context.Context) []datasource.Status
+}
+
+type Config struct {
+	Provider    llm.Provider
+	Tools       ToolSet
+	Dashboards  DashboardReader
+	Datasources DatasourceHealth
+	Logger      *slog.Logger
+}
+
+type Task struct {
+	Prompt      string
+	DashboardID string
+	PanelID     string
+	RequestID   string
+	Principal   auth.Principal
+	Progress    func(Step)
+}
+
+type Step struct {
+	At         time.Time `json:"at"`
+	Phase      string    `json:"phase"`
+	Tool       string    `json:"tool"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message"`
+	DurationMS int64     `json:"duration_ms"`
+}
+
+type Outcome struct {
+	DashboardID  string
+	Version      int
+	Replayed     bool
+	RepairRounds int
+	Usage        llm.Usage
+	Provider     string
+	Model        string
+}
+
+type Agent struct {
+	provider    llm.Provider
+	tools       ToolSet
+	dashboards  DashboardReader
+	datasources DatasourceHealth
+	logger      *slog.Logger
+	system      string
+	toolSpecs   []llm.ToolSpec
+}
+
+func New(c Config) *Agent {
+	if c.Logger == nil {
+		c.Logger = slog.Default()
+	}
+	list := c.Tools.List()
+	specs := make([]llm.ToolSpec, len(list))
+	for i, t := range list {
+		specs[i] = llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema}
+	}
+	return &Agent{
+		provider:    c.Provider,
+		tools:       c.Tools,
+		dashboards:  c.Dashboards,
+		datasources: c.Datasources,
+		logger:      c.Logger,
+		system:      buildSystem(),
+		toolSpecs:   specs,
+	}
+}
+
+func (a *Agent) Run(ctx context.Context, t Task) (Outcome, error) {
+	start := time.Now()
+	out := Outcome{Provider: a.provider.Name(), Model: a.provider.Model()}
+	err := a.run(ctx, t, &out)
+	a.logFinish(ctx, modeOf(t), out, time.Since(start), err)
+	return out, err
+}
+
+func modeOf(t Task) tools.Mode {
+	if t.DashboardID == "" {
+		return tools.ModeCreate
+	}
+	return tools.ModeRevise
+}
+
+func validateTask(t Task) (prompt string, id pgtype.UUID, err error) {
+	prompt = strings.TrimSpace(t.Prompt)
+	switch {
+	case prompt == "":
+		return "", id, fmt.Errorf("%w: the prompt is empty", ErrInvalidTask)
+	case utf8.RuneCountInString(prompt) > maxPromptRunes:
+		return "", id, fmt.Errorf("%w: the prompt is longer than %d characters", ErrInvalidTask, maxPromptRunes)
+	case t.Principal.ID == "" || (t.Principal.Kind != auth.KindUser && t.Principal.Kind != auth.KindServiceAccount):
+		return "", id, fmt.Errorf("%w: the principal is not valid", ErrInvalidTask)
+	case t.DashboardID == "" && t.PanelID != "":
+		return "", id, fmt.Errorf("%w: a panel needs a dashboard", ErrInvalidTask)
+	case t.PanelID != "" && !panelIDPattern.MatchString(t.PanelID):
+		return "", id, fmt.Errorf("%w: the panel id is not valid", ErrInvalidTask)
+	}
+	if t.DashboardID != "" {
+		if id, err = db.ParseUUID(t.DashboardID); err != nil {
+			return "", id, fmt.Errorf("%w: the dashboard id is not a UUID", ErrInvalidTask)
+		}
+	}
+	return prompt, id, nil
+}
+
+func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
+	prompt, dashboardUUID, err := validateTask(t)
+	if err != nil {
+		return err
+	}
+	mode := modeOf(t)
+	ctx = auth.WithPrincipal(ctx, t.Principal)
+	statuses := a.datasources.Health(ctx)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	for restarts := 0; ; restarts++ {
+		var current *revision
+		if mode == tools.ModeRevise {
+			if current, err = a.loadLatest(ctx, dashboardUUID); err != nil {
+				return err
+			}
+			out.DashboardID = current.dashboardID
+		}
+		conflict, err := a.session(ctx, t, prompt, mode, statuses, current, out)
+		if err != nil {
+			return err
+		}
+		if !conflict {
+			return nil
+		}
+		if restarts >= maxRestarts {
+			return ErrConflict
+		}
+	}
+}
+
+func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID) (*revision, error) {
+	dash, ver, err := a.dashboards.Get(ctx, id)
+	switch {
+	case errors.Is(err, dashboards.ErrNotFound):
+		return nil, dashboards.ErrNotFound
+	case err != nil:
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		a.logger.ErrorContext(ctx, "agent could not load the dashboard", slog.String("error", err.Error()))
+		return nil, &safeError{message: "could not load the dashboard", err: err}
+	case ver.Spec == nil:
+		return nil, &safeError{message: "could not load the dashboard", err: errors.New("latest version has no spec")}
+	}
+	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec}, nil
+}
+
+func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.Mode, statuses []datasource.Status, current *revision, out *Outcome) (bool, error) {
+	contextText, err := buildContext(statuses, mode, t.PanelID, current)
+	if err != nil {
+		return false, &safeError{message: "could not build the request context", err: err}
+	}
+	run := tools.Run{Mode: mode, RequestID: t.RequestID}
+	if current != nil {
+		run.DashboardID = current.dashboardID
+		run.ParentVersion = current.number
+	}
+	ctx = tools.WithRun(ctx, run)
+	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode}
+	defer func() { out.RepairRounds += state.repairs }()
+
+	chat, err := a.provider.Start(ctx, llm.Request{System: a.system, Tools: a.toolSpecs, Prompt: prompt, Context: contextText})
+	if err != nil {
+		return false, providerError(ctx, err)
+	}
+	var results []llm.ToolResult
+	for range maxModelCalls {
+		turn, err := chat.Next(ctx, results)
+		if err != nil {
+			return false, providerError(ctx, err)
+		}
+		out.Usage = out.Usage.Add(turn.Usage)
+		if turn.Stop == llm.StopRefusal {
+			return false, ErrRefused
+		}
+		if len(turn.ToolCalls) == 0 {
+			if turn.Stop == llm.StopMaxTokens {
+				return false, fmt.Errorf("%w after reaching max tokens", ErrNoSave)
+			}
+			return false, ErrNoSave
+		}
+		var outcome turnOutcome
+		if results, outcome, err = state.executeTurn(ctx, turn.ToolCalls); err != nil {
+			return false, err
+		}
+		switch {
+		case outcome.saved != nil:
+			out.DashboardID = outcome.saved.dashboardID
+			out.Version = outcome.saved.version
+			out.Replayed = outcome.saved.replayed
+			return false, nil
+		case outcome.conflict:
+			return true, nil
+		case outcome.notFound:
+			return false, dashboards.ErrNotFound
+		case outcome.rejected && state.rejections > maxRepairRounds:
+			return false, repairExhausted(outcome.issueCodes)
+		}
+	}
+	return false, ErrTurnLimit
+}
+
+func providerError(ctx context.Context, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	return fmt.Errorf("model call failed: %w", err)
+}
+
+func repairExhausted(codes []string) error {
+	if len(codes) == 0 {
+		return ErrRepairExhausted
+	}
+	return fmt.Errorf("%w (last issues: %s)", ErrRepairExhausted, strings.Join(codes, ", "))
+}
+
+func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, out Outcome, took time.Duration, err error) {
+	attrs := []any{
+		slog.String("mode", string(mode)),
+		slog.String("dashboard_id", out.DashboardID),
+		slog.Int("version", out.Version),
+		slog.Int("model_calls", out.Usage.Calls),
+		slog.Int("repair_rounds", out.RepairRounds),
+		slog.Int64("input_tokens", out.Usage.InputTokens),
+		slog.Int64("output_tokens", out.Usage.OutputTokens),
+		slog.Int64("cache_read_tokens", out.Usage.CacheReadTokens),
+		slog.Int64("cache_write_tokens", out.Usage.CacheWriteTokens),
+		slog.Duration("duration", took),
+		slog.String("provider", out.Provider),
+		slog.String("model", out.Model),
+	}
+	if err != nil {
+		attrs = append(attrs, slog.String("error", err.Error()))
+	}
+	a.logger.InfoContext(ctx, "agent run finished", attrs...)
+}
