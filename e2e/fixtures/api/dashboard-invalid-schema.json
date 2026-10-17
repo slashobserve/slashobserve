@@ -1,0 +1,8 @@
+{
+  "summary": "A Spec without panels",
+  "spec": {
+    "specVersion": "0",
+    "title": "No panels",
+    "timeRange": { "from": "now-15m", "to": "now" }
+  }
+}

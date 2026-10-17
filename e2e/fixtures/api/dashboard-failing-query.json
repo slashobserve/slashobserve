@@ -1,0 +1,18 @@
+{
+  "summary": "A panel whose query does not parse",
+  "spec": {
+    "specVersion": "0",
+    "title": "Failing query",
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "panels": [
+      {
+        "id": "broken",
+        "type": "timeseries",
+        "title": "Broken",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "sum(rate("
+      }
+    ]
+  }
+}

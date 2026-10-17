@@ -40,7 +40,9 @@ Directories are created when their phase starts; this is where things go.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
 - `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
   `e2e/fixtures/llm/` holds the replay fixtures.
-- Later: `internal/dashboards`, `internal/agent/{prompts,tools}`, `pkg/extension`, `evals/`, `deploy/helm/`.
+- `internal/dashboards/`: dashboard and version storage, the save validation pipeline and the `/api/v1/dashboards` routes (`Service.Register`).
+- `internal/events/`: the event payload and the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream.
+- Later: `internal/agent/{prompts,tools}`, `pkg/extension`, `evals/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
@@ -82,6 +84,7 @@ Directories are created when their phase starts; this is where things go.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
   The server applies migrations at boot under a Postgres advisory lock.
   Queries live in `internal/db/queries`; sqlc generates `internal/db/dbsqlc` (committed, never hand-edited; run `make generate`).
+- Dashboards: versions are immutable and linear (`parent_version = version - 1`); a save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy`, outside any transaction; the conditional `latest_version` update is the concurrency check (409 `version_conflict`); events go out with `pg_notify` on channel `slashobserve_events` inside the saving transaction.
 - Datasources: adapters live in `internal/datasource/{prometheus,clickhouse}` behind `datasource.Datasource`, and `internal/datasource/provision` builds the registry from `config.Datasources`.
   Variable values reach queries only through `internal/datasource/macros`.
   ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
@@ -145,6 +148,7 @@ Directories are created when their phase starts; this is where things go.
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
 - Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
+- `scripts/e2e.sh` `api_token` creates the service account `e2e-api` and sets `API_TOKEN` once, so API checks send `Authorization: Bearer $API_TOKEN`; request bodies live in `e2e/fixtures/api/`.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`).
   A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.

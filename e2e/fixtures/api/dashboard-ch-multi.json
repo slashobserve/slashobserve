@@ -1,0 +1,18 @@
+{
+  "summary": "A ClickHouse panel with two statements",
+  "spec": {
+    "specVersion": "0",
+    "title": "ClickHouse multi-statement",
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "panels": [
+      {
+        "id": "multi",
+        "type": "table",
+        "title": "Multi",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT 1; SELECT 2"
+      }
+    ]
+  }
+}

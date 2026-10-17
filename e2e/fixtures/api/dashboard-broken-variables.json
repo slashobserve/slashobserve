@@ -1,0 +1,42 @@
+{
+  "summary": "Variables that resolve to nothing or fail",
+  "spec": {
+    "specVersion": "0",
+    "title": "Broken variables",
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "variables": [
+      {
+        "name": "ghost",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "label_values(up{job=\"does-not-exist\"}, job)",
+        "includeAll": true
+      },
+      {
+        "name": "bad",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "up",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p0",
+        "type": "timeseries",
+        "title": "Depends on ghost",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "up{job=~\"$ghost\"}"
+      },
+      {
+        "id": "p1",
+        "type": "timeseries",
+        "title": "Independent",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "up"
+      }
+    ]
+  }
+}

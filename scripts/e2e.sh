@@ -351,6 +351,7 @@ suite() {
   pass "revoked keys stop working"
 
   check_datasources "$TMP/sa-jar"
+  dashboards_suite
   check_api_contract
 }
 
@@ -395,6 +396,167 @@ check_datasources() {
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
   [[ "$entries" == 2 ]] || fail "expected 2 datasource entries, found $entries"
   pass "datasource entries carry exactly uid, type, name, healthy, checked_at and an optional message"
+}
+
+API_TOKEN=""
+FIXTURES="$ROOT/e2e/fixtures/api"
+
+api_token() {
+  [[ -z "$API_TOKEN" ]] || return 0
+  local jar="$TMP/api-jar" out sa_id json_headers=(-H "Origin: $BASE_URL" -H 'Content-Type: application/json')
+  dex_login "$jar" / "$BASE_URL/"
+  out="$(curl -sS -b "$jar" -o "$TMP/api-sa.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"e2e-api"}' "$BASE_URL/api/v1/service-accounts")"
+  [[ "$out" == 201 ]] || fail "create the e2e-api service account ($out: $(cat "$TMP/api-sa.json"))"
+  sa_id="$(grep -o '"id":"[^"]*"' "$TMP/api-sa.json" | head -1 | cut -d'"' -f4)"
+  out="$(curl -sS -b "$jar" -o "$TMP/api-key.json" -w '%{http_code}' -X POST "${json_headers[@]}" -d '{"name":"suite"}' "$BASE_URL/api/v1/service-accounts/$sa_id/keys")"
+  [[ "$out" == 201 ]] || fail "create the e2e-api key ($out: $(cat "$TMP/api-key.json"))"
+  API_TOKEN="$(grep -o '"token":"sok_[^"]*"' "$TMP/api-key.json" | cut -d'"' -f4)"
+  [[ "$API_TOKEN" == sok_* ]] || fail "the e2e-api key response has no token"
+}
+
+api() {
+  local method="$1" path="$2"
+  shift 2
+  command curl -sS --max-time 90 -o "$TMP/api.body" -D "$TMP/api.headers" -w '%{http_code}' -X "$method" \
+    -H "Authorization: Bearer $API_TOKEN" -H 'Content-Type: application/json' "$@" "$BASE_URL/api/v1$path"
+}
+
+version_body() {
+  printf '{"parent_version":%s,%s' "$2" "$(tail -c +2 "$FIXTURES/$1")" >"$TMP/version-body.json"
+}
+
+expect_rejected() {
+  local fixture="$1" code="$2" path="${3:-}" out
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/$fixture")"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/api.body" || ! grep -q "\"code\":\"$code\"" "$TMP/api.body"; then
+    fail "$fixture should be rejected with $code ($out: $(cat "$TMP/api.body"))"
+  fi
+  if [[ -n "$path" ]] && ! grep -q "\"path\":\"$path\"" "$TMP/api.body"; then
+    fail "$fixture rejection should point at $path ($(cat "$TMP/api.body"))"
+  fi
+}
+
+dashboards_suite() {
+  api_token
+  local out id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  if [[ "$out" != 201 ]] || ! grep -q '"version":1' "$TMP/api.body" || ! grep -q '"parent_version":null' "$TMP/api.body"; then
+    fail "create a valid dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$id" ]] || fail "created dashboard has no id ($(cat "$TMP/api.body"))"
+  grep -qi "^location: /api/v1/dashboards/$id" "$TMP/api.headers" || fail "create response has no Location header ($(cat "$TMP/api.headers"))"
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
+  [[ -z "$leak" ]] || fail "create response exposes connection details ($leak)"
+  pass "a valid dashboard is saved as version 1 without exposing connection details"
+
+  expect_rejected dashboard-invalid-schema.json schema
+  pass "a Spec that breaks the schema is rejected with its issues"
+
+  expect_rejected dashboard-failing-query.json query_invalid /panels/0/query
+  pass "a panel whose query fails is rejected with the reason"
+
+  expect_rejected dashboard-empty-query.json query_empty
+  pass "a panel whose query returns no data is rejected"
+
+  expect_rejected dashboard-ch-insert.json query_forbidden
+  expect_rejected dashboard-ch-multi.json query_forbidden
+  pass "ClickHouse writes and multi-statement queries are rejected"
+
+  expect_rejected dashboard-unknown-ds.json unknown_datasource
+  pass "a panel on an unknown datasource is rejected"
+
+  version_body dashboard-v2.json 1
+  out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/version-body.json")"
+  if [[ "$out" != 201 ]] || ! grep -q '"version":2' "$TMP/api.body" || ! grep -q '"parent_version":1' "$TMP/api.body"; then
+    fail "save version 2 ($out: $(cat "$TMP/api.body"))"
+  fi
+  grep -qi "^location: /api/v1/dashboards/$id/versions/2" "$TMP/api.headers" || fail "new version has no Location header ($(cat "$TMP/api.headers"))"
+  out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/version-body.json")"
+  if [[ "$out" != 200 ]] || ! grep -qi '^idempotent-replay: true' "$TMP/api.headers" || ! grep -q '"version":2' "$TMP/api.body"; then
+    fail "replay of version 2 ($out: $(cat "$TMP/api.headers") $(cat "$TMP/api.body"))"
+  fi
+  version_body dashboard-valid.json 1
+  out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/version-body.json")"
+  if [[ "$out" != 409 ]] || ! grep -q '"code":"version_conflict"' "$TMP/api.body" || ! grep -q '"latest_version":2' "$TMP/api.body"; then
+    fail "stale parent version ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "versions stack on their parent, a repeated save replays, and a stale parent gets 409"
+
+  out="$(api GET /dashboards)"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$id\"" "$TMP/api.body"; then
+    fail "list dashboards ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards?cursor=not-a-cursor")"
+  [[ "$out" == 400 ]] || fail "list dashboards with a malformed cursor ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":2' "$TMP/api.body"; then
+    fail "get dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/versions")"
+  ids="$(grep -o '"version":[0-9]*' "$TMP/api.body" | paste -sd, -)"
+  if [[ "$out" != 200 || "$ids" != '"version":2,"version":1' ]] || grep -q '"spec"' "$TMP/api.body"; then
+    fail "list versions newest first without Specs ($out: $ids)"
+  fi
+  out="$(api GET "/dashboards/$id/versions/1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"spec":{"specVersion":"0","title":"E2E dashboard",' "$TMP/api.body"; then
+    fail "get version 1 ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "dashboards and their versions can be listed and read"
+
+  out="$(api GET "/dashboards/$id/diff?from=1&to=2")"
+  if [[ "$out" != 200 ]] || ! grep -q '"path":"/title"' "$TMP/api.body"; then
+    fail "diff versions 1 and 2 ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/diff?from=0&to=1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"from":0,"to":1,"changes":\[{"op":"[a-z]*","path":""' "$TMP/api.body"; then
+    fail "diff version 1 against an empty document ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/diff?from=2&to=1")"
+  [[ "$out" == 400 ]] || fail "diff with from after to ($out: $(cat "$TMP/api.body"))"
+  pass "versions can be diffed"
+
+  out="$(api POST "/dashboards/$id/versions/1/restore" -d '{"parent_version":2}')"
+  if [[ "$out" != 201 ]] || ! grep -q '"version":3' "$TMP/api.body" || ! grep -q '"restored_from":1' "$TMP/api.body"; then
+    fail "restore version 1 ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/versions/1/restore" -d '{"parent_version":2}')"
+  [[ "$out" == 409 ]] || fail "restore on a stale parent ($out: $(cat "$TMP/api.body"))"
+  pass "an earlier version is restored as a new version"
+
+  out="$(api GET "/dashboards/$nil_id")"
+  [[ "$out" == 404 ]] || fail "unknown dashboard ($out)"
+  out="$(api GET /dashboards/x)"
+  [[ "$out" == 400 ]] || fail "dashboard id that is not a UUID ($out)"
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/dashboards")"
+  [[ "$out" == 401 ]] || fail "dashboard list without credentials ($out)"
+  pass "unknown, malformed and unauthenticated dashboard requests are refused"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-all-variables.json")"
+  [[ "$out" == 201 ]] || fail "dashboard with includeAll variables ($out: $(cat "$TMP/api.body"))"
+  pass "variables that include all values are saved"
+
+  out="$(api GET "/dashboards?limit=1")"
+  cursor="$(grep -o '"next_cursor":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4 || true)"
+  if [[ "$out" != 200 || -z "$cursor" ]] || ! grep -q '"title":"All variables"' "$TMP/api.body"; then
+    fail "the first page lists the most recently updated dashboard and a cursor ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards?limit=1&cursor=$cursor")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$id\"" "$TMP/api.body"; then
+    fail "the second page lists the older dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "dashboards are paged newest first with an opaque cursor"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-broken-variables.json")"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/api.body" \
+    || ! grep -q '"path":"/variables/0","code":"variable_empty"' "$TMP/api.body" \
+    || ! grep -q '"path":"/variables/1","code":"variable_failed"' "$TMP/api.body" \
+    || ! grep -q '"path":"/panels/0/query","code":"variable_unresolved"' "$TMP/api.body" \
+    || grep -q '"path":"/panels/1' "$TMP/api.body"; then
+    fail "broken variables ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "broken variables are reported with the panels that depend on them"
 }
 
 stack_suite() {

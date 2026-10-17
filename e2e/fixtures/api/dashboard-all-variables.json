@@ -1,0 +1,60 @@
+{
+  "summary": "Variables that include every value",
+  "spec": {
+    "specVersion": "0",
+    "title": "All variables",
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "variables": [
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "label_values(up, job)",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "services",
+        "type": "query",
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT DISTINCT ServiceName FROM otel_logs WHERE $__timeFilter(Timestamp)",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p_jobs",
+        "type": "timeseries",
+        "title": "Up by job",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "sum by (job) (up{job=~\"$job\"})"
+      },
+      {
+        "id": "p_jobs_pipe",
+        "type": "stat",
+        "title": "Jobs up",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "count(up{job=~\"${job:pipe}\"})"
+      },
+      {
+        "id": "p_services",
+        "type": "table",
+        "title": "Log rows by service",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE ServiceName IN (${services}) AND $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+      },
+      {
+        "id": "p_services_quoted",
+        "type": "stat",
+        "title": "Log rows",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT count() AS n FROM otel_logs WHERE ServiceName IN (${services:singlequote}) AND $__timeFilter(Timestamp)"
+      }
+    ]
+  }
+}
