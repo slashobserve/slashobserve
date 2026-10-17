@@ -325,7 +325,10 @@ func framesEmpty(frames []datasource.Frame) bool {
 }
 
 func isSeriesFrame(f datasource.Frame) bool {
-	return len(f.Fields) > 0 && f.Fields[0].Type == datasource.FieldTime
+	if len(f.Fields) < 2 || f.Fields[0].Type != datasource.FieldTime {
+		return false
+	}
+	return !slices.ContainsFunc(f.Fields[1:], func(field datasource.Field) bool { return field.Type != datasource.FieldNumber })
 }
 
 func frameSeries(f datasource.Frame) []seriesOut {

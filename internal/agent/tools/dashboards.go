@@ -16,13 +16,13 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
 	defaultListDashboards = 20
 	maxListDashboards     = 50
-	uuidTextBytes         = 36
 	maxStepCodes          = 3
 
 	codeInvalidSpec     = "invalid_spec"
@@ -33,7 +33,10 @@ const (
 	defaultUpdateSummary = "Update dashboard"
 )
 
-var errRequestIDUnsupported = errors.New("request-id saves need plan 036")
+var (
+	errRequestIDUnsupported = errors.New("request-id saves need plan 036")
+	errInvalidRun           = errors.New("invalid run scope")
+)
 
 func (r *Registry) dashboardEntries() []entry {
 	return []entry{
@@ -122,9 +125,9 @@ func nonNilStrings(s []string) []string {
 }
 
 func parseDashboardID(raw string) (pgtype.UUID, Result, bool) {
-	var id pgtype.UUID
-	if len(raw) != uuidTextBytes || id.Scan(raw) != nil {
-		return id, invalid("dashboard_id must be a UUID from list_dashboards or create_dashboard"), false
+	id, err := db.ParseUUID(raw)
+	if err != nil {
+		return pgtype.UUID{}, invalid("dashboard_id must be a UUID from list_dashboards or create_dashboard"), false
 	}
 	return id, Result{}, true
 }
@@ -174,8 +177,8 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	if len(body) > maxContentBytes {
-		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), maxContentBytes)), nil
+	if len(body) > getDashboardLimit {
+		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), getDashboardLimit)), nil
 	}
 	return success("Read version "+strconv.Itoa(ver.Number), out), nil
 }
@@ -230,6 +233,23 @@ func (r *Registry) saveRun(ctx context.Context) (auth.Principal, Run, bool, erro
 	return principal, run, scoped, nil
 }
 
+func validateRun(run Run) (pgtype.UUID, error) {
+	switch run.Mode {
+	case ModeCreate:
+		return pgtype.UUID{}, nil
+	case ModeRevise:
+		id, err := db.ParseUUID(run.DashboardID)
+		if err != nil {
+			return pgtype.UUID{}, fmt.Errorf("%w: revise needs a dashboard UUID", errInvalidRun)
+		}
+		if run.ParentVersion < 1 {
+			return pgtype.UUID{}, fmt.Errorf("%w: revise needs a parent version of at least 1", errInvalidRun)
+		}
+		return id, nil
+	}
+	return pgtype.UUID{}, fmt.Errorf("%w: unknown mode %q", errInvalidRun, string(run.Mode))
+}
+
 func checkSpecPresent(raw json.RawMessage) (Result, bool) {
 	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
 		return invalid("spec is required; see get_spec_guide"), false
@@ -249,8 +269,13 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := checkSpecPresent(in.Spec); !ok {
 		return res, nil
 	}
-	if scoped && run.Mode == ModeRevise {
-		return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), nil
+	if scoped {
+		if _, err := validateRun(run); err != nil {
+			return Result{}, err
+		}
+		if run.Mode == ModeRevise {
+			return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), nil
+		}
 	}
 	dash, ver, err := r.deps.Dashboards.Create(ctx, principal, in.Spec, summaryOr(in.Summary, defaultCreateSummary))
 	if err != nil {
@@ -271,48 +296,63 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := checkSpecPresent(in.Spec); !ok {
 		return res, nil
 	}
-	rawID, parent, res, ok := updateTarget(in, run, scoped)
+	target, res, ok, err := updateTarget(in, run, scoped)
+	if err != nil {
+		return Result{}, err
+	}
 	if !ok {
 		return res, nil
 	}
-	id, res, ok := parseDashboardID(rawID)
-	if !ok {
-		return res, nil
-	}
-	dash, ver, replayed, err := r.deps.Dashboards.AddVersion(ctx, principal, id, parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary))
+	dash, ver, replayed, err := r.deps.Dashboards.AddVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary))
 	if err != nil {
 		return saveFailure(err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
 }
 
-func updateTarget(in saveInput, run Run, scoped bool) (id string, parent int, res Result, ok bool) {
-	id = in.DashboardID
+type saveTarget struct {
+	id     pgtype.UUID
+	parent int
+}
+
+func updateTarget(in saveInput, run Run, scoped bool) (saveTarget, Result, bool, error) {
+	var parent int
 	if in.ParentVersion != nil {
 		if *in.ParentVersion < 1 || *in.ParentVersion > math.MaxInt32 {
-			return "", 0, invalid("parent_version must be between 1 and %d", math.MaxInt32), false
+			return saveTarget{}, invalid("parent_version must be between 1 and %d", math.MaxInt32), false, nil
 		}
 		parent = *in.ParentVersion
 	}
 	if !scoped {
 		switch {
-		case id == "":
-			return "", 0, invalid("dashboard_id is required"), false
+		case in.DashboardID == "":
+			return saveTarget{}, invalid("dashboard_id is required"), false, nil
 		case in.ParentVersion == nil:
-			return "", 0, invalid("parent_version is required"), false
+			return saveTarget{}, invalid("parent_version is required"), false, nil
 		}
-		return id, parent, Result{}, true
+		id, res, ok := parseDashboardID(in.DashboardID)
+		return saveTarget{id: id, parent: parent}, res, ok, nil
+	}
+	runID, err := validateRun(run)
+	if err != nil {
+		return saveTarget{}, Result{}, false, err
 	}
 	if run.Mode == ModeCreate {
-		return "", 0, invalid("this run creates a new dashboard; call create_dashboard"), false
+		return saveTarget{}, invalid("this run creates a new dashboard; call create_dashboard"), false, nil
 	}
-	if id != "" && id != run.DashboardID {
-		return "", 0, invalid("this run revises dashboard %s; dashboard_id must match it", run.DashboardID), false
+	if in.DashboardID != "" {
+		id, res, ok := parseDashboardID(in.DashboardID)
+		if !ok {
+			return saveTarget{}, res, false, nil
+		}
+		if id != runID {
+			return saveTarget{}, invalid("this run revises dashboard %s; dashboard_id must match it", run.DashboardID), false, nil
+		}
 	}
 	if in.ParentVersion == nil {
 		parent = run.ParentVersion
 	}
-	return run.DashboardID, parent, Result{}, true
+	return saveTarget{id: runID, parent: parent}, Result{}, true, nil
 }
 
 func summaryOr(summary, fallback string) string {

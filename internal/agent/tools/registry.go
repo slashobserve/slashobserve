@@ -8,9 +8,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"math"
 	"net/url"
+	"reflect"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -25,7 +29,11 @@ const (
 	codeUnknownTool    = "unknown_tool"
 	codeInvalidRequest = "invalid_request"
 	codeTooLarge       = "too_large"
+
+	getDashboardLimit = 128 << 10
 )
+
+var resultLimits = map[string]int{nameGetDashboard: getDashboardLimit}
 
 type Tool struct {
 	Name        string
@@ -123,7 +131,9 @@ func (r *Registry) List() []Tool {
 func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage) (res Result, err error) {
 	e, ok := r.entries[name]
 	if !ok {
-		return toolError(codeUnknownTool, fmt.Sprintf("unknown tool %q", name)), nil
+		res := toolError(codeUnknownTool, fmt.Sprintf("unknown tool %q", clip(name, maxStepNameBytes)))
+		res.Step = "Rejected an unknown tool"
+		return res, nil
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -142,11 +152,25 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if err != nil {
 		return Result{}, fmt.Errorf("tool %s: marshal result: %w", name, err)
 	}
-	if len(body) > maxContentBytes {
+	limit := maxContentBytes
+	if l, ok := resultLimits[name]; ok {
+		limit = l
+	}
+	if len(body) > limit {
 		r.deps.Logger.ErrorContext(ctx, "agent tool result too large", slog.String("tool", name), slog.Int("bytes", len(body)))
-		return Result{}, fmt.Errorf("tool %s: result is %d bytes, over the %d byte limit", name, len(body), maxContentBytes)
+		return Result{}, fmt.Errorf("tool %s: result is %d bytes, over the %d byte limit", name, len(body), limit)
+	}
+	if eb, ok := res.Content.(errorBody); ok && res.IsError && res.Step == "" {
+		res.Step = errorStep(name, eb.Code)
 	}
 	return res, nil
+}
+
+func errorStep(tool, code string) string {
+	if code == codeInvalidRequest {
+		return "Rejected " + tool + " input: " + code
+	}
+	return "Could not run " + tool + ": " + code
 }
 
 type errorBody struct {
@@ -176,14 +200,87 @@ func decodeInput(input json.RawMessage, dst any) (Result, bool) {
 		raw = []byte("{}")
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil {
+	var fields map[string]json.RawMessage
+	if err := dec.Decode(&fields); err != nil {
 		return invalid("%s", inputMessage(err)), false
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return invalid("input must be a single JSON object"), false
 	}
+	known := jsonFields(reflect.TypeOf(dst).Elem())
+	keys := slices.Sorted(maps.Keys(fields))
+	var body bytes.Buffer
+	body.WriteByte('{')
+	for i, key := range keys {
+		typ, ok := known[key]
+		if !ok {
+			return invalid("unknown field %q", clip(key, maxStepNameBytes)), false
+		}
+		value := fields[key]
+		if isIntegerType(typ) {
+			n, ok := integralNumber(value)
+			if !ok {
+				return invalid("field %q must be an integer", key), false
+			}
+			value = n
+		}
+		if i > 0 {
+			body.WriteByte(',')
+		}
+		name, _ := json.Marshal(key)
+		body.Write(name)
+		body.WriteByte(':')
+		body.Write(value)
+	}
+	body.WriteByte('}')
+	strict := json.NewDecoder(&body)
+	strict.DisallowUnknownFields()
+	if err := strict.Decode(dst); err != nil {
+		return invalid("%s", inputMessage(err)), false
+	}
 	return Result{}, true
+}
+
+func jsonFields(t reflect.Type) map[string]reflect.Type {
+	out := map[string]reflect.Type{}
+	for i := range t.NumField() {
+		f := t.Field(i)
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" {
+			continue
+		}
+		if f.Anonymous && name == "" && f.Type.Kind() == reflect.Struct {
+			maps.Copy(out, jsonFields(f.Type))
+			continue
+		}
+		if !f.IsExported() {
+			continue
+		}
+		if name == "" {
+			name = f.Name
+		}
+		out[name] = f.Type
+	}
+	return out
+}
+
+func isIntegerType(t reflect.Type) bool {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Int
+}
+
+func integralNumber(raw json.RawMessage) (json.RawMessage, bool) {
+	s := string(raw)
+	if s == "" || (s[0] != '-' && (s[0] < '0' || s[0] > '9')) || !strings.ContainsAny(s, ".eE") {
+		return raw, true
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f != math.Trunc(f) || math.Abs(f) > 1<<53 {
+		return nil, false
+	}
+	return json.RawMessage(strconv.FormatInt(int64(f), 10)), true
 }
 
 func inputMessage(err error) string {

@@ -57,6 +57,9 @@ func (r *Registry) listDatasources(ctx context.Context, input json.RawMessage) (
 		return res, nil
 	}
 	statuses := r.deps.Datasources.Health(ctx)
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
 	items := make([]datasourceOut, len(statuses))
 	for i, s := range statuses {
 		items[i] = datasourceOut{UID: s.UID, Type: s.Type, Name: s.Name, Healthy: s.Healthy, Message: clip(s.Message, maxCellBytes)}
@@ -256,18 +259,18 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 		return res, nil
 	}
 	if in.Table == "" {
-		cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables, Limit: maxDiscoverItems}, "Listing tables")
+		cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables, Limit: maxDiscoverItems + 1}, "Listing tables")
 		if !ok || err != nil {
 			return res, err
 		}
-		tables, truncated := fit(append([]datasource.Table{}, cat.Tables...), listBudget)
+		tables, truncated := cutList(append([]datasource.Table{}, cat.Tables...), maxDiscoverItems)
 		return success(fmt.Sprintf("Listed %s on %s", plural(len(tables), "table", "tables"), in.Datasource), tablesOut{Tables: tables, Truncated: truncated}), nil
 	}
-	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverColumns, Table: in.Table}, "Reading the "+clip(in.Table, maxStepNameBytes)+" schema")
+	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverColumns, Table: in.Table, Limit: maxDiscoverItems + 1}, "Reading the "+clip(in.Table, maxStepNameBytes)+" schema")
 	if !ok || err != nil {
 		return res, err
 	}
-	columns, truncated := fit(append([]datasource.Column{}, cat.Columns...), listBudget)
+	columns, truncated := cutList(append([]datasource.Column{}, cat.Columns...), maxDiscoverItems)
 	return success(fmt.Sprintf("Read the %s schema on %s", clip(in.Table, maxStepNameBytes), in.Datasource), columnsOut{Table: in.Table, Columns: columns, Truncated: truncated}), nil
 }
 
