@@ -62,6 +62,9 @@ func (f *fixture) validate() error {
 		previousCalls := 0
 		if i > 0 {
 			previousCalls = len(f.Turns[i-1].ToolCalls)
+			if previousCalls == 0 {
+				return fmt.Errorf("turn %d: unreachable because turn %d has no tool_calls and ends the run", i, i-1)
+			}
 		}
 		if err := f.Turns[i].validate(i, previousCalls); err != nil {
 			return fmt.Errorf("turn %d: %w", i, err)
