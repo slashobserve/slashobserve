@@ -17,6 +17,25 @@ type Dashboard struct {
 	UpdatedAt     pgtype.Timestamptz
 }
 
+type DashboardComment struct {
+	ID             pgtype.UUID
+	DashboardID    pgtype.UUID
+	Version        int32
+	PanelID        string
+	Body           string
+	Status         string
+	AuthorKind     string
+	AuthorID       pgtype.UUID
+	AuthorName     string
+	AuthorEmail    pgtype.Text
+	ResolvedAt     pgtype.Timestamptz
+	ResolvedByKind pgtype.Text
+	ResolvedByID   pgtype.UUID
+	ResolvedByName pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type DashboardVersion struct {
 	DashboardID   pgtype.UUID
 	Version       int32
