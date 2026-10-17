@@ -2,8 +2,10 @@ package queryproxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"runtime/debug"
 	"time"
 
@@ -53,13 +55,14 @@ type Result struct {
 type Runner struct {
 	reg    *datasource.Registry
 	logger *slog.Logger
+	sem    *semaphore.Weighted
 }
 
 func NewRunner(reg *datasource.Registry, logger *slog.Logger) *Runner {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Runner{reg: reg, logger: logger}
+	return &Runner{reg: reg, logger: logger, sem: upstreamCalls}
 }
 
 func KindFor(t spec.PanelType) Kind {
@@ -84,6 +87,10 @@ func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
 }
 
 func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
+	return r.runPanel(ctx, req, map[string]allList{}, true)
+}
+
+func (r *Runner) runPanel(ctx context.Context, req Request, lists map[string]allList, requireAll bool) (Result, error) {
 	panel, ok := findPanel(req.Dashboard, req.PanelID)
 	if !ok {
 		return Result{}, fmt.Errorf("%w: %q", ErrPanelNotFound, req.PanelID)
@@ -93,9 +100,21 @@ func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
 		return Result{}, err
 	}
 	if err := req.Range.Validate(); err != nil {
-		return Result{}, err
+		return Result{}, invalidRangeError(err)
 	}
-	vars, err := selectionVariables(req.Dashboard.Variables, req.Selections)
+	for name := range req.Selections {
+		if variableIndex(req.Dashboard, name) < 0 {
+			return Result{}, fmt.Errorf("%w: %q", ErrUnknownVariable, name)
+		}
+	}
+	if requireAll {
+		for _, v := range req.Dashboard.Variables {
+			if _, ok := req.Selections[v.Name]; !ok {
+				return Result{}, fmt.Errorf("%w: no selection for variable %q", ErrInvalidRequest, v.Name)
+			}
+		}
+	}
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), panel.Query, req.Range, req.Selections, lists)
 	if err != nil {
 		return Result{}, err
 	}
@@ -115,6 +134,14 @@ func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
+}
+
+func invalidRangeError(err error) error {
+	var ue *datasource.UpstreamError
+	if errors.As(err, &ue) {
+		return fmt.Errorf("%w: %s", ErrInvalidRequest, ue.Message)
+	}
+	return fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
 }
 
 func (r *Runner) instance(ref spec.DatasourceRef) (datasource.Instance, error) {
@@ -141,10 +168,10 @@ func findPanel(d *spec.Dashboard, id string) (spec.Panel, bool) {
 }
 
 func upstream[T any](ctx context.Context, r *Runner, subject, uid string, call func(context.Context) (T, error)) (out T, err error) {
-	if err := upstreamCalls.Acquire(ctx, 1); err != nil {
+	if err := r.sem.Acquire(ctx, 1); err != nil {
 		return out, err
 	}
-	defer upstreamCalls.Release(1)
+	defer r.sem.Release(1)
 	defer func() {
 		if p := recover(); p != nil {
 			r.logger.ErrorContext(ctx, "datasource call panicked",
@@ -156,5 +183,15 @@ func upstream[T any](ctx context.Context, r *Runner, subject, uid string, call f
 			out, err = zero, errInternal
 		}
 	}()
-	return call(ctx)
+	out, err = call(ctx)
+	if err != nil {
+		if status, _, _ := Classify(err); status == http.StatusInternalServerError {
+			r.logger.ErrorContext(ctx, "datasource call failed",
+				slog.String("subject", subject),
+				slog.String("datasource", uid),
+				slog.String("error_type", fmt.Sprintf("%T", err)),
+				slog.String("error", err.Error()))
+		}
+	}
+	return out, err
 }

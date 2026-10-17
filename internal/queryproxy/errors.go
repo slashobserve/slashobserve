@@ -15,6 +15,7 @@ var (
 	ErrDatasourceTypeMismatch = errors.New("datasource type mismatch")
 	ErrUnknownVariable        = errors.New("unknown variable")
 	ErrVariableEmpty          = errors.New("variable has no values")
+	ErrInvalidRequest         = errors.New("invalid request")
 
 	errInternal = errors.New(internalMessage)
 )
@@ -47,9 +48,14 @@ const (
 )
 
 func Classify(err error) (status int, code, message string) {
+	if err == nil {
+		return http.StatusOK, "", ""
+	}
 	switch {
 	case errors.Is(err, context.Canceled):
 		return statusClientGone, string(CodeCanceled), canceledMessage
+	case errors.Is(err, ErrInvalidRequest):
+		return http.StatusBadRequest, string(CodeInvalidRequest), err.Error()
 	case errors.Is(err, datasource.ErrInvalidQuery):
 		return http.StatusUnprocessableEntity, string(CodeQueryInvalid), err.Error()
 	case errors.Is(err, datasource.ErrForbiddenQuery):
@@ -64,6 +70,13 @@ func Classify(err error) (status int, code, message string) {
 		return http.StatusBadGateway, string(CodeDatasourceDown), err.Error()
 	case errors.Is(err, datasource.ErrNotFound):
 		return http.StatusNotFound, string(CodeNotFound), err.Error()
+	default:
+		return classifyRunner(err)
+	}
+}
+
+func classifyRunner(err error) (status int, code, message string) {
+	switch {
 	case errors.Is(err, ErrPanelNotFound):
 		return http.StatusNotFound, string(CodePanelNotFound), err.Error()
 	case errors.Is(err, ErrUnknownDatasource):

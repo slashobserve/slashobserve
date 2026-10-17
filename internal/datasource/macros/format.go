@@ -99,7 +99,7 @@ func applyFormat(ref spec.Reference, format string, v datasource.Variable, regex
 		return applyRaw(ref, v, regexMatcher)
 	}
 	if len(values) == 0 {
-		return "", refErrorf(ref, "%s has no values", refLabel(ref))
+		return "", noValuesError(ref, v)
 	}
 	if regexMatcher && format != "regex" {
 		if slices.Contains([]string{"singlequote", "doublequote", "sqlstring"}, format) {
@@ -128,8 +128,18 @@ func applyFormat(ref spec.Reference, format string, v datasource.Variable, regex
 	return "", refErrorf(ref, "unknown format %q for variable %s", format, refLabel(ref))
 }
 
+func noValuesError(ref spec.Reference, v datasource.Variable) error {
+	if v.All {
+		return refErrorf(ref, "%s selects All but its value list is unavailable (empty, too many or too large values, or a value that cannot be substituted); use the regex format or narrow the variable query", refLabel(ref))
+	}
+	return refErrorf(ref, "%s has no values", refLabel(ref))
+}
+
 func applyRaw(ref spec.Reference, v datasource.Variable, regexMatcher bool) (string, error) {
-	if v.All || len(v.Values) != 1 {
+	if v.All {
+		return "", refErrorf(ref, "%s selects All; use a multi-value format", refLabel(ref))
+	}
+	if len(v.Values) != 1 {
 		return "", refErrorf(ref, "%s has %d values; use a multi-value format", refLabel(ref), len(v.Values))
 	}
 	if regexMatcher && regexp.QuoteMeta(v.Values[0]) != v.Values[0] {
