@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+/internal/db/dbsqlc/** linguist-generated=true
+/web/src/routeTree.gen.ts linguist-generated=true
+/web/bun.lock linguist-generated=true

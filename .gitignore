@@ -1,0 +1,16 @@
+/bin/
+/internal/server/webdist/*
+!/internal/server/webdist/.gitkeep
+/e2e-compose.log
+
+.env
+.env.*
+!.env.example
+
+*.test
+*.out
+coverage.*
+
+.DS_Store
+.idea/
+.vscode/
