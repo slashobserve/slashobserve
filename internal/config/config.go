@@ -271,7 +271,7 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 		errs = append(errs, fmt.Errorf("%s: must be %s, %s or %s, got %q", envLLMProvider, LLMProviderAnthropic, LLMProviderOpenAI, LLMProviderReplay, provider))
 	}
 
-	key, err := loadLLMAPIKey(lookup)
+	key, err := loadLLMAPIKey(lookup, llm.Provider)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -341,12 +341,12 @@ func requireLLMSettings(llm *LLM) []error {
 	return errs
 }
 
-func loadLLMAPIKey(lookup func(string) (string, bool)) (string, error) {
+func loadLLMAPIKey(lookup func(string) (string, bool), provider string) (string, error) {
 	key, file := get(lookup, envLLMAPIKey), get(lookup, envLLMAPIKeyFile)
 	switch {
 	case key != "" && file != "":
 		return "", fmt.Errorf("%s and %s are mutually exclusive", envLLMAPIKey, envLLMAPIKeyFile)
-	case file == "":
+	case file == "" || (provider != LLMProviderAnthropic && provider != LLMProviderOpenAI):
 		return key, nil
 	}
 	b, err := os.ReadFile(file) //nolint:gosec // the path is operator configuration
