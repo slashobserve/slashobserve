@@ -1,9 +1,13 @@
 package datasource
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 )
+
+const timeoutRounding = 100 * time.Millisecond
 
 var (
 	ErrInvalidQuery   = errors.New("invalid query")
@@ -33,4 +37,30 @@ func Errorf(kind error, format string, args ...any) error {
 		kind = ErrUnavailable
 	}
 	return &UpstreamError{Kind: kind, Message: fmt.Sprintf(format, args...)}
+}
+
+// Drivers arm socket deadlines from the context, so an expired or cancelled call can surface as a plain
+// network error before the context's own state is visible; the context is therefore checked directly.
+func ContextError(ctx context.Context, err error, timeout time.Duration) error {
+	switch {
+	case deadlinePassed(ctx) || errors.Is(err, context.DeadlineExceeded):
+		if timeout <= 0 {
+			return Errorf(ErrTimeout, "query timed out")
+		}
+		if timeout >= timeoutRounding {
+			timeout = timeout.Round(timeoutRounding)
+		}
+		return Errorf(ErrTimeout, "query timed out after %s", timeout)
+	case errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled):
+		return context.Canceled
+	}
+	return nil
+}
+
+func deadlinePassed(ctx context.Context) bool {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return true
+	}
+	deadline, ok := ctx.Deadline()
+	return ok && !time.Now().Before(deadline)
 }

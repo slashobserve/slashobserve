@@ -34,7 +34,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 	ctx, cancel := context.WithTimeout(ctx, lintTimeout)
 	defer cancel()
 	if err := d.readOnly(ctx); err != nil {
-		return append(diagnostics, couldNotLint(err, timeout))
+		return append(diagnostics, couldNotLint(ctx, err, timeout))
 	}
 	text, err := d.guard(exp.Text)
 	if err != nil {
@@ -49,12 +49,12 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 
 	if err := d.explain(ctx, explainSyntax+text, lim); err != nil {
 		if exceptionCode(err) != syntaxErrorCode {
-			return append(diagnostics, lintFailure(err, timeout))
+			return append(diagnostics, lintFailure(ctx, err, timeout))
 		}
-		return append(diagnostics, syntaxDiagnostic(err, exp, len(text), timeout))
+		return append(diagnostics, syntaxDiagnostic(ctx, err, exp, len(text), timeout))
 	}
 	if err := d.explain(ctx, explainPlan+text, lim); err != nil {
-		return append(diagnostics, lintFailure(err, timeout))
+		return append(diagnostics, lintFailure(ctx, err, timeout))
 	}
 	return diagnostics
 }
@@ -64,8 +64,8 @@ func (d *Datasource) explain(ctx context.Context, sql string, lim datasource.Lim
 	return err
 }
 
-func syntaxDiagnostic(err error, exp macros.Expansion, textLen int, timeout time.Duration) datasource.Diagnostic {
-	message := messageOf(mapError(err, timeout))
+func syntaxDiagnostic(ctx context.Context, err error, exp macros.Expansion, textLen int, timeout time.Duration) datasource.Diagnostic {
+	message := messageOf(mapError(ctx, err, timeout))
 	m := positionPattern.FindStringSubmatch(message)
 	if m == nil {
 		return errorDiagnostic(message, 0, 0)
@@ -82,16 +82,16 @@ func syntaxDiagnostic(err error, exp macros.Expansion, textLen int, timeout time
 	return errorDiagnostic(message, origStart, origEnd)
 }
 
-func lintFailure(err error, timeout time.Duration) datasource.Diagnostic {
-	mapped := mapError(err, timeout)
+func lintFailure(ctx context.Context, err error, timeout time.Duration) datasource.Diagnostic {
+	mapped := mapError(ctx, err, timeout)
 	if errors.Is(mapped, datasource.ErrUnavailable) || errors.Is(mapped, datasource.ErrTimeout) || errors.Is(mapped, context.Canceled) {
-		return couldNotLint(mapped, timeout)
+		return couldNotLint(ctx, mapped, timeout)
 	}
 	return errorDiagnostic(messageOf(mapped), 0, 0)
 }
 
-func couldNotLint(err error, timeout time.Duration) datasource.Diagnostic {
-	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + messageOf(mapError(err, timeout))}
+func couldNotLint(ctx context.Context, err error, timeout time.Duration) datasource.Diagnostic {
+	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + messageOf(mapError(ctx, err, timeout))}
 }
 
 func errorDiagnostic(message string, start, end int) datasource.Diagnostic {

@@ -20,10 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const (
-	maxExceptionMessage = 512
-	timeoutRounding     = 100 * time.Millisecond
-)
+const maxExceptionMessage = 512
 
 var (
 	addressToken = regexp.MustCompile(`[0-9A-Za-z:.\[\]%_-]+`)
@@ -38,7 +35,7 @@ var queryErrorCodes = map[int32]bool{
 	352: true, 386: true, 395: true, 407: true, 427: true,
 }
 
-func mapError(err error, timeout time.Duration) error {
+func mapError(ctx context.Context, err error, timeout time.Duration) error {
 	if err == nil {
 		return nil
 	}
@@ -46,17 +43,17 @@ func mapError(err error, timeout time.Duration) error {
 	if errors.As(err, &ue) {
 		return err
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return datasource.Errorf(datasource.ErrTimeout, "query timed out after %s", timeout.Round(timeoutRounding))
-	}
-	if errors.Is(err, context.Canceled) {
-		return context.Canceled
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return datasource.ContextError(ctx, err, timeout)
 	}
 	var ex *ch.Exception
 	if errors.As(err, &ex) {
 		return mapException(ex)
 	}
 	if isTransportError(err) {
+		if cerr := datasource.ContextError(ctx, err, timeout); cerr != nil {
+			return cerr
+		}
 		return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
 	}
 	return datasource.Errorf(datasource.ErrInvalidQuery, "query result could not be read")

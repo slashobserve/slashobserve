@@ -795,11 +795,14 @@ func TestErrorMapping(t *testing.T) {
 	})
 	t.Run("timeout message reports the effective deadline", func(t *testing.T) {
 		ds := roDS(t)
+		if _, err := ds.QueryInstant(ctx, query("SELECT 1"), lastHour()); err != nil {
+			t.Fatal(err)
+		}
 		parent, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 		defer cancel()
 		_, err := ds.QueryInstant(parent, query("SELECT sleep(3)"), lastHour())
-		if !errors.Is(err, datasource.ErrTimeout) || strings.Contains(err.Error(), "after 30s") {
-			t.Fatalf("err = %v, want ErrTimeout naming the real deadline", err)
+		if !errors.Is(err, datasource.ErrTimeout) || !strings.Contains(err.Error(), "after 1.5s") {
+			t.Fatalf("err = %v, want ErrTimeout naming the 1.5s deadline", err)
 		}
 	})
 	t.Run("unreachable shard leaks no address", func(t *testing.T) {

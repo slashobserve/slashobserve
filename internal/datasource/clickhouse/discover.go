@@ -56,7 +56,7 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "unsupported discover kind %q", req.Kind)
 	}
 	if err != nil {
-		return nil, mapError(err, timeout)
+		return nil, mapError(ctx, err, timeout)
 	}
 	return cat, nil
 }

@@ -3,7 +3,6 @@ package prometheus
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -34,21 +33,9 @@ func bound(ctx context.Context, timeout time.Duration) (context.Context, context
 	return context.WithTimeout(ctx, timeout)
 }
 
-func timeoutError(ctx context.Context) error {
-	if t, ok := ctx.Value(timeoutKey{}).(time.Duration); ok && t > 0 {
-		return datasource.Errorf(datasource.ErrTimeout, "query timed out after %s", t)
-	}
-	return datasource.Errorf(datasource.ErrTimeout, "query timed out")
-}
-
 func contextError(ctx context.Context, err error) error {
-	switch {
-	case errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded):
-		return timeoutError(ctx)
-	case errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled):
-		return context.Canceled
-	}
-	return nil
+	reported, _ := ctx.Value(timeoutKey{}).(time.Duration)
+	return datasource.ContextError(ctx, err, reported)
 }
 
 func transportError(ctx context.Context, err error) error {

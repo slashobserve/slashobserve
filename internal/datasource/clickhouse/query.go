@@ -97,7 +97,7 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	defer cancel()
 	rs, err := d.fetch(ctx, text, lim, nil)
 	if err != nil {
-		return nil, lim, mapError(err, timeout)
+		return nil, lim, mapError(ctx, err, timeout)
 	}
 	return rs, lim, nil
 }

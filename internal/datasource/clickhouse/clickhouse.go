@@ -96,7 +96,7 @@ func (d *Datasource) CheckHealth(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	if err := d.conn.Ping(ctx); err != nil {
-		return mapError(err, timeout)
+		return mapError(ctx, err, timeout)
 	}
 	return d.verifyReadOnly(ctx, timeout)
 }
@@ -119,17 +119,19 @@ func (d *Datasource) readSettings(ctx context.Context) (level uint64, maxSeconds
 }
 
 func (d *Datasource) verifyReadOnly(ctx context.Context, timeout time.Duration) error {
-	level, maxSeconds, err := d.readSettings(ctx)
+	callCtx := ctx
+	level, maxSeconds, err := d.readSettings(callCtx)
 	if exceptionCode(err) == settingConstraintCode {
 		// The profile maximum is not known yet; a deadline of 1s or less makes the driver send no max_execution_time.
 		short, cancel := context.WithTimeout(ctx, minQueryTimeout)
 		defer cancel()
 		timeout = effectiveTimeout(ctx, minQueryTimeout)
-		level, maxSeconds, err = d.readSettings(short)
+		callCtx = short
+		level, maxSeconds, err = d.readSettings(callCtx)
 	}
 	if err != nil {
 		if exceptionCode(err) != readOnlyRefusedCode {
-			return mapError(err, timeout)
+			return mapError(callCtx, err, timeout)
 		}
 		level = 1
 	}
@@ -220,7 +222,7 @@ func (d *Datasource) grantChecks(ctx context.Context) ([]string, error) {
 func (d *Datasource) verifyNoSourceGrants(ctx context.Context, timeout time.Duration) error {
 	checks, err := d.grantChecks(ctx)
 	if err != nil {
-		return mapError(err, timeout)
+		return mapError(ctx, err, timeout)
 	}
 	held := make([]bool, len(checks))
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -233,7 +235,7 @@ func (d *Datasource) verifyNoSourceGrants(ctx context.Context, timeout time.Dura
 		})
 	}
 	if err := group.Wait(); err != nil {
-		return mapError(err, timeout)
+		return mapError(ctx, err, timeout)
 	}
 	for i, check := range checks {
 		if held[i] {
