@@ -227,9 +227,6 @@ func (r *Registry) saveRun(ctx context.Context) (auth.Principal, Run, bool, erro
 		return auth.Principal{}, Run{}, false, errors.New("no principal in context")
 	}
 	run, scoped := RunFrom(ctx)
-	if scoped && run.RequestID != "" {
-		return auth.Principal{}, Run{}, false, errRequestIDUnsupported
-	}
 	return principal, run, scoped, nil
 }
 
@@ -261,6 +258,9 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	principal, run, scoped, err := r.saveRun(ctx)
 	if err != nil {
 		return Result{}, err
+	}
+	if scoped && run.RequestID != "" {
+		return Result{}, errRequestIDUnsupported
 	}
 	var in createInput
 	if res, ok := decodeInput(input, &in); !ok {
@@ -303,11 +303,26 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.AddVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary))
+	requestID, err := requestIDOf(run, scoped)
+	if err != nil {
+		return Result{}, err
+	}
+	dash, ver, replayed, err := r.deps.Dashboards.AddRequestVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary), requestID)
 	if err != nil {
 		return saveFailure(err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+}
+
+func requestIDOf(run Run, scoped bool) (pgtype.UUID, error) {
+	if !scoped || run.RequestID == "" {
+		return pgtype.UUID{}, nil
+	}
+	id, err := db.ParseUUID(run.RequestID)
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("%w: the request id is not a UUID", errInvalidRun)
+	}
+	return id, nil
 }
 
 type saveTarget struct {

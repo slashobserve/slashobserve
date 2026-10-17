@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -19,7 +20,15 @@ import (
 
 const maxEventAuthorNameRunes = 256
 
-var errStaleParent = errors.New("parent version is no longer the latest")
+const (
+	uniqueViolation          = "23505"
+	requestVersionConstraint = "dashboard_versions_agent_request_id_key"
+)
+
+var (
+	errStaleParent  = errors.New("parent version is no longer the latest")
+	errRequestSaved = errors.New("a version already exists for the request id")
+)
 
 type Author struct {
 	Kind  string
@@ -60,6 +69,7 @@ type newVersion struct {
 	canonical    []byte
 	summary      string
 	author       Author
+	requestID    pgtype.UUID
 }
 
 type store struct {
@@ -108,7 +118,23 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec}
 		return nil
 	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == requestVersionConstraint {
+		return Dashboard{}, Version{}, errRequestSaved
+	}
 	return dash, ver, err
+}
+
+func (st store) versionOfRequest(ctx context.Context, id, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	number, err := st.db.Queries().GetAgentRequestResultVersion(ctx, dbsqlc.GetAgentRequestResultVersionParams{DashboardID: id, AgentRequestID: requestID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Dashboard{}, Version{}, false, nil
+	}
+	if err != nil {
+		return Dashboard{}, Version{}, false, fmt.Errorf("get version of request: %w", err)
+	}
+	dash, ver, err := st.version(ctx, id, int(number))
+	return dash, ver, err == nil, err
 }
 
 func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number int) (VersionMeta, error) {
@@ -117,14 +143,15 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		return VersionMeta{}, fmt.Errorf("author id: %w", err)
 	}
 	params := dbsqlc.InsertDashboardVersionParams{
-		DashboardID: in.dashboardID,
-		Version:     toInt32(number),
-		Spec:        in.canonical,
-		Summary:     in.summary,
-		AuthorKind:  in.author.Kind,
-		AuthorID:    authorID,
-		AuthorName:  in.author.Name,
-		AuthorEmail: pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		DashboardID:    in.dashboardID,
+		Version:        toInt32(number),
+		Spec:           in.canonical,
+		Summary:        in.summary,
+		AuthorKind:     in.author.Kind,
+		AuthorID:       authorID,
+		AuthorName:     in.author.Name,
+		AuthorEmail:    pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+		AgentRequestID: in.requestID,
 	}
 	if number > 1 {
 		params.ParentVersion = pgtype.Int4{Int32: toInt32(in.parent), Valid: true}

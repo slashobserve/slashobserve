@@ -74,6 +74,21 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, rawSpec []byte,
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
+	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, pgtype.UUID{})
+}
+
+// A request id makes the save exactly-once: a second save for the same id returns the version the first one
+// created, whatever spec or parent it carries.
+func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID)
+}
+
+func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	if requestID.Valid {
+		if dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID); err != nil || found {
+			return dash, ver, found, err
+		}
+	}
 	summary, parsed, canonical, err := validateSave(rawSpec, summary, "")
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
@@ -83,14 +98,14 @@ func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.U
 		return Dashboard{}, Version{}, false, err
 	}
 	if latest != parent {
-		return s.replayOrConflict(ctx, by, id, parent, canonical)
+		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
 	if err := s.checkQueries(ctx, parsed); err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by)})
-	if errors.Is(err, errStaleParent) {
-		return s.replayOrConflict(ctx, by, id, parent, canonical)
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+	if errors.Is(err, errStaleParent) || errors.Is(err, errRequestSaved) {
+		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
 	return dash, ver, false, err
 }
@@ -234,7 +249,12 @@ func (s *Service) checkQueries(ctx context.Context, d *spec.Dashboard) error {
 	return nil
 }
 
-func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte) (Dashboard, Version, bool, error) {
+func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	if requestID.Valid {
+		if dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID); err != nil || found {
+			return dash, ver, found, err
+		}
+	}
 	dash, ver, err := s.store.latest(ctx, id)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
