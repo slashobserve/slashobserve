@@ -34,7 +34,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`), later the MCP endpoint.
 - Later: `internal/auth`, `internal/dashboards`, `internal/datasource/{prometheus,clickhouse,macros}`, `internal/queryproxy`, `internal/llm`, `internal/agent/{prompts,tools}`, `pkg/extension`, `e2e/fixtures/llm`, `evals/`, `demo/shop/`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
-- `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package.
+- `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
 - `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint).
