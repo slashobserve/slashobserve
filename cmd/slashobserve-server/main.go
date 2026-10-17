@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -21,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/server"
+	"github.com/slashobserve/slashobserve/internal/server/mcp"
 )
 
 var (
@@ -118,14 +120,26 @@ func run() error {
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, logger)
 
+	toolRegistry := tools.New(tools.Deps{
+		Datasources: registry,
+		Runner:      runner,
+		Dashboards:  dashboardsService,
+		PublicURL:   cfg.PublicURL,
+		Logger:      logger,
+	})
+
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
 
 	handler, err := server.New(server.Options{
-		Logger:        logger,
-		Auth:          authService,
-		Datasources:   registry,
-		API:           []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService)},
+		Logger:      logger,
+		Auth:        authService,
+		Datasources: registry,
+		API:         []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService)},
+		Mounts: []server.Mount{{
+			Path:    "/mcp",
+			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),
+		}},
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
