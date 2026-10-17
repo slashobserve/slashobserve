@@ -12,9 +12,9 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
 | `make test` | `go test -race ./...`. |
-| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, ESLint, Prettier check. |
-| `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for `demo/shop`), `build`: what the CI `check` job runs. |
-| `make generate` | Regenerate sqlc code and the web Spec types/validator after editing migrations, queries or the schema. |
+| `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, Prettier check. |
+| `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
+| `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
 | `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request backfill runs again on the next `make demo`. |
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
