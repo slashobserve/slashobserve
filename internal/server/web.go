@@ -3,6 +3,7 @@ package server
 import (
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
@@ -35,15 +36,16 @@ func registerWebRoutes(engine *gin.Engine) {
 		}
 		name := strings.TrimPrefix(path.Clean("/"+urlPath), "/")
 		if isServableFile(dist, name) {
+			cacheControl := "no-cache"
 			if strings.HasPrefix(name, "assets/") {
-				c.Header("Cache-Control", "public, max-age=31536000, immutable")
-			} else {
-				c.Header("Cache-Control", "no-cache")
+				cacheControl = "public, max-age=31536000, immutable"
 			}
-			http.ServeFileFS(c.Writer, c.Request, dist, name)
+			if err := serveFile(c, dist, name, cacheControl); err != nil {
+				c.String(http.StatusInternalServerError, "internal server error\n")
+			}
 			return
 		}
-		if strings.HasPrefix(name, "assets/") {
+		if strings.HasPrefix(name, "assets/") || isTopLevelFileName(name) {
 			c.String(http.StatusNotFound, "not found\n")
 			return
 		}
@@ -54,6 +56,25 @@ func registerWebRoutes(engine *gin.Engine) {
 		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", index)
 	})
+}
+
+func serveFile(c *gin.Context, fsys fs.FS, name, cacheControl string) error {
+	file, err := fsys.Open(name)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	content, ok := file.(io.ReadSeeker)
+	if !ok {
+		return fmt.Errorf("embedded file %q is not seekable", name)
+	}
+	c.Header("Cache-Control", cacheControl)
+	http.ServeContent(c.Writer, c.Request, name, info.ModTime(), content)
+	return nil
 }
 
 func isServableFile(fsys fs.FS, name string) bool {
@@ -67,4 +88,8 @@ func isServableFile(fsys fs.FS, name string) bool {
 	}
 	info, err := fs.Stat(fsys, name)
 	return err == nil && !info.IsDir()
+}
+
+func isTopLevelFileName(name string) bool {
+	return name != "index.html" && !strings.Contains(name, "/") && path.Ext(name) != ""
 }
