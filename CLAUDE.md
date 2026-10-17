@@ -91,6 +91,8 @@ Directories are created when their phase starts; this is where things go.
 
 - Two suites, both required to merge: `scripts/e2e.sh`, curl-driven checks against the compose stack (API today; CLI and MCP as they land), and Playwright in `web/e2e` (Chromium, one worker, retries only in CI).
 - Playwright specs import `test` and `expect` from `web/e2e/fixtures.ts`, which fails any test whose page logs a console error.
+- The Playwright `setup` project (`web/e2e/auth.setup.ts`) signs in through Dex once and saves `web/e2e/.auth/user.json`.
+  Every `chromium` spec reuses that session, and a spec that signs out must opt out with an empty `storageState` and sign in itself.
 - The e2e stack is compose project `slashobserve-e2e`, reset with `down -v` on every `make e2e`, on host port 18080 (`SLASHOBSERVE_E2E_PORT`), so it never touches a developer's `make demo` stack.
   CI builds the server image once as `slashobserve-e2e:ci` and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
