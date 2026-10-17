@@ -20,7 +20,11 @@ const (
 	healthTimeout = 5 * time.Second
 )
 
-var uidPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
+const UIDPattern = `^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`
+
+var uidPattern = regexp.MustCompile(UIDPattern)
+
+func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
 type Instance struct {
 	UID        string
@@ -64,8 +68,8 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		switch {
 		case in.UID == "":
 			return nil, errors.New("datasource uid is required")
-		case !uidPattern.MatchString(in.UID):
-			return nil, fmt.Errorf("datasource uid %q must match %s", in.UID, uidPattern)
+		case !ValidUID(in.UID):
+			return nil, fmt.Errorf("datasource uid %q must match %s", in.UID, UIDPattern)
 		case in.Datasource == nil:
 			return nil, fmt.Errorf("datasource %q has no implementation", in.UID)
 		}

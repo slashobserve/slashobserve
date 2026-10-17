@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -34,6 +35,18 @@ func Build(logger *slog.Logger, sources []config.Datasource) (*datasource.Regist
 	return registry, nil
 }
 
+func mergeHeaders(plain map[string]string, secret map[string]datasource.Secret) map[string]string {
+	if len(plain)+len(secret) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(plain)+len(secret))
+	maps.Copy(out, plain)
+	for name, value := range secret {
+		out[name] = value.Reveal()
+	}
+	return out
+}
+
 func build(src config.Datasource) (datasource.Datasource, error) {
 	switch {
 	case src.Prometheus != nil:
@@ -41,7 +54,7 @@ func build(src config.Datasource) (datasource.Datasource, error) {
 		ds, err := prometheus.New(prometheus.Options{
 			URL:               p.URL,
 			ScrapeInterval:    p.ScrapeInterval,
-			Headers:           p.Headers,
+			Headers:           mergeHeaders(p.Headers, p.SecretHeaders),
 			BasicAuthUser:     p.BasicAuthUser,
 			BasicAuthPassword: p.BasicAuthPassword,
 			BearerToken:       p.BearerToken,

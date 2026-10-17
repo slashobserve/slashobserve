@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"net/http"
 	"os"
-	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,14 +18,13 @@ import (
 )
 
 const (
-	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
-	secretEnvPrefix    = "SLASHOBSERVE_"
+	secretEnvPrefix = "SLASHOBSERVE_"
+
+	overflowSuffix = "( overflow )"
 
 	typePrometheus = "prometheus"
 	typeClickHouse = "clickhouse"
 )
-
-var datasourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
 
 type Datasource struct {
 	UID, Type, Name string
@@ -36,6 +37,7 @@ type PrometheusDatasource struct {
 	URL               string
 	ScrapeInterval    time.Duration
 	Headers           map[string]string
+	SecretHeaders     map[string]datasource.Secret
 	BasicAuthUser     string
 	BasicAuthPassword datasource.Secret
 	BearerToken       datasource.Secret
@@ -48,7 +50,7 @@ type ClickHouseDatasource struct {
 }
 
 type datasourcesFile struct {
-	Datasources []fileDatasource `yaml:"datasources"`
+	Datasources *[]fileDatasource `yaml:"datasources"`
 }
 
 type fileDatasource struct {
@@ -64,6 +66,8 @@ type filePrometheus struct {
 	URL             string            `yaml:"url"`
 	ScrapeInterval  string            `yaml:"scrapeInterval"`
 	Headers         map[string]string `yaml:"headers"`
+	HeadersFromEnv  map[string]string `yaml:"headersFromEnv"`
+	HeadersFromFile map[string]string `yaml:"headersFromFile"`
 	BasicAuth       *fileBasicAuth    `yaml:"basicAuth"`
 	BearerTokenEnv  string            `yaml:"bearerTokenEnv"`
 	BearerTokenFile string            `yaml:"bearerTokenFile"`
@@ -85,10 +89,32 @@ type fileClickHouse struct {
 }
 
 type fileLimits struct {
-	Timeout   string `yaml:"timeout"`
-	MaxSeries int    `yaml:"maxSeries"`
-	MaxPoints int    `yaml:"maxPoints"`
-	MaxRows   int    `yaml:"maxRows"`
+	Timeout   string      `yaml:"timeout"`
+	MaxSeries wholeNumber `yaml:"maxSeries"`
+	MaxPoints wholeNumber `yaml:"maxPoints"`
+	MaxRows   wholeNumber `yaml:"maxRows"`
+}
+
+var errNotInteger = errors.New("a limits value must be an integer")
+
+type wholeNumber int
+
+func (n *wholeNumber) UnmarshalYAML(unmarshal func(any) error) error {
+	var v int
+	if err := unmarshal(&v); err != nil {
+		return err
+	}
+	var raw any
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	switch raw.(type) {
+	case int, int64, uint64:
+		*n = wholeNumber(v)
+		return nil
+	default:
+		return errNotInteger
+	}
 }
 
 func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasource, error) {
@@ -98,18 +124,25 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 	}
 
 	var doc datasourcesFile
-	if err := yaml.NewDecoder(bytes.NewReader(content), yaml.DisallowUnknownField()).Decode(&doc); err != nil && !errors.Is(err, io.EOF) {
+	decoder := yaml.NewDecoder(bytes.NewReader(content), yaml.DisallowUnknownField())
+	if err := decoder.Decode(&doc); err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("invalid datasources file: %s", decodeMessage(err))
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, errors.New("invalid datasources file: multiple YAML documents are not supported")
+	}
+	if doc.Datasources == nil {
+		return nil, errors.New("invalid datasources file: datasources: required")
 	}
 
 	var errs []error
 	seen := map[string]bool{}
-	out := make([]Datasource, 0, len(doc.Datasources))
-	for i, raw := range doc.Datasources {
+	out := make([]Datasource, 0, len(*doc.Datasources))
+	for i, raw := range *doc.Datasources {
 		entryPath := fmt.Sprintf("datasources[%d]", i)
 		ds, dsErrs := convertDatasource(entryPath, raw, lookup)
 		errs = append(errs, dsErrs...)
-		if datasourceUIDPattern.MatchString(raw.UID) {
+		if datasource.ValidUID(raw.UID) {
 			if seen[raw.UID] {
 				errs = append(errs, fmt.Errorf("%s.uid: duplicate %q", entryPath, raw.UID))
 			}
@@ -124,9 +157,15 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 }
 
 func decodeMessage(err error) string {
+	if errors.Is(err, errNotInteger) {
+		return errNotInteger.Error()
+	}
 	var yerr yaml.Error
 	if errors.As(err, &yerr) {
 		msg := yerr.GetMessage()
+		if strings.HasSuffix(msg, overflowSuffix) {
+			msg = "number out of range"
+		}
 		if tok := yerr.GetToken(); tok != nil && tok.Position != nil {
 			return fmt.Sprintf("line %d column %d: %s", tok.Position.Line, tok.Position.Column, msg)
 		}
@@ -142,8 +181,8 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	}
 
 	ds := Datasource{UID: raw.UID, Type: raw.Type, Name: raw.Name}
-	if !datasourceUIDPattern.MatchString(raw.UID) {
-		fail("uid", "must match %s", datasourceUIDPattern)
+	if !datasource.ValidUID(raw.UID) {
+		fail("uid", "must match %s", datasource.UIDPattern)
 	}
 
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
@@ -183,7 +222,7 @@ func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
 	var errs []error
 	for _, f := range []struct {
 		name  string
-		value int
+		value wholeNumber
 	}{{"maxSeries", raw.MaxSeries}, {"maxPoints", raw.MaxPoints}, {"maxRows", raw.MaxRows}} {
 		if f.value < 0 {
 			errs = append(errs, fmt.Errorf("%s.%s: must not be negative", path, f.name))
@@ -193,7 +232,7 @@ func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s.timeout: %w", path, err))
 	}
-	return datasource.Limits{Timeout: timeout, MaxSeries: raw.MaxSeries, MaxPoints: raw.MaxPoints, MaxRows: raw.MaxRows}, errs
+	return datasource.Limits{Timeout: timeout, MaxSeries: int(raw.MaxSeries), MaxPoints: int(raw.MaxPoints), MaxRows: int(raw.MaxRows)}, errs
 }
 
 func convertPrometheus(path string, raw filePrometheus, lookup func(string) (string, bool)) (PrometheusDatasource, []error) {
@@ -207,6 +246,10 @@ func convertPrometheus(path string, raw filePrometheus, lookup func(string) (str
 		errs = append(errs, fmt.Errorf("%s.scrapeInterval: %w", path, err))
 	}
 	out.ScrapeInterval = interval
+
+	secretHeaders, headerErrs := resolveSecretHeaders(path, raw.Headers, raw.HeadersFromEnv, raw.HeadersFromFile, lookup)
+	errs = append(errs, headerErrs...)
+	out.SecretHeaders = secretHeaders
 
 	hasBasic := raw.BasicAuth != nil
 	hasBearer := raw.BearerTokenEnv != "" || raw.BearerTokenFile != ""
@@ -260,25 +303,69 @@ func resolveSecret(path, name, envName, file string, required bool, lookup func(
 		}
 		return datasource.Secret{}, nil
 	case envName != "":
-		if !strings.HasPrefix(envName, secretEnvPrefix) {
-			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: must start with %s", path, envField, secretEnvPrefix)}
-		}
-		v, _ := lookup(envName)
-		if v == "" {
-			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %s is not set or empty", path, envField, envName)}
-		}
-		return datasource.NewSecret(v), nil
+		return secretFromEnv(path+"."+envField, envName, lookup)
 	default:
-		b, err := os.ReadFile(file) //nolint:gosec // the path is operator configuration
-		if err != nil {
-			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %w", path, fileField, err)}
-		}
-		v := strings.TrimRight(string(b), "\r\n")
-		if v == "" {
-			return datasource.Secret{}, []error{fmt.Errorf("%s.%s: %s is empty", path, fileField, file)}
-		}
-		return datasource.NewSecret(v), nil
+		return secretFromFile(path+"."+fileField, file)
 	}
+}
+
+func secretFromEnv(path, envName string, lookup func(string) (string, bool)) (datasource.Secret, []error) {
+	if !strings.HasPrefix(envName, secretEnvPrefix) {
+		return datasource.Secret{}, []error{fmt.Errorf("%s: must start with %s", path, secretEnvPrefix)}
+	}
+	if slices.Contains(serverEnvNames, envName) {
+		return datasource.Secret{}, []error{fmt.Errorf("%s: %s is reserved for the server's own configuration", path, envName)}
+	}
+	v, _ := lookup(envName)
+	if v == "" {
+		return datasource.Secret{}, []error{fmt.Errorf("%s: %s is not set or empty", path, envName)}
+	}
+	return datasource.NewSecret(v), nil
+}
+
+func secretFromFile(path, file string) (datasource.Secret, []error) {
+	b, err := os.ReadFile(file) //nolint:gosec // the path is operator configuration
+	if err != nil {
+		return datasource.Secret{}, []error{fmt.Errorf("%s: %w", path, err)}
+	}
+	v := strings.TrimRight(string(b), "\r\n")
+	if v == "" {
+		return datasource.Secret{}, []error{fmt.Errorf("%s: %s is empty", path, file)}
+	}
+	return datasource.NewSecret(v), nil
+}
+
+func resolveSecretHeaders(path string, plain, fromEnv, fromFile map[string]string, lookup func(string) (string, bool)) (map[string]datasource.Secret, []error) {
+	var errs []error
+	seen := map[string]bool{}
+	for _, name := range slices.Sorted(maps.Keys(plain)) {
+		canonical := http.CanonicalHeaderKey(name)
+		if seen[canonical] {
+			errs = append(errs, fmt.Errorf("%s.headers[%s]: header %q is set more than once", path, name, canonical))
+		}
+		seen[canonical] = true
+	}
+	out := map[string]datasource.Secret{}
+	resolve := func(field string, source map[string]string, read func(string, string) (datasource.Secret, []error)) {
+		for _, name := range slices.Sorted(maps.Keys(source)) {
+			entryPath := fmt.Sprintf("%s.%s[%s]", path, field, name)
+			canonical := http.CanonicalHeaderKey(name)
+			if seen[canonical] {
+				errs = append(errs, fmt.Errorf("%s: header %q is set more than once", entryPath, canonical))
+				continue
+			}
+			seen[canonical] = true
+			secret, secretErrs := read(entryPath, source[name])
+			errs = append(errs, secretErrs...)
+			out[name] = secret
+		}
+	}
+	resolve("headersFromEnv", fromEnv, func(p, v string) (datasource.Secret, []error) { return secretFromEnv(p, v, lookup) })
+	resolve("headersFromFile", fromFile, secretFromFile)
+	if len(out) == 0 {
+		return nil, errs
+	}
+	return out, errs
 }
 
 func parseOptionalDuration(v string) (time.Duration, error) {

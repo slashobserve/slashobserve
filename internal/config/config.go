@@ -42,7 +42,15 @@ const (
 	envOIDCClientSecret   = "SLASHOBSERVE_OIDC_CLIENT_SECRET"
 	envSessionTTL         = "SLASHOBSERVE_SESSION_TTL"
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
+
+	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
 )
+
+var serverEnvNames = []string{
+	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
+	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
+	envSessionTTL, envAllowedEmailDomain, envDatasourcesFile,
+}
 
 type Config struct {
 	HTTPAddr    string
@@ -59,7 +67,8 @@ type Config struct {
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
 
-	Datasources []Datasource
+	DatasourcesFile string
+	Datasources     []Datasource
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -98,6 +107,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
 
 	if path := get(lookup, envDatasourcesFile); path != "" {
+		cfg.DatasourcesFile = path
 		datasources, err := loadDatasources(path, lookup)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", envDatasourcesFile, err))

@@ -55,6 +55,9 @@ func run() error {
 		return fmt.Errorf("configure datasources: %w", err)
 	}
 	defer func() { _ = registry.Close() }()
+	if cfg.DatasourcesFile != "" && len(cfg.Datasources) == 0 {
+		logger.Warn("datasources file lists no datasources", slog.String("path", cfg.DatasourcesFile))
+	}
 	logger.Info("datasources configured", slog.Int("count", len(cfg.Datasources)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
