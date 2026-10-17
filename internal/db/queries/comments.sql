@@ -1,9 +1,12 @@
 -- name: CreateComment :one
+WITH clock AS (SELECT clock_timestamp() AS at)
 INSERT INTO dashboard_comments (
-  dashboard_id, version, panel_id, body, author_kind, author_id, author_name, author_email
-) VALUES (
-  @dashboard_id, @version, @panel_id, @body, @author_kind, @author_id, @author_name, @author_email
+  dashboard_id, version, panel_id, body, author_kind, author_id, author_name, author_email, created_at, updated_at
 )
+SELECT
+  @dashboard_id::uuid, @version::integer, @panel_id::text, @body::text, @author_kind::text,
+  @author_id::uuid, @author_name::text, sqlc.narg('author_email')::text, clock.at, clock.at
+FROM clock
 RETURNING *;
 
 -- name: GetComment :one

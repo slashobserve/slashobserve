@@ -720,6 +720,7 @@ comments_suite() {
   out="$(api POST /dashboards/not-a-uuid/comments -d "$(comment_body 1 "$panel" 'x')")"
   [[ "$out" == 400 ]] || fail "comment on a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
   for bad in "$(comment_body 1 "$panel" '')" "$(comment_body 1 "$panel" '   ')" "$(comment_body 1 "$panel" 'a\u0000b')" \
+    "$(comment_body 1 "$panel" 'a\u202eb')" \
     "$(comment_body 1 "$panel" "$(printf 'a%.0s' $(seq 1 4001))")" "$(comment_body 1 'p\u0000' 'x')" "$(comment_body 1 '' 'x')" \
     "$(comment_body 1 "$(printf 'p%.0s' $(seq 1 65))" 'x')" "$(comment_body 0 "$panel" 'x')" '{"version":1,"panel_id":"p"}' \
     "$(comment_body 1 "$panel" 'x' | sed 's/}$/,"extra":1}/')" '{"version":"1","panel_id":"p","body":"x"}'; do
@@ -804,7 +805,7 @@ comments_suite() {
   out="$(api GET "/dashboards/$id/comments?panel_id=$second_panel")"
   page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
   [[ "$out" == 200 && "$page_ids" == "$cid2 " ]] || fail "comments filtered by panel (ids '$page_ids': $(cat "$TMP/api.body"))"
-  for bad in 'status=archived' 'limit=0' 'limit=501' 'limit=x' 'cursor=!!!' cursor=MTox 'panel_id=%00' 'panel_id='"$(printf 'p%.0s' $(seq 1 65))"; do
+  for bad in 'status=archived' 'limit=0' 'limit=501' 'limit=x' 'cursor=!!!' cursor=MTox 'panel_id=%00' 'panel_id=' 'status=' 'panel_id='"$(printf 'p%.0s' $(seq 1 65))"; do
     out="$(api GET "/dashboards/$id/comments?$bad")"
     [[ "$out" == 400 ]] || fail "list comments with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
   done

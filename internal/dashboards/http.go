@@ -55,7 +55,7 @@ func (s *Service) Register(api *gin.RouterGroup) {
 
 func (s *Service) createDashboard(c *gin.Context) {
 	var req createRequest
-	if !decodeBody(c, &req) || !requireSpec(c, req.Spec) {
+	if !decodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
 	}
 	dash, ver, err := s.Create(c.Request.Context(), caller(c), req.Spec, req.Summary)
@@ -68,7 +68,7 @@ func (s *Service) createDashboard(c *gin.Context) {
 }
 
 func (s *Service) listDashboards(c *gin.Context) {
-	limit, ok := limitParam(c)
+	limit, ok := limitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
@@ -102,7 +102,7 @@ func (s *Service) listVersions(c *gin.Context) {
 	if !ok {
 		return
 	}
-	limit, ok := limitParam(c)
+	limit, ok := limitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
@@ -141,7 +141,7 @@ func (s *Service) addVersion(c *gin.Context) {
 		return
 	}
 	var req versionRequest
-	if !decodeBody(c, &req) || !requireSpec(c, req.Spec) {
+	if !decodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
 	}
 	if req.Summary == nil || req.ParentVersion == nil {
@@ -177,7 +177,7 @@ func (s *Service) restoreVersion(c *gin.Context) {
 		return
 	}
 	var req restoreRequest
-	if !decodeBody(c, &req) {
+	if !decodeBody(c, &req, maxBodyBytes) {
 		return
 	}
 	if req.ParentVersion == nil || !validVersion(*req.ParentVersion) {
@@ -240,8 +240,8 @@ func abortError(c *gin.Context, status int, code, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
 }
 
-func decodeBody(c *gin.Context, dst any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes))
+func decodeBody(c *gin.Context, dst any, limit int64) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, limit))
 	dec.DisallowUnknownFields()
 	err := dec.Decode(dst)
 	if err == nil {
@@ -294,14 +294,14 @@ func versionParam(c *gin.Context, name string) (int, bool) {
 	return n, true
 }
 
-func limitParam(c *gin.Context) (int, bool) {
+func limitParam(c *gin.Context, fallback, ceiling int) (int, bool) {
 	raw, present := c.GetQuery("limit")
 	if !present {
-		return defaultLimit, true
+		return fallback, true
 	}
 	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > maxLimit || strconv.Itoa(n) != raw {
-		abortError(c, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 200")
+	if err != nil || n < 1 || n > ceiling || strconv.Itoa(n) != raw {
+		abortError(c, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to "+strconv.Itoa(ceiling))
 		return 0, false
 	}
 	return n, true

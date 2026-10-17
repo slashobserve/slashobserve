@@ -1,10 +1,8 @@
 package dashboards
 
 import (
-	"context"
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,115 +53,110 @@ type commentListJSON struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 
-func (c *Comments) Register(api *gin.RouterGroup) {
+func (cm *Comments) Register(api *gin.RouterGroup) {
 	g := api.Group("/dashboards/:id/comments")
-	g.POST("", c.createComment)
-	g.GET("", c.listComments)
-	g.PATCH("/:comment_id", c.patchComment)
+	g.POST("", cm.createComment)
+	g.GET("", cm.listComments)
+	g.PATCH("/:comment_id", cm.patchComment)
 }
 
-func (c *Comments) createComment(c2 *gin.Context) {
-	id, ok := uuidParam(c2, "id")
+func (cm *Comments) createComment(c *gin.Context) {
+	id, ok := uuidParam(c, "id")
 	if !ok {
 		return
 	}
-	c2.Request.Body = http.MaxBytesReader(c2.Writer, c2.Request.Body, maxCommentRequestBytes)
 	var req createCommentRequest
-	if !decodeBody(c2, &req) {
+	if !decodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
 	if req.Version == nil || req.PanelID == nil || req.Body == nil {
-		abortError(c2, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
+		abortError(c, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
 		return
 	}
-	comment, err := c.Create(c2.Request.Context(), caller(c2), id, *req.Version, *req.PanelID, *req.Body)
+	comment, err := cm.Create(c.Request.Context(), caller(c), id, *req.Version, *req.PanelID, *req.Body)
 	if err != nil {
-		c.fail(c2, "create comment", err)
+		cm.fail(c, "create comment", err)
 		return
 	}
-	c2.Header("Location", "/api/v1/dashboards/"+comment.DashboardID+"/comments/"+comment.ID)
-	c2.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
+	c.Header("Location", "/api/v1/dashboards/"+comment.DashboardID+"/comments/"+comment.ID)
+	c.JSON(http.StatusCreated, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
-func (c *Comments) listComments(c2 *gin.Context) {
-	id, ok := uuidParam(c2, "id")
+func (cm *Comments) listComments(c *gin.Context) {
+	id, ok := uuidParam(c, "id")
 	if !ok {
 		return
 	}
-	limit, ok := commentLimitParam(c2)
+	limit, ok := limitParam(c, defaultCommentLimit, maxCommentLimit)
 	if !ok {
 		return
 	}
-	items, next, err := c.List(c2.Request.Context(), id, c2.Query("status"), c2.Query("panel_id"), limit, c2.Query("cursor"))
+	status, ok := nonEmptyQuery(c, "status")
+	if !ok {
+		return
+	}
+	panelID, ok := nonEmptyQuery(c, "panel_id")
+	if !ok {
+		return
+	}
+	items, next, err := cm.List(c.Request.Context(), id, status, panelID, limit, c.Query("cursor"))
 	if err != nil {
-		c.fail(c2, "list comments", err)
+		cm.fail(c, "list comments", err)
 		return
 	}
 	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: optionalString(next)}
 	for _, item := range items {
 		body.Comments = append(body.Comments, newCommentJSON(item))
 	}
-	c2.JSON(http.StatusOK, body)
+	c.JSON(http.StatusOK, body)
 }
 
-func (c *Comments) patchComment(c2 *gin.Context) {
-	id, ok := uuidParam(c2, "id")
+func (cm *Comments) patchComment(c *gin.Context) {
+	id, ok := uuidParam(c, "id")
 	if !ok {
 		return
 	}
-	commentID, ok := uuidParam(c2, "comment_id")
+	commentID, ok := uuidParam(c, "comment_id")
 	if !ok {
 		return
 	}
-	c2.Request.Body = http.MaxBytesReader(c2.Writer, c2.Request.Body, maxCommentRequestBytes)
 	var req setCommentStatusRequest
-	if !decodeBody(c2, &req) {
+	if !decodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
 	if req.Status == nil {
-		abortError(c2, http.StatusBadRequest, "invalid_request", "status is required")
+		abortError(c, http.StatusBadRequest, "invalid_request", "status is required")
 		return
 	}
-	comment, err := c.SetStatus(c2.Request.Context(), caller(c2), id, commentID, *req.Status)
+	comment, err := cm.SetStatus(c.Request.Context(), caller(c), id, commentID, *req.Status)
 	if err != nil {
-		c.fail(c2, "set comment status", err)
+		cm.fail(c, "set comment status", err)
 		return
 	}
-	c2.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
+	c.JSON(http.StatusOK, commentEnvelopeJSON{Comment: newCommentJSON(comment)})
 }
 
-func (c *Comments) fail(c2 *gin.Context, action string, err error) {
-	ctx := c2.Request.Context()
+func (cm *Comments) fail(c *gin.Context, action string, err error) {
 	var invalid *InvalidInputError
 	switch {
-	case errors.Is(err, context.Canceled):
-		c.logger.DebugContext(ctx, action+": client went away")
-		c2.AbortWithStatus(statusClientClosedRequest)
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrCommentNotFound):
-		abortError(c2, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrCommentNotFound):
+		abortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
-		abortError(c2, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
+		abortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.As(err, &invalid):
-		abortError(c2, http.StatusBadRequest, "invalid_request", invalid.Message)
-	case errors.Is(err, ErrInvalidCursor):
-		abortError(c2, http.StatusBadRequest, "invalid_request", err.Error())
+		abortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
 	default:
-		c.logger.ErrorContext(ctx, action, "error", err)
-		abortError(c2, http.StatusInternalServerError, "internal", "internal error")
+		cm.dashboards.fail(c, action, err)
 	}
 }
 
-func commentLimitParam(c *gin.Context) (int, bool) {
-	raw, present := c.GetQuery("limit")
-	if !present {
-		return defaultCommentLimit, true
+func nonEmptyQuery(c *gin.Context, name string) (string, bool) {
+	value, present := c.GetQuery(name)
+	if present && value == "" {
+		abortError(c, http.StatusBadRequest, "invalid_request", name+" must not be empty")
+		return "", false
 	}
-	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > maxCommentLimit || strconv.Itoa(n) != raw {
-		abortError(c, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 500")
-		return 0, false
-	}
-	return n, true
+	return value, true
 }
 
 func newCommentJSON(c Comment) commentJSON {

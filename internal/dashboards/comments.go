@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -62,14 +62,14 @@ type Comment struct {
 type Comments struct {
 	db         *db.DB
 	dashboards *Service
-	logger     *slog.Logger
+	panelSets  *panelCache
 }
 
-func NewComments(database *db.DB, dashboards *Service, logger *slog.Logger) *Comments {
-	return &Comments{db: database, dashboards: dashboards, logger: logger}
+func NewComments(database *db.DB, dashboards *Service) *Comments {
+	return &Comments{db: database, dashboards: dashboards, panelSets: newPanelCache()}
 }
 
-func (c *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, version int, panelID, body string) (Comment, error) {
+func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, version int, panelID, body string) (Comment, error) {
 	if !validVersion(version) {
 		return Comment{}, &InvalidInputError{Message: "version must be a positive 32-bit integer"}
 	}
@@ -84,27 +84,26 @@ func (c *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pg
 	if err != nil {
 		return Comment{}, fmt.Errorf("author id: %w", err)
 	}
-	latest, err := c.dashboards.LatestVersion(ctx, dashboardID)
+	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
 	if err != nil {
 		return Comment{}, err
 	}
-	target, err := c.dashboards.VersionSpec(ctx, dashboardID, version)
+	targetPanels, err := cm.panels(ctx, dashboardID, version)
 	if err != nil {
 		return Comment{}, err
 	}
-	targetPanels := panelSet(target)
 	if _, ok := targetPanels[panelID]; !ok {
 		return Comment{}, ErrUnknownPanel
 	}
 	latestPanels := targetPanels
 	if latest != version {
-		if latestPanels, err = c.panels(ctx, dashboardID, latest); err != nil {
+		if latestPanels, err = cm.panels(ctx, dashboardID, latest); err != nil {
 			return Comment{}, err
 		}
 	}
 	author := authorOf(by)
 	var row dbsqlc.DashboardComment
-	err = c.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err = cm.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
 		row, err = q.CreateComment(ctx, dbsqlc.CreateCommentParams{
 			DashboardID: dashboardID,
@@ -127,7 +126,7 @@ func (c *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pg
 	return commentFromRow(row, latestPanels), nil
 }
 
-func (c *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, panelID string, limit int, cursor string) ([]Comment, string, error) {
+func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, panelID string, limit int, cursor string) ([]Comment, string, error) {
 	params := dbsqlc.ListCommentsParams{DashboardID: dashboardID, RowLimit: toInt32(limit + 1)}
 	switch status {
 	case CommentOpen, CommentResolved:
@@ -150,11 +149,11 @@ func (c *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, pa
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.createdAt, Valid: true}
 		params.CursorID = after.id
 	}
-	latest, err := c.dashboards.LatestVersion(ctx, dashboardID)
+	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
 	if err != nil {
 		return nil, "", err
 	}
-	rows, err := c.db.Queries().ListComments(ctx, params)
+	rows, err := cm.db.Queries().ListComments(ctx, params)
 	if err != nil {
 		return nil, "", fmt.Errorf("list comments: %w", err)
 	}
@@ -167,7 +166,7 @@ func (c *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, pa
 	if len(rows) == 0 {
 		return items, next, nil
 	}
-	panels, err := c.panels(ctx, dashboardID, latest)
+	panels, err := cm.panels(ctx, dashboardID, latest)
 	if err != nil {
 		return nil, "", err
 	}
@@ -177,21 +176,13 @@ func (c *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, pa
 	return items, next, nil
 }
 
-func (c *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string) (Comment, error) {
+func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string) (Comment, error) {
 	if status != CommentOpen && status != CommentResolved {
 		return Comment{}, &InvalidInputError{Message: "status must be open or resolved"}
 	}
 	actorID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return Comment{}, fmt.Errorf("actor id: %w", err)
-	}
-	latest, err := c.dashboards.LatestVersion(ctx, dashboardID)
-	if err != nil {
-		return Comment{}, err
-	}
-	panels, err := c.panels(ctx, dashboardID, latest)
-	if err != nil {
-		return Comment{}, err
 	}
 	actor := authorOf(by)
 	params := dbsqlc.SetCommentStatusParams{ID: commentID, DashboardID: dashboardID, Status: status}
@@ -200,8 +191,16 @@ func (c *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID
 		params.ResolvedByID = actorID
 		params.ResolvedByName = pgtype.Text{String: actor.Name, Valid: true}
 	}
+	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
+	if err != nil {
+		return Comment{}, err
+	}
+	panels, err := cm.panels(ctx, dashboardID, latest)
+	if err != nil {
+		return Comment{}, err
+	}
 	var row dbsqlc.DashboardComment
-	err = c.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err = cm.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		updated, err := q.SetCommentStatus(ctx, params)
 		switch {
 		case err == nil:
@@ -226,12 +225,18 @@ func (c *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID
 	return commentFromRow(row, panels), nil
 }
 
-func (c *Comments) panels(ctx context.Context, dashboardID pgtype.UUID, version int) (map[string]struct{}, error) {
-	d, err := c.dashboards.VersionSpec(ctx, dashboardID, version)
+func (cm *Comments) panels(ctx context.Context, dashboardID pgtype.UUID, version int) (map[string]struct{}, error) {
+	key := panelKey{dashboard: dashboardID, version: version}
+	if set, ok := cm.panelSets.get(key); ok {
+		return set, nil
+	}
+	d, err := cm.dashboards.VersionSpec(ctx, dashboardID, version)
 	if err != nil {
 		return nil, err
 	}
-	return panelSet(d), nil
+	set := panelSet(d)
+	cm.panelSets.put(key, set)
+	return set, nil
 }
 
 func panelSet(d *spec.Dashboard) map[string]struct{} {
@@ -251,26 +256,33 @@ func checkPanelID(panelID string) error {
 
 func checkCommentBody(body string) (string, error) {
 	body = strings.TrimSpace(body)
-	if n := utf8.RuneCountInString(body); n < 1 || n > maxCommentRunes || !utf8.ValidString(body) || strings.ContainsRune(body, 0) {
-		return "", &InvalidInputError{Message: fmt.Sprintf("body must be 1 to %d characters without NUL", maxCommentRunes)}
+	if n := utf8.RuneCountInString(body); n < 1 || n > maxCommentRunes || !utf8.ValidString(body) || strings.ContainsFunc(body, forbiddenBodyRune) {
+		return "", &InvalidInputError{Message: fmt.Sprintf("body must be 1 to %d characters without control or bidirectional override characters", maxCommentRunes)}
 	}
 	return body, nil
+}
+
+func forbiddenBodyRune(r rune) bool {
+	switch {
+	case r == '\n', r == '\r', r == '\t':
+		return false
+	case unicode.IsControl(r):
+		return true
+	default:
+		return r >= '\u202a' && r <= '\u202e' || r >= '\u2066' && r <= '\u2069'
+	}
 }
 
 // pg_notify refuses payloads of 8000 bytes or more. The payload holds no comment text; with the panel id
 // at 64 characters and the author name cut to 256, even all-escaped characters (6 bytes each) stay under 2500 bytes.
 func commentEventPayload(eventType string, row dbsqlc.DashboardComment, actor Author) ([]byte, error) {
-	name := actor.Name
-	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
-		name = string(r[:maxEventAuthorNameRunes])
-	}
 	return json.Marshal(events.Event{
 		Type:        eventType,
 		DashboardID: row.DashboardID.String(),
 		CommentID:   row.ID.String(),
 		PanelID:     row.PanelID,
 		Status:      row.Status,
-		Author:      &events.Author{Kind: actor.Kind, ID: actor.ID, Name: name},
+		Author:      &events.Author{Kind: actor.Kind, ID: actor.ID, Name: capEventAuthorName(actor.Name)},
 	})
 }
 

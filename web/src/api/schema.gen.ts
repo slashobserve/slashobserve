@@ -293,7 +293,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, never the comment text. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -318,7 +318,7 @@ export interface paths {
         put?: never;
         /**
          * Comment on one panel of one version of a dashboard.
-         * @description The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel. The body is trimmed before the length check. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
+         * @description The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -1270,6 +1270,7 @@ export interface operations {
             /** @description The new comment, open and with no revision requested. */
             201: {
                 headers: {
+                    /** @description Identifies the comment resource for `PATCH`; there is no `GET` for a single comment. */
                     Location: string;
                     [name: string]: unknown;
                 };

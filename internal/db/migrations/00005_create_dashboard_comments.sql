@@ -14,8 +14,8 @@ CREATE TABLE dashboard_comments (
   resolved_by_kind TEXT CHECK (resolved_by_kind IN ('user', 'service_account')),
   resolved_by_id UUID,
   resolved_by_name TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
   FOREIGN KEY (dashboard_id, version) REFERENCES dashboard_versions (dashboard_id, version) ON DELETE CASCADE,
   CHECK ((status = 'resolved') = (resolved_at IS NOT NULL))
 );

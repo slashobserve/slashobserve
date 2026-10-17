@@ -11,7 +11,8 @@ dashboards-id-comments:
     summary: Comment on one panel of one version of a dashboard.
     description: >-
       The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel.
-      The body is trimmed before the length check.
+      The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
+      Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
       A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
     requestBody:
       required: true
@@ -32,14 +33,13 @@ dashboards-id-comments:
                 maxLength: 64
               body:
                 type: string
-                minLength: 1
-                maxLength: 4000
     responses:
       "201":
         description: The new comment, open and with no revision requested.
         headers:
           Location:
             required: true
+            description: Identifies the comment resource for `PATCH`; there is no `GET` for a single comment.
             schema:
               type: string
         content:

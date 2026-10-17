@@ -12,11 +12,14 @@ import (
 )
 
 const createComment = `-- name: CreateComment :one
+WITH clock AS (SELECT clock_timestamp() AS at)
 INSERT INTO dashboard_comments (
-  dashboard_id, version, panel_id, body, author_kind, author_id, author_name, author_email
-) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8
+  dashboard_id, version, panel_id, body, author_kind, author_id, author_name, author_email, created_at, updated_at
 )
+SELECT
+  $1::uuid, $2::integer, $3::text, $4::text, $5::text,
+  $6::uuid, $7::text, $8::text, clock.at, clock.at
+FROM clock
 RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at
 `
 

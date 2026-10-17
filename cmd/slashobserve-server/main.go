@@ -125,7 +125,7 @@ func run() error {
 		Logger:        logger,
 		Auth:          authService,
 		Datasources:   registry,
-		API:           []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService, logger)},
+		API:           []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService)},
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},

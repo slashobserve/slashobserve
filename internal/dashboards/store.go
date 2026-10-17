@@ -147,13 +147,16 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	return meta, nil
 }
 
+func capEventAuthorName(name string) string {
+	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
+		return string(r[:maxEventAuthorNameRunes])
+	}
+	return name
+}
+
 // pg_notify refuses payloads of 8000 bytes or more. With the summary capped at 500 characters and the
 // name at 256, even all-escaped characters (6 bytes each) leave this payload under 5000 bytes.
 func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, error) {
-	name := meta.Author.Name
-	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
-		name = string(r[:maxEventAuthorNameRunes])
-	}
 	return json.Marshal(events.Event{
 		Type:          events.TypeVersionCreated,
 		DashboardID:   dashboardID.String(),
@@ -161,7 +164,7 @@ func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, err
 		ParentVersion: meta.ParentVersion,
 		RestoredFrom:  meta.RestoredFrom,
 		Summary:       meta.Summary,
-		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: name},
+		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: capEventAuthorName(meta.Author.Name)},
 		CreatedAt:     formatTime(meta.CreatedAt),
 	})
 }
