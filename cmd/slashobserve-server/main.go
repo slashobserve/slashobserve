@@ -16,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/server"
@@ -116,11 +118,14 @@ func run() error {
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, logger)
 
+	broker := events.NewBroker(database.Listen, logger)
+	go broker.Run(ctx)
+
 	handler, err := server.New(server.Options{
 		Logger:        logger,
 		Auth:          authService,
 		Datasources:   registry,
-		API:           []server.Registrar{dashboardsService},
+		API:           []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger)},
 		ContractCheck: cfg.APIContractCheck,
 		Readiness: []server.Check{
 			{Name: "database", Run: database.Ping},
@@ -130,7 +135,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("build http handler: %w", err)
 	}
-	return serve(ctx, logger, cfg.HTTPAddr, handler)
+	return serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close)
 }
 
 func newLogger(cfg config.Config) *slog.Logger {
@@ -141,7 +146,7 @@ func newLogger(cfg config.Config) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 }
 
-func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler) error {
+func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
 	// WriteTimeout is deliberately unset: SSE streams added later would be cut by a write deadline.
 	srv := &http.Server{
 		Addr:              addr,
@@ -150,6 +155,9 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 		ReadTimeout:       readTimeout,
 		IdleTimeout:       idleTimeout,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelWarn),
+	}
+	for _, f := range onShutdown {
+		srv.RegisterOnShutdown(f)
 	}
 	serveErr := make(chan error, 1)
 	go func() {
