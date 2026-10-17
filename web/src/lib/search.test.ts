@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 
 import { parseSearch, stringifySearch } from "./search"
 
@@ -47,6 +47,25 @@ describe("stringifySearch", () => {
 
   test("escapes reserved characters", () => {
     expect(stringifySearch({ q: "a&b=c" })).toBe("?q=a%26b%3Dc")
+  })
+
+  describe("with a non-primitive value", () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    test("throws naming the key in development", () => {
+      vi.stubEnv("DEV", true)
+      expect(() => stringifySearch({ filter: { a: 1 } })).toThrow(
+        'Search param "filter"'
+      )
+      expect(() => stringifySearch({ ids: ["a", {}] })).toThrow(
+        'Search param "ids"'
+      )
+    })
+
+    test("skips the key in production", () => {
+      vi.stubEnv("DEV", false)
+      expect(stringifySearch({ filter: { a: 1 }, ok: "x" })).toBe("?ok=x")
+    })
   })
 
   test("round trips what it writes", () => {

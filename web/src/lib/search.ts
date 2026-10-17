@@ -13,14 +13,32 @@ export function parseSearch(searchStr: string): Record<string, SearchValue> {
   return out
 }
 
+function isPrimitive(value: unknown): value is string | number | boolean {
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  )
+}
+
+function appendValue(params: URLSearchParams, key: string, value: unknown) {
+  if (isPrimitive(value)) {
+    params.append(key, String(value))
+    return
+  }
+  if (import.meta.env.DEV) {
+    throw new Error(`Search param "${key}" is not a string, number or boolean`)
+  }
+}
+
 export function stringifySearch(search: Record<string, unknown>): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(search)) {
     if (value === undefined || value === null) continue
     if (Array.isArray(value)) {
-      for (const item of value) params.append(key, String(item))
+      for (const item of value) appendValue(params, key, item)
     } else {
-      params.append(key, String(value))
+      appendValue(params, key, value)
     }
   }
   const text = params.toString()
