@@ -8,6 +8,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Dashboard struct {
+	ID            pgtype.UUID
+	Title         string
+	Tags          []string
+	LatestVersion int32
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type DashboardVersion struct {
+	DashboardID   pgtype.UUID
+	Version       int32
+	ParentVersion pgtype.Int4
+	RestoredFrom  pgtype.Int4
+	Spec          []byte
+	Summary       string
+	AuthorKind    string
+	AuthorID      pgtype.UUID
+	AuthorName    string
+	AuthorEmail   pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID
