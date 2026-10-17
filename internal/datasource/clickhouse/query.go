@@ -87,15 +87,17 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	if err != nil {
 		return nil, lim, err
 	}
-	text, err := guard(exp.Text)
+	text, err := d.guard(exp.Text)
 	if err != nil {
 		return nil, lim, err
 	}
+	lim.Timeout = d.clampTimeout(lim.Timeout)
+	timeout := effectiveTimeout(ctx, lim.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, lim.Timeout)
 	defer cancel()
 	rs, err := d.fetch(ctx, text, lim, nil)
 	if err != nil {
-		return nil, lim, mapError(err, lim.Timeout)
+		return nil, lim, mapError(err, timeout)
 	}
 	return rs, lim, nil
 }

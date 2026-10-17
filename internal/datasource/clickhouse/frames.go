@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -240,7 +241,26 @@ func orEmpty(v any) any {
 	return v
 }
 
+var (
+	jsonMarshalerType = reflect.TypeFor[json.Marshaler]()
+	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
+)
+
+func marshalable(v reflect.Value) (any, bool) {
+	implements := func(t reflect.Type) bool {
+		return t.Implements(jsonMarshalerType) || t.Implements(textMarshalerType)
+	}
+	if implements(v.Type()) {
+		return v.Interface(), true
+	}
+	if v.CanAddr() && implements(reflect.PointerTo(v.Type())) {
+		return v.Addr().Interface(), true
+	}
+	return nil, false
+}
+
 // encoding/json renders []uint8 as base64, but an Array(UInt8) must stay a list of numbers.
+// Values that marshal themselves (UUID, IP, big.Int) are left to their marshaler.
 func jsonValue(v reflect.Value) any {
 	switch v.Kind() {
 	case reflect.Invalid:
@@ -249,6 +269,15 @@ func jsonValue(v reflect.Value) any {
 		if v.IsNil() {
 			return nil
 		}
+	}
+	if v.Kind() == reflect.Interface {
+		return jsonValue(v.Elem())
+	}
+	if m, ok := marshalable(v); ok {
+		return m
+	}
+	switch v.Kind() {
+	case reflect.Pointer:
 		return jsonValue(v.Elem())
 	case reflect.Slice, reflect.Array:
 		out := make([]any, v.Len())

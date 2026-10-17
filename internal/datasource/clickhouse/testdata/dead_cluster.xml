@@ -1,0 +1,12 @@
+<clickhouse>
+    <remote_servers>
+        <dead_cluster>
+            <shard>
+                <replica>
+                    <host>127.0.0.1</host>
+                    <port>1</port>
+                </replica>
+            </shard>
+        </dead_cluster>
+    </remote_servers>
+</clickhouse>

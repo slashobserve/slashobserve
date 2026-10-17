@@ -14,11 +14,12 @@ import (
 )
 
 const (
-	discoverTimeout   = 10 * time.Second
-	recentWindow      = "now() - INTERVAL 1 HOUR"
-	defaultSampleRows = 5
-	maxSampleRows     = 20
-	maxListedTables   = 10000
+	discoverTimeout    = 10 * time.Second
+	recentWindow       = "now() - INTERVAL 1 HOUR"
+	defaultSampleRows  = 5
+	maxSampleRows      = 20
+	maxListedTables    = 10000
+	metricTablePattern = `otel\_metrics\_%`
 )
 
 var (
@@ -30,7 +31,9 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	if err := d.readOnly(ctx); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, discoverTimeout)
+	budget := d.clampTimeout(discoverTimeout)
+	timeout := effectiveTimeout(ctx, budget)
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	var (
 		cat *datasource.Catalog
@@ -53,14 +56,14 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "unsupported discover kind %q", req.Kind)
 	}
 	if err != nil {
-		return nil, mapError(err, discoverTimeout)
+		return nil, mapError(err, timeout)
 	}
 	return cat, nil
 }
 
 func (d *Datasource) discoverQuery(ctx context.Context, sql string, params ch.Parameters) (*resultSet, error) {
 	lim := d.limits
-	lim.Timeout = discoverTimeout
+	lim.Timeout = d.clampTimeout(discoverTimeout)
 	return d.fetch(ctx, sql, lim, params)
 }
 
@@ -190,8 +193,23 @@ func (d *Datasource) discoverColumns(ctx context.Context, req datasource.Discove
 	return &datasource.Catalog{Columns: columns[:min(len(columns), req.EffectiveLimit())]}, nil
 }
 
+func (d *Datasource) metricTables(ctx context.Context) ([]string, error) {
+	sql := "SELECT table FROM system.columns WHERE database = currentDatabase() AND table LIKE {prefix:String}" +
+		" AND name IN ('MetricName', 'MetricDescription', 'MetricUnit', 'TimeUnix')" +
+		" GROUP BY table HAVING count() = 4 ORDER BY table LIMIT {limit:UInt32}"
+	rs, err := d.discoverQuery(ctx, sql, ch.Parameters{"prefix": metricTablePattern, "limit": strconv.Itoa(maxListedTables)})
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(rs.rows))
+	for i, row := range rs.rows {
+		names[i] = stringOf(row[0])
+	}
+	return names, nil
+}
+
 func (d *Datasource) discoverMetrics(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
-	names, err := d.listTables(ctx, "", maxListedTables)
+	names, err := d.metricTables(ctx)
 	if err != nil {
 		return nil, err
 	}

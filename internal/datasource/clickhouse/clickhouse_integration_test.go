@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -25,9 +26,18 @@ import (
 )
 
 const (
-	image   = "clickhouse/clickhouse-server:26.8.15.10@sha256:9716a352d25f538bd19d868b001141e7a60e4d035bc9b823658c6a071660aa61"
-	roUser  = "slashobserve_ro"
-	adminDB = "otel"
+	image       = "clickhouse/clickhouse-server:26.8.15.10@sha256:9716a352d25f538bd19d868b001141e7a60e4d035bc9b823658c6a071660aa61"
+	roUser      = "slashobserve_ro"
+	ro1User     = "slashobserve_ro1"
+	ipUser      = "slashobserve_ip"
+	capUser     = "slashobserve_cap"
+	urlUser     = "slashobserve_url"
+	roleUser    = "slashobserve_role"
+	readURLUser = "slashobserve_read_url"
+	readAllUser = "slashobserve_read_all"
+	writeS3User = "slashobserve_write_s3"
+	tempUser    = "slashobserve_temp"
+	adminDB     = "otel"
 )
 
 //go:embed testdata/otel_schema.sql
@@ -35,6 +45,9 @@ var schemaSQL string
 
 //go:embed testdata/readonly_user.sql
 var readonlyUserSQL string
+
+//go:embed testdata/dead_cluster.xml
+var deadClusterXML string
 
 var (
 	host         string
@@ -61,6 +74,11 @@ func run(m *testing.M) int {
 		tcclickhouse.WithPassword(adminPass),
 		tcclickhouse.WithDatabase(adminDB),
 		testcontainers.WithEnv(map[string]string{"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1"}),
+		testcontainers.WithFiles(testcontainers.ContainerFile{
+			Reader:            strings.NewReader(deadClusterXML),
+			ContainerFilePath: "/etc/clickhouse-server/config.d/dead_cluster.xml",
+			FileMode:          0o644,
+		}),
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "start clickhouse:", err)
@@ -77,6 +95,36 @@ func run(m *testing.M) int {
 		return 1
 	}
 	return m.Run()
+}
+
+func extraUsersSQL(pass string) string {
+	return `CREATE USER IF NOT EXISTS ` + ro1User + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 1;
+GRANT SELECT ON otel.* TO ` + ro1User + `;
+CREATE USER IF NOT EXISTS ` + capUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2 CONST, max_execution_time = 5 MIN 1 MAX 8;
+GRANT SELECT ON otel.* TO ` + capUser + `;
+CREATE USER IF NOT EXISTS ` + urlUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + urlUser + `;
+GRANT URL ON *.* TO ` + urlUser + `;
+CREATE USER IF NOT EXISTS ` + readURLUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + readURLUser + `;
+GRANT READ ON URL TO ` + readURLUser + `;
+CREATE USER IF NOT EXISTS ` + readAllUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + readAllUser + `;
+GRANT READ ON * TO ` + readAllUser + `;
+CREATE USER IF NOT EXISTS ` + writeS3User + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + writeS3User + `;
+GRANT WRITE ON S3 TO ` + writeS3User + `;
+CREATE USER IF NOT EXISTS ` + tempUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + tempUser + `;
+GRANT CREATE TEMPORARY TABLE ON *.* TO ` + tempUser + `;
+CREATE ROLE IF NOT EXISTS slashobserve_s3_role;
+GRANT S3 ON *.* TO slashobserve_s3_role;
+CREATE USER IF NOT EXISTS ` + roleUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' SETTINGS readonly = 2;
+GRANT SELECT ON otel.* TO ` + roleUser + `;
+GRANT slashobserve_s3_role TO ` + roleUser + `;
+CREATE USER IF NOT EXISTS ` + ipUser + ` IDENTIFIED WITH sha256_password BY '` + pass + `' HOST IP '203.0.113.5';
+CREATE TABLE IF NOT EXISTS otel.dead_shard (dummy UInt8) ENGINE = Distributed(dead_cluster, system, one);
+`
 }
 
 func randomHex() string {
@@ -112,6 +160,7 @@ func provision(ctx context.Context) error {
 	}
 	defer func() { _ = admin.Close() }()
 	script := schemaSQL + "\n" + strings.ReplaceAll(readonlyUserSQL, "__PASSWORD__", roPass)
+	script += "\n" + extraUsersSQL(roPass)
 	for _, stmt := range statements(script) {
 		if err := admin.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("%w in %q", err, stmt)
@@ -229,6 +278,12 @@ func TestHealth(t *testing.T) {
 			t.Fatalf("QueryInstant err = %v, want ErrForbiddenQuery", err)
 		}
 	})
+	t.Run("readonly=1 user is refused with a specific error", func(t *testing.T) {
+		err := newDS(t, ro1User, roPass, datasource.Limits{}).CheckHealth(ctx)
+		if !errors.Is(err, datasource.ErrForbiddenQuery) || !strings.Contains(err.Error(), "readonly=2") {
+			t.Fatalf("err = %v, want ErrForbiddenQuery mentioning readonly=2", err)
+		}
+	})
 	t.Run("wrong password leaks nothing", func(t *testing.T) {
 		err := newDS(t, roUser, "wrong-"+roPass, datasource.Limits{}).CheckHealth(ctx)
 		if !errors.Is(err, datasource.ErrUnavailable) {
@@ -314,6 +369,20 @@ func TestGuardAndGrants(t *testing.T) {
 		"SELECT 1 /* c */ SETTINGS max_execution_time = 1",
 		"SELECT 1 -- c\n INTO OUTFILE '/tmp/x'",
 		"SELECT 1 /* c */ FROM /* c */ url /* c */ ('http://127.0.0.1:1/x', CSV)",
+		"SELECT 1 // '\nSETTINGS max_result_rows=5 -- '",
+		"SELECT 1 AS x\u00a0SETTINGS max_result_rows=6",
+		"SELECT * FROM\u00a0url('http://127.0.0.1:1/x', CSV)",
+		"SELECT \u2018'\u2019 AS a SETTINGS max_result_rows=7 -- '",
+		"SELECT * FROM \u201curl\u201d('http://127.0.0.1:1/x', CSV)",
+		"SELECT * FROM cosn('cosn://b/k')",
+		"SELECT * FROM bigquery('p', 'd', 't')",
+		"SELECT * FROM filesystem('/etc')",
+		"SELECT * FROM eval('SELECT 1')",
+		"SELECT * FROM loop(numbers(1))",
+		"SELECT * FROM mergeTreeIndex('otel', 'otel_logs')",
+		"SELECT * FROM format(CSV, 'a,b')",
+		"SELECT * FROM `\\x75rl`('http://127.0.0.1:1/x', CSV, 'a String')",
+		"SELECT * FROM \"\\x75rl\"('http://127.0.0.1:1/x', CSV, 'a String')",
 	} {
 		if _, err := ds.QueryInstant(ctx, query(text), lastHour()); !errors.Is(err, datasource.ErrForbiddenQuery) {
 			t.Errorf("QueryInstant(%q) err = %v, want ErrForbiddenQuery", text, err)
@@ -327,6 +396,7 @@ func TestGuardAndGrants(t *testing.T) {
 	for _, text := range []string{
 		"SELECT 'a;b'", "SELECT 1;", "SELECT 1 -- ; DROP TABLE otel_logs", "SELECT $$ a;b $$",
 		"WITH x AS (SELECT 1 AS v) SELECT * FROM x", "SELECT 1 AS `format`",
+		"SELECT format('{}', 1)", "SELECT name FROM system.settings LIMIT 1",
 	} {
 		if _, err := ds.QueryInstant(ctx, query(text), lastHour()); err != nil {
 			t.Errorf("QueryInstant(%q): %v", text, err)
@@ -358,6 +428,29 @@ func TestGuardAndGrants(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestSourceGrantsRefused(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct{ user, grant string }{
+		{urlUser, "URL"}, {roleUser, "S3"}, {readURLUser, "READ ON URL"}, {readAllUser, "READ ON"},
+		{writeS3User, "WRITE ON S3"}, {tempUser, "CREATE TEMPORARY TABLE"},
+	} {
+		ds := newDS(t, tc.user, roPass, datasource.Limits{})
+		err := ds.CheckHealth(ctx)
+		if !errors.Is(err, datasource.ErrForbiddenQuery) || !strings.Contains(err.Error(), tc.grant) {
+			t.Errorf("CheckHealth(%s) err = %v, want ErrForbiddenQuery naming %s", tc.user, err, tc.grant)
+		}
+		if _, err := ds.QueryInstant(ctx, query("SELECT 1"), lastHour()); !errors.Is(err, datasource.ErrForbiddenQuery) {
+			t.Errorf("QueryInstant(%s) err = %v, want ErrForbiddenQuery", tc.user, err)
+		}
+		if got := ds.Lint(ctx, "SELECT 1"); len(got) != 1 || got[0].Severity != datasource.SeverityWarning {
+			t.Errorf("Lint(%s) = %+v, want one warning", tc.user, got)
+		}
+	}
+	if err := roDS(t).CheckHealth(ctx); err != nil {
+		t.Errorf("CheckHealth(shipped read-only user): %v", err)
+	}
 }
 
 func TestLimits(t *testing.T) {
@@ -459,6 +552,24 @@ func TestLint(t *testing.T) {
 	got = ds.Lint(ctx, "SELECT 1 SETTINGS max_execution_time = 1")
 	if len(got) != 1 || got[0].Severity != datasource.SeverityError {
 		t.Errorf("Lint(SETTINGS) = %+v, want one error", got)
+	}
+	for _, q := range []string{"SELECT 1 // '\nSETTINGS max_result_rows=5 -- '", "SELECT 1 AS x\u00a0SETTINGS max_result_rows=6"} {
+		if got := ds.Lint(ctx, q); len(got) != 1 || got[0].Severity != datasource.SeverityError || !strings.Contains(got[0].Message, "SETTINGS") {
+			t.Errorf("Lint(%q) = %+v, want one SETTINGS error", q, got)
+		}
+	}
+	for _, q := range []string{"SELECT format('{}', 1)", "SELECT name FROM system.settings LIMIT 1"} {
+		if got := ds.Lint(ctx, q); len(got) != 0 {
+			t.Errorf("Lint(%q) = %+v, want empty", q, got)
+		}
+	}
+	if got := newDS(t, capUser, roPass, datasource.Limits{}).Lint(ctx, "SELECT 1"); len(got) != 0 {
+		t.Errorf("Lint under a profile maximum of 8s = %+v, want empty", got)
+	}
+	const padding = "   \n  "
+	got = ds.Lint(ctx, padding+"SELECT count( FROM otel_logs")
+	if want := len(padding) + len("SELECT count"); len(got) != 1 || got[0].Start != want {
+		t.Errorf("Lint(padded count() = %+v, want one error starting at %d", got, want)
 	}
 	got = ds.Lint(ctx, "SELECT ServiceName FROM otel_logs WHERE ServiceName IN ($svc) AND")
 	if len(got) != 1 {
@@ -587,4 +698,130 @@ func TestColumnTyping(t *testing.T) {
 	if got := values("h"); got != time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) {
 		t.Errorf("date = %v", got)
 	}
+}
+
+func TestColumnTypingJSONArrays(t *testing.T) {
+	frames, err := roDS(t).QueryInstant(context.Background(), query(`SELECT
+		[toUUID('61f0c404-5cb3-11e7-907b-a6006ad3dba0')] AS uuids,
+		[toIPv4('1.2.3.4')] AS ip4s,
+		[toIPv6('2001:db8::1')] AS ip6s,
+		[toInt128('170141183460469231731687303715884105727')] AS int128s,
+		[toUInt256('115792089237316195423570985008687907853269984665640564039457584007913129639935')] AS uint256s,
+		map('k', toUUID('61f0c404-5cb3-11e7-907b-a6006ad3dba0')) AS uuidmap,
+		[toUInt8(1), toUInt8(2)] AS bytes`), lastHour())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"uuids":    `["61f0c404-5cb3-11e7-907b-a6006ad3dba0"]`,
+		"ip4s":     `["1.2.3.4"]`,
+		"ip6s":     `["2001:db8::1"]`,
+		"int128s":  `[170141183460469231731687303715884105727]`,
+		"uint256s": `[115792089237316195423570985008687907853269984665640564039457584007913129639935]`,
+		"uuidmap":  `{"k":"61f0c404-5cb3-11e7-907b-a6006ad3dba0"}`,
+		"bytes":    `[1,2]`,
+	}
+	for name, w := range want {
+		if got := column(t, frames[0], name).Values[0]; got != w {
+			t.Errorf("%s = %v, want %s", name, got, w)
+		}
+	}
+}
+
+func TestDiscoverMetricsWithManyTables(t *testing.T) {
+	if testsSkipped {
+		t.Skip("integration tests need Docker")
+	}
+	ctx := context.Background()
+	admin, err := rawConn("admin", adminPass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = admin.Close() })
+	var created []string
+	t.Cleanup(func() {
+		for _, name := range created {
+			_ = admin.Exec(ctx, "DROP TABLE IF EXISTS otel."+name)
+		}
+	})
+	create := func(name, columns string) {
+		t.Helper()
+		if err := admin.Exec(ctx, "CREATE TABLE otel."+name+" ("+columns+") ENGINE = MergeTree ORDER BY tuple()"); err != nil {
+			t.Fatal(err)
+		}
+		created = append(created, name)
+	}
+	for i := range 12 {
+		create(fmt.Sprintf("many_tables_%02d", i), "x UInt8")
+	}
+	create("otel_metrics_histogram", "x UInt8")
+
+	ds := newDS(t, roUser, roPass, datasource.Limits{MaxRows: 5})
+	cat, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.Metrics) != 2 {
+		t.Fatalf("metrics = %+v, want the two standard metrics", cat.Metrics)
+	}
+}
+
+func TestErrorMapping(t *testing.T) {
+	ctx := context.Background()
+	ipPattern := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+`)
+	t.Run("timeout above the profile maximum still runs", func(t *testing.T) {
+		ds := newDS(t, roUser, roPass, datasource.Limits{Timeout: 400 * time.Second})
+		if _, err := ds.QueryInstant(ctx, query("SELECT 1"), lastHour()); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("timeout message reports the effective deadline", func(t *testing.T) {
+		ds := roDS(t)
+		parent, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+		defer cancel()
+		_, err := ds.QueryInstant(parent, query("SELECT sleep(3)"), lastHour())
+		if !errors.Is(err, datasource.ErrTimeout) || strings.Contains(err.Error(), "after 30s") {
+			t.Fatalf("err = %v, want ErrTimeout naming the real deadline", err)
+		}
+	})
+	t.Run("unreachable shard leaks no address", func(t *testing.T) {
+		_, err := roDS(t).QueryInstant(ctx, query("SELECT * FROM dead_shard"), lastHour())
+		if !errors.Is(err, datasource.ErrUnavailable) || ipPattern.MatchString(err.Error()) {
+			t.Fatalf("err = %v, want ErrUnavailable without an address", err)
+		}
+	})
+	t.Run("disallowed client ip is an authentication failure without an address", func(t *testing.T) {
+		err := newDS(t, ipUser, roPass, datasource.Limits{}).CheckHealth(ctx)
+		if !errors.Is(err, datasource.ErrUnavailable) || ipPattern.MatchString(err.Error()) {
+			t.Fatalf("err = %v, want ErrUnavailable without an address", err)
+		}
+	})
+	t.Run("unknown exception codes are generic", func(t *testing.T) {
+		_, err := roDS(t).QueryInstant(ctx, query("SELECT throwIf(1, 'backend 10.1.2.3:9000 down')"), lastHour())
+		if !errors.Is(err, datasource.ErrInvalidQuery) || strings.Contains(err.Error(), "10.1.2.3") || !strings.Contains(err.Error(), "ClickHouse error") {
+			t.Fatalf("err = %v, want generic ErrInvalidQuery", err)
+		}
+	})
+	t.Run("query mistakes keep their message", func(t *testing.T) {
+		_, err := roDS(t).QueryInstant(ctx, query("SELECT nope_column FROM otel_logs"), lastHour())
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "nope_column") {
+			t.Fatalf("err = %v, want ErrInvalidQuery naming nope_column", err)
+		}
+	})
+	t.Run("unreadable column type is not a connection failure", func(t *testing.T) {
+		_, err := roDS(t).QueryInstant(ctx, query("SELECT sumState(toUInt8(1)) AS x"), lastHour())
+		if !errors.Is(err, datasource.ErrInvalidQuery) || errors.Is(err, datasource.ErrUnavailable) {
+			t.Fatalf("err = %v, want ErrInvalidQuery", err)
+		}
+	})
+	t.Run("unreachable server is unavailable", func(t *testing.T) {
+		ds, err := clickhouse.New(clickhouse.Options{Addr: "127.0.0.1:1", Username: roUser, Password: datasource.NewSecret(roPass)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = ds.Close() })
+		if err := ds.CheckHealth(ctx); !errors.Is(err, datasource.ErrUnavailable) {
+			t.Fatalf("err = %v, want ErrUnavailable", err)
+		}
+	})
 }
