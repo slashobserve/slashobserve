@@ -56,6 +56,52 @@ compose() {
   docker compose -f "$ROOT/deploy/compose/compose.yaml" -p "$PROJECT" "$@"
 }
 
+PROM_URL="http://localhost:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}"
+SHOP_URL="http://localhost:${SLASHOBSERVE_SHOP_HOST_PORT}"
+FAULT_SET=0
+
+prom_scalar() {
+  command curl -fsS --max-time 5 "$PROM_URL/api/v1/query" --data-urlencode "query=scalar($1)" 2>/dev/null \
+    | sed -nE 's/.*"result":\[[^,]*,"([^"]*)"\].*/\1/p' || true
+}
+
+ch() {
+  compose exec -T clickhouse clickhouse-client --user slashobserve_ro --password slashobserve -q "$1"
+}
+
+positive() { awk -v v="$1" 'BEGIN { exit !(v + 0 > 0) }'; }
+prom_is() { [[ "$(prom_scalar "$1")" == "$2" ]]; }
+prom_positive() { positive "$(prom_scalar "$1")"; }
+ch_is() { [[ "$(ch "$1" 2>/dev/null)" == "$2" ]]; }
+ch_positive() { positive "$(ch "$1" 2>/dev/null)"; }
+
+poll() {
+  local timeout="$1" desc="$2"
+  shift 2
+  local deadline=$((SECONDS + timeout))
+  until "$@"; do
+    ((SECONDS < deadline)) || {
+      compose logs --no-color --tail 50 >&2 || true
+      fail "$desc (not true after ${timeout}s)"
+    }
+    sleep 2
+  done
+}
+
+targets_scraped() {
+  prom_is 'sum(up{job="shop"})' 4 \
+    && prom_is 'count(up{job=~"prometheus|node|cadvisor|otel-collector"})' 4 \
+    && prom_is 'min(up{job=~"prometheus|node|cadvisor|otel-collector"})' 1
+}
+
+wait_for_data() {
+  poll 180 "Prometheus scraped all targets" targets_scraped
+  pass "Prometheus scraped all targets"
+  poll 180 "ClickHouse has log and trace rows" ch_is \
+    "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
+  pass "ClickHouse has log and trace rows"
+}
+
 is_ready() { command curl -fsS --max-time 3 "$BASE_URL/readyz" >/dev/null 2>&1; }
 
 stack_reusable() {
@@ -69,14 +115,20 @@ boot() {
     fail "stack did not become healthy"
   fi
   for _ in $(seq 1 60); do
-    is_ready && return 0
+    if is_ready; then
+      wait_for_data
+      return 0
+    fi
     sleep 1
   done
   fail "server ready ($BASE_URL/readyz did not return 200)"
 }
 
 TMP=""
-cleanup() { if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi; }
+cleanup() {
+  if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
+  if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
+}
 trap cleanup EXIT
 
 dex_login() {
@@ -274,9 +326,75 @@ suite() {
   pass "revoked keys stop working"
 }
 
+stack_suite() {
+  [[ -n "$TMP" ]] || TMP="$(mktemp -d)"
+  local out ro_out
+
+  prom_is 'count(count by (pod) (http_requests_total{service="checkout"}))' 2 || fail "checkout metrics should carry 2 pods"
+  pass "shop metrics vary by pod"
+  prom_is 'count(count by (service) (http_requests_total))' 3 || fail "http_requests_total should carry 3 services"
+  pass "shop metrics vary by service"
+  prom_positive 'count(http_request_duration_seconds_bucket{service="checkout"})' || fail "checkout latency histogram missing"
+  pass "latency histogram exported"
+  prom_is 'count(count by (pod) (container_memory_working_set_bytes{pod=~"frontend-0|checkout-0|checkout-1|payments-0"}))' 4 \
+    || fail "cAdvisor should label the 4 shop containers by pod"
+  pass "cAdvisor labels containers by pod"
+  prom_is 'count(count by (compose_project) (container_memory_working_set_bytes))' 1 || fail "cAdvisor should see exactly one compose project"
+  pass "cAdvisor metrics limited to this stack"
+  { prom_positive 'count(node_filesystem_avail_bytes{instance="demo-node"})' \
+    && prom_positive 'count(node_filesystem_files_free{instance="demo-node"})'; } \
+    || fail "node disk and inode metrics missing for demo-node"
+  pass "node disk and inode metrics present"
+  prom_positive 'sum(rate(http_requests_total{service="checkout"}[5m] offset 1d))' || fail "no checkout request rate one day ago"
+  pass "yesterday's request rate is backfilled"
+
+  ch_is "SELECT getSetting('readonly')" 2 || fail "ClickHouse readonly setting is not 2 ($(ch "SELECT getSetting('readonly')" 2>&1 || true))"
+  if ch "SELECT 1 SETTINGS max_result_rows = 0" >/dev/null 2>&1; then
+    fail "ClickHouse user lifted max_result_rows"
+  fi
+  if ro_out="$(ch "INSERT INTO otel.otel_logs (Body) VALUES ('x')" 2>&1)"; then
+    fail "ClickHouse user inserted a row"
+  fi
+  [[ "$ro_out" == *READONLY* || "$ro_out" == *"Code: 164"* || "$ro_out" == *ACCESS_DENIED* || "$ro_out" == *"Code: 497"* ]] || fail "ClickHouse insert refusal is not READONLY ($ro_out)"
+  pass "ClickHouse user is read-only"
+  ch_positive "SELECT count() FROM (SELECT TraceId FROM otel.otel_traces GROUP BY TraceId HAVING uniqExact(ServiceName) = 3)" \
+    || fail "no trace spans frontend, checkout and payments"
+  pass "traces span frontend, checkout and payments"
+  ch_is "SELECT uniqExact(ResourceAttributes['k8s.pod.name']) FROM otel.otel_logs WHERE ServiceName = 'checkout'" 2 \
+    || fail "checkout logs should carry 2 pods"
+  pass "logs vary by pod"
+  poll 60 "checkout error logs present" ch_positive \
+    "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR'"
+  pass "checkout error logs present"
+  ch_is "SELECT countIf(TraceId != '') > 0 FROM otel.otel_logs" 1 || fail "no log carries a trace id"
+  pass "logs carry trace ids"
+
+  FAULT_SET=1
+  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X POST "$SHOP_URL/fault?type=errors&pct=100")"
+  if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":100' "$TMP/fault"; then
+    fail "set error fault ($out: $(cat "$TMP/fault"))"
+  fi
+  pass "error fault accepted"
+  poll 60 "error fault shows in metrics" prom_positive 'sum(increase(http_requests_total{pod="checkout-0",status="500"}[30s]))'
+  pass "error fault shows in metrics"
+  poll 60 "error fault shows in logs" ch_positive \
+    "SELECT count() FROM otel.otel_logs WHERE ResourceAttributes['k8s.pod.name'] = 'checkout-0' AND Body = 'database connection refused'"
+  pass "error fault shows in logs"
+  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X DELETE "$SHOP_URL/fault")"
+  if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":0' "$TMP/fault"; then
+    fail "reset fault ($out: $(cat "$TMP/fault"))"
+  fi
+  FAULT_SET=0
+  pass "fault resets"
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL/fault?type=bogus")"
+  [[ "$out" == 400 ]] || fail "invalid fault type ($out)"
+  pass "invalid fault rejected"
+}
+
 ensure_stack() {
   if stack_reusable; then
     echo "Reusing the healthy $PROJECT stack at $BASE_URL"
+    wait_for_data
   else
     boot
   fi
@@ -293,6 +411,7 @@ case "${1:-run}" in
   run)
     boot
     suite
+    stack_suite
     ;;
   up) ensure_stack ;;
   browser) browser ;;
