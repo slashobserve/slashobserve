@@ -360,6 +360,7 @@ suite() {
   dashboards_suite
   events_suite
   comments_suite
+  mcp_suite
   check_api_contract
 }
 
@@ -831,6 +832,136 @@ comments_suite() {
   out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'x')")"
   [[ "$out" == 422 ]] || fail "comment on a panel the newest version dropped ($out: $(cat "$TMP/api.body"))"
   pass "comments stay on the version they were made on and report whether their panel is still present"
+}
+
+mcp_call() {
+  local id="$1" method="$2" params="$3" out_file="$4"
+  shift 4
+  printf '{"jsonrpc":"2.0","id":%s,"method":"%s","params":%s}' "$id" "$method" "$params" >"$TMP/mcp-request.json"
+  command curl -sS --max-time 60 -o "$out_file" -D "$TMP/mcp.headers" -w '%{http_code}' -X POST \
+    -H "Authorization: Bearer $API_TOKEN" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -H 'MCP-Protocol-Version: 2025-11-25' \
+    "$@" --data-binary "@$TMP/mcp-request.json" "$BASE_URL/mcp"
+}
+
+mcp_tool() {
+  local name="$1" args="$2"
+  MCP_STATUS="$(mcp_call 1 tools/call "{\"name\":\"$name\",\"arguments\":$args}" "$TMP/mcp.body")"
+  [[ "$MCP_STATUS" == 200 ]] || fail "MCP tools/call $name ($MCP_STATUS: $(cat "$TMP/mcp.body"))"
+  cat "$TMP/mcp.body" >>"$TMP/mcp-all.body"
+  if grep -q '"isError":true' "$TMP/mcp.body"; then MCP_ERROR=true; else MCP_ERROR=false; fi
+}
+
+mcp_expect() {
+  local desc="$1" pattern="$2"
+  grep -q -- "$pattern" "$TMP/mcp.body" || fail "$desc: expected $pattern ($(head -c 1500 "$TMP/mcp.body"))"
+  [[ "$MCP_ERROR" == false ]] || fail "$desc returned a tool error ($(head -c 1500 "$TMP/mcp.body"))"
+}
+
+mcp_suite() {
+  api_token
+  local out id name leak
+  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_dashboards list_datasources
+    list_label_values list_labels list_metrics query_instant query_range sample_rows update_dashboard)
+  : >"$TMP/mcp-all.body"
+
+  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -D "$TMP/mcp.headers" -w '%{http_code}' -X POST \
+    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE_URL/mcp")"
+  if [[ "$out" != 401 ]] || ! grep -qi '^www-authenticate: Bearer' "$TMP/mcp.headers"; then
+    fail "MCP without a key ($out: $(cat "$TMP/mcp.body"))"
+  fi
+  out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -w '%{http_code}' -X POST -b "$TMP/api-jar" \
+    -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$BASE_URL/mcp")"
+  [[ "$out" == 401 ]] || fail "MCP with a session cookie and no key ($out: $(cat "$TMP/mcp.body"))"
+  pass "MCP refuses callers without a bearer key, session cookies included"
+
+  out="$(mcp_call 1 tools/list '{}' "$TMP/mcp.body" -H 'Origin: http://evil.example')"
+  [[ "$out" == 403 ]] || fail "MCP with a foreign origin ($out: $(cat "$TMP/mcp.body"))"
+  out="$(mcp_call 1 tools/list '{}' "$TMP/mcp.body" -H "Origin: $BASE_URL")"
+  [[ "$out" == 200 ]] || fail "MCP with the public origin ($out: $(cat "$TMP/mcp.body"))"
+  pass "MCP refuses a foreign origin and accepts the public one"
+
+  out="$(mcp_call 1 initialize '{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"e2e","version":"0"}}' "$TMP/mcp.body")"
+  if [[ "$out" != 200 ]] || ! grep -q '"name":"slashobserve"' "$TMP/mcp.body"; then
+    fail "MCP initialize ($out: $(cat "$TMP/mcp.body"))"
+  fi
+  if grep -qi '^mcp-session-id:' "$TMP/mcp.headers"; then fail "MCP initialize opened a session ($(cat "$TMP/mcp.headers"))"; fi
+  pass "MCP initialize answers without opening a session"
+
+  out="$(mcp_call 2 tools/list '{}' "$TMP/mcp.body")"
+  [[ "$out" == 200 ]] || fail "MCP tools/list ($out: $(cat "$TMP/mcp.body"))"
+  for name in "${tool_names[@]}"; do
+    grep -q "\"name\":\"$name\"" "$TMP/mcp.body" || fail "MCP tools/list lacks $name ($(cat "$TMP/mcp.body"))"
+  done
+  cat "$TMP/mcp.body" >>"$TMP/mcp-all.body"
+  pass "MCP tools/list returns all ${#tool_names[@]} tools"
+
+  mcp_tool get_spec_guide '{}'
+  mcp_expect "get_spec_guide" '"guide"'
+  pass "MCP get_spec_guide returns the authoring guide"
+
+  mcp_tool list_datasources '{}'
+  mcp_expect "list_datasources" '"uid":"prom"'
+  mcp_expect "list_datasources" '"uid":"ch"'
+  pass "MCP list_datasources returns both datasources"
+
+  mcp_tool list_metrics '{"datasource":"prom","search":"http_requests"}'
+  mcp_expect "list_metrics" 'http_requests_total'
+  mcp_tool list_labels '{"datasource":"prom","metric":"http_requests_total"}'
+  mcp_expect "list_labels" '"pod"'
+  mcp_tool list_label_values '{"datasource":"prom","label":"service","metric":"http_requests_total"}'
+  mcp_expect "list_label_values" '"checkout"'
+  pass "MCP discovers Prometheus metrics, labels and label values"
+
+  mcp_tool get_schema '{"datasource":"ch","table":"otel_logs"}'
+  mcp_expect "get_schema" 'ServiceName'
+  mcp_tool sample_rows '{"datasource":"ch","table":"otel_logs","limit":2}'
+  mcp_expect "sample_rows" '"rows"'
+  pass "MCP discovers ClickHouse schemas and samples rows"
+
+  mcp_tool lint_query '{"datasource":"prom","query":"sum(rate("}'
+  mcp_expect "lint_query" '"ok":false'
+  pass "MCP lint_query reports an unparseable query"
+
+  mcp_tool query_range '{"datasource":"prom","query":"sum(rate(http_requests_total[$__rate_interval]))","from":"now-15m"}'
+  mcp_expect "query_range" '"empty":false'
+  mcp_expect "query_range" '"series"'
+  mcp_tool query_instant '{"datasource":"prom","query":"sum(http_requests_total)"}'
+  mcp_expect "query_instant" '"empty":false'
+  pass "MCP runs range and instant queries and returns a summary"
+
+  mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-valid.json")"
+  mcp_expect "create_dashboard" '"dashboard_id":"[0-9a-f-]\{36\}"'
+  id="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/mcp.body" | head -1 | cut -d'"' -f4)"
+  out="$(api GET "/dashboards/$id")"
+  if [[ "$out" != 200 ]] || ! grep -q '"updated_by":{[^}]*"kind":"service_account"' "$TMP/api.body"; then
+    fail "dashboard created over MCP ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "MCP create_dashboard saves a dashboard attributed to the service account"
+
+  mcp_tool get_dashboard "{\"dashboard_id\":\"$id\"}"
+  mcp_expect "get_dashboard" '"version":1'
+  mcp_tool list_dashboards '{}'
+  mcp_expect "list_dashboards" "\"id\":\"$id\""
+  pass "MCP reads back the dashboard it created"
+
+  mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-failing-query.json")"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'query_invalid' "$TMP/mcp.body"; then
+    fail "create_dashboard with a failing query ($(cat "$TMP/mcp.body"))"
+  fi
+  pass "MCP create_dashboard returns a tool error for a panel that fails"
+
+  mcp_tool update_dashboard '{"spec":{"specVersion":"0","title":"x","panels":[]}}'
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'dashboard_id' "$TMP/mcp.body"; then
+    fail "update_dashboard without a dashboard_id ($(cat "$TMP/mcp.body"))"
+  fi
+  pass "MCP update_dashboard demands dashboard_id and parent_version"
+
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/mcp-all.body" || true)"
+  [[ -z "$leak" ]] || fail "MCP responses expose connection details ($leak)"
+  pass "MCP responses expose no connection details"
 }
 
 stack_suite() {
