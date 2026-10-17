@@ -1,0 +1,8 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "timeRange": {
+    "from": "now-15m",
+    "to": "now"
+  }
+}

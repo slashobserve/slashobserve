@@ -1,0 +1,26 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "timeRange": {
+    "from": "now",
+    "to": "now-1h"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Log rows",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "clickhouse",
+        "uid": "ch"
+      },
+      "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+    }
+  ]
+}
