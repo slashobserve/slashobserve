@@ -4,3 +4,4 @@ playwright-report
 test-results
 bun.lock
 src/routeTree.gen.ts
+src/spec/*.gen.ts

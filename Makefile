@@ -25,8 +25,9 @@ web-deps:
 web: web-deps
 	cd web && bun run build
 
-generate:
+generate: web-deps
 	$(SQLC) generate
+	cd web && bun run spec:generate
 
 test:
 	go test -race ./...
