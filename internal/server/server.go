@@ -24,7 +24,7 @@ func New(opts Options) http.Handler {
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	engine.ForwardedByClientIP = false
-	engine.Use(recoverPanics(opts.Logger), logRequests(opts.Logger), securityHeaders)
+	engine.Use(logRequests(opts.Logger), recoverPanics(opts.Logger), securityHeaders)
 	registerHealthRoutes(engine, opts.Logger, opts.Readiness)
 	registerWebRoutes(engine)
 	return engine
