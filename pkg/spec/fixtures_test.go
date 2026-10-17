@@ -156,6 +156,16 @@ func TestRejectedDocuments(t *testing.T) {
 		{"year beyond 9999", with(`"to": "now"`, `"to": "9999-12-31T23:59:59-05:00"`), spec.CodeSchema, "/timeRange/to"},
 		{"offset beyond the supported years", with(`"from": "now-15m"`, `"from": "now-10000y"`), spec.CodeSchema, "/timeRange/from"},
 		{"offset count beyond int32", with(`"from": "now-15m"`, `"from": "now-2147483648s"`), spec.CodeSchema, "/timeRange/from"},
+		{"equal month offsets", with(`"from": "now-15m", "to": "now"`, `"from": "now-1M", "to": "now-1M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"year equals twelve months", with(`"from": "now-15m", "to": "now"`, `"from": "now-1y", "to": "now-12M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"equal future month offsets", with(`"from": "now-15m", "to": "now"`, `"from": "now+1M", "to": "now+1M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"month rounded the wrong way round", with(`"from": "now-15m", "to": "now"`, `"from": "now/M", "to": "now-1M/M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"year rounded the wrong way round", with(`"from": "now-15m", "to": "now"`, `"from": "now/y", "to": "now-1y/y"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"month start after unrounded previous month", with(`"from": "now-15m", "to": "now"`, `"from": "now/M", "to": "now-1M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"previous month before month", with(`"from": "now-15m", "to": "now"`, `"from": "now-1M/M", "to": "now-2M/M"`), spec.CodeTimeRangeOrder, "/timeRange"},
+		{"whole previous month", with(`"from": "now-15m", "to": "now"`, `"from": "now-1M/M", "to": "now-1M/M"`), "", ""},
+		{"two whole months", with(`"from": "now-15m", "to": "now"`, `"from": "now-2M/M", "to": "now-1M/M"`), "", ""},
+		{"this month so far", with(`"from": "now-15m", "to": "now"`, `"from": "now/M", "to": "now"`), "", ""},
 		{"float out of range", with(`"query":`, `"min": 1e999, "query":`), spec.CodeSchema, "/panels/0/min"},
 	}
 	for _, c := range cases {

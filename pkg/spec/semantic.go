@@ -128,6 +128,8 @@ type timePoint struct {
 	roundMax  float64
 	roundUnit string
 	fixed     bool
+	monthly   bool
+	months    int64
 	at        time.Time
 }
 
@@ -150,7 +152,7 @@ func parseRelativeTime(s string) (timePoint, bool) {
 	if m == nil {
 		return timePoint{}, false
 	}
-	p := timePoint{relative: true, fixed: true, roundUnit: m[4]}
+	p := timePoint{relative: true, fixed: true, monthly: true, roundUnit: m[4]}
 	if m[2] != "" {
 		n, err := strconv.ParseInt(m[2], 10, 32)
 		if err != nil {
@@ -162,6 +164,13 @@ func parseRelativeTime(s string) (timePoint, bool) {
 		}
 		p.agoMin, p.agoMax = float64(n)*u.min, float64(n)*u.max
 		p.fixed = u.min == u.max
+		p.monthly = m[3] == "M" || m[3] == "y"
+		if p.monthly {
+			p.months = n * monthsPerUnit[m[3]]
+			if m[1] == "+" {
+				p.months = -p.months
+			}
+		}
 		if m[1] == "+" {
 			p.agoMin, p.agoMax = -p.agoMax, -p.agoMin
 		}
@@ -182,14 +191,52 @@ func offsetOutOfRange(n int64, unit string) bool {
 	return float64(n)*timeUnits[unit].min > maxOffsetSeconds
 }
 
+var monthsPerUnit = map[string]int64{"M": 1, "y": 12}
+
 func relativeInOrder(from, to timePoint) bool {
-	if from.roundUnit != "" && from.roundUnit == to.roundUnit && from.fixed && to.fixed && timeUnits[from.roundUnit].min == timeUnits[from.roundUnit].max {
-		unit := timeUnits[from.roundUnit].max
-		if math.Mod(from.agoMax, unit) == 0 && math.Mod(to.agoMax, unit) == 0 {
-			return from.agoMax >= to.agoMax
-		}
+	if inOrder, exact := fixedUnitOrder(from, to); exact {
+		return inOrder
+	}
+	if inOrder, exact := monthOrder(from, to); exact {
+		return inOrder
 	}
 	return from.agoMax+from.roundMax > to.agoMin-to.roundMax
+}
+
+func fixedUnitOrder(from, to timePoint) (inOrder, exact bool) {
+	if from.roundUnit == "" || from.roundUnit != to.roundUnit || !from.fixed || !to.fixed {
+		return false, false
+	}
+	bounds := timeUnits[from.roundUnit]
+	if bounds.min != bounds.max || math.Mod(from.agoMax, bounds.max) != 0 || math.Mod(to.agoMax, bounds.max) != 0 {
+		return false, false
+	}
+	return from.agoMax >= to.agoMax, true
+}
+
+func monthOrder(from, to timePoint) (inOrder, exact bool) {
+	if !from.monthly || !to.monthly {
+		return false, false
+	}
+	unit := from.roundUnit
+	if unit == "" {
+		unit = to.roundUnit
+	}
+	if from.roundUnit != "" && to.roundUnit != "" && from.roundUnit != to.roundUnit {
+		return false, false
+	}
+	step := int64(1)
+	if unit != "" {
+		step = monthsPerUnit[unit]
+		if step == 0 || from.months%step != 0 || to.months%step != 0 {
+			return false, false
+		}
+	}
+	unrounded := from.roundUnit == "" && to.roundUnit == ""
+	if unrounded {
+		return from.months > to.months, true
+	}
+	return from.months/step >= to.months/step, true
 }
 
 func checkTimeRange(tr TimeRange) []Issue {

@@ -146,6 +146,7 @@ func TestParsedTimeRangesResolve(t *testing.T) {
 		{"now-1h", "now+1h"}, {"now-30d", "now-1d"}, {"now-2M", "now-1M"}, {"now-1y", "now-1M"},
 		{"now-1d/d", "now"}, {"now/d", "now/d"}, {"now/w", "now/w"}, {"now/M", "now/M"}, {"now/y", "now/y"},
 		{"now-1d/d", "now-1d/d"}, {"now-1w/w", "now-1w/w"}, {"now-1M/M", "now-1M/M"}, {"now-7d/d", "now-1d/d"},
+		{"now-2M/M", "now-1M/M"}, {"now-1y/y", "now-1y/y"}, {"now-13M", "now-1y"}, {"now-2y/y", "now-1y/y"},
 		{"2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"},
 	}
 	for _, r := range accepted {
@@ -160,7 +161,8 @@ func TestParsedTimeRangesResolve(t *testing.T) {
 			}
 		})
 	}
-	for _, r := range [][2]string{{"now/d", "now-1d/d"}, {"now/w", "now-1w/w"}, {"now", "now"}, {"now-1d", "now-1M"}} {
+	for _, r := range [][2]string{{"now/d", "now-1d/d"}, {"now/w", "now-1w/w"}, {"now", "now"}, {"now-1d", "now-1M"},
+		{"now-1M", "now-1M"}, {"now-1y", "now-12M"}, {"now+1M", "now+1M"}, {"now/M", "now-1M/M"}, {"now/y", "now-1y/y"}, {"now/M", "now-1M"}, {"now-1M/M", "now-2M/M"}} {
 		t.Run("rejected "+r[0]+".."+r[1], func(t *testing.T) {
 			if err := parse(r[0], r[1]); err == nil {
 				t.Fatal("Parse accepted the range")
