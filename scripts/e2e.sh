@@ -6,6 +6,8 @@ PROJECT="slashobserve-e2e"
 PORT="${SLASHOBSERVE_E2E_PORT:-18080}"
 BASE_URL="http://localhost:${PORT}"
 export SLASHOBSERVE_HOST_PORT="$PORT"
+DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
+export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -29,8 +31,9 @@ Usage: scripts/e2e.sh [run|up|browser|down|logs]
   logs     print the stack's container logs
 
 Environment:
-  SLASHOBSERVE_E2E_PORT  host port of the e2e server (default 18080)
-  SLASHOBSERVE_IMAGE     run this prebuilt server image instead of building the checkout
+  SLASHOBSERVE_E2E_PORT      host port of the e2e server (default 18080)
+  SLASHOBSERVE_E2E_DEX_PORT  host port of the e2e Dex (default 15556)
+  SLASHOBSERVE_IMAGE         run this prebuilt server image instead of building the checkout
 
 Requirements: docker with compose v2.20+, curl; 'browser' also needs bun and web dependencies.
 EOF
@@ -68,6 +71,18 @@ boot() {
 TMP=""
 cleanup() { if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi; }
 trap cleanup EXIT
+
+dex_login() {
+  local jar="$1" return_to="$2" expected="$3" user="${4:-admin@example.com}" authorize form_url final
+  authorize="$(curl -sS -c "$jar" -b "$jar" -o /dev/null -w '%{http_code} %{redirect_url}' \
+    --get --data-urlencode "return_to=$return_to" "$BASE_URL/api/v1/auth/login")"
+  [[ "$authorize" == "302 http://localhost:${DEX_PORT}/dex/auth?"* ]] || fail "login redirects to Dex ($authorize)"
+  form_url="$(curl -sS -L -c "$jar" -b "$jar" -o "$TMP/dex-form.html" -w '%{url_effective}' "${authorize#* }")"
+  grep -q 'name="login"' "$TMP/dex-form.html" || fail "Dex login form not reached ($form_url)"
+  final="$(curl -sS -L -c "$jar" -b "$jar" -o /dev/null -w '%{url_effective}' \
+    --data-urlencode "login=$user" --data-urlencode password=password "$form_url")"
+  [[ "$final" == "$expected" ]] || fail "code flow lands on $expected ($final)"
+}
 
 suite() {
   TMP="$(mktemp -d)"
@@ -126,6 +141,60 @@ suite() {
   grep -qi '^x-frame-options: DENY' "$TMP/index.headers" || fail "X-Frame-Options header missing"
   grep -qi "^content-security-policy: frame-ancestors 'none'" "$TMP/index.headers" || fail "frame-ancestors CSP missing"
   pass "responses forbid framing"
+
+  out="$(curl -sS -o "$TMP/me-anon" -D "$TMP/me-anon.headers" -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  if [[ "$out" != 401 ]] || ! grep -q '"code":"unauthenticated"' "$TMP/me-anon" \
+    || ! grep -qi '^www-authenticate: Bearer' "$TMP/me-anon.headers"; then
+    fail "unauthenticated /api/v1/me ($out: $(cat "$TMP/me-anon"))"
+  fi
+  pass "request without auth gets 401"
+
+  out="$(curl -sS -o "$TMP/session-anon" -w '%{http_code}' "$BASE_URL/api/v1/auth/session")"
+  if [[ "$out" != 200 ]] || ! grep -q '"authenticated":false' "$TMP/session-anon"; then
+    fail "anonymous session ($out: $(cat "$TMP/session-anon"))"
+  fi
+  pass "anonymous session reports signed out"
+
+  dex_login "$TMP/jar" /after-login "$BASE_URL/after-login"
+  grep -qE '^#HttpOnly_localhost[[:space:]].*[[:space:]]so_session[[:space:]]' "$TMP/jar" \
+    || fail "session cookie is not HttpOnly or missing ($(cat "$TMP/jar"))"
+  pass "OIDC code flow through Dex sets an HttpOnly session cookie"
+
+  out="$(curl -sS -b "$TMP/jar" -o "$TMP/me" -D "$TMP/me.headers" -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  if [[ "$out" != 200 ]] || ! grep -q '"kind":"user"' "$TMP/me" || ! grep -q '"email":"admin@example.com"' "$TMP/me" \
+    || ! grep -qi '^cache-control: no-store' "$TMP/me.headers"; then
+    fail "/api/v1/me with a session cookie ($out: $(cat "$TMP/me"))"
+  fi
+  pass "session cookie authenticates /api/v1/me"
+
+  out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code} %{redirect_url}' "$BASE_URL/api/v1/auth/callback?code=x&state=bogus")"
+  [[ "$out" == "302 "*"/login?error=state_mismatch" ]] || fail "forged callback state ($out)"
+  pass "callback with a forged state is rejected"
+
+  dex_login "$TMP/jar2" //evil.example "$BASE_URL/"
+  pass "login redirects only to local paths"
+
+  out="$(curl -sS -b "$TMP/jar" -o "$TMP/csrf-origin" -w '%{http_code}' -X POST -H 'Origin: http://evil.example' "$BASE_URL/api/v1/auth/logout")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"csrf_rejected"' "$TMP/csrf-origin"; then
+    fail "cross-origin logout by Origin ($out: $(cat "$TMP/csrf-origin"))"
+  fi
+  out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code}' -X POST -H 'Sec-Fetch-Site: cross-site' "$BASE_URL/api/v1/auth/logout")"
+  [[ "$out" == 403 ]] || fail "cross-site logout by Sec-Fetch-Site ($out)"
+  pass "cookie-authenticated cross-origin mutations are rejected"
+
+  out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code}' -X POST -H "Origin: $BASE_URL" "$BASE_URL/api/v1/auth/logout")"
+  [[ "$out" == 204 ]] || fail "logout ($out)"
+  out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "/api/v1/me after logout ($out)"
+  pass "logout ends the session"
+
+  dex_login "$TMP/jar-outsider" / "$BASE_URL/login?error=email_not_allowed" outsider@example.org
+  [[ "$(grep -c so_session "$TMP/jar-outsider" || true)" == 0 ]] || fail "refused account received a session cookie"
+  out="$(curl -sS -b "$TMP/jar-outsider" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "refused account /api/v1/me ($out)"
+  curl -sS -o "$TMP/refused.html" "$BASE_URL/login?error=email_not_allowed"
+  [[ "$(grep -c 'example.com' "$TMP/refused.html" || true)" == 0 ]] || fail "refusal page leaks the allowed domains"
+  pass "accounts outside the allowed email domains are refused"
 }
 
 ensure_stack() {

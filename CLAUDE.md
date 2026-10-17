@@ -43,11 +43,19 @@ Directories are created when their phase starts; this is where things go.
 
 - Configuration: every setting is an environment variable named `SLASHOBSERVE_*`, parsed and validated only in `internal/config` (`config.Load`).
   Current settings: `SLASHOBSERVE_HTTP_ADDR` (default `:8080`), `SLASHOBSERVE_DATABASE_URL` (required), `SLASHOBSERVE_LOG_LEVEL` (`debug|info|warn|error`, default `info`), `SLASHOBSERVE_LOG_FORMAT` (`json|text`, default `json`).
-  Never log secret values, the database URL included.
+  Auth settings: `SLASHOBSERVE_PUBLIC_URL` (required; http or https origin with no path, query or user info), `SLASHOBSERVE_OIDC_ISSUER_URL` (required; used exactly as given because issuer comparison is exact), `SLASHOBSERVE_OIDC_INTERNAL_URL` (optional origin the server's back-channel uses instead of the issuer's scheme and host), `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` (required), `SLASHOBSERVE_SESSION_TTL` (default `168h`, between `5m` and `720h`), and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`.
+  `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is required: a comma-separated list of domains matched exactly against the verified email's domain, or `*` as an explicit allow-all that logs a startup warning.
+  Never log secret values, the database URL and the OIDC client secret included.
 - HTTP: Gin, assembled in `internal/server.New`.
   JSON API under `/api/v1`; `/healthz` is liveness with no dependencies; `/readyz` is readiness (database ping and no pending migrations).
   Every other GET is the SPA: build files from the embedded `webdist`, `/assets/*` cached as immutable, unknown `/api/*` paths get a JSON 404, missing `/assets/*` files and missing top-level names with an extension (like `/robots.txt`) get 404, and every other path gets `index.html`.
   Responses forbid framing (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`).
+- Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
+  Handlers read the caller with `auth.FromContext`.
+  Sessions and keys are opaque random tokens stored only as SHA-256.
+  Cookie-authenticated mutations pass `http.CrossOriginProtection`.
+  Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
+  The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
 - Database: Postgres through a pgx v5 pool.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
   The server applies migrations at boot under a Postgres advisory lock.
@@ -85,6 +93,9 @@ Directories are created when their phase starts; this is where things go.
 - Playwright specs import `test` and `expect` from `web/e2e/fixtures.ts`, which fails any test whose page logs a console error.
 - The e2e stack is compose project `slashobserve-e2e`, reset with `down -v` on every `make e2e`, on host port 18080 (`SLASHOBSERVE_E2E_PORT`), so it never touches a developer's `make demo` stack.
   CI builds the server image once as `slashobserve-e2e:ci` and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
+- Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
+  Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
+  `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
 - Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`) once the agent exists.
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
