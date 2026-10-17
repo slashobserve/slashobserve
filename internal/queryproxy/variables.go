@@ -116,9 +116,15 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 		return nil, err
 	}
 	q := datasource.Query{Text: v.Query, Variables: vars}
-	return upstream(ctx, r, "variable:"+v.Name, inst.UID, func(ctx context.Context) ([]string, error) {
-		return inst.Datasource.VariableValues(ctx, q, rng)
-	})
+	fetch := func(ctx context.Context) ([]string, error) {
+		return upstream(ctx, r, "variable:"+v.Name, inst.UID, func(ctx context.Context) ([]string, error) {
+			return inst.Datasource.VariableValues(ctx, q, rng)
+		})
+	}
+	if r.values == nil {
+		return fetch(ctx)
+	}
+	return r.values.get(ctx, valueKey(inst.UID, q, rng), fetch)
 }
 
 func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) (allList, error) {

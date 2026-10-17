@@ -56,13 +56,24 @@ type Runner struct {
 	reg    *datasource.Registry
 	logger *slog.Logger
 	sem    *semaphore.Weighted
+	values *valueCache
 }
 
-func NewRunner(reg *datasource.Registry, logger *slog.Logger) *Runner {
+type RunnerOption func(*Runner)
+
+func WithValueCache() RunnerOption {
+	return func(r *Runner) { r.values = newValueCache() }
+}
+
+func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOption) *Runner {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Runner{reg: reg, logger: logger, sem: upstreamCalls}
+	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 func KindFor(t spec.PanelType) Kind {

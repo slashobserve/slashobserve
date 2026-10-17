@@ -1,0 +1,101 @@
+package queryproxy
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"slices"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/ttlcache"
+)
+
+const (
+	valueCacheTTL        = 10 * time.Second
+	valueCacheMaxCost    = 16 << 20
+	valueCacheMaxEntry   = 1 << 20
+	valueFetchTimeout    = time.Minute
+	valueRangeResolution = 10
+	valueEntryOverhead   = 64
+	valueItemOverhead    = 16
+)
+
+type valueCache struct {
+	entries *ttlcache.Cache[[sha256.Size]byte, []string]
+	flights *ttlcache.Group[[]string]
+}
+
+func newValueCache() *valueCache {
+	return &valueCache{
+		entries: ttlcache.New[[sha256.Size]byte, []string](valueCacheTTL, valueCacheMaxCost),
+		flights: ttlcache.NewGroup[[]string](valueFetchTimeout),
+	}
+}
+
+func (c *valueCache) get(ctx context.Context, key [sha256.Size]byte, fetch func(context.Context) ([]string, error)) ([]string, error) {
+	if values, _, ok := c.entries.Get(key); ok {
+		return slices.Clone(values), nil
+	}
+	values, err := c.flights.Do(ctx, string(key[:]), func(ctx context.Context) ([]string, error) {
+		if values, _, ok := c.entries.Get(key); ok {
+			return values, nil
+		}
+		values, err := fetch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if cost := valuesCost(values); cost <= valueCacheMaxEntry {
+			c.entries.Put(key, values, cost)
+		}
+		return values, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return slices.Clone(values), nil
+}
+
+func valuesCost(values []string) int64 {
+	cost := int64(valueEntryOverhead)
+	for _, v := range values {
+		cost += int64(len(v)) + valueItemOverhead
+	}
+	return cost
+}
+
+func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.Size]byte {
+	h := sha256.New()
+	field := func(s string) {
+		var n [8]byte
+		binary.BigEndian.PutUint64(n[:], uint64(len(s)))
+		h.Write(n[:])
+		h.Write([]byte(s))
+	}
+	number := func(n int64) {
+		h.Write(binary.AppendVarint(nil, n))
+	}
+	field(uid)
+	field(q.Text)
+	refs := referencedVariables(q.Text)
+	for _, v := range q.Variables {
+		if !refs[v.Name] {
+			continue
+		}
+		field(v.Name)
+		if v.All {
+			number(1)
+		} else {
+			number(0)
+		}
+		number(int64(len(v.Values)))
+		for _, value := range v.Values {
+			field(value)
+		}
+	}
+	number(rng.From.Unix() / valueRangeResolution)
+	number(rng.To.Unix() / valueRangeResolution)
+	var key [sha256.Size]byte
+	h.Sum(key[:0])
+	return key
+}
