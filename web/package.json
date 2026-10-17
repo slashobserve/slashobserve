@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
-    "spec:generate": "bun scripts/gen-spec.mjs"
+    "spec:generate": "bun scripts/gen-spec.mjs",
+    "spec:check": "bun scripts/gen-spec.mjs --check && bun scripts/check-spec-fixtures.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",

@@ -38,6 +38,7 @@ lint: web-deps
 	$(GOLANGCI_LINT) run ./...
 	$(SQLC) diff
 	cd web && bun run typecheck
+	cd web && bun run spec:check
 	cd web && bun run lint
 	cd web && bun run format:check
 
