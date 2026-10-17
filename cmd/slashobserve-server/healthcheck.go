@@ -13,13 +13,15 @@ import (
 
 const healthcheckTimeout = 3 * time.Second
 
+var healthcheckClient = &http.Client{Transport: &http.Transport{Proxy: nil}}
+
 func healthcheck(lookup func(string) (string, bool)) int {
-	cfg, err := config.Load(lookup)
+	addr, err := config.HTTPAddr(lookup)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	target, err := readinessURL(cfg.HTTPAddr)
+	target, err := readinessURL(addr)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -31,7 +33,7 @@ func healthcheck(lookup func(string) (string, bool)) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := healthcheckClient.Do(req)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
