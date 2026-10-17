@@ -11,7 +11,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | --- | --- |
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
-| `make test` | `go test -race ./...`. |
+| `make test` | `go test -race ./...` for the root module and `demo/shop`, then the web Vitest suite. |
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, Prettier check. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
@@ -24,7 +24,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make e2e-all` | Both suites, as CI runs them. |
 | `scripts/e2e.sh down` | Tear the e2e stack down, including volumes. |
 
-Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`, `/healthz` and `/readyz` to :8080), `bun run typecheck`, `bun run lint`, `bun run format`.
+Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`, `/healthz` and `/readyz` to :8080), `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
 
 ## Layout
 
@@ -108,7 +108,13 @@ Directories are created when their phase starts; this is where things go.
 - `web/src/spec/*.gen.ts` are generated from the schema by `make generate` (commit them, never edit); import only from `web/src/spec/index.ts`, and keep that folder free of app imports so it can become the `@slashobserve/spec` package.
 - `web/src/api/schema.gen.ts` is generated from `api/openapi.yaml` by `make generate` (commit it, never edit); `make lint` fails when it is stale.
 - Formatting follows shadcn's Prettier style (no semicolons, double quotes); `bun run format` before committing.
-- Planned stack for later steps: TanStack Query for server data, Zustand for UI state only, uPlot, react-grid-layout, CodeMirror 6, Ajv, openapi-typescript and openapi-fetch, Vitest with Testing Library, lucide-react, Sonner, cmdk.
+- Installed stack: TanStack Query, openapi-fetch over openapi-typescript types, Zustand, Sonner, uPlot, react-grid-layout, CodeMirror 6 (`@codemirror/*` with `@prometheus-io/codemirror-promql` and `@codemirror/lang-sql`), Ajv, lucide-react and Vitest for pure helpers (`*.test.ts` next to the code, run by `bun run test` and `make test`).
+  Testing Library and cmdk are not installed yet.
+- Server data goes through TanStack Query with keys from `web/src/api/keys.ts` only; the typed client is `api` from `web/src/api/client.ts` (openapi-fetch over `web/src/api/schema.gen.ts`), and responses are unwrapped with `unwrap`, which throws `ApiError`.
+- Zustand holds UI-only state (theme, unsaved layout edits); never copy server data into a store.
+- The router uses plain `URLSearchParams` search serialization (`web/src/lib/search.ts`): search values are strings, numbers or string arrays, repeated keys become arrays, and each route coerces types in `validateSearch`.
+- Theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`; chart colors use the `--series-1..8` and `--threshold-*` tokens in `web/src/index.css`, never ad-hoc hex values.
+- Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels (monospace is only for query text, JSON values and ids), pill-shaped buttons, gradients, heavy drop shadows, colored left-border callouts, uppercase eyebrow labels, emoji, and chart animations.
 
 ## Dependencies
 

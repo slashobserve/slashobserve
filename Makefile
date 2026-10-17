@@ -34,9 +34,10 @@ generate: web-deps
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 
-test:
+test: web-deps
 	go test -race ./...
 	cd $(SHOP_DIR) && go test -race ./...
+	cd web && bun run test
 
 lint: web-deps
 	$(GOLANGCI_LINT) config verify

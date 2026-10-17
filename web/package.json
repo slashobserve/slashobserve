@@ -12,6 +12,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "vitest run",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
     "spec:generate": "bun scripts/gen-spec.mjs",

@@ -28,7 +28,12 @@ export default defineConfig([
     },
   },
   {
-    files: ["e2e/**/*.ts", "playwright.config.ts", "vite.config.ts"],
+    files: [
+      "e2e/**/*.ts",
+      "playwright.config.ts",
+      "vite.config.ts",
+      "vitest.config.ts",
+    ],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: { globals: globals.node },
   },

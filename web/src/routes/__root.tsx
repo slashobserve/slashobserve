@@ -1,14 +1,18 @@
 import type { ReactNode } from "react"
+import type { QueryClient } from "@tanstack/react-query"
 import {
   Link,
   Outlet,
-  createRootRoute,
+  createRootRouteWithContext,
   useRouter,
 } from "@tanstack/react-router"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Toaster } from "@/components/ui/sonner"
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  queryClient: QueryClient
+}>()({
   component: RootLayout,
   notFoundComponent: NotFound,
   errorComponent: RootError,
@@ -26,6 +30,7 @@ function RootLayout() {
   return (
     <Shell>
       <Outlet />
+      <Toaster position="bottom-right" />
     </Shell>
   )
 }
