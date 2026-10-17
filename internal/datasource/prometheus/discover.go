@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -15,10 +17,12 @@ import (
 )
 
 const (
-	discoverTimeout    = 10 * time.Second
-	maxVariableValues  = 10_000
-	metricNameLabel    = "__name__"
-	variableQueryUsage = "unsupported variable query; use label_values(...)"
+	discoverTimeout     = 10 * time.Second
+	maxVariableValues   = 10_000
+	maxMetadataMetrics  = 2000
+	maxTargetedMetadata = 10
+	metricNameLabel     = "__name__"
+	variableQueryUsage  = "unsupported variable query; use label_values(...)"
 )
 
 var (
@@ -73,12 +77,27 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 }
 
 func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, search string, limit int) (*datasource.Catalog, error) {
+	metaCtx, cancelMeta := context.WithCancel(ctx)
+	defer cancelMeta()
+	var (
+		wg       sync.WaitGroup
+		metadata map[string][]metricMetadata
+	)
+	wg.Go(func() {
+		metadata = d.metadata(metaCtx, url.Values{"limit": {strconv.Itoa(maxMetadataMetrics)}})
+	})
 	names, err := d.getStrings(ctx, "/api/v1/label/__name__/values", form)
 	if err != nil {
+		cancelMeta()
+		wg.Wait()
 		return nil, err
 	}
 	names = filterSortLimit(names, search, limit)
-	metadata := d.metadata(ctx)
+	wg.Wait()
+	if metadata == nil {
+		metadata = map[string][]metricMetadata{}
+	}
+	d.completeMetadata(ctx, metadata, names)
 	metrics := make([]datasource.Metric, len(names))
 	for i, name := range names {
 		metrics[i] = datasource.Metric{Name: name}
@@ -89,8 +108,35 @@ func (d *Datasource) discoverMetrics(ctx context.Context, form url.Values, searc
 	return &datasource.Catalog{Metrics: metrics}, nil
 }
 
-func (d *Datasource) metadata(ctx context.Context) map[string][]metricMetadata {
-	raw, err := d.do(ctx, http.MethodGet, "/api/v1/metadata", nil)
+func (d *Datasource) completeMetadata(ctx context.Context, metadata map[string][]metricMetadata, names []string) {
+	var missing []string
+	for _, name := range names {
+		if len(metadata[name]) == 0 {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 || len(missing) > maxTargetedMetadata {
+		return
+	}
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
+	for _, name := range missing {
+		wg.Go(func() {
+			found := d.metadata(ctx, url.Values{"metric": {name}})
+			mu.Lock()
+			defer mu.Unlock()
+			if md := found[name]; len(md) > 0 {
+				metadata[name] = md
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func (d *Datasource) metadata(ctx context.Context, form url.Values) map[string][]metricMetadata {
+	raw, err := d.do(ctx, http.MethodGet, "/api/v1/metadata", form)
 	if err != nil {
 		return nil
 	}
@@ -133,7 +179,7 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 	defer cancel()
 	exp, err := macros.Expand(macros.PromQL, q.Text, macros.Env{
 		Range:          r,
-		Interval:       max(d.opts.ScrapeInterval, r.To.Sub(r.From)/1000),
+		Interval:       d.variableInterval(r),
 		ScrapeInterval: d.opts.ScrapeInterval,
 		Variables:      q.Variables,
 	})

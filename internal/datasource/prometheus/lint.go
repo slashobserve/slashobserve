@@ -50,7 +50,11 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 			return nil
 		}
 		pos := vs.PositionRange()
-		start, end, inVariable := exp.Locate(clampOffset(int(pos.Start), len(exp.Text)), clampOffset(int(pos.End), len(exp.Text)))
+		spanEnd := int(pos.End)
+		if vs.Name != "" {
+			spanEnd = int(pos.Start) + len(vs.Name)
+		}
+		start, end, inVariable := exp.Locate(clampOffset(int(pos.Start), len(exp.Text)), clampOffset(spanEnd, len(exp.Text)))
 		if inVariable || slices.ContainsFunc(refs, func(r metricRef) bool { return r.name == name }) {
 			return nil
 		}
@@ -83,29 +87,26 @@ func parseDiagnostics(err error, exp macros.Expansion, queryLen int) []datasourc
 	var errs parser.ParseErrors
 	if single := (*parser.ParseErr)(nil); errors.As(err, &single) {
 		errs = parser.ParseErrors{*single}
-	} else if !errors.As(err, &errs) {
+	} else if !errors.As(err, &errs) || len(errs) == 0 {
 		return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: truncateText(err.Error())}}
 	}
-	out := make([]datasource.Diagnostic, 0, len(errs))
-	for _, e := range errs {
-		start := clampOffset(int(e.PositionRange.Start), len(exp.Text))
-		end := clampOffset(int(e.PositionRange.End), len(exp.Text))
-		origStart, origEnd, inVariable := exp.Locate(start, end)
-		origStart = clampOffset(origStart, queryLen)
-		origEnd = clampOffset(origEnd, queryLen)
-		diag := datasource.Diagnostic{
-			Severity: datasource.SeverityError,
-			Message:  truncateText(e.Err.Error()),
-			Start:    origStart,
-			End:      max(origStart, origEnd),
-		}
-		if inVariable {
-			diag.Severity = datasource.SeverityWarning
-			diag.Message = variableLintPrefix + diag.Message
-		}
-		out = append(out, diag)
+	e := errs[0]
+	start := clampOffset(int(e.PositionRange.Start), len(exp.Text))
+	end := clampOffset(int(e.PositionRange.End), len(exp.Text))
+	origStart, origEnd, inVariable := exp.Locate(start, end)
+	origStart = clampOffset(origStart, queryLen)
+	origEnd = clampOffset(origEnd, queryLen)
+	diag := datasource.Diagnostic{
+		Severity: datasource.SeverityError,
+		Message:  truncateText(e.Err.Error()),
+		Start:    origStart,
+		End:      max(origStart, origEnd),
 	}
-	return out
+	if inVariable {
+		diag.Severity = datasource.SeverityWarning
+		diag.Message = variableLintPrefix + diag.Message
+	}
+	return []datasource.Diagnostic{diag}
 }
 
 func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef) []datasource.Diagnostic {
@@ -114,20 +115,24 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 	}
 	ctx, cancel := bound(ctx, lintExistenceLimit)
 	defer cancel()
+	matchers := make([]string, len(refs))
+	for i, ref := range refs {
+		matchers[i] = metricMatcher(ref.name)
+	}
+	now := time.Now()
+	names, err := d.getStrings(ctx, "/api/v1/label/__name__/values", url.Values{
+		"match[]": matchers,
+		"start":   {unixSeconds(now.Add(-lookback))},
+		"end":     {unixSeconds(now)},
+	})
+	if err != nil {
+		return []datasource.Diagnostic{{
+			Severity: datasource.SeverityWarning,
+			Message:  "could not check metric existence: " + messageOf(err),
+		}}
+	}
 	var out []datasource.Diagnostic
 	for _, ref := range refs {
-		now := time.Now()
-		names, err := d.getStrings(ctx, "/api/v1/label/__name__/values", url.Values{
-			"match[]": {metricMatcher(ref.name)},
-			"start":   {unixSeconds(now.Add(-lookback))},
-			"end":     {unixSeconds(now)},
-		})
-		if err != nil {
-			return append(out, datasource.Diagnostic{
-				Severity: datasource.SeverityWarning,
-				Message:  "could not check metric existence: " + messageOf(err),
-			})
-		}
 		if !slices.Contains(names, ref.name) {
 			out = append(out, datasource.Diagnostic{
 				Severity: datasource.SeverityError,

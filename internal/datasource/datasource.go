@@ -22,10 +22,18 @@ func (r TimeRange) Validate() error {
 	if r.From.IsZero() || r.To.IsZero() {
 		return Errorf(ErrInvalidQuery, "time range requires from and to")
 	}
+	if !validYear(r.From) || !validYear(r.To) {
+		return Errorf(ErrInvalidQuery, "time range years must be between 1 and 9999")
+	}
 	if !r.From.Before(r.To) {
 		return Errorf(ErrInvalidQuery, "time range from must be before to")
 	}
 	return nil
+}
+
+func validYear(t time.Time) bool {
+	y := t.UTC().Year()
+	return y >= 1 && y <= 9999
 }
 
 type Variable struct {

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -15,7 +18,10 @@ import (
 const (
 	defaultScrapeInterval   = 15 * time.Second
 	defaultMaxResponseBytes = 64 << 20
+	maxConfigurableBytes    = 1 << 30
 )
+
+var reservedHeaders = []string{"Content-Type", "Accept", "Host", "Content-Length"}
 
 type Options struct {
 	URL               string
@@ -30,9 +36,10 @@ type Options struct {
 }
 
 type Datasource struct {
-	opts   Options
-	prefix string
-	client *http.Client
+	opts       Options
+	prefix     string
+	client     *http.Client
+	ownsClient bool
 }
 
 var _ datasource.Datasource = (*Datasource)(nil)
@@ -48,6 +55,9 @@ func New(opts Options) (*Datasource, error) {
 	if opts.MaxResponseBytes < 0 {
 		return nil, errors.New("prometheus: max response bytes must not be negative")
 	}
+	if opts.MaxResponseBytes > maxConfigurableBytes {
+		return nil, fmt.Errorf("prometheus: max response bytes must not exceed %d", maxConfigurableBytes)
+	}
 	if opts.ScrapeInterval == 0 {
 		opts.ScrapeInterval = defaultScrapeInterval
 	}
@@ -61,16 +71,20 @@ func New(opts Options) (*Datasource, error) {
 	if opts.Headers, err = validateAuth(opts); err != nil {
 		return nil, err
 	}
-	client := opts.HTTPClient
-	if client == nil {
-		client = &http.Client{
-			Transport: http.DefaultTransport.(*http.Transport).Clone(),
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+	refuseRedirects := func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	d := &Datasource{opts: opts, prefix: prefix}
+	if opts.HTTPClient == nil {
+		d.client = &http.Client{
+			Transport:     http.DefaultTransport.(*http.Transport).Clone(),
+			CheckRedirect: refuseRedirects,
 		}
+		d.ownsClient = true
+	} else {
+		supplied := *opts.HTTPClient
+		supplied.CheckRedirect = refuseRedirects
+		d.client = &supplied
 	}
-	return &Datasource{opts: opts, prefix: prefix, client: client}, nil
+	return d, nil
 }
 
 func validateAuth(opts Options) (map[string]string, error) {
@@ -82,11 +96,14 @@ func validateAuth(opts Options) (map[string]string, error) {
 	}
 	headers := make(map[string]string, len(opts.Headers))
 	for name, value := range opts.Headers {
-		if name == "" || strings.ContainsAny(name, ": \t\r\n") || strings.ContainsAny(value, "\r\n") {
+		if !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) {
 			return nil, errors.New("prometheus: invalid header")
 		}
 		if strings.EqualFold(name, "Authorization") {
 			return nil, errors.New("prometheus: the Authorization header is set through basic auth or bearer token")
+		}
+		if slices.ContainsFunc(reservedHeaders, func(r string) bool { return strings.EqualFold(name, r) }) {
+			return nil, errors.New("prometheus: the " + http.CanonicalHeaderKey(name) + " header is managed by the datasource")
 		}
 		headers[name] = value
 	}
@@ -114,7 +131,9 @@ func parseBaseURL(raw string) (string, error) {
 func (d *Datasource) Type() string { return "prometheus" }
 
 func (d *Datasource) Close() error {
-	d.client.CloseIdleConnections()
+	if d.ownsClient {
+		d.client.CloseIdleConnections()
+	}
 	return nil
 }
 

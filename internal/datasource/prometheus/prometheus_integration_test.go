@@ -355,16 +355,11 @@ func TestLint(t *testing.T) {
 	t.Run("parse error", func(t *testing.T) {
 		query := `sum(rate(up[5m])`
 		diags := ds.Lint(ctx, query)
-		if len(diags) == 0 {
-			t.Fatal("want at least one error")
+		if len(diags) != 1 || diags[0].Severity != datasource.SeverityError {
+			t.Fatalf("want exactly one error, got %+v", diags)
 		}
-		for _, d := range diags {
-			if d.Severity != datasource.SeverityError {
-				t.Errorf("want only errors, got %+v", d)
-			}
-			if d.Start < 0 || d.Start > d.End || d.End > len(query) {
-				t.Errorf("bad range %d..%d for %q", d.Start, d.End, query)
-			}
+		if d := diags[0]; d.Start != 16 || d.Start > d.End || d.End > len(query) {
+			t.Errorf("bad range %d..%d for %q, want start at the unclosed paren (16)", d.Start, d.End, query)
 		}
 	})
 	t.Run("unknown metric", func(t *testing.T) {

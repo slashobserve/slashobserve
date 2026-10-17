@@ -26,12 +26,16 @@ type envelope struct {
 }
 
 func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	ctx = context.WithValue(ctx, timeoutKey{}, timeout)
+	reported := timeout
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
+		reported = 0
+	}
+	ctx = context.WithValue(ctx, timeoutKey{}, reported)
 	return context.WithTimeout(ctx, timeout)
 }
 
 func timeoutError(ctx context.Context) error {
-	if t, ok := ctx.Value(timeoutKey{}).(time.Duration); ok {
+	if t, ok := ctx.Value(timeoutKey{}).(time.Duration); ok && t > 0 {
 		return datasource.Errorf(datasource.ErrTimeout, "query timed out after %s", t)
 	}
 	return datasource.Errorf(datasource.ErrTimeout, "query timed out")
@@ -151,11 +155,5 @@ func promDuration(d time.Duration) string {
 }
 
 func unixSeconds(t time.Time) string {
-	ms := t.UnixMilli()
-	return strconv.FormatInt(ms/1000, 10) + "." + leftPad3(ms%1000)
-}
-
-func leftPad3(n int64) string {
-	s := strconv.FormatInt(n, 10)
-	return strings.Repeat("0", 3-len(s)) + s
+	return strconv.FormatFloat(float64(t.UnixMilli())/1000, 'f', 3, 64)
 }
