@@ -304,6 +304,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** List the comments of a dashboard across all versions, oldest first. */
+        get: operations["listDashboardComments"];
+        put?: never;
+        /**
+         * Comment on one panel of one version of a dashboard.
+         * @description The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel. The body is trimmed before the length check. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
+         */
+        post: operations["createDashboardComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Resolve or reopen a comment.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, where `author` is the caller who changed the status.
+         */
+        patch: operations["setDashboardCommentStatus"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -455,6 +501,36 @@ export interface components {
             error: string;
             code: string;
             latest_version: number;
+        };
+        Comment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            version: number;
+            panel_id: string;
+            body: string;
+            /** @enum {string} */
+            status: "open" | "resolved";
+            author: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            resolved_at: string | null;
+            resolved_by: components["schemas"]["Author"] | null;
+            /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. */
+            panel_present: boolean;
+            /** @description The revision requested for this comment, or null when none was requested. */
+            revision: {
+                /** Format: uuid */
+                id: string;
+                status: string;
+            } | null;
+        };
+        CommentEnvelope: {
+            comment: components["schemas"]["Comment"];
         };
     };
     responses: {
@@ -1136,6 +1212,122 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    listDashboardComments: {
+        parameters: {
+            query?: {
+                status?: "open" | "resolved" | "all";
+                panel_id?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of comments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        comments: components["schemas"]["Comment"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createDashboardComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    version: number;
+                    panel_id: string;
+                    body: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The new comment, open and with no revision requested. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            /** @description The panel id does not exist in that version's Spec (`unknown_panel`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    setDashboardCommentStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "open" | "resolved";
+                };
+            };
+        };
+        responses: {
+            /** @description The comment with its current status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
         };
     };
 }

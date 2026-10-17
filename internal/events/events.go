@@ -2,7 +2,11 @@ package events
 
 const Channel = "slashobserve_events"
 
-const TypeVersionCreated = "version.created"
+const (
+	TypeVersionCreated = "version.created"
+	TypeCommentCreated = "comment.created"
+	TypeCommentUpdated = "comment.updated"
+)
 
 type Author struct {
 	Kind string `json:"kind"`

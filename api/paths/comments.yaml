@@ -1,0 +1,169 @@
+dashboards-id-comments:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: createDashboardComment
+    summary: Comment on one panel of one version of a dashboard.
+    description: >-
+      The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel.
+      The body is trimmed before the length check.
+      A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [version, panel_id, body]
+            properties:
+              version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+              panel_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+              body:
+                type: string
+                minLength: 1
+                maxLength: 4000
+    responses:
+      "201":
+        description: The new comment, open and with no revision requested.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CommentEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The panel id does not exist in that version's Spec (`unknown_panel`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listDashboardComments
+    summary: List the comments of a dashboard across all versions, oldest first.
+    parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [open, resolved, all]
+          default: all
+      - name: panel_id
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of comments.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [comments, next_cursor]
+              properties:
+                comments:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Comment"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-comments-commentid:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: comment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  patch:
+    operationId: setDashboardCommentStatus
+    summary: Resolve or reopen a comment.
+    description: >-
+      Setting the status a comment already has answers 200 with the comment unchanged and sends no event.
+      A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, where `author` is the caller who changed the status.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [status]
+            properties:
+              status:
+                type: string
+                enum: [open, resolved]
+    responses:
+      "200":
+        description: The comment with its current status.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CommentEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

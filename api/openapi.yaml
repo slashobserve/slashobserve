@@ -40,6 +40,10 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
   /dashboards/{id}/events:
     $ref: "./paths/events.yaml#/dashboards-id-events"
+  /dashboards/{id}/comments:
+    $ref: "./paths/comments.yaml#/dashboards-id-comments"
+  /dashboards/{id}/comments/{comment_id}:
+    $ref: "./paths/comments.yaml#/dashboards-id-comments-commentid"
 components:
   securitySchemes:
     sessionCookie:
@@ -384,6 +388,78 @@ components:
         latest_version:
           type: integer
           minimum: 1
+    Comment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - dashboard_id
+        - version
+        - panel_id
+        - body
+        - status
+        - author
+        - created_at
+        - updated_at
+        - resolved_at
+        - resolved_by
+        - panel_present
+        - revision
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        panel_id:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [open, resolved]
+        author:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolved_by:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Author"
+        panel_present:
+          type: boolean
+          description: Whether the latest version of the dashboard still has the panel the comment is anchored to.
+        revision:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [id, status]
+          description: The revision requested for this comment, or null when none was requested.
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              type: string
+    CommentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [comment]
+      properties:
+        comment:
+          $ref: "#/components/schemas/Comment"
   responses:
     BadRequest:
       description: The request is malformed or fails validation.
