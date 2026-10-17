@@ -293,7 +293,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from`, `summary`, `author` and `created_at`. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;

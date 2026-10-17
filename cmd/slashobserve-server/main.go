@@ -147,7 +147,7 @@ func newLogger(cfg config.Config) *slog.Logger {
 }
 
 func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
-	// WriteTimeout is deliberately unset: SSE streams added later would be cut by a write deadline.
+	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           handler,

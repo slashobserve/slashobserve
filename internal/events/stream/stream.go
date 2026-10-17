@@ -26,6 +26,7 @@ const (
 	maxStreamsPerProc  = 1000
 	uuidTextBytes      = 36
 	eventStreamContent = "text/event-stream"
+	writeTimeout       = 30 * time.Second
 )
 
 type Dashboards interface {
@@ -92,6 +93,7 @@ func (h *Handler) serve(c *gin.Context) {
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Accel-Buffering", "no")
 	c.Status(http.StatusOK)
+	defer func() { _ = http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}) }()
 	if !write(c, fmt.Sprintf("retry: %d\n\n", retryMilliseconds)) ||
 		!writeEvent(c, "ready", readyData{DashboardID: dashboardID, LatestVersion: latest}) {
 		return
@@ -176,6 +178,10 @@ func writeEvent(c *gin.Context, name string, data any) bool {
 }
 
 func write(c *gin.Context, s string) bool {
+	rc := http.NewResponseController(c.Writer)
+	if err := rc.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return false
+	}
 	if _, err := c.Writer.WriteString(s); err != nil {
 		return false
 	}

@@ -610,6 +610,7 @@ dashboards_suite() {
 
 sse_open() {
   local id="$1" file="$2" tries=50
+  sse_close
   : >"$file"
   command curl -sS -N --max-time 60 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" >"$file" &
   SSE_PID=$!
@@ -642,7 +643,7 @@ events_suite() {
   id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
 
   sse_open "$id" "$stream"
-  grep -q "^data: {\"dashboard_id\":\"$id\",\"latest_version\":1}$" "$stream" || fail "SSE ready event should carry latest_version 1 ($(cat "$stream"))"
+  sse_wait "$stream" "^data: {\"dashboard_id\":\"$id\",\"latest_version\":1}$" 5
   pass "SSE stream starts with a ready snapshot"
 
   version_body dashboard-v2.json 1
@@ -656,7 +657,8 @@ events_suite() {
   command curl -sS -o /dev/null -D "$TMP/sse.headers" --max-time 2 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" 2>/dev/null || true
   grep -qi '^content-type: text/event-stream' "$TMP/sse.headers" || fail "SSE response is not text/event-stream ($(cat "$TMP/sse.headers"))"
   grep -qi '^cache-control: no-store' "$TMP/sse.headers" || fail "SSE response is cacheable ($(cat "$TMP/sse.headers"))"
-  pass "SSE responses are uncacheable text/event-stream"
+  grep -qi '^x-accel-buffering: no' "$TMP/sse.headers" || fail "SSE response may be buffered by a proxy ($(cat "$TMP/sse.headers"))"
+  pass "SSE responses are uncacheable, unbuffered text/event-stream"
 
   out="$(api GET "/dashboards/$nil_id/events")"
   if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
