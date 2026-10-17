@@ -38,6 +38,8 @@ Directories are created when their phase starts; this is where things go.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
+- `internal/queryproxy/proxyhttp/`: the query proxy HTTP handlers (panel data, variable values, datasource lint), registered as a `server.Registrar`; a subpackage because it reads versions through `internal/dashboards`, which imports `queryproxy`.
+- `internal/ttlcache/`: the byte-bounded TTL LRU and the coalescing call group behind the query proxy's caches.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
 - `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
   `e2e/fixtures/llm/` holds the replay fixtures.
@@ -95,6 +97,11 @@ Directories are created when their phase starts; this is where things go.
 - Events: writers `pg_notify` on `slashobserve_events` inside their transaction; one `events.Broker` per process listens and fans out to `GET /api/v1/dashboards/{id}/events` (SSE) per dashboard; every stream starts with `ready` (current `latest_version`), sends `resync` after a listener reconnect, pings every 15 s, ends after 30 minutes, and clients refetch on `ready` and `resync` instead of replaying ids.
 - Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` stays null until an agent is configured; event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
   Comment lists page by `(created_at, id)` with `created_at` taken at insert, so a comment that commits after a later one was already listed can be missed by a client paging at that moment, and a fresh listing or its `comment.created` event recovers it.
+- Query proxy: panel data is `GET /api/v1/dashboards/{id}/versions/{version}/panels/{panel_id}/data`; it accepts no query text (403 `query_not_in_spec`), aligns ranges to the step, caches successes for 10 s in process, limits each principal to 8 in-flight requests, and returns time values as epoch milliseconds.
+  Variable selections are repeated `var-<name>` parameters, `$__all` selects All, custom variables accept only their options, and All expands to the full value list.
+  Variable value lists are served by `GET .../variables/{name}/values`, and `POST /api/v1/datasources/{uid}/lint` parses a query without running it.
+  The proxy's runner is built with `queryproxy.WithValueCache()`, which caches query-variable value lookups for 10 s and coalesces concurrent identical ones; the runner that validates saves stays uncached, and both share the 32-call semaphore.
+  Never log query text or variable values.
 - Datasources: adapters live in `internal/datasource/{prometheus,clickhouse}` behind `datasource.Datasource`, and `internal/datasource/provision` builds the registry from `config.Datasources`.
   Variable values reach queries only through `internal/datasource/macros`.
   ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
@@ -160,6 +167,7 @@ Directories are created when their phase starts; this is where things go.
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
 - Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
+- `deploy/compose/datasources.e2e.yaml` (mounted through `SLASHOBSERVE_DATASOURCES_HOST_FILE`, which `scripts/e2e.sh` sets) adds `prom_tight` and `ch_tight` to `prom` and `ch` for deterministic limit checks; `make demo` uses `datasources.yaml`.
 - `scripts/e2e.sh` `api_token` creates the service account `e2e-api` and sets `API_TOKEN` once, so API checks send `Authorization: Bearer $API_TOKEN`; request bodies live in `e2e/fixtures/api/`.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`).
   A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.

@@ -1,0 +1,35 @@
+# E2E only: tight limits make limit checks deterministic. No secrets here.
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+  - uid: ch
+    type: clickhouse
+    name: ClickHouse
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+  - uid: prom_tight
+    type: prometheus
+    name: Prometheus (tight limits)
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 15s
+    limits:
+      maxSeries: 3
+      maxPoints: 500
+  - uid: ch_tight
+    type: clickhouse
+    name: ClickHouse (tight limits)
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+    limits:
+      timeout: 1s

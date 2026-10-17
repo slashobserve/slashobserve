@@ -10,6 +10,7 @@ DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
 export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
+export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.e2e.yaml
 export SLASHOBSERVE_API_CONTRACT_CHECK=true
 export SLASHOBSERVE_LLM_PROVIDER=replay
 
@@ -361,6 +362,7 @@ suite() {
   events_suite
   comments_suite
   mcp_suite
+  proxy_suite
   check_api_contract
 }
 
@@ -374,6 +376,13 @@ check_api_contract() {
   pass "every API call matched the OpenAPI contract"
 }
 
+all_datasources_listed() {
+  local uid
+  for uid in prom ch prom_tight ch_tight; do
+    grep -q "\"uid\":\"$uid\"" <<<"$1" || return 1
+  done
+}
+
 check_datasources() {
   local jar="$1" out body="" healthy=0 leak entry keys entries=0
 
@@ -384,12 +393,12 @@ check_datasources() {
   for _ in $(seq 1 60); do
     body="$(curl -sS -b "$jar" "$BASE_URL/api/v1/datasources" || true)"
     healthy="$(grep -o '"healthy":true' <<<"$body" | wc -l | tr -d ' ')"
-    if [[ "$healthy" == 2 ]] && grep -q '"uid":"prom"' <<<"$body" && grep -q '"uid":"ch"' <<<"$body"; then
+    if [[ "$healthy" == 4 ]] && all_datasources_listed "$body"; then
       break
     fi
     sleep 1
   done
-  if [[ "$healthy" != 2 ]] || ! grep -q '"uid":"prom"' <<<"$body" || ! grep -q '"uid":"ch"' <<<"$body"; then
+  if [[ "$healthy" != 4 ]] || ! all_datasources_listed "$body"; then
     fail "datasources did not report healthy within 60s ($body)"
   fi
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' <<<"$body" || true)"
@@ -403,7 +412,7 @@ check_datasources() {
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
-  [[ "$entries" == 2 ]] || fail "expected 2 datasource entries, found $entries"
+  [[ "$entries" == 4 ]] || fail "expected 4 datasource entries, found $entries"
   pass "datasource entries carry exactly uid, type, name, healthy, checked_at and an optional message"
 }
 
@@ -968,6 +977,170 @@ mcp_suite() {
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/mcp-all.body" || true)"
   [[ -z "$leak" ]] || fail "MCP responses expose connection details ($leak)"
   pass "MCP responses expose no connection details"
+}
+
+proxy_call() {
+  local out
+  out="$(api "$@")"
+  cat "$TMP/api.body" >>"$TMP/proxy-bodies.txt"
+  printf '%s' "$out"
+}
+
+expect_proxy_error() {
+  local path="$1" status="$2" code="$3" label="$4" out
+  out="$(proxy_call GET "$path")"
+  if [[ "$out" != "$status" ]] || ! grep -q "\"code\":\"$code\"" "$TMP/api.body"; then
+    fail "$label ($out: $(cat "$TMP/api.body"))"
+  fi
+}
+
+first_value() {
+  grep -o '"values":\["[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4 || true
+}
+
+proxy_suite() {
+  api_token
+  local out id base window stable first_executed service job leak rows_one rows_all now_ms
+  : >"$TMP/proxy-bodies.txt"
+
+  out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
+  [[ "$out" == 201 ]] || fail "create the query proxy dashboard ($out: $(cat "$TMP/api.body"))"
+  id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  base="/dashboards/$id/versions/1"
+
+  for _ in $(seq 1 45); do
+    now_ms=$(($(date +%s) * 1000))
+    window="from=$((now_ms - 900000))&to=$now_ms&max_data_points=60"
+    out="$(proxy_call GET "$base/panels/p_up/data?$window")"
+    if [[ "$out" == 200 ]] && grep -Eq '"type":"time","values":\[[0-9]{13}' "$TMP/api.body"; then break; fi
+    sleep 2
+  done
+  if [[ "$out" != 200 ]] || ! grep -q '"kind":"range"' "$TMP/api.body" || ! grep -q '"step_ms":15000' "$TMP/api.body" \
+    || ! grep -q '"cached":false' "$TMP/api.body" || ! grep -Eq '"type":"time","values":\[[0-9]{13}' "$TMP/api.body"; then
+    fail "panel data for a range panel ($out: $(cat "$TMP/api.body"))"
+  fi
+  first_executed="$(grep -o '"executed_at":"[^"]*"' "$TMP/api.body")"
+  pass "a saved range panel returns frames with epoch millisecond times and an aligned step"
+
+  out="$(proxy_call GET "$base/panels/p_up/data?$window")"
+  if [[ "$out" != 200 ]] || ! grep -q '"cached":true' "$TMP/api.body" || ! grep -q "$first_executed" "$TMP/api.body"; then
+    fail "the repeated panel data request is served from the cache ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a repeated panel data request is cached and keeps its original execution time"
+
+  for _ in $(seq 1 45); do
+    now_ms=$(($(date +%s) * 1000))
+    stable="from=$((now_ms - 930000))&to=$((now_ms - 30000))"
+    out="$(proxy_call GET "$base/variables/service/values?$stable")"
+    service="$(first_value)"
+    if [[ "$out" == 200 && -n "$service" ]]; then break; fi
+    sleep 2
+  done
+  if [[ "$out" != 200 || -z "$service" ]] || ! grep -q '"truncated":false' "$TMP/api.body"; then
+    fail "values of the service variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_logs/data?$stable&var-service=$service")"
+  if [[ "$out" != 200 ]] || ! grep -Eq '"name":"n","type":"number","values":\[[1-9][0-9]*' "$TMP/api.body"; then
+    fail "panel data for an explicit service ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a ClickHouse panel runs with an explicitly selected variable"
+
+  out="$(proxy_call GET "$base/panels/p_up/data?query=up")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"query_not_in_spec"' "$TMP/api.body"; then
+    fail "query text on the data endpoint ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_up/data?expr=up&sql=select&q=up")"
+  [[ "$out" == 403 ]] || fail "other query text parameters on the data endpoint ($out)"
+  expect_proxy_error "$base/panels/nope/data" 404 panel_not_found "unknown panel"
+  expect_proxy_error "/dashboards/$id/versions/99/panels/p_up/data" 404 not_found "unknown version"
+  expect_proxy_error "$base/panels/p_up/data?var-nope=1" 400 invalid_request "undeclared variable"
+  expect_proxy_error "$base/panels/p_up/data?max_data_points=5" 400 invalid_request "max_data_points below the minimum"
+  expect_proxy_error "$base/panels/p_up/data?from=yesterday" 400 invalid_request "unparseable from"
+  expect_proxy_error "$base/panels/p_up/data?from=now-401d" 400 invalid_request "range over 400 days"
+  expect_proxy_error "$base/panels/p_up/data?whatever=1" 400 invalid_request "unknown parameter"
+  pass "query text is refused and unknown panels, versions, variables and parameters are rejected"
+
+  expect_proxy_error "$base/panels/p_series/data?var-n=50" 422 limit_exceeded "series limit"
+  pass "a query over the series limit is refused"
+
+  expect_proxy_error "$base/panels/p_points/data?from=now-1h&max_data_points=2000" 422 limit_exceeded "points limit"
+  pass "a query over the point limit is refused"
+
+  expect_proxy_error "$base/panels/p_sleep/data?var-delay=2" 504 query_timeout "query timeout"
+  pass "a query over the timeout is cut off with 504"
+
+  out="$(proxy_call GET "$base/variables/job/values")"
+  job="$(first_value)"
+  if [[ "$out" != 200 || -z "$job" ]]; then
+    fail "values of the job variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=.*")"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[\]' "$TMP/api.body"; then
+    fail "a regex value in a Prometheus variable matches nothing ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=$job")"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
+    fail "a real job returns frames ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "Prometheus variable values are escaped, so a regex value matches nothing"
+
+  out="$(proxy_call GET "$base/panels/p_logs/data?$stable&var-service=x%27%20OR%201%3D1%20--")"
+  if [[ "$out" != 200 ]] || ! grep -Eq '"name":"n","type":"number","values":\[0\]' "$TMP/api.body"; then
+    fail "an injection attempt in a ClickHouse variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "ClickHouse variable values are escaped, so an injection attempt matches nothing"
+
+  out="$(proxy_call GET "$base/variables/job/values")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"$job\"" "$TMP/api.body" || ! grep -q '"cached":true' "$TMP/api.body"; then
+    fail "the job variable values are listed and cached ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/variables/n/values")"
+  if [[ "$out" != 200 ]] || ! grep -q '"values":\["1","50"\]' "$TMP/api.body" || ! grep -q '"cached":false' "$TMP/api.body"; then
+    fail "the custom variable lists its options ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "variable values come from the datasource (cached) or from a custom variable's options"
+
+  out="$(proxy_call POST /datasources/prom/lint -d '{"query":"sum(rate("}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"severity":"error"' "$TMP/api.body"; then
+    fail "lint a broken PromQL query ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call POST /datasources/prom/lint -d '{"query":"up"}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"diagnostics":\[\]' "$TMP/api.body"; then
+    fail "lint a valid PromQL query ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call POST /datasources/nope/lint -d '{"query":"up"}')"
+  [[ "$out" == 404 ]] || fail "lint on an unknown datasource ($out)"
+  out="$(proxy_call POST /datasources/prom/lint -d '{"query":""}')"
+  [[ "$out" == 400 ]] || fail "lint with an empty query ($out)"
+  pass "lint returns diagnostics without data and rejects unknown datasources and empty queries"
+
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1$base/panels/p_up/data")"
+  [[ "$out" == 401 ]] || fail "panel data without credentials ($out)"
+  pass "panel data requires authentication"
+
+  out="$(proxy_call GET "$base/panels/p_all/data?$stable")"
+  if [[ "$out" != 200 ]] || ! grep -Eq '"name":"n","type":"number","values":\[[1-9][0-9]*' "$TMP/api.body"; then
+    fail "an All variable defaults to every value ($out: $(cat "$TMP/api.body"))"
+  fi
+  rows_all="$(grep -Eo '"name":"n","type":"number","values":\[[0-9]+' "$TMP/api.body")"
+  out="$(proxy_call GET "$base/panels/p_all/data?$stable&var-services=%24__all")"
+  rows_one="$(grep -Eo '"name":"n","type":"number","values":\[[0-9]+' "$TMP/api.body")"
+  if [[ "$out" != 200 || "$rows_one" != "$rows_all" ]]; then
+    fail "an explicit All selection matches the default ($out: $rows_one vs $rows_all)"
+  fi
+  pass "All expands to every value, by default and when selected explicitly"
+
+  expect_proxy_error "$base/panels/p_series/data?var-n=7" 400 invalid_request "custom value outside its options"
+  expect_proxy_error "$base/panels/p_series/data?var-n=1&var-n=50" 400 invalid_request "several values for a single-value variable"
+  expect_proxy_error "$base/panels/p_all/data?var-services=%24__all&var-services=x" 400 invalid_request "All combined with a value"
+  pass "variable selections that break the variable's rules are rejected"
+
+  expect_proxy_error "$base/variables/job/values?var-n=1" 400 invalid_request "selection for a later variable"
+  pass "a selection for a variable declared after the listed one is rejected"
+
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/proxy-bodies.txt" || true)"
+  [[ -z "$leak" ]] || fail "query proxy responses expose connection details ($leak)"
+  pass "query proxy responses expose no connection details"
 }
 
 stack_suite() {

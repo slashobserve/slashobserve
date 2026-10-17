@@ -1,0 +1,91 @@
+{
+  "summary": "Create the query proxy dashboard",
+  "spec": {
+    "specVersion": "0",
+    "title": "Query proxy dashboard",
+    "tags": ["e2e"],
+    "timeRange": { "from": "now-15m", "to": "now" },
+    "variables": [
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "label_values(up, job)"
+      },
+      {
+        "name": "n",
+        "type": "custom",
+        "options": ["1", "50"]
+      },
+      {
+        "name": "delay",
+        "type": "custom",
+        "options": ["0", "2"]
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT DISTINCT ServiceName FROM otel_logs WHERE $__timeFilter(Timestamp)"
+      },
+      {
+        "name": "services",
+        "type": "query",
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT DISTINCT ServiceName FROM otel_logs WHERE $__timeFilter(Timestamp)",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p_up",
+        "type": "timeseries",
+        "title": "Targets up",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom" },
+        "query": "count(up{job=~\"$job\"})"
+      },
+      {
+        "id": "p_logs",
+        "type": "table",
+        "title": "Log rows for one service",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT count() AS n FROM otel_logs WHERE ServiceName = '$service' AND $__timeFilter(Timestamp)"
+      },
+      {
+        "id": "p_series",
+        "type": "table",
+        "title": "Series cap",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom_tight" },
+        "query": "topk($n, count by (__name__) ({__name__=~\"prometheus_.+\"}))"
+      },
+      {
+        "id": "p_points",
+        "type": "timeseries",
+        "title": "Point cap",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "prom_tight" },
+        "query": "up{job=\"prometheus\"}"
+      },
+      {
+        "id": "p_sleep",
+        "type": "table",
+        "title": "Timeout",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch_tight" },
+        "query": "SELECT sleep(${delay:csv}) AS s"
+      },
+      {
+        "id": "p_all",
+        "type": "table",
+        "title": "Log rows for all services",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "datasource": { "type": "clickhouse", "uid": "ch" },
+        "query": "SELECT count() AS n FROM otel_logs WHERE ServiceName IN (${services}) AND $__timeFilter(Timestamp)"
+      }
+    ]
+  }
+}
