@@ -85,6 +85,22 @@ func TestValidResponseKeepsHandlerHeaders(t *testing.T) {
 	}
 }
 
+func TestHandlerAbortedByClientDisconnectIsNotAViolation(t *testing.T) {
+	var logs bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	engine := contractEngine(t, &logs, func(g *gin.RouterGroup) {
+		g.GET("/me", func(c *gin.Context) {
+			cancel()
+			c.Abort()
+		})
+	})
+	serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/me", nil).WithContext(ctx))
+	if strings.Contains(logs.String(), contractViolation) {
+		t.Fatalf("an aborted handler was logged as a violation: %s", logs.String())
+	}
+}
+
 type countingBody struct{ read int }
 
 func (b *countingBody) Read(p []byte) (int, error) {
@@ -105,8 +121,8 @@ func TestOversizedRequestBodyIsRefusedWithoutBuffering(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/service-accounts", body)
 	req.Header.Set("Content-Type", "application/json")
 	rec := serve(engine, req)
-	if rec.Code != http.StatusBadRequest || reached {
-		t.Fatalf("status %d reached=%v, want 400 without reaching the handler", rec.Code, reached)
+	if rec.Code != http.StatusRequestEntityTooLarge || reached {
+		t.Fatalf("status %d reached=%v, want 413 without reaching the handler", rec.Code, reached)
 	}
 	if body.read > 2*maxContractBodyBytes {
 		t.Fatalf("read %d bytes, want a bounded read", body.read)

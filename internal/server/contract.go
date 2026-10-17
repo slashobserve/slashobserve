@@ -22,6 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -29,7 +30,9 @@ const (
 	eventStreamMediaType = "text/event-stream"
 	contractViolation    = "api contract violation"
 
-	maxContractBodyBytes = 1 << 20
+	// Must stay above every handler's own body limit (the largest is the dashboards' spec.MaxBytes plus 64 KiB),
+	// or that handler's 413 can never be reached.
+	maxContractBodyBytes = 4 * spec.MaxBytes
 )
 
 var defineFormats = sync.OnceFunc(func() {
@@ -83,7 +86,7 @@ func (ct *contract) middleware(c *gin.Context) {
 		return
 	}
 	if len(body) > maxContractBodyBytes {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "request body is too large", "code": "invalid_request"})
+		c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body is too large", "code": "too_large"})
 		return
 	}
 	restoreBody(c.Request, body)
@@ -106,6 +109,10 @@ func (ct *contract) middleware(c *gin.Context) {
 	c.Next()
 	c.Writer = original
 
+	if ctx.Err() != nil {
+		original.WriteHeader(buffered.status)
+		return
+	}
 	if requestErr != nil && !isClientError(buffered.status) {
 		ct.violation(c, route, fmt.Sprintf("request breaks the document but was accepted with status %d: %s", buffered.status, describe(requestErr)))
 		return
