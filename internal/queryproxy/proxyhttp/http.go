@@ -334,7 +334,7 @@ func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text s
 			diagnostics, err = nil, errInternal
 		}
 	}()
-	return inst.Datasource.Lint(ctx, text), nil
+	return inst.Datasource.Lint(ctx, text)
 }
 
 func decodeLint(c *gin.Context, req *lintRequest) string {

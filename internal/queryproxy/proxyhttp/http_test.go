@@ -63,7 +63,7 @@ type fakeDatasource struct {
 	onRange    func(ctx context.Context, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onInstant  func(ctx context.Context, r datasource.TimeRange) ([]datasource.Frame, error)
 	onVariable func(ctx context.Context, r datasource.TimeRange) ([]string, error)
-	onLint     func(ctx context.Context, query string) []datasource.Diagnostic
+	onLint     func(ctx context.Context, query string) ([]datasource.Diagnostic, error)
 
 	mu            sync.Mutex
 	rangeCalls    int
@@ -87,14 +87,14 @@ func (f *fakeDatasource) Discover(context.Context, datasource.DiscoverRequest) (
 	return &datasource.Catalog{}, nil
 }
 
-func (f *fakeDatasource) Lint(ctx context.Context, query string) []datasource.Diagnostic {
+func (f *fakeDatasource) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
 	f.mu.Lock()
 	f.lintCalls++
 	f.mu.Unlock()
 	if f.onLint != nil {
 		return f.onLint(ctx, query)
 	}
-	return nil
+	return nil, nil
 }
 
 func (f *fakeDatasource) VariableValues(ctx context.Context, _ datasource.Query, r datasource.TimeRange) ([]string, error) {
@@ -616,7 +616,7 @@ func TestErrorBodiesCarryNoAddressesOrSecrets(t *testing.T) {
 		{
 			name: "panicking lint",
 			setup: func(hn *harness) {
-				hn.ds.onLint = func(context.Context, string) []datasource.Diagnostic { panic(leak) }
+				hn.ds.onLint = func(context.Context, string) ([]datasource.Diagnostic, error) { panic(leak) }
 			},
 			do:     func(hn *harness) *httptest.ResponseRecorder { return hn.lint("prom", `{"query":"up"}`) },
 			status: http.StatusInternalServerError, code: "internal",
@@ -773,8 +773,8 @@ func TestEmptyVariableListIsAnEmptyArray(t *testing.T) {
 
 func TestLintReturnsDiagnosticsAndValidatesTheBody(t *testing.T) {
 	hn := newHarness(t)
-	hn.ds.onLint = func(_ context.Context, query string) []datasource.Diagnostic {
-		return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "bad " + query, Start: 0, End: 1}}
+	hn.ds.onLint = func(_ context.Context, query string) ([]datasource.Diagnostic, error) {
+		return []datasource.Diagnostic{{Severity: datasource.SeverityError, Message: "bad " + query, Start: 0, End: 1}}, nil
 	}
 	rec := hn.lint("prom", `{"query":"sum(rate("}`)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"severity":"error"`) {
@@ -796,6 +796,24 @@ func TestLintReturnsDiagnosticsAndValidatesTheBody(t *testing.T) {
 		`{"query":"` + strings.Repeat("a", maxLintQueryBytes+1) + `"}`,
 	} {
 		expectError(t, hn.lint("prom", body), http.StatusBadRequest, "invalid_request")
+	}
+}
+
+func TestLintMapsDatasourceFailuresToGatewayErrors(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		err    error
+		status int
+		code   string
+	}{
+		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "connection failed"), http.StatusBadGateway, "datasource_unavailable"},
+		{"timeout", datasource.Errorf(datasource.ErrTimeout, "query timed out"), http.StatusGatewayTimeout, "query_timeout"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			hn := newHarness(t)
+			hn.ds.onLint = func(context.Context, string) ([]datasource.Diagnostic, error) { return nil, c.err }
+			expectError(t, hn.lint("prom", `{"query":"up"}`), c.status, c.code)
+		})
 	}
 }
 

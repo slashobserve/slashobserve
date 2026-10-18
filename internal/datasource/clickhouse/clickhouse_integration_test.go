@@ -227,6 +227,15 @@ func newDS(t *testing.T, user, pass string, limits datasource.Limits) *clickhous
 	return ds
 }
 
+func lint(ctx context.Context, t *testing.T, ds *clickhouse.Datasource, query string) []datasource.Diagnostic {
+	t.Helper()
+	diags, err := ds.Lint(ctx, query)
+	if err != nil {
+		t.Fatalf("Lint(%q): %v", query, err)
+	}
+	return diags
+}
+
 func roDS(t *testing.T) *clickhouse.Datasource {
 	return newDS(t, roUser, roPass, datasource.Limits{})
 }
@@ -466,7 +475,7 @@ func TestSourceGrantsRefused(t *testing.T) {
 		if _, err := ds.QueryInstant(ctx, query("SELECT 1"), lastHour()); !errors.Is(err, datasource.ErrForbiddenQuery) {
 			t.Errorf("QueryInstant(%s) err = %v, want ErrForbiddenQuery", tc.user, err)
 		}
-		if got := ds.Lint(ctx, "SELECT 1"); len(got) != 1 || got[0].Severity != datasource.SeverityWarning {
+		if got := lint(ctx, t, ds, "SELECT 1"); len(got) != 1 || got[0].Severity != datasource.SeverityWarning {
 			t.Errorf("Lint(%s) = %+v, want one warning", tc.user, got)
 		}
 	}
@@ -552,48 +561,48 @@ func TestLint(t *testing.T) {
 		"SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)",
 		"SELECT Body FROM otel_logs WHERE ServiceName IN ($svc)",
 	} {
-		if got := ds.Lint(ctx, q); got == nil || len(got) != 0 {
+		if got := lint(ctx, t, ds, q); got == nil || len(got) != 0 {
 			t.Errorf("Lint(%q) = %+v, want empty", q, got)
 		}
 	}
-	if got := ds.Lint(ctx, "SELEC 1"); len(got) != 1 || got[0].Severity != datasource.SeverityError {
+	if got := lint(ctx, t, ds, "SELEC 1"); len(got) != 1 || got[0].Severity != datasource.SeverityError {
 		t.Errorf("Lint(SELEC 1) = %+v, want one error", got)
 	}
-	got := ds.Lint(ctx, "SELECT count( FROM otel_logs")
+	got := lint(ctx, t, ds, "SELECT count( FROM otel_logs")
 	if len(got) != 1 || got[0].Severity != datasource.SeverityError || got[0].Start <= 0 {
 		t.Errorf("Lint(count() = %+v, want one error with Start > 0", got)
 	}
-	got = ds.Lint(ctx, "SELECT nope FROM otel_logs")
+	got = lint(ctx, t, ds, "SELECT nope FROM otel_logs")
 	if len(got) != 1 || got[0].Severity != datasource.SeverityError || !strings.Contains(got[0].Message, "nope") {
 		t.Errorf("Lint(nope) = %+v, want one error mentioning nope", got)
 	}
-	got = ds.Lint(ctx, "SELECT * FROM missing_table")
+	got = lint(ctx, t, ds, "SELECT * FROM missing_table")
 	if len(got) != 1 || got[0].Severity != datasource.SeverityError {
 		t.Errorf("Lint(missing_table) = %+v, want one error", got)
 	}
-	got = ds.Lint(ctx, "SELECT 1 SETTINGS max_execution_time = 1")
+	got = lint(ctx, t, ds, "SELECT 1 SETTINGS max_execution_time = 1")
 	if len(got) != 1 || got[0].Severity != datasource.SeverityError {
 		t.Errorf("Lint(SETTINGS) = %+v, want one error", got)
 	}
 	for _, q := range []string{"SELECT 1 // '\nSETTINGS max_result_rows=5 -- '", "SELECT 1 AS x\u00a0SETTINGS max_result_rows=6"} {
-		if got := ds.Lint(ctx, q); len(got) != 1 || got[0].Severity != datasource.SeverityError || !strings.Contains(got[0].Message, "SETTINGS") {
+		if got := lint(ctx, t, ds, q); len(got) != 1 || got[0].Severity != datasource.SeverityError || !strings.Contains(got[0].Message, "SETTINGS") {
 			t.Errorf("Lint(%q) = %+v, want one SETTINGS error", q, got)
 		}
 	}
 	for _, q := range []string{"SELECT format('{}', 1)", "SELECT name FROM system.settings LIMIT 1"} {
-		if got := ds.Lint(ctx, q); len(got) != 0 {
+		if got := lint(ctx, t, ds, q); len(got) != 0 {
 			t.Errorf("Lint(%q) = %+v, want empty", q, got)
 		}
 	}
-	if got := newDS(t, capUser, roPass, datasource.Limits{}).Lint(ctx, "SELECT 1"); len(got) != 0 {
+	if got := lint(ctx, t, newDS(t, capUser, roPass, datasource.Limits{}), "SELECT 1"); len(got) != 0 {
 		t.Errorf("Lint under a profile maximum of 8s = %+v, want empty", got)
 	}
 	const padding = "   \n  "
-	got = ds.Lint(ctx, padding+"SELECT count( FROM otel_logs")
+	got = lint(ctx, t, ds, padding+"SELECT count( FROM otel_logs")
 	if want := len(padding) + len("SELECT count"); len(got) != 1 || got[0].Start != want {
 		t.Errorf("Lint(padded count() = %+v, want one error starting at %d", got, want)
 	}
-	got = ds.Lint(ctx, "SELECT ServiceName FROM otel_logs WHERE ServiceName IN ($svc) AND")
+	got = lint(ctx, t, ds, "SELECT ServiceName FROM otel_logs WHERE ServiceName IN ($svc) AND")
 	if len(got) != 1 {
 		t.Errorf("Lint(trailing AND) = %+v, want one diagnostic", got)
 	}

@@ -271,10 +271,31 @@ func TestTimeoutMessage(t *testing.T) {
 	})
 }
 
+func TestLintReportsAnUnavailableDatasourceAsAnError(t *testing.T) {
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(down.Close)
+	ds, err := prometheus.New(prometheus.Options{URL: down.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+
+	diags, err := ds.Lint(context.Background(), "up")
+	if !errors.Is(err, datasource.ErrUnavailable) || diags != nil {
+		t.Fatalf("Lint = %+v, %v; want ErrUnavailable and no diagnostics", diags, err)
+	}
+	diags, err = ds.Lint(context.Background(), "sum(rate(")
+	if err != nil || len(diags) != 1 || diags[0].Severity != datasource.SeverityError {
+		t.Fatalf("Lint of a parse error = %+v, %v; want one error without asking the datasource", diags, err)
+	}
+}
+
 func TestLintVariableInMatchers(t *testing.T) {
 	ds := newDS(t)
 	query := `rate(nope_total{job=~"$job"}[5m])`
-	diags := ds.Lint(context.Background(), query)
+	diags := lint(context.Background(), t, ds, query)
 	if len(diags) != 1 || diags[0].Severity != datasource.SeverityError || !strings.Contains(diags[0].Message, "nope_total") {
 		t.Fatalf("want one error naming the metric, got %+v", diags)
 	}
@@ -298,7 +319,7 @@ func TestLintQuotedMetricNames(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.query, func(t *testing.T) {
-			diags := ds.Lint(context.Background(), c.query)
+			diags := lint(context.Background(), t, ds, c.query)
 			if len(diags) != 1 || diags[0].Severity != datasource.SeverityError || !strings.Contains(diags[0].Message, c.metric) {
 				t.Fatalf("want one error naming %s, got %+v", c.metric, diags)
 			}
@@ -312,7 +333,7 @@ func TestLintQuotedMetricNames(t *testing.T) {
 func TestLintExistenceUsesOneRequest(t *testing.T) {
 	ds, rec := recordingDS(t)
 	query := `rate(nope_one_total[5m]) + rate(nope_two_total[5m]) + up + sum(prometheus_http_requests_total)`
-	diags := ds.Lint(context.Background(), query)
+	diags := lint(context.Background(), t, ds, query)
 	if len(diags) != 2 {
 		t.Fatalf("want 2 diagnostics, got %+v", diags)
 	}

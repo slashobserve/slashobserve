@@ -73,7 +73,13 @@ func (r *Registry) lintQuery(ctx context.Context, input json.RawMessage) (Result
 	}
 	lintCtx, cancel := context.WithTimeout(ctx, lintTimeout)
 	defer cancel()
-	diagnostics := inst.Datasource.Lint(lintCtx, in.Query)
+	diagnostics, err := inst.Datasource.Lint(lintCtx, in.Query)
+	if err != nil {
+		if err := ctx.Err(); err != nil {
+			return Result{}, err
+		}
+		return datasourceFailure("Could not lint a query on "+inst.UID, err)
+	}
 	if lintCtx.Err() != nil && len(diagnostics) == 0 {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err

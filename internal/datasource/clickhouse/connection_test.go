@@ -40,6 +40,27 @@ func silentServer(t *testing.T) string {
 	return l.Addr().String()
 }
 
+func TestLintReportsAnUnreachableServerAsAnError(t *testing.T) {
+	t.Parallel()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := l.Addr().String()
+	if err := l.Close(); err != nil {
+		t.Fatal(err)
+	}
+	ds, err := clickhouse.New(clickhouse.Options{Addr: addr, Username: "u", Password: datasource.NewSecret("p")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	diags, err := ds.Lint(context.Background(), "SELECT 1")
+	if !errors.Is(err, datasource.ErrUnavailable) || diags != nil {
+		t.Fatalf("Lint = %+v, %v; want ErrUnavailable and no diagnostics", diags, err)
+	}
+}
+
 func TestCallerDeadlineExpiringDuringConnectionSetupIsATimeout(t *testing.T) {
 	t.Parallel()
 	ds, err := clickhouse.New(clickhouse.Options{Addr: silentServer(t), Username: "u", Password: datasource.NewSecret("p")})

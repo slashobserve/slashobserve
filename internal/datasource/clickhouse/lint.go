@@ -21,24 +21,28 @@ const (
 
 var positionPattern = regexp.MustCompile(`position (\d+)`)
 
-func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagnostic {
+func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
 	diagnostics := []datasource.Diagnostic{}
 	exp, err := macros.ExpandForLint(macros.ClickHouse, query)
 	if err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0))
+		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
 	}
 	if _, err := d.guard(exp.Text); err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0))
+		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
 	}
 	timeout := effectiveTimeout(ctx, lintTimeout)
 	ctx, cancel := context.WithTimeout(ctx, lintTimeout)
 	defer cancel()
 	if err := d.readOnly(ctx); err != nil {
-		return append(diagnostics, couldNotLint(ctx, err, timeout))
+		mapped := mapError(ctx, err, timeout)
+		if isTransient(mapped) {
+			return nil, mapped
+		}
+		return append(diagnostics, couldNotLint(mapped)), nil
 	}
 	text, err := d.guard(exp.Text)
 	if err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0))
+		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
 	}
 	clamped := d.clampTimeout(lintTimeout)
 	timeout = effectiveTimeout(ctx, clamped)
@@ -49,14 +53,14 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 
 	if err := d.explain(ctx, explainSyntax+text, lim); err != nil {
 		if exceptionCode(err) != syntaxErrorCode {
-			return append(diagnostics, lintFailure(ctx, err, timeout))
+			return lintFailure(ctx, diagnostics, err, timeout)
 		}
-		return append(diagnostics, syntaxDiagnostic(ctx, err, exp, len(text), timeout))
+		return append(diagnostics, syntaxDiagnostic(ctx, err, exp, len(text), timeout)), nil
 	}
 	if err := d.explain(ctx, explainPlan+text, lim); err != nil {
-		return append(diagnostics, lintFailure(ctx, err, timeout))
+		return lintFailure(ctx, diagnostics, err, timeout)
 	}
-	return diagnostics
+	return diagnostics, nil
 }
 
 func (d *Datasource) explain(ctx context.Context, sql string, lim datasource.Limits) error {
@@ -82,16 +86,20 @@ func syntaxDiagnostic(ctx context.Context, err error, exp macros.Expansion, text
 	return errorDiagnostic(message, origStart, origEnd)
 }
 
-func lintFailure(ctx context.Context, err error, timeout time.Duration) datasource.Diagnostic {
+func lintFailure(ctx context.Context, diagnostics []datasource.Diagnostic, err error, timeout time.Duration) ([]datasource.Diagnostic, error) {
 	mapped := mapError(ctx, err, timeout)
-	if errors.Is(mapped, datasource.ErrUnavailable) || errors.Is(mapped, datasource.ErrTimeout) || errors.Is(mapped, context.Canceled) {
-		return couldNotLint(ctx, mapped, timeout)
+	if isTransient(mapped) {
+		return nil, mapped
 	}
-	return errorDiagnostic(messageOf(mapped), 0, 0)
+	return append(diagnostics, errorDiagnostic(messageOf(mapped), 0, 0)), nil
 }
 
-func couldNotLint(ctx context.Context, err error, timeout time.Duration) datasource.Diagnostic {
-	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + messageOf(mapError(ctx, err, timeout))}
+func isTransient(err error) bool {
+	return errors.Is(err, datasource.ErrUnavailable) || errors.Is(err, datasource.ErrTimeout) || errors.Is(err, context.Canceled)
+}
+
+func couldNotLint(err error) datasource.Diagnostic {
+	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + messageOf(err)}
 }
 
 func errorDiagnostic(message string, start, end int) datasource.Diagnostic {

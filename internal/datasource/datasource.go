@@ -9,7 +9,7 @@ type Datasource interface {
 	Type() string
 	CheckHealth(ctx context.Context) error
 	Discover(ctx context.Context, req DiscoverRequest) (*Catalog, error)
-	Lint(ctx context.Context, query string) []Diagnostic
+	Lint(ctx context.Context, query string) ([]Diagnostic, error)
 	VariableValues(ctx context.Context, q Query, r TimeRange) ([]string, error)
 	QueryRange(ctx context.Context, q Query, r TimeRange, step time.Duration) ([]Frame, error)
 	QueryInstant(ctx context.Context, q Query, r TimeRange) ([]Frame, error)

@@ -166,6 +166,17 @@ func TestNonInputErrorsUseFailedStep(t *testing.T) {
 	}
 }
 
+func TestLintQueryReportsAnUnavailableDatasource(t *testing.T) {
+	ds := &fakeDS{lintFn: func(context.Context, string) ([]datasource.Diagnostic, error) {
+		return nil, datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	}}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameLintQuery, `{"datasource":"fake","query":"up"}`)
+	if err != nil || !res.IsError || res.Step != "Could not lint a query on fake: datasource_unavailable" {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+}
+
 func TestToolErrorsKeepSpecificSteps(t *testing.T) {
 	ds := &fakeDS{instantFn: func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "bad")

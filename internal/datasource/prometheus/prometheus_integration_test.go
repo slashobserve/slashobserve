@@ -162,6 +162,15 @@ func newDS(t *testing.T, mutate ...func(*prometheus.Options)) *prometheus.Dataso
 	return ds
 }
 
+func lint(ctx context.Context, t *testing.T, ds *prometheus.Datasource, query string) []datasource.Diagnostic {
+	t.Helper()
+	diags, err := ds.Lint(ctx, query)
+	if err != nil {
+		t.Fatalf("Lint(%q): %v", query, err)
+	}
+	return diags
+}
+
 func lastMinutes(n int) datasource.TimeRange {
 	now := time.Now()
 	return datasource.TimeRange{From: now.Add(-time.Duration(n) * time.Minute), To: now}
@@ -351,13 +360,13 @@ func TestLint(t *testing.T) {
 	ds := newDS(t)
 	ctx := context.Background()
 	t.Run("valid", func(t *testing.T) {
-		if diags := ds.Lint(ctx, `sum(rate(prometheus_http_requests_total[5m]))`); len(diags) != 0 {
+		if diags := lint(ctx, t, ds, `sum(rate(prometheus_http_requests_total[5m]))`); len(diags) != 0 {
 			t.Fatalf("want no diagnostics, got %+v", diags)
 		}
 	})
 	t.Run("parse error", func(t *testing.T) {
 		query := `sum(rate(up[5m])`
-		diags := ds.Lint(ctx, query)
+		diags := lint(ctx, t, ds, query)
 		if len(diags) != 1 || diags[0].Severity != datasource.SeverityError {
 			t.Fatalf("want exactly one error, got %+v", diags)
 		}
@@ -367,7 +376,7 @@ func TestLint(t *testing.T) {
 	})
 	t.Run("unknown metric", func(t *testing.T) {
 		query := `rate(does_not_exist_total[5m])`
-		diags := ds.Lint(ctx, query)
+		diags := lint(ctx, t, ds, query)
 		if len(diags) != 1 || diags[0].Severity != datasource.SeverityError || !strings.Contains(diags[0].Message, "does_not_exist_total") {
 			t.Fatalf("want one error naming the metric, got %+v", diags)
 		}
@@ -376,12 +385,12 @@ func TestLint(t *testing.T) {
 		}
 	})
 	t.Run("macro", func(t *testing.T) {
-		if diags := ds.Lint(ctx, `rate(up[$__rate_interval])`); len(diags) != 0 {
+		if diags := lint(ctx, t, ds, `rate(up[$__rate_interval])`); len(diags) != 0 {
 			t.Fatalf("want no diagnostics, got %+v", diags)
 		}
 	})
 	t.Run("variable", func(t *testing.T) {
-		diags := ds.Lint(ctx, `rate(up[$win])`)
+		diags := lint(ctx, t, ds, `rate(up[$win])`)
 		if len(diags) == 0 {
 			t.Fatal("want warnings")
 		}

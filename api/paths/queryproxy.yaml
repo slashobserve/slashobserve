@@ -176,6 +176,7 @@ datasources-uid-lint:
     description: >-
       Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`.
       The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429.
+      When the datasource cannot be reached the call answers 502 or 504 instead of a diagnostic.
     requestBody:
       required: true
       content:
@@ -206,3 +207,7 @@ datasources-uid-lint:
         $ref: "../openapi.yaml#/components/responses/TooManyRequests"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+      "504":
+        $ref: "../openapi.yaml#/components/responses/QueryTimeout"

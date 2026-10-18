@@ -30,15 +30,15 @@ type metricRef struct {
 	start, end int
 }
 
-func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagnostic {
+func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
 	diags := []datasource.Diagnostic{}
 	exp, err := macros.ExpandForLint(macros.PromQL, query)
 	if err != nil {
-		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: messageOf(err)})
+		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: messageOf(err)}), nil
 	}
 	expr, err := promParser.ParseExpr(exp.Text)
 	if err != nil {
-		return append(diags, parseDiagnostics(err, exp, len(query))...)
+		return append(diags, parseDiagnostics(err, exp, len(query))...), nil
 	}
 	var refs []metricRef
 	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
@@ -67,7 +67,11 @@ func (d *Datasource) Lint(ctx context.Context, query string) []datasource.Diagno
 	if len(refs) > maxLintMetrics {
 		refs = refs[:maxLintMetrics]
 	}
-	return append(diags, d.existenceDiagnostics(ctx, refs)...)
+	missing, err := d.existenceDiagnostics(ctx, refs)
+	if err != nil {
+		return nil, err
+	}
+	return append(diags, missing...), nil
 }
 
 func braceNameSpan(text string, open int) (int, int, bool) {
@@ -199,9 +203,9 @@ func parseDiagnostics(err error, exp macros.Expansion, queryLen int) []datasourc
 	return []datasource.Diagnostic{diag}
 }
 
-func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef) []datasource.Diagnostic {
+func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef) ([]datasource.Diagnostic, error) {
 	if len(refs) == 0 {
-		return nil
+		return nil, nil
 	}
 	ctx, cancel := bound(ctx, lintExistenceLimit)
 	defer cancel()
@@ -216,10 +220,13 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 		"end":     {unixSeconds(now)},
 	})
 	if err != nil {
+		if isTransient(err) {
+			return nil, err
+		}
 		return []datasource.Diagnostic{{
 			Severity: datasource.SeverityWarning,
 			Message:  "could not check metric existence: " + messageOf(err),
-		}}
+		}}, nil
 	}
 	var out []datasource.Diagnostic
 	for _, ref := range refs {
@@ -232,7 +239,11 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 			})
 		}
 	}
-	return out
+	return out, nil
+}
+
+func isTransient(err error) bool {
+	return errors.Is(err, datasource.ErrUnavailable) || errors.Is(err, datasource.ErrTimeout) || errors.Is(err, context.Canceled)
 }
 
 func metricMatcher(name string) string {

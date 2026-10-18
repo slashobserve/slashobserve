@@ -32,10 +32,12 @@ func TestMain(m *testing.M) {
 
 type fakeDatasource struct{}
 
-func (fakeDatasource) Type() string                                         { return "prometheus" }
-func (fakeDatasource) CheckHealth(context.Context) error                    { return nil }
-func (fakeDatasource) Lint(context.Context, string) []datasource.Diagnostic { return nil }
-func (fakeDatasource) Close() error                                         { return nil }
+func (fakeDatasource) Type() string                      { return "prometheus" }
+func (fakeDatasource) CheckHealth(context.Context) error { return nil }
+func (fakeDatasource) Lint(context.Context, string) ([]datasource.Diagnostic, error) {
+	return nil, nil
+}
+func (fakeDatasource) Close() error { return nil }
 func (fakeDatasource) Discover(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	return &datasource.Catalog{}, nil
 }

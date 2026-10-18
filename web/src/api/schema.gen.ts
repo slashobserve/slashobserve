@@ -411,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Parse a query for a datasource and return diagnostics, without executing it or returning data.
-         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429.
+         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429. When the datasource cannot be reached the call answers 502 or 504 instead of a diagnostic.
          */
         post: operations["lintDatasourceQuery"];
         delete?: never;
@@ -1859,6 +1859,8 @@ export interface operations {
             404: components["responses"]["NotFound"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
         };
     };
     listDashboardRevisions: {

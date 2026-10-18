@@ -90,10 +90,12 @@ func (f *fakeDatasource) callsTo(method string) []call {
 	return out
 }
 
-func (f *fakeDatasource) Type() string                                         { return f.typ }
-func (f *fakeDatasource) CheckHealth(context.Context) error                    { return nil }
-func (f *fakeDatasource) Lint(context.Context, string) []datasource.Diagnostic { return nil }
-func (f *fakeDatasource) Close() error                                         { return nil }
+func (f *fakeDatasource) Type() string                      { return f.typ }
+func (f *fakeDatasource) CheckHealth(context.Context) error { return nil }
+func (f *fakeDatasource) Lint(context.Context, string) ([]datasource.Diagnostic, error) {
+	return nil, nil
+}
+func (f *fakeDatasource) Close() error { return nil }
 func (f *fakeDatasource) Discover(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	return &datasource.Catalog{}, nil
 }
