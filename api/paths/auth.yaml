@@ -96,10 +96,10 @@ me:
 instance:
   get:
     operationId: getInstance
-    summary: Return the server's public and MCP URLs.
+    summary: Return the server's public and MCP URLs and its sign-in settings; never a secret.
     responses:
       "200":
-        description: The URLs clients use to reach this server.
+        description: The URLs clients use to reach this server and who may sign in.
         content:
           application/json:
             schema:

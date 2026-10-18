@@ -139,7 +139,7 @@ export function isTooManyRevisions(error: unknown): boolean {
 export function markAgentUnavailable(queryClient: QueryClient) {
   queryClient.setQueryData<components["schemas"]["AgentInfo"]>(
     observeKeys.agent(),
-    { available: false, provider: null, model: null }
+    { available: false, provider: null, model: null, effort: null }
   )
 }
 

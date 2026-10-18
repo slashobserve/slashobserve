@@ -75,6 +75,7 @@ Directories are created when their phase starts; this is where things go.
   Current settings: `SLASHOBSERVE_HTTP_ADDR` (default `:8080`), `SLASHOBSERVE_DATABASE_URL` (required), `SLASHOBSERVE_LOG_LEVEL` (`debug|info|warn|error`, default `info`), `SLASHOBSERVE_LOG_FORMAT` (`json|text`, default `json`).
   Auth settings: `SLASHOBSERVE_PUBLIC_URL` (required; http or https origin with no path, query or user info), `SLASHOBSERVE_OIDC_ISSUER_URL` (required; used exactly as given because issuer comparison is exact), `SLASHOBSERVE_OIDC_INTERNAL_URL` (optional origin the server's back-channel uses instead of the issuer's scheme and host), `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` (required), `SLASHOBSERVE_SESSION_TTL` (default `168h`, between `5m` and `720h`), and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`.
   `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is required: a comma-separated list of domains matched exactly against the verified email's domain, or `*` as an explicit allow-all that logs a startup warning.
+  `SLASHOBSERVE_AUTH_PROVIDER_NAME` is optional: the identity provider's display name (trimmed, at most 64 characters, default empty), shown to signed-in clients as `oidc_provider_name`; the demo and e2e stacks set it to `Dex`.
   `SLASHOBSERVE_DATASOURCES_FILE` is optional: a YAML file listing datasources, and unset means none.
   The file never holds a secret: passwords and tokens are referenced by `passwordEnv`, `bearerTokenEnv` or `headersFromEnv` (a map of header name to variable name) names that start with `SLASHOBSERVE_`, or by `passwordFile`, `bearerTokenFile` or `headersFromFile` paths.
   An env name the server's own config reads (such as `SLASHOBSERVE_DATABASE_URL`) is refused, and a header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
@@ -101,7 +102,7 @@ Directories are created when their phase starts; this is where things go.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
   Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
-  `GET /api/v1/instance` returns the public URL and the MCP URL for client setup snippets.
+  `GET /api/v1/instance` returns the public and MCP URLs, the issuer URL, the optional provider display name, allowed email domains and session TTL, never a secret or the internal OIDC URL.
 - Database: Postgres through a pgx v5 pool.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
   The server applies migrations at boot under a Postgres advisory lock.
@@ -120,7 +121,7 @@ Directories are created when their phase starts; this is where things go.
   Observe rows never block each other in the claim; `dashboard_id` is filled from the version saved under the request id when the request finishes, so queue lookups of a saved version use the request id only.
   `create_dashboard` saves through `dashboard_versions.agent_request_id`, so a retried run returns the dashboard it already created.
   `GET /api/v1/observe/{id}` returns any agent request with progress `steps` (the tools' fixed step strings, at most 100 per attempt, tagged by attempt) and `usage` (tokens, model calls and repair rounds of the finishing attempt, null when the run made no model call); a shutdown release deletes the released attempt's steps and the re-claimed run reuses its attempt number, so clients tell a restarted list by each step's `at`, not by `attempt` alone; the `observe` CLI polls it every second, rides out two consecutive transport or 5xx failures and gives up on the third, and the web client does not call it; observe rows send no `revision.updated` events.
-  `GET /api/v1/agent` tells clients whether an agent is configured and which provider and model it uses.
+  `GET /api/v1/agent` tells clients whether an agent is configured and which provider, model and (Anthropic only) effort it uses.
 - Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` holds the latest agent request for the comment (null when none was requested); event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
   Comment lists page by `(created_at, id)` with `created_at` taken at insert, so a comment that commits after a later one was already listed can be missed by a client paging at that moment, and a fresh listing or its `comment.created` event recovers it.
 - Query proxy: panel data is `GET /api/v1/dashboards/{id}/versions/{version}/panels/{panel_id}/data`; it accepts no query text (403 `query_not_in_spec`), aligns ranges to the step, caches successes for 10 s in process, limits each principal to 8 in-flight requests, and returns time values as epoch milliseconds.

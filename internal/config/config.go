@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type LogFormat string
@@ -26,6 +27,7 @@ const (
 	defaultSessionTTL = 168 * time.Hour
 	minSessionTTL     = 5 * time.Minute
 	maxSessionTTL     = 720 * time.Hour
+	maxProviderName   = 64
 	allowAnyDomain    = "*"
 
 	LLMProviderAnthropic = "anthropic"
@@ -59,6 +61,7 @@ const (
 	envOIDCClientSecret   = "SLASHOBSERVE_OIDC_CLIENT_SECRET"
 	envSessionTTL         = "SLASHOBSERVE_SESSION_TTL"
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
+	envAuthProviderName   = "SLASHOBSERVE_AUTH_PROVIDER_NAME"
 
 	envDatasourcesFile = "SLASHOBSERVE_DATASOURCES_FILE"
 
@@ -78,7 +81,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envAllowedEmailDomain, envDatasourcesFile, envAPIContractCheck,
+	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
 }
@@ -108,6 +111,7 @@ type Config struct {
 	SessionTTL          time.Duration
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
+	AuthProviderName    string
 
 	DatasourcesFile string
 	Datasources     []Datasource
@@ -150,6 +154,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadClient(lookup, &cfg)...)
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
+	errs = append(errs, loadProviderName(lookup, &cfg)...)
 
 	if path := get(lookup, envDatasourcesFile); path != "" {
 		cfg.DatasourcesFile = path
@@ -252,6 +257,16 @@ func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {
 	}
 
 	return errs
+}
+
+func loadProviderName(lookup func(string) (string, bool), cfg *Config) []error {
+	name := get(lookup, envAuthProviderName)
+	if utf8.RuneCountInString(name) > maxProviderName {
+		return []error{fmt.Errorf("%s: must be at most %d characters", envAuthProviderName, maxProviderName)}
+	}
+	cfg.AuthProviderName = name
+
+	return nil
 }
 
 func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
