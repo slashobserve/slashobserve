@@ -1380,7 +1380,7 @@ first_value() {
 
 proxy_suite() {
   api_token
-  local out id base window stable values_window first_executed service job leak rows_one rows_all now_ms
+  local out id base window stable values_window first_executed service job leak rows_one rows_all now_ms to_ms
   : >"$TMP/proxy-bodies.txt"
 
   out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
@@ -1408,9 +1408,10 @@ proxy_suite() {
   fi
   pass "a repeated panel data request is cached and keeps its original execution time"
 
+  # Instant panels floor their range to 5 s, so an end off that grid lets the variable list a service whose only rows lie past the panel's end.
   for _ in $(seq 1 45); do
-    now_ms=$(($(date +%s) * 1000))
-    stable="from=$((now_ms - 930000))&to=$((now_ms - 30000))"
+    to_ms=$((($(date +%s) * 1000 - 30000) / 5000 * 5000))
+    stable="from=$((to_ms - 900000))&to=$to_ms"
     out="$(proxy_call GET "$base/variables/service/values?$stable")"
     service="$(first_value)"
     if [[ "$out" == 200 && -n "$service" ]]; then break; fi
