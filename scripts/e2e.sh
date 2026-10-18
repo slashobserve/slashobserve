@@ -552,6 +552,15 @@ suite() {
   fi
   pass "session cookie authenticates /api/v1/me"
 
+  out="$(curl -sS -b "$TMP/jar" -o "$TMP/instance" -D "$TMP/instance.headers" -w '%{http_code}' "$BASE_URL/api/v1/instance")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"public_url\":\"$BASE_URL\"" "$TMP/instance" || ! grep -q "\"mcp_url\":\"$BASE_URL/mcp\"" "$TMP/instance" \
+    || ! grep -qi '^cache-control: no-store' "$TMP/instance.headers"; then
+    fail "/api/v1/instance with a session cookie ($out: $(cat "$TMP/instance"))"
+  fi
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/instance")"
+  [[ "$out" == 401 ]] || fail "/api/v1/instance without credentials ($out)"
+  pass "instance URLs are served to signed-in clients"
+
   out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code} %{redirect_url}' "$BASE_URL/api/v1/auth/callback?code=x&state=bogus")"
   [[ "$out" == "302 "*"/login?error=state_mismatch" ]] || fail "forged callback state ($out)"
   pass "callback with a forged state is rejected"

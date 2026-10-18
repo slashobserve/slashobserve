@@ -18,6 +18,8 @@ paths:
     $ref: "./paths/auth.yaml#/auth-session"
   /me:
     $ref: "./paths/auth.yaml#/me"
+  /instance:
+    $ref: "./paths/auth.yaml#/instance"
   /service-accounts:
     $ref: "./paths/service-accounts.yaml#/service-accounts"
   /service-accounts/{id}/keys:
@@ -126,6 +128,17 @@ components:
           type: string
         email:
           type: string
+    Instance:
+      type: object
+      additionalProperties: false
+      required: [public_url, mcp_url]
+      properties:
+        public_url:
+          type: string
+          format: uri
+        mcp_url:
+          type: string
+          format: uri
     SessionState:
       type: object
       additionalProperties: false

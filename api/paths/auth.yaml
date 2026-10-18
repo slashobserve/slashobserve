@@ -93,3 +93,18 @@ me:
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+instance:
+  get:
+    operationId: getInstance
+    summary: Return the server's public and MCP URLs.
+    responses:
+      "200":
+        description: The URLs clients use to reach this server.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Instance"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

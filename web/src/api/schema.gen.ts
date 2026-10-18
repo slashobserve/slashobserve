@@ -85,6 +85,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return the server's public and MCP URLs. */
+        get: operations["getInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/service-accounts": {
         parameters: {
             query?: never;
@@ -551,6 +568,12 @@ export interface components {
             id: string;
             name: string;
             email?: string;
+        };
+        Instance: {
+            /** Format: uri */
+            public_url: string;
+            /** Format: uri */
+            mcp_url: string;
         };
         SessionState: {
             authenticated: boolean;
@@ -1105,6 +1128,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Principal"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The URLs clients use to reach this server. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Instance"];
                 };
             };
             401: components["responses"]["Unauthorized"];
