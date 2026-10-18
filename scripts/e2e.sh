@@ -542,6 +542,7 @@ suite() {
   events_suite
   comments_suite
   revisions_suite
+  observe_suite
   mcp_suite
   proxy_suite
   check_api_contract
@@ -1208,6 +1209,150 @@ revisions_suite() {
     fail "each revision should save exactly one version ($succeeded revisions: $(cat "$TMP/api.body"))"
   fi
   pass "every queued revision saves exactly one version, one at a time per dashboard"
+}
+
+observe_id_of() {
+  grep -o '"request":{"id":"[^"]*"' "$1" | head -1 | cut -d'"' -f6
+}
+
+observe_wait() {
+  local id="$1" tries="$2"
+  until [[ "$(api GET "/observe/$id")" == 200 ]] && grep -Eq '"status":"(succeeded|failed)"' "$TMP/api.body"; do
+    ((--tries > 0)) || fail "agent request $id never finished ($(cat "$TMP/api.body"))"
+    sleep 1
+  done
+  cat "$TMP/api.body" >>"$TMP/observe-bodies.txt"
+}
+
+observe_expect() {
+  local what="$1" pattern
+  shift
+  for pattern in "$@"; do
+    grep -qF -- "$pattern" "$TMP/api.body" || fail "$what lacks $pattern ($(cat "$TMP/api.body"))"
+  done
+}
+
+observe_suite() {
+  api_token
+  local out id did fid id2 did2 nil_id=00000000-0000-0000-0000-000000000000 bad accepted=0 limited=0 attempt accepted_ids=() long_prompt
+  : >"$TMP/observe-bodies.txt"
+
+  out="$(api GET /agent)"
+  [[ "$out" == 200 ]] || fail "read the agent configuration ($out: $(cat "$TMP/api.body"))"
+  observe_expect "the agent configuration" '"available":true,"provider":"replay","model":"replay"'
+  out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/agent")"
+  [[ "$out" == 401 ]] || fail "read the agent configuration without a token ($out)"
+  pass "the agent configuration names the replay provider and needs a token"
+
+  out="$(api POST /observe -d '{"prompt":"demo shop RED metrics by endpoint"}')"
+  [[ "$out" == 202 ]] || fail "queue a new dashboard request ($out: $(cat "$TMP/api.body"))"
+  observe_expect "the queued observe request" '"source":"observe"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null'
+  id="$(observe_id_of "$TMP/api.body")"
+  [[ -n "$id" ]] || fail "the queued observe request has no id ($(cat "$TMP/api.body"))"
+  grep -qi "^location: /api/v1/observe/$id" "$TMP/api.headers" || fail "the observe response has no Location header ($(cat "$TMP/api.headers"))"
+  observe_wait "$id" 90
+  did="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$did" ]] || fail "the finished observe request has no dashboard ($(cat "$TMP/api.body"))"
+  observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/dashboards/$did\"" \
+    '"phase":"save","tool":"create_dashboard","status":"error"' '"phase":"repair","tool":"create_dashboard","status":"ok"' \
+    '"provider":"replay"' '"model_calls":4' '"repair_rounds":1'
+  pass "a new dashboard request repairs its broken query and finishes with steps, usage and the dashboard address"
+
+  out="$(api GET "/dashboards/$did")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":1' "$TMP/api.body"; then
+    fail "the observed dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards?limit=50")"
+  [[ "$out" == 200 && "$(grep -o '"title":"Demo shop RED metrics"' "$TMP/api.body" | wc -l | tr -d ' ')" == 1 ]] \
+    || fail "exactly one dashboard per observe request ($out: $(cat "$TMP/api.body"))"
+  expect_version_data "$did" 1
+  pass "the observed dashboard has version 1, exists once, and every panel returns data"
+
+  out="$(api POST /observe -d '{"prompt":"add a requests by pod panel","dashboard_id":"'"$did"'"}')"
+  [[ "$out" == 202 ]] || fail "queue a follow-up prompt ($out: $(cat "$TMP/api.body"))"
+  observe_expect "the queued follow-up" '"source":"prompt"' '"base_version":1' "\"dashboard_id\":\"$did\""
+  fid="$(observe_id_of "$TMP/api.body")"
+  observe_wait "$fid" 90
+  observe_expect "the finished follow-up" '"status":"succeeded"' '"result_version":2'
+  out="$(api GET "/dashboards/$did/revisions/$fid")"
+  [[ "$out" == 200 ]] || fail "the follow-up is a revision of the dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$did/revisions")"
+  if [[ "$out" != 200 ]] || grep -q "$id" "$TMP/api.body" || ! grep -q "$fid" "$TMP/api.body"; then
+    fail "the revisions of the dashboard hold the follow-up but not the observe request ($out: $(cat "$TMP/api.body"))"
+  fi
+  expect_version_data "$did" 2
+  pass "a follow-up prompt saves version 2 and observe requests stay out of the revisions API"
+
+  out="$(api POST /observe -d '{"prompt":"log volume by service"}')"
+  [[ "$out" == 202 ]] || fail "queue the log volume request ($out: $(cat "$TMP/api.body"))"
+  id2="$(observe_id_of "$TMP/api.body")"
+  observe_wait "$id2" 90
+  observe_expect "the finished log volume request" '"status":"succeeded"' '"result_version":1'
+  did2="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$did2" && "$did2" != "$did" ]] || fail "the log volume request needs its own dashboard ($(cat "$TMP/api.body"))"
+  expect_version_data "$did2" 1
+  pass "a ClickHouse dashboard request saves version 1 with data in every panel"
+
+  out="$(api POST /observe -d '{"prompt":"e2e: a slow run that never saves"}')"
+  [[ "$out" == 202 ]] || fail "queue the run that never saves ($out: $(cat "$TMP/api.body"))"
+  id2="$(observe_id_of "$TMP/api.body")"
+  observe_wait "$id2" 90
+  observe_expect "the failed request" '"status":"failed"' '"error":"the model finished without saving a dashboard"' '"dashboard_id":null' '"url":null' \
+    '"result_version":null' '"phase":"query"' '"model_calls":6'
+  pass "a run that never saves fails with a fixed error, no dashboard and its usage"
+
+  out="$(api POST /observe -d '{"prompt":"No fixture covers this observe prompt"}')"
+  [[ "$out" == 202 ]] || fail "queue a prompt the replay provider cannot answer ($out: $(cat "$TMP/api.body"))"
+  id2="$(observe_id_of "$TMP/api.body")"
+  observe_wait "$id2" 90
+  observe_expect "the unanswerable request" '"status":"failed"' '"error":"model call failed: no replay fixture"'
+  pass "a prompt with no fixture fails with a safe error"
+
+  long_prompt="$(printf 'a%.0s' $(seq 1 4001))"
+  for bad in '{}' '{"prompt":"   "}' '{"prompt":"a\u0000b"}' '{"prompt":"a‮b"}' '{"prompt":"x","base_version":1}' \
+    '{"prompt":"x","dashboard_id":"not-a-uuid"}' "{\"prompt\":\"x\",\"dashboard_id\":\"$LOOKALIKE_UUID\"}" \
+    "{\"prompt\":\"x\",\"dashboard_id\":\"$did\",\"base_version\":0}" '{"prompt":"x","extra":1}' "{\"prompt\":\"$long_prompt\"}"; do
+    out="$(api POST /observe -d "$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "invalid observe request ${bad:0:60} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  out="$(api POST /observe -d '{"prompt":"x","dashboard_id":"'"$nil_id"'"}')"
+  [[ "$out" == 404 ]] || fail "observe request for an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST /observe -d '{"prompt":"x","dashboard_id":"'"$did"'","base_version":99}')"
+  [[ "$out" == 404 ]] || fail "observe request against an unknown version ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/observe/$nil_id")"
+  [[ "$out" == 404 ]] || fail "read an unknown agent request ($out: $(cat "$TMP/api.body"))"
+  for bad in not-a-uuid "$LOOKALIKE_UUID"; do
+    out="$(api GET "/observe/$bad")"
+    [[ "$out" == 400 ]] || fail "read agent request $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
+  done
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"prompt":"x"}' "$BASE_URL/api/v1/observe")"
+  [[ "$out" == 401 ]] || fail "observe request without a token ($out)"
+  pass "observe requests refuse invalid bodies, unknown dashboards, versions and ids, and anonymous callers"
+
+  for attempt in $(seq 1 12); do
+    out="$(api POST /observe -d '{"prompt":"e2e: a slow run that never saves"}')"
+    if [[ "$out" == 202 ]]; then
+      accepted=$((accepted + 1))
+      accepted_ids+=("$(observe_id_of "$TMP/api.body")")
+    elif [[ "$out" == 429 ]] && grep -q '"code":"too_many_requests"' "$TMP/api.body"; then
+      limited=1
+      break
+    else
+      fail "rapid observe request $attempt ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  ((limited == 1 && accepted >= 3 && accepted <= 11)) || fail "rapid observe requests: $accepted accepted, limited=$limited"
+  for id2 in "${accepted_ids[@]}"; do
+    observe_wait "$id2" 90
+  done
+  pass "at most three new dashboard requests are queued or running per caller"
+
+  if grep -Eq 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/observe-bodies.txt"; then
+    fail "an agent request leaks datasource addresses or credentials ($(grep -E 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/observe-bodies.txt" | head -1))"
+  fi
+  pass "agent requests expose no datasource address or credential"
 }
 
 mcp_call() {

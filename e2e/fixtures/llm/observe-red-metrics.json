@@ -1,0 +1,202 @@
+{
+  "prompt": "demo shop RED metrics by endpoint",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_metrics",
+          "input": {
+            "datasource": "prom",
+            "search": "http_"
+          }
+        },
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "prom",
+            "metric": "http_requests_total"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+          }
+        },
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+          }
+        },
+        {
+          "name": "lint_query",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create demo shop RED metrics",
+            "spec": {
+              "specVersion": "0",
+              "title": "Demo shop RED metrics",
+              "tags": [
+                "e2e"
+              ],
+              "timeRange": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "sum by (route) (rate(http_requests_total[$__rate_interval])",
+                  "unit": "reqps"
+                },
+                {
+                  "id": "req_status",
+                  "type": "timeseries",
+                  "title": "Requests by status",
+                  "gridPos": {
+                    "x": 12,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+                  "unit": "reqps"
+                },
+                {
+                  "id": "p99_latency",
+                  "type": "timeseries",
+                  "title": "p99 latency by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 8,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+                  "unit": "s"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "create_dashboard",
+          "input": {
+            "summary": "Create demo shop RED metrics",
+            "spec": {
+              "specVersion": "0",
+              "title": "Demo shop RED metrics",
+              "tags": [
+                "e2e"
+              ],
+              "timeRange": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "req_rate",
+                  "type": "timeseries",
+                  "title": "Request rate by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+                  "unit": "reqps"
+                },
+                {
+                  "id": "req_status",
+                  "type": "timeseries",
+                  "title": "Requests by status",
+                  "gridPos": {
+                    "x": 12,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+                  "unit": "reqps"
+                },
+                {
+                  "id": "p99_latency",
+                  "type": "timeseries",
+                  "title": "p99 latency by route",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 8,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "prom"
+                  },
+                  "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+                  "unit": "s"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "is_error": true,
+          "contains": "query_invalid"
+        }
+      ]
+    }
+  ]
+}

@@ -105,6 +105,11 @@ Directories are created when their phase starts; this is where things go.
   The saved version's `version.created` arrives before the `revision.updated` that reports `succeeded`, and clients must not depend on the order between them.
   A shutdown cancels the running request and releases it back to the queue without spending an attempt, and so does a failed check for a saved version; only a crash leaves a lease to expire for the next process.
   Without an LLM provider prompts get 503 `agent_unavailable` and comments do not enqueue, so turning an agent on later never replays old comments.
+- Observe requests: `POST /api/v1/observe` enqueues an `agent_requests` row with `source = 'observe'` and no dashboard (at most 3 queued or running per principal, 429 `too_many_requests`, and 20 per instance, 429 `agent_busy`), or, with `dashboard_id`, a follow-up revision with `source = 'prompt'`.
+  Observe rows never block each other in the claim; `dashboard_id` is filled from the version saved under the request id when the request finishes, so queue lookups of a saved version use the request id only.
+  `create_dashboard` saves through `dashboard_versions.agent_request_id`, so a retried run returns the dashboard it already created.
+  `GET /api/v1/observe/{id}` returns any agent request with progress `steps` (the tools' fixed step strings, at most 100, tagged by attempt) and `usage` (tokens, model calls and repair rounds of the finishing attempt); clients poll it every second; observe rows send no `revision.updated` events.
+  `GET /api/v1/agent` tells clients whether an agent is configured and which provider and model it uses.
 - Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` holds the latest agent request for the comment (null when none was requested); event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
   Comment lists page by `(created_at, id)` with `created_at` taken at insert, so a comment that commits after a later one was already listed can be missed by a client paging at that moment, and a fresh listing or its `comment.created` event recovers it.
 - Query proxy: panel data is `GET /api/v1/dashboards/{id}/versions/{version}/panels/{panel_id}/data`; it accepts no query text (403 `query_not_in_spec`), aligns ranges to the step, caches successes for 10 s in process, limits each principal to 8 in-flight requests, and returns time values as epoch milliseconds.
@@ -193,6 +198,7 @@ Directories are created when their phase starts; this is where things go.
   A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.
   A revise fixture may leave `dashboard_id` and `parent_version` out of `update_dashboard`, so it never depends on generated ids; a comment or prompt with no fixture fails its revision with `model call failed: no replay fixture`.
   With the replay provider on, a comment queues a revision by default, so e2e comment checks that are not about revisions send `"request_revision": false`.
+  Observe fixtures cover the brief's broken-query repair path (`observe-red-metrics.json` saves a query with an unbalanced parenthesis, gets `query_invalid`, and repairs it).
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
   Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.
 

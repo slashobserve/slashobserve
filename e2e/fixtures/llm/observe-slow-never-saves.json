@@ -1,0 +1,208 @@
+{
+  "prompt": "e2e: a slow run that never saves",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        },
+        {
+          "name": "query_range",
+          "input": {
+            "datasource": "prom",
+            "query": "sum by (pod) (rate(http_requests_total[$__rate_interval]))",
+            "from": "now-6h",
+            "to": "now"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Done."
+    }
+  ]
+}
