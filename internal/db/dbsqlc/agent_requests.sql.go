@@ -14,17 +14,24 @@ import (
 const appendAgentRequestStep = `-- name: AppendAgentRequestStep :execrows
 UPDATE agent_requests
 SET steps = steps || jsonb_build_array($1::jsonb)
-WHERE id = $2 AND status = 'running' AND attempts = $3 AND jsonb_array_length(steps) < 100
+WHERE id = $2 AND status = 'running' AND attempts = $3
+  AND (SELECT count(*) FROM jsonb_array_elements(steps) AS recorded WHERE (recorded ->> 'attempt')::integer = $3) < $4::integer
 `
 
 type AppendAgentRequestStepParams struct {
 	Step     []byte
 	ID       pgtype.UUID
 	Attempts int32
+	MaxSteps int32
 }
 
 func (q *Queries) AppendAgentRequestStep(ctx context.Context, arg AppendAgentRequestStepParams) (int64, error) {
-	result, err := q.db.Exec(ctx, appendAgentRequestStep, arg.Step, arg.ID, arg.Attempts)
+	result, err := q.db.Exec(ctx, appendAgentRequestStep,
+		arg.Step,
+		arg.ID,
+		arg.Attempts,
+		arg.MaxSteps,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -40,7 +47,7 @@ SET status = 'running',
 WHERE id = (
   SELECT r.id FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
-    AND r.attempts < 2
+    AND r.attempts < $1::integer
     AND (r.dashboard_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
       WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
@@ -52,8 +59,8 @@ WHERE id = (
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage
 `
 
-func (q *Queries) ClaimAgentRequest(ctx context.Context) (AgentRequest, error) {
-	row := q.db.QueryRow(ctx, claimAgentRequest)
+func (q *Queries) ClaimAgentRequest(ctx context.Context, maxAttempts int32) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, claimAgentRequest, maxAttempts)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,
@@ -294,13 +301,13 @@ SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
-LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id
-WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= 2
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
+WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= $1::integer
 RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage
 `
 
-func (q *Queries) FailExhaustedAgentRequests(ctx context.Context) ([]AgentRequest, error) {
-	rows, err := q.db.Query(ctx, failExhaustedAgentRequests)
+func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, maxAttempts int32) ([]AgentRequest, error) {
+	rows, err := q.db.Query(ctx, failExhaustedAgentRequests, maxAttempts)
 	if err != nil {
 		return nil, err
 	}
@@ -415,33 +422,24 @@ func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (Agen
 	return i, err
 }
 
-const getAgentRequestResultVersion = `-- name: GetAgentRequestResultVersion :one
-SELECT version FROM dashboard_versions WHERE dashboard_id = $1 AND agent_request_id = $2
-`
-
-type GetAgentRequestResultVersionParams struct {
-	DashboardID    pgtype.UUID
-	AgentRequestID pgtype.UUID
-}
-
-func (q *Queries) GetAgentRequestResultVersion(ctx context.Context, arg GetAgentRequestResultVersionParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getAgentRequestResultVersion, arg.DashboardID, arg.AgentRequestID)
-	var version int32
-	err := row.Scan(&version)
-	return version, err
-}
-
 const getAgentRequestSavedVersion = `-- name: GetAgentRequestSavedVersion :one
-SELECT dashboard_id, version FROM dashboard_versions WHERE agent_request_id = $1
+SELECT dashboard_id, version FROM dashboard_versions
+WHERE agent_request_id = $1
+  AND ($2::uuid IS NULL OR dashboard_id = $2::uuid)
 `
+
+type GetAgentRequestSavedVersionParams struct {
+	AgentRequestID pgtype.UUID
+	DashboardID    pgtype.UUID
+}
 
 type GetAgentRequestSavedVersionRow struct {
 	DashboardID pgtype.UUID
 	Version     int32
 }
 
-func (q *Queries) GetAgentRequestSavedVersion(ctx context.Context, agentRequestID pgtype.UUID) (GetAgentRequestSavedVersionRow, error) {
-	row := q.db.QueryRow(ctx, getAgentRequestSavedVersion, agentRequestID)
+func (q *Queries) GetAgentRequestSavedVersion(ctx context.Context, arg GetAgentRequestSavedVersionParams) (GetAgentRequestSavedVersionRow, error) {
+	row := q.db.QueryRow(ctx, getAgentRequestSavedVersion, arg.AgentRequestID, arg.DashboardID)
 	var i GetAgentRequestSavedVersionRow
 	err := row.Scan(&i.DashboardID, &i.Version)
 	return i, err
@@ -574,19 +572,21 @@ func (q *Queries) LockObserveRequests(ctx context.Context) error {
 const releaseAgentRequest = `-- name: ReleaseAgentRequest :one
 UPDATE agent_requests
 SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
+  steps = CASE WHEN $1::boolean THEN steps
+    ELSE jsonb_path_query_array(steps, '$[*] ? (@.attempt != $attempt)', jsonb_build_object('attempt', $2::integer)) END,
   check_failures = check_failures + CASE WHEN $1::boolean THEN 1 ELSE 0 END
-WHERE id = $2 AND status = 'running' AND attempts = $3
+WHERE id = $3 AND status = 'running' AND attempts = $2
 RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage
 `
 
 type ReleaseAgentRequestParams struct {
 	CheckFailed bool
-	ID          pgtype.UUID
 	Attempts    int32
+	ID          pgtype.UUID
 }
 
 func (q *Queries) ReleaseAgentRequest(ctx context.Context, arg ReleaseAgentRequestParams) (AgentRequest, error) {
-	row := q.db.QueryRow(ctx, releaseAgentRequest, arg.CheckFailed, arg.ID, arg.Attempts)
+	row := q.db.QueryRow(ctx, releaseAgentRequest, arg.CheckFailed, arg.Attempts, arg.ID)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,

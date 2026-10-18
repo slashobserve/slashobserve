@@ -284,7 +284,6 @@ func repairExhausted(codes []string) error {
 func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, out Outcome, took time.Duration, err error) {
 	attrs := []any{
 		slog.String("mode", string(mode)),
-		slog.String("dashboard_id", out.DashboardID),
 		slog.Int("version", out.Version),
 		slog.Int("model_calls", out.Usage.Calls),
 		slog.Int("repair_rounds", out.RepairRounds),
@@ -295,6 +294,9 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, out Outcome, too
 		slog.Duration("duration", took),
 		slog.String("provider", out.Provider),
 		slog.String("model", out.Model),
+	}
+	if out.DashboardID != "" {
+		attrs = append(attrs, slog.String("dashboard_id", out.DashboardID))
 	}
 	if err != nil {
 		attrs = append(attrs, slog.String("error", err.Error()))

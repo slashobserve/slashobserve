@@ -2,14 +2,12 @@ package revisions
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -118,13 +116,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", ErrUnavailable.Error())
 		return
 	}
-	var row dbsqlc.AgentRequest
-	var queued bool
-	if dashboardID.Valid {
-		row, queued = h.enqueueFollowUp(c, dashboardID, req.BaseVersion, prompt)
-	} else {
-		row, queued = h.enqueueNew(c, prompt)
-	}
+	row, queued := h.enqueue(c, dashboardID, req.BaseVersion, prompt)
 	if !queued {
 		return
 	}
@@ -132,52 +124,16 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	c.JSON(http.StatusAccepted, agentRequestEnvelopeJSON{Request: h.view(c, row)})
 }
 
-func (h *ObserveHandler) enqueueNew(c *gin.Context, prompt string) (dbsqlc.AgentRequest, bool) {
-	row, err := h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
+func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
+	var row dbsqlc.AgentRequest
+	var err error
+	if dashboardID.Valid {
+		row, err = h.service.SubmitFollowUp(c.Request.Context(), dashboardID, baseVersion, prompt, httpapi.Caller(c))
+	} else {
+		row, err = h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
+	}
 	if err != nil {
 		h.service.fail(c, "enqueue observe request", err)
-		return dbsqlc.AgentRequest{}, false
-	}
-	return row, true
-}
-
-func (h *ObserveHandler) enqueueFollowUp(c *gin.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string) (dbsqlc.AgentRequest, bool) {
-	ctx := c.Request.Context()
-	latest, err := h.service.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
-		return dbsqlc.AgentRequest{}, false
-	case err != nil:
-		h.service.fail(c, "read latest dashboard version", err)
-		return dbsqlc.AgentRequest{}, false
-	case baseVersion != nil && *baseVersion > int(latest):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard version not found")
-		return dbsqlc.AgentRequest{}, false
-	}
-	base := int(latest)
-	if baseVersion != nil {
-		base = *baseVersion
-	}
-	rev, err := h.service.Submit(ctx, EnqueueParams{
-		DashboardID: dashboardID,
-		Source:      SourcePrompt,
-		Prompt:      prompt,
-		BaseVersion: base,
-		By:          httpapi.Caller(c),
-	})
-	if err != nil {
-		h.service.fail(c, "enqueue revision", err)
-		return dbsqlc.AgentRequest{}, false
-	}
-	id, err := db.ParseUUID(rev.ID)
-	if err != nil {
-		h.service.fail(c, "read enqueued revision", err)
-		return dbsqlc.AgentRequest{}, false
-	}
-	row, err := h.service.GetByID(ctx, id)
-	if err != nil {
-		h.service.fail(c, "read enqueued revision", err)
 		return dbsqlc.AgentRequest{}, false
 	}
 	return row, true

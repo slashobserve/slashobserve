@@ -273,6 +273,8 @@ boot() {
 TMP=""
 LOCK_FILE=/tmp/slashobserve-e2e-run.lock
 SSE_PID=""
+CLAIM_LOCK_APP="slashobserve-e2e-claim-lock"
+CLAIM_LOCK_PID=""
 
 lock_owner() {
   local owner="" tries=10
@@ -324,6 +326,7 @@ cleanup() {
     kill "$CHILD_PID" 2>/dev/null || true
     wait "$CHILD_PID" 2>/dev/null || true
   fi
+  release_claim_lock
   if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
   if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
 }
@@ -331,6 +334,37 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
+
+psql_app() {
+  compose_exec postgres psql -U slashobserve -d slashobserve -qAt -c "$1"
+}
+
+hold_claim_lock() {
+  "${COMPOSE_CMD[@]}" exec -T -e PGAPPNAME="$CLAIM_LOCK_APP" postgres psql -U slashobserve -d slashobserve -qAt \
+    -c "SELECT pg_advisory_lock(hashtextextended('agent_requests:claim', 0)), pg_sleep(600)" \
+    </dev/null >"$TMP/claim-lock.log" 2>&1 9>&- &
+  CLAIM_LOCK_PID=$!
+}
+
+claim_lock_log() {
+  [[ -f "$TMP/claim-lock.log" ]] || return 0
+  redact <"$TMP/claim-lock.log" | tr '\n' ' '
+}
+
+claim_lock_held() {
+  local count
+  capture count psql_app "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid WHERE l.locktype = 'advisory' AND l.granted AND a.application_name = '$CLAIM_LOCK_APP'" || true
+  LAST="$count (lock session output: $(claim_lock_log))"
+  [[ "$count" == 1 ]]
+}
+
+release_claim_lock() {
+  [[ -n "$CLAIM_LOCK_PID" ]] || return 0
+  psql_app "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = '$CLAIM_LOCK_APP'" >/dev/null 2>&1 || true
+  kill "$CLAIM_LOCK_PID" 2>/dev/null || true
+  wait "$CLAIM_LOCK_PID" 2>/dev/null || true
+  CLAIM_LOCK_PID=""
+}
 
 dex_login() {
   local jar="$1" return_to="$2" expected="$3" user="${4:-admin@example.com}" authorize form_url final
@@ -1234,7 +1268,7 @@ observe_expect() {
 
 observe_suite() {
   api_token
-  local out id did fid id2 did2 nil_id=00000000-0000-0000-0000-000000000000 bad accepted=0 limited=0 attempt accepted_ids=() long_prompt
+  local out id did fid id2 did2 nil_id=00000000-0000-0000-0000-000000000000 bad attempt accepted_ids=() long_prompt
   : >"$TMP/observe-bodies.txt"
 
   out="$(api GET /agent)"
@@ -1305,11 +1339,11 @@ observe_suite() {
   [[ "$out" == 202 ]] || fail "queue a prompt the replay provider cannot answer ($out: $(cat "$TMP/api.body"))"
   id2="$(observe_id_of "$TMP/api.body")"
   observe_wait "$id2" 90
-  observe_expect "the unanswerable request" '"status":"failed"' '"error":"model call failed: no replay fixture"'
+  observe_expect "the unanswerable request" '"status":"failed"' '"error":"model call failed: no replay fixture"' '"usage":null'
   pass "a prompt with no fixture fails with a safe error"
 
   long_prompt="$(printf 'a%.0s' $(seq 1 4001))"
-  for bad in '{}' '{"prompt":"   "}' '{"prompt":"a\u0000b"}' '{"prompt":"a‮b"}' '{"prompt":"x","base_version":1}' \
+  for bad in '{}' '{"prompt":"   "}' '{"prompt":"a\u0000b"}' '{"prompt":"a\u202eb"}' '{"prompt":"x","base_version":1}' \
     '{"prompt":"x","dashboard_id":"not-a-uuid"}' "{\"prompt\":\"x\",\"dashboard_id\":\"$LOOKALIKE_UUID\"}" \
     "{\"prompt\":\"x\",\"dashboard_id\":\"$did\",\"base_version\":0}" '{"prompt":"x","extra":1}' "{\"prompt\":\"$long_prompt\"}"; do
     out="$(api POST /observe -d "$bad")"
@@ -1331,19 +1365,18 @@ observe_suite() {
   [[ "$out" == 401 ]] || fail "observe request without a token ($out)"
   pass "observe requests refuse invalid bodies, unknown dashboards, versions and ids, and anonymous callers"
 
-  for attempt in $(seq 1 12); do
+  hold_claim_lock
+  poll 30 "the test holds the agent request claim lock" claim_lock_held
+  for attempt in 1 2 3; do
     out="$(api POST /observe -d '{"prompt":"e2e: a slow run that never saves"}')"
-    if [[ "$out" == 202 ]]; then
-      accepted=$((accepted + 1))
-      accepted_ids+=("$(observe_id_of "$TMP/api.body")")
-    elif [[ "$out" == 429 ]] && grep -q '"code":"too_many_requests"' "$TMP/api.body"; then
-      limited=1
-      break
-    else
-      fail "rapid observe request $attempt ($out: $(cat "$TMP/api.body"))"
-    fi
+    [[ "$out" == 202 ]] || fail "observe request $attempt of 3 should be accepted ($out: $(cat "$TMP/api.body"))"
+    accepted_ids+=("$(observe_id_of "$TMP/api.body")")
   done
-  ((limited == 1 && accepted >= 3 && accepted <= 11)) || fail "rapid observe requests: $accepted accepted, limited=$limited"
+  out="$(api POST /observe -d '{"prompt":"e2e: a slow run that never saves"}')"
+  if [[ "$out" != 429 ]] || ! grep -q '"code":"too_many_requests"' "$TMP/api.body"; then
+    fail "the fourth queued observe request should be refused with too_many_requests ($out: $(cat "$TMP/api.body"))"
+  fi
+  release_claim_lock
   for id2 in "${accepted_ids[@]}"; do
     observe_wait "$id2" 90
   done

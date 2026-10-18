@@ -130,30 +130,15 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 	return dash, ver, err
 }
 
-func (st store) versionOfRequest(ctx context.Context, id, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	number, err := st.db.Queries().GetAgentRequestResultVersion(ctx, dbsqlc.GetAgentRequestResultVersionParams{DashboardID: id, AgentRequestID: requestID})
+func (st store) savedByRequest(ctx context.Context, requestID, dashboardID pgtype.UUID) (Dashboard, Version, bool, error) {
+	row, err := st.db.Queries().GetAgentRequestSavedVersion(ctx, dbsqlc.GetAgentRequestSavedVersionParams{AgentRequestID: requestID, DashboardID: dashboardID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Dashboard{}, Version{}, false, nil
 	}
 	if err != nil {
 		return Dashboard{}, Version{}, false, fmt.Errorf("get version of request: %w", err)
 	}
-	dash, ver, err := st.version(ctx, id, int(number))
-	return dash, ver, err == nil, err
-}
-
-func (st store) createdByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	row, err := st.db.Queries().GetAgentRequestSavedVersion(ctx, requestID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Dashboard{}, Version{}, false, nil
-	}
-	if err != nil {
-		return Dashboard{}, Version{}, false, fmt.Errorf("get version of request: %w", err)
-	}
-	if row.Version != 1 {
-		return Dashboard{}, Version{}, false, fmt.Errorf("request %s already saved version %d, not a new dashboard", requestID.String(), row.Version)
-	}
-	dash, ver, err := st.version(ctx, row.DashboardID, 1)
+	dash, ver, err := st.version(ctx, row.DashboardID, int(row.Version))
 	return dash, ver, err == nil, err
 }
 

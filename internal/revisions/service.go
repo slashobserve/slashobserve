@@ -48,36 +48,36 @@ type EnqueueParams struct {
 	By          auth.Principal
 }
 
-func (s *Service) Submit(ctx context.Context, p EnqueueParams) (Revision, error) {
-	var rev Revision
+func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
+	var row dbsqlc.AgentRequest
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		rev, err = s.Enqueue(ctx, q, p)
+		row, err = s.Enqueue(ctx, q, p)
 		return err
 	})
-	return rev, err
+	return row, err
 }
 
-func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (Revision, error) {
+func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
-		return Revision{}, ErrUnavailable
+		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if !p.DashboardID.Valid {
-		return Revision{}, fmt.Errorf("enqueue agent request: dashboard id is required")
+		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: dashboard id is required")
 	}
 	requesterID, err := db.ParseUUID(p.By.ID)
 	if err != nil {
-		return Revision{}, fmt.Errorf("requester id: %w", err)
+		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
 	if err := q.LockAgentRequestsForDashboard(ctx, p.DashboardID); err != nil {
-		return Revision{}, fmt.Errorf("lock agent requests: %w", err)
+		return dbsqlc.AgentRequest{}, fmt.Errorf("lock agent requests: %w", err)
 	}
 	active, err := q.CountActiveAgentRequests(ctx, p.DashboardID)
 	if err != nil {
-		return Revision{}, fmt.Errorf("count active agent requests: %w", err)
+		return dbsqlc.AgentRequest{}, fmt.Errorf("count active agent requests: %w", err)
 	}
 	if active >= MaxActive {
-		return Revision{}, ErrTooManyRevisions
+		return dbsqlc.AgentRequest{}, ErrTooManyRevisions
 	}
 	row, err := q.EnqueueAgentRequest(ctx, dbsqlc.EnqueueAgentRequestParams{
 		DashboardID:      p.DashboardID,
@@ -92,15 +92,38 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
 	})
 	if err != nil {
-		return Revision{}, fmt.Errorf("enqueue agent request: %w", err)
+		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
 	}
 	if err := notifyRevision(ctx, q, row); err != nil {
-		return Revision{}, err
+		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
-		return Revision{}, fmt.Errorf("notify workers: %w", err)
+		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
-	return revisionFromRow(row), nil
+	return row, nil
+}
+
+func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	latest, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	case err != nil:
+		return dbsqlc.AgentRequest{}, fmt.Errorf("read latest dashboard version: %w", err)
+	case baseVersion != nil && *baseVersion > int(latest):
+		return dbsqlc.AgentRequest{}, ErrDashboardVersionNotFound
+	}
+	base := int(latest)
+	if baseVersion != nil {
+		base = *baseVersion
+	}
+	return s.Submit(ctx, EnqueueParams{
+		DashboardID: dashboardID,
+		Source:      SourcePrompt,
+		Prompt:      prompt,
+		BaseVersion: base,
+		By:          by,
+	})
 }
 
 func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt string) (dbsqlc.AgentRequest, error) {
@@ -203,7 +226,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
-		exhausted, err := q.FailExhaustedAgentRequests(ctx)
+		exhausted, err := q.FailExhaustedAgentRequests(ctx, MaxAttempts)
 		if err != nil {
 			return fmt.Errorf("fail exhausted agent requests: %w", err)
 		}
@@ -212,7 +235,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 				return err
 			}
 		}
-		row, err := q.ClaimAgentRequest(ctx)
+		row, err := q.ClaimAgentRequest(ctx, MaxAttempts)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -287,7 +310,7 @@ func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, chec
 }
 
 func (s *Service) existingVersion(ctx context.Context, claimed dbsqlc.AgentRequest) (int, bool, error) {
-	saved, err := s.db.Queries().GetAgentRequestSavedVersion(ctx, claimed.ID)
+	saved, err := s.db.Queries().GetAgentRequestSavedVersion(ctx, dbsqlc.GetAgentRequestSavedVersionParams{AgentRequestID: claimed.ID, DashboardID: claimed.DashboardID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil
 	}

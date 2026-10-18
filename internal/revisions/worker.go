@@ -206,7 +206,7 @@ func (w *Worker) release(ctx context.Context, claimed dbsqlc.AgentRequest, check
 	releaseCtx, cancel := finishContext(ctx)
 	defer cancel()
 	released, err := w.service.release(releaseCtx, claimed, checkFailed)
-	attrs := []any{slog.String("revision_id", claimed.ID.String()), slog.String("dashboard_id", claimed.DashboardID.String())}
+	attrs := logAttrs(claimed)
 	switch {
 	case err != nil:
 		w.logger.ErrorContext(ctx, "release agent request; its lease will expire", append(attrs, slog.Any("error", err))...)
@@ -219,7 +219,7 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 	finishCtx, cancel := finishContext(ctx)
 	defer cancel()
 	finished, err := w.service.finish(finishCtx, claimed, o)
-	attrs := []any{slog.String("revision_id", claimed.ID.String()), slog.String("dashboard_id", claimed.DashboardID.String())}
+	attrs := logAttrs(claimed)
 	switch {
 	case err != nil:
 		w.logger.ErrorContext(ctx, "finish agent request", append(attrs, slog.Any("error", err))...)
@@ -230,6 +230,14 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 	default:
 		w.logger.WarnContext(ctx, "agent request failed", append(attrs, slog.String("error", truncateError(o.message)), slog.Int("attempt", int(claimed.Attempts)))...)
 	}
+}
+
+func logAttrs(claimed dbsqlc.AgentRequest) []any {
+	attrs := []any{slog.String("revision_id", claimed.ID.String())}
+	if claimed.DashboardID.Valid {
+		attrs = append(attrs, slog.String("dashboard_id", claimed.DashboardID.String()))
+	}
+	return attrs
 }
 
 func requestFrom(row dbsqlc.AgentRequest) Request {

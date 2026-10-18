@@ -143,7 +143,7 @@ func (cm *Comments) announce(ctx context.Context, q *dbsqlc.Queries, by auth.Pri
 	if !requestRevision || !cm.revisions.Available() {
 		return nil, nil
 	}
-	rev, err := cm.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
+	queued, err := cm.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
 		DashboardID: row.DashboardID,
 		Source:      revisions.SourceComment,
 		CommentID:   row.ID,
@@ -155,7 +155,7 @@ func (cm *Comments) announce(ctx context.Context, q *dbsqlc.Queries, by auth.Pri
 	if err != nil {
 		return nil, err
 	}
-	return &CommentRevision{ID: rev.ID, Status: string(rev.Status)}, nil
+	return &CommentRevision{ID: queued.ID.String(), Status: queued.Status}, nil
 }
 
 func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, panelID string, limit int, cursor string) ([]Comment, string, error) {

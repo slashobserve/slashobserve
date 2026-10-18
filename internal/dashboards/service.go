@@ -64,14 +64,7 @@ func New(database *db.DB, runner *queryproxy.Runner, logger *slog.Logger) *Servi
 }
 
 func (s *Service) Create(ctx context.Context, by auth.Principal, rawSpec []byte, summary string) (Dashboard, Version, error) {
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
-	if err != nil {
-		return Dashboard{}, Version{}, err
-	}
-	if err := s.checkQueries(ctx, parsed); err != nil {
-		return Dashboard{}, Version{}, err
-	}
-	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by)})
+	return s.create(ctx, by, rawSpec, summary, pgtype.UUID{})
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
@@ -84,27 +77,19 @@ func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id p
 	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID)
 }
 
-// A second save for the same request id returns the dashboard the first one created.
 func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if !requestID.Valid {
 		dash, ver, err := s.Create(ctx, by, rawSpec, summary)
 		return dash, ver, false, err
 	}
-	if dash, ver, found, err := s.store.createdByRequest(ctx, requestID); err != nil || found {
+	if dash, ver, found, err := s.createdByRequest(ctx, requestID); err != nil || found {
 		return dash, ver, found, err
 	}
-	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
-	if err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	if err := s.checkQueries(ctx, parsed); err != nil {
-		return Dashboard{}, Version{}, false, err
-	}
-	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+	dash, ver, err := s.create(ctx, by, rawSpec, summary, requestID)
 	if !errors.Is(err, errRequestSaved) {
 		return dash, ver, false, err
 	}
-	dash, ver, found, err := s.store.createdByRequest(ctx, requestID)
+	dash, ver, found, err := s.createdByRequest(ctx, requestID)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -114,9 +99,31 @@ func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal,
 	return dash, ver, true, nil
 }
 
+func (s *Service) createdByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	dash, ver, found, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
+	if err != nil || !found {
+		return Dashboard{}, Version{}, false, err
+	}
+	if ver.Number != 1 {
+		return Dashboard{}, Version{}, false, fmt.Errorf("request %s already saved version %d, not a new dashboard", requestID.String(), ver.Number)
+	}
+	return dash, ver, true, nil
+}
+
+func (s *Service) create(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	if err := s.checkQueries(ctx, parsed); err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+}
+
 func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
-		if dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID); err != nil || found {
+		if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, id); err != nil || found {
 			return dash, ver, found, err
 		}
 	}
@@ -282,7 +289,7 @@ func (s *Service) checkQueries(ctx context.Context, d *spec.Dashboard) error {
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
-		dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID)
+		dash, ver, found, err := s.store.savedByRequest(ctx, requestID, id)
 		if err != nil || found {
 			return dash, ver, found, err
 		}

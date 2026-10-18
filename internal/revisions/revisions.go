@@ -3,6 +3,7 @@ package revisions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -49,9 +50,12 @@ var (
 	ErrTooManyRevisions = errors.New("too many revisions are queued or running for this dashboard")
 	ErrNotFound         = errors.New("revision not found")
 	ErrInvalidCursor    = errors.New("invalid cursor")
-	ErrTooManyRequests  = errors.New("you already have 3 agent requests queued or running")
+	ErrTooManyRequests  = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
 	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound  = errors.New("agent request not found")
+
+	ErrDashboardNotFound        = errors.New("dashboard not found")
+	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
 
 type Request struct {
@@ -66,9 +70,8 @@ type Request struct {
 }
 
 type Result struct {
-	Version     int
-	DashboardID string
-	Usage       *Usage
+	Version int
+	Usage   *Usage
 }
 
 type Usage struct {

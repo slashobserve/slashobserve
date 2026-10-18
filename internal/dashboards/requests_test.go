@@ -124,11 +124,7 @@ func (r *rig) queueRevision(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := db.ParseUUID(rev.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return id
+	return rev.ID
 }
 
 func TestRequestVersionIsSavedExactlyOnce(t *testing.T) {

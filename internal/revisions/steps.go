@@ -3,7 +3,6 @@ package revisions
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -36,20 +35,21 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 	}
 	st.Tool = cleanStepText(st.Tool, maxStepToolRunes)
 	st.Message = cleanStepText(st.Message, MaxStepMessageRunes)
+	st.Attempt = req.Attempt
 	st.At = st.At.UTC()
 	st.DurationMS = max(st.DurationMS, 0)
 	payload, err := json.Marshal(st)
 	if err != nil {
-		s.logger.WarnContext(ctx, "record agent request step", slog.String("revision_id", req.ID), slog.String("tool", st.Tool))
+		s.logger.WarnContext(ctx, "record agent request step", slog.String("revision_id", req.ID), slog.String("tool", st.Tool), slog.Any("error", err))
 		return
 	}
 	writeCtx, cancel := context.WithTimeout(ctx, stepWriteTimeout)
 	defer cancel()
 	_, err = s.db.Queries().AppendAgentRequestStep(writeCtx, dbsqlc.AppendAgentRequestStepParams{
-		ID: id, Attempts: toInt32(req.Attempt), Step: payload,
+		ID: id, Attempts: toInt32(req.Attempt), Step: payload, MaxSteps: MaxSteps,
 	})
-	if err != nil && !errors.Is(err, context.Canceled) {
-		s.logger.WarnContext(ctx, "record agent request step", slog.String("revision_id", req.ID), slog.String("tool", st.Tool))
+	if err != nil {
+		s.logger.WarnContext(ctx, "record agent request step", slog.String("revision_id", req.ID), slog.String("tool", st.Tool), slog.Any("error", err))
 	}
 }
 

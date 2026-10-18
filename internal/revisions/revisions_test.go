@@ -79,13 +79,13 @@ func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 
 func submit(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, prompt string) revisions.Revision {
 	t.Helper()
-	rev, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+	row, err := svc.Submit(context.Background(), revisions.EnqueueParams{
 		DashboardID: dashboard, Source: revisions.SourcePrompt, Prompt: prompt, BaseVersion: 1, By: user,
 	})
 	if err != nil {
 		t.Fatalf("submit %q: %v", prompt, err)
 	}
-	return rev
+	return get(t, svc, dashboard, row.ID.String())
 }
 
 func mustUUID(t *testing.T, s string) pgtype.UUID {
@@ -382,12 +382,8 @@ func TestFailedCheckAfterAFailedRunRecordsTheFailureWithoutAFreeRerun(t *testing
 	}
 }
 
-func TestPersistentFailureToCheckTheSavedVersionReleasesThenFailsTheRequest(t *testing.T) {
-	var calls atomic.Int32
-	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
-		calls.Add(1)
-		return revisions.Result{Version: 2}, nil
-	}))
+func breakVersionsAfterClaim(t *testing.T, d *dbtest.Database) {
+	t.Helper()
 	d.Exec(t, `CREATE FUNCTION break_versions() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'dashboard_versions' AND column_name = 'agent_request_id') THEN
@@ -396,6 +392,15 @@ BEGIN
   RETURN NEW;
 END $$`)
 	d.Exec(t, "CREATE TRIGGER break_after_claim AFTER UPDATE ON agent_requests FOR EACH ROW WHEN (NEW.status = 'running' AND OLD.status <> 'running') EXECUTE FUNCTION break_versions()")
+}
+
+func TestPersistentFailureToCheckTheSavedVersionReleasesThenFailsTheRequest(t *testing.T) {
+	var calls atomic.Int32
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}))
+	breakVersionsAfterClaim(t, d)
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "go")
 	id := mustUUID(t, rev.ID)
@@ -417,6 +422,30 @@ END $$`)
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
 	if failed.Error != "could not check the request's saved version" || failed.Attempts != 1 || calls.Load() != 0 {
 		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
+	}
+}
+
+func TestCheckFailedReleaseKeepsTheRecordedSteps(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	breakVersionsAfterClaim(t, d)
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	id := mustUUID(t, rev.ID)
+	d.Exec(t, `UPDATE agent_requests SET steps = '[{"at":"2026-01-01T00:00:00Z","attempt":1,"phase":"query","tool":"query_range","status":"ok","message":"Queried","duration_ms":1}]'::jsonb WHERE id = $1`, id)
+	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
+
+	var row dbsqlc.AgentRequest
+	waitFor(t, "the check-failed release", func() bool {
+		var err error
+		row, err = d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == 1
+	})
+	var stored []revisions.Step
+	if err := json.Unmarshal(row.Steps, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if row.Attempts != 0 || len(stored) != 1 || stored[0].Message != "Queried" {
+		t.Fatalf("release left attempts %d and steps %s, want attempts 0 and the recorded step", row.Attempts, row.Steps)
 	}
 }
 

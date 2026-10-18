@@ -95,30 +95,12 @@ func (s *Service) createRevision(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
 		return
 	}
-	ctx := c.Request.Context()
-	latest, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
-		return
-	case err != nil:
-		s.fail(c, "read latest dashboard version", err)
-		return
-	case *req.BaseVersion > int(latest):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard version not found")
-		return
-	}
-	rev, err := s.Submit(ctx, EnqueueParams{
-		DashboardID: dashboardID,
-		Source:      SourcePrompt,
-		Prompt:      prompt,
-		BaseVersion: *req.BaseVersion,
-		By:          httpapi.Caller(c),
-	})
+	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, prompt, httpapi.Caller(c))
 	if err != nil {
 		s.fail(c, "enqueue revision", err)
 		return
 	}
+	rev := revisionFromRow(row)
 	c.Header("Location", "/api/v1/dashboards/"+rev.DashboardID+"/revisions/"+rev.ID)
 	c.JSON(http.StatusAccepted, envelopeJSON{Revision: newRevisionJSON(rev)})
 }
@@ -179,7 +161,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, context.Canceled):
 		s.logger.DebugContext(ctx, action+": client went away")
 		c.AbortWithStatus(statusClientClosedRequest)
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
