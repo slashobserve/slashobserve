@@ -2,6 +2,7 @@ package dbtest
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
@@ -95,12 +97,22 @@ func New(t testing.TB) *Database {
 
 func NewWithLogger(t testing.TB, logger *slog.Logger) *Database {
 	t.Helper()
+	return create(t, logger, " TEMPLATE "+templateDB)
+}
+
+func NewUnmigrated(t testing.TB) *Database {
+	t.Helper()
+	return create(t, quietLogger(), "")
+}
+
+func create(t testing.TB, logger *slog.Logger, options string) *Database {
+	t.Helper()
 	if skipped {
 		t.Skip("Postgres tests are skipped with -short")
 	}
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", counter.Add(1))
-	if err := adminExec(ctx, "CREATE DATABASE "+name+" TEMPLATE "+templateDB); err != nil {
+	if err := adminExec(ctx, "CREATE DATABASE "+name+options); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
 	d, err := db.Open(ctx, urlFor(name), logger)
@@ -126,6 +138,17 @@ func (d *Database) Exec(t testing.TB, sql string, args ...any) {
 	if _, err := conn.Exec(context.Background(), sql, args...); err != nil {
 		t.Fatalf("exec %q: %v", sql, err)
 	}
+}
+
+func (d *Database) SQLDB(t testing.TB) *sql.DB {
+	t.Helper()
+	cfg, err := pgx.ParseConfig(urlFor(d.name))
+	if err != nil {
+		t.Fatalf("parse database url: %v", err)
+	}
+	sqlDB := stdlib.OpenDB(*cfg)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	return sqlDB
 }
 
 func adminExec(ctx context.Context, sql string) error {

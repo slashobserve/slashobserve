@@ -93,6 +93,7 @@ func newMigrator(sqlDB *sql.DB, logger *slog.Logger) (*goose.Provider, error) {
 		goose.WithSessionLocker(locker),
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithSlog(logger),
+		goose.WithGoMigrations(evolveSpecsMigration()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create migration provider: %w", err)
