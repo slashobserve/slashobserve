@@ -4,6 +4,7 @@ import {
   describeRange,
   formatDateTime,
   formatRelative,
+  formatShortRelative,
   formatTimeValue,
   isAbsoluteOrdered,
   isTimeValue,
@@ -195,5 +196,42 @@ describe("refreshToMs", () => {
     expect(refreshToMs("off")).toBeNull()
     expect(refreshToMs(undefined)).toBeNull()
     expect(refreshToMs("soon")).toBeNull()
+  })
+})
+
+describe("formatShortRelative", () => {
+  const now = Date.parse("2026-10-19T12:00:00Z")
+  const second = 1000
+  const minute = 60 * second
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  it.each([
+    [-2 * second, "Just now"],
+    [-12 * second, "12 s ago"],
+    [-52 * minute, "52 min ago"],
+    [-3 * hour, "3 h ago"],
+    [-30 * hour, "Yesterday"],
+    [-2 * day, "2 days ago"],
+    [-8 * day, "Last week"],
+    [-15 * day, "2 weeks ago"],
+    [-40 * day, "Last month"],
+    [-70 * day, "2 months ago"],
+    [-400 * day, "Last year"],
+    [-800 * day, "2 years ago"],
+    [30 * second, "In under a minute"],
+    [5 * minute, "In 5 min"],
+    [5 * hour, "In 5 h"],
+    [30 * hour, "Tomorrow"],
+    [74 * day, "In 74 days"],
+    [800 * day, "In 2 years"],
+  ])("formats an offset of %i ms as %s", (offset, expected) => {
+    expect(formatShortRelative(new Date(now + offset).toISOString(), now)).toBe(
+      expected
+    )
+  })
+
+  it("returns an unparsable value unchanged", () => {
+    expect(formatShortRelative("not a date", now)).toBe("not a date")
   })
 })

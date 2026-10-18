@@ -209,6 +209,39 @@ export function formatRelative(iso: string, now = Date.now()): string {
   return relativeFormat.format(seconds, "second")
 }
 
+export function formatShortRelative(iso: string, now = Date.now()): string {
+  const target = Date.parse(iso)
+  if (Number.isNaN(target)) return iso
+  const diff = target - now
+  const abs = Math.abs(diff)
+  const s = Math.round(abs / 1000)
+  const m = Math.floor(abs / 60_000)
+  const h = Math.floor(abs / 3_600_000)
+  const d = Math.floor(abs / 86_400_000)
+  if (diff > 0) {
+    if (s < 60) return "In under a minute"
+    if (m < 60) return `In ${m} min`
+    if (h < 24) return `In ${h} h`
+    if (d === 1) return "Tomorrow"
+    if (d < 730) return `In ${d} days`
+    return `In ${Math.floor(d / 365)} years`
+  }
+  if (s < 5) return "Just now"
+  if (s < 60) return `${s} s ago`
+  if (m < 60) return `${m} min ago`
+  if (h < 24) return `${h} h ago`
+  if (d === 1) return "Yesterday"
+  if (d < 7) return `${d} days ago`
+  if (d < 14) return "Last week"
+  if (d < 30) return `${Math.floor(d / 7)} weeks ago`
+  if (d < 365) {
+    const months = Math.floor(d / 30)
+    return months === 1 ? "Last month" : `${months} months ago`
+  }
+  const years = Math.floor(d / 365)
+  return years === 1 ? "Last year" : `${years} years ago`
+}
+
 export const refreshOptions = [
   "off",
   "5s",
