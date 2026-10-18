@@ -239,7 +239,7 @@ func requestFrom(row dbsqlc.AgentRequest) Request {
 		Source:      Source(row.Source),
 		Prompt:      row.Prompt,
 		PanelID:     row.PanelID.String,
-		BaseVersion: int(row.BaseVersion),
+		BaseVersion: int(row.BaseVersion.Int32),
 		RequestedBy: requesterOf(row),
 	}
 }

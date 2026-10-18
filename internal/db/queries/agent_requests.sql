@@ -13,7 +13,7 @@ INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email
 ) VALUES (
-  @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version,
+  @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email')
 )
 RETURNING *;
@@ -28,10 +28,10 @@ WHERE id = (
   SELECT r.id FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < 2
-    AND NOT EXISTS (
+    AND (r.dashboard_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
       WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
-    )
+    ))
   ORDER BY r.created_at, r.id
   FOR UPDATE SKIP LOCKED
   LIMIT 1
@@ -42,19 +42,31 @@ RETURNING *;
 UPDATE agent_requests r
 SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
   result_version = saved.version,
+  dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
   error = CASE WHEN saved.version IS NULL THEN 'agent run did not finish' END,
   lease_until = NULL,
   finished_at = clock_timestamp()
 FROM agent_requests e
-LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND saved.dashboard_id = e.dashboard_id
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id
 WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= 2
 RETURNING r.*;
 
--- name: FinishAgentRequest :one
+-- name: SucceedAgentRequest :one
 UPDATE agent_requests
-SET status = @status::text,
-  result_version = sqlc.narg('result_version')::integer,
-  error = sqlc.narg('error')::text,
+SET status = 'succeeded',
+  result_version = @result_version::integer,
+  run_usage = sqlc.narg('run_usage')::jsonb,
+  dashboard_id = coalesce(dashboard_id, (SELECT v.dashboard_id FROM dashboard_versions v WHERE v.agent_request_id = @id)),
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+WHERE id = @id AND status = 'running' AND attempts = @attempts
+RETURNING *;
+
+-- name: FailAgentRequest :one
+UPDATE agent_requests
+SET status = 'failed',
+  error = @error::text,
+  run_usage = sqlc.narg('run_usage')::jsonb,
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = @id AND status = 'running' AND attempts = @attempts
@@ -68,11 +80,11 @@ WHERE id = @id AND status = 'running' AND attempts = @attempts
 RETURNING *;
 
 -- name: GetAgentRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id;
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source <> 'observe';
 
 -- name: ListAgentRequests :many
 SELECT * FROM agent_requests
-WHERE dashboard_id = @dashboard_id
+WHERE dashboard_id = @dashboard_id AND source <> 'observe'
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY created_at DESC, id DESC
@@ -86,3 +98,29 @@ SELECT DISTINCT ON (comment_id) comment_id, id, status
 FROM agent_requests
 WHERE comment_id = ANY(@comment_ids::uuid[])
 ORDER BY comment_id, created_at DESC, id DESC;
+
+-- name: LockObserveRequests :exec
+SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:observe', 0));
+
+-- name: CountActiveObserveRequestsBy :one
+SELECT count(*) FROM agent_requests
+WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+
+-- name: CountActiveObserveRequests :one
+SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
+
+-- name: EnqueueObserveRequest :one
+INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email)
+VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'))
+RETURNING *;
+
+-- name: GetAgentRequestByID :one
+SELECT * FROM agent_requests WHERE id = @id;
+
+-- name: GetAgentRequestSavedVersion :one
+SELECT dashboard_id, version FROM dashboard_versions WHERE agent_request_id = @agent_request_id;
+
+-- name: AppendAgentRequestStep :execrows
+UPDATE agent_requests
+SET steps = steps || jsonb_build_array(@step::jsonb)
+WHERE id = @id AND status = 'running' AND attempts = @attempts AND jsonb_array_length(steps) < 100;

@@ -690,7 +690,7 @@ func TestActiveRequestsPerDashboardAreCapped(t *testing.T) {
 	}
 	submit(t, svc, other, "another dashboard is unaffected")
 
-	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded' WHERE id = $1", mustUUID(t, first.ID))
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 1 WHERE id = $1", mustUUID(t, first.ID))
 	submit(t, svc, dash, "room again")
 }
 

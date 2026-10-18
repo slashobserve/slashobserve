@@ -177,16 +177,19 @@ type outcome struct {
 }
 
 func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outcome) (bool, error) {
-	params := dbsqlc.FinishAgentRequestParams{ID: claimed.ID, Attempts: claimed.Attempts, Status: string(StatusFailed)}
-	if o.version != nil {
-		params.Status = string(StatusSucceeded)
-		params.ResultVersion = pgtype.Int4{Int32: toInt32(*o.version), Valid: true}
-	} else {
-		params.Error = pgtype.Text{String: truncateError(o.message), Valid: true}
-	}
 	finished := false
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.FinishAgentRequest(ctx, params)
+		var row dbsqlc.AgentRequest
+		var err error
+		if o.version != nil {
+			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: toInt32(*o.version),
+			})
+		} else {
+			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message),
+			})
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -257,7 +260,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		DashboardID: row.DashboardID.String(),
 		Source:      Source(row.Source),
 		Prompt:      row.Prompt,
-		BaseVersion: int(row.BaseVersion),
+		BaseVersion: int(row.BaseVersion.Int32),
 		Status:      Status(row.Status),
 		Attempts:    int(row.Attempts),
 		Error:       row.Error.String,

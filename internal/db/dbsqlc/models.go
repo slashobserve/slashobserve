@@ -15,7 +15,7 @@ type AgentRequest struct {
 	CommentID        pgtype.UUID
 	Prompt           string
 	PanelID          pgtype.Text
-	BaseVersion      int32
+	BaseVersion      pgtype.Int4
 	Status           string
 	Attempts         int32
 	CheckFailures    int32
@@ -29,6 +29,8 @@ type AgentRequest struct {
 	CreatedAt        pgtype.Timestamptz
 	StartedAt        pgtype.Timestamptz
 	FinishedAt       pgtype.Timestamptz
+	Steps            []byte
+	RunUsage         []byte
 }
 
 type Dashboard struct {
