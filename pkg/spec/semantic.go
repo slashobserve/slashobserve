@@ -555,20 +555,42 @@ func (rc refChecker) checkVariableRef(ref Reference, visible int) *Issue {
 	case idx >= visible:
 		return &Issue{Code: CodeVariableOrder, Message: fmt.Sprintf("query references variable %q declared at %s; a variable query can only reference variables declared before it", ref.Name, pointer("variables", strconv.Itoa(idx)))}
 	case ref.Format != "" && !slices.Contains(VariableFormats(), ref.Format):
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("unknown format %q in reference to variable %q; use one of %s", ref.Format, ref.Name, strings.Join(VariableFormats(), ", "))}
+		return unknownFormatIssue(ref)
+	}
+	return nil
+}
+
+func unknownFormatIssue(ref Reference) *Issue {
+	return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("unknown format %q in reference to variable %q; use one of %s", ref.Format, ref.Name, strings.Join(VariableFormats(), ", "))}
+}
+
+func checkMacroFormat(macro Macro, ref Reference) *Issue {
+	switch macro.Formats {
+	case VariableFormatsAllowed:
+		if !slices.Contains(VariableFormats(), ref.Format) {
+			return unknownFormatIssue(ref)
+		}
+	case TimeFormatsAllowed:
+		if !ValidTimeMacroFormat(ref.Format) {
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("invalid date format %q for $%s", ref.Format, ref.Name)}
+		}
+	default:
+		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take a format", ref.Name)}
 	}
 	return nil
 }
 
 func checkMacroRef(ref Reference) *Issue {
-	idx := slices.IndexFunc(macroTable, func(m macroDef) bool { return m.Name == ref.Name })
-	if idx < 0 {
+	macro, ok := lookupMacro(ref.Name)
+	if !ok {
 		return &Issue{Code: CodeUnknownMacro, Message: fmt.Sprintf("macro $%s does not exist", ref.Name)}
 	}
-	macro := macroTable[idx].Macro
+	if ref.Format != "" {
+		if issue := checkMacroFormat(macro, ref); issue != nil {
+			return issue
+		}
+	}
 	switch {
-	case ref.Format != "":
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take a format", ref.Name)}
 	case macro.Function && strings.TrimSpace(ref.Args) == "":
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
 	case macro.Function && !IsColumnArg(strings.TrimSpace(ref.Args)):

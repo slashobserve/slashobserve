@@ -23,9 +23,18 @@ type Reference struct {
 	End     int
 }
 
+type MacroFormats int
+
+const (
+	NoFormats MacroFormats = iota
+	VariableFormatsAllowed
+	TimeFormatsAllowed
+)
+
 type Macro struct {
 	Name     string
 	Function bool
+	Formats  MacroFormats
 }
 
 type macroDef struct {
@@ -33,12 +42,24 @@ type macroDef struct {
 	datasources []DatasourceType
 }
 
+var bothDatasources = []DatasourceType{Prometheus, ClickHouse}
+
 var macroTable = []macroDef{
-	{Macro{"__interval", false}, []DatasourceType{Prometheus, ClickHouse}},
-	{Macro{"__range", false}, []DatasourceType{Prometheus}},
-	{Macro{"__rate_interval", false}, []DatasourceType{Prometheus}},
-	{Macro{"__timeFilter", true}, []DatasourceType{ClickHouse}},
-	{Macro{"__timeGroup", true}, []DatasourceType{ClickHouse}},
+	{Macro{"__interval", false, NoFormats}, bothDatasources},
+	{Macro{"__interval_ms", false, NoFormats}, bothDatasources},
+	{Macro{"__range", false, NoFormats}, []DatasourceType{Prometheus}},
+	{Macro{"__range_s", false, NoFormats}, bothDatasources},
+	{Macro{"__range_ms", false, NoFormats}, bothDatasources},
+	{Macro{"__rate_interval", false, NoFormats}, []DatasourceType{Prometheus}},
+	{Macro{"__from", false, TimeFormatsAllowed}, bothDatasources},
+	{Macro{"__to", false, TimeFormatsAllowed}, bothDatasources},
+	{Macro{"__dashboard", false, VariableFormatsAllowed}, bothDatasources},
+	{Macro{"__user.login", false, VariableFormatsAllowed}, bothDatasources},
+	{Macro{"__user.email", false, VariableFormatsAllowed}, bothDatasources},
+	{Macro{"__user.name", false, VariableFormatsAllowed}, bothDatasources},
+	{Macro{"__user.id", false, VariableFormatsAllowed}, bothDatasources},
+	{Macro{"__timeFilter", true, NoFormats}, []DatasourceType{ClickHouse}},
+	{Macro{"__timeGroup", true, NoFormats}, []DatasourceType{ClickHouse}},
 }
 
 func Macros(t DatasourceType) []Macro {
@@ -53,6 +74,21 @@ func Macros(t DatasourceType) []Macro {
 
 func knownMacro(name string) bool {
 	return slices.ContainsFunc(macroTable, func(m macroDef) bool { return m.Name == name })
+}
+
+func lookupMacro(name string) (Macro, bool) {
+	idx := slices.IndexFunc(macroTable, func(m macroDef) bool { return m.Name == name })
+	if idx < 0 {
+		return Macro{}, false
+	}
+	return macroTable[idx].Macro, true
+}
+
+func validFormatFor(name, format string) bool {
+	if macro, ok := lookupMacro(name); ok && macro.Formats == TimeFormatsAllowed {
+		return ValidTimeMacroFormat(format)
+	}
+	return validFormat(format)
 }
 
 func VariableFormats() []string {
@@ -118,10 +154,14 @@ func scanBraced(query string, start int) (*Reference, int, error) {
 	if !hasFormat && isDigits(name) {
 		return nil, end, nil
 	}
-	if !validIdent(name) || (hasFormat && !validFormat(format)) {
+	if !validReferenceName(name) || (hasFormat && !validFormatFor(name, format)) {
 		return nil, 0, fmt.Errorf("invalid reference %q at offset %d", query[start:end], start)
 	}
 	return &Reference{Kind: referenceKind(name), Name: name, Format: format, Start: start, End: end}, end, nil
+}
+
+func validReferenceName(name string) bool {
+	return validIdent(name) || (strings.Contains(name, ".") && knownMacro(name))
 }
 
 func referenceKind(name string) ReferenceKind {

@@ -93,6 +93,15 @@ func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.
 			field(value)
 		}
 	}
+	if usesUser(q.Text) {
+		field(q.User.ID)
+		field(q.User.Login)
+		field(q.User.Email)
+		field(q.User.Name)
+	}
+	if usesDashboard(q.Text) {
+		field(q.Dashboard)
+	}
 	number(rng.From.Unix() / valueRangeResolution)
 	number(rng.To.Unix() / valueRangeResolution)
 	var key [sha256.Size]byte

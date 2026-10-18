@@ -2,6 +2,7 @@ package macros
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,8 @@ func fuzzEnv(values ...string) Env {
 		Interval:       30 * time.Second,
 		ScrapeInterval: 15 * time.Second,
 		Variables:      []datasource.Variable{{Name: "v", Values: values}, {Name: "w", Values: values}},
+		Dashboard:      strings.Join(values, ","),
+		User:           datasource.QueryUser{ID: "u", Login: strings.Join(values, ","), Email: strings.Join(values, ","), Name: strings.Join(values, ",")},
 	}
 }
 
@@ -91,6 +94,11 @@ var clickHouseFuzzSeeds = []string{
 	"SELECT `a``b`, \"$w\", $v",
 	"SELECT ${v}${w}",
 	"SELECT $v1e",
+	"SELECT $__dashboard, '${__user.login}', ${__user.email:raw}e-- x'\n, '$w'",
+	"SELECT ${__dashboard:raw}0b$$ x' $$, '${__user.name}'",
+	"SELECT $__interval_ms, $__range_s, $__range_ms, ${__from:date:seconds}, $__to, '${__from:date:YYYY-MM-DD}'",
+	"SELECT ${__user.id:csv} FROM t WHERE a = '$__dashboard' AND b IN ($w)",
+	"SELECT 1 /* ${__user.login} */ WHERE x = ${__dashboard}",
 }
 
 func FuzzExpandClickHouse(f *testing.F) {
@@ -114,6 +122,11 @@ var promQLFuzzSeeds = []string{
 	"up{a=~`$v`, b=\"$w\"}",
 	`up{a=~"${v:pipe}", b="$w"}`,
 	`label_replace(up, "d", "$v", "s", "(.*)")`,
+	`up{a="$__dashboard", b=~"${__user.login}"}`,
+	`up{a=${__dashboard:doublequote}, b="$w"}`,
+	`sum by (${__user.id}) (rate(x[$__interval_ms]))`,
+	`up # "$__dashboard"` + "\r" + `{a="${__user.email}"}`,
+	`up{a=~'${__user.name:regex}', t="${__from:date:YYYY-MM-DDTHH:mm}"}`,
 }
 
 func FuzzExpandPromQL(f *testing.F) {

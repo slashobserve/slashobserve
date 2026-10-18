@@ -149,18 +149,19 @@ func (h *Handler) data(c *gin.Context) {
 	}
 	kind := queryproxy.PanelKind(found.Panel)
 	al := align(rng, kind, maxDataPoints)
-	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections)
+	user, scope := cacheScope(ctx, d)
+	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections, user)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	key := dataKey(id, version, panelID, kind, al, selections)
+	key := dataKey(id, version, panelID, kind, al, selections, scope)
 	if entry, at, ok := h.caches.data.Get(key); ok {
 		writeData(c, entry, true, at)
 		return
 	}
 	entry, err := h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
-		return h.execute(ctx, key, d, panelID, al, selections)
+		return h.execute(ctx, key, d, panelID, al, selections, user)
 	})
 	if err != nil {
 		h.fail(c, err)
@@ -169,7 +170,7 @@ func (h *Handler) data(c *gin.Context) {
 	writeData(c, entry, false, entry.executedAt)
 }
 
-func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection) (entry dataEntry, err error) {
+func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (entry dataEntry, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			h.logger.ErrorContext(ctx, "query proxy panicked",
@@ -209,6 +210,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		Range:         al.rng,
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
+		User:          user,
 		Admit:         admit,
 	})
 	if err != nil {
@@ -224,6 +226,14 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		entry.executedAt = h.caches.data.Put(key, entry, entry.cost())
 	}
 	return entry, nil
+}
+
+func cacheScope(ctx context.Context, d *spec.Dashboard) (user datasource.QueryUser, scope string) {
+	principal, _ := auth.FromContext(ctx)
+	if queryproxy.DashboardUsesUser(d) {
+		scope = principal.ID
+	}
+	return queryproxy.UserFor(principal), scope
 }
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
@@ -274,12 +284,13 @@ func (h *Handler) values(c *gin.Context) {
 	}
 	name := c.Param("name")
 	rng = align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
-	key := valuesKey(id, version, name, rng.From, rng.To, p.selections)
+	user, scope := cacheScope(ctx, d)
+	key := valuesKey(id, version, name, rng.From, rng.To, p.selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		c.JSON(http.StatusOK, valuesResponse{Values: entry.values, Truncated: entry.truncated, Cached: true})
 		return
 	}
-	values, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections)
+	values, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
 	if err != nil {
 		h.fail(c, err)
 		return

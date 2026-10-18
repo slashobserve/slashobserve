@@ -114,7 +114,7 @@ func (k *keyBuilder) selections(selections map[string]queryproxy.Selection) {
 
 func (k *keyBuilder) sum() cacheKey { return sha256.Sum256(k.buf) }
 
-func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, al alignment, selections map[string]queryproxy.Selection) cacheKey {
+func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, al alignment, selections map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("data")
 	k.text(string(id.Bytes[:]))
@@ -125,10 +125,11 @@ func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, 
 	k.number(al.rng.To.UnixMilli())
 	k.number(al.step.Milliseconds())
 	k.selections(selections)
+	k.text(principal)
 	return k.sum()
 }
 
-func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection) cacheKey {
+func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("values")
 	k.text(string(id.Bytes[:]))
@@ -137,5 +138,6 @@ func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, ear
 	k.number(from.Unix() / valuesResolution)
 	k.number(to.Unix() / valuesResolution)
 	k.selections(earlier)
+	k.text(principal)
 	return k.sum()
 }

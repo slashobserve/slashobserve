@@ -133,6 +133,18 @@
             "query": "topk($n, count by (__name__) ({__name__=~\"prometheus_.+\"}))"
           }
         ]
+      },
+      {
+        "id": "p_globals",
+        "type": "table",
+        "title": "Global macros",
+        "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT $__interval_ms AS interval_ms, $__range_s AS range_s, $__range_ms AS range_ms, ${__from:date:seconds} AS from_s, $__to AS to_ms, $__dashboard AS dashboard, ${__user.login} AS login"
+          }
+        ]
       }
     ]
   }

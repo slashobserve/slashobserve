@@ -28,6 +28,8 @@ type Env struct {
 	Interval       time.Duration
 	ScrapeInterval time.Duration
 	Variables      []datasource.Variable
+	Dashboard      string
+	User           datasource.QueryUser
 }
 
 type span struct {
@@ -144,7 +146,7 @@ func substitute(d Dialect, dsType spec.DatasourceType, query string, refs []spec
 			expEnd:       b.Len(),
 			origStart:    ref.Start,
 			origEnd:      ref.End,
-			fromVariable: ref.Kind == spec.VariableRef,
+			fromVariable: ref.Kind == spec.VariableRef || isGlobalVariable(ref.Name),
 		})
 		last = ref.End
 	}
@@ -160,7 +162,7 @@ func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Ref
 		return "", refErrorf(ref, "reference %s must not touch a word character, \".\" or \"$\"", refLabel(ref))
 	}
 	if ref.Kind == spec.MacroRef {
-		return expandMacro(d, dsType, ref, c, env)
+		return expandMacro(d, dsType, query, ref, c, env)
 	}
 	return expandVariable(d, query, ref, c, env.Variables)
 }
@@ -183,6 +185,8 @@ func ExpandForLint(d Dialect, query string) (Expansion, error) {
 		Interval:       time.Minute,
 		ScrapeInterval: defaultScrapeInterval,
 		Variables:      vars,
+		Dashboard:      "dashboard",
+		User:           datasource.QueryUser{ID: "user", Login: "user", Email: "user@example.com", Name: "user"},
 	})
 }
 
@@ -204,10 +208,16 @@ func refErrorf(ref spec.Reference, format string, args ...any) error {
 	return datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", fmt.Sprintf(format, args...), ref.Start)
 }
 
-func expandMacro(d Dialect, dsType spec.DatasourceType, ref spec.Reference, c ctx, env Env) (string, error) {
+func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.Reference, c ctx, env Env) (string, error) {
 	args, err := validateMacro(dsType, ref, c)
 	if err != nil {
 		return "", err
+	}
+	if value, ok := globalVariable(ref.Name, env); ok {
+		return expandVariable(d, query, ref, c, []datasource.Variable{{Name: ref.Name, Values: []string{value}}})
+	}
+	if out, ok, err := globalMacro(ref, env); ok || err != nil {
+		return out, err
 	}
 	var out string
 	var ok bool
@@ -228,11 +238,14 @@ func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (strin
 	if idx < 0 {
 		return "", refErrorf(ref, "unknown macro %s", refLabel(ref))
 	}
+	macro := spec.Macros(dsType)[idx]
 	if ref.Format != "" {
-		return "", refErrorf(ref, "macro %s does not take a format", refLabel(ref))
+		if err := validateMacroFormat(macro, ref); err != nil {
+			return "", err
+		}
 	}
 	args := strings.TrimSpace(ref.Args)
-	if !spec.Macros(dsType)[idx].Function {
+	if !macro.Function {
 		switch {
 		case ref.HasArgs:
 			return "", refErrorf(ref, "macro %s does not take arguments", refLabel(ref))
@@ -252,6 +265,65 @@ func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (strin
 		return "", refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
 	}
 	return args, nil
+}
+
+func validateMacroFormat(macro spec.Macro, ref spec.Reference) error {
+	switch macro.Formats {
+	case spec.VariableFormatsAllowed:
+		if !slices.Contains(spec.VariableFormats(), ref.Format) {
+			return refErrorf(ref, "unknown format %q for macro %s", ref.Format, refLabel(ref))
+		}
+	case spec.TimeFormatsAllowed:
+		if !spec.ValidTimeMacroFormat(ref.Format) {
+			return refErrorf(ref, "invalid date format %q for macro %s", ref.Format, refLabel(ref))
+		}
+	default:
+		return refErrorf(ref, "macro %s does not take a format", refLabel(ref))
+	}
+	return nil
+}
+
+func isGlobalVariable(name string) bool {
+	_, ok := globalVariable(name, Env{})
+	return ok
+}
+
+func globalVariable(name string, env Env) (string, bool) {
+	switch name {
+	case "__dashboard":
+		return env.Dashboard, true
+	case "__user.login":
+		return env.User.Login, true
+	case "__user.email":
+		return env.User.Email, true
+	case "__user.name":
+		return env.User.Name, true
+	case "__user.id":
+		return env.User.ID, true
+	}
+	return "", false
+}
+
+func globalMacro(ref spec.Reference, env Env) (string, bool, error) {
+	switch ref.Name {
+	case "__interval_ms":
+		return strconv.FormatInt(max(env.Interval.Milliseconds(), 1), 10), true, nil
+	case "__range_ms":
+		return strconv.FormatInt(env.Range.To.Sub(env.Range.From).Milliseconds(), 10), true, nil
+	case "__range_s":
+		return strconv.FormatInt((env.Range.To.Sub(env.Range.From).Milliseconds()+500)/1000, 10), true, nil
+	case "__from", "__to":
+		at := env.Range.From
+		if ref.Name == "__to" {
+			at = env.Range.To
+		}
+		out, err := spec.FormatTimeMacro(at, ref.Format)
+		if err != nil {
+			return "", false, refErrorf(ref, "invalid date format %q for macro %s", ref.Format, refLabel(ref))
+		}
+		return out, true, nil
+	}
+	return "", false, nil
 }
 
 func promMacro(name string, env Env) (string, bool) {

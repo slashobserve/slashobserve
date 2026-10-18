@@ -265,13 +265,19 @@ func TestQueryInstant(t *testing.T) {
 
 func TestMacros(t *testing.T) {
 	ds := newDS(t)
-	text := `count_over_time(up[$__range]) + 0*count_over_time(up[$__rate_interval]) + 0*count_over_time(up[$__interval])`
+	text := `count_over_time(up[$__range]) + 0*count_over_time(up[$__rate_interval]) + 0*count_over_time(up[$__interval])` +
+		` + 0*$__interval_ms + 0*$__range_s + 0*$__range_ms + 0*$__from + 0*$__to` +
+		` + 0*scalar(count(up{job!="$__dashboard", instance!="${__user.login}", pod!="${__user.email}${__user.name}${__user.id}${__from:date:YYYY}${__to:date:seconds}"}))`
 	for _, m := range spec.Macros(spec.Prometheus) {
-		if !strings.Contains(text, "$"+m.Name) {
+		if !strings.Contains(text, "$"+m.Name) && !strings.Contains(text, "${"+m.Name) {
 			t.Errorf("macro $%s is not covered by the test query", m.Name)
 		}
 	}
-	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, lastMinutes(5))
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{
+		Text:      text,
+		Dashboard: "Checkout health",
+		User:      datasource.QueryUser{ID: "u-1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"},
+	}, lastMinutes(5))
 	if err != nil {
 		t.Fatalf("QueryInstant: %v", err)
 	}

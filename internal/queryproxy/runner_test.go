@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -524,7 +525,7 @@ func TestUpstreamSemaphoreSharedByVariableLookups(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
 	defer cancel()
-	_, _, err := runner.VariableValues(ctx, d, "v", testRange(), nil)
+	_, _, err := runner.VariableValues(ctx, d, "v", testRange(), nil, datasource.QueryUser{})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want DeadlineExceeded", err)
 	}
@@ -601,7 +602,7 @@ func TestUpstreamLogsVariableLookupSubject(t *testing.T) {
 	var logs bytes.Buffer
 	runner := newTestRunner(t, slog.New(slog.NewTextHandler(&logs, nil)), map[string]*fakeDatasource{"prom": fake})
 	d := dashboardOf(nil, queryVariable("job", "prom", "label_values(job)"))
-	if _, _, err := runner.VariableValues(t.Context(), d, "job", testRange(), nil); err == nil {
+	if _, _, err := runner.VariableValues(t.Context(), d, "job", testRange(), nil, datasource.QueryUser{}); err == nil {
 		t.Fatal("VariableValues returned nil error")
 	}
 	if !strings.Contains(logs.String(), "subject=variable:job") {
@@ -959,5 +960,57 @@ func TestRunPanelAbortFromAdmitCancelsTheOthersAndOutranksQueryErrors(t *testing
 	var qe *QueryError
 	if !errors.Is(err, stop) || errors.As(err, &qe) {
 		t.Fatalf("err = %v, want the abort error alone, without a query ref", err)
+	}
+}
+
+func TestUserForPrefersTheEmailForTheLogin(t *testing.T) {
+	tests := []struct {
+		name string
+		in   auth.Principal
+		want datasource.QueryUser
+	}{
+		{"user", auth.Principal{Kind: auth.KindUser, ID: "u1", Email: "ada@example.com", Name: "Ada"}, datasource.QueryUser{ID: "u1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}},
+		{"service account", auth.Principal{Kind: auth.KindServiceAccount, ID: "k1", Name: "ci"}, datasource.QueryUser{ID: "k1", Login: "ci", Name: "ci"}},
+		{"nobody", auth.Principal{}, datasource.QueryUser{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := UserFor(tt.in); got != tt.want {
+				t.Fatalf("UserFor = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunPanelPassesTheDashboardTitleAndCallerToEveryQuery(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{
+		multiPanel(spec.Timeseries, spec.Query{Query: "a"}, spec.Query{Query: "b"}),
+		{ID: "p2", Type: spec.Table, Title: "p2", Datasource: "prom", Queries: []spec.Query{{Query: "c"}}},
+	}, queryVariable("job", "prom", "label_values(job)"))
+	d.Title = "Checkout health"
+	user := datasource.QueryUser{ID: "u1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}
+
+	for _, panelID := range []string{"p1", "p2"} {
+		if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: panelID, Range: testRange(), Selections: map[string]Selection{"job": {Values: []string{"v1"}}}, User: user}); err != nil {
+			t.Fatalf("RunPanel %s: %v", panelID, err)
+		}
+	}
+	if _, _, err := runner.VariableValues(t.Context(), d, "job", testRange(), nil, user); err != nil {
+		t.Fatalf("VariableValues: %v", err)
+	}
+	if _, err := runner.Defaults(t.Context(), d, testRange(), nil, user); err != nil {
+		t.Fatalf("Defaults: %v", err)
+	}
+
+	calls := fake.recorded()
+	if len(calls) != 5 {
+		t.Fatalf("%d upstream calls, want 5: %+v", len(calls), calls)
+	}
+	for _, c := range calls {
+		if c.query.Dashboard != "Checkout health" || c.query.User != user {
+			t.Errorf("%s call %q saw dashboard %q and user %+v", c.method, c.query.Text, c.query.Dashboard, c.query.User)
+		}
 	}
 }

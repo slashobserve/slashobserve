@@ -30,8 +30,8 @@ func sel(all bool, values ...string) queryproxy.Selection {
 func TestDataKeyDiffersOnEveryInput(t *testing.T) {
 	base := map[string]queryproxy.Selection{"pod": sel(false, "a")}
 	key := dataKey
-	reference := key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), base)
-	if reference != key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "a")}) {
+	reference := key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), base, "")
+	if reference != key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "a")}, "") {
 		t.Fatal("equal inputs produced different keys")
 	}
 
@@ -43,17 +43,18 @@ func TestDataKeyDiffersOnEveryInput(t *testing.T) {
 	slower.step = 30 * time.Second
 
 	variants := map[string]cacheKey{
-		"dashboard":      key(idB, 1, "p", queryproxy.KindRange, baseAlignment(), base),
-		"version":        key(idA, 2, "p", queryproxy.KindRange, baseAlignment(), base),
-		"panel":          key(idA, 1, "q", queryproxy.KindRange, baseAlignment(), base),
-		"kind":           key(idA, 1, "p", queryproxy.KindInstant, baseAlignment(), base),
-		"to":             key(idA, 1, "p", queryproxy.KindRange, moved, base),
-		"from":           key(idA, 1, "p", queryproxy.KindRange, started, base),
-		"step":           key(idA, 1, "p", queryproxy.KindRange, slower, base),
-		"variable name":  key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"node": sel(false, "a")}),
-		"variable value": key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "b")}),
-		"extra variable": key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "a"), "x": sel(false, "1")}),
-		"no variables":   key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), nil),
+		"dashboard":      key(idB, 1, "p", queryproxy.KindRange, baseAlignment(), base, ""),
+		"version":        key(idA, 2, "p", queryproxy.KindRange, baseAlignment(), base, ""),
+		"panel":          key(idA, 1, "q", queryproxy.KindRange, baseAlignment(), base, ""),
+		"kind":           key(idA, 1, "p", queryproxy.KindInstant, baseAlignment(), base, ""),
+		"to":             key(idA, 1, "p", queryproxy.KindRange, moved, base, ""),
+		"from":           key(idA, 1, "p", queryproxy.KindRange, started, base, ""),
+		"step":           key(idA, 1, "p", queryproxy.KindRange, slower, base, ""),
+		"variable name":  key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"node": sel(false, "a")}, ""),
+		"variable value": key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "b")}, ""),
+		"extra variable": key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), map[string]queryproxy.Selection{"pod": sel(false, "a"), "x": sel(false, "1")}, ""),
+		"no variables":   key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), nil, ""),
+		"principal":      key(idA, 1, "p", queryproxy.KindRange, baseAlignment(), base, "u1"),
 	}
 	seen := map[cacheKey]string{reference: "reference"}
 	for name, k := range variants {
@@ -75,13 +76,13 @@ func TestSelectionEncodingIsUnambiguous(t *testing.T) {
 		"value into name": {{"a": sel(false, "x"), "b": sel(false)}, {"a": sel(false), "b": sel(false, "x")}},
 	}
 	for name, pair := range cases {
-		d1 := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), pair[0])
-		d2 := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), pair[1])
+		d1 := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), pair[0], "")
+		d2 := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), pair[1], "")
 		if d1 == d2 {
 			t.Errorf("dataKey: %s collides", name)
 		}
-		v1 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[0])
-		v2 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[1])
+		v1 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[0], "")
+		v2 := valuesKey(idA, 1, "n", at(-time.Hour), at(0), pair[1], "")
 		if v1 == v2 {
 			t.Errorf("valuesKey: %s collides", name)
 		}
@@ -90,10 +91,10 @@ func TestSelectionEncodingIsUnambiguous(t *testing.T) {
 
 func TestSelectionEncodingIgnoresMapOrder(t *testing.T) {
 	a := map[string]queryproxy.Selection{"x": sel(false, "1"), "y": sel(false, "2"), "z": sel(true)}
-	first := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), a)
+	first := dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), a, "")
 	for range 20 {
 		b := map[string]queryproxy.Selection{"z": sel(true), "y": sel(false, "2"), "x": sel(false, "1")}
-		if dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), b) != first {
+		if dataKey(idA, 1, "p", queryproxy.KindRange, baseAlignment(), b, "") != first {
 			t.Fatal("key depends on map iteration order")
 		}
 	}
@@ -102,27 +103,28 @@ func TestSelectionEncodingIgnoresMapOrder(t *testing.T) {
 func TestValuesKeyDiffersOnInputs(t *testing.T) {
 	base := map[string]queryproxy.Selection{"job": sel(false, "a")}
 	from, to := at(-time.Hour), at(0)
-	reference := valuesKey(idA, 1, "pod", from, to, base)
+	reference := valuesKey(idA, 1, "pod", from, to, base, "")
 	variants := map[string]cacheKey{
-		"dashboard": valuesKey(idB, 1, "pod", from, to, base),
-		"version":   valuesKey(idA, 2, "pod", from, to, base),
-		"name":      valuesKey(idA, 1, "node", from, to, base),
-		"from":      valuesKey(idA, 1, "pod", from.Add(-10*time.Second), to, base),
-		"to":        valuesKey(idA, 1, "pod", from, to.Add(10*time.Second), base),
-		"selection": valuesKey(idA, 1, "pod", from, to, map[string]queryproxy.Selection{"job": sel(false, "b")}),
+		"dashboard": valuesKey(idB, 1, "pod", from, to, base, ""),
+		"version":   valuesKey(idA, 2, "pod", from, to, base, ""),
+		"name":      valuesKey(idA, 1, "node", from, to, base, ""),
+		"from":      valuesKey(idA, 1, "pod", from.Add(-10*time.Second), to, base, ""),
+		"to":        valuesKey(idA, 1, "pod", from, to.Add(10*time.Second), base, ""),
+		"selection": valuesKey(idA, 1, "pod", from, to, map[string]queryproxy.Selection{"job": sel(false, "b")}, ""),
+		"principal": valuesKey(idA, 1, "pod", from, to, base, "u1"),
 	}
 	for name, k := range variants {
 		if k == reference {
 			t.Errorf("%s does not change the key", name)
 		}
 	}
-	if valuesKey(idA, 1, "pod", from.Add(2*time.Second), to.Add(3*time.Second), base) != reference {
+	if valuesKey(idA, 1, "pod", from.Add(2*time.Second), to.Add(3*time.Second), base, "") != reference {
 		t.Error("the range is not floored to the values resolution")
 	}
 }
 
 func TestDataAndValuesKeysNeverCollide(t *testing.T) {
-	if dataKey(idA, 1, "n", queryproxy.KindRange, alignment{}, nil) == valuesKey(idA, 1, "n", time.Time{}, time.Time{}, nil) {
+	if dataKey(idA, 1, "n", queryproxy.KindRange, alignment{}, nil, "") == valuesKey(idA, 1, "n", time.Time{}, time.Time{}, nil, "") {
 		t.Fatal("data and values share a key space")
 	}
 }

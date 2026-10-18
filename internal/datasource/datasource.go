@@ -42,10 +42,19 @@ type Variable struct {
 	All    bool
 }
 
+type QueryUser struct {
+	ID    string
+	Login string
+	Email string
+	Name  string
+}
+
 type Query struct {
 	Text      string
 	Variables []Variable
 	Limits    Limits
+	Dashboard string
+	User      QueryUser
 }
 
 type DiscoverKind string

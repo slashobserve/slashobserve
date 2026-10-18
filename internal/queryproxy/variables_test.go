@@ -101,7 +101,7 @@ func TestDefaults(t *testing.T) {
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, tt.variables...)
-			got, err := runner.Defaults(t.Context(), d, testRange(), tt.given)
+			got, err := runner.Defaults(t.Context(), d, testRange(), tt.given, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("Defaults: %v", err)
 			}
@@ -120,7 +120,7 @@ func TestDefaultsDoesNotMutateGiven(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	given := map[string]Selection{"a": {Values: []string{"a2"}}}
 	d := dashboardOf(nil, customVariable("a", "a1", "a2"), customVariable("b", "b1"))
-	got, err := runner.Defaults(t.Context(), d, testRange(), given)
+	got, err := runner.Defaults(t.Context(), d, testRange(), given, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("Defaults: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestDefaultsPassesOnlyEarlierSelections(t *testing.T) {
 		queryVariable("d", "prom", "d"),
 	)
 	given := map[string]Selection{"c": {Values: []string{"c-given"}}}
-	got, err := runner.Defaults(t.Context(), d, testRange(), given)
+	got, err := runner.Defaults(t.Context(), d, testRange(), given, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("Defaults: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestDefaultsErrors(t *testing.T) {
 			fake := newFake("prometheus")
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variables...), testRange(), tt.given)
+			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variables...), testRange(), tt.given, datasource.QueryUser{})
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -224,7 +224,7 @@ func TestDefaultsAcceptsShapeThatIncludeAllAndMultiAllow(t *testing.T) {
 	v.IncludeAll, v.Multi = true, true
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
 	for _, sel := range []Selection{{All: true}, {Values: []string{"a", "b"}}} {
-		got, err := runner.Defaults(t.Context(), dashboardOf(nil, v), testRange(), map[string]Selection{"v": sel})
+		got, err := runner.Defaults(t.Context(), dashboardOf(nil, v), testRange(), map[string]Selection{"v": sel}, datasource.QueryUser{})
 		if err != nil {
 			t.Fatalf("Defaults(%+v): %v", sel, err)
 		}
@@ -253,7 +253,7 @@ func TestVariableValues(t *testing.T) {
 			fake.onVariable = answer(tt.answers...)
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 			d := dashboardOf(nil, queryVariable("v", "prom", "label_values(job)"))
-			got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil)
+			got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("VariableValues: %v", err)
 			}
@@ -273,7 +273,7 @@ func TestVariableValuesCustomAndUnknown(t *testing.T) {
 	options := []string{"a", "b"}
 	d := dashboardOf(nil, customVariable("env", options...))
 
-	got, truncated, err := runner.VariableValues(t.Context(), d, "env", testRange(), nil)
+	got, truncated, err := runner.VariableValues(t.Context(), d, "env", testRange(), nil, datasource.QueryUser{})
 	if err != nil || truncated || !reflect.DeepEqual(got, options) {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
@@ -285,10 +285,10 @@ func TestVariableValuesCustomAndUnknown(t *testing.T) {
 		t.Fatal("custom variable reached upstream")
 	}
 
-	if _, _, err := runner.VariableValues(t.Context(), d, "nope", testRange(), nil); !errors.Is(err, ErrUnknownVariable) {
+	if _, _, err := runner.VariableValues(t.Context(), d, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
 		t.Fatalf("unknown variable err = %v", err)
 	}
-	if _, _, err := runner.VariableValues(t.Context(), nil, "nope", testRange(), nil); !errors.Is(err, ErrUnknownVariable) {
+	if _, _, err := runner.VariableValues(t.Context(), nil, "nope", testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrUnknownVariable) {
 		t.Fatalf("nil dashboard err = %v", err)
 	}
 }
@@ -302,7 +302,7 @@ func TestVariableValuesPassesOnlyEarlierVariables(t *testing.T) {
 		customVariable("c", "c1"),
 	)
 	earlier := map[string]Selection{"a": {Values: []string{"a1"}}}
-	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), earlier); err != nil {
+	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), earlier, datasource.QueryUser{}); err != nil {
 		t.Fatalf("VariableValues: %v", err)
 	}
 	got := fake.recorded()[0].query
@@ -335,7 +335,7 @@ func TestVariableValuesSelectionValidation(t *testing.T) {
 			a := queryVariable("a", "prom", "label_values(a)")
 			a.Multi = true
 			d := dashboardOf(nil, a, queryVariable("b", "prom", "label_values($a, job)"))
-			_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{"a": tt.sel})
+			_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{"a": tt.sel}, datasource.QueryUser{})
 			if !errors.Is(err, ErrInvalidRequest) {
 				t.Fatalf("err = %v, want ErrInvalidRequest", err)
 			}
@@ -361,7 +361,7 @@ func TestVariableValuesErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newFake("prometheus")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			_, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, tt.v), "v", tt.rng, nil)
+			_, _, err := runner.VariableValues(t.Context(), dashboardOf(nil, tt.v), "v", tt.rng, nil, datasource.QueryUser{})
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -380,7 +380,7 @@ func TestVariableValuesUpstreamErrorAndPanic(t *testing.T) {
 	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 		return []string{"partial"}, datasource.Errorf(datasource.ErrUnavailable, "down")
 	}
-	got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil)
+	got, truncated, err := runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
 	if !errors.Is(err, datasource.ErrUnavailable) || got != nil || truncated {
 		t.Fatalf("got %v truncated=%v err=%v", got, truncated, err)
 	}
@@ -388,7 +388,7 @@ func TestVariableValuesUpstreamErrorAndPanic(t *testing.T) {
 	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
 		panic("kaboom-secret")
 	}
-	_, _, err = runner.VariableValues(t.Context(), d, "v", testRange(), nil)
+	_, _, err = runner.VariableValues(t.Context(), d, "v", testRange(), nil, datasource.QueryUser{})
 	status, code, message := Classify(err)
 	if status != 500 || code != "internal" || message != "internal error" || strings.Contains(err.Error(), "kaboom-secret") {
 		t.Fatalf("err = %v, Classify = %d %q %q", err, status, code, message)
@@ -514,7 +514,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		env := customVariable("env", "prod", "staging")
 		env.IncludeAll, env.Multi = true, true
 		d := dashboardOf(nil, env, queryVariable("pod", "prom", `label_values(up{env=~"$env"}, pod)`))
-		if _, _, err := runner.VariableValues(t.Context(), d, "pod", testRange(), map[string]Selection{"env": {All: true}}); err != nil {
+		if _, _, err := runner.VariableValues(t.Context(), d, "pod", testRange(), map[string]Selection{"env": {All: true}}, datasource.QueryUser{}); err != nil {
 			t.Fatalf("VariableValues: %v", err)
 		}
 		got := fake.callsTo("variable")[0].query.Variables
@@ -657,7 +657,7 @@ func TestVariableValuesSelectionsMustBeEarlier(t *testing.T) {
 		customVariable("c", "c1"),
 	)
 	for name, sel := range map[string]Selection{"b": {Values: []string{"x"}}, "c": {Values: []string{"c1"}}} {
-		_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{name: sel})
+		_, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), map[string]Selection{name: sel}, datasource.QueryUser{})
 		if !errors.Is(err, ErrInvalidRequest) {
 			t.Fatalf("selection for %q: err = %v, want ErrInvalidRequest", name, err)
 		}
@@ -666,7 +666,7 @@ func TestVariableValuesSelectionsMustBeEarlier(t *testing.T) {
 		t.Fatalf("upstream called %d times", fake.callCount())
 	}
 
-	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), nil); err != nil {
+	if _, _, err := runner.VariableValues(t.Context(), d, "b", testRange(), nil, datasource.QueryUser{}); err != nil {
 		t.Fatalf("VariableValues without earlier selections: %v", err)
 	}
 	got := fake.callsTo("variable")[0].query.Variables
@@ -686,7 +686,7 @@ func TestDefaultsRejectsBadDefaults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": newFake("prometheus")})
-			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.v), testRange(), nil)
+			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.v), testRange(), nil, datasource.QueryUser{})
 			if !errors.Is(err, ErrInvalidRequest) {
 				t.Fatalf("err = %v, want ErrInvalidRequest", err)
 			}

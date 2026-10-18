@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -163,6 +164,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	}
 	ctx, cancel := context.WithTimeout(ctx, toolLimits.Timeout+queryGrace)
 	defer cancel()
+	principal, _ := auth.FromContext(ctx)
 	out, err := r.deps.Runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     dash,
 		PanelID:       adhocPanelID,
@@ -170,6 +172,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		Selections:    selections,
 		MaxDataPoints: dataPoints,
 		Limits:        toolLimits,
+		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {
 		return datasourceFailure("Ran a query on "+inst.UID, err)

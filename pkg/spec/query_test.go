@@ -89,6 +89,24 @@ func TestScanQuery(t *testing.T) {
 		{"label_replace group", `label_replace(x, "a", "$1", "b", "(.*)")`, nil},
 		{"trailing dollar", `SELECT 1 $`, nil},
 		{"regex anchor", `up{pod=~"x$"}`, nil},
+		{"user login", `${__user.login}`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__user.login", Start: 0, End: 15},
+		}},
+		{"user email with format", `x = ${__user.email:sqlstring}`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__user.email", Format: "sqlstring", Start: 4, End: 29},
+		}},
+		{"from with a date pattern", `${__from:date:YYYY-MM-DDTHH:mm:ss}`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__from", Format: "date:YYYY-MM-DDTHH:mm:ss", Start: 0, End: 34},
+		}},
+		{"from with seconds", `${__from:date:seconds}`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__from", Format: "date:seconds", Start: 0, End: 22},
+		}},
+		{"interval in milliseconds is one name", `$__interval_ms`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__interval_ms", Start: 0, End: 14},
+		}},
+		{"unbraced user is only the prefix", `$__user.login`, []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__user", Start: 0, End: 7},
+		}},
 		{"two references", `a $x b ${y:csv}`, []spec.Reference{
 			{Kind: spec.VariableRef, Name: "x", Start: 2, End: 4},
 			{Kind: spec.VariableRef, Name: "y", Format: "csv", Start: 7, End: 15},
@@ -117,6 +135,13 @@ func TestScanQueryErrors(t *testing.T) {
 		{"empty format", `${pod:}`, `invalid reference "${pod:}" at offset 0`},
 		{"digit-led name", "${1pod}", `invalid reference "${1pod}" at offset 0`},
 		{"digit with format", "${2:csv}", `invalid reference "${2:csv}" at offset 0`},
+		{"unknown date token", `${__from:date:Q}`, `invalid reference "${__from:date:Q}" at offset 0`},
+		{"time macro with a variable format", `${__to:csv}`, `invalid reference "${__to:csv}" at offset 0`},
+		{"empty date pattern", `${__from:date:}`, `invalid reference "${__from:date:}" at offset 0`},
+		{"unknown user field", `${__user.bogus}`, `invalid reference "${__user.bogus}" at offset 0`},
+		{"dashboard uid", `${__dashboard.uid}`, `invalid reference "${__dashboard.uid}" at offset 0`},
+		{"dotted variable name", `${pod.name}`, `invalid reference "${pod.name}" at offset 0`},
+		{"date pattern over 64 bytes", "${__from:date:" + strings.Repeat("Y", 65) + "}", `invalid reference`},
 		{"unclosed paren", `$__timeFilter(ts`, `unclosed "(" at offset 13`},
 		{"paren only inside backticks", "$__timeFilter(concat(ts, `)`)", `unclosed "(" at offset 13`},
 		{"backslash and paren inside backticks", "$__timeFilter(f(`\\)`)", `unclosed "(" at offset 13`},
@@ -143,10 +168,13 @@ func TestMacrosAndFormats(t *testing.T) {
 		}
 		return out
 	}
-	if got, want := names(spec.Macros(spec.Prometheus)), []string{"__interval", "__range", "__rate_interval"}; !slices.Equal(got, want) {
+	globals := []string{"__interval_ms", "__range_s", "__range_ms", "__from", "__to", "__dashboard", "__user.login", "__user.email", "__user.name", "__user.id"}
+	wantPrometheus := []string{"__interval", "__interval_ms", "__range", "__range_s", "__range_ms", "__rate_interval", "__from", "__to", "__dashboard", "__user.login", "__user.email", "__user.name", "__user.id"}
+	if got, want := names(spec.Macros(spec.Prometheus)), wantPrometheus; !slices.Equal(got, want) {
 		t.Errorf("prometheus macros = %v, want %v", got, want)
 	}
-	if got, want := names(spec.Macros(spec.ClickHouse)), []string{"__interval", "__timeFilter", "__timeGroup"}; !slices.Equal(got, want) {
+	wantClickHouse := append(append([]string{"__interval"}, globals...), "__timeFilter", "__timeGroup")
+	if got, want := names(spec.Macros(spec.ClickHouse)), wantClickHouse; !slices.Equal(got, want) {
 		t.Errorf("clickhouse macros = %v, want %v", got, want)
 	}
 	if formats := spec.VariableFormats(); !slices.IsSorted(formats) || len(formats) != 7 {

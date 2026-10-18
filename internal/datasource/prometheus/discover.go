@@ -183,6 +183,8 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 		Interval:       d.variableInterval(r),
 		ScrapeInterval: d.opts.ScrapeInterval,
 		Variables:      q.Variables,
+		Dashboard:      q.Dashboard,
+		User:           q.User,
 	})
 	if err != nil {
 		return nil, err

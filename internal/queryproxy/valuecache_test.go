@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func valueQuery(vars ...datasource.Variable) datasource.Query {
@@ -78,5 +79,73 @@ func TestValueKeyFloorsTheRangeToTenSeconds(t *testing.T) {
 	}
 	if valueKey("prom", q, rangeAt(start.Add(-time.Nanosecond), start.Add(time.Hour))) == base {
 		t.Error("a time just below the bucket boundary shares the key")
+	}
+}
+
+func TestValueKeyHashesTheUserOnlyForQueriesThatReferenceIt(t *testing.T) {
+	rng := testRange()
+	ada := datasource.QueryUser{ID: "u1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}
+	bob := datasource.QueryUser{ID: "u2", Login: "bob@example.com", Email: "bob@example.com", Name: "Bob"}
+	withUser := func(text string, u datasource.QueryUser) datasource.Query {
+		return datasource.Query{Text: text, User: u}
+	}
+
+	const userQuery = `label_values(up{who="${__user.login}"}, pod)`
+	if valueKey("prom", withUser(userQuery, ada), rng) == valueKey("prom", withUser(userQuery, bob), rng) {
+		t.Error("two users share a key for a query that references the user")
+	}
+	first := valueKey("prom", withUser(userQuery, ada), rng)
+	if again := valueKey("prom", withUser(userQuery, ada), rng); again != first {
+		t.Error("the same user gets different keys")
+	}
+	for _, field := range []datasource.QueryUser{{ID: "u1"}, {Login: "ada@example.com"}, {Email: "ada@example.com"}, {Name: "Ada"}} {
+		if valueKey("prom", withUser(userQuery, field), rng) == valueKey("prom", withUser(userQuery, datasource.QueryUser{}), rng) {
+			t.Errorf("user field %+v does not change the key", field)
+		}
+	}
+
+	const plainQuery = `label_values(up, pod)`
+	if valueKey("prom", withUser(plainQuery, ada), rng) != valueKey("prom", withUser(plainQuery, bob), rng) {
+		t.Error("a query without user references is keyed by the user")
+	}
+}
+
+func TestValueKeyHashesTheDashboardTitleOnlyForQueriesThatReferenceIt(t *testing.T) {
+	rng := testRange()
+	withTitle := func(text, title string) datasource.Query {
+		return datasource.Query{Text: text, Dashboard: title}
+	}
+	const titled = `label_values(up{dash="$__dashboard"}, pod)`
+	if valueKey("prom", withTitle(titled, "one"), rng) == valueKey("prom", withTitle(titled, "two"), rng) {
+		t.Error("the dashboard title does not change the key of a query that references it")
+	}
+	const plain = `label_values(up, pod)`
+	if valueKey("prom", withTitle(plain, "one"), rng) != valueKey("prom", withTitle(plain, "two"), rng) {
+		t.Error("a query without a dashboard reference is keyed by the title")
+	}
+}
+
+func TestDashboardUsesUser(t *testing.T) {
+	user := `up{who="${__user.login}"}`
+	tests := []struct {
+		name string
+		d    *spec.Dashboard
+		want bool
+	}{
+		{"nil", nil, false},
+		{"no references", dashboardOf([]spec.Panel{panelOf("p", spec.Timeseries, "prom", `up{dash="$__dashboard"}`)}), false},
+		{"panel query", dashboardOf([]spec.Panel{panelOf("p", spec.Timeseries, "prom", user)}), true},
+		{"row child query", dashboardOf([]spec.Panel{{ID: "r", Type: spec.Row, Panels: []spec.Panel{panelOf("c", spec.Stat, "prom", user)}}}), true},
+		{"second query of a panel", dashboardOf([]spec.Panel{{ID: "p", Type: spec.Timeseries, Datasource: "prom", Queries: []spec.Query{{Query: "up"}, {Query: user}}}}), true},
+		{"query variable", dashboardOf(nil, queryVariable("v", "prom", `label_values(`+user+`, job)`)), true},
+		{"custom variable option is not a query", dashboardOf(nil, customVariable("v", user)), false},
+		{"bare user is not a user reference", dashboardOf([]spec.Panel{panelOf("p", spec.Timeseries, "prom", `up{a="$__user"}`)}), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DashboardUsesUser(tt.d); got != tt.want {
+				t.Fatalf("DashboardUsesUser = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

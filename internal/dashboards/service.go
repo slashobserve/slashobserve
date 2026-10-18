@@ -115,7 +115,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, rawSpec []byte,
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	if err := s.checkQueries(ctx, parsed); err != nil {
+	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
 	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
@@ -138,7 +138,7 @@ func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.
 	if latest != parent {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
-	if err := s.checkQueries(ctx, parsed); err != nil {
+	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
 	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
@@ -276,8 +276,8 @@ func (s *Service) Diff(ctx context.Context, id pgtype.UUID, from, to *int) ([]sp
 	return changes, fromN, toN, nil
 }
 
-func (s *Service) checkQueries(ctx context.Context, d *spec.Dashboard) error {
-	issues, err := s.runner.CheckSpec(ctx, d, time.Now())
+func (s *Service) checkQueries(ctx context.Context, by auth.Principal, d *spec.Dashboard) error {
+	issues, err := s.runner.CheckSpec(ctx, d, time.Now(), queryproxy.UserFor(by))
 	if err != nil {
 		return err
 	}

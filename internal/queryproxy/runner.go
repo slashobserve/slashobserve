@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -51,9 +52,14 @@ type Request struct {
 	MaxDataPoints int
 	Limits        datasource.Limits
 	IncludeHidden bool
+	User          datasource.QueryUser
 	Admit         func(index int, q QueryResult) error // an *AbortError stops the other queries and fails the request with its Err
 
 	skip []bool
+}
+
+func UserFor(p auth.Principal) datasource.QueryUser {
+	return datasource.QueryUser{ID: p.ID, Login: cmp.Or(p.Email, p.Name), Email: p.Email, Name: p.Name}
 }
 
 type QueryResult struct {
@@ -326,11 +332,11 @@ func (r *Runner) prepare(ctx context.Context, req Request, lists map[string]allL
 	if err != nil {
 		return nil, err
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, lists)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, req.User, lists)
 	if err != nil {
 		return nil, err
 	}
-	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits}
+	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
 	if pq.kind == KindRange {
 		pq.step = QueryStep(baseStep, panel, q)
