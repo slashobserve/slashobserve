@@ -108,12 +108,35 @@ func TestUpgradeStoredSpecs(t *testing.T) {
 	}
 }
 
+func rowVersions(t *testing.T, sqlDB *sql.DB) map[string]string {
+	t.Helper()
+	rows, err := sqlDB.Query(`SELECT dashboard_id::text || '/' || version, xmin::text FROM dashboard_versions`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	versions := map[string]string{}
+	for rows.Next() {
+		var key, xmin string
+		if err := rows.Scan(&key, &xmin); err != nil {
+			t.Fatal(err)
+		}
+		versions[key] = xmin
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return versions
+}
+
 func TestUpgradeStoredSpecsIsIdempotent(t *testing.T) {
 	d := dbtest.New(t)
 	seedDashboard(t, d, dashboardA, len(legacyNames))
+	seedDashboard(t, d, dashboardB, 1)
 	for i, name := range legacyNames {
 		seedVersion(t, d, dashboardA, i+1, readUpgradeFile(t, "legacy/"+name))
 	}
+	seedVersion(t, d, dashboardB, 1, readUpgradeFile(t, "evolved/checkout-service-health.json"))
 	sqlDB := d.SQLDB(t)
 
 	if err := runUpgrade(t, sqlDB); err != nil {
@@ -123,6 +146,7 @@ func TestUpgradeStoredSpecsIsIdempotent(t *testing.T) {
 	for i := range legacyNames {
 		first[i] = storedSpec(t, sqlDB, dashboardA, i+1)
 	}
+	written := rowVersions(t, sqlDB)
 	if err := runUpgrade(t, sqlDB); err != nil {
 		t.Fatalf("second run: %v", err)
 	}
@@ -130,6 +154,9 @@ func TestUpgradeStoredSpecsIsIdempotent(t *testing.T) {
 		if got := storedSpec(t, sqlDB, dashboardA, i+1); !bytes.Equal([]byte(got), []byte(first[i])) {
 			t.Errorf("version %d changed on the second run", i+1)
 		}
+	}
+	if got := rowVersions(t, sqlDB); !reflect.DeepEqual(got, written) {
+		t.Errorf("the second run rewrote rows: xmin was %v, now %v", written, got)
 	}
 }
 
@@ -184,13 +211,53 @@ func TestUpgradeStoredSpecsFailsLoudly(t *testing.T) {
 	}
 }
 
-func TestEvolveMigrationIsRegistered(t *testing.T) {
-	d := dbtest.New(t)
-	var latest int64
-	if err := d.SQLDB(t).QueryRow(`SELECT max(version_id) FROM goose_db_version`).Scan(&latest); err != nil {
+func appliedEvolveMigrations(t *testing.T, sqlDB *sql.DB) int {
+	t.Helper()
+	var n int
+	if err := sqlDB.QueryRow(`SELECT count(*) FROM goose_db_version WHERE version_id = 10 AND is_applied`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if latest != 10 {
-		t.Fatalf("latest applied migration = %d, want 10", latest)
+	return n
+}
+
+func TestEvolveMigrationIsRegistered(t *testing.T) {
+	d := dbtest.New(t)
+	if got := appliedEvolveMigrations(t, d.SQLDB(t)); got != 1 {
+		t.Fatalf("migration 10 is applied %d times, want 1", got)
+	}
+}
+
+func TestEvolveMigrationThroughTheProvider(t *testing.T) {
+	d := dbtest.New(t)
+	seedDashboard(t, d, dashboardA, len(legacyNames))
+	for i, name := range legacyNames {
+		seedVersion(t, d, dashboardA, i+1, readUpgradeFile(t, "legacy/"+name))
+	}
+	d.Exec(t, `DELETE FROM goose_db_version WHERE version_id = 10`)
+	sqlDB := d.SQLDB(t)
+	if got := appliedEvolveMigrations(t, sqlDB); got != 0 {
+		t.Fatalf("migration 10 is applied %d times before the upgrade, want 0", got)
+	}
+
+	if err := d.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := appliedEvolveMigrations(t, sqlDB); got != 1 {
+		t.Errorf("migration 10 is applied %d times after Up, want 1", got)
+	}
+	for i, name := range legacyNames {
+		want := decodeJSON(t, readUpgradeFile(t, "evolved/"+name))
+		if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, i+1)); !reflect.DeepEqual(got, want) {
+			t.Errorf("version %d differs from the %s golden after Up", i+1, name)
+		}
+	}
+
+	err := d.MigrateDownTo(context.Background(), 9)
+	if err == nil || !strings.Contains(err.Error(), "cannot be reverted") {
+		t.Fatalf("DownTo(9) error = %v, want the refusal to revert migration 10", err)
+	}
+	if got := appliedEvolveMigrations(t, sqlDB); got != 1 {
+		t.Errorf("migration 10 is applied %d times after the refused down, want 1", got)
 	}
 }
