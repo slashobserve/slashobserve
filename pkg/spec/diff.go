@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -24,9 +25,88 @@ type Change struct {
 	To   json.RawMessage `json:"to,omitempty"`
 }
 
-var keyedArrays = map[string]string{
-	"/panels":    "id",
-	"/variables": "name",
+type keyFunc func(i int, item map[string]any) (string, bool)
+
+func stringMember(name string) keyFunc {
+	return func(_ int, item map[string]any) (string, bool) {
+		k, ok := item[name].(string)
+		return k, ok
+	}
+}
+
+func queryRefKey(i int, item map[string]any) (string, bool) {
+	var ref string
+	if v, present := item["ref"]; present {
+		s, ok := v.(string)
+		if !ok {
+			return "", false
+		}
+		ref = s
+	}
+	if ref == "" && i > 25 {
+		return "", false
+	}
+	return resolveQueryRef(ref, i), true
+}
+
+func overrideMatchKey(_ int, item map[string]any) (string, bool) {
+	match, ok := item["match"].(map[string]any)
+	if !ok || len(match) != 1 {
+		return "", false
+	}
+	for member, value := range match {
+		s, ok := value.(string)
+		if !ok {
+			return "", false
+		}
+		return member + ":" + s, true
+	}
+	return "", false
+}
+
+func pathTokens(path string) []string {
+	if path == "" {
+		return nil
+	}
+	return strings.Split(path[1:], "/")
+}
+
+func matchesPattern(tokens []string, pattern ...string) bool {
+	if len(tokens) != len(pattern) {
+		return false
+	}
+	for i, p := range pattern {
+		if p != "*" && p != tokens[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func trimRowPrefix(tokens []string) []string {
+	if len(tokens) >= 3 && tokens[0] == "panels" && tokens[2] == "panels" {
+		return tokens[2:]
+	}
+	return tokens
+}
+
+func arrayKey(path string) (keyFunc, bool) {
+	tokens := trimRowPrefix(pathTokens(path))
+	switch {
+	case matchesPattern(tokens, "panels"):
+		return stringMember("id"), true
+	case matchesPattern(tokens, "variables"):
+		return stringMember("name"), true
+	case matchesPattern(tokens, "panels", "*", "queries"):
+		return queryRefKey, true
+	case matchesPattern(tokens, "panels", "*", "overrides"):
+		return overrideMatchKey, true
+	}
+	return nil, false
+}
+
+func positionalArray(path string) bool {
+	return matchesPattern(trimRowPrefix(pathTokens(path)), "panels", "*", "transform")
 }
 
 func Diff(from, to *Dashboard) []Change {
@@ -62,7 +142,13 @@ func (d *differ) walk(path string, from, to any) {
 		}
 	case []any:
 		if t, ok := to.([]any); ok {
-			if key, keyed := keyedArrays[path]; keyed && d.walkKeyed(path, key, f, t) {
+			if key, keyed := arrayKey(path); keyed && d.walkKeyed(path, key, f, t) {
+				return
+			}
+			if positionalArray(path) && len(f) == len(t) {
+				for i := range f {
+					d.walk(path+"/"+strconv.Itoa(i), f[i], t[i])
+				}
 				return
 			}
 		}
@@ -103,7 +189,7 @@ func (d *differ) walkObject(path string, from, to map[string]any) {
 }
 
 func (d *differ) walkMissingKeyed(path string, from, to any) bool {
-	key, keyed := keyedArrays[path]
+	key, keyed := arrayKey(path)
 	if !keyed {
 		return false
 	}
@@ -125,7 +211,7 @@ func (d *differ) walkMissingKeyed(path string, from, to any) bool {
 	return d.walkKeyed(path, key, f, t)
 }
 
-func (d *differ) walkKeyed(path, key string, from, to []any) bool {
+func (d *differ) walkKeyed(path string, key keyFunc, from, to []any) bool {
 	fromKeys, fromByKey, ok := indexByKey(from, key)
 	if !ok {
 		return false
@@ -155,15 +241,15 @@ func (d *differ) walkKeyed(path, key string, from, to []any) bool {
 	return true
 }
 
-func indexByKey(items []any, key string) ([]string, map[string]any, bool) {
+func indexByKey(items []any, key keyFunc) ([]string, map[string]any, bool) {
 	keys := make([]string, 0, len(items))
 	byKey := make(map[string]any, len(items))
-	for _, item := range items {
+	for i, item := range items {
 		obj, ok := item.(map[string]any)
 		if !ok {
 			return nil, nil, false
 		}
-		k, ok := obj[key].(string)
+		k, ok := key(i, obj)
 		if !ok {
 			return nil, nil, false
 		}

@@ -7,7 +7,10 @@ import {
   type ValueBlock,
 } from "./diff-values"
 
-const titles = { from: {}, to: {} }
+const titles = {
+  from: new Map<string, string>(),
+  to: new Map<string, string>(),
+}
 
 function format(
   value: unknown,
@@ -103,6 +106,41 @@ describe("formatValue for queries", () => {
   })
 })
 
+describe("formatValue for one query", () => {
+  const format = (field: string, value: unknown) =>
+    formatValue(field, value, titles, false, false)
+
+  test("a changed query text is labelled by its ref", () => {
+    expect(format("queries.B.query", "rate(x[5m])")).toEqual([
+      { label: "Query B", text: "rate(x[5m])", options: "" },
+    ])
+  })
+
+  test("an added or removed query shows its text and options", () => {
+    expect(
+      format("queries.C", { query: "down", legend: "per pod", instant: true })
+    ).toEqual([
+      {
+        label: "Query C",
+        text: "down",
+        options: "legend: per pod, instant",
+      },
+    ])
+  })
+
+  test.each([
+    ["a non-string query text", "queries.B.query", 1],
+    ["a malformed query entry", "queries.B", { legend: "x" }],
+    ["another query field", "queries.B.legend", "per pod"],
+  ])("falls back to plain text for %s", (_, field, value) => {
+    const [block] = format(field, value)
+    expect(block.label).toBeUndefined()
+    expect(block.text).toBe(
+      typeof value === "string" ? value : JSON.stringify(value, null, 2)
+    )
+  })
+})
+
 describe("shouldLabelQueries", () => {
   test("is true when either side has several queries or an explicit ref", () => {
     const one = [{ query: "a" }]
@@ -132,9 +170,18 @@ describe("shouldLabelQueries", () => {
 describe("formatValue for reorders", () => {
   test("numbers the new titles, falling back to old titles and ids", () => {
     const blocks = formatValue(
-      "panels",
+      "panel order",
       ["a", "b", "c"],
-      { from: { b: "Old B", c: "Old C" }, to: { a: "New A", c: "New C" } },
+      {
+        from: new Map([
+          ["b", "Old B"],
+          ["c", "Old C"],
+        ]),
+        to: new Map([
+          ["a", "New A"],
+          ["c", "New C"],
+        ]),
+      },
       true,
       false
     )
@@ -144,13 +191,44 @@ describe("formatValue for reorders", () => {
   })
 
   test("does not read inherited keys as titles", () => {
-    const [block] = formatValue("panels", ["constructor"], titles, true, false)
+    const [block] = formatValue(
+      "panel order",
+      ["constructor"],
+      titles,
+      true,
+      false
+    )
     expect(block.text).toBe("1. constructor")
   })
 
   test("a non-array reorder value is plain text", () => {
-    expect(formatValue("panels", "x", titles, true, false)[0].text).toBe("x")
+    expect(formatValue("panel order", "x", titles, true, false)[0].text).toBe(
+      "x"
+    )
   })
+
+  test("numbers query refs even when a panel id is the same", () => {
+    const overlapping = {
+      from: new Map([["A", "Panel A"]]),
+      to: new Map([["B", "Panel B"]]),
+    }
+    expect(
+      formatValue("query order", ["B", "A"], overlapping, true, false)
+    ).toEqual([{ text: "1. Query B\n2. Query A", options: "" }])
+  })
+
+  test.each(["variable order", "override order"])(
+    "numbers the raw keys for %s even when a panel id is the same",
+    (field) => {
+      const overlapping = {
+        from: new Map([["pod", "Panel"]]),
+        to: new Map([["query:B", "Panel"]]),
+      }
+      expect(
+        formatValue(field, ["query:B", "pod"], overlapping, true, false)
+      ).toEqual([{ text: "1. query:B\n2. pod", options: "" }])
+    }
+  )
 })
 
 describe("limitBlocks", () => {

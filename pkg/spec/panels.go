@@ -66,11 +66,15 @@ func DefaultQueryRef(i int) string {
 	return string(rune('A' + i))
 }
 
-func (p *Panel) QueryRef(i int) string {
-	if ref := p.Queries[i].Ref; ref != "" {
+func resolveQueryRef(ref string, i int) string {
+	if ref != "" {
 		return ref
 	}
 	return DefaultQueryRef(i)
+}
+
+func (p *Panel) QueryRef(i int) string {
+	return resolveQueryRef(p.Queries[i].Ref, i)
 }
 
 func (p *Panel) QueryDatasource(i int) string {
