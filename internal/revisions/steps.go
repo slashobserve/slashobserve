@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
@@ -47,7 +48,7 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 	writeCtx, cancel := context.WithTimeout(ctx, stepWriteTimeout)
 	defer cancel()
 	_, err = s.db.Queries().AppendAgentRequestStep(writeCtx, dbsqlc.AppendAgentRequestStepParams{
-		ID: id, Attempts: toInt32(req.Attempt), Step: payload, MaxSteps: MaxSteps,
+		ID: id, Attempts: httpapi.Int32(req.Attempt), Step: payload, MaxSteps: MaxSteps,
 	})
 	if err != nil {
 		s.logger.WarnContext(ctx, "record agent request step", logattrs.Failure("agent_step_record_failed", err, slog.String("agent_request_id", req.ID), slog.String("tool", st.Tool))...)

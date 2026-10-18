@@ -323,7 +323,7 @@ components:
         dashboard_count:
           type: integer
           minimum: 0
-          description: Dashboards whose version 1 this person authored, including agent-made ones they asked for.
+          description: Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted.
         key_count:
           type: integer
           minimum: 0

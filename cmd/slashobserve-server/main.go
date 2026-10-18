@@ -230,12 +230,12 @@ func run() error {
 		Datasources: registry,
 		API: []server.Registrar{
 			dashboardsService,
-			stream.NewHandler(broker, dashboardsService, logger),
+			stream.NewHandler(broker, dashboardsService, authService, logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
-			users.NewHandler(database, logger),
+			users.NewHandler(database, authService, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

@@ -9,7 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
@@ -38,7 +40,7 @@ func (s *Service) require(c *gin.Context) {
 		c.Next()
 		return
 	}
-	p, ok, err := s.sessionPrincipal(c)
+	row, ok, err := s.sessionRow(c.Request)
 	if err != nil {
 		s.logger.ErrorContext(c.Request.Context(), "resolve session", logattrs.Failure("session_lookup_failed", err)...)
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
@@ -54,44 +56,78 @@ func (s *Service) require(c *gin.Context) {
 			return
 		}
 	}
-	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), p))
+	s.touchSeen(c.Request.Context(), row)
+	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), sessionPrincipalOf(row)))
 	c.Next()
 }
 
-func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
-	cookie, err := c.Request.Cookie(s.sessionCookie)
-	if err != nil || cookie.Value == "" {
-		return Principal{}, false, nil
+func (s *Service) Valid(r *http.Request) (bool, error) {
+	if h := r.Header.Get("Authorization"); h != "" {
+		_, ok, err := s.lookupKey(r.Context(), h)
+		return ok, err
 	}
-	row, err := s.queries.GetSessionUser(c.Request.Context(), hashToken(cookie.Value))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Principal{}, false, nil
-	}
-	if err != nil {
-		return Principal{}, false, err
-	}
-	if time.Since(row.LastSeenAt.Time) > userSeenInterval {
-		ctx := c.Request.Context()
-		tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keyTouchTimeout)
-		err = s.queries.TouchUserSeen(tctx, row.ID)
-		cancel()
-		if err != nil {
-			s.logger.WarnContext(ctx, "update user last seen", logattrs.Failure("user_touch_failed", err)...)
-		}
-	}
-	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name}, true, nil
+	_, ok, err := s.sessionRow(r)
+	return ok, err
 }
 
-func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal, bool, error) {
+func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
+	row, ok, err := s.sessionRow(c.Request)
+	if err != nil || !ok {
+		return Principal{}, false, err
+	}
+	s.touchSeen(c.Request.Context(), row)
+	return sessionPrincipalOf(row), true, nil
+}
+
+func (s *Service) sessionRow(r *http.Request) (dbsqlc.GetSessionUserRow, bool, error) {
+	cookie, err := r.Cookie(s.sessionCookie)
+	if err != nil || cookie.Value == "" {
+		return dbsqlc.GetSessionUserRow{}, false, nil
+	}
+	row, err := s.queries.GetSessionUser(r.Context(), hashToken(cookie.Value))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.GetSessionUserRow{}, false, nil
+	}
+	if err != nil {
+		return dbsqlc.GetSessionUserRow{}, false, err
+	}
+	return row, true, nil
+}
+
+func (s *Service) touchSeen(ctx context.Context, row dbsqlc.GetSessionUserRow) {
+	if time.Since(row.LastSeenAt.Time) <= userSeenInterval {
+		return
+	}
+	tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keyTouchTimeout)
+	err := s.queries.TouchUserSeen(tctx, dbsqlc.TouchUserSeenParams{ID: row.ID, MinAge: pgtype.Interval{Microseconds: userSeenInterval.Microseconds(), Valid: true}})
+	cancel()
+	if err != nil {
+		s.logger.WarnContext(ctx, "update user last seen", logattrs.Failure("user_touch_failed", err)...)
+	}
+}
+
+func sessionPrincipalOf(row dbsqlc.GetSessionUserRow) Principal {
+	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name}
+}
+
+func (s *Service) lookupKey(ctx context.Context, header string) (dbsqlc.GetKeyPrincipalRow, bool, error) {
 	scheme, token, found := strings.Cut(header, " ")
 	if !found || !strings.EqualFold(scheme, "Bearer") || len(token) != keyLength || !strings.HasPrefix(token, keyPrefix) {
-		return Principal{}, false, nil
+		return dbsqlc.GetKeyPrincipalRow{}, false, nil
 	}
 	row, err := s.queries.GetKeyPrincipal(ctx, hashToken(token))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return Principal{}, false, nil
+		return dbsqlc.GetKeyPrincipalRow{}, false, nil
 	}
 	if err != nil {
+		return dbsqlc.GetKeyPrincipalRow{}, false, err
+	}
+	return row, true, nil
+}
+
+func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal, bool, error) {
+	row, ok, err := s.lookupKey(ctx, header)
+	if err != nil || !ok {
 		return Principal{}, false, err
 	}
 	if !row.LastUsedAt.Valid || time.Since(row.LastUsedAt.Time) > keyTouchInterval {

@@ -40,7 +40,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`, or `dbtest.NewWithLogger(t, logger)` to capture the DB's own log lines; skipped under `-short`).
 - `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
-- `internal/users/`: the People routes (`GET /api/v1/users`, `DELETE /api/v1/users/{id}/sessions`), user principals only.
+- `internal/users/`: the People routes (`GET /api/v1/users`, paged newest first sign-in by `(created_at, id)`, and `DELETE /api/v1/users/{id}/sessions`, which also expires the caller's cookie when they sign themselves out), user principals only (`auth.RequireUser`).
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
@@ -101,7 +101,7 @@ Directories are created when their phase starts; this is where things go.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
-  `users.last_seen_at` is touched at most once a minute by session requests.
+  `users.last_seen_at` is touched at most once a minute (`userSeenInterval` is the only definition, passed to the query) by session requests that passed authentication and, for mutations, the cross-origin check.
   Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
   `GET /api/v1/instance` returns the public and MCP URLs, the issuer URL, the optional provider display name, allowed email domains and session TTL, never a secret or the internal OIDC URL.
@@ -110,7 +110,7 @@ Directories are created when their phase starts; this is where things go.
   The server applies migrations at boot under a Postgres advisory lock.
   Queries live in `internal/db/queries`; sqlc generates `internal/db/dbsqlc` (committed, never hand-edited; run `make generate`).
 - Dashboards: versions are immutable and linear (`parent_version = version - 1`); a save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy`, outside any transaction; the conditional `latest_version` update is the concurrency check (409 `version_conflict`); events go out with `pg_notify` on channel `slashobserve_events` inside the saving transaction.
-- Events: writers `pg_notify` on `slashobserve_events` inside their transaction; one `events.Broker` per process listens and fans out to `GET /api/v1/dashboards/{id}/events` (SSE) per dashboard; every stream starts with `ready` (current `latest_version`), sends `resync` after a listener reconnect, pings every 15 s, ends after 30 minutes, and clients refetch on `ready` and `resync` instead of replaying ids.
+- Events: writers `pg_notify` on `slashobserve_events` inside their transaction; one `events.Broker` per process listens and fans out to `GET /api/v1/dashboards/{id}/events` (SSE) per dashboard; every stream starts with `ready` (current `latest_version`), sends `resync` after a listener reconnect, pings every 15 s and ends at the first ping after the caller's session or key stops being valid (so a sign out closes open streams within 15 s), ends after 30 minutes, and clients refetch on `ready` and `resync` instead of replaying ids.
 - Revisions: comments (unless `request_revision` is false) and `POST /dashboards/{id}/revisions` prompts enqueue `agent_requests` rows, a comment's inside its own transaction; at most 5 are queued or running per dashboard (429 `too_many_revisions`, enforced under a per-dashboard advisory lock).
   In-process workers (2 per process) claim under a global advisory lock with `FOR UPDATE SKIP LOCKED`, hold a 5 minute lease, run at most 2 attempts and run one request per dashboard at a time (a partial unique index allows one running row per dashboard, and a queued request waits behind an expired running one until it is retried or failed); wake-ups come from `pg_notify` on `slashobserve_agent_requests` plus a 5 s poll, and a run gets 3 minutes.
   `dashboard_versions.agent_request_id` is unique and the agent's `update_dashboard` saves through it, so a retried run returns the version it already created instead of a second one.

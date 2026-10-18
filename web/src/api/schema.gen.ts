@@ -168,8 +168,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List everyone who has signed in, most recently seen first.
-         * @description Service accounts cannot call this endpoint.
+         * List everyone who has signed in, newest first.
+         * @description People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Service accounts cannot call this endpoint.
          */
         get: operations["listUsers"];
         put?: never;
@@ -194,7 +194,7 @@ export interface paths {
         post?: never;
         /**
          * Delete every session of a person.
-         * @description Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Service accounts cannot.
+         * @description Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
          */
         delete: operations["signOutUserEverywhere"];
         options?: never;
@@ -691,7 +691,7 @@ export interface components {
              * @description Updated at most once a minute while a session is used; seen within the last 2 minutes means online now.
              */
             last_seen_at: string;
-            /** @description Dashboards whose version 1 this person authored, including agent-made ones they asked for. */
+            /** @description Dashboards whose first version this person saved, either directly or through an agent request they sent. Dashboards created with a service-account key are not counted. */
             dashboard_count: number;
             /** @description Unrevoked, unexpired service-account keys this person created. */
             key_count: number;

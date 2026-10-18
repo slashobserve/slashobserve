@@ -98,7 +98,7 @@ That address matters beyond links:
 - It is the trusted origin for the cross-origin check on cookie-authenticated writes.
 
 Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
-It is a Server-Sent Events stream that sends a ping every 15 seconds and ends after 30 minutes; browsers reconnect on their own.
+It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid, and ends after 30 minutes; browsers reconnect on their own.
 The server ignores `X-Forwarded-For`.
 
 ### Health endpoints

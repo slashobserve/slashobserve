@@ -247,7 +247,7 @@ func (s *Service) logout(c *gin.Context) {
 			return
 		}
 	}
-	s.clearCookie(c, s.sessionCookie)
+	s.ClearSessionCookie(c)
 	c.Status(http.StatusNoContent)
 }
 
@@ -281,6 +281,10 @@ func (s *Service) setCookie(c *gin.Context, name, value string, maxAge int) {
 		Secure:   s.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func (s *Service) ClearSessionCookie(c *gin.Context) {
+	s.clearCookie(c, s.sessionCookie)
 }
 
 func (s *Service) clearCookie(c *gin.Context, name string) {

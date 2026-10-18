@@ -1,8 +1,8 @@
 users:
   get:
     operationId: listUsers
-    summary: List everyone who has signed in, most recently seen first.
-    description: Service accounts cannot call this endpoint.
+    summary: List everyone who has signed in, newest first.
+    description: People are ordered by when they first signed in, newest first, so paging stays stable while people are active; last_seen_at does not affect the order. Service accounts cannot call this endpoint.
     parameters:
       - name: limit
         in: query
@@ -51,7 +51,7 @@ users-id-sessions:
   delete:
     operationId: signOutUserEverywhere
     summary: Delete every session of a person.
-    description: Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Service accounts cannot.
+    description: Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Signing yourself out also expires your session cookie. Service accounts cannot.
     responses:
       "204":
         description: Every session of the person is deleted.
