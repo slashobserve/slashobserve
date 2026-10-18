@@ -38,7 +38,7 @@ export function SettingsRow({
 }: {
   label: string
   children: ReactNode
-  copy?: string
+  copy?: string | null
   mono?: boolean
 }) {
   return (
@@ -57,7 +57,9 @@ export function SettingsRow({
       >
         {children}
       </span>
-      {copy === undefined ? null : (
+      {copy === undefined ? null : copy === null ? (
+        <span aria-hidden="true" className="size-7 flex-none" />
+      ) : (
         <CopyButton
           text={copy}
           label={`Copy ${label}`}

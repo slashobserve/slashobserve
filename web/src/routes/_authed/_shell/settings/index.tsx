@@ -134,10 +134,10 @@ function ServerCard() {
   const instance = query.data
   return (
     <SettingsCard title="This server" hint={hint}>
-      <SettingsRow label="Public URL" mono copy={instance?.public_url}>
+      <SettingsRow label="Public URL" mono copy={instance?.public_url ?? null}>
         {instance ? instance.public_url : <Pending />}
       </SettingsRow>
-      <SettingsRow label="MCP URL" mono copy={instance?.mcp_url}>
+      <SettingsRow label="MCP URL" mono copy={instance?.mcp_url ?? null}>
         {instance ? instance.mcp_url : <Pending />}
       </SettingsRow>
     </SettingsCard>

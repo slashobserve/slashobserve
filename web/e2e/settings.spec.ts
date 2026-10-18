@@ -80,6 +80,34 @@ test("shows the server's settings", async ({ page }) => {
   await expect(value(page, "Sign-in", "Identity provider")).not.toHaveText("")
 })
 
+test("keeps the row height when the server settings load", async ({ page }) => {
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(
+    (url) => url.pathname === "/api/v1/instance",
+    async (route) => {
+      await gate
+      await route.continue()
+    }
+  )
+  await page.goto("/settings")
+
+  const mcp = row(page, "This server", "MCP URL")
+  await expect(mcp).toBeVisible()
+  const loading = await mcp.boundingBox()
+  expect(loading).not.toBeNull()
+
+  release()
+  await expect(page.getByRole("button", { name: "Copy MCP URL" })).toBeVisible()
+  const loaded = await mcp.boundingBox()
+  expect(loaded).not.toBeNull()
+  expect(
+    Math.abs((loaded?.height ?? 0) - (loading?.height ?? 0))
+  ).toBeLessThanOrEqual(0.5)
+})
+
 test("copies the MCP URL", async ({ page }) => {
   await openSettings(page)
   await page.getByRole("button", { name: "Copy MCP URL" }).click()
