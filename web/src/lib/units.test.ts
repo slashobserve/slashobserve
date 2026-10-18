@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { formatAxisValue, formatValue as f } from "./units"
+import { commonDecimals, formatAxisValue, formatValue as f } from "./units"
 
 describe("formatValue", () => {
   it("formats the reference examples", () => {
@@ -109,5 +109,43 @@ describe("formatValue", () => {
 
   it("exposes the axis formatter with the same rules", () => {
     expect(formatAxisValue(1536, "bytes")).toBe("1.5 KiB")
+  })
+})
+
+describe("commonDecimals", () => {
+  const column = (values: (number | null)[], unit?: Parameters<typeof f>[1]) =>
+    values.map((value) => f(value, unit, commonDecimals(values, unit)))
+
+  it("gives every value in a column the same number of decimals", () => {
+    expect(column([2.4, 2.45, 12], "reqps")).toEqual([
+      "2.40 req/s",
+      "2.45 req/s",
+      "12.00 req/s",
+    ])
+    expect(column([1, 2, 30])).toEqual(["1", "2", "30"])
+  })
+
+  it("counts decimals after scaling the value for its unit", () => {
+    expect(column([0.1234, 0.5], "percentunit")).toEqual(["12.34%", "50.00%"])
+    expect(column([1536, 2048], "bytes")).toEqual(["1.5 KiB", "2.0 KiB"])
+    expect(column([0, 1.5], "s")).toEqual(["0.0 s", "1.5 s"])
+  })
+
+  it("widens for small values and ignores missing or non-finite ones", () => {
+    expect(column([0.5, 0.004])).toEqual(["0.500", "0.004"])
+    expect(column([null, Infinity, 3.5, 4])).toEqual([
+      "-",
+      "+Inf",
+      "3.5",
+      "4.0",
+    ])
+    expect(commonDecimals([null, Number.NaN])).toBeUndefined()
+    expect(commonDecimals([])).toBeUndefined()
+  })
+
+  it("keeps explicit decimals and leaves non-numeric units alone", () => {
+    expect(commonDecimals([2.4, 2.45], "reqps", 1)).toBe(1)
+    expect(commonDecimals([2.4, 2.45], "bool")).toBeUndefined()
+    expect(commonDecimals([1, 2], "dateTimeAsIso")).toBeUndefined()
   })
 })

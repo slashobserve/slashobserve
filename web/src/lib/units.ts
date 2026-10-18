@@ -57,13 +57,14 @@ function formatNumber(value: number, decimals?: number): string {
   return format.format(value)
 }
 
-function scaled(
+type Placed = { amount: number; wrap: (text: string) => string }
+
+function placeScaled(
   value: number,
   base: number,
   suffixes: string[],
-  start: number,
-  decimals?: number
-): string {
+  start: number
+): Placed {
   let step = start
   let current = value
   while (Math.abs(current) >= base && step < suffixes.length - 1) {
@@ -71,17 +72,13 @@ function scaled(
     step++
   }
   const suffix = suffixes[step]
-  return suffix
-    ? `${formatNumber(current, decimals)} ${suffix}`
-    : formatNumber(current, decimals)
+  return {
+    amount: current,
+    wrap: (text) => (suffix ? `${text} ${suffix}` : text),
+  }
 }
 
-function scaledSuffix(
-  value: number,
-  steps: string[],
-  tail: string,
-  decimals?: number
-): string {
+function placeShort(value: number, steps: string[], tail: string): Placed {
   let step = 0
   let current = value
   while (Math.abs(current) >= 1000 && step < steps.length - 1) {
@@ -89,22 +86,22 @@ function scaledSuffix(
     step++
   }
   const prefix = steps[step] ? ` ${steps[step]}` : ""
-  return `${formatNumber(current, decimals)}${prefix}${tail}`
+  return { amount: current, wrap: (text) => `${text}${prefix}${tail}` }
 }
 
 function pad(value: number, width = 2): string {
   return String(value).padStart(width, "0")
 }
 
-function formatDuration(value: number, unitNs: number, decimals?: number) {
+function placeDuration(value: number, unitNs: number): Placed {
   const ns = value * unitNs
   if (ns === 0) {
     const native = durationSteps.findLast((step) => step.ns <= unitNs)
-    return `0 ${native?.label ?? "ns"}`
+    return { amount: 0, wrap: (text) => `${text} ${native?.label ?? "ns"}` }
   }
   const abs = Math.abs(ns)
   const step = durationSteps.findLast((s) => abs >= s.ns) ?? durationSteps[0]
-  return `${formatNumber(ns / step.ns, decimals)} ${step.label}`
+  return { amount: ns / step.ns, wrap: (text) => `${text} ${step.label}` }
 }
 
 const humanDurationParts = [
@@ -351,6 +348,24 @@ const rules: Record<Unit, Rule> = {
   masskg: spaced("kg"),
 }
 
+function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
+  switch (rule.kind) {
+    case "plain":
+      return { amount: value, wrap: (text) => text }
+    case "append":
+      return {
+        amount: value * (rule.multiplier ?? 1),
+        wrap: (text) => `${text}${rule.suffix}`,
+      }
+    case "scale":
+      return placeScaled(value, rule.base, rule.suffixes, rule.start)
+    case "short":
+      return placeShort(value, rule.steps ?? shortSteps, rule.suffix)
+    case "duration":
+      return placeDuration(value, rule.unitNs)
+  }
+}
+
 export function formatValue(
   value: number | null | undefined,
   unit?: Unit,
@@ -360,25 +375,28 @@ export function formatValue(
   if (value === Infinity) return "+Inf"
   if (value === -Infinity) return "-Inf"
   const rule = rules[unit ?? "none"]
-  switch (rule.kind) {
-    case "plain":
-      return formatNumber(value, decimals)
-    case "append":
-      return `${formatNumber(value * (rule.multiplier ?? 1), decimals)}${rule.suffix}`
-    case "scale":
-      return scaled(value, rule.base, rule.suffixes, rule.start, decimals)
-    case "short":
-      return scaledSuffix(
-        value,
-        rule.steps ?? shortSteps,
-        rule.suffix,
-        decimals
-      )
-    case "duration":
-      return formatDuration(value, rule.unitNs, decimals)
-    case "custom":
-      return rule.format(value, decimals)
+  if (rule.kind === "custom") return rule.format(value, decimals)
+  const placed = place(value, rule)
+  return placed.wrap(formatNumber(placed.amount, decimals))
+}
+
+export function commonDecimals(
+  values: readonly (number | null | undefined)[],
+  unit?: Unit,
+  decimals?: number
+): number | undefined {
+  if (decimals !== undefined) return decimals
+  const rule = rules[unit ?? "none"]
+  if (rule.kind === "custom") return undefined
+  let widest: number | undefined
+  for (const value of values) {
+    if (typeof value !== "number" || !Number.isFinite(value)) continue
+    const text = formatNumber(place(value, rule).amount)
+    const dot = text.indexOf(".")
+    const digits = dot < 0 ? 0 : text.length - dot - 1
+    widest = Math.max(widest ?? 0, digits)
   }
+  return widest
 }
 
 export const formatAxisValue = formatValue

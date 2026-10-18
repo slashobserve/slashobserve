@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatTimeValue } from "@/lib/time"
-import { formatValue } from "@/lib/units"
+import { commonDecimals, formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
 import { toTable, type TableColumn } from "./frames"
@@ -47,6 +47,22 @@ function cellText(
 export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
   const table = useMemo(() => toTable(frames), [frames])
   const [sort, setSort] = useState<Sort>(null)
+
+  const columnDecimals = useMemo(() => {
+    const decimals = new Map<string, number | undefined>()
+    for (const column of table.columns) {
+      if (column.type !== "number") continue
+      decimals.set(
+        column.key,
+        commonDecimals(
+          table.rows.map((row) => row[column.key] as number | null),
+          panel.unit,
+          panel.decimals
+        )
+      )
+    }
+    return decimals
+  }, [table, panel.unit, panel.decimals])
 
   const rows = useMemo(() => {
     if (!sort) return table.rows
@@ -129,7 +145,12 @@ export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
                       value === null && "text-muted-foreground"
                     )}
                   >
-                    {cellText(column, value, panel.unit, panel.decimals)}
+                    {cellText(
+                      column,
+                      value,
+                      panel.unit,
+                      columnDecimals.get(column.key)
+                    )}
                   </TableCell>
                 )
               })}
