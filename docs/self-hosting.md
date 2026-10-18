@@ -541,6 +541,7 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
 - **No roles yet.**
   In this release any signed-in user can read and write everything: every dashboard, comment and version.
   Any signed-in user can also create service accounts and keys, and revoke anyone's keys, so a key is as powerful as a person.
+  Any signed-in user can also see everyone who has signed in and sign any of them out everywhere.
   Roles arrive in a later milestone.
   Until then, allow into SlashObserve only the people you would trust with all of its dashboards and datasources.
 - **Datasource credentials stay on the server.**

@@ -18,6 +18,7 @@ const (
 	keyLength        = 47
 	keyTouchInterval = 5 * time.Minute
 	keyTouchTimeout  = 2 * time.Second
+	userSeenInterval = time.Minute
 )
 
 func (s *Service) require(c *gin.Context) {
@@ -68,6 +69,15 @@ func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
 	}
 	if err != nil {
 		return Principal{}, false, err
+	}
+	if time.Since(row.LastSeenAt.Time) > userSeenInterval {
+		ctx := c.Request.Context()
+		tctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keyTouchTimeout)
+		err = s.queries.TouchUserSeen(tctx, row.ID)
+		cancel()
+		if err != nil {
+			s.logger.WarnContext(ctx, "update user last seen", logattrs.Failure("user_touch_failed", err)...)
+		}
 	}
 	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name}, true, nil
 }
