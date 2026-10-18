@@ -53,7 +53,7 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, reserve, ok := a.work(ctx, "reserve_inventory", 10*time.Millisecond, 30*time.Millisecond)
+	_, reserve, ok := a.work(ctx, "reserve_inventory", 20*time.Millisecond, 40*time.Millisecond)
 	if failure == reserveTimeoutMsg {
 		failSpan(reserve, failure)
 	}
@@ -70,7 +70,7 @@ func (a *app) checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, insert, ok := a.work(ctx, "insert_order", 10*time.Millisecond, 30*time.Millisecond)
+	_, insert, ok := a.work(ctx, "insert_order", 20*time.Millisecond, 40*time.Millisecond)
 	if failure == insertDeadlockMsg {
 		failSpan(insert, failure)
 	}

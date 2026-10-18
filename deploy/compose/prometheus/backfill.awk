@@ -36,11 +36,11 @@ BEGIN {
 
     nb = split("0.005 0.01 0.025 0.05 0.1 0.25 0.5 1.0 2.5 5.0 10.0", le, " ")
     split("0 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1 2.5 5 10", bound, " ")
-    profile["frontend|/api/products"] = "2:0.16 3:0.60 4:0.23 5:0.01"
-    profile["frontend|/api/products/{id}"] = "2:0.164 3:0.588 4:0.228 5:0.02"
-    profile["frontend|/api/checkout"] = "1:0.006 2:0.018 5:0.484 6:0.442 7:0.05"
+    profile["frontend|/api/products"] = "3:0.565 4:0.425 5:0.01"
+    profile["frontend|/api/products/{id}"] = "3:0.56 4:0.42 5:0.02"
+    profile["frontend|/api/checkout"] = "1:0.008 2:0.016 5:0.117 6:0.809 7:0.05"
     profile["frontend|/api/orders/{id}"] = "2:0.015 3:0.520 4:0.436 5:0.03"
-    profile["checkout|/checkout"] = "1:0.024 5:0.615 6:0.311 7:0.05"
+    profile["checkout|/checkout"] = "1:0.024 5:0.211 6:0.715 7:0.05"
     profile["checkout|/orders/{id}"] = "2:0.162 3:0.582 4:0.226 5:0.03"
     profile["payments|/charge"] = "4:0.458 5:0.492 6:0.05"
 

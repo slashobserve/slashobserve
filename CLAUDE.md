@@ -251,18 +251,21 @@ Directories are created when their phase starts; this is where things go.
   A 1 minute `rate()` whose window starts after `end` still misses the requests before its first live sample, less what Prometheus extrapolates, so the junction shows a small dip.
   `backfill_joins_live` in `scripts/e2e.sh` compares, per `service`, `route` and `pod` above 1.5 requests per second, the 1 minute request rate and p95 around the junction with their values 35 seconds before `end`, and requires every 5 second sample from 30 seconds before to 90 seconds after `end` to stay within 0.85 to 1.15 for the rate and 0.95 to 1.6 for the p95.
   Every route's 95th percentile must sit inside a well populated histogram bucket whose upper edge is far above the slowest latency the route can produce, or CPU starvation (sleeps overshooting) moves it across the bucket: frontend `/api/products` used to sleep 5 to 25 ms, which put its p95 on the 25 ms edge and let it reach 1.7 on a loaded host.
+  The p95 bucket must also hold at least 40% of the requests of every route the check covers, because a histogram quantile is interpolated inside its bucket and a thin bucket turns sampling noise and timer overshoot into p95 movement.
+  With `F` the share of requests below the bucket, `n` the requests in the 1 minute window and nothing above the bucket, p95 is the lower edge plus the width times (0.95 - F) / (1 - F), its slope in `F` is the width times 0.05 / (1 - F)^2, and `F` has a standard deviation of sqrt(F (1 - F) / n); the backfill side has no noise.
+  With every covered route above 40%, the 0.95 floor sits clear of that sampling noise instead of inside it.
   The profiles in `backfill.awk` are calibrated from the shop containers alone (`docker run`, 30 requests per second, 6 minutes), and the highest bucket of each profile is the diurnal tail that is zero at the junction.
   Per route at the junction, the share of requests in the p95 bucket, that bucket, and the slowest latency the sleeps allow (including about 1 ms of overhead):
 
   | Route | Sleeps | p95 bucket | Share in bucket | Slowest latency |
   | --- | --- | --- | --- | --- |
-  | frontend `/api/products` | 5 to 30 ms | 25 to 50 ms | 23% | 31 ms |
-  | frontend `/api/products/{id}` | 5 to 30 ms | 25 to 50 ms | 23% | 31 ms |
+  | frontend `/api/products` | 10 to 35 ms | 25 to 50 ms | 43% | 36 ms |
+  | frontend `/api/products/{id}` | 10 to 35 ms | 25 to 50 ms | 43% | 36 ms |
   | frontend `/api/orders/{id}` | 2 to 5 ms and 5 to 30 ms | 25 to 50 ms | 45% | 38 ms |
   | checkout `/orders/{id}` | 5 to 30 ms | 25 to 50 ms | 30% | 31 ms |
   | payments `/charge` | 30 to 70 ms | 50 to 100 ms | 52% | 72 ms |
-  | checkout `/checkout` | 10 to 30, 30 to 70, 10 to 30 ms | 100 to 250 ms | 33% | 140 ms |
-  | frontend `/api/checkout` | 2 to 8 ms plus checkout | 100 to 250 ms | 47% | 150 ms |
+  | checkout `/checkout` | 20 to 40, 30 to 70, 20 to 40 ms | 100 to 250 ms | 75% | 153 ms |
+  | frontend `/api/checkout` | 2 to 8 ms plus checkout | 100 to 250 ms | 85% | 162 ms |
 
   Changing a sleep range changes its row, the rows of every route that calls it, and the profile in `backfill.awk`, so recalibrate them together.
   The p95 band stays wide above (1.6) and tight below, where a gap or a double count would show.
