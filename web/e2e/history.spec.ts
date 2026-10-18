@@ -145,7 +145,9 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
     legend.getByRole("group", { name: "Before", exact: true })
   ).toContainText("{{pod}}")
 
-  const added = changes.filter({ hasText: "queries.B" })
+  const added = changes.filter({
+    has: page.getByText("queries.B", { exact: true }),
+  })
   await expect(added.getByText("Added")).toBeVisible()
   const addedAfter = added.getByRole("group", { name: "After", exact: true })
   await expect(
