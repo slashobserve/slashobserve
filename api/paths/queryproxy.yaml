@@ -63,7 +63,11 @@ dashboards-id-versions-version-panels-panel-id-data:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelData"
       "400":
-        $ref: "../openapi.yaml#/components/responses/BadRequest"
+        description: The request is malformed or fails validation, for example an undeclared variable or an invalid variable selection.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
@@ -77,7 +81,7 @@ dashboards-id-versions-version-panels-panel-id-data:
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "422":
         description: >-
           A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
@@ -89,7 +93,11 @@ dashboards-id-versions-version-panels-panel-id-data:
       "429":
         $ref: "../openapi.yaml#/components/responses/TooManyRequests"
       "500":
-        $ref: "../openapi.yaml#/components/responses/Internal"
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "502":
         description: A datasource is unavailable.
         content:

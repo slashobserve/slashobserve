@@ -75,6 +75,7 @@ type fakeDatasource struct {
 	rangeRange    datasource.TimeRange
 	rangeSteps    map[string]time.Duration
 	failText      map[string]error
+	panicText     map[string]bool
 }
 
 func (f *fakeDatasource) stepFor(text string) time.Duration {
@@ -126,7 +127,11 @@ func (f *fakeDatasource) QueryRange(ctx context.Context, q datasource.Query, r d
 	}
 	f.rangeSteps[q.Text] = step
 	failure := f.failText[q.Text]
+	panics := f.panicText[q.Text]
 	f.mu.Unlock()
+	if panics {
+		panic("datasource exploded")
+	}
 	if failure != nil {
 		return nil, failure
 	}
@@ -1089,6 +1094,17 @@ func TestFailingQueryFailsThePanelRequestAndNamesItsRef(t *testing.T) {
 	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
 	rec := hn.get(hn.dataPath("p_multi", window), "")
 	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if ref := decodeError(t, rec).Ref; ref != "B" {
+		t.Fatalf("ref = %q, want B (body %s)", ref, rec.Body.String())
+	}
+}
+
+func TestPanickingQueryFailsThePanelRequestWithAnInternalErrorAndItsRef(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.panicText = map[string]bool{"second": true}
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
+	rec := hn.get(hn.dataPath("p_multi", window), "")
+	expectError(t, rec, http.StatusInternalServerError, "internal")
 	if ref := decodeError(t, rec).Ref; ref != "B" {
 		t.Fatalf("ref = %q, want B (body %s)", ref, rec.Body.String())
 	}

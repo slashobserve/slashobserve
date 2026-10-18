@@ -1945,7 +1945,15 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            400: components["responses"]["BadRequest"];
+            /** @description The request is malformed or fails validation, for example an undeclared variable or an invalid variable selection. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             /** @description The request carried query text; the code is `query_not_in_spec`. */
             403: {
@@ -1962,7 +1970,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["PanelDataError"];
                 };
             };
             /** @description A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource` or `variable_empty`. */
@@ -1975,7 +1983,15 @@ export interface operations {
                 };
             };
             429: components["responses"]["TooManyRequests"];
-            500: components["responses"]["Internal"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
             /** @description A datasource is unavailable. */
             502: {
                 headers: {
