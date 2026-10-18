@@ -34,8 +34,7 @@ const (
 )
 
 var (
-	errRequestIDUnsupported = errors.New("create_dashboard does not support request ids yet")
-	errInvalidRun           = errors.New("invalid run scope")
+	errInvalidRun = errors.New("invalid run scope")
 )
 
 func (r *Registry) dashboardEntries() []entry {
@@ -259,9 +258,6 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
-	if scoped && run.RequestID != "" {
-		return Result{}, errRequestIDUnsupported
-	}
 	var in createInput
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -277,11 +273,15 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 			return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), nil
 		}
 	}
-	dash, ver, err := r.deps.Dashboards.Create(ctx, principal, in.Spec, summaryOr(in.Summary, defaultCreateSummary))
+	requestID, err := requestIDOf(run, scoped)
+	if err != nil {
+		return Result{}, err
+	}
+	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if err != nil {
 		return saveFailure(err)
 	}
-	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, nil)), nil
+	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
 }
 
 func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (Result, error) {

@@ -84,6 +84,36 @@ func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id p
 	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID)
 }
 
+// A second save for the same request id returns the dashboard the first one created.
+func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	if !requestID.Valid {
+		dash, ver, err := s.Create(ctx, by, rawSpec, summary)
+		return dash, ver, false, err
+	}
+	if dash, ver, found, err := s.store.createdByRequest(ctx, requestID); err != nil || found {
+		return dash, ver, found, err
+	}
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	if err := s.checkQueries(ctx, parsed); err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+	if !errors.Is(err, errRequestSaved) {
+		return dash, ver, false, err
+	}
+	dash, ver, found, err := s.store.createdByRequest(ctx, requestID)
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	if !found {
+		return Dashboard{}, Version{}, false, fmt.Errorf("create dashboard: %w", errRequestSaved)
+	}
+	return dash, ver, true, nil
+}
+
 func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
 		if dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID); err != nil || found {

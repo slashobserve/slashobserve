@@ -143,7 +143,7 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 	}
 	t.Run("request id", func(t *testing.T) {
 		_, err := r.Call(WithRun(ctx, Run{Mode: ModeCreate, RequestID: "r1"}), nameCreateDashboard, []byte(spec))
-		if !errors.Is(err, errRequestIDUnsupported) {
+		if !errors.Is(err, errInvalidRun) {
 			t.Fatalf("err = %v", err)
 		}
 	})
