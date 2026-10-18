@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { useBlocker } from "@tanstack/react-router"
 
 import {
   AlertDialog,
@@ -30,9 +31,32 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { Dashboard, Panel } from "@/spec"
 
-import { useDashboardSearch, useSetDashboardSearch } from "./search"
+import {
+  useDashboardSearch,
+  useSetDashboardSearch,
+  validateDashboardSearch,
+} from "./search"
 
 const QueryTab = lazy(() => import("@/query-editor/query-tab"))
+
+function panelTrigger(panelId: string | undefined) {
+  if (panelId === undefined) return null
+  return document.querySelector<HTMLElement>(
+    `[data-panel-menu="${CSS.escape(panelId)}"]`
+  )
+}
+
+function leavesQueryEditor(
+  current: { pathname: string; search: unknown },
+  next: { pathname: string; search: unknown }
+) {
+  if (current.pathname !== next.pathname) return true
+  const before = validateDashboardSearch(
+    current.search as Record<string, unknown>
+  )
+  const after = validateDashboardSearch(next.search as Record<string, unknown>)
+  return before.panel !== after.panel || after.tab === undefined
+}
 
 type InspectorTab = "query" | "comments"
 
@@ -66,9 +90,19 @@ export function PanelInspector({
   const setSearch = useSetDashboardSearch()
   const [confirmClose, setConfirmClose] = useState(false)
   const unsavedQuery = useRef(false)
+  const [queryDirty, setQueryDirty] = useState(false)
   const onQueryDirty = useCallback((dirty: boolean) => {
     unsavedQuery.current = dirty
+    setQueryDirty(dirty)
   }, [])
+  const blocker = useBlocker({
+    shouldBlockFn: ({ current, next }) =>
+      unsavedQuery.current && leavesQueryEditor(current, next),
+    enableBeforeUnload: () => unsavedQuery.current,
+    withResolver: true,
+  })
+  const discardOpen = confirmClose || blocker.status === "blocked"
+  const discarding = useRef(false)
 
   const panelId = search.panel
   const open = panelId !== undefined && search.tab !== undefined
@@ -77,7 +111,12 @@ export function PanelInspector({
     : undefined
   const [retained, setRetained] = useState<Panel | undefined>()
   if (current && current !== retained) setRetained(current)
-  const panel = open ? current : retained
+  const kept = queryDirty && retained?.id === panelId ? retained : undefined
+  const panel = open ? (current ?? kept) : retained
+
+  const stale = pinned && version !== latestVersion
+  const [readOnly, setReadOnly] = useState(stale)
+  if (readOnly !== stale && !(stale && queryDirty)) setReadOnly(stale)
 
   const close = useCallback(
     (options?: { dropVersion?: boolean }) => {
@@ -102,9 +141,25 @@ export function PanelInspector({
   }, [close])
 
   const openLatest = useCallback(() => {
-    unsavedQuery.current = false
     setSearch((state) => ({ ...state, version: undefined }))
   }, [setSearch])
+
+  const keepEditing = useCallback(() => {
+    discarding.current = false
+    setConfirmClose(false)
+    if (blocker.status === "blocked") blocker.reset()
+  }, [blocker])
+
+  const discard = useCallback(() => {
+    discarding.current = true
+    if (blocker.status === "blocked") {
+      unsavedQuery.current = false
+      setConfirmClose(false)
+      blocker.proceed()
+      return
+    }
+    close()
+  }, [blocker, close])
 
   const views: InspectorView[] = panel
     ? [
@@ -119,7 +174,8 @@ export function PanelInspector({
                 spec={spec}
                 panel={panel}
                 version={version}
-                readOnly={pinned && version !== latestVersion}
+                latestVersion={latestVersion}
+                readOnly={readOnly}
                 onDirtyChange={onQueryDirty}
                 onSaved={() => close({ dropVersion: true })}
                 onOpenLatest={openLatest}
@@ -136,7 +192,7 @@ export function PanelInspector({
       <Sheet
         open={open}
         onOpenChange={(next, details) => {
-          if (next) return
+          if (next || discardOpen) return
           if (
             details.reason === "escape-key" &&
             details.event.defaultPrevented
@@ -149,13 +205,7 @@ export function PanelInspector({
         <SheetContent
           side="right"
           className="data-[side=right]:w-[min(720px,100vw)] data-[side=right]:sm:max-w-none"
-          finalFocus={() =>
-            retained === undefined
-              ? true
-              : (document.querySelector<HTMLElement>(
-                  `[data-panel-menu="${CSS.escape(retained.id)}"]`
-                ) ?? true)
-          }
+          finalFocus={() => panelTrigger(retained?.id) ?? true}
         >
           {panel && active ? (
             <>
@@ -212,24 +262,31 @@ export function PanelInspector({
               </div>
             </>
           )}
+          <AlertDialog
+            open={discardOpen}
+            onOpenChange={(next) => {
+              if (!next) keepEditing()
+            }}
+          >
+            <AlertDialogContent
+              finalFocus={() =>
+                discarding.current ? (panelTrigger(retained?.id) ?? true) : true
+              }
+            >
+              <AlertDialogHeader>
+                <AlertDialogTitle>Discard your query changes?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The query and title you edited have not been saved.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                <AlertDialogAction onClick={discard}>Discard</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </SheetContent>
       </Sheet>
-      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard your query changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The query and title you edited have not been saved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={() => close()}>
-              Discard
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

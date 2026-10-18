@@ -2,6 +2,8 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
 import { Compartment, EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 
+import { cn } from "@/lib/utils"
+
 import { languageFor, type QueryLanguage } from "./extensions"
 import { serverLinter, type LintResult } from "./server-lint"
 import "./query-editor.css"
@@ -122,7 +124,10 @@ export function CodeEditor({
   return (
     <div
       ref={host}
-      className="overflow-hidden rounded-lg border focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 [&_.cm-editor]:max-h-[50vh] [&_.cm-editor]:min-h-40"
+      className={cn(
+        "overflow-hidden rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30 [&_.cm-editor]:max-h-[50vh] [&_.cm-editor]:min-h-40",
+        readOnly && "border-transparent bg-muted/50 dark:bg-muted/30"
+      )}
     />
   )
 }

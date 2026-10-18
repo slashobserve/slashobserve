@@ -66,10 +66,20 @@
   }
 }
 
+.cm-editor .cm-lint-marker-error,
+.cm-editor .cm-lint-marker-warning {
+  content: "";
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
 .cm-editor .cm-lint-marker-error {
-  content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='13' fill='%23d03b3b'/></svg>");
+  background-color: var(--destructive);
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='13'/></svg>");
 }
 
 .cm-editor .cm-lint-marker-warning {
-  content: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M20 6L36 34H4Z' fill='%23fab219'/></svg>");
+  background-color: var(--threshold-warning);
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><path d='M20 6L36 34H4Z'/></svg>");
 }

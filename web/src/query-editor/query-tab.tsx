@@ -17,6 +17,7 @@ import {
   latestDashboardQuery,
   useAddVersion,
 } from "@/dashboards/queries"
+import { cn } from "@/lib/utils"
 import {
   validateSpecSchema,
   type Dashboard,
@@ -25,6 +26,7 @@ import {
 } from "@/spec"
 
 import { CodeEditor, type CodeEditorHandle } from "./code-editor"
+import { lineAndColumn } from "./line-column"
 import type { LintResult } from "./server-lint"
 
 const maxQueryLength = 20000
@@ -36,6 +38,7 @@ type Props = {
   spec: Dashboard
   panel: Panel
   version: number
+  latestVersion: number
   readOnly: boolean
   onDirtyChange: (dirty: boolean) => void
   onSaved: () => void
@@ -56,23 +59,31 @@ type Problem =
   | { kind: "schema"; issues: SpecIssue[] }
   | { kind: "failed"; message: string }
 
-function lineAndColumn(text: string, offset: number) {
-  const before = text.slice(0, Math.min(Math.max(offset, 0), text.length))
-  const lines = before.split("\n")
-  return { line: lines.length, column: lines[lines.length - 1].length + 1 }
+function isTyping() {
+  const active = document.activeElement
+  return (
+    active instanceof HTMLInputElement ||
+    active instanceof HTMLTextAreaElement ||
+    (active instanceof HTMLElement && active.closest(".cm-editor") !== null)
+  )
+}
+
+function hasCoarsePointer() {
+  return window.matchMedia("(pointer: coarse)").matches
 }
 
 function withDraft(
   source: Dashboard,
   panelId: string,
+  base: Base,
   query: string,
   title: string
 ): { spec: Dashboard; index: number } | null {
   const next = structuredClone(source)
   const index = next.panels.findIndex((item) => item.id === panelId)
   if (index < 0) return null
-  next.panels[index].query = query
-  next.panels[index].title = title
+  if (query !== base.query) next.panels[index].query = query
+  if (title !== base.title) next.panels[index].title = title
   return { spec: next, index }
 }
 
@@ -158,21 +169,22 @@ function ProblemAlert({
 
 function Diagnostics({
   lint,
+  query,
   changed,
   onPick,
 }: {
   lint: LintResult | null
+  query: string
   changed: boolean
   onPick: (from: number) => void
 }) {
+  const current = lint?.query === query ? lint : null
   let content = null
-  if (lint?.status === "unavailable") {
-    content = (
-      <li className="text-muted-foreground">Lint is unavailable right now.</li>
-    )
-  } else if (lint?.status === "ok" && lint.diagnostics.length > 0) {
-    content = lint.diagnostics.map((item, index) => {
-      const { line, column } = lineAndColumn(lint.query, item.from)
+  if (current?.status === "unavailable") {
+    content = <li className="text-muted-foreground">{current.message}</li>
+  } else if (current?.status === "ok" && current.items.length > 0) {
+    content = current.items.map((item, index) => {
+      const { line, column } = lineAndColumn(current.query, item.from)
       const isError = item.severity === "error"
       const Icon = isError ? CircleAlertIcon : TriangleAlertIcon
       return (
@@ -180,12 +192,12 @@ function Diagnostics({
           <Button
             variant="ghost"
             size="sm"
-            className="h-auto w-full justify-start py-1 text-left whitespace-normal"
+            className="h-auto w-full items-start justify-start py-1 text-left whitespace-normal"
             onClick={() => onPick(item.from)}
           >
             <Icon
               aria-hidden="true"
-              className={isError ? "text-destructive" : undefined}
+              className={cn("mt-0.5", isError && "text-destructive")}
             />
             <span>
               {isError ? "Error" : "Warning"}: {item.message} (line {line},
@@ -195,7 +207,7 @@ function Diagnostics({
         </li>
       )
     })
-  } else if (lint?.status === "ok" && changed) {
+  } else if (current?.status === "ok" && changed) {
     content = <li className="text-muted-foreground">No problems found</li>
   }
   return (
@@ -210,6 +222,7 @@ export default function QueryTab({
   spec,
   panel,
   version,
+  latestVersion,
   readOnly,
   onDirtyChange,
   onSaved,
@@ -220,6 +233,7 @@ export default function QueryTab({
   const queryClient = useQueryClient()
   const save = useAddVersion(dashboardId)
   const editor = useRef<CodeEditorHandle>(null)
+  const notice = useRef<HTMLDivElement>(null)
 
   const [base, setBase] = useState<Base>(() => ({
     version,
@@ -259,8 +273,14 @@ export default function QueryTab({
     ? 0
     : Math.max(
         version > base.version ? version : 0,
+        latestVersion > base.version ? latestVersion : 0,
         problem?.kind === "conflict" ? problem.latest : 0
       )
+  const hadNewer = useRef(false)
+  useEffect(() => {
+    if (newer > 0 && !hadNewer.current && !isTyping()) notice.current?.focus()
+    hadNewer.current = newer > 0
+  }, [newer])
   const tooLong = [...draft].length > maxQueryLength
   const canSave =
     dirty &&
@@ -271,7 +291,7 @@ export default function QueryTab({
     title.trim() !== ""
 
   function submit(source: Dashboard, parent: number) {
-    const built = withDraft(source, panel.id, draft, title.trim())
+    const built = withDraft(source, panel.id, base, draft, title.trim())
     if (!built) {
       setProblem({ kind: "gone" })
       return
@@ -355,6 +375,10 @@ export default function QueryTab({
           value={title}
           maxLength={maxTitleLength}
           readOnly={readOnly}
+          className={cn(
+            readOnly &&
+              "border-transparent bg-muted/50 text-muted-foreground dark:bg-muted/30"
+          )}
           onChange={(event) => setTitle(event.target.value)}
         />
       </div>
@@ -367,7 +391,7 @@ export default function QueryTab({
           ariaLabel={`Query for ${base.title}`}
           onLint={setLint}
           editorRef={editor}
-          autoFocus={!readOnly}
+          autoFocus={!readOnly && !hasCoarsePointer()}
         />
         {tooLong ? (
           <p className="text-sm text-destructive">
@@ -376,6 +400,7 @@ export default function QueryTab({
         ) : null}
         <Diagnostics
           lint={lint}
+          query={draft}
           changed={dirty}
           onPick={(from) => editor.current?.focusAt(from)}
         />
@@ -392,7 +417,11 @@ export default function QueryTab({
       ) : (
         <div className="flex flex-col gap-4 border-t pt-4">
           {newer > 0 ? (
-            <Alert>
+            <Alert
+              ref={notice}
+              tabIndex={-1}
+              className="outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
               <AlertTitle>
                 Version {newer} was saved while you were editing.
               </AlertTitle>

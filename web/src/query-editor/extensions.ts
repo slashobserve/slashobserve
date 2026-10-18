@@ -17,7 +17,7 @@ export type QueryLanguage = "prometheus" | "clickhouse"
 
 const theme = EditorView.theme({
   "&": {
-    backgroundColor: "var(--background)",
+    backgroundColor: "transparent",
     color: "var(--foreground)",
     fontSize: "13px",
   },
