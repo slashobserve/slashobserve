@@ -16,9 +16,28 @@ export SLASHOBSERVE_LLM_PROVIDER=replay
 
 curl() { command curl --max-time 10 "$@"; }
 
+read -r -d '' REDACT_PERL <<'PERL' || true
+BEGIN { $lit = $ENV{REDACT_LITERAL} // ''; }
+my $key = qr/(?!\w*tokens["']?\s*[:=]\s*\d+(?![\w.~+\/=-]))\w*(?:password|passwd|token|secret|api[_-]?key|private[_-]?key|access[_-]?key)\w*/i;
+s{(://)[^/\s:\@]+:[^/\s\@]+\@}{${1}\[redacted]\@}g;
+s/sok_[A-Za-z0-9_-]+/sok_\[redacted]/gi;
+s/(Bearer\s+)[A-Za-z0-9._~+\/=-]+/${1}\[redacted]/gi;
+s/\b((?:authorization|cookie|set-cookie|x-api-key|so_session)["']?\s*[:=]\s*)(?:(["'])(?:(?:\\.|(?!\2)[^\\])*\2|(?:(?!\2).)*\2)|.*)/defined $2 ? "${1}${2}\[redacted]${2}" : "${1}\[redacted]"/gie;
+s/(so_session\s+)\S+/${1}\[redacted]/gi;
+s/(--password)[ =]\S+/${1} \[redacted]/gi;
+s/($key)(["']?\s*[:=]\s*)(["'])(?:(?:\\.|(?!\3)[^\\])*\3|(?:(?!\3).)*\3)/${1}${2}${3}\[redacted]${3}/g;
+s/($key)(["']?\s*[:=]\s*)(?!\[redacted\])[^\s,;&"'}\])]+/${1}${2}\[redacted]/g;
+s/([?&]code=)[^&\s#"']+/${1}\[redacted]/gi;
+s/\Q$lit\E/\[redacted]/g if length $lit;
+PERL
+
+redact() {
+  REDACT_LITERAL="${API_TOKEN:-}" perl -pe "$REDACT_PERL"
+}
+
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() {
-  printf 'FAIL  %s\n' "$1" >&2
+  printf 'FAIL  %s\n' "$(printf '%s' "$1" | redact)" >&2
   exit 1
 }
 
@@ -50,12 +69,98 @@ Environment:
   SLASHOBSERVE_IMAGE                run this prebuilt server image instead of building the checkout
   SLASHOBSERVE_SHOP_IMAGE           the prebuilt demo shop image, required with SLASHOBSERVE_IMAGE
 
-Requirements: docker with compose v2.20+, curl; 'browser' also needs bun and web dependencies.
+Requirements: docker with compose v2.20+, curl, perl; 'browser' also needs bun and web dependencies.
 EOF
 }
 
-compose() {
-  docker compose -f "$ROOT/deploy/compose/compose.yaml" -p "$PROJECT" "$@"
+COMPOSE_CMD=(docker compose -f "$ROOT/deploy/compose/compose.yaml" -p "$PROJECT")
+
+read -r -d '' BOUNDED_PERL <<'PERL' || true
+my $secs = shift @ARGV;
+my $pid = fork();
+defined $pid or exit 125;
+if ($pid == 0) {
+  setpgrp(0, 0);
+  exec { $ARGV[0] } @ARGV;
+  print STDERR "cannot run $ARGV[0]: $!\n";
+  exit 127;
+}
+setpgrp($pid, $pid);
+my ($timed_out, $interrupted, $escalated) = (0, 0, 0);
+my $stop = sub {
+  kill($escalated++ ? 'KILL' : 'TERM', -$pid);
+  alarm 5;
+};
+$SIG{ALRM} = sub { $timed_out = 1 unless $interrupted; $stop->() };
+my %signo = (HUP => 1, INT => 2, TERM => 15);
+for my $name (keys %signo) {
+  $SIG{$name} = sub { return if $interrupted; $interrupted = $signo{$name}; $stop->() unless $escalated };
+}
+alarm $secs;
+my $reaped;
+do { $reaped = waitpid($pid, 0) } while ($reaped == -1 && $!{EINTR});
+my $status = $?;
+select(undef, undef, undef, 0.1) while $escalated && kill(0, -$pid);
+exit(128 + $interrupted) if $interrupted;
+exit 124 if $timed_out && $status != 0;
+exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
+PERL
+
+CHILD_PID=""
+foreground() {
+  local rc=0
+  "$@" 9>&- &
+  CHILD_PID=$!
+  wait "$CHILD_PID" || rc=$?
+  CHILD_PID=""
+  return "$rc"
+}
+
+bounded() {
+  foreground perl -e "$BOUNDED_PERL" "$@"
+}
+
+grouped() {
+  bounded 0 "$@"
+}
+
+EXEC_TIMEOUT=60
+PS_TIMEOUT=30
+LOGS_TIMEOUT=30
+TIMED_OUT=124
+
+compose_exec() {
+  bounded "$EXEC_TIMEOUT" "${COMPOSE_CMD[@]}" exec -T "$@" </dev/null
+}
+
+compose_ps() {
+  bounded "$PS_TIMEOUT" "${COMPOSE_CMD[@]}" ps "$@" </dev/null
+}
+
+compose_logs() {
+  bounded "$LOGS_TIMEOUT" "${COMPOSE_CMD[@]}" logs --no-color "$@" </dev/null 2>&1
+}
+
+dump_logs() {
+  compose_logs --tail "$1" >"$OUT_FILE" || true
+  redact <"$OUT_FILE" >&2
+}
+
+LOGS_ALL_TIMEOUT=120
+
+all_logs() {
+  local rc=0
+  LOGS_TIMEOUT="$LOGS_ALL_TIMEOUT" compose_logs --timestamps >"$OUT_FILE" || rc=$?
+  redact <"$OUT_FILE"
+  if ((rc == TIMED_OUT)); then echo "docker compose logs timed out after ${LOGS_ALL_TIMEOUT}s" >&2; fi
+  return "$rc"
+}
+
+logs_into() {
+  local var="$1" rc=0
+  shift
+  capture "$var" compose_logs "$@" || rc=$?
+  ((rc != TIMED_OUT)) || fail "docker compose logs timed out after ${LOGS_TIMEOUT}s"
 }
 
 PROM_URL="http://localhost:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}"
@@ -63,37 +168,68 @@ SHOP_URL="http://localhost:${SLASHOBSERVE_SHOP_HOST_PORT}"
 FAULT_SET=0
 
 prom_scalar() {
-  command curl -fsS --max-time 5 "$PROM_URL/api/v1/query" --data-urlencode "query=scalar($1)" 2>/dev/null \
-    | sed -nE 's/.*"result":\[[^,]*,"([^"]*)"\].*/\1/p' || true
+  foreground command curl -fsS --max-time 5 -o "$TMP/prom.body" "$PROM_URL/api/v1/query" --data-urlencode "query=scalar($1)" || return 0
+  sed -nE 's/.*"result":\[[^,]*,"([^"]*)"\].*/\1/p' "$TMP/prom.body" || true
 }
 
 ch() {
-  compose exec -T clickhouse sh -c \
+  local rc=0
+  compose_exec clickhouse sh -c \
     'exec clickhouse-client --connect_timeout=5 --receive_timeout=10 --user slashobserve_ro --password "$SLASHOBSERVE_RO_PASSWORD" -q "$1"' \
-    sh "$1"
+    sh "$1" || rc=$?
+  if ((rc == TIMED_OUT)); then echo "docker compose exec clickhouse timed out after ${EXEC_TIMEOUT}s" >&2; fi
+  return "$rc"
 }
 
+OUT_FILE=""
+ERR_FILE=""
 LAST=""
+LAST_ERR=""
+
+capture() {
+  local var="$1" rc=0
+  shift
+  "$@" >"$OUT_FILE" 2>"$ERR_FILE" || rc=$?
+  printf -v "$var" '%s' "$(<"$OUT_FILE")"
+  LAST_ERR="$(tail -3 "$ERR_FILE" | redact | cut -c1-300)"
+  return "$rc"
+}
+
+capture_merged() {
+  local var="$1" rc=0
+  shift
+  "$@" >"$OUT_FILE" 2>&1 || rc=$?
+  printf -v "$var" '%s' "$(<"$OUT_FILE")"
+  return "$rc"
+}
+
 above() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 > t + 0) }'; }
 positive() { above "$1" 0; }
-prom_is() { LAST="$(prom_scalar "$1")"; [[ "$LAST" == "$2" ]]; }
+prom_is() { capture LAST prom_scalar "$1" || true; [[ "$LAST" == "$2" ]]; }
 prom_positive() { prom_above "$1" 0; }
-prom_above() { LAST="$(prom_scalar "$1")"; above "$LAST" "$2"; }
-ch_is() { LAST="$(ch "$1" 2>/dev/null || true)"; [[ "$LAST" == "$2" ]]; }
-ch_positive() { LAST="$(ch "$1" 2>/dev/null || true)"; positive "$LAST"; }
+prom_above() { capture LAST prom_scalar "$1" || true; above "$LAST" "$2"; }
+ch_is() { capture LAST ch "$1" || true; [[ "$LAST" == "$2" ]]; }
+ch_positive() { capture LAST ch "$1" || true; positive "$LAST"; }
 
-poll() {
-  local timeout="$1" desc="$2"
+poll_try() {
+  local timeout="$1" interval="$2"
   shift 2
   local deadline=$((SECONDS + timeout))
   LAST=""
+  LAST_ERR=""
   until "$@"; do
-    ((SECONDS < deadline)) || {
-      compose logs --no-color --tail 50 >&2 || true
-      fail "$desc (not true after ${timeout}s, last observed: '${LAST}')"
-    }
-    sleep 2
+    ((SECONDS < deadline)) || return 1
+    foreground sleep "$interval"
   done
+}
+
+poll() {
+  local timeout="$1" desc="$2" detail=""
+  shift 2
+  poll_try "$timeout" 2 "$@" && return 0
+  dump_logs 50
+  if [[ -n "$LAST_ERR" ]]; then detail=", last error: ${LAST_ERR}"; fi
+  fail "$desc (not true after ${timeout}s, last observed: '${LAST}'${detail})"
 }
 
 targets_scraped() {
@@ -111,47 +247,90 @@ wait_for_data() {
   pass "ClickHouse has log and trace rows"
 }
 
-is_ready() { command curl -fsS --max-time 3 "$BASE_URL/readyz" >/dev/null 2>&1; }
+is_ready() { capture LAST foreground command curl -fsS --max-time 3 "$BASE_URL/readyz"; }
 
 stack_reusable() {
-  [[ -n "$(compose ps --status running -q server 2>/dev/null)" ]] && is_ready
+  local running rc=0
+  capture running compose_ps --status running -q server || rc=$?
+  ((rc != TIMED_OUT)) || fail "docker compose ps timed out after ${PS_TIMEOUT}s"
+  [[ -n "$running" ]] && is_ready
 }
 
 boot() {
   [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
-  compose down -v --remove-orphans >/dev/null 2>&1 || true
-  if ! compose up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
-    compose logs --no-color --tail 200 >&2 || true
+  grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  if ! grouped "${COMPOSE_CMD[@]}" up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
+    dump_logs 200
     fail "stack did not become healthy"
   fi
-  for _ in $(seq 1 60); do
-    if is_ready; then
-      wait_for_data
-      return 0
-    fi
-    sleep 1
-  done
+  if poll_try 60 1 is_ready; then
+    wait_for_data
+    return 0
+  fi
   fail "server ready ($BASE_URL/readyz did not return 200)"
 }
 
 TMP=""
-LOCK_DIR="${TMPDIR:-/tmp}/slashobserve-e2e-run.lock"
-LOCK_HELD=0
+LOCK_FILE=/tmp/slashobserve-e2e-run.lock
 SSE_PID=""
 
+lock_owner() {
+  local owner="" tries=10
+  while ((tries-- > 0)); do
+    owner="$(tr -cd '0-9' <"$LOCK_FILE" 2>/dev/null || true)"
+    [[ -z "$owner" ]] || break
+    sleep 0.2
+  done
+  if [[ -z "$owner" ]]; then
+    printf 'pid unknown'
+  elif kill -0 "$owner" 2>/dev/null || [[ -n "$(ps -p "$owner" -o pid= 2>/dev/null)" ]]; then
+    printf 'pid %s' "$owner"
+  else
+    printf 'pid %s exited; a leftover child still holds the lock, retry shortly' "$owner"
+  fi
+}
+
+read -r -d '' LOCK_PERL <<'PERL' || true
+use Fcntl qw(:flock);
+my ($path, $pid) = @ARGV;
+open(my $f, ">&=", 9) or exit 2;
+flock($f, LOCK_EX | LOCK_NB) or exit($!{EWOULDBLOCK} ? 1 : 2);
+my @held = stat($f);
+my @named = lstat($path);
+exit 3 unless @named && !-l _ && $held[0] == $named[0] && $held[1] == $named[1];
+truncate($f, 0) or exit 2;
+syswrite($f, "$pid\n") or exit 2;
+chmod(0666, $f);
+PERL
+
 acquire_lock() {
-  mkdir "$LOCK_DIR" 2>/dev/null || fail "another e2e run is active (lock: $LOCK_DIR)"
-  LOCK_HELD=1
+  local rc=0
+  [[ ! -L "$LOCK_FILE" ]] || fail "$LOCK_FILE is a symlink; remove it"
+  [[ ! -d "$LOCK_FILE" ]] || fail "stale directory from an older e2e.sh at $LOCK_FILE; rmdir it"
+  { exec 9>>"$LOCK_FILE"; } 2>/dev/null || fail "cannot open $LOCK_FILE"
+  perl -e "$LOCK_PERL" "$LOCK_FILE" "$$" || rc=$?
+  case "$rc" in
+    0) ;;
+    1) fail "another e2e run is active ($(lock_owner))" ;;
+    3) fail "$LOCK_FILE was replaced while locking it; retry" ;;
+    *) fail "flock failed (exit $rc)" ;;
+  esac
 }
 
 cleanup() {
+  trap '' INT TERM HUP
   sse_close
-  if [[ "$LOCK_HELD" == 1 ]]; then rmdir "$LOCK_DIR" 2>/dev/null || true; fi
+  if [[ -n "$CHILD_PID" ]]; then
+    kill "$CHILD_PID" 2>/dev/null || true
+    wait "$CHILD_PID" 2>/dev/null || true
+  fi
   if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
   if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
 }
 trap cleanup EXIT
-trap 'exit 1' INT TERM HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 dex_login() {
   local jar="$1" return_to="$2" expected="$3" user="${4:-admin@example.com}" authorize form_url final
@@ -166,8 +345,7 @@ dex_login() {
 }
 
 suite() {
-  TMP="$(mktemp -d)"
-  local out asset llm_line
+  local out asset llm_line logs
 
   out="$(curl -sS -o "$TMP/healthz" -w '%{http_code}' "$BASE_URL/healthz")"
   if [[ "$out" != 200 ]] || ! grep -q '"status":"ok"' "$TMP/healthz"; then
@@ -181,9 +359,11 @@ suite() {
   fi
   pass "/readyz reports database and migrations ok"
 
-  llm_line="$(compose logs --no-color server | grep -F '"msg":"llm provider configured"' || true)"
+  logs_into logs server
+  llm_line="$(grep -F '"msg":"llm provider configured"' <<<"$logs" || true)"
   if [[ "$llm_line" != *'"provider":"replay"'* ]]; then
-    fail "server did not boot with the replay LLM provider ($(compose logs --no-color --tail 50 server 2>&1))"
+    logs_into logs --tail 50 server
+    fail "server did not boot with the replay LLM provider ($logs)"
   fi
   pass "server boots with the replay LLM provider"
 
@@ -369,7 +549,7 @@ suite() {
 
 check_api_contract() {
   local logs violations
-  logs="$(compose logs --no-color server 2>&1)"
+  logs_into logs server
   grep -q 'api contract check enabled' <<<"$logs" || fail "server did not enable the API contract check"
   pass "server runs with the API contract check enabled"
   violations="$(grep 'api contract violation' <<<"$logs" || true)"
@@ -384,24 +564,20 @@ all_datasources_listed() {
   done
 }
 
+datasources_ready() {
+  capture LAST foreground command curl -sS --max-time 10 -b "$1" "$BASE_URL/api/v1/datasources" || true
+  [[ "$(grep -o '"healthy":true' <<<"$LAST" | wc -l | tr -d ' ')" == 4 ]] && all_datasources_listed "$LAST"
+}
+
 check_datasources() {
-  local jar="$1" out body="" healthy=0 leak entry keys entries=0
+  local jar="$1" out body leak entry keys entries=0
 
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/datasources")"
   [[ "$out" == 401 ]] || fail "unauthenticated datasource list ($out)"
   pass "datasource list requires authentication"
 
-  for _ in $(seq 1 60); do
-    body="$(curl -sS -b "$jar" "$BASE_URL/api/v1/datasources" || true)"
-    healthy="$(grep -o '"healthy":true' <<<"$body" | wc -l | tr -d ' ')"
-    if [[ "$healthy" == 4 ]] && all_datasources_listed "$body"; then
-      break
-    fi
-    sleep 1
-  done
-  if [[ "$healthy" != 4 ]] || ! all_datasources_listed "$body"; then
-    fail "datasources did not report healthy within 60s ($body)"
-  fi
+  poll_try 60 1 datasources_ready "$jar" || fail "datasources did not report healthy within 60s ($LAST)"
+  body="$LAST"
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' <<<"$body" || true)"
   [[ -z "$leak" ]] || fail "datasource list exposes connection details ($leak)"
   pass "datasources report healthy without exposing connection details"
@@ -624,7 +800,7 @@ sse_open() {
   local id="$1" file="$2" tries=50
   sse_close
   : >"$file"
-  command curl -sS -N --max-time 60 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" >"$file" &
+  command curl -sS -N --max-time 60 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$id/events" >"$file" 9>&- &
   SSE_PID=$!
   disown "$SSE_PID"
   until grep -q '^event: ready$' "$file"; do
@@ -856,6 +1032,11 @@ wait_revision() {
   done
 }
 
+revisions_settled() {
+  capture LAST api GET "/dashboards/$1/revisions?limit=200" || true
+  [[ "$LAST" == 200 ]] && ! grep -Eq '"status":"(queued|running)"' "$TMP/api.body"
+}
+
 expect_version_data() {
   local dashboard="$1" version="$2" base out panels variables panel name value selections="" window now_ms tries
   base="/dashboards/$dashboard/versions/$version"
@@ -887,7 +1068,7 @@ expect_version_data() {
 revisions_suite() {
   api_token
   local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
-  local accepted=0 limited=0 attempt succeeded tries
+  local accepted=0 limited=0 attempt succeeded
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
@@ -1019,11 +1200,7 @@ revisions_suite() {
   ((limited == 1 && accepted >= 5 && accepted <= 11)) || fail "rapid revisions: $accepted accepted, limited=$limited"
   pass "at most five revisions are queued or running per dashboard"
 
-  tries=120
-  until [[ "$(api GET "/dashboards/$id2/revisions?limit=200")" == 200 ]] && ! grep -Eq '"status":"(queued|running)"' "$TMP/api.body"; do
-    ((--tries > 0)) || fail "queued revisions did not finish ($(cat "$TMP/api.body"))"
-    sleep 1
-  done
+  poll_try 120 1 revisions_settled "$id2" || fail "queued revisions did not finish ($(cat "$TMP/api.body"))"
   succeeded="$(grep -o '"status":"succeeded"' "$TMP/api.body" | wc -l | tr -d ' ')"
   [[ "$succeeded" == "$accepted" ]] || fail "$succeeded revisions succeeded out of $accepted accepted ($(cat "$TMP/api.body"))"
   out="$(api GET "/dashboards/$id2/versions")"
@@ -1349,7 +1526,6 @@ proxy_suite() {
 }
 
 stack_suite() {
-  [[ -n "$TMP" ]] || TMP="$(mktemp -d)"
   local out ro_out
 
   prom_is 'count(count by (pod) (http_requests_total{service="checkout"}))' 2 || fail "checkout metrics should carry 2 pods (got: $LAST)"
@@ -1373,13 +1549,13 @@ stack_suite() {
   pass "yesterday's request rate is backfilled"
 
   ch_is "SELECT getSetting('readonly')" 2 \
-    || fail "ClickHouse readonly setting is not 2 (got: '$LAST', client: $(ch "SELECT getSetting('readonly')" 2>&1 >/dev/null | tail -3 || true))"
-  if ro_out="$(ch "SELECT 1 SETTINGS max_result_rows = 0" 2>&1)"; then
+    || fail "ClickHouse readonly setting is not 2 (got: '$LAST', client: $LAST_ERR)"
+  if capture_merged ro_out ch "SELECT 1 SETTINGS max_result_rows = 0"; then
     fail "ClickHouse user lifted max_result_rows"
   fi
   [[ "$ro_out" == *SETTING_CONSTRAINT_VIOLATION* || "$ro_out" == *"Code: 452"* ]] \
     || fail "ClickHouse max_result_rows refusal is not a constraint violation ($ro_out)"
-  if ro_out="$(ch "INSERT INTO otel.otel_logs (Body) VALUES ('x')" 2>&1)"; then
+  if capture_merged ro_out ch "INSERT INTO otel.otel_logs (Body) VALUES ('x')"; then
     fail "ClickHouse user inserted a row"
   fi
   [[ "$ro_out" == *READONLY* || "$ro_out" == *"Code: 164"* || "$ro_out" == *ACCESS_DENIED* || "$ro_out" == *"Code: 497"* ]] || fail "ClickHouse insert refusal is not READONLY ($ro_out)"
@@ -1421,18 +1597,9 @@ stack_suite() {
 
 data_ready() { targets_scraped && logs_and_traces_present; }
 
-wait_quiet() {
-  local deadline=$((SECONDS + $1))
-  shift
-  until "$@"; do
-    ((SECONDS < deadline)) || return 1
-    sleep 2
-  done
-}
-
 ensure_stack() {
   if stack_reusable; then
-    if wait_quiet 30 data_ready; then
+    if poll_try 30 2 data_ready; then
       echo "Reusing the healthy $PROJECT stack at $BASE_URL"
       return 0
     fi
@@ -1444,13 +1611,18 @@ ensure_stack() {
 browser() {
   ensure_stack
   cd "$ROOT/web"
-  bun run e2e:install
-  SLASHOBSERVE_E2E_BASE_URL="$BASE_URL" bun run e2e
+  grouped bun run e2e:install
+  grouped env SLASHOBSERVE_E2E_BASE_URL="$BASE_URL" bun run e2e
   check_api_contract
 }
 
 case "${1:-run}" in
-  run | up | browser | down) acquire_lock ;;
+  run | up | browser | down | logs)
+    [[ "${1:-run}" == logs ]] || acquire_lock
+    TMP="$(mktemp -d)"
+    OUT_FILE="$TMP/capture.out"
+    ERR_FILE="$TMP/capture.err"
+    ;;
 esac
 
 case "${1:-run}" in
@@ -1461,8 +1633,8 @@ case "${1:-run}" in
     ;;
   up) ensure_stack ;;
   browser) browser ;;
-  down) compose down -v --remove-orphans ;;
-  logs) compose logs --no-color --timestamps ;;
+  down) grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans ;;
+  logs) all_logs ;;
   -h | --help | help) usage ;;
   *)
     usage >&2
