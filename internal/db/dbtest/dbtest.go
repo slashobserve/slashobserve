@@ -97,12 +97,23 @@ func New(t testing.TB) *Database {
 
 func NewWithLogger(t testing.TB, logger *slog.Logger) *Database {
 	t.Helper()
+	return create(t, logger, " TEMPLATE "+templateDB)
+}
+
+// NewUnmigrated returns an empty database that has no migrations applied.
+func NewUnmigrated(t testing.TB) *Database {
+	t.Helper()
+	return create(t, quietLogger(), "")
+}
+
+func create(t testing.TB, logger *slog.Logger, options string) *Database {
+	t.Helper()
 	if skipped {
 		t.Skip("Postgres tests are skipped with -short")
 	}
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", counter.Add(1))
-	if err := adminExec(ctx, "CREATE DATABASE "+name+" TEMPLATE "+templateDB); err != nil {
+	if err := adminExec(ctx, "CREATE DATABASE "+name+options); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
 	d, err := db.Open(ctx, urlFor(name), logger)

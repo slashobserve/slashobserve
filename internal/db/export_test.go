@@ -22,6 +22,11 @@ func FirstSpecPageLen(ctx context.Context, tx *sql.Tx) (int, error) {
 	return len(page), err
 }
 
+func (d *DB) MigrateUpTo(ctx context.Context, version int64) error {
+	_, err := d.migrator.UpTo(ctx, version)
+	return err
+}
+
 func (d *DB) MigrateDownTo(ctx context.Context, version int64) error {
 	_, err := d.migrator.DownTo(ctx, version)
 	return err

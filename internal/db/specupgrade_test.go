@@ -297,18 +297,21 @@ func TestEvolveMigrationIsRegistered(t *testing.T) {
 }
 
 func TestEvolveMigrationThroughTheProvider(t *testing.T) {
-	d := dbtest.New(t)
+	ctx := context.Background()
+	d := dbtest.NewUnmigrated(t)
+	if err := d.MigrateUpTo(ctx, 9); err != nil {
+		t.Fatal(err)
+	}
 	seedDashboard(t, d, dashboardA, len(legacyNames))
 	for i, name := range legacyNames {
 		seedVersion(t, d, dashboardA, i+1, readUpgradeFile(t, "legacy/"+name))
 	}
-	d.Exec(t, `DELETE FROM goose_db_version WHERE version_id = 10`)
 	sqlDB := d.SQLDB(t)
 	if got := appliedEvolveMigrations(t, sqlDB); got != 0 {
 		t.Fatalf("migration 10 is applied %d times before the upgrade, want 0", got)
 	}
 
-	if err := d.Migrate(context.Background()); err != nil {
+	if err := d.MigrateUpTo(ctx, 10); err != nil {
 		t.Fatal(err)
 	}
 
@@ -322,7 +325,7 @@ func TestEvolveMigrationThroughTheProvider(t *testing.T) {
 		}
 	}
 
-	err := d.MigrateDownTo(context.Background(), 9)
+	err := d.MigrateDownTo(ctx, 9)
 	if err == nil || !strings.Contains(err.Error(), "cannot be reverted") {
 		t.Fatalf("DownTo(9) error = %v, want the refusal to revert migration 10", err)
 	}
