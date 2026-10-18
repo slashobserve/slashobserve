@@ -119,26 +119,49 @@ function hasLabels(frame: WireFrame): boolean {
   return Object.keys(frame.labels ?? {}).length > 0
 }
 
-export function toTable(frames: WireFrame[]): TableData {
-  if (frames.length === 1 && !hasLabels(frames[0])) {
-    const frame = frames[0]
+const refColumn: TableColumn = {
+  key: "query:ref",
+  label: "Query",
+  type: "string",
+}
+
+function unlabeledTable(frames: WireFrame[]): TableData {
+  const withRef = new Set(frames.map((frame) => frame.ref)).size > 1
+  const columns: TableColumn[] = withRef ? [refColumn] : []
+  const known = new Set(columns.map((column) => column.key))
+  const rows: Record<string, unknown>[] = []
+  for (const frame of frames) {
     const used = new Set<string>()
-    const columns = frame.fields.map((field, index) => {
+    const keys = frame.fields.map((field, index) => {
       let key = `field:${field.name}`
       if (used.has(key)) key = `${key}#${index}`
       used.add(key)
-      return { key, label: field.name, type: field.type }
+      if (!known.has(key)) {
+        known.add(key)
+        columns.push({ key, label: field.name, type: field.type })
+      }
+      return key
     })
     const rowCount = Math.max(0, ...frame.fields.map((f) => f.values.length))
-    const rows: Record<string, unknown>[] = []
     for (let i = 0; i < rowCount; i++) {
-      const row: Record<string, unknown> = {}
+      const row: Record<string, unknown> = withRef
+        ? { [refColumn.key]: frame.ref }
+        : {}
       frame.fields.forEach((field, index) => {
-        row[columns[index].key] = field.values[i] ?? null
+        row[keys[index]] = field.values[i] ?? null
       })
       rows.push(row)
     }
-    return { columns, rows }
+  }
+  for (const row of rows) {
+    for (const column of columns) row[column.key] ??= null
+  }
+  return { columns, rows }
+}
+
+export function toTable(frames: WireFrame[]): TableData {
+  if (frames.length > 0 && !frames.some(hasLabels)) {
+    return unlabeledTable(frames)
   }
 
   const labelKeys = [
