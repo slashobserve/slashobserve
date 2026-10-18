@@ -42,3 +42,8 @@ export const dashboardKeys = {
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
   saves: (id: string) => ["dashboards", id, "saves"] as const,
 }
+
+export const observeKeys = {
+  agent: () => ["agent"] as const,
+  request: (id: string) => ["observe", id] as const,
+}

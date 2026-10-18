@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedObserveRequestIdRouteImport } from './routes/_authed/observe/$requestId'
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -28,6 +29,11 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedObserveRequestIdRoute = AuthedObserveRequestIdRouteImport.update({
+  id: '/observe/$requestId',
+  path: '/observe/$requestId',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedDashboardsDashboardIdIndexRoute =
   AuthedDashboardsDashboardIdIndexRouteImport.update({
     id: '/dashboards/$dashboardId/',
@@ -38,11 +44,13 @@ const AuthedDashboardsDashboardIdIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
+  '/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthedIndexRoute
+  '/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRoutesById {
@@ -50,18 +58,21 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/': typeof AuthedIndexRoute
+  '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboards/$dashboardId/'
+  fullPaths:
+    '/' | '/login' | '/observe/$requestId' | '/dashboards/$dashboardId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/dashboards/$dashboardId'
+  to: '/login' | '/' | '/observe/$requestId' | '/dashboards/$dashboardId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/'
+    | '/_authed/observe/$requestId'
     | '/_authed/dashboards/$dashboardId/'
   fileRoutesById: FileRoutesById
 }
@@ -93,6 +104,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/observe/$requestId': {
+      id: '/_authed/observe/$requestId'
+      path: '/observe/$requestId'
+      fullPath: '/observe/$requestId'
+      preLoaderRoute: typeof AuthedObserveRequestIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/dashboards/$dashboardId/': {
       id: '/_authed/dashboards/$dashboardId/'
       path: '/dashboards/$dashboardId'
@@ -105,11 +123,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthedRouteChildren {
   AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedObserveRequestIdRoute: typeof AuthedObserveRequestIdRoute
   AuthedDashboardsDashboardIdIndexRoute: typeof AuthedDashboardsDashboardIdIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedIndexRoute: AuthedIndexRoute,
+  AuthedObserveRequestIdRoute: AuthedObserveRequestIdRoute,
   AuthedDashboardsDashboardIdIndexRoute: AuthedDashboardsDashboardIdIndexRoute,
 }
 

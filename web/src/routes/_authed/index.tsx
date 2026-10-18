@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useId } from "react"
 
 import { DashboardList } from "@/dashboards/dashboard-list"
+import { PromptBar } from "@/observe/prompt-bar"
 
 export const Route = createFileRoute("/_authed/")({ component: Home })
 
@@ -17,6 +18,7 @@ function Home() {
           Every dashboard, most recently updated first.
         </p>
       </header>
+      <PromptBar />
       <DashboardList labelledBy={headingId} />
     </main>
   )
