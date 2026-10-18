@@ -9,9 +9,10 @@ import type { PanelRenderer } from "./types"
 const charWidth = 0.62
 
 export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
+  const legend = panel.queries[0]?.legend
   const tiles = useMemo(
-    () => firstNumberSeries(frames, panel.legend),
-    [frames, panel.legend]
+    () => firstNumberSeries(frames, legend),
+    [frames, legend]
   )
 
   const decimals = commonDecimals(

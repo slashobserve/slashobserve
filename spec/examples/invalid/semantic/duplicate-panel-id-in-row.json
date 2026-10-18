@@ -1,0 +1,57 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Log rows",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ]
+    },
+    {
+      "id": "r1",
+      "type": "row",
+      "title": "Row",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": "p1",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 4
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

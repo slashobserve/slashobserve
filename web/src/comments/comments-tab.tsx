@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { liveRegionText } from "@/lib/live-region"
-import type { Panel } from "@/spec"
+import { panelTitle, type Panel } from "@/spec"
 
 import { CommentComposer } from "./comment-composer"
 import { CommentItem } from "./comment-item"
@@ -303,7 +303,7 @@ export function CommentsTab({
         <CommentComposer
           dashboardId={dashboardId}
           panelId={panel.id}
-          panelTitle={panel.title}
+          panelTitle={panelTitle(panel)}
           version={version}
           latestVersion={latestVersion}
           panelRemoved={panelRemoved}

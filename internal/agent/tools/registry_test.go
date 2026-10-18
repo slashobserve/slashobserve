@@ -350,7 +350,7 @@ func TestSpecGuideFitsWithMargin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if limit := maxContentBytes * 3 / 4; len(body) > limit {
+	if limit := resultLimits[nameGetSpecGuide] * 3 / 4; len(body) > limit {
 		t.Fatalf("guide result is %d bytes, over 75%% of the cap (%d)", len(body), limit)
 	}
 	var out struct {

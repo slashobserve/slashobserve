@@ -1,7 +1,7 @@
 {
   "specVersion": "0",
   "title": "Minimal",
-  "timeRange": {
+  "time": {
     "from": "now-15m",
     "to": "now"
   },
@@ -16,11 +16,13 @@
         "w": 6,
         "h": 4
       },
-      "datasource": {
-        "type": "loki",
-        "uid": "ch"
-      },
-      "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ],
+      "repeat": "nope"
     }
   ]
 }

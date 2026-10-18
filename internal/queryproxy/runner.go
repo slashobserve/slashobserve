@@ -110,11 +110,12 @@ func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
 }
 
 func (r *Runner) runPanel(ctx context.Context, req Request, lists map[string]allList, requireAll bool) (Result, error) {
-	panel, ok := findPanel(req.Dashboard, req.PanelID)
+	panel, ok := dataPanel(req.Dashboard, req.PanelID)
 	if !ok {
 		return Result{}, fmt.Errorf("%w: %q", ErrPanelNotFound, req.PanelID)
 	}
-	inst, err := r.instance(panel.Datasource)
+	text := panel.Queries[0].Query
+	inst, err := r.instance(panel.QueryDatasource(0))
 	if err != nil {
 		return Result{}, err
 	}
@@ -133,11 +134,11 @@ func (r *Runner) runPanel(ctx context.Context, req Request, lists map[string]all
 			}
 		}
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), panel.Query, req.Range, req.Selections, lists)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), text, req.Range, req.Selections, lists)
 	if err != nil {
 		return Result{}, err
 	}
-	q := datasource.Query{Text: panel.Query, Variables: vars, Limits: req.Limits}
+	q := datasource.Query{Text: text, Variables: vars, Limits: req.Limits}
 	kind := KindFor(panel.Type)
 	res := Result{Kind: kind, Range: req.Range}
 	if kind == KindRange {
@@ -163,27 +164,23 @@ func invalidRangeError(err error) error {
 	return fmt.Errorf("%w: %s", ErrInvalidRequest, err.Error())
 }
 
-func (r *Runner) instance(ref spec.DatasourceRef) (datasource.Instance, error) {
-	inst, ok := r.reg.Get(ref.UID)
+func (r *Runner) instance(uid string) (datasource.Instance, error) {
+	inst, ok := r.reg.Get(uid)
 	if !ok {
-		return datasource.Instance{}, fmt.Errorf("%w: %q", ErrUnknownDatasource, ref.UID)
-	}
-	if got := inst.Datasource.Type(); got != string(ref.Type) {
-		return datasource.Instance{}, fmt.Errorf("%w: datasource %q is %s, not %s", ErrDatasourceTypeMismatch, ref.UID, got, ref.Type)
+		return datasource.Instance{}, fmt.Errorf("%w: %q", ErrUnknownDatasource, uid)
 	}
 	return inst, nil
 }
 
-func findPanel(d *spec.Dashboard, id string) (spec.Panel, bool) {
+func dataPanel(d *spec.Dashboard, id string) (*spec.Panel, bool) {
 	if d == nil {
-		return spec.Panel{}, false
+		return nil, false
 	}
-	for _, p := range d.Panels {
-		if p.ID == id {
-			return p, true
-		}
+	entry, ok := d.FindPanel(id)
+	if !ok || !entry.Panel.Type.IsData() || len(entry.Panel.Queries) == 0 {
+		return nil, false
 	}
-	return spec.Panel{}, false
+	return entry.Panel, true
 }
 
 func upstream[T any](ctx context.Context, r *Runner, subject string, inst datasource.Instance, call func(context.Context) (T, error)) (out T, err error) {

@@ -3,7 +3,7 @@ import { GripVerticalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { liveRegionText } from "@/lib/live-region"
-import type { Panel } from "@/spec"
+import { panelTitle, type LayoutPanel } from "@/spec"
 
 import {
   moveItemHorizontally,
@@ -23,7 +23,7 @@ const arrows: Record<string, { dx: number; dy: number }> = {
 export function PanelMoveHandle({
   panel,
 }: {
-  panel: Pick<Panel, "id" | "title">
+  panel: Pick<LayoutPanel, "id" | "title">
 }) {
   const hintId = useId()
 
@@ -49,12 +49,15 @@ export function PanelMoveHandle({
     if (!item) return
     if (sameLayout(next, session.layout)) {
       const verb = event.shiftKey ? "resize" : "move"
-      commitLayout(session.layout, `${panel.title}: can't ${verb} further`)
+      commitLayout(
+        session.layout,
+        `${panelTitle(panel)}: can't ${verb} further`
+      )
       return
     }
     commitLayout(
       next,
-      `${panel.title}: column ${item.x + 1}, row ${item.y + 1}, ${item.w} by ${item.h}`
+      `${panelTitle(panel)}: column ${item.x + 1}, row ${item.y + 1}, ${item.w} by ${item.h}`
     )
   }
 
@@ -64,7 +67,7 @@ export function PanelMoveHandle({
         variant="ghost"
         size="icon-xs"
         className="panel-drag-handle cursor-grab active:cursor-grabbing"
-        aria-label={`Move or resize ${panel.title}`}
+        aria-label={`Move or resize ${panelTitle(panel)}`}
         aria-describedby={hintId}
         onKeyDown={onKeyDown}
       >

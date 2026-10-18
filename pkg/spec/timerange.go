@@ -35,14 +35,14 @@ func ResolveTime(expr string, now time.Time, roundUp bool) (time.Time, error) {
 func ResolveTimeRange(tr TimeRange, now time.Time) (from, to time.Time, err error) {
 	from, err = ResolveTime(tr.From, now, false)
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("timeRange.from %w", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("time.from %w", err)
 	}
 	to, err = ResolveTime(tr.To, now, true)
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("timeRange.to %w", err)
+		return time.Time{}, time.Time{}, fmt.Errorf("time.to %w", err)
 	}
 	if !from.Before(to) {
-		return time.Time{}, time.Time{}, errors.New("timeRange.from must be before timeRange.to")
+		return time.Time{}, time.Time{}, errors.New("time.from must be before time.to")
 	}
 	return from, to, nil
 }

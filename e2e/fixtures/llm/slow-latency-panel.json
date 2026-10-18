@@ -331,58 +331,43 @@
               "specVersion": "0",
               "title": "E2E dashboard",
               "tags": ["e2e"],
-              "timeRange": {
-                "from": "now-15m",
-                "to": "now"
-              },
+              "time": { "from": "now-15m", "to": "now" },
               "panels": [
                 {
                   "id": "rps",
                   "type": "timeseries",
                   "title": "Requests per second",
-                  "gridPos": {
-                    "x": 0,
-                    "y": 0,
-                    "w": 12,
-                    "h": 8
-                  },
-                  "datasource": {
-                    "type": "prometheus",
-                    "uid": "prom"
-                  },
-                  "query": "sum(rate(http_requests_total[$__rate_interval]))"
+                  "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum(rate(http_requests_total[$__rate_interval]))"
+                    }
+                  ]
                 },
                 {
                   "id": "log_services",
                   "type": "table",
                   "title": "Log rows by service",
-                  "gridPos": {
-                    "x": 12,
-                    "y": 0,
-                    "w": 12,
-                    "h": 8
-                  },
-                  "datasource": {
-                    "type": "clickhouse",
-                    "uid": "ch"
-                  },
-                  "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+                  "datasource": "ch",
+                  "queries": [
+                    {
+                      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+                    }
+                  ]
                 },
                 {
                   "id": "p99_latency",
                   "type": "timeseries",
                   "title": "p99 latency",
-                  "gridPos": {
-                    "x": 0,
-                    "y": 8,
-                    "w": 12,
-                    "h": 8
-                  },
-                  "datasource": {
-                    "type": "prometheus",
-                    "uid": "prom"
-                  },
-                  "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                  "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                    }
+                  ]
                 }
               ]
             }

@@ -4,19 +4,25 @@ import { collides } from "react-grid-layout/core"
 
 import type { Dashboard } from "@/spec"
 
-import { moveItem, settle } from "./layout"
+import { applyLayout, layoutFromSpec, moveItem, settle } from "./layout"
 import { isDirtyNow, useLayoutStore } from "./layout-store"
 
 type Pos = [id: string, x: number, y: number, w: number, h: number]
 
 function specOf(...panels: Pos[]): Dashboard {
   return {
+    specVersion: "0",
+    title: "layout",
+    time: { from: "now-1h", to: "now" },
     panels: panels.map(([id, x, y, w, h]) => ({
       id,
+      type: "stat" as const,
       title: id,
       gridPos: { x, y, w, h },
+      datasource: "prom",
+      queries: [{ query: "up" }],
     })),
-  } as unknown as Dashboard
+  }
 }
 
 function state() {
@@ -158,5 +164,60 @@ describe("announcements", () => {
     const first = session().announcementCount
     state().commitLayout(session().layout, "edge")
     expect(session().announcementCount).toBe(first + 1)
+  })
+})
+
+describe("row children", () => {
+  const withRow: Dashboard = {
+    specVersion: "0",
+    title: "rows",
+    time: { from: "now-1h", to: "now" },
+    panels: [
+      {
+        id: "a",
+        type: "stat",
+        title: "a",
+        gridPos: { x: 0, y: 0, w: 12, h: 4 },
+        datasource: "prom",
+        queries: [{ query: "up" }],
+      },
+      {
+        id: "r",
+        type: "row",
+        title: "r",
+        gridPos: { x: 0, y: 4, w: 24, h: 1 },
+        panels: [
+          {
+            id: "child",
+            type: "text",
+            gridPos: { x: 0, y: 5, w: 12, h: 4 },
+            content: "",
+          },
+        ],
+      },
+    ],
+  }
+
+  it("lays out row children by their own gridPos and leaves the row out", () => {
+    expect(layoutFromSpec(withRow).map((item) => item.i)).toEqual([
+      "a",
+      "child",
+    ])
+  })
+
+  it("writes a moved child back into its row", () => {
+    const moved = applyLayout(
+      withRow,
+      layoutFromSpec(withRow).map((item) =>
+        item.i === "child" ? { ...item, x: 6, w: 6 } : item
+      )
+    )
+    const row = moved.panels[1]
+    expect(row.type === "row" ? row.panels?.[0].gridPos : undefined).toEqual({
+      x: 6,
+      y: 5,
+      w: 6,
+      h: 4,
+    })
   })
 })

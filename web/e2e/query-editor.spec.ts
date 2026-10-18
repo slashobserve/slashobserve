@@ -59,6 +59,10 @@ function stallEvents(page: Page) {
   return page.route(/\/api\/v1\/dashboards\/[^/]+\/events$/, () => undefined)
 }
 
+function firstQuery(panel: Record<string, unknown> | undefined): unknown {
+  return (panel?.queries as Array<{ query: string }> | undefined)?.[0]?.query
+}
+
 function withRps(spec: Spec, change: Record<string, unknown>): Spec {
   return {
     ...spec,
@@ -156,7 +160,7 @@ test("saves an edited query as a new version", async ({ page, request }) => {
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(2)
   const rps = saved.spec.panels.find((item) => item.id === "rps")
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
   await expect(panel(page, rpsTitle)).toHaveAttribute("data-state", "ready", {
     timeout: 30_000,
   })
@@ -209,7 +213,7 @@ test("opens directly from a link", async ({ page, request }) => {
   ).toBeVisible()
   const logs = spec.panels.find((item) => item.id === "logs")
   await expect(sheet(page).locator(".cm-content")).toContainText(
-    String(logs?.query).slice(0, 30)
+    String(firstQuery(logs)).slice(0, 30)
   )
 })
 
@@ -251,7 +255,7 @@ test("keeps an unsaved query when a newer version arrives", async ({
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
   expect(saved.title).toBe(renamed)
-  expect(saved.spec.panels.find((item) => item.id === "rps")?.query).toBe(
+  expect(firstQuery(saved.spec.panels.find((item) => item.id === "rps"))).toBe(
     savedQuery
   )
 })
@@ -276,7 +280,7 @@ test("applying my query keeps a panel title renamed in the newer version", async
   expect(saved.latestVersion).toBe(3)
   const rps = saved.spec.panels.find((item) => item.id === "rps")
   expect(rps?.title).toBe("Renamed in v2")
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
 })
 
 test("applying my title keeps a panel query changed in the newer version", async ({
@@ -289,7 +293,12 @@ test("applying my title keeps a panel query changed in the newer version", async
   await sheet(page).getByRole("textbox", { name: "Title" }).fill("My title")
 
   const newerQuery = 'sum(rate(http_requests_total{service="checkout"}[1m]))'
-  await addVersion(request, id, withRps(spec, { query: newerQuery }), 1)
+  await addVersion(
+    request,
+    id,
+    withRps(spec, { queries: [{ query: newerQuery }] }),
+    1
+  )
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await sheet(page)
     .getByRole("button", { name: "Apply my query to version 2" })
@@ -300,7 +309,7 @@ test("applying my title keeps a panel query changed in the newer version", async
     (item) => item.id === "rps"
   )
   expect(rps?.title).toBe("My title")
-  expect(rps?.query).toBe(newerQuery)
+  expect(firstQuery(rps)).toBe(newerQuery)
 })
 
 test("moves focus to the conflict notice when a save hits a newer version", async ({
@@ -378,7 +387,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
   expect(rps?.title).toBe("Renamed in v2")
 })
 
@@ -529,12 +538,12 @@ test("offers Try again when the server cannot check the query right now", async 
 
   await mockSaveResponse(page, [
     {
-      path: "/panels/0/query",
+      path: "/panels/0/queries/0/query",
       code: "datasource_unavailable",
       message: "prometheus returned 502",
     },
     {
-      path: "/panels/3/query",
+      path: "/panels/3/queries/0/query",
       code: "query_timeout",
       message: "query timed out",
     },
@@ -557,7 +566,7 @@ test("offers Try again when the server cannot check the query right now", async 
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
 })
 
 test("lists each rejected query issue once and the transient line once", async ({
@@ -571,12 +580,12 @@ test("lists each rejected query issue once and the transient line once", async (
   await replaceQuery(page, savedQuery)
 
   const own = {
-    path: "/panels/0/query",
+    path: "/panels/0/queries/0/query",
     code: "query_invalid",
     message: "parse error at char 3",
   }
   const other = {
-    path: "/panels/1/query",
+    path: "/panels/1/queries/0/query",
     code: "query_invalid",
     message: "unknown metric",
   }
@@ -588,12 +597,12 @@ test("lists each rejected query issue once and the transient line once", async (
   await mockSaveResponse(page, [
     own,
     own,
-    timedOut("/panels/0/query"),
+    timedOut("/panels/0/queries/0/query"),
     other,
     other,
-    timedOut("/panels/2/query"),
+    timedOut("/panels/2/queries/0/query"),
     {
-      path: "/panels/3/query",
+      path: "/panels/3/queries/0/query",
       code: "unknown_datasource",
       message: 'datasource "gone" is not configured',
     },
@@ -608,7 +617,7 @@ test("lists each rejected query issue once and the transient line once", async (
       .getByRole("listitem")
   ).toHaveText([
     "parse error at char 3",
-    "/panels/1/query: unknown metric",
+    "/panels/1/queries/0/query: unknown metric",
     "A datasource this query uses is not configured anymore.",
   ])
   await expect(
@@ -640,7 +649,7 @@ test("applies to the newer version when Try again follows a transient error", as
 
   await mockSaveResponse(page, [
     {
-      path: "/panels/0/query",
+      path: "/panels/0/queries/0/query",
       code: "datasource_unavailable",
       message: "prometheus returned 502",
     },
@@ -660,7 +669,7 @@ test("applies to the newer version when Try again follows a transient error", as
   const rps = (await getDashboard(request, id)).spec.panels.find(
     (item) => item.id === "rps"
   )
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
   expect(rps?.title).toBe("Renamed in v2")
 })
 
@@ -837,7 +846,7 @@ test("saves a query and then a layout on top of it", async ({
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
   const rps = saved.spec.panels.find((item) => item.id === "rps")
-  expect(rps?.query).toBe(savedQuery)
+  expect(firstQuery(rps)).toBe(savedQuery)
   const errorRate = saved.spec.panels.find((item) => item.id === "error_rate")
   expect(errorRate?.gridPos).toMatchObject({ x: 13 })
 })

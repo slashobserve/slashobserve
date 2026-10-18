@@ -61,3 +61,16 @@ describe("thresholdFor labels", () => {
     ).toBe("Critical")
   })
 })
+
+describe("thresholdFor base step", () => {
+  it("treats a first step without a value as the base below every other step", () => {
+    const steps = [{ color: "ok" }, { value: 10, color: "critical" }]
+    expect(thresholdFor(-5, steps).level).toBe("ok")
+    expect(thresholdFor(9, steps).level).toBe("ok")
+    expect(thresholdFor(10, steps).level).toBe("critical")
+  })
+
+  it("labels a custom base step as the base", () => {
+    expect(thresholdFor(1, [{ color: "#336699" }]).label).toBe("Base")
+  })
+})

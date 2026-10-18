@@ -2,6 +2,7 @@ import { validate } from "./validate.gen"
 import type { Dashboard } from "./observespec.gen"
 
 export type * from "./observespec.gen"
+export * from "./panels"
 
 export type SpecIssue = { path: string; message: string }
 
@@ -37,9 +38,22 @@ function toIssue(error: AjvError): SpecIssue {
   return { path: error.instancePath, message: error.message ?? "invalid value" }
 }
 
+const aggregateKeywords = new Set(["oneOf", "anyOf", "if"])
+
+// Each panel branch that does not match the panel's type reports a failed type const; the unmatched branches' other errors stay, at the panel's own path.
+function isNoise(error: AjvError): boolean {
+  return (
+    aggregateKeywords.has(error.keyword) ||
+    (error.keyword === "const" && error.instancePath.endsWith("/type"))
+  )
+}
+
 export function validateSpecSchema(value: unknown): SpecValidation {
   if (run(value)) {
     return { valid: true, spec: value as Dashboard }
   }
-  return { valid: false, issues: (run.errors ?? []).map(toIssue) }
+  const issues = (run.errors ?? [])
+    .filter((error) => !isNoise(error))
+    .map(toIssue)
+  return { valid: false, issues }
 }

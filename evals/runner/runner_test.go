@@ -101,8 +101,18 @@ func TestScenarioValidation(t *testing.T) {
 	}
 }
 
+var testDatasourceTypes = map[string]string{"prom": "prometheus", "ch": "clickhouse"}
+
 func dashboard(timeFrom string, panels ...spec.Panel) *spec.Dashboard {
-	return &spec.Dashboard{TimeRange: spec.TimeRange{From: timeFrom, To: "now"}, Panels: panels}
+	return &spec.Dashboard{Time: spec.TimeRange{From: timeFrom, To: "now"}, Panels: panels}
+}
+
+func observe(d *spec.Dashboard) observation {
+	return observation{dashboard: d, datasourceTypes: testDatasourceTypes}
+}
+
+func threshold(value float64) spec.Threshold {
+	return spec.Threshold{Value: &value}
 }
 
 func TestFeatureChecks(t *testing.T) {
@@ -112,18 +122,18 @@ func TestFeatureChecks(t *testing.T) {
 		ThresholdAt:      map[string]float64{"percentunit": 0.01, "percent": 1},
 	}
 	prom := func(query string) spec.Panel {
-		return spec.Panel{Datasource: spec.DatasourceRef{Type: spec.Prometheus}, Query: query, Unit: "percentunit", Thresholds: []spec.Threshold{{Value: 0.01}}}
+		return spec.Panel{Type: spec.Timeseries, Datasource: "prom", Queries: []spec.Query{{Query: query}}, FieldProps: spec.FieldProps{Unit: "percentunit", Thresholds: []spec.Threshold{threshold(0.01)}}}
 	}
 	sql := func(query string) spec.Panel {
-		return spec.Panel{Datasource: spec.DatasourceRef{Type: spec.ClickHouse}, Query: query}
+		return spec.Panel{Type: spec.Table, Datasource: "ch", Queries: []spec.Query{{Query: query}}}
 	}
-	good := observation{dashboard: dashboard("now-1h",
+	good := observe(dashboard("now-1h",
 		prom("sum(rate(x[5m])) or sum(rate(x[5m] offset  24h))"),
 		sql("SELECT 1\nLIMIT   10"),
-	)}
-	bad := observation{dashboard: dashboard("now-6h",
-		spec.Panel{Datasource: spec.DatasourceRef{Type: spec.Prometheus}, Query: "sum(rate(x[5m]))", Unit: "percentunit", Thresholds: []spec.Threshold{{Value: 1}}},
-	)}
+	))
+	bad := observe(dashboard("now-6h",
+		spec.Panel{Type: spec.Timeseries, Datasource: "prom", Queries: []spec.Query{{Query: "sum(rate(x[5m]))"}}, FieldProps: spec.FieldProps{Unit: "percentunit", Thresholds: []spec.Threshold{threshold(1)}}},
+	))
 	for name, check := range map[string]func(Expect, observation) CheckResult{
 		"query":      checkQueryGroups,
 		"time_range": checkTimeRange,
@@ -162,11 +172,41 @@ func TestFeatureChecks(t *testing.T) {
 		{"hash in sql is not a comment", []string{"limit 10"}, []spec.Panel{sql("SELECT '#' # x\nLIMIT 10")}, true},
 	}
 	for _, tc := range queryCases {
-		obs := observation{dashboard: dashboard("now-1h", tc.panels...)}
+		obs := observe(dashboard("now-1h", tc.panels...))
 		r := checkQueryGroups(Expect{QueryContainsAny: [][]string{tc.group}}, obs)
 		if r.Passed != tc.want {
 			t.Errorf("%s: passed %t, want %t", tc.name, r.Passed, tc.want)
 		}
+	}
+}
+
+func TestChecksFollowEveryQueryAndSkipNonDataPanels(t *testing.T) {
+	multi := spec.Panel{
+		ID: "multi", Type: spec.Timeseries, Datasource: "prom",
+		Queries:    []spec.Query{{Query: "up"}, {Query: "SELECT count() FROM otel_logs", Datasource: "ch"}},
+		FieldProps: spec.FieldProps{Thresholds: []spec.Threshold{{Color: "ok"}, threshold(1)}},
+	}
+	note := spec.Panel{ID: "note", Type: spec.Text}
+	row := spec.Panel{ID: "r", Type: spec.Row, Panels: []spec.Panel{{ID: "child", Type: spec.Stat, Datasource: "ch", Queries: []spec.Query{{Query: "SELECT 1"}}}}}
+	obs := observe(dashboard("now-1h", multi, note, row))
+
+	if r := checkSource(Expect{Datasources: []string{"clickhouse", "prometheus"}}, obs); !r.Passed {
+		t.Errorf("source: %s", r.Detail)
+	}
+	if r := checkQueries("tables", []string{"otel_logs"}, spec.ClickHouse, obs); !r.Passed {
+		t.Errorf("tables: %s", r.Detail)
+	}
+	if r := checkPanels(Expect{MinPanels: 2, MaxPanels: 2}, obs); !r.Passed {
+		t.Errorf("panels should count the two data panels: %s", r.Detail)
+	}
+	if r := checkPanels(Expect{MinPanels: 3, MaxPanels: 4}, obs); r.Passed {
+		t.Error("panels should not count the text panel or the row")
+	}
+	if r := checkThresholds(Expect{ThresholdAt: map[string]float64{"": 1}}, obs); !r.Passed {
+		t.Errorf("thresholds: %s", r.Detail)
+	}
+	if r := checkThresholds(Expect{ThresholdAt: map[string]float64{"": 0}}, obs); r.Passed {
+		t.Error("a threshold without a value must not match")
 	}
 }
 

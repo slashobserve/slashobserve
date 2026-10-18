@@ -137,6 +137,21 @@ func TestRunPanelProxyPassesZeroLimits(t *testing.T) {
 	}
 }
 
+func TestRunPanelRunsRowChildren(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{
+		panelOf("p0", spec.Stat, "prom", "up"),
+		{ID: "r1", Type: spec.Row, Panels: []spec.Panel{panelOf("child", spec.Stat, "prom", "child_query")}},
+	})
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "child", Range: testRange()}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if got := fake.recorded(); len(got) != 1 || got[0].query.Text != "child_query" {
+		t.Fatalf("calls = %+v, want one call with the row child's query", got)
+	}
+}
+
 func TestRunPanelErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -148,11 +163,8 @@ func TestRunPanelErrors(t *testing.T) {
 		{"nil dashboard", nil, "p1", testRange(), ErrPanelNotFound},
 		{"unknown panel", dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", "up")}), "nope", testRange(), ErrPanelNotFound},
 		{"unknown datasource", dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "missing", "up")}), "p1", testRange(), ErrUnknownDatasource},
-		{
-			"datasource type mismatch",
-			dashboardOf([]spec.Panel{{ID: "p1", Type: spec.Stat, Datasource: spec.DatasourceRef{Type: spec.ClickHouse, UID: "prom"}, Query: "up"}}),
-			"p1", testRange(), ErrDatasourceTypeMismatch,
-		},
+		{"text panel", dashboardOf([]spec.Panel{{ID: "t", Type: spec.Text}}), "t", testRange(), ErrPanelNotFound},
+		{"row", dashboardOf([]spec.Panel{{ID: "r", Type: spec.Row}}), "r", testRange(), ErrPanelNotFound},
 		{"zero range", dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", "up")}), "p1", datasource.TimeRange{}, ErrInvalidRequest},
 		{
 			"inverted range",

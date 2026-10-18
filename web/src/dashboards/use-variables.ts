@@ -4,7 +4,6 @@ import { useQueries } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
-import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
@@ -13,12 +12,13 @@ import {
   parentKeyOf,
   resolveSelections,
   variableDisplay,
+  type ControlVariable,
   type LoadedValues,
   type VariableOptions,
 } from "./variables"
 
 export type VariableState = {
-  variable: Variable
+  variable: ControlVariable
   options: string[] | undefined
   truncated: boolean
   status: "loading" | "refreshing" | "ready" | "error"
@@ -29,7 +29,7 @@ export type VariableState = {
 type Args = {
   dashboardId: string
   version: number
-  variables: Variable[]
+  variables: ControlVariable[]
   from?: string
   to?: string
   urlVars: Record<string, string[]>

@@ -136,7 +136,7 @@ func TestResolveTimeRangeOrder(t *testing.T) {
 func TestParsedTimeRangesResolve(t *testing.T) {
 	minimal := string(readExample(t, "minimal.json"))
 	parse := func(from, to string) error {
-		data := strings.Replace(minimal, `"timeRange": { "from": "now-15m", "to": "now" }`, fmt.Sprintf(`"timeRange": { "from": %q, "to": %q }`, from, to), 1)
+		data := strings.Replace(minimal, `"time": { "from": "now-15m", "to": "now" }`, fmt.Sprintf(`"time": { "from": %q, "to": %q }`, from, to), 1)
 		_, err := spec.Parse([]byte(data))
 		return err
 	}

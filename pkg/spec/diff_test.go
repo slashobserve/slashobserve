@@ -144,7 +144,8 @@ func TestDiffGridPosWidthChanged(t *testing.T) {
 
 func TestDiffThresholdsReplacedWhole(t *testing.T) {
 	to := diffMutated(t, func(d *spec.Dashboard) {
-		d.Panels[panelIndex(t, d, "error_rate")].Thresholds[0].Value = 0.02
+		value := 0.02
+		d.Panels[panelIndex(t, d, "error_rate")].Thresholds[0].Value = &value
 	})
 	assertChanges(t, spec.Diff(diffBase(t), to), []spec.Change{
 		{

@@ -236,15 +236,52 @@ func validateSchema(data []byte) ([]Issue, error) {
 	}
 	c := &issueCollector{printer: message.NewPrinter(language.English)}
 	c.collect(ve)
-	return c.issues, nil
+	return c.finish(), nil
 }
 
 type issueCollector struct {
-	printer *message.Printer
-	issues  []Issue
+	printer     *message.Printer
+	issues      []Issue
+	unevaluated []string
+}
+
+func isUnevaluated(ve *jsonschema.ValidationError) bool {
+	_, ok := ve.ErrorKind.(*kind.FalseSchema)
+	return ok && strings.HasSuffix(ve.SchemaURL, "/unevaluatedProperties")
+}
+
+func (c *issueCollector) finish() []Issue {
+	byParent := map[string][]string{}
+	var parents []string
+	for _, loc := range c.unevaluated {
+		if slices.ContainsFunc(c.issues, func(i Issue) bool { return i.Path == loc || strings.HasPrefix(i.Path, loc+"/") }) {
+			continue
+		}
+		cut := strings.LastIndex(loc, "/")
+		parent, name := loc[:cut], pointerUnescaper.Replace(loc[cut+1:])
+		if !slices.Contains(byParent[parent], name) {
+			if _, ok := byParent[parent]; !ok {
+				parents = append(parents, parent)
+			}
+			byParent[parent] = append(byParent[parent], name)
+		}
+	}
+	issues := c.issues
+	for _, parent := range parents {
+		issues = append(issues, Issue{
+			Path:    parent,
+			Code:    CodeSchema,
+			Message: fmt.Sprintf("additional properties %s not allowed", quoteNames(byParent[parent])),
+		})
+	}
+	return issues
 }
 
 func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
+	if _, ok := ve.ErrorKind.(*kind.AnyOf); ok && isUnitLocation(ve.InstanceLocation) {
+		c.issues = append(c.issues, unitIssue(ve))
+		return
+	}
 	causes := ve.Causes
 	if _, ok := ve.ErrorKind.(*kind.OneOf); ok && len(causes) > 0 {
 		if missing, ok := commonMissing(ve.InstanceLocation, causes); ok {
@@ -259,7 +296,7 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 			c.collectNested(ve.InstanceLocation, causes)
 			return
 		}
-		kept, wants := pruneWrongBranches(causes)
+		kept, wants := pruneWrongBranches(ve.InstanceLocation, causes)
 		if len(kept) == 0 {
 			c.issues = append(c.issues, Issue{
 				Path:    pointer(ve.InstanceLocation...),
@@ -271,6 +308,10 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 		causes = kept
 	}
 	if len(causes) == 0 {
+		if isUnevaluated(ve) {
+			c.unevaluated = append(c.unevaluated, pointer(ve.InstanceLocation...))
+			return
+		}
 		c.issues = append(c.issues, c.leafIssue(ve))
 		return
 	}
@@ -285,20 +326,40 @@ func (c *issueCollector) leafIssue(ve *jsonschema.ValidationError) Issue {
 		Code:    CodeSchema,
 		Message: ve.ErrorKind.LocalizedString(c.printer),
 	}
-	if enum, ok := ve.ErrorKind.(*kind.Enum); ok && isUnitLocation(ve.InstanceLocation) {
-		issue.Code = CodeUnknownUnit
-		issue.Message = fmt.Sprintf("unknown unit %q; use a Grafana unit id such as \"reqps\", \"s\", \"bytes\" or \"percent\"", fmt.Sprint(enum.Got))
-	}
 	return issue
 }
 
-func isUnitLocation(loc []string) bool {
-	return len(loc) == 3 && loc[0] == "panels" && loc[2] == "unit"
+func unitIssue(ve *jsonschema.ValidationError) Issue {
+	return Issue{
+		Path: pointer(ve.InstanceLocation...),
+		Code: CodeUnknownUnit,
+		Message: fmt.Sprintf(
+			"unknown unit %q; use a Grafana unit id such as \"reqps\", \"s\", \"bytes\" or \"percent\", or a custom \"suffix:<text>\" or \"prefix:<text>\"",
+			unitValue(ve),
+		),
+	}
 }
 
-func pruneWrongBranches(causes []*jsonschema.ValidationError) (kept []*jsonschema.ValidationError, wants []string) {
+func unitValue(ve *jsonschema.ValidationError) string {
+	if enum, ok := ve.ErrorKind.(*kind.Enum); ok {
+		return fmt.Sprint(enum.Got)
+	}
+	for _, cause := range ve.Causes {
+		if got := unitValue(cause); got != "" {
+			return got
+		}
+	}
+	return ""
+}
+
+func isUnitLocation(loc []string) bool {
+	return len(loc) >= 3 && loc[len(loc)-1] == "unit" && (loc[len(loc)-3] == "panels" || loc[len(loc)-3] == "overrides")
+}
+
+func pruneWrongBranches(loc []string, causes []*jsonschema.ValidationError) (kept []*jsonschema.ValidationError, wants []string) {
+	typeLocation := append(slices.Clone(loc), "type")
 	for _, cause := range causes {
-		if w := typeConstWants(cause); len(w) > 0 {
+		if w := typeConstWants(typeLocation, cause); len(w) > 0 {
 			wants = append(wants, w...)
 			continue
 		}
@@ -401,6 +462,11 @@ func (c *issueCollector) collectNested(loc []string, causes []*jsonschema.Valida
 			c.issues = append(c.issues, issue)
 		}
 	}
+	for _, loc := range nested.unevaluated {
+		if !slices.Contains(c.unevaluated, loc) {
+			c.unevaluated = append(c.unevaluated, loc)
+		}
+	}
 }
 
 func (c *issueCollector) collectBelow(loc []string, ve *jsonschema.ValidationError) {
@@ -413,17 +479,26 @@ func (c *issueCollector) collectBelow(loc []string, ve *jsonschema.ValidationErr
 	}
 }
 
-func typeConstWants(ve *jsonschema.ValidationError) []string {
+func typeConstWants(typeLocation []string, ve *jsonschema.ValidationError) []string {
 	if len(ve.Causes) == 0 {
-		c, ok := ve.ErrorKind.(*kind.Const)
-		if !ok || len(ve.InstanceLocation) == 0 || ve.InstanceLocation[len(ve.InstanceLocation)-1] != "type" {
+		if !slices.Equal(ve.InstanceLocation, typeLocation) {
 			return nil
 		}
-		return []string{fmt.Sprintf("%q", fmt.Sprint(c.Want))}
+		switch k := ve.ErrorKind.(type) {
+		case *kind.Const:
+			return []string{fmt.Sprintf("%q", fmt.Sprint(k.Want))}
+		case *kind.Enum:
+			out := make([]string, len(k.Want))
+			for i, want := range k.Want {
+				out[i] = fmt.Sprintf("%q", fmt.Sprint(want))
+			}
+			return out
+		}
+		return nil
 	}
 	var out []string
 	for _, cause := range ve.Causes {
-		out = append(out, typeConstWants(cause)...)
+		out = append(out, typeConstWants(typeLocation, cause)...)
 	}
 	return out
 }
@@ -439,7 +514,7 @@ func numberIssues(v any, t reflect.Type, path []string) []Issue {
 		}
 		return structNumberIssues(val, t, path)
 	case []any:
-		if t.Kind() != reflect.Slice {
+		if t.Kind() != reflect.Slice && t.Kind() != reflect.Array {
 			return nil
 		}
 		var out []Issue
@@ -457,6 +532,10 @@ func structNumberIssues(obj map[string]any, t reflect.Type, path []string) []Iss
 	var out []Issue
 	for i := range t.NumField() {
 		f := t.Field(i)
+		if f.Anonymous && f.Type.Kind() == reflect.Struct {
+			out = append(out, structNumberIssues(obj, f.Type, path)...)
+			continue
+		}
 		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
 		item, ok := obj[name]
 		if !ok {

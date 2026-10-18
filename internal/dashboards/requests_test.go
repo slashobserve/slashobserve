@@ -96,9 +96,9 @@ func panelsSpec(title string, panelIDs ...string) []byte {
 		if i > 0 {
 			panels += ","
 		}
-		panels += fmt.Sprintf(`{"id":%q,"type":"timeseries","title":%q,"gridPos":{"x":0,"y":%d,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"query":"up"}`, id, id, i*8)
+		panels += fmt.Sprintf(`{"id":%q,"type":"timeseries","title":%q,"gridPos":{"x":0,"y":%d,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}`, id, id, i*8)
 	}
-	return []byte(fmt.Sprintf(`{"specVersion":"0","title":%q,"timeRange":{"from":"now-15m","to":"now"},"panels":[%s]}`, title, panels))
+	return []byte(fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},"panels":[%s]}`, title, panels))
 }
 
 func (r *rig) createDashboard(t *testing.T, panelIDs ...string) pgtype.UUID {

@@ -38,9 +38,8 @@ func assertIssues(t *testing.T, got []spec.Issue, want []wantIssue) {
 }
 
 func TestCheckSpecIssues(t *testing.T) {
-	clickhouseRef := spec.DatasourceRef{Type: spec.ClickHouse, UID: "prom"}
 	badRange := func(from, to string) func(*spec.Dashboard) {
-		return func(d *spec.Dashboard) { d.TimeRange = spec.TimeRange{From: from, To: to} }
+		return func(d *spec.Dashboard) { d.Time = spec.TimeRange{From: from, To: to} }
 	}
 	emptyFrames := func(frames []datasource.Frame) func(*fakeDatasource) {
 		return func(f *fakeDatasource) {
@@ -76,22 +75,36 @@ func TestCheckSpecIssues(t *testing.T) {
 		{
 			name:   "unknown panel datasource",
 			panels: []spec.Panel{panelOf("p0", spec.Timeseries, "missing", "up")},
-			want:   []wantIssue{{"/panels/0/datasource/uid", CodeUnknownDatasource, `datasource "missing" is not configured`}},
+			want:   []wantIssue{{"/panels/0/datasource", CodeUnknownDatasource, `datasource "missing" is not configured`}},
 		},
 		{
-			name: "panel datasource type mismatch",
+			name:   "macro of another datasource type",
+			panels: []spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up[$__timeFilter(ts)]")},
+			want:   []wantIssue{{"/panels/0/queries/0/query", spec.CodeUnknownMacro, "macro $__timeFilter is not available for prometheus queries"}},
+		},
+		{
+			name: "query level datasource is checked at the query",
+			panels: []spec.Panel{{
+				ID: "p0", Type: spec.Timeseries, Datasource: "prom",
+				Queries: []spec.Query{{Query: "up", Datasource: "missing"}},
+			}},
+			want: []wantIssue{{"/panels/0/queries/0/datasource", CodeUnknownDatasource, `datasource "missing" is not configured`}},
+		},
+		{
+			name: "row child runs and text panel does not",
 			panels: []spec.Panel{
-				{ID: "p0", Type: spec.Timeseries, Datasource: clickhouseRef, Query: "SELECT 1"},
+				{ID: "t", Type: spec.Text},
+				{ID: "r", Type: spec.Row, Panels: []spec.Panel{panelOf("c", spec.Stat, "prom", "up")}},
 			},
-			want: []wantIssue{{"/panels/0/datasource/type", CodeDatasourceMismatch, `datasource type mismatch: datasource "prom" is prometheus, not clickhouse`}},
+			wantCalls: 1,
 		},
 		{
 			name:      "unknown variable datasource blocks dependent panel only",
 			panels:    []spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job="$job"}`), panelOf("p1", spec.Timeseries, "prom", "up")},
 			variables: []spec.Variable{queryVariable("job", "missing", "label_values(job)")},
 			want: []wantIssue{
-				{"/panels/0/query", CodeVariableUnresolved, `variable "job" could not be resolved`},
-				{"/variables/0/datasource/uid", CodeUnknownDatasource, ""},
+				{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "job" could not be resolved`},
+				{"/variables/0/datasource", CodeUnknownDatasource, ""},
 			},
 			wantCalls: 1,
 		},
@@ -99,7 +112,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			name:      "empty result",
 			panels:    oneTimeseries("up"),
 			setup:     emptyFrames(nil),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -108,7 +121,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			setup: emptyFrames([]datasource.Frame{{Fields: []datasource.Field{
 				{Name: "time", Type: datasource.FieldTime, Values: []any{1.0}},
 			}}}),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -118,7 +131,7 @@ func TestCheckSpecIssues(t *testing.T) {
 				{Name: "time", Type: datasource.FieldTime, Values: []any{1.0, 2.0}},
 				{Name: "value", Type: datasource.FieldNumber, Values: []any{nil, nil}},
 			}}}),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -133,49 +146,49 @@ func TestCheckSpecIssues(t *testing.T) {
 			name:      "query invalid",
 			panels:    oneTimeseries("up{"),
 			setup:     failRange(datasource.Errorf(datasource.ErrInvalidQuery, "parse error")),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryInvalid, "invalid query: parse error"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryInvalid, "invalid query: parse error"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "query forbidden",
 			panels:    oneTimeseries("DROP"),
 			setup:     failRange(datasource.Errorf(datasource.ErrForbiddenQuery, "only SELECT")),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryForbidden, "query not allowed: only SELECT"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryForbidden, "query not allowed: only SELECT"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "limit exceeded",
 			panels:    oneTimeseries("up"),
 			setup:     failRange(datasource.Errorf(datasource.ErrLimitExceeded, "too many series")),
-			want:      []wantIssue{{"/panels/0/query", CodeLimitExceeded, "query limit exceeded: too many series"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeLimitExceeded, "query limit exceeded: too many series"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "query timeout from datasource",
 			panels:    oneTimeseries("up"),
 			setup:     failRange(datasource.Errorf(datasource.ErrTimeout, "after 15s")),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryTimeout, "query timed out: after 15s"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryTimeout, "query timed out: after 15s"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "query timeout from context deadline",
 			panels:    oneTimeseries("up"),
 			setup:     failRange(context.DeadlineExceeded),
-			want:      []wantIssue{{"/panels/0/query", CodeQueryTimeout, "query timed out"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryTimeout, "query timed out"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "datasource unavailable",
 			panels:    oneTimeseries("up"),
 			setup:     failRange(datasource.Errorf(datasource.ErrUnavailable, "refused")),
-			want:      []wantIssue{{"/panels/0/query", CodeDatasourceDown, "datasource unavailable: refused"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeDatasourceDown, "datasource unavailable: refused"}},
 			wantCalls: 1,
 		},
 		{
 			name:      "unexpected error is hidden",
 			panels:    oneTimeseries("up"),
 			setup:     failRange(errors.New("password=hunter2")),
-			want:      []wantIssue{{"/panels/0/query", CodeInternal, "internal error"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeInternal, "internal error"}},
 			wantCalls: 1,
 		},
 		{
@@ -186,7 +199,7 @@ func TestCheckSpecIssues(t *testing.T) {
 					panic("hunter2")
 				}
 			},
-			want:      []wantIssue{{"/panels/0/query", CodeInternal, "internal error"}},
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeInternal, "internal error"}},
 			wantCalls: 1,
 		},
 		{
@@ -248,7 +261,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			},
 			setup: failVariable(datasource.Errorf(datasource.ErrUnavailable, "down")),
 			want: []wantIssue{
-				{"/panels/0/query", CodeVariableUnresolved, `variable "a" could not be resolved`},
+				{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "a" could not be resolved`},
 				{"/variables/0", CodeVariableFailed, ""},
 				{"/variables/1", CodeVariableUnresolved, `variable "a" could not be resolved`},
 			},
@@ -275,8 +288,8 @@ func TestCheckSpecIssues(t *testing.T) {
 				}
 			},
 			want: []wantIssue{
-				{"/panels/1/query", CodeQueryInvalid, ""},
-				{"/panels/2/datasource/uid", CodeUnknownDatasource, ""},
+				{"/panels/1/queries/0/query", CodeQueryInvalid, ""},
+				{"/panels/2/datasource", CodeUnknownDatasource, ""},
 			},
 			wantCalls: 2,
 		},
@@ -284,19 +297,19 @@ func TestCheckSpecIssues(t *testing.T) {
 			name:   "time range garbage",
 			panels: oneTimeseries("up"),
 			mutate: badRange("garbage", "now"),
-			want:   []wantIssue{{"/timeRange", CodeTimeRangeInvalid, `timeRange.from "garbage" is not a valid time`}},
+			want:   []wantIssue{{"/time", CodeTimeRangeInvalid, `time.from "garbage" is not a valid time`}},
 		},
 		{
 			name:   "time range to garbage",
 			panels: oneTimeseries("up"),
 			mutate: badRange("now-1h", "later"),
-			want:   []wantIssue{{"/timeRange", CodeTimeRangeInvalid, `timeRange.to "later" is not a valid time`}},
+			want:   []wantIssue{{"/time", CodeTimeRangeInvalid, `time.to "later" is not a valid time`}},
 		},
 		{
 			name:   "time range from after to",
 			panels: oneTimeseries("up"),
 			mutate: badRange("now", "now-1h"),
-			want:   []wantIssue{{"/timeRange", CodeTimeRangeInvalid, "timeRange.from must be before timeRange.to"}},
+			want:   []wantIssue{{"/time", CodeTimeRangeInvalid, "time.from must be before time.to"}},
 		},
 		{
 			name:      "time range invalid reports datasource issues and skips upstream work",
@@ -304,9 +317,9 @@ func TestCheckSpecIssues(t *testing.T) {
 			variables: []spec.Variable{queryVariable("v", "missing", "x")},
 			mutate:    badRange("now", "now"),
 			want: []wantIssue{
-				{"/panels/0/datasource/uid", CodeUnknownDatasource, ""},
-				{"/timeRange", CodeTimeRangeInvalid, ""},
-				{"/variables/0/datasource/uid", CodeUnknownDatasource, ""},
+				{"/panels/0/datasource", CodeUnknownDatasource, ""},
+				{"/time", CodeTimeRangeInvalid, ""},
+				{"/variables/0/datasource", CodeUnknownDatasource, ""},
 			},
 		},
 	}
@@ -585,7 +598,7 @@ func TestCheckSpecIncludeAllVariableProblems(t *testing.T) {
 		t.Fatalf("CheckSpec error: %v", err)
 	}
 	assertIssues(t, issues, []wantIssue{
-		{"/panels/0/query", CodeVariableUnresolved, ""},
+		{"/panels/0/queries/0/query", CodeVariableUnresolved, ""},
 		{"/variables/0", CodeVariableEmpty, ""},
 		{"/variables/1", CodeVariableFailed, ""},
 	})
@@ -603,7 +616,7 @@ func TestCheckSpecBadCustomDefault(t *testing.T) {
 		t.Fatalf("CheckSpec error: %v", err)
 	}
 	assertIssues(t, issues, []wantIssue{
-		{"/panels/0/query", CodeVariableUnresolved, ""},
+		{"/panels/0/queries/0/query", CodeVariableUnresolved, ""},
 		{"/variables/0", CodeVariableFailed, ""},
 	})
 	if fake.callCount() != 0 {
@@ -654,8 +667,8 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 			t.Fatalf("CheckSpec took %v", elapsed)
 		}
 		assertIssues(t, issues, []wantIssue{
-			{"/panels/0/query", CodeQueryTimeout, "query timed out"},
-			{"/panels/1/query", CodeQueryTimeout, "query timed out"},
+			{"/panels/0/queries/0/query", CodeQueryTimeout, "query timed out"},
+			{"/panels/1/queries/0/query", CodeQueryTimeout, "query timed out"},
 		})
 		for _, c := range fake.recorded() {
 			if d, _ := ctx.Deadline(); c.deadline.After(d) {
@@ -694,7 +707,7 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 			t.Fatalf("CheckSpec error: %v", err)
 		}
 		assertIssues(t, issues, []wantIssue{
-			{"/panels/0/query", CodeVariableUnresolved, ""},
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, ""},
 			{"/variables/0", CodeVariableFailed, "query timed out"},
 		})
 	})
@@ -703,22 +716,20 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 func TestCheckDatasources(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-	missing := spec.DatasourceRef{Type: spec.Prometheus, UID: "missing"}
-	wrongType := spec.DatasourceRef{Type: spec.ClickHouse, UID: "prom"}
 	d := dashboardOf(
 		[]spec.Panel{
 			panelOf("ok", spec.Timeseries, "prom", "up"),
-			{ID: "wrong", Type: spec.Stat, Datasource: wrongType, Query: "x"},
+			panelOf("wrong", spec.Stat, "prom", "$__timeFilter(x)"),
 			panelOf("gone", spec.Stat, "missing", "x"),
 		},
 		customVariable("env", "a"),
 		spec.Variable{Name: "noDatasource", Type: spec.QueryVariable, Query: "x"},
-		spec.Variable{Name: "qv", Type: spec.QueryVariable, Datasource: &missing, Query: "x"},
+		spec.Variable{Name: "qv", Type: spec.QueryVariable, Datasource: "missing", Query: "x"},
 	)
 	assertIssues(t, runner.CheckDatasources(d), []wantIssue{
-		{"/panels/1/datasource/type", CodeDatasourceMismatch, ""},
-		{"/panels/2/datasource/uid", CodeUnknownDatasource, ""},
-		{"/variables/2/datasource/uid", CodeUnknownDatasource, ""},
+		{"/panels/1/queries/0/query", spec.CodeUnknownMacro, ""},
+		{"/panels/2/datasource", CodeUnknownDatasource, ""},
+		{"/variables/2/datasource", CodeUnknownDatasource, ""},
 	})
 	if fake.callCount() != 0 {
 		t.Fatalf("CheckDatasources called upstream %d times", fake.callCount())

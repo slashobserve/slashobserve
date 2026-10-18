@@ -518,12 +518,12 @@ test("offers Try again when the server cannot check the layout right now", async
         code: "invalid_spec",
         issues: [
           {
-            path: "/panels/0/query",
+            path: "/panels/0/queries/0/query",
             code: "datasource_unavailable",
             message: "prometheus returned 502",
           },
           {
-            path: "/panels/2/query",
+            path: "/panels/2/queries/0/query",
             code: "query_timeout",
             message: "query timed out",
           },

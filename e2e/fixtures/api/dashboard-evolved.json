@@ -1,0 +1,54 @@
+{
+  "summary": "Create the evolved shape dashboard",
+  "spec": {
+    "specVersion": "0",
+    "title": "Evolved shape dashboard",
+    "tags": ["e2e"],
+    "time": { "from": "now-15m", "to": "now" },
+    "panels": [
+      {
+        "id": "p_logs",
+        "type": "stat",
+        "title": "Log rows",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 4 },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+          }
+        ]
+      },
+      {
+        "id": "p_note",
+        "type": "text",
+        "title": "Notes",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 4 },
+        "content": "Notes for the on-call engineer."
+      },
+      {
+        "id": "r_prom",
+        "type": "row",
+        "title": "Prometheus",
+        "gridPos": { "x": 0, "y": 4, "w": 24, "h": 1 },
+        "panels": [
+          {
+            "id": "p_up",
+            "type": "timeseries",
+            "title": "Targets up",
+            "gridPos": { "x": 0, "y": 5, "w": 12, "h": 8 },
+            "datasource": "prom",
+            "queries": [{ "query": "count(up)" }]
+          },
+          {
+            "id": "p_world",
+            "type": "placeholder",
+            "title": "Traffic map",
+            "gridPos": { "x": 12, "y": 5, "w": 12, "h": 8 },
+            "reason": "Grafana panel type worldmap is not supported yet",
+            "sourceType": "worldmap"
+          }
+        ]
+      }
+    ]
+  }
+}

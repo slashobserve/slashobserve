@@ -1,0 +1,1740 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "r1",
+      "type": "row",
+      "title": "Row",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "id": "c0",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 1,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c1",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 2,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c2",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 3,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c3",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 4,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c4",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c5",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 6,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c6",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 7,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c7",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c8",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 9,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c9",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 10,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c10",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 11,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c11",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 12,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c12",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 13,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c13",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 14,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c14",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 15,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c15",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 16,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c16",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 17,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c17",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 18,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c18",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 19,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c19",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 20,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c20",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 21,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c21",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 22,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c22",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 23,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c23",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 24,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c24",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 25,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c25",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 26,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c26",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 27,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c27",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 28,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c28",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 29,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c29",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 30,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c30",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 31,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c31",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 32,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c32",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 33,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c33",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 34,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c34",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 35,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c35",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 36,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c36",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 37,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c37",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 38,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c38",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 39,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c39",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 40,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c40",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 41,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c41",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 42,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c42",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 43,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c43",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 44,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c44",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 45,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c45",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 46,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c46",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 47,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c47",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 48,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c48",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 49,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c49",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 50,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c50",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 51,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c51",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 52,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c52",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 53,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c53",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 54,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c54",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 55,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c55",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 56,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c56",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 57,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c57",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 58,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c58",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 59,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c59",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 60,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c60",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 61,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c61",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 62,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c62",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 63,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c63",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 64,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c64",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 65,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c65",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 66,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c66",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 67,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c67",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 68,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c68",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 69,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c69",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 70,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c70",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 71,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c71",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 72,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c72",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 73,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c73",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 74,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c74",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 75,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c75",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 76,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c76",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 77,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c77",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 78,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c78",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 79,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c79",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 80,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c80",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 81,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c81",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 82,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c82",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 83,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c83",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 84,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c84",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 85,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c85",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 86,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c86",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 87,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c87",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 88,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c88",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 89,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c89",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 90,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c90",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 91,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c91",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 92,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c92",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 93,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c93",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 94,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c94",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 95,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c95",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 96,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c96",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 97,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c97",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 98,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c98",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 99,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        },
+        {
+          "id": "c99",
+          "type": "stat",
+          "title": "Log rows",
+          "gridPos": {
+            "x": 0,
+            "y": 100,
+            "w": 24,
+            "h": 1
+          },
+          "datasource": "ch",
+          "queries": [
+            {
+              "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "last",
+      "type": "stat",
+      "title": "Log rows",
+      "gridPos": {
+        "x": 0,
+        "y": 101,
+        "w": 24,
+        "h": 1
+      },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ]
+    }
+  ]
+}

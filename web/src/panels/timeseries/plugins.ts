@@ -181,8 +181,9 @@ export function thresholdsPlugin(
         ctx.lineWidth = Math.max(1, Math.round(ratio))
         ctx.setLineDash([4 * ratio, 4 * ratio])
         thresholds.forEach((threshold, index) => {
-          if (threshold.value < min || threshold.value > max) return
-          const y = Math.round(u.valToPos(threshold.value, "y", true))
+          const at = threshold.value
+          if (at === undefined || at < min || at > max) return
+          const y = Math.round(u.valToPos(at, "y", true))
           ctx.strokeStyle = colors[index]
           ctx.beginPath()
           ctx.moveTo(left, y)

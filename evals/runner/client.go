@@ -242,6 +242,23 @@ func (c *client) getVersionSpec(ctx context.Context, dashboardID string, version
 	return env.Version.Spec, nil
 }
 
+func (c *client) datasourceTypes(ctx context.Context) (map[string]string, error) {
+	var env struct {
+		Datasources []struct {
+			UID  string `json:"uid"`
+			Type string `json:"type"`
+		} `json:"datasources"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/datasources", nil, &env); err != nil {
+		return nil, err
+	}
+	types := make(map[string]string, len(env.Datasources))
+	for _, d := range env.Datasources {
+		types[d.UID] = d.Type
+	}
+	return types, nil
+}
+
 type Field struct {
 	Name   string `json:"name"`
 	Type   string `json:"type"`

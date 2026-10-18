@@ -1,14 +1,14 @@
 {
   "specVersion": "0",
   "title": "Minimal",
-  "timeRange": {
+  "time": {
     "from": "now-15m",
     "to": "now"
   },
   "panels": [
     {
       "id": "p1",
-      "type": "heatmap",
+      "type": "sparkline",
       "title": "Log rows",
       "gridPos": {
         "x": 0,
@@ -16,11 +16,12 @@
         "w": 6,
         "h": 4
       },
-      "datasource": {
-        "type": "clickhouse",
-        "uid": "ch"
-      },
-      "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ]
     }
   ]
 }

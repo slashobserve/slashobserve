@@ -199,11 +199,7 @@ func TestDefaultsErrors(t *testing.T) {
 		{"custom variable with no options", []spec.Variable{customVariable("c")}, nil, nil, ErrVariableEmpty},
 		{"query variable on unknown datasource", []spec.Variable{queryVariable("q", "missing", "x")}, []string{"a"}, nil, ErrUnknownDatasource},
 		{"query variable without datasource", []spec.Variable{{Name: "q", Type: spec.QueryVariable}}, []string{"a"}, nil, datasource.ErrInvalidQuery},
-		{
-			"query variable on mismatched datasource",
-			[]spec.Variable{{Name: "q", Type: spec.QueryVariable, Query: "x", Datasource: &spec.DatasourceRef{Type: spec.ClickHouse, UID: "prom"}}},
-			[]string{"a"}, nil, ErrDatasourceTypeMismatch,
-		},
+		{"constant variable is not supported yet", []spec.Variable{{Name: "c", Type: spec.ConstantVariable, Value: "x"}}, nil, nil, ErrInvalidRequest},
 		{
 			"given control byte reaches a dependent variable",
 			[]spec.Variable{multi, queryVariable("q", "prom", "x")}, []string{"a"},
@@ -544,10 +540,8 @@ func TestRunPanelAllListSources(t *testing.T) {
 
 func TestRunPanelAllThroughRealMacros(t *testing.T) {
 	clickHouse := func(query string) (spec.Panel, spec.Variable) {
-		ref := spec.DatasourceRef{Type: spec.ClickHouse, UID: "ch"}
 		v := includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs")
-		v.Datasource = &ref
-		return spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: ref, Query: query}, v
+		return spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}, v
 	}
 	tests := []struct {
 		name    string

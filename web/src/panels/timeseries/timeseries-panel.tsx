@@ -11,7 +11,7 @@ import {
   formatAxisValue,
   formatValue,
 } from "@/lib/units"
-import type { Panel } from "@/spec"
+import type { DataPanel } from "@/spec"
 
 import {
   assignSlots,
@@ -46,7 +46,7 @@ type Latest = {
 }
 
 type PlotConfig = {
-  panel: Pick<Panel, "unit" | "decimals" | "min" | "max" | "thresholds">
+  panel: Pick<DataPanel, "unit" | "decimals" | "min" | "max" | "thresholds">
   syncKey: string
   host: HTMLElement
   latest: { current: Latest }
@@ -410,10 +410,8 @@ function TimeseriesChart({
 
 export const TimeseriesPanel: PanelRenderer = (props) => {
   const { frames, panel } = props
-  const aligned = useMemo(
-    () => alignFrames(frames, panel.legend),
-    [frames, panel.legend]
-  )
+  const legend = panel.queries[0]?.legend
+  const aligned = useMemo(() => alignFrames(frames, legend), [frames, legend])
   if (aligned.series.length === 0 || aligned.xs.length === 0) {
     return <TablePanel {...props} />
   }

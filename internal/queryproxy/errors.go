@@ -10,12 +10,11 @@ import (
 )
 
 var (
-	ErrPanelNotFound          = errors.New("panel not found")
-	ErrUnknownDatasource      = errors.New("unknown datasource")
-	ErrDatasourceTypeMismatch = errors.New("datasource type mismatch")
-	ErrUnknownVariable        = errors.New("unknown variable")
-	ErrVariableEmpty          = errors.New("variable has no values")
-	ErrInvalidRequest         = errors.New("invalid request")
+	ErrPanelNotFound     = errors.New("panel not found")
+	ErrUnknownDatasource = errors.New("unknown datasource")
+	ErrUnknownVariable   = errors.New("unknown variable")
+	ErrVariableEmpty     = errors.New("variable has no values")
+	ErrInvalidRequest    = errors.New("invalid request")
 
 	errInternal = errors.New(internalMessage)
 )
@@ -33,7 +32,6 @@ const (
 	CodeInvalidRequest     spec.IssueCode = "invalid_request"
 	CodeQueryTooLong       spec.IssueCode = "query_too_long"
 	CodeUnknownDatasource  spec.IssueCode = "unknown_datasource"
-	CodeDatasourceMismatch spec.IssueCode = "datasource_type_mismatch"
 	CodeQueryEmpty         spec.IssueCode = "query_empty"
 	CodeVariableFailed     spec.IssueCode = "variable_failed"
 	CodeVariableEmpty      spec.IssueCode = "variable_empty"
@@ -82,8 +80,6 @@ func classifyRunner(err error) (status int, code, message string) {
 		return http.StatusNotFound, string(CodePanelNotFound), err.Error()
 	case errors.Is(err, ErrUnknownDatasource):
 		return http.StatusUnprocessableEntity, string(CodeUnknownDatasource), err.Error()
-	case errors.Is(err, ErrDatasourceTypeMismatch):
-		return http.StatusUnprocessableEntity, string(CodeDatasourceMismatch), err.Error()
 	case errors.Is(err, ErrUnknownVariable):
 		return http.StatusBadRequest, string(CodeInvalidRequest), err.Error()
 	case errors.Is(err, ErrVariableEmpty):

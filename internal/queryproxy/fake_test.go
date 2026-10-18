@@ -151,17 +151,12 @@ func newTestRunner(t *testing.T, logger *slog.Logger, fakes map[string]*fakeData
 
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
-func promRef(uid string) spec.DatasourceRef {
-	return spec.DatasourceRef{Type: spec.Prometheus, UID: uid}
-}
-
 func panelOf(id string, typ spec.PanelType, uid, query string) spec.Panel {
-	return spec.Panel{ID: id, Type: typ, Title: id, Datasource: promRef(uid), Query: query}
+	return spec.Panel{ID: id, Type: typ, Title: id, Datasource: uid, Queries: []spec.Query{{Query: query}}}
 }
 
 func queryVariable(name, uid, query string) spec.Variable {
-	ref := promRef(uid)
-	return spec.Variable{Name: name, Type: spec.QueryVariable, Datasource: &ref, Query: query}
+	return spec.Variable{Name: name, Type: spec.QueryVariable, Datasource: uid, Query: query}
 }
 
 func customVariable(name string, options ...string) spec.Variable {
@@ -172,7 +167,7 @@ func dashboardOf(panels []spec.Panel, variables ...spec.Variable) *spec.Dashboar
 	return &spec.Dashboard{
 		SpecVersion: spec.Version,
 		Title:       "test",
-		TimeRange:   spec.TimeRange{From: "now-6h", To: "now"},
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
 		Variables:   variables,
 		Panels:      panels,
 	}

@@ -4,137 +4,289 @@
  * Relative (now, now-6h, now+1d, now-1d/d) or absolute RFC 3339 time.
  */
 export type TimeExpression = string;
-export type Variable = QueryVariable | CustomVariable;
+export type Variable =
+  | QueryVariable
+  | CustomVariable
+  | ConstantVariable
+  | IntervalVariable
+  | TextboxVariable
+  | DatasourceVariable
+  | AdhocVariable;
 /**
  * Referenced in queries as $name, ${name} or ${name:format}.
  */
 export type VariableName = string;
-export type DatasourceType = "prometheus" | "clickhouse";
-export type Query = string;
-export type PanelType = "timeseries" | "stat" | "table" | "bargauge";
 /**
- * A Grafana unit id.
+ * A configured datasource uid; its type comes from the server's registry.
+ */
+export type DatasourceUid = string;
+export type Query = string;
+/**
+ * Default selection: one value, several for a multi variable, or $__all.
+ */
+export type Selection = string | string[];
+export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel;
+export type DataPanel = FieldProps & DataPanel1;
+/**
+ * A Grafana unit id, or a custom suffix:/prefix: unit.
  */
 export type Unit =
-  | "none"
-  | "short"
-  | "sishort"
-  | "percent"
-  | "percentunit"
-  | "humidity"
-  | "dB"
-  | "hex0x"
-  | "hex"
-  | "sci"
-  | "locale"
-  | "pixel"
-  | "string"
-  | "bool"
-  | "bool_yes_no"
-  | "bool_on_off"
-  | "bits"
-  | "bytes"
-  | "kbytes"
-  | "mbytes"
-  | "gbytes"
-  | "tbytes"
-  | "pbytes"
-  | "decbits"
-  | "decbytes"
-  | "deckbytes"
-  | "decmbytes"
-  | "decgbytes"
-  | "dectbytes"
-  | "decpbytes"
-  | "pps"
-  | "binBps"
-  | "Bps"
-  | "binbps"
-  | "bps"
-  | "KiBs"
-  | "Kibits"
-  | "KBs"
-  | "Kbits"
-  | "MiBs"
-  | "Mibits"
-  | "MBs"
-  | "Mbits"
-  | "GiBs"
-  | "Gibits"
-  | "GBs"
-  | "Gbits"
-  | "TiBs"
-  | "Tibits"
-  | "TBs"
-  | "Tbits"
-  | "cps"
-  | "ops"
-  | "reqps"
-  | "rps"
-  | "wps"
-  | "iops"
-  | "eps"
-  | "mps"
-  | "recps"
-  | "rowsps"
-  | "cpm"
-  | "opm"
-  | "rpm"
-  | "wpm"
-  | "hertz"
-  | "ns"
-  | "µs"
-  | "ms"
-  | "s"
-  | "m"
-  | "h"
-  | "d"
-  | "dtdurationms"
-  | "dtdurations"
-  | "dthms"
-  | "dtdhms"
-  | "timeticks"
-  | "clockms"
-  | "clocks"
-  | "dateTimeAsIso"
-  | "dateTimeAsIsoNoDateIfToday"
-  | "dateTimeAsUS"
-  | "dateTimeAsUSNoDateIfToday"
-  | "dateTimeAsLocal"
-  | "dateTimeAsLocalNoDateIfToday"
-  | "dateTimeAsSystem"
-  | "dateTimeFromNow"
-  | "watt"
-  | "kwatt"
-  | "mwatt"
-  | "watth"
-  | "kwatth"
-  | "joule"
-  | "amp"
-  | "mamp"
-  | "volt"
-  | "mvolt"
-  | "dBm"
-  | "celsius"
-  | "fahrenheit"
-  | "kelvin"
-  | "currencyUSD"
-  | "currencyEUR"
-  | "currencyGBP"
-  | "currencyJPY"
-  | "currencyINR"
-  | "lengthmm"
-  | "lengthm"
-  | "lengthkm"
-  | "massg"
-  | "masskg";
+  | (
+      | "none"
+      | "short"
+      | "sishort"
+      | "percent"
+      | "percentunit"
+      | "humidity"
+      | "dB"
+      | "hex0x"
+      | "hex"
+      | "sci"
+      | "locale"
+      | "pixel"
+      | "string"
+      | "bool"
+      | "bool_yes_no"
+      | "bool_on_off"
+      | "bits"
+      | "bytes"
+      | "kbytes"
+      | "mbytes"
+      | "gbytes"
+      | "tbytes"
+      | "pbytes"
+      | "decbits"
+      | "decbytes"
+      | "deckbytes"
+      | "decmbytes"
+      | "decgbytes"
+      | "dectbytes"
+      | "decpbytes"
+      | "pps"
+      | "binBps"
+      | "Bps"
+      | "binbps"
+      | "bps"
+      | "KiBs"
+      | "Kibits"
+      | "KBs"
+      | "Kbits"
+      | "MiBs"
+      | "Mibits"
+      | "MBs"
+      | "Mbits"
+      | "GiBs"
+      | "Gibits"
+      | "GBs"
+      | "Gbits"
+      | "TiBs"
+      | "Tibits"
+      | "TBs"
+      | "Tbits"
+      | "cps"
+      | "ops"
+      | "reqps"
+      | "rps"
+      | "wps"
+      | "iops"
+      | "eps"
+      | "mps"
+      | "recps"
+      | "rowsps"
+      | "cpm"
+      | "opm"
+      | "rpm"
+      | "wpm"
+      | "hertz"
+      | "ns"
+      | "µs"
+      | "ms"
+      | "s"
+      | "m"
+      | "h"
+      | "d"
+      | "dtdurationms"
+      | "dtdurations"
+      | "dthms"
+      | "dtdhms"
+      | "timeticks"
+      | "clockms"
+      | "clocks"
+      | "dateTimeAsIso"
+      | "dateTimeAsIsoNoDateIfToday"
+      | "dateTimeAsUS"
+      | "dateTimeAsUSNoDateIfToday"
+      | "dateTimeAsLocal"
+      | "dateTimeAsLocalNoDateIfToday"
+      | "dateTimeAsSystem"
+      | "dateTimeFromNow"
+      | "watt"
+      | "kwatt"
+      | "mwatt"
+      | "watth"
+      | "kwatth"
+      | "joule"
+      | "amp"
+      | "mamp"
+      | "volt"
+      | "mvolt"
+      | "dBm"
+      | "celsius"
+      | "fahrenheit"
+      | "kelvin"
+      | "currencyUSD"
+      | "currencyEUR"
+      | "currencyGBP"
+      | "currencyJPY"
+      | "currencyINR"
+      | "lengthmm"
+      | "lengthm"
+      | "lengthkm"
+      | "massg"
+      | "masskg"
+    )
+  | string;
 /**
  * A semantic color (ok, info, warning, critical) or a #rrggbb hex color.
  */
-export type ThresholdColor = string;
+export type Color = string;
+/**
+ * Strictly ascending by value.
+ *
+ * @minItems 1
+ * @maxItems 10
+ */
+export type Thresholds = Threshold[];
+/**
+ * Value mapping; needs text, color or both.
+ */
+export type Mapping =
+  | {
+      value: string;
+      text?: string;
+      color?: Color;
+    }
+  | {
+      /**
+       * @minItems 2
+       * @maxItems 2
+       */
+      range: unknown[];
+      text?: string;
+      color?: Color;
+    }
+  | {
+      regex: string;
+      text?: string;
+      color?: Color;
+    }
+  | {
+      special: "null" | "nan" | "empty" | "true" | "false";
+      text?: string;
+      color?: Color;
+    };
+export type QueryRef = string;
+export type Override = FieldProps & Override1;
+export type Match =
+  | {
+      query: QueryRef;
+    }
+  | {
+      series: string;
+    }
+  | {
+      seriesRegex: string;
+    }
+  | {
+      field: string;
+    }
+  | {
+      fieldType: "number" | "string" | "time" | "boolean";
+    };
+export type Transform =
+  | {
+      type: "merge";
+    }
+  | {
+      type: "seriesToRows";
+    }
+  | {
+      type: "organize";
+      /**
+       * @minItems 1
+       * @maxItems 100
+       */
+      exclude?: string[];
+      rename?: {
+        [k: string]: string;
+      };
+      /**
+       * @minItems 1
+       * @maxItems 100
+       */
+      order?: string[];
+    }
+  | {
+      type: "reduce";
+      /**
+       * @minItems 1
+       * @maxItems 10
+       */
+      reducers: Reducer[];
+      mode?: "seriesToRows" | "reduceFields";
+    }
+  | {
+      type: "joinByField";
+      field?: string;
+      mode?: "outer" | "inner";
+    }
+  | {
+      type: "filterFieldsByName";
+      /**
+       * @minItems 1
+       * @maxItems 100
+       */
+      include?: string[];
+      includeRegex?: string;
+    }
+  | {
+      type: "calculateField";
+      alias: string;
+      /**
+       * field_or_number op field_or_number, op one of + - * /.
+       */
+      expr?: string;
+      reduceRow?: Reducer;
+    }
+  | {
+      type: "sortBy";
+      field: string;
+      desc?: boolean;
+    }
+  | {
+      type: "limit";
+      count: number;
+    };
+export type Reducer =
+  | "last"
+  | "lastNotNull"
+  | "first"
+  | "firstNotNull"
+  | "min"
+  | "max"
+  | "mean"
+  | "median"
+  | "sum"
+  | "count"
+  | "range"
+  | "delta"
+  | "diff"
+  | "stdDev"
+  | "distinctCount"
+  | "changeCount";
 
 /**
- * ObserveSpec v0: one SlashObserve dashboard.
+ * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).
  */
 export interface Dashboard {
   specVersion: "0";
@@ -144,16 +296,26 @@ export interface Dashboard {
    * @maxItems 20
    */
   tags?: string[];
-  timeRange: TimeRange;
+  time: TimeRange;
   /**
    * Auto-refresh interval such as 30s, 1m or 1h.
    */
   refresh?: string;
   /**
+   * browser, utc or an IANA zone such as Asia/Kolkata.
+   */
+  timezone?: string;
+  /**
    * @maxItems 20
    */
   variables?: Variable[];
   /**
+   * @maxItems 20
+   */
+  links?: Link[];
+  /**
+   * At most 100 panels in total, row children included; ids are unique across all of them.
+   *
    * @minItems 1
    * @maxItems 100
    */
@@ -166,19 +328,24 @@ export interface TimeRange {
 export interface QueryVariable {
   name: VariableName;
   label?: string;
+  description?: string;
+  hide?: "label" | "variable";
   type: "query";
-  datasource: DatasourceRef;
+  datasource: DatasourceUid;
   query: Query;
+  regex?: string;
+  sort?: "alpha" | "alphaDesc" | "num" | "numDesc";
+  refresh?: "load" | "timeRange";
   multi?: boolean;
   includeAll?: boolean;
-}
-export interface DatasourceRef {
-  type: DatasourceType;
-  uid: string;
+  allValue?: string;
+  default?: Selection;
 }
 export interface CustomVariable {
   name: VariableName;
   label?: string;
+  description?: string;
+  hide?: "label" | "variable";
   type: "custom";
   /**
    * @minItems 1
@@ -187,30 +354,143 @@ export interface CustomVariable {
   options: string[];
   multi?: boolean;
   includeAll?: boolean;
+  allValue?: string;
+  default?: Selection;
 }
-export interface Panel {
-  /**
-   * Stable across versions; comments anchor to it.
-   */
-  id: string;
-  type: PanelType;
-  title: string;
+export interface ConstantVariable {
+  name: VariableName;
+  label?: string;
   description?: string;
-  gridPos: GridPos;
-  datasource: DatasourceRef;
-  query: Query;
-  legend?: string;
+  hide?: "label" | "variable";
+  type: "constant";
+  value: string;
+}
+export interface IntervalVariable {
+  name: VariableName;
+  label?: string;
+  description?: string;
+  hide?: "label" | "variable";
+  type: "interval";
+  /**
+   * @minItems 1
+   * @maxItems 50
+   */
+  options: string[];
+  auto?: boolean;
+  autoSteps?: number;
+  autoMin?: string;
+  default?: string;
+}
+export interface TextboxVariable {
+  name: VariableName;
+  label?: string;
+  description?: string;
+  hide?: "label" | "variable";
+  type: "textbox";
+  default?: string;
+}
+export interface DatasourceVariable {
+  name: VariableName;
+  label?: string;
+  description?: string;
+  hide?: "label" | "variable";
+  type: "datasource";
+  datasourceType: "prometheus" | "clickhouse";
+  regex?: string;
+  default?: DatasourceUid;
+}
+export interface AdhocVariable {
+  name: VariableName;
+  label?: string;
+  description?: string;
+  hide?: "label" | "variable";
+  type: "adhoc";
+  datasource: DatasourceUid;
+}
+/**
+ * Panel, dashboard or data link; ${var} and ${__data.fields.x} are interpolated.
+ */
+export interface Link {
+  title: string;
+  url: string;
+  newTab?: boolean;
+}
+/**
+ * Display properties shared by a panel and its overrides.
+ */
+export interface FieldProps {
   unit?: Unit;
   decimals?: number;
   min?: number;
   max?: number;
+  thresholds?: Thresholds;
+  thresholdMode?: "absolute" | "percentage";
+  color?: Color;
+  displayName?: string;
+  noValue?: string;
   /**
-   * Strictly ascending by value.
-   *
-   * @minItems 1
-   * @maxItems 10
+   * @maxItems 50
    */
-  thresholds?: Threshold[];
+  mappings?: Mapping[];
+  /**
+   * @maxItems 20
+   */
+  links?: Link[];
+  style?: "line" | "bars" | "points";
+  fill?: number;
+  lineStyle?: "solid" | "dashed" | "dotted";
+  stack?: "none" | "normal" | "percent";
+  axis?: "left" | "right" | "hidden";
+  hidden?: boolean;
+}
+/**
+ * Only the first step may omit value; it is then the base color below every other step.
+ */
+export interface Threshold {
+  value?: number;
+  color: Color;
+}
+export interface DataPanel1 {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  title: string;
+  description?: string;
+  gridPos: GridPos;
+  type:
+    | "timeseries"
+    | "stat"
+    | "gauge"
+    | "bargauge"
+    | "table"
+    | "piechart"
+    | "heatmap"
+    | "histogram"
+    | "state-timeline"
+    | "logs";
+  datasource: DatasourceUid;
+  /**
+   * @minItems 1
+   * @maxItems 26
+   */
+  queries: PanelQuery[];
+  /**
+   * @maxItems 50
+   */
+  overrides?: Override[];
+  /**
+   * @maxItems 20
+   */
+  transform?: Transform[];
+  repeat?: VariableName;
+  repeatDirection?: "h" | "v";
+  maxPerRow?: number;
+  timeFrom?: string;
+  timeShift?: string;
+  interval?: string;
+  maxDataPoints?: number;
+  display?: {};
 }
 /**
  * Position on the 24-column grid; x + w must not exceed 24.
@@ -221,7 +501,66 @@ export interface GridPos {
   w: number;
   h: number;
 }
-export interface Threshold {
-  value: number;
-  color: ThresholdColor;
+/**
+ * ref defaults to A, B, C by position; datasource defaults to the panel's.
+ */
+export interface PanelQuery {
+  ref?: QueryRef;
+  query: Query;
+  legend?: string;
+  datasource?: DatasourceUid;
+  instant?: boolean;
+  format?: "timeseries" | "table" | "heatmap" | "logs";
+  interval?: string;
+  hide?: boolean;
+}
+export interface Override1 {
+  match: Match;
+}
+export interface TextPanel {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  title?: string;
+  description?: string;
+  gridPos: GridPos;
+  type: "text";
+  /**
+   * Markdown, rendered sanitized.
+   */
+  content: string;
+}
+/**
+ * Written only by the importer for a Grafana panel we cannot render yet; the agent may move or delete it but not create one.
+ */
+export interface PlaceholderPanel {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  title?: string;
+  description?: string;
+  gridPos: GridPos;
+  type: "placeholder";
+  reason: string;
+  sourceType?: string;
+}
+/**
+ * Child panels are always nested, collapsed or not.
+ */
+export interface RowPanel {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  type: "row";
+  title: string;
+  gridPos: GridPos;
+  collapsed?: boolean;
+  repeat?: VariableName;
+  /**
+   * @maxItems 100
+   */
+  panels?: (DataPanel | TextPanel | PlaceholderPanel)[];
 }

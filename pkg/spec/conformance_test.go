@@ -2,6 +2,7 @@ package spec_test
 
 import (
 	"encoding/json"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -13,6 +14,9 @@ import (
 type schemaNode struct {
 	Required   []string                   `json:"required"`
 	Properties map[string]json.RawMessage `json:"properties"`
+	OneOf      []schemaNode               `json:"oneOf"`
+	AllOf      []json.RawMessage          `json:"allOf"`
+	Ref        string                     `json:"$ref"`
 }
 
 type schemaDoc struct {
@@ -37,29 +41,77 @@ type jsonField struct {
 func jsonFields(t reflect.Type) []jsonField {
 	var out []jsonField
 	for i := range t.NumField() {
-		name, opts, _ := strings.Cut(t.Field(i).Tag.Get("json"), ",")
+		f := t.Field(i)
+		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if f.Anonymous && name == "" && f.Type.Kind() == reflect.Struct {
+			out = append(out, jsonFields(f.Type)...)
+			continue
+		}
 		out = append(out, jsonField{name: name, omitEmpty: slices.Contains(strings.Split(opts, ","), "omitempty")})
 	}
 	return out
 }
 
+func mergeProps(node schemaNode, extra schemaNode) schemaNode {
+	props := map[string]json.RawMessage{}
+	maps.Copy(props, node.Properties)
+	maps.Copy(props, extra.Properties)
+	return schemaNode{Required: node.Required, Properties: props}
+}
+
+func displayNode(t *testing.T, doc schemaDoc) schemaNode {
+	t.Helper()
+	props := map[string]json.RawMessage{}
+	for _, raw := range doc.Defs["dataPanel"].AllOf {
+		var branch struct {
+			Then struct {
+				Properties struct {
+					Display schemaNode `json:"display"`
+				} `json:"properties"`
+			} `json:"then"`
+		}
+		if err := json.Unmarshal(raw, &branch); err != nil {
+			t.Fatalf("decode dataPanel allOf: %v", err)
+		}
+		maps.Copy(props, branch.Then.Properties.Display.Properties)
+	}
+	if len(props) == 0 {
+		t.Fatal("dataPanel has no display properties")
+	}
+	return schemaNode{Properties: props}
+}
+
 func TestTypesMatchSchema(t *testing.T) {
 	doc := loadSchema(t)
+	d := doc.Defs
+	fieldProps := d["fieldProps"]
+	variables := []schemaNode{d["queryVariable"], d["customVariable"], d["constantVariable"], d["intervalVariable"], d["textboxVariable"], d["datasourceVariable"], d["adhocVariable"]}
+	panels := []schemaNode{mergeProps(d["dataPanel"], fieldProps), d["textPanel"], d["placeholderPanel"], d["rowPanel"]}
 	cases := []struct {
 		name  string
 		typ   reflect.Type
 		nodes []schemaNode
 	}{
 		{"Dashboard", reflect.TypeFor[spec.Dashboard](), []schemaNode{doc.schemaNode}},
-		{"TimeRange", reflect.TypeFor[spec.TimeRange](), []schemaNode{doc.Defs["timeRange"]}},
-		{"Panel", reflect.TypeFor[spec.Panel](), []schemaNode{doc.Defs["panel"]}},
-		{"GridPos", reflect.TypeFor[spec.GridPos](), []schemaNode{doc.Defs["gridPos"]}},
-		{"DatasourceRef", reflect.TypeFor[spec.DatasourceRef](), []schemaNode{doc.Defs["datasourceRef"]}},
-		{"Threshold", reflect.TypeFor[spec.Threshold](), []schemaNode{doc.Defs["threshold"]}},
-		{"Variable", reflect.TypeFor[spec.Variable](), []schemaNode{doc.Defs["queryVariable"], doc.Defs["customVariable"]}},
+		{"TimeRange", reflect.TypeFor[spec.TimeRange](), []schemaNode{d["timeRange"]}},
+		{"GridPos", reflect.TypeFor[spec.GridPos](), []schemaNode{d["gridPos"]}},
+		{"Threshold", reflect.TypeFor[spec.Threshold](), []schemaNode{d["threshold"]}},
+		{"Link", reflect.TypeFor[spec.Link](), []schemaNode{d["link"]}},
+		{"Query", reflect.TypeFor[spec.Query](), []schemaNode{d["panelQuery"]}},
+		{"FieldProps", reflect.TypeFor[spec.FieldProps](), []schemaNode{fieldProps}},
+		{"Variable", reflect.TypeFor[spec.Variable](), variables},
+		{"Panel", reflect.TypeFor[spec.Panel](), panels},
+		{"Override", reflect.TypeFor[spec.Override](), []schemaNode{mergeProps(d["override"], fieldProps)}},
+		{"Mapping", reflect.TypeFor[spec.Mapping](), d["mapping"].OneOf},
+		{"Match", reflect.TypeFor[spec.Match](), d["match"].OneOf},
+		{"Transform", reflect.TypeFor[spec.Transform](), d["transform"].OneOf},
+		{"Display", reflect.TypeFor[spec.Display](), []schemaNode{displayNode(t, doc)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if len(tc.nodes) == 0 {
+				t.Fatal("no schema nodes")
+			}
 			props := map[string]bool{}
 			required := map[string]bool{}
 			for _, n := range tc.nodes {
@@ -98,8 +150,11 @@ func TestTypesMatchSchema(t *testing.T) {
 
 func TestUnits(t *testing.T) {
 	units := spec.Units()
-	if !slices.Contains(units, "reqps") {
-		t.Fatalf("Units() does not contain reqps: %v", units)
+	if !slices.Contains(units, "reqps") || !slices.Contains(units, "µs") {
+		t.Fatalf("Units() does not contain reqps and µs: %v", units)
+	}
+	if len(units) != 112 {
+		t.Fatalf("Units() has %d entries, want 112", len(units))
 	}
 	units[0] = "mutated"
 	if spec.Units()[0] == "mutated" {

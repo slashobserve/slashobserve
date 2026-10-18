@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
 
-import { languageFor, type QueryLanguage } from "./extensions"
+import { languageFor } from "./extensions"
 import { serverLinter, type LintResult } from "./server-lint"
 import "./query-editor.css"
 
@@ -13,7 +13,7 @@ export type CodeEditorHandle = { focusAt: (from: number) => void }
 type Props = {
   value: string
   onChange: (value: string) => void
-  datasource: { type: QueryLanguage; uid: string }
+  datasource: { type?: string; uid: string }
   readOnly: boolean
   ariaLabel: string
   onLint: (result: LintResult) => void

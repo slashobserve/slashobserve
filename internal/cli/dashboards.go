@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const defaultPageSize = 50
@@ -31,16 +33,7 @@ type versionMeta struct {
 
 type versionBody struct {
 	versionMeta
-	Spec struct {
-		Panels []struct {
-			ID         string `json:"id"`
-			Type       string `json:"type"`
-			Title      string `json:"title"`
-			Datasource struct {
-				UID string `json:"uid"`
-			} `json:"datasource"`
-		} `json:"panels"`
-	} `json:"spec"`
+	Spec spec.Dashboard `json:"spec"`
 }
 
 type pageOptions struct {
@@ -188,9 +181,10 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 		{"Author", text(shown.Version.Author.Name)},
 		{"Summary", text(shown.Version.Summary)},
 	})
-	rows := make([][]string, 0, len(shown.Version.Spec.Panels))
-	for _, p := range shown.Version.Spec.Panels {
-		rows = append(rows, []string{text(p.ID), text(p.Type), text(p.Datasource.UID), text(p.Title)})
+	entries := shown.Version.Spec.AllPanels()
+	rows := make([][]string, 0, len(entries))
+	for _, e := range entries {
+		rows = append(rows, []string{text(e.Panel.ID), text(string(e.Panel.Type)), text(panelDatasource(e.Panel)), text(e.Panel.Title)})
 	}
 	out.line("")
 	out.table([]string{"PANEL", "TYPE", "DATASOURCE", "TITLE"}, rows)
@@ -241,4 +235,11 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 	out.table([]string{"VERSION", "PARENT", "AUTHOR", "CREATED", "SUMMARY"}, rows)
 	nextPageHint(out, page.NextCursor)
 	return nil
+}
+
+func panelDatasource(p *spec.Panel) string {
+	if len(p.Queries) > 0 {
+		return p.QueryDatasource(0)
+	}
+	return p.Datasource
 }
