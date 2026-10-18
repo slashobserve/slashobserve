@@ -66,6 +66,13 @@ func TestUpgradeGolden(t *testing.T) {
 			if got := decodeJSON(t, out); !reflect.DeepEqual(got, want) {
 				t.Fatalf("upgraded document differs from golden\ngot:  %s\nwant: %v", out, want)
 			}
+			again, changed, err := spec.Upgrade(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if changed || !bytes.Equal(again, out) {
+				t.Fatalf("upgrading the output again changed it\ngot:  %s\nwant: %s", again, out)
+			}
 		})
 	}
 }
@@ -91,8 +98,8 @@ func TestUpgradeIsIdempotent(t *testing.T) {
 func TestUpgradeKeepsNumbersAndUnknownMembers(t *testing.T) {
 	in := []byte(`{"specVersion":"0","title":"T","timeRange":{"from":"now-1h","to":"now"},
 "panels":[{"id":"p1","type":"timeseries","title":"A","gridPos":{"x":0,"y":0,"w":12,"h":8},
-"datasource":{"type":"prometheus","uid":"prom"},"query":"up",
-"options":{"min":0.1000,"decimals":2},"y":10000,"bogus":{"a":[1,2]}}]}`)
+"datasource":{"type":"prometheus","uid":"prom"},"query":"rate(up[5m]) > 0 && 1",
+"min":0.1000,"decimals":2,"y":10000,"bogus":{"a":[1,2]}}]}`)
 	out, changed, err := spec.Upgrade(in)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +107,7 @@ func TestUpgradeKeepsNumbersAndUnknownMembers(t *testing.T) {
 	if !changed {
 		t.Fatal("changed = false, want true")
 	}
-	for _, want := range []string{"0.1000", `"decimals":2`, `"y":10000`, `"bogus":{"a":[1,2]}`} {
+	for _, want := range []string{"0.1000", `"decimals":2`, `"y":10000`, `"bogus":{"a":[1,2]}`, `rate(up[5m]) > 0 && 1`} {
 		if !bytes.Contains(out, []byte(want)) {
 			t.Errorf("output lacks %s: %s", want, out)
 		}

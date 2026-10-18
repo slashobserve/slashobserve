@@ -24,11 +24,13 @@ func Upgrade(data []byte) (out []byte, changed bool, err error) {
 	if !changed {
 		return data, false, nil
 	}
-	out, err = json.Marshal(doc)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(doc); err != nil {
 		return nil, false, fmt.Errorf("spec: upgrade: %w", err)
 	}
-	return out, true, nil
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), true, nil
 }
 
 func decodeDocument(data []byte) (map[string]any, error) {
