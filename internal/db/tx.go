@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const rollbackTimeout = 5 * time.Second
@@ -20,7 +20,7 @@ func (d *DB) InTx(ctx context.Context, fn func(*dbsqlc.Queries) error) error {
 		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
 		defer cancel()
 		if rerr := tx.Rollback(rctx); rerr != nil {
-			d.logger.WarnContext(ctx, "roll back transaction", slog.Any("error", rerr))
+			d.logger.WarnContext(ctx, "roll back transaction", logattrs.Failure("rollback_failed", rerr)...)
 		}
 	}
 	defer func() {

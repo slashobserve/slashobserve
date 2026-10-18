@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -80,7 +79,7 @@ func (f *fakeDS) lastRequest() datasource.DiscoverRequest {
 func newTestRegistry(t *testing.T, ds *fakeDS, logger *slog.Logger) *Registry {
 	t.Helper()
 	if logger == nil {
-		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+		logger = slog.New(slog.DiscardHandler)
 	}
 	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: ds})
 	if err != nil {

@@ -35,8 +35,9 @@ Directories are created when their phase starts; this is where things go.
 - `cmd/slashobserve-server/`: server binary (`healthcheck` subcommand backs the Docker health check).
 - `cmd/observe/` + `internal/cli/`: the `observe` CLI (API client with a service-account key; settings from flags, `OBSERVE_SERVER`/`OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`; the saved key goes only to the server it was saved for).
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
-- `internal/logattrs/`: turns an error into log attributes that are safe to write (the innermost Go error type and, for a Postgres error, the SQLSTATE) without its message, which can echo queries, tool results or credentials; not test-only, and used by the agent, MCP and query proxy log lines.
-- `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
+- `internal/logattrs/`: turns an error into log attributes that are safe to write (the innermost Go error type, for a Postgres error the SQLSTATE, and for a system error the `errno` text) without its message, which can echo queries, tool results or credentials; not test-only, and used by every server log line that reports an error except `internal/revisions` for now.
+- `internal/logtest/`: test-only capture logger and assertions for log lines (see the Logging convention).
+- `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`, or `dbtest.NewWithLogger(t, logger)` to capture the DB's own log lines; skipped under `-short`).
 - `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
@@ -136,6 +137,12 @@ Directories are created when their phase starts; this is where things go.
   ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
   `GET /api/v1/datasources` returns health only, never a URL, address, user or secret, and datasources never gate `/readyz`.
 - Logging: `log/slog`, JSON by default; request logs record the path, never the query string.
+  The server never logs secrets, prompt text, query text or tool results, so a failure is logged as a fixed message plus `logattrs.Failure(code, err, ids...)` (`error_code`, `error_type`, `sqlstate`) and the relevant ids, never `err.Error()`, and a panic by its type only.
+  `sloglint` (in `make lint`) forbids the literal attribute keys `error` and `err` in slog calls under `internal/`, `cmd/` and `pkg/`, tests included; `internal/logattrs` and, for now, `internal/revisions` are exempt, and `demo/` is out of scope.
+  It cannot see a key built through a variable or a helper, or `err.Error()` under another key, so review those by hand.
+  A fatal startup error keeps its text only through `described` in `cmd/slashobserve-server/main.go`, for messages the server wrote from settings (never echo a URL setting); driver, DSN and library causes are reduced to `error_code`, `error_type`, `sqlstate` and `errno`, plus ids the server owns (`db_host` and `db_port` parsed from the setting, `datasource_uid` and the datasource's own `ConfigError` text from `provision.BuildError`, `migration_version`).
+  `internal/logtest` captures a logger for tests (`AssertSafeFailure` checks the code and type and that the error text is absent).
+  The one exception: `internal/revisions` is not converted yet (exempt from `sloglint` for now; remove the exemption in `.golangci.yaml` when it is).
 - API contract: every `/api/v1` route is documented in `api/`.
   The e2e stack runs with `SLASHOBSERVE_API_CONTRACT_CHECK=true`, which refuses to boot on undocumented routes (or documented operations with no route) and turns any request or response that breaks the document into a 500 `{"error":"api contract violation","code":"contract_violation"}`.
   A request that breaks the document is allowed only when the handler refuses it with a 4xx.

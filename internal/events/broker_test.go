@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 const (
@@ -63,8 +66,13 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWithLogger(t, slog.New(slog.DiscardHandler))
+}
+
+func newHarnessWithLogger(t *testing.T, logger *slog.Logger) *harness {
+	t.Helper()
 	l := newFakeListener()
-	b := NewBroker(l.listen, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	b := NewBroker(l.listen, logger)
 	b.minBackoff = time.Millisecond
 	b.maxBackoff = 2 * time.Millisecond
 	ctx, cancel := context.WithCancel(context.Background())
@@ -305,5 +313,20 @@ func TestBrokerConcurrentSubscribeAndClose(t *testing.T) {
 
 	if _, err := h.broker.Subscribe("d1"); !errors.Is(err, ErrClosed) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestListenerFailureLogsOnlyCodeAndType(t *testing.T) {
+	logger, logs := logtest.New()
+	h := newHarnessWithLogger(t, logger)
+	h.run()
+
+	h.l.nextCall(t).fail <- &pgconn.PgError{Code: "08006", Message: `connection to server at "db.internal" (10.0.0.5), port 5432 failed`}
+	h.l.nextCall(t)
+
+	record := logs.Find(t, "event listener failed")
+	logs.AssertSafeFailure(t, record, "event_listener_failed", "db.internal", "10.0.0.5")
+	if record["sqlstate"] != "08006" {
+		t.Errorf("sqlstate = %v, want 08006", record["sqlstate"])
 	}
 }

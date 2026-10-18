@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -79,7 +80,7 @@ func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
 		logger.ErrorContext(c.Request.Context(), "panic serving request",
 			slog.String("method", c.Request.Method),
 			slog.String("path", c.Request.URL.Path),
-			slog.Any("panic", recovered))
+			slog.String("panic_type", fmt.Sprintf("%T", recovered)))
 		c.AbortWithStatus(http.StatusInternalServerError)
 	})
 }

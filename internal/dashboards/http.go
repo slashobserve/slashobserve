@@ -5,12 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -228,7 +231,12 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
-		s.logger.ErrorContext(ctx, action, "error", err)
+		principal := httpapi.Caller(c)
+		attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}
+		if id, parseErr := db.ParseUUID(c.Param("id")); parseErr == nil {
+			attrs = append(attrs, slog.String("dashboard_id", id.String()))
+		}
+		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, attrs...)...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
 }

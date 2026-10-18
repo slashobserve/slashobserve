@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -28,6 +30,8 @@ const (
 	maxDisplayNameRunes = 256
 	maxEmailBytes       = 254
 )
+
+var oauthErrorPattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
 
 type loginFailure struct {
 	code   string
@@ -40,7 +44,7 @@ func (s *Service) login(c *gin.Context) {
 	ctx := c.Request.Context()
 	provider, err := s.provider(ctx)
 	if err != nil {
-		s.logger.WarnContext(ctx, "oidc discovery failed", slog.Any("error", err))
+		s.logger.WarnContext(ctx, "oidc discovery failed", logattrs.Failure("oidc_unavailable", err)...)
 		c.Redirect(http.StatusFound, loginErrorPath("unavailable"))
 		return
 	}
@@ -48,12 +52,12 @@ func (s *Service) login(c *gin.Context) {
 	returnTo := safeReturnTo(c.Query("return_to"))
 	state, stateHash, nonce, verifier, err := newLoginSecrets()
 	if err != nil {
-		s.logger.ErrorContext(ctx, "generate login state", slog.Any("error", err))
+		s.logger.ErrorContext(ctx, "generate login state", logattrs.Failure("login_state_failed", err)...)
 		c.Redirect(http.StatusFound, loginErrorPath("internal"))
 		return
 	}
 	if err := s.queries.DeleteExpiredLoginStates(ctx); err != nil {
-		s.logger.WarnContext(ctx, "delete expired login states", slog.Any("error", err))
+		s.logger.WarnContext(ctx, "delete expired login states", logattrs.Failure("login_state_cleanup_failed", err)...)
 	}
 	err = s.queries.CreateLoginState(ctx, dbsqlc.CreateLoginStateParams{
 		StateHash:    stateHash,
@@ -63,7 +67,7 @@ func (s *Service) login(c *gin.Context) {
 		ExpiresAt:    pgtype.Timestamptz{Time: time.Now().Add(loginStateTTL), Valid: true},
 	})
 	if err != nil {
-		s.logger.ErrorContext(ctx, "store login state", slog.Any("error", err))
+		s.logger.ErrorContext(ctx, "store login state", logattrs.Failure("login_state_failed", err)...)
 		c.Redirect(http.StatusFound, loginErrorPath("internal"))
 		return
 	}
@@ -116,7 +120,7 @@ func (s *Service) callback(c *gin.Context) {
 	}
 	if old, err := c.Request.Cookie(s.sessionCookie); err == nil && old.Value != "" {
 		if err := s.queries.DeleteSession(ctx, hashToken(old.Value)); err != nil {
-			s.logger.WarnContext(ctx, "delete previous session", slog.Any("error", err))
+			s.logger.WarnContext(ctx, "delete previous session", logattrs.Failure("session_cleanup_failed", err)...)
 		}
 	}
 	s.setCookie(c, s.sessionCookie, token, int(s.cfg.SessionTTL.Seconds()))
@@ -186,7 +190,7 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	if err := s.queries.DeleteExpiredSessions(ctx); err != nil {
-		s.logger.WarnContext(ctx, "delete expired sessions", slog.Any("error", err))
+		s.logger.WarnContext(ctx, "delete expired sessions", logattrs.Failure("session_cleanup_failed", err)...)
 	}
 	return token, nil
 }
@@ -211,12 +215,16 @@ func truncateRunes(s string, limit int) string {
 }
 
 func (s *Service) refuse(c *gin.Context, f *loginFailure) {
-	attrs := []any{slog.String("code", f.code)}
+	attrs := []any{slog.String("error_code", f.code)}
 	if f.reason != "" {
 		attrs = append(attrs, slog.String("reason", f.reason))
 	}
 	if f.err != nil {
-		attrs = append(attrs, slog.Any("error", f.err))
+		attrs = append(attrs, logattrs.Safe(f.err)...)
+		var retrieveErr *oauth2.RetrieveError
+		if errors.As(f.err, &retrieveErr) && oauthErrorPattern.MatchString(retrieveErr.ErrorCode) {
+			attrs = append(attrs, slog.String("oauth_error", retrieveErr.ErrorCode))
+		}
 	}
 	attrs = append(attrs, f.attrs...)
 	msg := "sign-in failed"
@@ -234,7 +242,7 @@ func (s *Service) logout(c *gin.Context) {
 	}
 	if cookie, err := c.Request.Cookie(s.sessionCookie); err == nil && cookie.Value != "" {
 		if err := s.queries.DeleteSession(c.Request.Context(), hashToken(cookie.Value)); err != nil {
-			s.logger.ErrorContext(c.Request.Context(), "delete session", slog.Any("error", err))
+			s.logger.ErrorContext(c.Request.Context(), "delete session", logattrs.Failure("session_delete_failed", err)...)
 			abortError(c, http.StatusInternalServerError, "internal", "internal error")
 			return
 		}
@@ -246,7 +254,7 @@ func (s *Service) logout(c *gin.Context) {
 func (s *Service) session(c *gin.Context) {
 	p, ok, err := s.sessionPrincipal(c)
 	if err != nil {
-		s.logger.ErrorContext(c.Request.Context(), "resolve session", slog.Any("error", err))
+		s.logger.ErrorContext(c.Request.Context(), "resolve session", logattrs.Failure("session_lookup_failed", err)...)
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}

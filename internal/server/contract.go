@@ -71,7 +71,7 @@ func (ct *contract) middleware(c *gin.Context) {
 	ctx := c.Request.Context()
 	route, pathParams, err := ct.router.FindRoute(c.Request)
 	if err != nil {
-		ct.violation(c, nil, "no documented operation")
+		ct.violation(c, nil, "no documented operation", 0)
 		return
 	}
 	input := &openapi3filter.RequestValidationInput{
@@ -82,7 +82,7 @@ func (ct *contract) middleware(c *gin.Context) {
 	}
 	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxContractBodyBytes+1))
 	if err != nil {
-		ct.violation(c, route, "request body is unreadable")
+		ct.violation(c, route, "request body is unreadable", 0)
 		return
 	}
 	if len(body) > maxContractBodyBytes {
@@ -114,7 +114,7 @@ func (ct *contract) middleware(c *gin.Context) {
 		return
 	}
 	if requestErr != nil && !isClientError(buffered.status) {
-		ct.violation(c, route, fmt.Sprintf("request breaks the document but was accepted with status %d: %s", buffered.status, describe(requestErr)))
+		ct.violation(c, route, fmt.Sprintf("request breaks the document but was accepted with status %d: %s", buffered.status, describe(requestErr)), buffered.status)
 		return
 	}
 	responseInput := &openapi3filter.ResponseValidationInput{
@@ -125,7 +125,7 @@ func (ct *contract) middleware(c *gin.Context) {
 	}
 	responseInput.SetBodyBytes(buffered.body.Bytes())
 	if err := openapi3filter.ValidateResponse(ctx, responseInput); err != nil {
-		ct.violation(c, route, describe(err))
+		ct.violation(c, route, describe(err), buffered.status)
 		return
 	}
 	clear(original.Header())
@@ -147,12 +147,16 @@ func (ct *contract) logAcceptedInvalidRequest(c *gin.Context, route *routers.Rou
 		ct.logger.ErrorContext(c.Request.Context(), contractViolation,
 			slog.String("method", route.Method),
 			slog.String("route", route.Path),
-			slog.String("error", describe(requestErr)))
+			slog.Int("status", c.Writer.Status()),
+			slog.String("reason", describe(requestErr)))
 	}
 }
 
-func (ct *contract) violation(c *gin.Context, route *routers.Route, reason string) {
-	attrs := []any{slog.String("method", c.Request.Method), slog.String("error", reason)}
+func (ct *contract) violation(c *gin.Context, route *routers.Route, reason string, status int) {
+	attrs := []any{slog.String("method", c.Request.Method), slog.String("reason", reason)}
+	if status != 0 {
+		attrs = append(attrs, slog.Int("status", status))
+	}
 	if route != nil {
 		attrs = append(attrs, slog.String("route", route.Path))
 	} else {
@@ -218,32 +222,60 @@ func streamsEvents(op *openapi3.Operation) bool {
 	return false
 }
 
+// Response-side reasons are fixed texts from kin-openapi that interpolate only a MIME type, a header name or a schema
+// id, and the fields of a response are written by the server. A request carries client input, so its reason is withheld.
 func describe(err error) string {
 	var parts []string
 	var requestErr *openapi3filter.RequestError
 	var responseErr *openapi3filter.ResponseError
 	var schemaErr *openapi3.SchemaError
+	isResponse := false
 	switch {
 	case errors.As(err, &responseErr):
+		isResponse = true
 		parts = append(parts, reasonOrFallback(responseErr.Reason, "response does not match the document", responseErr.Err))
 	case errors.As(err, &requestErr):
 		if p := requestErr.Parameter; p != nil {
 			parts = append(parts, "parameter "+p.In+" "+p.Name)
 		}
-		parts = append(parts, reasonOrFallback(requestErr.Reason, "request does not match the document", requestErr.Err))
+		parts = append(parts, causeOrFallback("request does not match the document", requestErr.Err))
 	default:
 		parts = append(parts, "validation failed")
 	}
 	if errors.As(err, &schemaErr) {
-		parts = append(parts, "/"+strings.Join(schemaErr.JSONPointer(), "/")+": "+schemaErr.Reason)
+		parts = append(parts, "/"+strings.Join(schemaErr.JSONPointer(), "/")+": "+schemaErr.SchemaField)
+		if extra := undocumentedFields(schemaErr); isResponse && len(extra) > 0 {
+			parts = append(parts, "undocumented fields "+strings.Join(extra, ", "))
+		}
 	}
 	return strings.Join(parts, ": ")
+}
+
+const maxReportedFields = 10
+
+func undocumentedFields(schemaErr *openapi3.SchemaError) []string {
+	object, ok := schemaErr.Value.(map[string]any)
+	if schemaErr.SchemaField != "properties" || !ok || schemaErr.Schema == nil {
+		return nil
+	}
+	var names []string
+	for name := range object {
+		if _, documented := schemaErr.Schema.Properties[name]; !documented {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names[:min(len(names), maxReportedFields)]
 }
 
 func reasonOrFallback(reason, fallback string, cause error) string {
 	if reason != "" {
 		return reason
 	}
+	return causeOrFallback(fallback, cause)
+}
+
+func causeOrFallback(fallback string, cause error) string {
 	if cause != nil {
 		return fmt.Sprintf("%s (%T)", fallback, cause)
 	}

@@ -3,13 +3,14 @@ package auth
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -24,7 +25,7 @@ func (s *Service) require(c *gin.Context) {
 	if h := c.GetHeader("Authorization"); h != "" {
 		p, ok, err := s.bearerPrincipal(c.Request.Context(), h)
 		if err != nil {
-			s.logger.ErrorContext(c.Request.Context(), "resolve bearer key", "error", err)
+			s.logger.ErrorContext(c.Request.Context(), "resolve bearer key", logattrs.Failure("key_lookup_failed", err)...)
 			abortError(c, http.StatusInternalServerError, "internal", "internal error")
 			return
 		}
@@ -38,7 +39,7 @@ func (s *Service) require(c *gin.Context) {
 	}
 	p, ok, err := s.sessionPrincipal(c)
 	if err != nil {
-		s.logger.ErrorContext(c.Request.Context(), "resolve session", slog.Any("error", err))
+		s.logger.ErrorContext(c.Request.Context(), "resolve session", logattrs.Failure("session_lookup_failed", err)...)
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return
 	}
@@ -88,7 +89,7 @@ func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal
 		err = s.queries.TouchServiceAccountKey(tctx, row.KeyID)
 		cancel()
 		if err != nil {
-			s.logger.WarnContext(ctx, "update key last used", "error", err)
+			s.logger.WarnContext(ctx, "update key last used", logattrs.Failure("key_touch_failed", err)...)
 		}
 	}
 	return Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name}, true, nil

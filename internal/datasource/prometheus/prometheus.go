@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,13 +49,13 @@ func New(opts Options) (*Datasource, error) {
 		return nil, err
 	}
 	if opts.ScrapeInterval < 0 {
-		return nil, errors.New("prometheus: scrape interval must not be negative")
+		return nil, datasource.ConfigErrorf("prometheus: scrape interval must not be negative")
 	}
 	if opts.MaxResponseBytes < 0 {
-		return nil, errors.New("prometheus: max response bytes must not be negative")
+		return nil, datasource.ConfigErrorf("prometheus: max response bytes must not be negative")
 	}
 	if opts.MaxResponseBytes > maxConfigurableBytes {
-		return nil, fmt.Errorf("prometheus: max response bytes must not exceed %d", maxConfigurableBytes)
+		return nil, datasource.ConfigErrorf("prometheus: max response bytes must not exceed %d", maxConfigurableBytes)
 	}
 	if opts.ScrapeInterval == 0 {
 		opts.ScrapeInterval = defaultScrapeInterval
@@ -89,21 +88,21 @@ func New(opts Options) (*Datasource, error) {
 
 func validateAuth(opts Options) (map[string]string, error) {
 	if opts.BasicAuthUser == "" && !opts.BasicAuthPassword.IsZero() {
-		return nil, errors.New("prometheus: basic auth password requires a user")
+		return nil, datasource.ConfigErrorf("prometheus: basic auth password requires a user")
 	}
 	if opts.BasicAuthUser != "" && !opts.BearerToken.IsZero() {
-		return nil, errors.New("prometheus: basic auth and bearer token are mutually exclusive")
+		return nil, datasource.ConfigErrorf("prometheus: basic auth and bearer token are mutually exclusive")
 	}
 	headers := make(map[string]string, len(opts.Headers))
 	for name, value := range opts.Headers {
 		if !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) {
-			return nil, errors.New("prometheus: invalid header")
+			return nil, datasource.ConfigErrorf("prometheus: invalid header")
 		}
 		if strings.EqualFold(name, "Authorization") {
-			return nil, errors.New("prometheus: the Authorization header is set through basic auth or bearer token")
+			return nil, datasource.ConfigErrorf("prometheus: the Authorization header is set through basic auth or bearer token")
 		}
 		if slices.ContainsFunc(reservedHeaders, func(r string) bool { return strings.EqualFold(name, r) }) {
-			return nil, errors.New("prometheus: the " + http.CanonicalHeaderKey(name) + " header is managed by the datasource")
+			return nil, datasource.ConfigErrorf("prometheus: the %s header is managed by the datasource", http.CanonicalHeaderKey(name))
 		}
 		headers[name] = value
 	}
@@ -113,17 +112,17 @@ func validateAuth(opts Options) (map[string]string, error) {
 func parseBaseURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "", errors.New("prometheus: invalid url")
+		return "", datasource.ConfigErrorf("prometheus: invalid url")
 	}
 	switch {
 	case u.Scheme != "http" && u.Scheme != "https":
-		return "", errors.New("prometheus: url scheme must be http or https")
+		return "", datasource.ConfigErrorf("prometheus: url scheme must be http or https")
 	case u.Hostname() == "":
-		return "", errors.New("prometheus: url requires a host")
+		return "", datasource.ConfigErrorf("prometheus: url requires a host")
 	case u.User != nil:
-		return "", errors.New("prometheus: url must not contain user info")
+		return "", datasource.ConfigErrorf("prometheus: url must not contain user info")
 	case u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(raw, "#"):
-		return "", errors.New("prometheus: url must not contain a query or fragment")
+		return "", datasource.ConfigErrorf("prometheus: url must not contain a query or fragment")
 	}
 	return strings.TrimRight(u.String(), "/"), nil
 }

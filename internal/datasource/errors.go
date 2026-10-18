@@ -32,6 +32,16 @@ func (e *UpstreamError) Error() string {
 
 func (e *UpstreamError) Unwrap() error { return e.Kind }
 
+// ConfigError is a configuration failure whose text the server wrote without echoing any setting value,
+// so it is safe to log.
+type ConfigError struct{ Message string }
+
+func (e *ConfigError) Error() string { return e.Message }
+
+func ConfigErrorf(format string, args ...any) error {
+	return &ConfigError{Message: fmt.Sprintf(format, args...)}
+}
+
 func IsTransient(err error) bool {
 	return errors.Is(err, ErrUnavailable) || errors.Is(err, ErrTimeout) || errors.Is(err, context.Canceled)
 }

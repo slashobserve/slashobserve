@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -219,7 +221,9 @@ func (s *Service) serviceAccountExists(c *gin.Context, id pgtype.UUID) bool {
 }
 
 func (s *Service) internalError(c *gin.Context, action string, err error) {
-	s.logger.ErrorContext(c.Request.Context(), action, "error", err)
+	principal, _ := FromContext(c.Request.Context())
+	s.logger.ErrorContext(c.Request.Context(), action, logattrs.Failure("internal", err,
+		slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID))...)
 	abortError(c, http.StatusInternalServerError, "internal", "internal error")
 }
 

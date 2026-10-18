@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -66,7 +68,7 @@ func (b *Broker) Run(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		b.logger.Warn("event listener failed", slog.Any("error", err), slog.Duration("retry_in", backoff))
+		b.logger.Warn("event listener failed", logattrs.Failure("event_listener_failed", err, slog.Duration("retry_in", backoff))...)
 		if established {
 			backoff = b.minBackoff
 		}

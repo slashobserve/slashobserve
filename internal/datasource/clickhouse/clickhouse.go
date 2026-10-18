@@ -48,10 +48,10 @@ var _ datasource.Datasource = (*Datasource)(nil)
 
 func New(opts Options) (*Datasource, error) {
 	if opts.Addr == "" {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "clickhouse address is required")
+		return nil, datasource.ConfigErrorf("clickhouse address is required")
 	}
 	if opts.Username == "" {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "clickhouse username is required")
+		return nil, datasource.ConfigErrorf("clickhouse username is required")
 	}
 	if opts.Database == "" {
 		opts.Database = defaultDatabase
@@ -81,7 +81,7 @@ func New(opts Options) (*Datasource, error) {
 	}
 	conn, err := ch.Open(chOpts)
 	if err != nil {
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "invalid clickhouse options")
+		return nil, datasource.ConfigErrorf("invalid clickhouse options")
 	}
 	return &Datasource{conn: conn, limits: limits}, nil
 }

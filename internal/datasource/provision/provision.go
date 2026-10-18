@@ -12,6 +12,25 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
 )
 
+// BuildError reports which datasource failed to build. Message is the part of the failure the server wrote itself,
+// empty when the cause could carry a driver or library message.
+type BuildError struct {
+	UID     string
+	Message string
+	Err     error
+}
+
+func (e *BuildError) Error() string { return fmt.Sprintf("datasource %q: %v", e.UID, e.Err) }
+func (e *BuildError) Unwrap() error { return e.Err }
+
+func serverMessage(err error) string {
+	var configErr *datasource.ConfigError
+	if errors.As(err, &configErr) {
+		return configErr.Message
+	}
+	return ""
+}
+
 func Build(logger *slog.Logger, sources []config.Datasource) (*datasource.Registry, error) {
 	instances := make([]datasource.Instance, 0, len(sources))
 	closeAll := func() {
@@ -23,7 +42,7 @@ func Build(logger *slog.Logger, sources []config.Datasource) (*datasource.Regist
 		ds, err := build(src)
 		if err != nil {
 			closeAll()
-			return nil, fmt.Errorf("datasource %q: %w", src.UID, err)
+			return nil, &BuildError{UID: src.UID, Message: serverMessage(err), Err: err}
 		}
 		instances = append(instances, datasource.Instance{UID: src.UID, Name: src.Name, Datasource: ds})
 	}

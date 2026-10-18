@@ -14,12 +14,19 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 func contractEngine(t *testing.T, logs io.Writer, register func(*gin.RouterGroup)) *gin.Engine {
 	t.Helper()
+	return contractEngineWithLogger(t, slog.New(slog.NewTextHandler(logs, nil)), register)
+}
+
+func contractEngineWithLogger(t *testing.T, logger *slog.Logger, register func(*gin.RouterGroup)) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.ReleaseMode)
-	ct, err := newContract(context.Background(), slog.New(slog.NewTextHandler(logs, nil)))
+	ct, err := newContract(context.Background(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +136,7 @@ func TestOversizedRequestBodyIsRefusedWithoutBuffering(t *testing.T) {
 	}
 }
 
-func TestDescribeFallsBackWhenReasonIsEmpty(t *testing.T) {
+func TestDescribeWithholdsRequestErrorText(t *testing.T) {
 	err := &openapi3filter.RequestError{
 		Parameter: &openapi3.Parameter{In: "query", Name: "limit"},
 		Err:       errors.New("secret-value"),
@@ -141,4 +148,50 @@ func TestDescribeFallsBackWhenReasonIsEmpty(t *testing.T) {
 	if strings.Contains(got, "secret-value") {
 		t.Fatalf("describe echoes the underlying error: %q", got)
 	}
+}
+
+func TestViolationLogDoesNotEchoResponseValues(t *testing.T) {
+	logger, logs := logtest.New()
+	engine := contractEngineWithLogger(t, logger, func(g *gin.RouterGroup) {
+		g.GET("/me", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"id": "leak-marker-5c1d"})
+		})
+	})
+	rec := serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/me", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status %d, want 500", rec.Code)
+	}
+	record := logs.Find(t, contractViolation)
+	if reason, _ := record["reason"].(string); reason == "" {
+		t.Errorf("violation has no reason: %v", record)
+	}
+	logs.AssertAbsent(t, "leak-marker-5c1d")
+}
+
+func TestViolationNamesTheUndocumentedStatus(t *testing.T) {
+	logger, logs := logtest.New()
+	engine := contractEngineWithLogger(t, logger, func(g *gin.RouterGroup) {
+		g.GET("/me", func(c *gin.Context) { c.JSON(http.StatusTeapot, gin.H{"error": "x", "code": "teapot"}) })
+	})
+	serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/me", nil))
+	record := logs.Find(t, contractViolation)
+	if record["status"] != float64(http.StatusTeapot) || record["reason"] != "status is not supported" {
+		t.Errorf("record = %v, want status 418 and the unsupported-status reason", record)
+	}
+}
+
+func TestViolationNamesTheUndocumentedResponseField(t *testing.T) {
+	logger, logs := logtest.New()
+	engine := contractEngineWithLogger(t, logger, func(g *gin.RouterGroup) {
+		g.GET("/me", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"zeta_extra": "value-1", "alpha_extra": "value-2"})
+		})
+	})
+	serve(engine, httptest.NewRequest(http.MethodGet, "/api/v1/me", nil))
+	record := logs.Find(t, contractViolation)
+	reason, _ := record["reason"].(string)
+	if record["status"] != float64(http.StatusOK) || !strings.Contains(reason, "undocumented fields alpha_extra, zeta_extra") {
+		t.Errorf("record = %v, want status 200 and the sorted field names", record)
+	}
+	logs.AssertAbsent(t, "value-1", "value-2")
 }

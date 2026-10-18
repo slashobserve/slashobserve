@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const readinessTimeout = 2 * time.Second
@@ -32,7 +34,7 @@ func registerHealthRoutes(engine *gin.Engine, logger *slog.Logger, checks []Chec
 		status := http.StatusOK
 		for _, check := range checks {
 			if err := check.Run(ctx); err != nil {
-				logger.WarnContext(ctx, "readiness check failed", slog.String("check", check.Name), slog.Any("error", err))
+				logger.WarnContext(ctx, "readiness check failed", logattrs.Failure("readiness_check_failed", err, slog.String("check", check.Name))...)
 				resp.Checks[check.Name] = "error"
 				resp.Status = "unavailable"
 				status = http.StatusServiceUnavailable

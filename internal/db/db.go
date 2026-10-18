@@ -17,6 +17,7 @@ import (
 	"github.com/pressly/goose/v3/lock"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 //go:embed migrations/*.sql
@@ -113,6 +114,15 @@ func (d *DB) Migrate(ctx context.Context) error {
 	return nil
 }
 
+// FailedMigrationVersion returns the version of the migration that failed, when err says which one did.
+func FailedMigrationVersion(err error) (int64, bool) {
+	var partial *goose.PartialError
+	if errors.As(err, &partial) && partial.Failed != nil {
+		return partial.Failed.Source.Version, true
+	}
+	return 0, false
+}
+
 func (d *DB) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }
@@ -137,7 +147,7 @@ func (d *DB) Queries() *dbsqlc.Queries {
 
 func (d *DB) Close() {
 	if err := d.sqlDB.Close(); err != nil {
-		d.logger.Warn("close database handle", slog.Any("error", err))
+		d.logger.Warn("close database handle", logattrs.Failure("close_failed", err)...)
 	}
 	d.pool.Close()
 }

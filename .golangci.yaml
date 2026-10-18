@@ -16,11 +16,16 @@ linters:
     - misspell
     - nolintlint
     - revive
+    - sloglint
     - staticcheck
     - unused
   settings:
     gocyclo:
       min-complexity: 15
+    sloglint:
+      forbidden-keys:
+        - error
+        - err
     nolintlint:
       require-explanation: true
       require-specific: true
@@ -39,6 +44,12 @@ linters:
       - path: _test\.go$
         linters:
           - gocyclo
+      - path: ^internal/(logattrs|revisions)/
+        linters:
+          - sloglint
+      - path-except: ^(internal|cmd|pkg)/
+        linters:
+          - sloglint
 
 formatters:
   enable:

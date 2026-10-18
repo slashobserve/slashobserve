@@ -180,7 +180,7 @@ func loadURLs(lookup func(string) (string, bool), cfg *Config) []error {
 	if v := get(lookup, envPublicURL); v == "" {
 		errs = append(errs, fmt.Errorf("%s is required", envPublicURL))
 	} else if u, err := parseBaseURL(v); err != nil {
-		errs = append(errs, fmt.Errorf("%s: %w, got %q", envPublicURL, err, v))
+		errs = append(errs, fmt.Errorf("%s: %w", envPublicURL, err))
 	} else {
 		cfg.PublicURL = u
 	}
@@ -188,14 +188,14 @@ func loadURLs(lookup func(string) (string, bool), cfg *Config) []error {
 	if v := get(lookup, envOIDCIssuerURL); v == "" {
 		errs = append(errs, fmt.Errorf("%s is required", envOIDCIssuerURL))
 	} else if u, err := url.Parse(v); err != nil || !isAbsoluteHTTP(u) {
-		errs = append(errs, fmt.Errorf("%s: must be an absolute http or https URL, got %q", envOIDCIssuerURL, v))
+		errs = append(errs, fmt.Errorf("%s: must be an absolute http or https URL", envOIDCIssuerURL))
 	} else {
 		cfg.OIDCIssuerURL = v
 	}
 
 	if v := get(lookup, envOIDCInternalURL); v != "" {
 		if u, err := parseBaseURL(v); err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w, got %q", envOIDCInternalURL, err, v))
+			errs = append(errs, fmt.Errorf("%s: %w", envOIDCInternalURL, err))
 		} else {
 			cfg.OIDCInternalURL = u
 		}

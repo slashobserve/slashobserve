@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"sync"
@@ -77,7 +76,7 @@ type rig struct {
 func newRig(t *testing.T, agent bool) *rig {
 	t.Helper()
 	database := dbtest.New(t)
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.DiscardHandler)
 	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: fakeDatasource{}})
 	if err != nil {
 		t.Fatal(err)

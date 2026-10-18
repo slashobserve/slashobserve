@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -111,7 +112,7 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	case errors.Is(err, dashboards.ErrNotFound):
 		abort(c, http.StatusNotFound, "not_found", err.Error())
 	default:
-		h.logger.ErrorContext(c.Request.Context(), "read latest version for event stream", slog.Any("error", err))
+		h.logger.ErrorContext(c.Request.Context(), "read latest version for event stream", logattrs.Failure("latest_version_failed", err, slog.String("dashboard_id", id.String()))...)
 		abort(c, http.StatusInternalServerError, "internal", "internal error")
 	}
 	return 0, false

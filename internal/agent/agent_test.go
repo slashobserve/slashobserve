@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -1571,7 +1570,7 @@ func replayRig(t *testing.T, prompt string, turns []map[string]any) *rig {
 	t.Helper()
 	dir := t.TempDir()
 	writeFixture(t, dir, "run.json", map[string]any{"prompt": prompt, "turns": turns})
-	provider, err := replay.New(dir, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	provider, err := replay.New(dir, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -51,13 +51,13 @@ func tighter[T time.Duration | int](base, override T) T {
 func (l Limits) Validate() error {
 	switch {
 	case l.Timeout <= 0:
-		return Errorf(ErrInvalidQuery, "limit timeout must be positive")
+		return ConfigErrorf("limit timeout must be positive")
 	case l.MaxSeries <= 0:
-		return Errorf(ErrInvalidQuery, "limit maxSeries must be positive")
+		return ConfigErrorf("limit maxSeries must be positive")
 	case l.MaxPoints <= 0:
-		return Errorf(ErrInvalidQuery, "limit maxPoints must be positive")
+		return ConfigErrorf("limit maxPoints must be positive")
 	case l.MaxRows <= 0:
-		return Errorf(ErrInvalidQuery, "limit maxRows must be positive")
+		return ConfigErrorf("limit maxRows must be positive")
 	}
 	return nil
 }

@@ -2,7 +2,6 @@ package queryproxy
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -143,14 +142,14 @@ func newTestRunner(t *testing.T, logger *slog.Logger, fakes map[string]*fakeData
 	for uid, f := range fakes {
 		instances = append(instances, datasource.Instance{UID: uid, Datasource: f})
 	}
-	reg, err := datasource.NewRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)), instances...)
+	reg, err := datasource.NewRegistry(slog.New(slog.DiscardHandler), instances...)
 	if err != nil {
 		t.Fatalf("NewRegistry: %v", err)
 	}
 	return NewRunner(reg, logger)
 }
 
-func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
+func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
 func promRef(uid string) spec.DatasourceRef {
 	return spec.DatasourceRef{Type: spec.Prometheus, UID: uid}

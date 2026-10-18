@@ -226,8 +226,13 @@ func TestAuthenticatorFailureIsInternalAndLeaksNothing(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "secret-detail") {
 		t.Errorf("response leaks the failure: %s", rec.Body.String())
 	}
-	if !strings.Contains(f.logs.String(), "secret-detail") {
-		t.Errorf("failure was not logged: %s", f.logs.String())
+	if strings.Contains(f.logs.String(), "secret-detail") {
+		t.Errorf("failure text reached the log: %s", f.logs.String())
+	}
+	for _, want := range []string{"resolve bearer key", "error_code=key_lookup_failed", "error_type="} {
+		if !strings.Contains(f.logs.String(), want) {
+			t.Errorf("log lacks %q: %s", want, f.logs.String())
+		}
 	}
 }
 
@@ -265,7 +270,7 @@ func TestOriginIsCheckedBeforeAuthentication(t *testing.T) {
 }
 
 func TestOriginWithoutPublicURLIsRejected(t *testing.T) {
-	h := NewHandler(tools.New(tools.Deps{}), &fakeAuth{}, Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	h := NewHandler(tools.New(tools.Deps{}), &fakeAuth{}, Options{Logger: slog.New(slog.DiscardHandler)})
 	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", nil)))
 	req.Header.Set("Origin", publicURL)
 	req.Header.Set("Authorization", goodKey)
@@ -559,7 +564,7 @@ func TestOriginNormalisesDefaultPorts(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			h := NewHandler(tools.New(tools.Deps{}), &fakeAuth{}, Options{PublicURL: base, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+			h := NewHandler(tools.New(tools.Deps{}), &fakeAuth{}, Options{PublicURL: base, Logger: slog.New(slog.DiscardHandler)})
 			req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(rpc(1, "tools/list", nil)))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Accept", "application/json, text/event-stream")

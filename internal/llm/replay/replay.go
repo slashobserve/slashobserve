@@ -2,6 +2,9 @@ package replay
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,8 +18,7 @@ import (
 
 const (
 	name              = "replay"
-	maxPromptQuote    = 120
-	maxResultQuote    = 200
+	promptHashLength  = 12
 	fixtureFileSuffix = ".json"
 )
 
@@ -51,6 +53,7 @@ func New(dir string, logger *slog.Logger) (*Provider, error) {
 			continue
 		}
 		p.fixtures[key] = f
+		logger.Debug("replay fixture loaded", slog.String("fixture", f.File), slog.String("prompt_key_sha256", promptKeyHash(f.Prompt)))
 	}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
@@ -78,7 +81,7 @@ func (p *Provider) Start(ctx context.Context, req llm.Request) (llm.Session, err
 	}
 	f, ok := p.fixtures[promptKey(req.Prompt)]
 	if !ok {
-		p.logger.DebugContext(ctx, "replay found no fixture for the prompt", slog.String("prompt_excerpt", quote(req.Prompt, maxPromptQuote)))
+		p.logger.DebugContext(ctx, "replay found no fixture for the prompt", slog.Int("prompt_length", len(req.Prompt)), slog.String("prompt_key_sha256", promptKeyHash(req.Prompt)))
 		return nil, llm.ErrNoFixture
 	}
 	return &session{fixture: f, logger: p.logger}, nil
@@ -146,24 +149,43 @@ func (s *session) checkResult(ctx context.Context, index, i int, r llm.ToolResul
 		wantError = *expect[i].IsError
 	}
 	if r.IsError != wantError {
-		s.logExcerpt(ctx, where, r.Content)
+		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError)
 		return fmt.Errorf("%s: is_error was %t, expected %t", where, r.IsError, wantError)
 	}
 	if expect != nil && !strings.Contains(r.Content, expect[i].Contains) {
-		s.logExcerpt(ctx, where, r.Content)
+		s.logExpectationFailure(ctx, index, i, call.Name, r, wantError)
 		return fmt.Errorf("%s: result does not contain %q", where, expect[i].Contains)
 	}
 	return nil
 }
 
-func (s *session) logExcerpt(ctx context.Context, where, content string) {
-	s.logger.DebugContext(ctx, "replay expectation failed", slog.String("where", where), slog.String("result_excerpt", quote(content, maxResultQuote)))
+func (s *session) logExpectationFailure(ctx context.Context, turn, call int, tool string, r llm.ToolResult, wantError bool) {
+	attrs := []any{
+		slog.String("fixture", s.fixture.File),
+		slog.Int("turn", turn),
+		slog.Int("call", call),
+		slog.String("tool", tool),
+		slog.Bool("is_error", r.IsError),
+		slog.Bool("expected_is_error", wantError),
+		slog.Int("result_length", len(r.Content)),
+	}
+	if code := toolErrorCode(r); code != "" {
+		attrs = append(attrs, slog.String("tool_error_code", code))
+	}
+	s.logger.DebugContext(ctx, "replay expectation failed", attrs...)
 }
 
-func quote(s string, limit int) string {
-	r := []rune(s)
-	if len(r) <= limit {
-		return s
+func toolErrorCode(r llm.ToolResult) string {
+	var body struct {
+		Code string `json:"code"`
 	}
-	return string(r[:limit])
+	if !r.IsError || json.Unmarshal([]byte(r.Content), &body) != nil || !llm.IsPlainToken(body.Code) {
+		return ""
+	}
+	return body.Code
+}
+
+func promptKeyHash(prompt string) string {
+	sum := sha256.Sum256([]byte(promptKey(prompt)))
+	return hex.EncodeToString(sum[:])[:promptHashLength]
 }

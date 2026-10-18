@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -21,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -46,15 +49,78 @@ func main() {
 		os.Exit(healthcheck(os.LookupEnv))
 	}
 	if err := run(); err != nil {
-		slog.Error("server exiting", slog.Any("error", err))
+		slog.Error("server exiting", exitAttrs(err)...)
 		os.Exit(1)
 	}
+}
+
+// exitError is a fatal startup or serving failure. A driver, library or DSN error can echo hostnames, user names or
+// URLs, so its text is logged only when the stage says it is a message the server or the standard library wrote from
+// the operator's own settings; every other cause is reduced to its type and SQLSTATE.
+type exitError struct {
+	code   string
+	detail string
+	attrs  []any
+	cause  error
+}
+
+func (e *exitError) Error() string { return e.code }
+func (e *exitError) Unwrap() error { return e.cause }
+
+func withheld(code string, cause error) error {
+	return &exitError{code: code, cause: cause}
+}
+
+func described(code string, cause error) error {
+	return &exitError{code: code, detail: cause.Error(), cause: cause}
+}
+
+// The host and port come from the parsed setting, never from the error text, which also names the user and database.
+func databaseExit(databaseURL string, err error) error {
+	var parseErr *pgconn.ParseConfigError
+	if errors.As(err, &parseErr) {
+		return &exitError{code: "invalid_database_url", detail: "SLASHOBSERVE_DATABASE_URL is not a valid PostgreSQL connection string", cause: err}
+	}
+	exit := &exitError{code: "database_unavailable", cause: err}
+	if cfg, parseErr := pgconn.ParseConfig(databaseURL); parseErr == nil {
+		exit.attrs = []any{slog.String("db_host", cfg.Host), slog.Int("db_port", int(cfg.Port))}
+	}
+	return exit
+}
+
+func datasourcesExit(err error) error {
+	exit := &exitError{code: "datasources_failed", cause: err}
+	var buildErr *provision.BuildError
+	if errors.As(err, &buildErr) {
+		exit.attrs = []any{slog.String("datasource_uid", buildErr.UID)}
+		exit.detail = buildErr.Message
+	}
+	return exit
+}
+
+func migrationExit(err error) error {
+	exit := &exitError{code: "migration_failed", cause: err}
+	if version, ok := db.FailedMigrationVersion(err); ok {
+		exit.attrs = []any{slog.Int64("migration_version", version)}
+	}
+	return exit
+}
+
+func exitAttrs(err error) []any {
+	var exit *exitError
+	if !errors.As(err, &exit) {
+		return logattrs.Failure("internal", err)
+	}
+	if exit.detail != "" {
+		return append([]any{slog.String("error_code", exit.code), slog.String("detail", exit.detail)}, exit.attrs...)
+	}
+	return logattrs.Failure(exit.code, exit.cause, exit.attrs...)
 }
 
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
-		return fmt.Errorf("load config: %w", err)
+		return described("invalid_config", err)
 	}
 	logger := newLogger(cfg)
 	slog.SetDefault(logger)
@@ -62,7 +128,7 @@ func run() error {
 
 	registry, err := provision.Build(logger, cfg.Datasources)
 	if err != nil {
-		return fmt.Errorf("configure datasources: %w", err)
+		return datasourcesExit(err)
 	}
 	defer func() { _ = registry.Close() }()
 	if cfg.DatasourcesFile != "" && len(cfg.Datasources) == 0 {
@@ -72,7 +138,7 @@ func run() error {
 
 	llmProvider, err := providers.New(cfg.LLM, logger)
 	if err != nil {
-		return fmt.Errorf("configure llm provider: %w", err)
+		return described("llm_provider_failed", err)
 	}
 	if llmProvider != nil {
 		logger.Info("llm provider configured", slog.String("provider", llmProvider.Name()), slog.String("model", llmProvider.Model()))
@@ -89,16 +155,16 @@ func run() error {
 	database, err := db.Open(connectCtx, cfg.DatabaseURL, logger)
 	cancelConnect()
 	if err != nil {
-		return err
+		return databaseExit(cfg.DatabaseURL, err)
 	}
 	defer database.Close()
 
 	if err := database.Migrate(ctx); err != nil {
-		return fmt.Errorf("migrate database: %w", err)
+		return migrationExit(err)
 	}
 	instance, err := database.Queries().GetInstance(ctx)
 	if err != nil {
-		return fmt.Errorf("get instance: %w", err)
+		return withheld("instance_lookup_failed", err)
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
@@ -113,7 +179,7 @@ func run() error {
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
 	}, database.Queries(), logger)
 	if err != nil {
-		return fmt.Errorf("create auth service: %w", err)
+		return withheld("auth_setup_failed", err)
 	}
 	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
 	if cfg.AllowAnyEmailDomain {
@@ -178,9 +244,12 @@ func run() error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("build http handler: %w", err)
+		return described("http_setup_failed", err)
 	}
-	return serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close)
+	if err := serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close); err != nil {
+		return described("http_server_failed", err)
+	}
+	return nil
 }
 
 func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger) func() {

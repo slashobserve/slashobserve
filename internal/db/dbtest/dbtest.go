@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/url"
 	"os"
@@ -91,6 +90,11 @@ type Database struct {
 
 func New(t testing.TB) *Database {
 	t.Helper()
+	return NewWithLogger(t, quietLogger())
+}
+
+func NewWithLogger(t testing.TB, logger *slog.Logger) *Database {
+	t.Helper()
 	if skipped {
 		t.Skip("Postgres tests are skipped with -short")
 	}
@@ -99,7 +103,7 @@ func New(t testing.TB) *Database {
 	if err := adminExec(ctx, "CREATE DATABASE "+name+" TEMPLATE "+templateDB); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
-	d, err := db.Open(ctx, urlFor(name), quietLogger())
+	d, err := db.Open(ctx, urlFor(name), logger)
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
@@ -144,5 +148,5 @@ func urlFor(database string) string {
 }
 
 func quietLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }

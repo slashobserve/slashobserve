@@ -174,7 +174,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	principal, ok, err := h.authn.BearerPrincipal(r.Context(), header)
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "resolve bearer key", slog.Any("error", err))
+		h.logger.ErrorContext(r.Context(), "resolve bearer key", logattrs.Failure("key_lookup_failed", err)...)
 		writeError(w, http.StatusInternalServerError, "internal", internalErrorMsg)
 		return
 	}
