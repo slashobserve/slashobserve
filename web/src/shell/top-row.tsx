@@ -1,4 +1,5 @@
 import { Breadcrumb } from "./breadcrumb"
+import { PaletteButton } from "./palette-button"
 import { useSidebarStore } from "./sidebar-store"
 import { ThemeSwitch } from "./theme-switch"
 
@@ -38,6 +39,7 @@ export function TopRow({
       </div>
       <div className="flex items-center gap-1.5">
         <div ref={setActionsHost} className="flex items-center gap-1.5" />
+        <PaletteButton />
         <ThemeSwitch />
       </div>
     </header>

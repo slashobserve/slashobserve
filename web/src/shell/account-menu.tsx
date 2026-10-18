@@ -1,7 +1,5 @@
-import { useState } from "react"
-import { useNavigate, useRouteContext } from "@tanstack/react-router"
+import { useRouteContext } from "@tanstack/react-router"
 import { LogOutIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import {
   DropdownMenu,
@@ -9,29 +7,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { invalidateSession, logout } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 
 import { initials } from "./initials"
+import { useSignOut } from "./use-sign-out"
 
 export function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const { principal } = useRouteContext({ from: "/_authed" })
-  const navigate = useNavigate()
-  const [pending, setPending] = useState(false)
+  const { signOut, pending } = useSignOut()
   const label = principal.email || principal.name
-
-  async function signOut() {
-    setPending(true)
-    try {
-      await logout()
-      invalidateSession()
-      await navigate({ to: "/login" })
-    } catch {
-      toast.error("Sign out failed. Try again.")
-    } finally {
-      setPending(false)
-    }
-  }
 
   return (
     <DropdownMenu>
