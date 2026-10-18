@@ -1,6 +1,6 @@
 import type { Route } from "@playwright/test"
 
-import { expect, test, type Page } from "./fixtures"
+import { expect, failedResourceLogged, test, type Page } from "./fixtures"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -50,18 +50,14 @@ async function mockInstance(
   )
 }
 
-function failedResourceLogged(consoleErrors: string[], status: string) {
-  const logged = consoleErrors.filter((message) =>
-    message.includes(`status of ${status}`)
-  )
-  expect(logged).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
-}
-
 test("shows the server's settings", async ({ page }) => {
   await openSettings(page)
 
   await expect(value(page, "Agent", "Provider")).toHaveText("Replay")
+  await expect(value(page, "Agent", "Model")).toHaveText("replay")
+  await expect(value(page, "Agent", "Effort")).toHaveText(
+    "Not used by this provider"
+  )
   await expect(
     value(page, "Agent", "Status").locator('[data-status="ok"]')
   ).toHaveText("Connected")
@@ -77,7 +73,9 @@ test("shows the server's settings", async ({ page }) => {
   await expect(value(page, "Sign-in", "Session length")).toHaveText(
     /^\d+ (days?|hours?|minutes?)$/
   )
-  await expect(value(page, "Sign-in", "Identity provider")).not.toHaveText("")
+  await expect(value(page, "Sign-in", "Identity provider")).toHaveText(
+    /^https?:\/\/\S+$/
+  )
 })
 
 test("keeps the row height when the server settings load", async ({ page }) => {
@@ -127,6 +125,8 @@ test("explains a missing agent", async ({ page }) => {
   })
   await openSettings(page)
   await expect(value(page, "Agent", "Provider")).toHaveText("Not set")
+  await expect(value(page, "Agent", "Model")).toHaveText("Not set")
+  await expect(value(page, "Agent", "Effort")).toHaveText("Not set")
   await expect(
     value(page, "Agent", "Status").locator('[data-status="warning"]')
   ).toHaveText("Not configured. Set SLASHOBSERVE_LLM_PROVIDER and restart.")
@@ -194,6 +194,9 @@ test("hides the identity provider line when its name is unknown", async ({
 }) => {
   await mockInstance(page, { oidc_provider_name: "" })
   await openSettings(page)
+  await expect(value(page, "This server", "MCP URL")).toHaveText(
+    `${serverURL()}/mcp`
+  )
   await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
   await expect(page.getByText("Signed in with")).toHaveCount(0)
 })

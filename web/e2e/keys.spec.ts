@@ -10,7 +10,7 @@ import {
   mutationHeaders,
   uniqueAccountName,
 } from "./api"
-import { expect, test, type Page } from "./fixtures"
+import { expect, failedResourceLogged, test, type Page } from "./fixtures"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -73,14 +73,6 @@ async function box(locator: Locator) {
 
 function expectSameEdge(actual: number, expected: number) {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1)
-}
-
-function failedResourceLogged(consoleErrors: string[], status: string) {
-  const logged = consoleErrors.filter((message) =>
-    message.includes(`status of ${status}`)
-  )
-  expect(logged).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
 }
 
 function offlineFailuresLogged(consoleErrors: string[]) {

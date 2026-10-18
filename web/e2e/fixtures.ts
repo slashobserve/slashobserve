@@ -15,4 +15,12 @@ export const test = base.extend<{ consoleErrors: string[] }>({
   ],
 })
 
+export function failedResourceLogged(consoleErrors: string[], status: string) {
+  const logged = consoleErrors.filter((message) =>
+    message.includes(`status of ${status}`)
+  )
+  expect(logged).toHaveLength(1)
+  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
+}
+
 export { expect, type Page }
