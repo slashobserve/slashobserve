@@ -44,13 +44,13 @@ function AuthedLayout() {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-3">
+      <header className="flex items-center justify-between gap-4 border-b px-4 py-3 sm:px-6">
         <Link to="/" className="text-sm font-semibold">
           SlashObserve
         </Link>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex min-w-0 items-center gap-3 text-sm">
           <ThemeToggle />
-          <span>{principal.email || principal.name}</span>
+          <span className="truncate">{principal.email || principal.name}</span>
           {failed ? (
             <p role="alert" className="text-destructive">
               Sign out failed. Try again.
