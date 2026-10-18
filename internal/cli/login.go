@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -22,7 +23,7 @@ func (a *app) loginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Save a service-account key and the server it belongs to",
-		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate the key with POST /api/v1/service-accounts/{id}/keys.",
+		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate a key on the server's API keys page (<server>/settings/keys).",
 		Args:  noArgs,
 		RunE:  a.runLogin,
 	}
@@ -53,6 +54,7 @@ func (a *app) runLogin(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	a.hintKeysPage(base)
 	key, err := a.readKey(cmd.Context())
 	if err != nil {
 		return err
@@ -85,9 +87,20 @@ func (a *app) runLogin(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func (a *app) readKey(ctx context.Context) (string, error) {
+func (a *app) hintKeysPage(base *url.URL) {
+	if _, interactive := a.interactiveInput(); !interactive || a.withToken || a.json {
+		return
+	}
+	_, _ = fmt.Fprintf(a.std.Err, "Create a key at %s\n", base.JoinPath("settings", "keys").String())
+}
+
+func (a *app) interactiveInput() (*os.File, bool) {
 	file, isFile := a.std.In.(*os.File)
-	interactive := isFile && term.IsTerminal(int(file.Fd()))
+	return file, isFile && term.IsTerminal(int(file.Fd()))
+}
+
+func (a *app) readKey(ctx context.Context) (string, error) {
+	file, interactive := a.interactiveInput()
 	if a.withToken {
 		read := func() ([]byte, error) { return io.ReadAll(io.LimitReader(a.std.In, maxKeyBytes+1)) }
 		data, err := readInterruptible(ctx, a.std.Err, file, interactive, read)
