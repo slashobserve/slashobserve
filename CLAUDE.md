@@ -108,6 +108,7 @@ Directories are created when their phase starts; this is where things go.
   `GET /api/v1/instance` returns the public and MCP URLs, the issuer URL, the optional provider display name, allowed email domains and session TTL, never a secret or the internal OIDC URL.
 - Database: Postgres through a pgx v5 pool.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
+  Migration 10 is a Go migration (`internal/db/specupgrade.go`, registered in `newMigrator`) that rewrites every stored Spec with `spec.Upgrade`; it has no file, so SQL files continue at `00011`, and a file reusing a Go migration's version stops the server at boot.
   The server applies migrations at boot under a Postgres advisory lock.
   Queries live in `internal/db/queries`; sqlc generates `internal/db/dbsqlc` (committed, never hand-edited; run `make generate`).
 - Dashboards: versions are immutable and linear (`parent_version = version - 1`); a save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy`, outside any transaction; the conditional `latest_version` update is the concurrency check (409 `version_conflict`); events go out with `pg_notify` on channel `slashobserve_events` inside the saving transaction.

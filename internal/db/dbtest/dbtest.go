@@ -2,6 +2,7 @@ package dbtest
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
@@ -126,6 +128,17 @@ func (d *Database) Exec(t testing.TB, sql string, args ...any) {
 	if _, err := conn.Exec(context.Background(), sql, args...); err != nil {
 		t.Fatalf("exec %q: %v", sql, err)
 	}
+}
+
+func (d *Database) SQLDB(t testing.TB) *sql.DB {
+	t.Helper()
+	cfg, err := pgx.ParseConfig(urlFor(d.name))
+	if err != nil {
+		t.Fatalf("parse database url: %v", err)
+	}
+	sqlDB := stdlib.OpenDB(*cfg)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	return sqlDB
 }
 
 func adminExec(ctx context.Context, sql string) error {
