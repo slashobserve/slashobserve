@@ -127,4 +127,5 @@ type User struct {
 	Name        string
 	CreatedAt   pgtype.Timestamptz
 	LastLoginAt pgtype.Timestamptz
+	LastSeenAt  pgtype.Timestamptz
 }

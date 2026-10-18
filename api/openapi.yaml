@@ -26,6 +26,10 @@ paths:
     $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys"
   /service-accounts/{id}/keys/{keyId}:
     $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys-keyid"
+  /users:
+    $ref: "./paths/users.yaml#/users"
+  /users/{id}/sessions:
+    $ref: "./paths/users.yaml#/users-id-sessions"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
   /dashboards:
@@ -262,6 +266,49 @@ components:
         token:
           type: string
           description: The full key, returned only once.
+    Person:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+        - created_at
+        - last_login_at
+        - last_seen_at
+        - dashboard_count
+        - key_count
+        - session_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+          description: Updated at most once a minute while a session is used; seen within the last 2 minutes means online now.
+        dashboard_count:
+          type: integer
+          minimum: 0
+          description: Dashboards whose version 1 this person authored, including agent-made ones they asked for.
+        key_count:
+          type: integer
+          minimum: 0
+          description: Unrevoked, unexpired service-account keys this person created.
+        session_count:
+          type: integer
+          minimum: 0
+          description: Unexpired sessions.
     DatasourceStatus:
       type: object
       additionalProperties: false

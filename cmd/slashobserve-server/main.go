@@ -29,6 +29,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
+	"github.com/slashobserve/slashobserve/internal/users"
 )
 
 var (
@@ -232,6 +233,7 @@ func run() error {
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
+			users.NewHandler(database, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

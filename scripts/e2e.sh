@@ -674,6 +674,7 @@ suite() {
   proxy_suite
   cli_suite
   evals_smoke_suite
+  people_suite
   check_api_contract
   check_no_keys_in_server_log
 }
@@ -1993,6 +1994,81 @@ evals_smoke_suite() {
   [[ "$flat" == *'"model":"replay"'* ]] || fail "the eval report does not name the replay model"
   grep -q '^| red-metrics-by-endpoint |' "$TMP/evals.md" || fail "the eval Markdown report has no row for red-metrics-by-endpoint"
   pass "eval runner scores replay scenarios"
+}
+
+people_admin_field() {
+  python3 -c '
+import json, sys
+people = json.load(open(sys.argv[1]))["users"]
+admin = [p for p in people if p["email"] == "admin@example.com"]
+if len(admin) != 1:
+    sys.exit("expected one admin entry, found %d" % len(admin))
+print(admin[0][sys.argv[2]])
+' "$1" "$2"
+}
+
+people_suite() {
+  api_token
+  local out admin_id sessions keys nil_id=00000000-0000-0000-0000-000000000000
+
+  out="$(curl -sS -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
+  [[ "$out" == 401 ]] || fail "list people without credentials ($out: $(cat "$TMP/people.body"))"
+  out="$(api GET /users)"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+    fail "a service account lists people ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "listing people needs a signed-in user, not a key"
+
+  out="$(curl -sS -b "$TMP/api-jar" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
+  if [[ "$out" != 200 ]] || ! grep -q '"email":"admin@example.com"' "$TMP/people.body" || ! grep -q '"last_seen_at":"' "$TMP/people.body"; then
+    fail "list people ($out: $(cat "$TMP/people.body"))"
+  fi
+  sessions="$(people_admin_field "$TMP/people.body" session_count)"
+  keys="$(people_admin_field "$TMP/people.body" key_count)"
+  [[ "$sessions" -ge 1 && "$keys" -ge 1 ]] || fail "the admin entry should count its sessions and keys (sessions $sessions, keys $keys)"
+  pass "people are listed with activity, sessions and keys"
+
+  out="$(curl -sS -b "$TMP/api-jar" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users?limit=0")"
+  [[ "$out" == 400 ]] || fail "list people with limit 0 ($out: $(cat "$TMP/people.body"))"
+  out="$(curl -sS -b "$TMP/api-jar" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users?cursor=%40%40")"
+  [[ "$out" == 400 ]] || fail "list people with a bad cursor ($out: $(cat "$TMP/people.body"))"
+  pass "a bad limit or cursor is rejected"
+
+  dex_login "$TMP/people-jar" / "$BASE_URL/"
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.me" -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 200 ]] || fail "/api/v1/me for the second admin session ($out: $(cat "$TMP/people.me"))"
+  admin_id="$(grep -o '"id":"[^"]*"' "$TMP/people.me" | head -1 | cut -d'"' -f4)"
+  [[ -n "$admin_id" ]] || fail "/api/v1/me has no id ($(cat "$TMP/people.me"))"
+
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H 'Origin: http://evil.example' "$BASE_URL/api/v1/users/$admin_id/sessions")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"csrf_rejected"' "$TMP/people.body"; then
+    fail "a cross-origin sign out ($out: $(cat "$TMP/people.body"))"
+  fi
+  out="$(api DELETE "/users/$admin_id/sessions")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"forbidden"' "$TMP/api.body"; then
+    fail "a service account signs a person out ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$nil_id/sessions")"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/people.body"; then
+    fail "sign out an unknown person ($out: $(cat "$TMP/people.body"))"
+  fi
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/not-a-uuid/sessions")"
+  [[ "$out" == 400 ]] || fail "sign out with a bad id ($out: $(cat "$TMP/people.body"))"
+  pass "signing out is refused cross-origin and for keys, and unknown or malformed ids are rejected"
+
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$admin_id/sessions")"
+  [[ "$out" == 204 ]] || fail "sign a person out everywhere ($out: $(cat "$TMP/people.body"))"
+  out="$(curl -sS -b "$TMP/people-jar" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "the calling session survived its own sign out ($out)"
+  out="$(curl -sS -b "$TMP/api-jar" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"
+  [[ "$out" == 401 ]] || fail "another session of the same person survived the sign out ($out)"
+
+  dex_login "$TMP/people-jar2" / "$BASE_URL/"
+  out="$(curl -sS -b "$TMP/people-jar2" -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
+  [[ "$out" == 200 ]] || fail "list people after signing in again ($out: $(cat "$TMP/people.body"))"
+  sessions="$(people_admin_field "$TMP/people.body" session_count)"
+  [[ "$sessions" == 1 ]] || fail "the admin should have one session after signing in again (found $sessions)"
+  pass "people are listed with activity, and anyone can sign a person out everywhere"
 }
 
 stack_suite() {

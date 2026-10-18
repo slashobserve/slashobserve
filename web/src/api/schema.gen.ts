@@ -160,6 +160,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List everyone who has signed in, most recently seen first.
+         * @description Service accounts cannot call this endpoint.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete every session of a person.
+         * @description Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Service accounts cannot.
+         */
+        delete: operations["signOutUserEverywhere"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources": {
         parameters: {
             query?: never;
@@ -626,6 +668,27 @@ export interface components {
             key: components["schemas"]["ServiceAccountKey"];
             /** @description The full key, returned only once. */
             token: string;
+        };
+        Person: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at: string;
+            /**
+             * Format: date-time
+             * @description Updated at most once a minute while a session is used; seen within the last 2 minutes means online now.
+             */
+            last_seen_at: string;
+            /** @description Dashboards whose version 1 this person authored, including agent-made ones they asked for. */
+            dashboard_count: number;
+            /** @description Unrevoked, unexpired service-account keys this person created. */
+            key_count: number;
+            /** @description Unexpired sessions. */
+            session_count: number;
         };
         DatasourceStatus: {
             uid: string;
@@ -1279,6 +1342,61 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description The key is revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of people. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        users: components["schemas"]["Person"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    signOutUserEverywhere: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every session of the person is deleted. */
             204: {
                 headers: {
                     [name: string]: unknown;

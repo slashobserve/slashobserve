@@ -1,0 +1,67 @@
+users:
+  get:
+    operationId: listUsers
+    summary: List everyone who has signed in, most recently seen first.
+    description: Service accounts cannot call this endpoint.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of people.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [users, next_cursor]
+              properties:
+                users:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Person"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+users-id-sessions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: signOutUserEverywhere
+    summary: Delete every session of a person.
+    description: Any signed-in person may sign anyone out, including themselves; the person can sign in again at once. Service accounts cannot.
+    responses:
+      "204":
+        description: Every session of the person is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

@@ -40,6 +40,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`, or `dbtest.NewWithLogger(t, logger)` to capture the DB's own log lines; skipped under `-short`).
 - `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
+- `internal/users/`: the People routes (`GET /api/v1/users`, `DELETE /api/v1/users/{id}/sessions`), user principals only.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind by panel type, step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
@@ -99,6 +100,7 @@ Directories are created when their phase starts; this is where things go.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
+  `users.last_seen_at` is touched at most once a minute by session requests.
   Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
   `GET /api/v1/instance` returns the public URL and the MCP URL for client setup snippets.

@@ -97,29 +97,45 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT u.id, u.email, u.name
+SELECT u.id, u.email, u.name, u.last_seen_at
 FROM sessions s JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1 AND s.expires_at > now()
 `
 
 type GetSessionUserRow struct {
-	ID    pgtype.UUID
-	Email string
-	Name  string
+	ID         pgtype.UUID
+	Email      string
+	Name       string
+	LastSeenAt pgtype.Timestamptz
 }
 
 func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (GetSessionUserRow, error) {
 	row := q.db.QueryRow(ctx, getSessionUser, tokenHash)
 	var i GetSessionUserRow
-	err := row.Scan(&i.ID, &i.Email, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.LastSeenAt,
+	)
 	return i, err
+}
+
+const touchUserSeen = `-- name: TouchUserSeen :exec
+UPDATE users SET last_seen_at = now()
+WHERE id = $1 AND last_seen_at < now() - interval '1 minute'
+`
+
+func (q *Queries) TouchUserSeen(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, touchUserSeen, id)
+	return err
 }
 
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (oidc_issuer, oidc_subject, email, name)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (oidc_issuer, oidc_subject)
-DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_login_at = now()
+DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_login_at = now(), last_seen_at = now()
 RETURNING id, email, name
 `
 
