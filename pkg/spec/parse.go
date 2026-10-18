@@ -274,7 +274,22 @@ func (c *issueCollector) finish() []Issue {
 			Message: fmt.Sprintf("additional properties %s not allowed", quoteNames(byParent[parent])),
 		})
 	}
-	return issues
+	return dedupeIssues(issues)
+}
+
+func dedupeIssues(issues []Issue) []Issue {
+	type key struct{ path, message string }
+	seen := make(map[key]struct{}, len(issues))
+	out := issues[:0]
+	for _, issue := range issues {
+		k := key{issue.Path, issue.Message}
+		if _, dup := seen[k]; dup {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, issue)
+	}
+	return out
 }
 
 func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
@@ -284,6 +299,10 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	}
 	causes := ve.Causes
 	if _, ok := ve.ErrorKind.(*kind.OneOf); ok && len(causes) > 0 {
+		if message, ok := exclusiveMembersMessage(ve); ok {
+			c.issues = append(c.issues, Issue{Path: pointer(ve.InstanceLocation...), Code: CodeSchema, Message: message})
+			return
+		}
 		if missing, ok := commonMissing(ve.InstanceLocation, causes); ok {
 			c.issues = append(c.issues, Issue{
 				Path:    pointer(ve.InstanceLocation...),
@@ -318,6 +337,40 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	for _, cause := range causes {
 		c.collect(cause)
 	}
+}
+
+var exclusiveMembersMessages = map[string]string{
+	schemaID + "#/$defs/match":   "match must have exactly one of query, series, seriesRegex, field, fieldType",
+	schemaID + "#/$defs/mapping": "mapping must have exactly one of value, range, regex, special",
+}
+
+func exclusiveMembersMessage(ve *jsonschema.ValidationError) (string, bool) {
+	message, ok := exclusiveMembersMessages[ve.SchemaURL]
+	if !ok {
+		return "", false
+	}
+	for _, cause := range ve.Causes {
+		if !shapeErrorsOnly(ve.InstanceLocation, cause) {
+			return "", false
+		}
+	}
+	return message, true
+}
+
+func shapeErrorsOnly(loc []string, ve *jsonschema.ValidationError) bool {
+	if !slices.Equal(ve.InstanceLocation, loc) {
+		return false
+	}
+	if len(ve.Causes) == 0 {
+		switch ve.ErrorKind.(type) {
+		case *kind.Required, *kind.AdditionalProperties:
+			return true
+		}
+		return false
+	}
+	return !slices.ContainsFunc(ve.Causes, func(cause *jsonschema.ValidationError) bool {
+		return !shapeErrorsOnly(loc, cause)
+	})
 }
 
 func (c *issueCollector) leafIssue(ve *jsonschema.ValidationError) Issue {

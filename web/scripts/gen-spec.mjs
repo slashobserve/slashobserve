@@ -26,7 +26,13 @@ const ajv = new Ajv2020({
   discriminator: true,
 })
 ajv.addSchema(schema)
-let code = standaloneCode(ajv, { validate: schema.$id })
+let code = standaloneCode(ajv, {
+  validate: schema.$id,
+  dataPanel: `${schema.$id}#/$defs/dataPanel`,
+  textPanel: `${schema.$id}#/$defs/textPanel`,
+  placeholderPanel: `${schema.$id}#/$defs/placeholderPanel`,
+  rowPanel: `${schema.$id}#/$defs/rowPanel`,
+})
 code = code.replace(
   /const (\w+) = require\("ajv\/dist\/runtime\/ucs2length"\)\.default;/g,
   "const $1 = (s) => Array.from(s).length;"

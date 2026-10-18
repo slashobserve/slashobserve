@@ -55,11 +55,7 @@ for (const c of manifest.cases) {
     } else {
       const outside = result.issues.filter(
         (issue) =>
-          !(
-            issue.path === c.path ||
-            issue.path.startsWith(c.path + "/") ||
-            c.path.startsWith(issue.path + "/")
-          )
+          !(issue.path === c.path || issue.path.startsWith(c.path + "/"))
       )
       record(
         c.file,

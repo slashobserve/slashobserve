@@ -264,6 +264,33 @@ func TestRejectedDocuments(t *testing.T) {
 	}
 }
 
+func TestExclusiveMemberIssues(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	const matchMessage = "match must have exactly one of query, series, seriesRegex, field, fieldType"
+	const mappingMessage = "mapping must have exactly one of value, range, regex, special"
+	cases := []struct {
+		name    string
+		members string
+		path    string
+		message string
+	}{
+		{"match with two keys", `"overrides": [{"match": {"query": "A", "field": "Value"}, "color": "ok"}],`, "/panels/0/overrides/0/match", matchMessage},
+		{"match with three keys", `"overrides": [{"match": {"query": "A", "series": "s", "field": "Value"}, "color": "ok"}],`, "/panels/0/overrides/0/match", matchMessage},
+		{"empty match", `"overrides": [{"match": {}, "color": "ok"}],`, "/panels/0/overrides/0/match", matchMessage},
+		{"mapping with two keys", `"mappings": [{"value": "a", "regex": "b"}],`, "/panels/0/mappings/0", mappingMessage},
+		{"mapping with only text", `"mappings": [{"text": "a"}],`, "/panels/0/mappings/0", mappingMessage},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data := strings.Replace(minimal, `"queries":`, c.members+` "queries":`, 1)
+			issues := parseIssues(t, []byte(data))
+			if len(issues) != 1 || issues[0].Path != c.path || issues[0].Message != c.message || issues[0].Code != spec.CodeSchema {
+				t.Fatalf("got %+v, want one schema issue at %s: %s", issues, c.path, c.message)
+			}
+		})
+	}
+}
+
 func TestValidationErrorAtRoot(t *testing.T) {
 	_, err := spec.Parse([]byte(`{}`))
 	if err == nil || strings.Contains(err.Error(), ": :") {
