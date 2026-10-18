@@ -63,7 +63,7 @@ Directories are created when their phase starts; this is where things go.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
-- `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
+- `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
 - `docs/self-hosting.md`: the operator guide (settings, datasources file, sign-in, LLM providers, keys, CLI, MCP, upgrades, security model); update it in the same change as any setting, default or behavior it describes.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands; it emits the demo metrics, logs and traces.
@@ -96,7 +96,7 @@ Directories are created when their phase starts; this is where things go.
 - MCP: `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB, 429 above 8 in-flight requests per principal and 503 `busy` above 32 in flight across all principals, and keeps no session state.
   Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
-  Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/settings/keys`.
+  Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/keys` (API keys in the sidebar; `/settings/keys` redirects).
 - Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
@@ -175,6 +175,10 @@ Directories are created when their phase starts; this is where things go.
 - Server data goes through TanStack Query with keys from `web/src/api/keys.ts` only; the typed client is `api` from `web/src/api/client.ts` (openapi-fetch over `web/src/api/schema.gen.ts`), and responses are unwrapped with `unwrap`, which throws `ApiError`.
 - Zustand holds UI-only state (theme, unsaved layout edits); never copy server data into a store.
 - The router uses plain `URLSearchParams` search serialization (`web/src/lib/search.ts`): search values are strings, numbers or string arrays, repeated keys become arrays, and each route coerces types in `validateSearch`.
+- Routes: `_authed` only checks the session; every page except the dashboard renders inside the pathless `_authed/_shell` layout (`web/src/shell/app-shell.tsx`: sidebar, top row, content card, right-card side panels), and dashboard routes under `_authed/dashboards/$dashboardId` have no shell (until the dashboard page phase they keep `web/src/shell/legacy-header.tsx`).
+  A shell route declares its breadcrumb with `staticData.crumbs`, sets its title with `useDocumentTitle`, and never renders `<main>` (the shell owns it).
+  Side panels (Create key, History) are `SidePanel` right cards portaled next to the content card, never dialogs or sheets; top-row page actions go through `TopRowActions`.
+  The sidebar is 240px by default, resizable from 200 to 360 (grip, arrow keys, Home, End, Enter or double-click to reset), collapses to 44px icons with tooltips, remembers its state in `localStorage` keys `slashobserve-sidebar-width` and `slashobserve-sidebar-collapsed`, and is hidden under 760px.
 - Dashboards live at `/dashboards/$dashboardId`; the URL holds `from`, `to`, `refresh`, `version`, `panel`, `tab` and repeated `var-<name>` values, parsed only by `web/src/dashboards/search.ts` (`withVariables` adds `var-` params to API calls).
   Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
   A selection that needs a variable's values list (no URL value and no All) is sent once those values have loaded for the current parent selections, never from a previous parent's list, and if the values request fails the dependent panels wait in an error state with the variable control's retry.
@@ -214,7 +218,7 @@ Directories are created when their phase starts; this is where things go.
   The composer posts `request_revision: false` unless its `requestRevision` prop is set.
   `CommentsTab` forwards `requestRevision`, `composerExtraFields` and `renderRevision` (and `DashboardComments` forwards `renderRevision`), so a parent owns the revision checkbox state and renders each comment's revision status.
   Comment paging stops after a failed page until the next successful refetch, the flattened list is deduplicated by id, and status announcements follow a saved change through `liveRegionText`.
-- The API keys page (`/settings/keys`, reached from the header) keeps a new key only in the create dialog's component state: the create-key mutation uses `gcTime: 0`, the response is never written to the query cache, and snippets reference `OBSERVE_TOKEN` instead of the key (Claude Code through `.mcp.json` `${OBSERVE_TOKEN}` expansion, OpenCode through `{env:OBSERVE_TOKEN}` with `oauth: false`).
+- The API keys page (`/keys`, in the sidebar) keeps a new key only in the create dialog's component state: the create-key mutation uses `gcTime: 0`, the response is never written to the query cache, and snippets reference `OBSERVE_TOKEN` instead of the key (Claude Code through `.mcp.json` `${OBSERVE_TOKEN}` expansion, OpenCode through `{env:OBSERVE_TOKEN}` with `oauth: false`).
 - Revision requests come from comments (`request_revision`, on by default through the checkbox `useCommentRevision` builds, whose last choice persists in `localStorage`) and from the follow-up bar (`POST /dashboards/{id}/revisions`, on the latest version only).
   On a pinned older version the checkbox is disabled with a visible reason, because a comment revision would start from that old version, and the comment itself still posts.
   Their live status is read from `dashboardKeys.revisions` (invalidated by `revision.updated`, polled every 5 seconds only while one is queued or running), never from the status embedded in a comment; a revision missing from that newest-50 page is fetched by id (`dashboardKeys.revision`), and `RevisionStatus` links to `/observe/$requestId` for step-by-step progress.
