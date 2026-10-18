@@ -18,6 +18,11 @@ import type { Panel } from "@/spec"
 
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardToolbar } from "./dashboard-toolbar"
+import { LiveIndicator } from "./live/live-indicator"
+import {
+  useDashboardEvents,
+  type LiveStatus,
+} from "./live/use-dashboard-events"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { PanelMenu } from "./panel-menu"
 import {
@@ -143,10 +148,12 @@ function DashboardView({
   dashboardId,
   envelope,
   latestVersion,
+  liveStatus,
 }: {
   dashboardId: string
   envelope: DashboardEnvelope
   latestVersion: number
+  liveStatus: LiveStatus
 }) {
   const search = useDashboardSearch()
   const version = envelope.version.version
@@ -197,7 +204,9 @@ function DashboardView({
     />,
     <RefreshPicker key="refresh" value={refreshValue} />,
   ]
-  const actions: ReactNode[] = []
+  const actions: ReactNode[] = [
+    <LiveIndicator key="live" status={liveStatus} />,
+  ]
 
   return (
     <main className="flex flex-1 flex-col">
@@ -240,10 +249,12 @@ function PinnedDashboardPage({
   dashboardId,
   version,
   latestVersion,
+  liveStatus,
 }: {
   dashboardId: string
   version: number
   latestVersion: number | undefined
+  liveStatus: LiveStatus
 }) {
   const pinned = useQuery(dashboardVersionQuery(dashboardId, version))
   if (!pinned.data) return <DashboardPageSkeleton />
@@ -252,6 +263,7 @@ function PinnedDashboardPage({
       dashboardId={dashboardId}
       envelope={pinned.data}
       latestVersion={latestVersion ?? pinned.data.version.version}
+      liveStatus={liveStatus}
     />
   )
 }
@@ -261,12 +273,16 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   const queryClient = useQueryClient()
   const latest = useQuery(latestDashboardQuery(queryClient, dashboardId))
   const latestVersion = latest.data?.dashboard.latest_version
+  const { status: liveStatus } = useDashboardEvents(dashboardId, {
+    pinnedVersion: search.version,
+  })
   if (search.version !== undefined) {
     return (
       <PinnedDashboardPage
         dashboardId={dashboardId}
         version={search.version}
         latestVersion={latestVersion}
+        liveStatus={liveStatus}
       />
     )
   }
@@ -276,6 +292,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       dashboardId={dashboardId}
       envelope={latest.data}
       latestVersion={latestVersion ?? latest.data.version.version}
+      liveStatus={liveStatus}
     />
   )
 }
