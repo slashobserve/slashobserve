@@ -38,7 +38,8 @@ type Props = {
   latestVersion: number
   from: number | undefined
   to: number | undefined
-  focusSignal: number
+  focusRequest: { from: number; to: number } | null
+  onFocused: () => void
   onChange: (range: { from: number; to: number }) => void
 }
 
@@ -107,7 +108,7 @@ function VersionSelect({
   const id = useId()
   return (
     <div className="flex items-center gap-2">
-      <Label htmlFor={id} className="text-muted-foreground">
+      <Label htmlFor={id} className="text-muted-foreground max-sm:w-9">
         {label}
       </Label>
       <Select
@@ -117,12 +118,20 @@ function VersionSelect({
           if (next !== null) onChange(next)
         }}
       >
-        <SelectTrigger id={id} className="min-w-32">
+        <SelectTrigger id={id} className="min-w-40">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false} align="start">
+        <SelectContent
+          alignItemWithTrigger={false}
+          align="start"
+          className="min-w-(--anchor-width)"
+        >
           {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
+            <SelectItem
+              key={item.value}
+              value={item.value}
+              className="pl-[11px]"
+            >
               {item.label}
             </SelectItem>
           ))}
@@ -353,7 +362,8 @@ export function VersionDiff({
   latestVersion,
   from: fromSearch,
   to: toSearch,
-  focusSignal,
+  focusRequest,
+  onFocused,
   onChange,
 }: Props) {
   const heading = useRef<HTMLHeadingElement>(null)
@@ -362,10 +372,12 @@ export function VersionDiff({
   const from = fromSearch ?? Math.max(to - 1, 0)
 
   useEffect(() => {
-    if (focusSignal === 0) return
+    if (focusRequest === null) return
+    if (focusRequest.from !== from || focusRequest.to !== to) return
     heading.current?.focus()
     heading.current?.scrollIntoView({ block: "start" })
-  }, [focusSignal])
+    onFocused()
+  }, [focusRequest, from, to, onFocused])
 
   const loaded = useMemo(
     () =>
@@ -390,7 +402,7 @@ export function VersionDiff({
       >
         Changes from {from === 0 ? "an empty dashboard" : `v${from}`} to v{to}
       </h2>
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-start">
         <VersionSelect
           label="From"
           value={from}
@@ -409,7 +421,12 @@ export function VersionDiff({
           Pick an older version on the left.
         </p>
       ) : (
-        <DiffBody dashboardId={dashboardId} from={from} to={to} />
+        <DiffBody
+          key={`${from}:${to}`}
+          dashboardId={dashboardId}
+          from={from}
+          to={to}
+        />
       )}
     </section>
   )

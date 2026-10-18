@@ -28,9 +28,13 @@ export function DashboardToolbar({
           </h1>
           <Badge variant="secondary">{versionBadge}</Badge>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Items nodes={controls} />
-          <Items nodes={actions} />
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+          <div className="flex flex-wrap items-center gap-2 sm:contents">
+            <Items nodes={controls} />
+          </div>
+          <div className="flex items-center gap-2 max-sm:w-full max-sm:justify-between sm:contents">
+            <Items nodes={actions} />
+          </div>
         </div>
       </div>
     </div>

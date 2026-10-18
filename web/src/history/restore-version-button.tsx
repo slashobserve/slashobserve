@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,6 +24,7 @@ type Props = {
   version: number
   latestVersion: number
   variant?: "row" | "banner"
+  onRestored: () => void
 }
 
 type Problem =
@@ -32,11 +32,29 @@ type Problem =
   | { kind: "invalid"; issues: ApiIssue[] }
   | { kind: "failed"; message: string }
 
+const transientCodes = new Set([
+  "datasource_unavailable",
+  "query_timeout",
+  "internal",
+])
+
+function isTransient(issue: ApiIssue): boolean {
+  return transientCodes.has(issue.code)
+}
+
 function issueText(issue: ApiIssue): string {
   if (issue.code === "unknown_datasource") {
     return "A datasource this version uses is not configured anymore."
   }
+  if (isTransient(issue)) {
+    return "This version could not be checked right now. Try again later."
+  }
   return issue.message
+}
+
+function issueLines(issues: ApiIssue[]): string[] {
+  if (issues.length === 0) return ["The saved Spec is no longer valid."]
+  return [...new Set(issues.map(issueText))]
 }
 
 function problemFrom(error: unknown): Problem {
@@ -58,17 +76,24 @@ export function RestoreVersionButton({
   version,
   latestVersion,
   variant = "row",
+  onRestored,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
+  const [openedAt, setOpenedAt] = useState(latestVersion)
   const [knownLatest, setKnownLatest] = useState(0)
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const restore = useRestoreVersion(dashboardId)
-  const parent = Math.max(latestVersion, knownLatest)
+  const parent = Math.max(openedAt, knownLatest)
   const conflicted = knownLatest > 0
 
+  function openDialog() {
+    setOpenedAt(latestVersion)
+    setOpen(true)
+  }
+
   function changeOpen(next: boolean) {
+    // Cancel is only aria-disabled while pending (Close has no focusableWhenDisabled), so closing is blocked here
     if (!next && restore.isPending) return
     setOpen(next)
     if (!next) {
@@ -88,11 +113,7 @@ export function RestoreVersionButton({
             `Restored version ${version} as version ${saved.version.version}`
           )
           setOpen(false)
-          void navigate({
-            to: "/dashboards/$dashboardId",
-            params: { dashboardId },
-            search: {},
-          })
+          onRestored()
         },
         onError: (error) => {
           const next = problemFrom(error)
@@ -121,7 +142,7 @@ export function RestoreVersionButton({
         variant="outline"
         size="sm"
         aria-label={banner ? undefined : `Restore version ${version}`}
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
       >
         {banner ? "Restore this version" : "Restore"}
       </Button>
@@ -144,15 +165,16 @@ export function RestoreVersionButton({
           {problem?.kind === "invalid" ? (
             <Alert variant="destructive">
               <AlertDescription>
-                <p>This version cannot be restored.</p>
+                <p>
+                  {problem.issues.length > 0 &&
+                  problem.issues.every(isTransient)
+                    ? "This version could not be restored right now."
+                    : "This version cannot be restored."}
+                </p>
                 <ul className="list-disc pl-4">
-                  {problem.issues.length > 0 ? (
-                    problem.issues.map((issue, index) => (
-                      <li key={index}>{issueText(issue)}</li>
-                    ))
-                  ) : (
-                    <li>The saved Spec is no longer valid.</li>
-                  )}
+                  {issueLines(problem.issues).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </AlertDescription>
             </Alert>
@@ -163,11 +185,12 @@ export function RestoreVersionButton({
             </Alert>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={restore.isPending}>
+            <AlertDialogCancel aria-disabled={restore.isPending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={restore.isPending}
+              focusableWhenDisabled
               aria-busy={restore.isPending}
               onClick={confirm}
             >

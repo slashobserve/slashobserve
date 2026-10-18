@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 
+import { parseSearch, stringifySearch } from "@/lib/search"
 import { isTimeValue, refreshOptions, refreshPattern } from "@/lib/time"
 
 export type DashboardSearch = {
@@ -97,6 +98,31 @@ export function searchFromState(
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }
   return out
+}
+
+export function backFromSearch(state: DashboardSearch): string | undefined {
+  const text = stringifySearch(searchFromState(state)).slice(1)
+  return text === "" ? undefined : text
+}
+
+export function validateBack(value: unknown): string | undefined {
+  const text = firstString(value)
+  if (text === undefined) return undefined
+  return backFromSearch(validateDashboardSearch(parseSearch(text)))
+}
+
+export function dashboardSearchFromBack(
+  back: string | undefined,
+  options?: { dropVersion?: boolean }
+): DashboardSearchParams {
+  if (back === undefined) return {}
+  const state = validateDashboardSearch(parseSearch(back))
+  if (options?.dropVersion) {
+    state.version = undefined
+    state.panel = undefined
+    state.tab = undefined
+  }
+  return searchFromState(state)
 }
 
 export function withVariables<Q extends object>(

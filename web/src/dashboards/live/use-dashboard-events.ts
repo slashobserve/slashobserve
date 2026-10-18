@@ -51,7 +51,10 @@ function describeVersion(event: { summary: string; authorName: string }) {
 
 export function useDashboardEvents(
   dashboardId: string,
-  { pinnedVersion }: { pinnedVersion?: number }
+  {
+    pinnedVersion,
+    toastVersions = true,
+  }: { pinnedVersion?: number; toastVersions?: boolean }
 ): { status: LiveStatus } {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -60,9 +63,9 @@ export function useDashboardEvents(
     status: LiveStatus
   }>({ dashboardId, status: "connecting" })
 
-  const latest = useRef({ pinnedVersion, router })
+  const latest = useRef({ pinnedVersion, toastVersions, router })
   useEffect(() => {
-    latest.current = { pinnedVersion, router }
+    latest.current = { pinnedVersion, toastVersions, router }
   })
 
   useEffect(() => {
@@ -117,7 +120,7 @@ export function useDashboardEvents(
       const saving = queryClient.isMutating({
         mutationKey: dashboardKeys.saves(dashboardId),
       })
-      if (saving > 0) return
+      if (saving > 0 || !latest.current.toastVersions) return
       const description = describeVersion(event) || undefined
       const pinned = latest.current.pinnedVersion
       const id = `version-${dashboardId}-${event.version}`

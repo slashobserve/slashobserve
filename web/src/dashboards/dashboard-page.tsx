@@ -36,7 +36,11 @@ import {
   type DashboardEnvelope,
 } from "./queries"
 import { RefreshPicker } from "./refresh-picker"
-import { useDashboardSearch, useSetDashboardSearch } from "./search"
+import {
+  backFromSearch,
+  useDashboardSearch,
+  useSetDashboardSearch,
+} from "./search"
 import { TimeRangePicker } from "./time-range-picker"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
@@ -218,6 +222,7 @@ function DashboardView({
       key="history"
       to="/dashboards/$dashboardId/versions"
       params={{ dashboardId }}
+      search={{ back: backFromSearch(search) }}
       className={cn(buttonVariants({ variant: "outline" }))}
     >
       <HistoryIcon data-icon="inline-start" />

@@ -11,6 +11,7 @@ type Props = { version: number; latestVersion: number }
 export function VersionBanner({ version, latestVersion }: Props) {
   const setSearch = useSetDashboardSearch()
   const { dashboardId } = useParams({ from: dashboardRouteId })
+  const unpin = () => setSearch((state) => ({ ...state, version: undefined }))
   if (version >= latestVersion) return null
   return (
     <div className="px-4 pt-3">
@@ -20,13 +21,7 @@ export function VersionBanner({ version, latestVersion }: Props) {
           {latestVersion}.
         </AlertDescription>
         <AlertAction className="static flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setSearch((state) => ({ ...state, version: undefined }))
-            }
-          >
+          <Button variant="outline" size="sm" onClick={unpin}>
             Back to latest
           </Button>
           <RestoreVersionButton
@@ -34,6 +29,7 @@ export function VersionBanner({ version, latestVersion }: Props) {
             dashboardId={dashboardId}
             version={version}
             latestVersion={latestVersion}
+            onRestored={unpin}
           />
         </AlertAction>
       </Alert>

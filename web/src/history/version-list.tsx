@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { dashboardSearchFromBack } from "@/dashboards/search"
 import { formatDateTime, formatRelative } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
@@ -21,7 +22,9 @@ import { useVersionHistory, type VersionMeta } from "./use-version-history"
 type Props = {
   dashboardId: string
   latestVersion: number
+  back: string | undefined
   onCompare: (version: number) => void
+  onRestored: () => void
 }
 
 const skeletonRows = 5
@@ -33,7 +36,9 @@ function VersionRow({
   dashboardId,
   meta,
   latestVersion,
+  back,
   onCompare,
+  onRestored,
 }: Props & { meta: VersionMeta }) {
   const latest = meta.version === latestVersion
   return (
@@ -64,13 +69,23 @@ function VersionRow({
         </time>
       </TableCell>
       <TableCell className={`${cellLayout} max-sm:mt-1 max-sm:w-full`}>
-        <div className="flex flex-wrap items-center justify-end gap-1.5 max-sm:justify-start sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId }}
-            search={latest ? {} : { version: meta.version }}
+            search={
+              latest
+                ? dashboardSearchFromBack(back, { dropVersion: true })
+                : {
+                    ...dashboardSearchFromBack(back, { dropVersion: true }),
+                    version: meta.version,
+                  }
+            }
             aria-label={`View version ${meta.version}`}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "-ml-[11px]"
+            )}
           >
             View
           </Link>
@@ -91,6 +106,7 @@ function VersionRow({
               dashboardId={dashboardId}
               version={meta.version}
               latestVersion={latestVersion}
+              onRestored={onRestored}
             />
           )}
         </div>
@@ -115,13 +131,19 @@ function SkeletonRows() {
         <Skeleton className="h-5 w-16" />
       </TableCell>
       <TableCell className={`${cellLayout} max-sm:w-full`}>
-        <Skeleton className="ml-auto h-7 w-32 max-sm:ml-0" />
+        <Skeleton className="h-7 w-32" />
       </TableCell>
     </TableRow>
   ))
 }
 
-export function VersionList({ dashboardId, latestVersion, onCompare }: Props) {
+export function VersionList({
+  dashboardId,
+  latestVersion,
+  back,
+  onCompare,
+  onRestored,
+}: Props) {
   const query = useVersionHistory(dashboardId)
   const versions = query.data?.pages.flatMap((page) => page.versions) ?? []
   const loadMoreFailed = query.isFetchNextPageError
@@ -159,7 +181,7 @@ export function VersionList({ dashboardId, latestVersion, onCompare }: Props) {
               <TableHead>Summary</TableHead>
               <TableHead>Author</TableHead>
               <TableHead>Saved</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -172,7 +194,9 @@ export function VersionList({ dashboardId, latestVersion, onCompare }: Props) {
                   dashboardId={dashboardId}
                   meta={meta}
                   latestVersion={latestVersion}
+                  back={back}
                   onCompare={onCompare}
+                  onRestored={onRestored}
                 />
               ))
             )}
