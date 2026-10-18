@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -73,6 +74,77 @@ func TestValidExamples(t *testing.T) {
 	}
 }
 
+func roundTripSources(t *testing.T) map[string][]byte {
+	t.Helper()
+	root, err := os.OpenRoot("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = root.Close() })
+	glob := func(pattern string) []string {
+		files, err := fs.Glob(root.FS(), pattern)
+		if err != nil || len(files) == 0 {
+			t.Fatalf("glob %s: %v (%d files)", pattern, err, len(files))
+		}
+		return files
+	}
+	read := func(f string) []byte {
+		data, err := root.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	sources := map[string][]byte{}
+	for _, pattern := range []string{
+		"spec/examples/*.json",
+		"pkg/spec/testdata/upgrade/evolved/*.json",
+		"web/e2e/data/*.json",
+	} {
+		for _, f := range glob(pattern) {
+			sources[f] = read(f)
+		}
+	}
+	for _, f := range glob("e2e/fixtures/api/*.json") {
+		var body struct {
+			Spec json.RawMessage `json:"spec"`
+		}
+		if err := json.Unmarshal(read(f), &body); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if _, err := spec.Parse(body.Spec); err == nil {
+			sources[f] = body.Spec
+		}
+	}
+	return sources
+}
+
+func TestRoundTripFixtures(t *testing.T) {
+	for name, data := range roundTripSources(t) {
+		t.Run(name, func(t *testing.T) {
+			first, err := spec.Parse(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stored, err := json.Marshal(first)
+			if err != nil {
+				t.Fatal(err)
+			}
+			second, err := spec.Parse(stored)
+			if err != nil {
+				t.Fatalf("reparse stored form: %v", err)
+			}
+			again, err := json.Marshal(second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(stored, again) {
+				t.Fatalf("stored form is not stable\nfirst:  %s\nsecond: %s", stored, again)
+			}
+		})
+	}
+}
+
 func TestInvalidExamples(t *testing.T) {
 	var manifest struct {
 		Cases []manifestCase `json:"cases"`
@@ -133,6 +205,8 @@ func TestRejectedDocuments(t *testing.T) {
 		{"unknown unit in an override", with(`"queries":`, `"overrides": [{"match": {"field": "n"}, "unit": "reqs"}], "queries":`), spec.CodeUnknownUnit, "/panels/0/overrides/0/unit"},
 		{"unknown unit in a row child", with(`"panels": [`, `"panels": [{"id": "r", "type": "row", "title": "R", "gridPos": {"x": 0, "y": 4, "w": 24, "h": 1}, "panels": [{"id": "c", "type": "stat", "title": "C", "gridPos": {"x": 0, "y": 5, "w": 6, "h": 4}, "datasource": "ch", "queries": [{"query": "up"}], "unit": "reqs"}]}, `), spec.CodeUnknownUnit, "/panels/0/panels/0/unit"},
 		{"whole-number float in a row child", with(`"panels": [`, `"panels": [{"id": "r", "type": "row", "title": "R", "gridPos": {"x": 0, "y": 4, "w": 24, "h": 1}, "panels": [{"id": "c", "type": "stat", "title": "C", "gridPos": {"x": 0, "y": 5, "w": 6.0, "h": 4}, "datasource": "ch", "queries": [{"query": "up"}]}]}, `), spec.CodeSchema, "/panels/0/panels/0/gridPos/w"},
+		{"override with only empty links", with(`"queries":`, `"overrides": [{"match": {"query": "A"}, "links": []}], "queries":`), spec.CodeSchema, "/panels/0/overrides/0/links"},
+		{"override with an empty array and a real option is valid", with(`"queries":`, `"overrides": [{"match": {"query": "A"}, "links": [], "color": "ok"}], "queries":`), "", ""},
 		{"float out of range in a mapping range", with(`"queries":`, `"mappings": [{"range": [1e999, null], "text": "high"}], "queries":`), spec.CodeSchema, "/panels/0/mappings/0/range/0"},
 		{"a macro of another datasource type is left to the query proxy", with(`"datasource": "ch"`, `"datasource": "prom"`), "", ""},
 		{"unknown macro with unclosed args", with(`$__timeFilter(Timestamp)`, `$__foo(x`), spec.CodeUnknownMacro, "/panels/0/queries/0/query"},

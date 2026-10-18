@@ -29,6 +29,7 @@
     { "file": "semantic/duplicate-key.json", "layer": "semantic", "code": "duplicate_key", "path": "/panels/0/title" },
     { "file": "semantic/duplicate-query-ref.json", "layer": "semantic", "code": "duplicate_query_ref", "path": "/panels/0/queries/1/ref" },
     { "file": "semantic/unknown-query-ref.json", "layer": "semantic", "code": "unknown_query_ref", "path": "/panels/0/overrides/0/match/query" },
+    { "file": "semantic/override-empty-array.json", "layer": "semantic", "code": "schema", "path": "/panels/0/overrides/0/mappings" },
     { "file": "semantic/too-many-panels.json", "layer": "semantic", "code": "too_many_panels", "path": "/panels" }
   ]
 }

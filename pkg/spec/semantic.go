@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
@@ -24,6 +25,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkThresholds(entries)...)
 	issues = append(issues, checkMinMax(entries)...)
 	issues = append(issues, checkQueryRefs(entries)...)
+	issues = append(issues, checkOverrideMembers(entries)...)
 	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkVariableQueries(d.Variables)...)
 	issues = append(issues, checkPanelQueries(d, entries)...)
@@ -426,6 +428,39 @@ func checkQueryRefs(entries []PanelEntry) []Issue {
 		}
 	}
 	return issues
+}
+
+func checkOverrideMembers(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, e := range entries {
+		if !e.Panel.Type.IsData() {
+			continue
+		}
+		for k, o := range e.Panel.Overrides {
+			if storesMembers(o.FieldProps) {
+				continue
+			}
+			for _, empty := range []struct {
+				name string
+				set  bool
+			}{{"mappings", o.Mappings != nil}, {"links", o.Links != nil}} {
+				if !empty.set {
+					continue
+				}
+				issues = append(issues, Issue{
+					Path:    e.Pointer + pointer("overrides", strconv.Itoa(k), empty.name),
+					Code:    CodeSchema,
+					Message: fmt.Sprintf("override sets only an empty %q array, which is not stored; add a field option or remove the override", empty.name),
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func storesMembers(p FieldProps) bool {
+	b, err := json.Marshal(p)
+	return err != nil || string(b) != "{}"
 }
 
 func checkRepeat(d *Dashboard, entries []PanelEntry) []Issue {
