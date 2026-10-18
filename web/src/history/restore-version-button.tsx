@@ -4,6 +4,7 @@ import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ApiError, type ApiIssue } from "@/api/errors"
+import { isTransient, issueLines } from "@/api/issues"
 import { dashboardKeys } from "@/api/keys"
 import {
   AlertDialog,
@@ -31,31 +32,6 @@ type Problem =
   | { kind: "conflict"; latest: number }
   | { kind: "invalid"; issues: ApiIssue[] }
   | { kind: "failed"; message: string }
-
-const transientCodes = new Set([
-  "datasource_unavailable",
-  "query_timeout",
-  "internal",
-])
-
-function isTransient(issue: ApiIssue): boolean {
-  return transientCodes.has(issue.code)
-}
-
-function issueText(issue: ApiIssue): string {
-  if (issue.code === "unknown_datasource") {
-    return "A datasource this version uses is not configured anymore."
-  }
-  if (isTransient(issue)) {
-    return "This version could not be checked right now. Try again later."
-  }
-  return issue.message
-}
-
-function issueLines(issues: ApiIssue[]): string[] {
-  if (issues.length === 0) return ["The saved Spec is no longer valid."]
-  return [...new Set(issues.map(issueText))]
-}
 
 function problemFrom(error: unknown): Problem {
   if (error instanceof ApiError) {
