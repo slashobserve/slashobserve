@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"time"
@@ -28,5 +29,9 @@ func ParseInterval(s string) (time.Duration, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%q is not a valid interval", s)
 	}
-	return time.Duration(n) * intervalUnits[m[2]], nil
+	unit := intervalUnits[m[2]]
+	if int64(n) > math.MaxInt64/int64(unit) {
+		return 0, fmt.Errorf("%q is too long an interval", s)
+	}
+	return time.Duration(n) * unit, nil
 }
