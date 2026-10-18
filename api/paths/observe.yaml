@@ -98,6 +98,7 @@ observe-id:
     description: >-
       Works for any agent request, including comment and prompt revisions.
       Clients poll it once a second until the status is `succeeded` or `failed`.
+      After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
     responses:
       "200":
         description: The agent request with its current status.

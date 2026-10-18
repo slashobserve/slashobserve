@@ -514,7 +514,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. Clients poll it once a second until the status is `succeeded` or `failed`.
+         * @description Works for any agent request, including comment and prompt revisions. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
          */
         get: operations["getObserveRequest"];
         put?: never;
@@ -813,6 +813,7 @@ export interface components {
         AgentStep: {
             /** Format: date-time */
             at: string;
+            /** @description The attempt that ran the step. A shutdown release gives the attempt back and deletes its steps, so the re-claimed run reuses the same attempt number with a fresh step list. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
             phase: "discover" | "lint" | "query" | "save" | "repair";

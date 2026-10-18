@@ -696,6 +696,10 @@ components:
         attempt:
           type: integer
           minimum: 0
+          description: >-
+            The attempt that ran the step.
+            A shutdown release gives the attempt back and deletes its steps, so the re-claimed run reuses the same attempt number with a fresh step list.
+            Clients detect a restarted list by each step's `at`, not by `attempt` alone.
         phase:
           type: string
           enum: [discover, lint, query, save, repair]
