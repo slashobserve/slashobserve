@@ -16,6 +16,7 @@ export type VariableValuesParams = {
 export const dashboardKeys = {
   all: ["dashboards"] as const,
   list: () => ["dashboards", "list"] as const,
+  titles: () => ["dashboards", "titles"] as const,
   latest: (id: string) => ["dashboards", id, "latest"] as const,
   version: (id: string, version: number) =>
     ["dashboards", id, "versions", version] as const,
@@ -54,6 +55,16 @@ export const serviceAccountKeys = {
   all: ["service-accounts"] as const,
   list: () => ["service-accounts", "list"] as const,
   keys: (accountId: string) => ["service-accounts", accountId, "keys"] as const,
+}
+
+export const datasourceKeys = {
+  all: ["datasources"] as const,
+  list: () => ["datasources", "list"] as const,
+}
+
+export const userKeys = {
+  all: ["users"] as const,
+  list: () => ["users", "list"] as const,
 }
 
 export const instanceKeys = {
