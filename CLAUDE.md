@@ -35,6 +35,7 @@ Directories are created when their phase starts; this is where things go.
 - `cmd/slashobserve-server/`: server binary (`healthcheck` subcommand backs the Docker health check).
 - `cmd/observe/` + `internal/cli/`: the `observe` CLI (API client with a service-account key; settings from flags, `OBSERVE_SERVER`/`OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`; the saved key goes only to the server it was saved for).
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
+- `internal/logattrs/`: turns an error into log attributes that are safe to write (the innermost Go error type and, for a Postgres error, the SQLSTATE) without its message, which can echo queries, tool results or credentials; not test-only, and used by the agent, MCP and query proxy log lines.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
@@ -62,6 +63,7 @@ Directories are created when their phase starts; this is where things go.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
+- `docs/self-hosting.md`: the operator guide (settings, datasources file, sign-in, LLM providers, keys, CLI, MCP, upgrades, security model); update it in the same change as any setting, default or behavior it describes.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands; it emits the demo metrics, logs and traces.
 - `deploy/compose/{prometheus,clickhouse,otelcol}/`: the configs mounted into the demo stack's Prometheus, ClickHouse and OTel Collector.
 - `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint).

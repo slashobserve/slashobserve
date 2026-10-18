@@ -5,6 +5,7 @@ Type `/observe checkout health by pod, last 6h`, get a dashboard backed by your 
 
 This repository is the Community Edition: one Go binary with the web UI embedded, plus Postgres.
 It is at an early stage: the scaffold is in place and features land step by step.
+To run it on your own infrastructure, read the [self-hosting guide](docs/self-hosting.md).
 
 ## Run it locally
 
@@ -13,6 +14,7 @@ Requirements: Docker with Compose v2.20 or newer.
     make demo
 
 Open http://localhost:8080, and stop the stack with `make demo-down`.
+The agent answers prompts only when an LLM provider is configured, for example by exporting `SLASHOBSERVE_LLM_PROVIDER=anthropic` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`; see [LLM providers](docs/self-hosting.md#llm-providers).
 
 ## Demo stack
 
@@ -30,7 +32,7 @@ If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the 
 ## CLI
 
 `make cli` builds `bin/observe`, a thin client of the public API that uses a service-account key.
-Create a service-account key with `POST /api/v1/service-accounts/{id}/keys` while signed in, then sign in once:
+Create a service-account key on the web page `/settings/keys` (**API keys** in the header; a key is shown once), then sign in once:
 
     bin/observe login --server http://localhost:8080 --with-token
 
@@ -43,6 +45,7 @@ Then give it a prompt and it prints the dashboard address:
 Add `--json` to any command to get the API response as it is, and see `bin/observe --help` for the rest.
 Settings come from flags, then `OBSERVE_SERVER` and `OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`.
 The saved key is sent only to the server it was saved for; for another server, pass `--token` or set `OBSERVE_TOKEN`.
+The same key connects Claude Code, OpenCode and Cursor to the server's MCP endpoint; see [MCP](docs/self-hosting.md#mcp).
 
 ## Develop
 
