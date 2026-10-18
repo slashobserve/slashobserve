@@ -1591,7 +1591,7 @@ mcp_suite() {
   mcp_tool get_spec_guide '{}'
   mcp_expect "get_spec_guide" '"guide"'
   pass "MCP get_spec_guide returns the authoring guide"
-  mcp_expect "get_spec_guide" '"queries"'
+  mcp_expect "get_spec_guide" '## Queries'
   pass "MCP get_spec_guide teaches evolved ObserveSpec v0"
 
   mcp_tool create_dashboard '{"summary":"Placeholder","spec":{"specVersion":"0","title":"Placeholder check","time":{"from":"now-15m","to":"now"},"panels":[{"id":"p_up","type":"stat","title":"Up","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"query":"count(up)"}]},{"id":"p_x","type":"placeholder","gridPos":{"x":6,"y":0,"w":6,"h":4},"reason":"not supported"}]}}'

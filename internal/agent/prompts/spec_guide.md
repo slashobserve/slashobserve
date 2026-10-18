@@ -13,7 +13,7 @@ Leave out every value that equals its default.
 - `heatmap` and `histogram`: distributions such as latency; `state-timeline`: a state per series over time.
 - Panel ids are unique across the dashboard, row children included, lowercase snake case, prefixed `p_`.
 - A `row` groups the panels after it under a title: put them in the row's `panels`, each with its own `gridPos` below the row.
-- Never create a `placeholder` panel; they come only from Grafana imports. You may move one (its `gridPos`, or into or out of a row) or delete it, and must leave its other fields unchanged.
+- Never create a `placeholder` panel; they come only from Grafana imports. You may move one (its `gridPos`, or into or out of a row) or delete it, and must leave its other fields unchanged; to implement one, replace it with a real panel that keeps its id.
 - Add a `text` panel only when the request asks for notes, and write plain sentences in `content`.
 
 ## Queries
@@ -50,7 +50,7 @@ Leave out every value that equals its default.
 ## Variables
 - Add a variable only when the request asks for a breakdown the user will filter.
 - `query` variables: Prometheus `label_values(<metric>, <label>)`, referenced as `$name`, or `${name:regex}` inside `=~`; ClickHouse references use `${name:sqlstring}` inside `IN (...)`.
-- `custom` lists fixed values; `interval` offers steps such as `["1m", "5m", "1h"]` with `"auto": true`; `constant` holds one shared value; `textbox` takes free text; `adhoc` adds key and value filters, which Prometheus applies to every query on its datasource and a ClickHouse query uses as `AND $name` in its WHERE clause.
+- `custom` lists fixed values; `interval` lists steps in `options`, such as `["1m", "5m", "1h"]`, with `"auto": true`; `constant` holds one shared value; `textbox` takes free text; `adhoc` adds key and value filters, which Prometheus applies to every query on its datasource and a ClickHouse query uses as `AND $name` in its WHERE clause.
 - Global values for any query: `$__interval_ms`, `$__range_s`, `$__range_ms`, `${__from:date:seconds}`, `${__to:date:seconds}`, `$__dashboard` and `${__user.login}`.
 
 ## Time
