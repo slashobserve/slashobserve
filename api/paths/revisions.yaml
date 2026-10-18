@@ -1,0 +1,143 @@
+dashboards-id-revisions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: createDashboardRevision
+    summary: Ask the agent to revise a dashboard with a follow-up prompt.
+    description: >-
+      The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard.
+      Watch the dashboard's event stream for `revision.updated`, followed by `version.created` when the revision succeeds, or poll the revision.
+      The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context.
+      The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
+      Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
+      At most 5 revisions may be queued or running per dashboard.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [prompt, base_version]
+            properties:
+              prompt:
+                type: string
+              base_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+                description: A version that exists on the dashboard.
+    responses:
+      "202":
+        description: The queued revision.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RevisionEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "429":
+        description: The dashboard already has 5 revisions queued or running (`too_many_revisions`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  get:
+    operationId: listDashboardRevisions
+    summary: List the revision requests of a dashboard, newest first.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of revisions.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [revisions, next_cursor]
+              properties:
+                revisions:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Revision"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-revisions-revisionid:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: revision_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getDashboardRevision
+    summary: Read one revision request.
+    responses:
+      "200":
+        description: The revision with its current status.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RevisionEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

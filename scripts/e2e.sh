@@ -361,6 +361,7 @@ suite() {
   dashboards_suite
   events_suite
   comments_suite
+  revisions_suite
   mcp_suite
   proxy_suite
   check_api_contract
@@ -683,7 +684,7 @@ events_suite() {
 }
 
 comment_body() {
-  printf '{"version":%s,"panel_id":"%s","body":"%s"}' "$1" "$2" "$3"
+  printf '{"version":%s,"panel_id":"%s","body":"%s","request_revision":false}' "$1" "$2" "$3"
 }
 
 comment_ids() {
@@ -841,6 +842,163 @@ comments_suite() {
   out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'x')")"
   [[ "$out" == 422 ]] || fail "comment on a panel the newest version dropped ($out: $(cat "$TMP/api.body"))"
   pass "comments stay on the version they were made on and report whether their panel is still present"
+}
+
+revision_id_of() {
+  grep -o '"revision":{"id":"[^"]*"' "$1" | head -1 | cut -d'"' -f6
+}
+
+wait_revision() {
+  local dashboard="$1" revision="$2" status="$3" tries=$(($4 * 5))
+  until [[ "$(api GET "/dashboards/$dashboard/revisions/$revision")" == 200 ]] && grep -q "\"status\":\"$status\"" "$TMP/api.body"; do
+    ((--tries > 0)) || fail "revision $revision never became $status ($(cat "$TMP/api.body"))"
+    sleep 0.2
+  done
+}
+
+revisions_suite() {
+  api_token
+  local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
+  local accepted=0 limited=0 attempt succeeded tries
+
+  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
+  [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the revisions dashboard ($out: $(cat "$TMP/api.body"))"
+  id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+
+  sse_open "$id" "$stream"
+  out="$(api POST "/dashboards/$id/comments" -d '{"version":1,"panel_id":"'"$panel"'","body":"Show this per route"}')"
+  if [[ "$out" != 201 ]] || ! grep -q '"revision":{"id":"[^"]*","status":"queued"}' "$TMP/api.body"; then
+    fail "a comment queues a revision ($out: $(cat "$TMP/api.body"))"
+  fi
+  rid="$(revision_id_of "$TMP/api.body")"
+  cid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$rid" && -n "$cid" ]] || fail "queued revision or comment has no id ($(cat "$TMP/api.body"))"
+  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",\"comment_id\":\"$cid\",\"revision_id\":\"$rid\",\"status\":\"queued\"}$" 10
+  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",.*\"revision_id\":\"$rid\",\"status\":\"succeeded\"}$" 90
+  sse_wait "$stream" "^data: {\"type\":\"version.created\",\"dashboard_id\":\"$id\",\"version\":2,\"parent_version\":1," 10
+  sse_wait "$stream" "^data: {\"type\":\"revision.updated\",\"dashboard_id\":\"$id\",\"version\":2,\"comment_id\":\"$cid\",\"revision_id\":\"$rid\",\"status\":\"succeeded\"}$" 10
+  pass "a comment queues a revision that saves version 2 and announces it on the event stream"
+
+  out="$(api GET "/dashboards/$id/revisions/$rid")"
+  if [[ "$out" != 200 ]] || ! grep -q '"status":"succeeded"' "$TMP/api.body" || ! grep -q '"result_version":2' "$TMP/api.body" \
+    || ! grep -q '"source":"comment"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$cid\"" "$TMP/api.body" \
+    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"attempts":1' "$TMP/api.body" \
+    || ! grep -q '"error":null' "$TMP/api.body" || ! grep -q '"base_version":1' "$TMP/api.body" \
+    || ! grep -q '"prompt":"Show this per route"' "$TMP/api.body" || ! grep -q '"requested_by":{"kind":"service_account"' "$TMP/api.body"; then
+    fail "the finished comment revision ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/versions/2")"
+  if [[ "$out" != 200 ]] || ! grep -q '"summary":"Show requests per second by route"' "$TMP/api.body" \
+    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (route)' "$TMP/api.body"; then
+    fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/comments")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"revision\":{\"id\":\"$rid\",\"status\":\"succeeded\"}" "$TMP/api.body" || ! grep -q '"status":"open"' "$TMP/api.body"; then
+    fail "the comment keeps its revision and stays open ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "the revision records its result, author and comment, and the comment stays open"
+
+  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"  Add a p99 latency panel ","base_version":2}')"
+  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"source":"prompt"' "$TMP/api.body" \
+    || ! grep -q '"comment_id":null' "$TMP/api.body" || ! grep -q '"panel_id":null' "$TMP/api.body"; then
+    fail "a follow-up prompt is queued ($out: $(cat "$TMP/api.body"))"
+  fi
+  rid2="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
+  grep -qi "^location: /api/v1/dashboards/$id/revisions/$rid2" "$TMP/api.headers" || fail "the revision response has no Location header ($(cat "$TMP/api.headers"))"
+  sse_wait "$stream" "^data: {\"type\":\"version.created\",\"dashboard_id\":\"$id\",\"version\":3,\"parent_version\":2," 90
+  wait_revision "$id" "$rid2" succeeded 10
+  grep -q '"result_version":3' "$TMP/api.body" || fail "the follow-up revision should save version 3 ($(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":3' "$TMP/api.body" || ! grep -q '"id":"p99_latency"' "$TMP/api.body"; then
+    fail "the dashboard after the follow-up ($out: $(cat "$TMP/api.body"))"
+  fi
+  sse_close
+  pass "a follow-up prompt queues a revision that saves version 3 with the new panel"
+
+  out="$(api GET "/dashboards/$id/revisions")"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  if [[ "$out" != 200 || "$page_ids" != "$rid2 $rid " ]] || ! grep -q '"next_cursor":null' "$TMP/api.body"; then
+    fail "list the revisions, newest first (ids '$page_ids': $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/revisions?limit=1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"next_cursor":"[^"]' "$TMP/api.body"; then
+    fail "page the revisions ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "revisions list newest first with cursors"
+
+  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"No fixture covers this prompt","base_version":3}')"
+  [[ "$out" == 202 ]] || fail "queue a prompt the replay provider cannot answer ($out: $(cat "$TMP/api.body"))"
+  rid3="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
+  wait_revision "$id" "$rid3" failed 30
+  if ! grep -q '"error":"model call failed: no replay fixture"' "$TMP/api.body" || ! grep -q '"result_version":null' "$TMP/api.body" \
+    || ! grep -q '"attempts":1' "$TMP/api.body"; then
+    fail "a failed revision records a safe error ($(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$id")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":3' "$TMP/api.body"; then
+    fail "a failed revision must not save a version ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a revision the agent cannot complete fails with a safe error and saves nothing"
+
+  for bad in '{"base_version":1}' '{"prompt":"x"}' '{"prompt":"   ","base_version":1}' '{"prompt":"a\u0000b","base_version":1}' \
+    '{"prompt":"a\u202eb","base_version":1}' '{"prompt":"x","base_version":0}' '{"prompt":"x","base_version":"1"}' \
+    '{"prompt":"x","base_version":1,"extra":1}' "{\"prompt\":\"$(printf 'a%.0s' $(seq 1 4001))\",\"base_version\":1}"; do
+    out="$(api POST "/dashboards/$id/revisions" -d "$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "invalid revision ${bad:0:60} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"x","base_version":99}')"
+  [[ "$out" == 404 ]] || fail "revision against an unknown version ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$nil_id/revisions" -d '{"prompt":"x","base_version":1}')"
+  [[ "$out" == 404 ]] || fail "revision of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST /dashboards/not-a-uuid/revisions -d '{"prompt":"x","base_version":1}')"
+  [[ "$out" == 400 ]] || fail "revision of a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$nil_id/revisions")"
+  [[ "$out" == 404 ]] || fail "list revisions of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id/revisions/$nil_id")"
+  [[ "$out" == 404 ]] || fail "read an unknown revision ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id/revisions/not-a-uuid")"
+  [[ "$out" == 400 ]] || fail "read a malformed revision id ($out: $(cat "$TMP/api.body"))"
+  for bad in limit=0 limit=201 limit=x 'cursor=!!!'; do
+    out="$(api GET "/dashboards/$id/revisions?$bad")"
+    [[ "$out" == 400 ]] || fail "list revisions with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
+  done
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"prompt":"x","base_version":1}' "$BASE_URL/api/v1/dashboards/$id/revisions")"
+  [[ "$out" == 401 ]] || fail "revision without a token ($out)"
+  pass "revision requests refuse invalid bodies, unknown versions and dashboards, bad paging and anonymous callers"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the revision cap dashboard ($out: $(cat "$TMP/api.body"))"
+  id2="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  for attempt in $(seq 1 12); do
+    out="$(api POST "/dashboards/$id2/revisions" -d '{"prompt":"Add a latency panel after checking the data","base_version":1}')"
+    if [[ "$out" == 202 ]]; then
+      accepted=$((accepted + 1))
+    elif [[ "$out" == 429 ]] && grep -q '"code":"too_many_revisions"' "$TMP/api.body"; then
+      limited=1
+      break
+    else
+      fail "rapid revision $attempt ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  ((limited == 1 && accepted >= 5 && accepted <= 11)) || fail "rapid revisions: $accepted accepted, limited=$limited"
+  pass "at most five revisions are queued or running per dashboard"
+
+  tries=120
+  until [[ "$(api GET "/dashboards/$id2/revisions?limit=200")" == 200 ]] && ! grep -Eq '"status":"(queued|running)"' "$TMP/api.body"; do
+    ((--tries > 0)) || fail "queued revisions did not finish ($(cat "$TMP/api.body"))"
+    sleep 1
+  done
+  succeeded="$(grep -o '"status":"succeeded"' "$TMP/api.body" | wc -l | tr -d ' ')"
+  [[ "$succeeded" == "$accepted" ]] || fail "$succeeded revisions succeeded out of $accepted accepted ($(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$id2/versions")"
+  if [[ "$out" != 200 ]] || [[ "$(grep -o '"version":[0-9]*,"parent_version"' "$TMP/api.body" | wc -l | tr -d ' ')" != "$((succeeded + 1))" ]]; then
+    fail "each revision should save exactly one version ($succeeded revisions: $(cat "$TMP/api.body"))"
+  fi
+  pass "every queued revision saves exactly one version, one at a time per dashboard"
 }
 
 mcp_call() {

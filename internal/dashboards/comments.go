@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -18,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -26,7 +26,7 @@ const (
 	CommentResolved = "resolved"
 	CommentAll      = "all"
 
-	maxCommentRunes  = 4000
+	maxCommentRunes  = revisions.MaxPromptRunes
 	maxPanelIDRunes  = 64
 	maxCommentCursor = 253402300799999999
 )
@@ -44,6 +44,11 @@ func (e *InvalidInputError) Error() string {
 	return e.Message
 }
 
+type CommentRevision struct {
+	ID     string
+	Status string
+}
+
 type Comment struct {
 	ID           string
 	DashboardID  string
@@ -57,19 +62,21 @@ type Comment struct {
 	ResolvedAt   *time.Time
 	ResolvedBy   *Author
 	PanelPresent bool
+	Revision     *CommentRevision
 }
 
 type Comments struct {
 	db         *db.DB
 	dashboards *Service
+	revisions  *revisions.Service
 	panelSets  *panelCache
 }
 
-func NewComments(database *db.DB, dashboards *Service) *Comments {
-	return &Comments{db: database, dashboards: dashboards, panelSets: newPanelCache()}
+func NewComments(database *db.DB, dashboards *Service, revisions *revisions.Service) *Comments {
+	return &Comments{db: database, dashboards: dashboards, revisions: revisions, panelSets: newPanelCache()}
 }
 
-func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, version int, panelID, body string) (Comment, error) {
+func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, version int, panelID, body string, requestRevision bool) (Comment, error) {
 	if !validVersion(version) {
 		return Comment{}, &InvalidInputError{Message: "version must be a positive 32-bit integer"}
 	}
@@ -103,6 +110,7 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 	}
 	author := authorOf(by)
 	var row dbsqlc.DashboardComment
+	var requested *CommentRevision
 	err = cm.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
 		row, err = q.CreateComment(ctx, dbsqlc.CreateCommentParams{
@@ -118,12 +126,37 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 		if err != nil {
 			return fmt.Errorf("create comment: %w", err)
 		}
-		return notifyComment(ctx, q, events.TypeCommentCreated, row, author)
+		requested, err = cm.announce(ctx, q, by, row, requestRevision)
+		return err
 	})
 	if err != nil {
 		return Comment{}, err
 	}
-	return commentFromRow(row, latestPanels), nil
+	comment := commentFromRow(row, latestPanels)
+	comment.Revision = requested
+	return comment, nil
+}
+
+func (cm *Comments) announce(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, row dbsqlc.DashboardComment, requestRevision bool) (*CommentRevision, error) {
+	if err := notifyComment(ctx, q, events.TypeCommentCreated, row, authorOf(by)); err != nil {
+		return nil, err
+	}
+	if !requestRevision || !cm.revisions.Available() {
+		return nil, nil
+	}
+	rev, err := cm.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
+		DashboardID: row.DashboardID,
+		Source:      revisions.SourceComment,
+		CommentID:   row.ID,
+		Prompt:      row.Body,
+		PanelID:     row.PanelID,
+		BaseVersion: int(row.Version),
+		By:          by,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &CommentRevision{ID: rev.ID, Status: string(rev.Status)}, nil
 }
 
 func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, panelID string, limit int, cursor string) ([]Comment, string, error) {
@@ -172,6 +205,9 @@ func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, p
 	}
 	for _, r := range rows {
 		items = append(items, commentFromRow(r, panels))
+	}
+	if err := cm.attachRevisions(ctx, items); err != nil {
+		return nil, "", err
 	}
 	return items, next, nil
 }
@@ -222,7 +258,37 @@ func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardI
 	if err != nil {
 		return Comment{}, err
 	}
-	return commentFromRow(row, panels), nil
+	comments := []Comment{commentFromRow(row, panels)}
+	if err := cm.attachRevisions(ctx, comments); err != nil {
+		return Comment{}, err
+	}
+	return comments[0], nil
+}
+
+func (cm *Comments) attachRevisions(ctx context.Context, comments []Comment) error {
+	ids := make([]pgtype.UUID, 0, len(comments))
+	for _, c := range comments {
+		id, err := db.ParseUUID(c.ID)
+		if err != nil {
+			return fmt.Errorf("comment id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := cm.db.Queries().LatestAgentRequestsForComments(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("latest agent requests for comments: %w", err)
+	}
+	byComment := make(map[string]*CommentRevision, len(rows))
+	for _, r := range rows {
+		byComment[r.CommentID.String()] = &CommentRevision{ID: r.ID.String(), Status: r.Status}
+	}
+	for i := range comments {
+		comments[i].Revision = byComment[comments[i].ID]
+	}
+	return nil
 }
 
 func (cm *Comments) panels(ctx context.Context, dashboardID pgtype.UUID, version int) (map[string]struct{}, error) {
@@ -255,22 +321,11 @@ func checkPanelID(panelID string) error {
 }
 
 func checkCommentBody(body string) (string, error) {
-	body = strings.TrimSpace(body)
-	if n := utf8.RuneCountInString(body); n < 1 || n > maxCommentRunes || !utf8.ValidString(body) || strings.ContainsFunc(body, forbiddenBodyRune) {
+	cleaned, ok := revisions.CleanPrompt(body)
+	if !ok {
 		return "", &InvalidInputError{Message: fmt.Sprintf("body must be 1 to %d characters without control or bidirectional override characters", maxCommentRunes)}
 	}
-	return body, nil
-}
-
-func forbiddenBodyRune(r rune) bool {
-	switch {
-	case r == '\n', r == '\r', r == '\t':
-		return false
-	case unicode.IsControl(r):
-		return true
-	default:
-		return r >= '\u202a' && r <= '\u202e' || r >= '\u2066' && r <= '\u2069'
-	}
+	return cleaned, nil
 }
 
 // pg_notify refuses payloads of 8000 bytes or more. The payload holds no comment text; with the panel id

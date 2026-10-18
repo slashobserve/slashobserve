@@ -33,7 +33,7 @@ Directories are created when their phase starts; this is where things go.
 - `cmd/slashobserve-server/`: server binary (`healthcheck` subcommand backs the Docker health check).
   `cmd/observe/` (CLI) comes later.
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
-- `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`).
+- `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
@@ -45,6 +45,7 @@ Directories are created when their phase starts; this is where things go.
   `e2e/fixtures/llm/` holds the replay fixtures.
 - `internal/dashboards/`: dashboard and version storage, the save validation pipeline and the `/api/v1/dashboards` routes (`Service.Register`).
 - `internal/events/`: the event payload, the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream, and the `Broker` that fans notifications out to subscribers; `internal/events/stream/` serves them over SSE.
+- `internal/revisions/`: the durable agent request queue (`agent_requests`), its in-process workers, the `Reviser` contract the agent implements (`agent.Reviser`) and the `/api/v1/dashboards/{id}/revisions` routes.
 - `internal/agent/tools/`: the only place agent tools are defined (14 tools, sorted, constant schemas); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
 - `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
 - `internal/agent/prompts/`: embedded prompts, including the system prompt and the Spec authoring guide.
@@ -95,7 +96,13 @@ Directories are created when their phase starts; this is where things go.
   Queries live in `internal/db/queries`; sqlc generates `internal/db/dbsqlc` (committed, never hand-edited; run `make generate`).
 - Dashboards: versions are immutable and linear (`parent_version = version - 1`); a save validates with `spec.Parse`, then runs every panel query through `internal/queryproxy`, outside any transaction; the conditional `latest_version` update is the concurrency check (409 `version_conflict`); events go out with `pg_notify` on channel `slashobserve_events` inside the saving transaction.
 - Events: writers `pg_notify` on `slashobserve_events` inside their transaction; one `events.Broker` per process listens and fans out to `GET /api/v1/dashboards/{id}/events` (SSE) per dashboard; every stream starts with `ready` (current `latest_version`), sends `resync` after a listener reconnect, pings every 15 s, ends after 30 minutes, and clients refetch on `ready` and `resync` instead of replaying ids.
-- Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` stays null until an agent is configured; event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
+- Revisions: comments (unless `request_revision` is false) and `POST /dashboards/{id}/revisions` prompts enqueue `agent_requests` rows, a comment's inside its own transaction; at most 5 are queued or running per dashboard (429 `too_many_revisions`, enforced under a per-dashboard advisory lock).
+  In-process workers (2 per process) claim under a global advisory lock with `FOR UPDATE SKIP LOCKED`, hold a 5 minute lease, run at most 2 attempts and run one request per dashboard at a time; wake-ups come from `pg_notify` on `slashobserve_agent_requests` plus a 5 s poll, and a run gets 3 minutes.
+  `dashboard_versions.agent_request_id` is unique and the agent's `update_dashboard` saves through it, so a retried run returns the version it already created instead of a second one.
+  A finished request keeps a status, `result_version` and an error of at most 500 characters taken only from the agent's own fixed messages, and every status change sends a `revision.updated` event.
+  A shutdown cancels the running request and leaves its lease to expire for the next process.
+  Without an LLM provider prompts get 503 `agent_unavailable` and comments do not enqueue, so turning an agent on later never replays old comments.
+- Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` holds the latest agent request for the comment (null when none was requested); event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
   Comment lists page by `(created_at, id)` with `created_at` taken at insert, so a comment that commits after a later one was already listed can be missed by a client paging at that moment, and a fresh listing or its `comment.created` event recovers it.
 - Query proxy: panel data is `GET /api/v1/dashboards/{id}/versions/{version}/panels/{panel_id}/data`; it accepts no query text (403 `query_not_in_spec`), aligns ranges to the step, caches successes for 10 s in process, limits each principal to 8 in-flight requests, and returns time values as epoch milliseconds.
   Variable selections are repeated `var-<name>` parameters, `$__all` selects All, custom variables accept only their options, and All expands to the full value list.
@@ -150,7 +157,7 @@ Directories are created when their phase starts; this is where things go.
 - LLM SDKs: `anthropic-sdk-go` and `openai-go/v3` are the only model clients; adapters keep provider history append-only and pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact.
   The OpenAI-compatible adapter rebuilds assistant history with its own helper instead of `ToParam`, so a tool call with a missing type still round-trips.
 - GitHub Actions are pinned to a commit SHA with the version in a trailing comment; Docker images are pinned by tag and digest.
-- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/shop/go.mod`, and the `golang` image in `Dockerfile` and `demo/shop/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml`; the `prom/prometheus` and `clickhouse/clickhouse-server` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse}`.
+- Version bumps that must change together: Go toolchain in `go.mod` (`go` line), `demo/shop/go.mod`, and the `golang` image in `Dockerfile` and `demo/shop/Dockerfile`; the distroless image digest shared by both Dockerfiles; Bun in `web/package.json` (`packageManager`, read by CI) and the `oven/bun` image in `Dockerfile`; Postgres in `deploy/compose/compose.yaml` and in `internal/db/dbtest`; the `prom/prometheus` and `clickhouse/clickhouse-server` images in `deploy/compose/compose.yaml` and in the integration tests under `internal/datasource/{prometheus,clickhouse}`.
 - Prefer boring, proven libraries; justify every new dependency in its PR.
 
 ## End-to-end tests
@@ -174,6 +181,8 @@ Directories are created when their phase starts; this is where things go.
 - `scripts/e2e.sh` `api_token` creates the service account `e2e-api` and sets `API_TOKEN` once, so API checks send `Authorization: Bearer $API_TOKEN`; request bodies live in `e2e/fixtures/api/`.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`).
   A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.
+  A revise fixture may leave `dashboard_id` and `parent_version` out of `update_dashboard`, so it never depends on generated ids; a comment or prompt with no fixture fails its revision with `model call failed: no replay fixture`.
+  With the replay provider on, a comment queues a revision by default, so e2e comment checks that are not about revisions send `"request_revision": false`.
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
   Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.
 

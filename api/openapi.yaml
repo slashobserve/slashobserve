@@ -50,6 +50,10 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
   /datasources/{uid}/lint:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
+  /dashboards/{id}/revisions:
+    $ref: "./paths/revisions.yaml#/dashboards-id-revisions"
+  /dashboards/{id}/revisions/{revision_id}:
+    $ref: "./paths/revisions.yaml#/dashboards-id-revisions-revisionid"
 components:
   securitySchemes:
     sessionCookie:
@@ -452,13 +456,14 @@ components:
           nullable: true
           additionalProperties: false
           required: [id, status]
-          description: The revision requested for this comment, or null when none was requested.
+          description: The latest revision requested for this comment, or null when none was requested.
           properties:
             id:
               type: string
               format: uuid
             status:
               type: string
+              enum: [queued, running, succeeded, failed]
     CommentEnvelope:
       type: object
       additionalProperties: false
@@ -577,6 +582,88 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Diagnostic"
+    Revision:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - dashboard_id
+        - source
+        - comment_id
+        - panel_id
+        - prompt
+        - base_version
+        - status
+        - attempts
+        - result_version
+        - error
+        - requested_by
+        - created_at
+        - started_at
+        - finished_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [comment, prompt]
+        comment_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The comment that requested the revision; null for a prompt, or after the comment was deleted.
+        panel_id:
+          type: string
+          nullable: true
+          description: The panel the comment is anchored to; null for a prompt.
+        prompt:
+          type: string
+          description: The follow-up text, or the comment body.
+        base_version:
+          type: integer
+          minimum: 1
+          description: The version the requester was looking at; the agent revises the latest version.
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        attempts:
+          type: integer
+          minimum: 0
+          maximum: 2
+        result_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version the revision saved, set when the status is `succeeded`.
+        error:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Why the revision failed, set when the status is `failed`.
+        requested_by:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+    RevisionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [revision]
+      properties:
+        revision:
+          $ref: "#/components/schemas/Revision"
   responses:
     BadRequest:
       description: The request is malformed or fails validation.

@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -14,9 +16,10 @@ const (
 )
 
 type createCommentRequest struct {
-	Version *int    `json:"version"`
-	PanelID *string `json:"panel_id"`
-	Body    *string `json:"body"`
+	Version         *int    `json:"version"`
+	PanelID         *string `json:"panel_id"`
+	Body            *string `json:"body"`
+	RequestRevision *bool   `json:"request_revision"`
 }
 
 type setCommentStatusRequest struct {
@@ -73,7 +76,8 @@ func (cm *Comments) createComment(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
 		return
 	}
-	comment, err := cm.Create(c.Request.Context(), caller(c), id, *req.Version, *req.PanelID, *req.Body)
+	requestRevision := req.RequestRevision == nil || *req.RequestRevision
+	comment, err := cm.Create(c.Request.Context(), caller(c), id, *req.Version, *req.PanelID, *req.Body, requestRevision)
 	if err != nil {
 		cm.fail(c, "create comment", err)
 		return
@@ -143,6 +147,8 @@ func (cm *Comments) fail(c *gin.Context, action string, err error) {
 		abortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		abortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
+	case errors.Is(err, revisions.ErrTooManyRevisions):
+		abortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
 		abortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
 	default:
@@ -179,6 +185,9 @@ func newCommentJSON(c Comment) commentJSON {
 	if c.ResolvedBy != nil {
 		by := newAuthorJSON(*c.ResolvedBy)
 		out.ResolvedBy = &by
+	}
+	if c.Revision != nil {
+		out.Revision = &commentRevisionJSON{ID: c.Revision.ID, Status: c.Revision.Status}
 	}
 	return out
 }

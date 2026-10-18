@@ -68,6 +68,7 @@ func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result,
 type rig struct {
 	db        *dbtest.Database
 	service   *Service
+	comments  *Comments
 	revisions *revisions.Service
 }
 
@@ -85,7 +86,7 @@ func newRig(t *testing.T, agent bool) *rig {
 		reviser = noopReviser{}
 	}
 	queue := revisions.NewService(database.DB, reviser, logger)
-	return &rig{db: database, service: service, revisions: queue}
+	return &rig{db: database, service: service, comments: NewComments(database.DB, service, queue), revisions: queue}
 }
 
 func panelsSpec(title string, panelIDs ...string) []byte {
@@ -226,5 +227,90 @@ func TestSavesWithoutARequestIdAreUnchanged(t *testing.T) {
 		if err != nil || replayed || ver.Number != want {
 			t.Fatalf("version %d, replayed %t, err %v", ver.Number, replayed, err)
 		}
+	}
+}
+
+func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+
+	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "errors", "show this per route", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comment.Revision == nil || comment.Revision.Status != "queued" {
+		t.Fatalf("revision = %+v", comment.Revision)
+	}
+	items, _, err := r.revisions.List(t.Context(), dash, 10, "")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+	rev := items[0]
+	if rev.ID != comment.Revision.ID || rev.Source != revisions.SourceComment || rev.CommentID != comment.ID || rev.PanelID != "errors" ||
+		rev.Prompt != "show this per route" || rev.BaseVersion != 1 || rev.RequestedBy != testUser {
+		t.Fatalf("revision = %+v", rev)
+	}
+
+	listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, "")
+	if err != nil || len(listed) != 1 || listed[0].Revision == nil || listed[0].Revision.ID != rev.ID {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	resolved, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), CommentResolved)
+	if err != nil || resolved.Revision == nil || resolved.Revision.ID != rev.ID {
+		t.Fatalf("resolved = %+v, err %v", resolved, err)
+	}
+}
+
+func mustParse(t *testing.T, s string) pgtype.UUID {
+	t.Helper()
+	id, err := db.ParseUUID(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestCommentCanOptOutOfARevision(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "just a note", false)
+	if err != nil || comment.Revision != nil {
+		t.Fatalf("comment = %+v, err %v", comment, err)
+	}
+	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+}
+
+func TestCommentWithoutAnAgentQueuesNothing(t *testing.T) {
+	r := newRig(t, false)
+	dash := r.createDashboard(t)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "anything", true)
+	if err != nil || comment.Revision != nil {
+		t.Fatalf("comment = %+v, err %v", comment, err)
+	}
+	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+}
+
+func TestCommentIsNotCreatedWhenTheDashboardIsFull(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	for i := range revisions.MaxActive {
+		if _, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", fmt.Sprintf("note %d", i), true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "one too many", true)
+	if !errors.Is(err, revisions.ErrTooManyRevisions) {
+		t.Fatalf("err = %v", err)
+	}
+	listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 100, "")
+	if err != nil || len(listed) != revisions.MaxActive {
+		t.Fatalf("%d comments stored, err %v", len(listed), err)
+	}
+	if _, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "plain note", false); err != nil {
+		t.Fatalf("a comment that asks for no revision is not capped: %v", err)
 	}
 }

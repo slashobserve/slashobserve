@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/agent"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -22,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 )
@@ -131,14 +133,35 @@ func run() error {
 		Logger:      logger,
 	})
 
+	var reviser revisions.Reviser
+	if llmProvider != nil {
+		reviser = agent.NewReviser(agent.New(agent.Config{
+			Provider:    llmProvider,
+			Tools:       toolRegistry,
+			Dashboards:  dashboardsService,
+			Datasources: registry,
+			Logger:      logger,
+		}))
+	}
+	revisionsService := revisions.NewService(database, reviser, logger)
+
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
+
+	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger)
+	defer stopWorkers()
 
 	handler, err := server.New(server.Options{
 		Logger:      logger,
 		Auth:        authService,
 		Datasources: registry,
-		API:         []server.Registrar{dashboardsService, stream.NewHandler(broker, dashboardsService, logger), dashboards.NewComments(database, dashboardsService), proxyHandler},
+		API: []server.Registrar{
+			dashboardsService,
+			stream.NewHandler(broker, dashboardsService, logger),
+			dashboards.NewComments(database, dashboardsService, revisionsService),
+			revisionsService,
+			proxyHandler,
+		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, authService, mcp.Options{PublicURL: cfg.PublicURL, Version: version, Logger: logger}),
@@ -153,6 +176,26 @@ func run() error {
 		return fmt.Errorf("build http handler: %w", err)
 	}
 	return serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close)
+}
+
+func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger) func() {
+	if !service.Available() {
+		return func() {}
+	}
+	workerCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		revisions.NewWorker(service, listen, logger, revisions.WorkerOptions{}).Run(workerCtx)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(shutdownTimeout):
+			logger.Warn("agent workers did not stop in time")
+		}
+	}
 }
 
 func newLogger(cfg config.Config) *slog.Logger {
