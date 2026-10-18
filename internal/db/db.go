@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -20,6 +21,11 @@ import (
 
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
+
+const (
+	minPoolConns    = 16
+	poolMaxConnsKey = "pool_max_conns"
+)
 
 var ErrMigrationsPending = errors.New("database migrations are pending")
 
@@ -34,7 +40,11 @@ type DB struct {
 }
 
 func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*DB, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := poolConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("configure database pool: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("configure database pool: %w", err)
 	}
@@ -50,6 +60,23 @@ func Open(ctx context.Context, databaseURL string, logger *slog.Logger) (*DB, er
 		return nil, err
 	}
 	return &DB{pool: pool, sqlDB: sqlDB, migrator: migrator, queries: dbsqlc.New(pool), logger: logger}, nil
+}
+
+func poolConfig(databaseURL string) (*pgxpool.Config, error) {
+	connCfg, err := pgx.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	// Workers waiting on the claim lock each hold a pooled connection, so the CPU-derived default leaves little
+	// headroom for request handlers on small hosts. An explicit pool_max_conns still wins.
+	if _, explicit := connCfg.RuntimeParams[poolMaxConnsKey]; !explicit {
+		cfg.MaxConns = max(cfg.MaxConns, minPoolConns)
+	}
+	return cfg, nil
 }
 
 func newMigrator(sqlDB *sql.DB, logger *slog.Logger) (*goose.Provider, error) {
