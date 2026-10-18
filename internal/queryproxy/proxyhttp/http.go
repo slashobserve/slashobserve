@@ -132,8 +132,8 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	panelID := c.Param("panel_id")
-	found, ok := d.FindPanel(panelID)
-	if !ok || !found.Panel.Type.IsData() {
+	found, ok := d.FindDataPanel(panelID)
+	if !ok {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
 		return
 	}

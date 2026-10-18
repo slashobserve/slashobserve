@@ -176,8 +176,8 @@ func dataPanel(d *spec.Dashboard, id string) (*spec.Panel, bool) {
 	if d == nil {
 		return nil, false
 	}
-	entry, ok := d.FindPanel(id)
-	if !ok || !entry.Panel.Type.IsData() || len(entry.Panel.Queries) == 0 {
+	entry, ok := d.FindDataPanel(id)
+	if !ok {
 		return nil, false
 	}
 	return entry.Panel, true

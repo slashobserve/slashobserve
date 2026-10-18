@@ -34,11 +34,10 @@ type observation struct {
 }
 
 func dataPanels(d *spec.Dashboard) []*spec.Panel {
-	var out []*spec.Panel
-	for _, e := range d.AllPanels() {
-		if e.Panel.Type.IsData() {
-			out = append(out, e.Panel)
-		}
+	entries := d.DataPanels()
+	out := make([]*spec.Panel, len(entries))
+	for i, e := range entries {
+		out[i] = e.Panel
 	}
 	return out
 }

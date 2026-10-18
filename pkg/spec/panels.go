@@ -1,6 +1,9 @@
 package spec
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
 
 type PanelEntry struct {
 	Pointer string
@@ -26,6 +29,21 @@ func (d *Dashboard) AllPanels() []PanelEntry {
 
 func (d *Dashboard) FindPanel(id string) (PanelEntry, bool) {
 	for _, e := range d.AllPanels() {
+		if e.Panel.ID == id {
+			return e, true
+		}
+	}
+	return PanelEntry{}, false
+}
+
+func (d *Dashboard) DataPanels() []PanelEntry {
+	return slices.DeleteFunc(d.AllPanels(), func(e PanelEntry) bool {
+		return !e.Panel.Type.IsData() || len(e.Panel.Queries) == 0
+	})
+}
+
+func (d *Dashboard) FindDataPanel(id string) (PanelEntry, bool) {
+	for _, e := range d.DataPanels() {
 		if e.Panel.ID == id {
 			return e, true
 		}

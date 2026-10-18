@@ -60,7 +60,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		return nil, context.Canceled
 	}
 
-	entries := dataPanels(d)
+	entries := d.DataPanels()
 	panelIssues := make([][]spec.Issue, len(entries))
 	var group errgroup.Group
 	group.SetLimit(checkPanelParallelism)
@@ -92,12 +92,6 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	return issues, nil
 }
 
-func dataPanels(d *spec.Dashboard) []spec.PanelEntry {
-	return slices.DeleteFunc(d.AllPanels(), func(e spec.PanelEntry) bool {
-		return !e.Panel.Type.IsData() || len(e.Panel.Queries) == 0
-	})
-}
-
 func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badPanels map[string]bool) {
 	badVariables = make([]bool, len(d.Variables))
 	badPanels = map[string]bool{}
@@ -109,7 +103,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		badVariables[i] = len(found) > 0
 		issues = append(issues, found...)
 	}
-	for _, e := range dataPanels(d) {
+	for _, e := range d.DataPanels() {
 		first := e.Panel.Queries[0]
 		base := e.Pointer + "/datasource"
 		if first.Datasource != "" {

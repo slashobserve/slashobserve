@@ -387,6 +387,25 @@ func TestPanelHelpers(t *testing.T) {
 	if _, ok := d.FindPanel("missing"); ok {
 		t.Fatal("FindPanel found a panel that does not exist")
 	}
+	var dataIDs []string
+	for _, e := range d.DataPanels() {
+		dataIDs = append(dataIDs, e.Panel.ID+"@"+e.Pointer)
+	}
+	if want := []string{"a@/panels/0", "b@/panels/1/panels/0"}; !slices.Equal(dataIDs, want) {
+		t.Fatalf("DataPanels = %v, want %v", dataIDs, want)
+	}
+	if e, ok := d.FindDataPanel("b"); !ok || e.Row == nil || e.Row.ID != "r" {
+		t.Fatalf("FindDataPanel(b) = %+v, %v", e, ok)
+	}
+	for _, id := range []string{"r", "c", "missing"} {
+		if _, ok := d.FindDataPanel(id); ok {
+			t.Fatalf("FindDataPanel(%s) found a panel that is not a data panel", id)
+		}
+	}
+	queryless := &spec.Dashboard{Panels: []spec.Panel{{ID: "q", Type: spec.Stat}}}
+	if got := queryless.DataPanels(); len(got) != 0 {
+		t.Fatalf("DataPanels counted a panel without queries: %+v", got)
+	}
 	if n := d.PanelCount(); n != 4 {
 		t.Fatalf("PanelCount = %d, want 4", n)
 	}
