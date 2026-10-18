@@ -16,7 +16,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
-| `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request backfill runs again on the next `make demo`. |
+| `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request and latency backfill runs again on the next `make demo`. |
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
 | `make demo-fault-reset` | Clear the injected fault. |
 | `make e2e` | Reset and boot the isolated `slashobserve-e2e` stack on http://localhost:18080 and run `scripts/e2e.sh`; the stack is left running. |
@@ -160,9 +160,11 @@ Directories are created when their phase starts; this is where things go.
 - Panel renderers implement `PanelRendererProps` in `web/src/panels/types.ts` and are registered only in `web/src/panels/index.tsx`; panel states are exposed as `data-state` on the panel `article` for tests.
 - Timeseries panels use one uPlot instance per panel, re-created only when series identity, units, thresholds or theme change, with `cursor.sync.key` set to the dashboard id.
   Data refreshes call `setData`.
-- Series colors come from `--series-1..8` in a fixed order and stick to a series key for the panel's lifetime; series past eight reuse hues with dash patterns.
+- Series colors come from `--series-1..8` in a fixed order and stick to a series key for the panel's lifetime, which includes the table view toggle and empty refreshes (color slots and hidden series live in a store keyed by dashboard and panel id); series past eight reuse hues with dash patterns.
+  The legend hides only when one series remains, and then every series is drawn.
 - Threshold states always pair the threshold color with an icon and a word, and expose `data-threshold` for tests.
 - Values that appear together (a table column, stat tiles, bargauge rows, tooltip rows, axis ticks) share one decimal count from `commonDecimals` in `web/src/lib/units.ts`, so `2.40` and `2.45` never mix with `2.4`.
+  The count is capped at about four significant figures of the largest value, so tiny values next to large ones round instead of widening every value; axis ticks (`axisDecimals`) widen past the cap until neighbouring ticks read differently, and a threshold label never rounds below the threshold's own decimals.
 - Browser specs create their own dashboards through `web/e2e/api.ts` with `uniqueTitle`, from Specs in `web/e2e/data/`.
 - Theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`; chart colors use the `--series-1..8` and `--threshold-*` tokens in `web/src/index.css`, never ad-hoc hex values.
 - Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels (monospace is only for query text, JSON values and ids), pill-shaped buttons, gradients, heavy drop shadows, colored left-border callouts, uppercase eyebrow labels, emoji, and chart animations.
@@ -204,6 +206,16 @@ Directories are created when their phase starts; this is where things go.
   CI builds the server image once as `slashobserve-e2e:ci` and the shop image as `slashobserve-demo-shop:ci` (`SLASHOBSERVE_SHOP_IMAGE`), and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
 - `scripts/e2e.sh` boot waits, with bounded polling, until Prometheus has scraped every target and ClickHouse has log and trace rows, so later checks start on a stack that is already exporting; checks on telemetry that may still be arriving poll instead of asserting once.
   The shop contract (pods, routes, metric labels) is shared by the Prometheus backfill and the e2e checks, so change them together.
+  The Prometheus entrypoint picks the backfill's `end` 20 seconds after it starts (generating and importing the backfill takes about 8 seconds) and writes it to `/prometheus/backfill-end`; the load generator mounts that volume read-only (`LOADGEN_START_FILE`), waits for the file and sends its first request exactly at `end` (or at once if `end` is more than a minute ahead), so it does not depend on Prometheus being up.
+  Business counters and histograms are created on the first business request, so a live counter counts requests since `end` and the junction is a counter reset that neither double counts nor loses requests.
+  Prometheus starts 5 seconds before `end`: its first shop scrape comes 5 to 10 seconds after it starts, so the first live sample lands at most about 5 seconds after `end` (a scrape before `end` would be dropped as out of bounds).
+  A 1 minute `rate()` whose window starts after `end` still misses the requests before its first live sample, less what Prometheus extrapolates, so the junction shows a small dip.
+  `backfill_joins_live` in `scripts/e2e.sh` compares, per `service`, `route` and `pod` above 1.5 requests per second, the 1 minute request rate and p95 around the junction with their values 35 seconds before `end`, and requires every 5 second sample from 30 seconds before to 90 seconds after `end` to stay within 0.85 to 1.15 for the rate and 0.95 to 1.6 for the p95.
+  The p95 band is wide above because frontend `/api/products` has its 95th percentile at a bucket edge and sampling noise moves it up, and tight below, where a gap or a double count would show.
+  The `/orders/{id}` routes are left out because their low request rate swings the rate on seeded traffic alone.
+  The backfill rates equal the load generator's steady state at the junction and the diurnal shape has zero offset and slope there.
+  The sample spacing grows geometrically from 5 seconds at `end` to 30 seconds going back, and every timestamp carries milliseconds: whole-second spacing makes `rate()` extrapolation dip on the sparser samples.
+  The cAdvisor job sets `honor_timestamps: false` because its `machine_*` series carry a fixed explicit timestamp from cAdvisor's start, which falls before the backfill's end and would be dropped as out of bounds, and cAdvisor runs with `--housekeeping_interval=5s` so every 15 second scrape sees counters of the same age and `rate()` over `container_cpu_usage_seconds_total` does not step.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.

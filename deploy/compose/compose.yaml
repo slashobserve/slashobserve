@@ -147,7 +147,7 @@ services:
     image: ghcr.io/google/cadvisor:v0.60.6@sha256:b8e7d1093144fd088f425ff003d75a4aa405de075db78dae3bc563730b1bd07a
     command:
       - --docker_only=true
-      - --housekeeping_interval=10s
+      - --housekeeping_interval=5s
       - --store_container_labels=false
       - --whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service
       - --enable_metrics=cpu,memory,network
@@ -254,10 +254,15 @@ services:
       LOADGEN_TARGET: http://frontend-0:8080
       LOADGEN_RPS: "20"
       LOADGEN_SEED: "42"
+      LOADGEN_START_FILE: /prometheus/backfill-end
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       frontend-0:
         condition: service_healthy
+      prometheus:
+        condition: service_started
+    volumes:
+      - prometheus-data:/prometheus:ro
     deploy:
       resources:
         limits:

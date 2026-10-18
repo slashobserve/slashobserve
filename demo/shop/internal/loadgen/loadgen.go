@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,15 +25,19 @@ const (
 	requestTimeout = 7 * time.Second
 	drainTimeout   = 8 * time.Second
 	summaryEvery   = 30 * time.Second
+	startPoll      = 200 * time.Millisecond
+	startTimeout   = 5 * time.Minute
+	maxStartLead   = time.Minute
 	emptyCartPct   = 3
 	productCount   = 20
 	orderCount     = 50
 )
 
 type Config struct {
-	Target string
-	RPS    int
-	Seed   uint64
+	Target    string
+	RPS       int
+	Seed      uint64
+	StartFile string
 }
 
 func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
@@ -41,9 +46,10 @@ func ConfigFromEnv(lookup func(string) (string, bool)) (Config, error) {
 		return strings.TrimSpace(value)
 	}
 	cfg := Config{
-		Target: strings.TrimRight(get("LOADGEN_TARGET"), "/"),
-		RPS:    defaultRPS,
-		Seed:   defaultSeed,
+		Target:    strings.TrimRight(get("LOADGEN_TARGET"), "/"),
+		RPS:       defaultRPS,
+		Seed:      defaultSeed,
+		StartFile: get("LOADGEN_START_FILE"),
 	}
 	if cfg.Target == "" {
 		return Config{}, errors.New("LOADGEN_TARGET is required")
@@ -81,6 +87,14 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 		return err
 	}
 	logger.Info("loadgen started", "target", cfg.Target, "rps", cfg.RPS, "seed", cfg.Seed)
+	if cfg.StartFile != "" {
+		if err := waitForStart(ctx, cfg.StartFile, logger); err != nil {
+			return err
+		}
+		if ctx.Err() != nil {
+			return nil
+		}
+	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = maxInFlight
@@ -118,6 +132,48 @@ func Run(ctx context.Context, lookup func(string) (string, bool), logger *slog.L
 			}
 		}
 	}
+}
+
+func waitForStart(ctx context.Context, path string, logger *slog.Logger) error {
+	deadline := time.Now().Add(startTimeout)
+	for {
+		raw, err := os.ReadFile(path) //nolint:gosec // path comes from the operator's own environment
+		if err == nil {
+			seconds, parseErr := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64)
+			if parseErr != nil {
+				return fmt.Errorf("LOADGEN_START_FILE %s: %w", path, parseErr)
+			}
+			return sleepUntil(ctx, time.Unix(seconds, 0), logger)
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("read LOADGEN_START_FILE: %w", err)
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("LOADGEN_START_FILE %s did not appear within %s", path, startTimeout)
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(startPoll):
+		}
+	}
+}
+
+func sleepUntil(ctx context.Context, start time.Time, logger *slog.Logger) error {
+	wait := time.Until(start)
+	if wait <= 0 {
+		return nil
+	}
+	if wait > maxStartLead {
+		logger.Warn("loadgen start time is too far ahead; starting now", "start", start.UTC().Format(time.RFC3339), "wait", wait.String(), "max", maxStartLead.String())
+		return nil
+	}
+	logger.Info("loadgen waiting for the backfill to end", "start", start.UTC().Format(time.RFC3339), "wait", wait.String())
+	select {
+	case <-ctx.Done():
+	case <-time.After(wait):
+	}
+	return nil
 }
 
 func waitInFlight(inflight *sync.WaitGroup) {

@@ -232,6 +232,55 @@ poll() {
   fail "$desc (not true after ${timeout}s, last observed: '${LAST}'${detail})"
 }
 
+in_band() { awk -v v="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(v ~ /^[0-9.eE+-]+$/ && v + 0 >= lo && v + 0 <= hi) }'; }
+
+RATE_BAND_LO=0.85
+RATE_BAND_HI=1.15
+P95_BAND_LO=0.95
+P95_BAND_HI=1.6
+BUSY_RPS=1.5
+
+junction_rate() { printf 'sum by (service, route, pod) (rate(http_requests_total{job="shop"}[1m]%s))' "$1"; }
+junction_p95() { printf 'histogram_quantile(0.95, sum by (le, service, route, pod) (rate(http_request_duration_seconds_bucket{job="shop"}[1m]%s)))' "$1"; }
+
+junction_extreme() {
+  local series="$1" before_at="$2" probe_at="$3" agg="$4"
+  printf '%s(%s_over_time(((%s / %s) and on (service, route, pod) (%s > %s))[2m:5s] @ %s))' \
+    "$agg" "$agg" "$("$series" "")" "$("$series" " @ $before_at")" "$(junction_rate " @ $before_at")" "$BUSY_RPS" "$probe_at"
+}
+
+loadgen_dropped() {
+  local logs dropped
+  capture_merged logs compose_logs --tail 100 loadgen || true
+  dropped="$(printf '%s\n' "$logs" | sed -nE 's/.*"msg":"loadgen summary".*"dropped":([0-9]+).*/\1/p' | tail -1)"
+  printf '%s' "${dropped:-unknown}"
+}
+
+backfill_joins_live() {
+  local boot end before_at probe_at rate_min rate_max p95_min p95_max
+  capture boot prom_scalar 'process_start_time_seconds{job="prometheus"}' || true
+  [[ "$boot" =~ ^[0-9.]+$ ]] || return 1
+  capture end compose_exec prometheus cat /prometheus/backfill-end || true
+  [[ "$end" =~ ^[0-9]+$ ]] || return 1
+  before_at=$((end - 35))
+  probe_at=$((end + 90))
+  if (($(date +%s) < probe_at + 10)); then
+    LAST="waiting for the window ending $((probe_at + 10 - $(date +%s)))s from now"
+    return 1
+  fi
+  capture rate_min prom_scalar "$(junction_extreme junction_rate "$before_at" "$probe_at" min)" || true
+  capture rate_max prom_scalar "$(junction_extreme junction_rate "$before_at" "$probe_at" max)" || true
+  capture p95_min prom_scalar "$(junction_extreme junction_p95 "$before_at" "$probe_at" min)" || true
+  capture p95_max prom_scalar "$(junction_extreme junction_p95 "$before_at" "$probe_at" max)" || true
+  LAST="boot ${boot}, end ${end}: per-series request rate ratio [${rate_min}, ${rate_max}], p95 ratio [${p95_min}, ${p95_max}]"
+  if in_band "$rate_min" "$RATE_BAND_LO" "$RATE_BAND_HI" && in_band "$rate_max" "$RATE_BAND_LO" "$RATE_BAND_HI" \
+    && in_band "$p95_min" "$P95_BAND_LO" "$P95_BAND_HI" && in_band "$p95_max" "$P95_BAND_LO" "$P95_BAND_HI"; then
+    return 0
+  fi
+  LAST="${LAST}, loadgen dropped $(loadgen_dropped) requests as of its last summary"
+  return 1
+}
+
 targets_scraped() {
   prom_is 'count(up{job=~"shop|prometheus|node|cadvisor|otel-collector"} == 1)' 8
 }
@@ -1720,12 +1769,18 @@ stack_suite() {
   pass "cAdvisor labels containers by service"
   prom_is 'count(count by (compose_project) (container_memory_working_set_bytes))' 1 || fail "cAdvisor should see exactly one compose project (got: $LAST)"
   pass "cAdvisor metrics limited to this stack"
+  prom_positive 'count(machine_cpu_cores) and count(machine_memory_bytes)' || fail "cAdvisor machine metrics missing (got: $LAST)"
+  pass "cAdvisor machine metrics ingested"
   { prom_positive 'count(node_filesystem_avail_bytes{instance="demo-node"})' \
     && prom_positive 'count(node_filesystem_files_free{instance="demo-node"})'; } \
     || fail "node disk and inode metrics missing for demo-node (last: $LAST)"
   pass "node disk and inode metrics present"
   prom_positive 'sum(rate(http_requests_total{service="checkout"}[5m] offset 1d))' || fail "no checkout request rate one day ago (got: $LAST)"
   pass "yesterday's request rate is backfilled"
+  prom_positive 'histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="checkout"}[5m] offset 1d)))' || fail "no checkout p95 latency one day ago (got: $LAST)"
+  pass "yesterday's latency histogram is backfilled"
+  poll 240 "backfilled request rate and p95 latency continue into live data" backfill_joins_live
+  pass "backfill joins live data without a level jump"
 
   ch_is "SELECT getSetting('readonly')" 2 \
     || fail "ClickHouse readonly setting is not 2 (got: '$LAST', client: $LAST_ERR)"

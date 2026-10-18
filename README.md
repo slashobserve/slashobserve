@@ -21,8 +21,8 @@ The app is on http://localhost:8080, Prometheus on http://localhost:9090 and the
 Sign in as `admin@example.com` / `password`.
 Break the checkout service with `make demo-fault TYPE=errors PCT=50` (or `TYPE=latency`), and undo it with `make demo-fault-reset`.
 A fresh stack has no real history.
-Prometheus backfills 26 hours of synthetic `http_requests_total` on first boot so "today vs yesterday" prompts work.
-Latency histograms, node and container metrics, logs and traces start when the stack starts.
+Prometheus backfills 26 hours of synthetic `http_requests_total` and `http_request_duration_seconds` histograms on first boot so "today vs yesterday" prompts and latency quantile panels have history.
+Node and container metrics, logs and traces start when the stack starts.
 `make demo-reset` drops the volumes so the backfill replays.
 
 If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the `slashobserve_ro` user or holds another password for it; run `make demo-reset` to recreate the volumes.

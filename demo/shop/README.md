@@ -34,6 +34,7 @@ The frontend round-robins the checkout pods, and checkout calls payments.
 | `LOADGEN_TARGET` | loadgen | Frontend base URL (required). |
 | `LOADGEN_RPS` | loadgen | Requests per second, 1 to 1000, default `20`. |
 | `LOADGEN_SEED` | loadgen | Seed for the route and cart choices, default `42`. |
+| `LOADGEN_START_FILE` | loadgen | Optional path to a file holding a Unix time in seconds; loadgen waits for the file and sends its first request at that time. |
 
 Every service exposes Prometheus metrics on `/metrics` (`http_requests_total` and `http_request_duration_seconds`, labelled `service`, `route`, `pod` and `status` for the counter) and liveness on `/healthz`.
 

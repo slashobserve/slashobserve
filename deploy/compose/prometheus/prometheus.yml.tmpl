@@ -24,6 +24,7 @@ scrape_configs:
         replacement: demo-node
 
   - job_name: cadvisor
+    honor_timestamps: false
     static_configs:
       - targets: [cadvisor:8080]
     metric_relabel_configs:
