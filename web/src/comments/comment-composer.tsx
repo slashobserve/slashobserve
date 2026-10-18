@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react"
 
+import { useQueryClient } from "@tanstack/react-query"
+
 import { ApiError } from "@/api/errors"
 import { isTransient } from "@/api/issues"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,6 +17,11 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import {
+  isTooManyRevisions,
+  markAgentUnavailable,
+  tooManyRevisionsText,
+} from "@/revisions/queries"
 
 import { useCreateComment, type Comment } from "./queries"
 
@@ -34,6 +41,9 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void
 }
 
+const noAgentText =
+  "No agent is configured on this server, so your comment was saved without a revision request."
+
 function removedText(version: number): string {
   return `This panel is not in the latest version (version ${version}), so it cannot take new comments.`
 }
@@ -43,6 +53,9 @@ function failureText(
   version: number,
   latestVersion: number
 ): string {
+  if (isTooManyRevisions(error)) {
+    return `${tooManyRevisionsText} Your comment was not saved; try again when one finishes.`
+  }
   if (error instanceof ApiError) {
     if (error.status === 422 && error.code === "unknown_panel") {
       return version < latestVersion
@@ -85,9 +98,11 @@ export function CommentComposer({
   const errorId = useId()
   const noticeId = useId()
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const queryClient = useQueryClient()
   const create = useCreateComment(dashboardId)
   const [body, setBody] = useState("")
   const [failure, setFailure] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(null)
 
   const trimmed = body.trim()
   const length = [...trimmed].length
@@ -105,12 +120,17 @@ export function CommentComposer({
   function submit() {
     if (!canSubmit) return
     setFailure(null)
+    setNote(null)
     create.mutate(
       { version, panelId, body: trimmed, requestRevision },
       {
         onSuccess: (comment) => {
           setBody("")
           textarea.current?.focus()
+          if (requestRevision && comment.revision === null) {
+            markAgentUnavailable(queryClient)
+            setNote(noAgentText)
+          }
           onCreated?.(comment)
         },
         onError: (error) =>
@@ -169,6 +189,7 @@ export function CommentComposer({
         onChange={(event) => {
           setBody(event.target.value)
           if (failure) setFailure(null)
+          if (note) setNote(null)
         }}
         onKeyDown={onKeyDown}
       />
@@ -178,6 +199,11 @@ export function CommentComposer({
         </Alert>
       ) : null}
       {extraFields}
+      {note ? (
+        <p role="status" className="text-sm text-pretty text-muted-foreground">
+          {note}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         {showCounter ? (
           <p

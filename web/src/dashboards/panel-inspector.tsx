@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentsTab } from "@/comments/comments-tab"
 import { DashboardComments } from "@/comments/dashboard-comments"
 import { useLatestPanels } from "@/comments/latest-panels"
+import { useCommentRevision } from "@/revisions/comment-revision"
 import type { Dashboard, Panel } from "@/spec"
 
 import {
@@ -122,6 +123,8 @@ export function PanelInspector({
 }: Props) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
+  const { requestRevision, composerExtraFields, renderRevision } =
+    useCommentRevision(dashboardId)
   const [confirmClose, setConfirmClose] = useState(false)
   const unsavedQuery = useRef(false)
   const [queryDirty, setQueryDirty] = useState(false)
@@ -289,6 +292,9 @@ export function PanelInspector({
               version={version}
               latestVersion={latestVersion}
               panelRemoved={panelRemoved}
+              requestRevision={requestRevision}
+              composerExtraFields={composerExtraFields}
+              renderRevision={renderRevision}
               onDirtyChange={onCommentDirty}
             />
           ),
@@ -351,6 +357,7 @@ export function PanelInspector({
                   version={version}
                   latestVersion={latestVersion}
                   onOpenPanel={openPanelComments}
+                  renderRevision={renderRevision}
                 />
               </div>
             </>
