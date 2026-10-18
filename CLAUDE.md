@@ -328,7 +328,7 @@ Directories are created when their phase starts; this is where things go.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
 - Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them.
 - The agent's text output is discarded; only tool-saved Specs leave a run.
-- Placeholder panels come only from Grafana imports.
+- The agent never creates or edits placeholder panels; they come from Grafana imports.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.
 
