@@ -782,7 +782,7 @@ expect_rejected() {
 
 dashboards_suite() {
   api_token
-  local out id evolved_id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found
+  local out id evolved_id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found panel_id path
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   if [[ "$out" != 201 ]] || ! grep -q '"version":1' "$TMP/api.body" || ! grep -q '"parent_version":null' "$TMP/api.body"; then
