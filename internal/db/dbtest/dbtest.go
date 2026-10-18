@@ -100,7 +100,6 @@ func NewWithLogger(t testing.TB, logger *slog.Logger) *Database {
 	return create(t, logger, " TEMPLATE "+templateDB)
 }
 
-// NewUnmigrated returns an empty database that has no migrations applied.
 func NewUnmigrated(t testing.TB) *Database {
 	t.Helper()
 	return create(t, quietLogger(), "")
