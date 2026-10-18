@@ -24,7 +24,7 @@ export function TableCard({
       aria-label={label}
       aria-labelledby={labelledBy}
       className={cn(
-        "overflow-x-auto rounded-card border bg-background outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative overflow-x-auto rounded-card border bg-background outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >

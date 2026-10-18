@@ -17,7 +17,7 @@ export function PaletteButton() {
       <span className="flex-1 truncate">Search or jump to</span>
       <kbd
         aria-hidden="true"
-        className="rounded-[4px] border px-[5px] font-[inherit] text-[11px]"
+        className="rounded-[4px] border px-[5px] font-[inherit] text-[11px] narrow:hidden"
       >
         {shortcutLabel(navigator.userAgent)}
       </kbd>
