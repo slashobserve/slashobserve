@@ -48,7 +48,7 @@ export function CopyButton({
         type="button"
         variant={variant}
         size={size}
-        aria-label={label}
+        aria-label={children === undefined ? label : undefined}
         onClick={() => void copy()}
       >
         {copied ? (

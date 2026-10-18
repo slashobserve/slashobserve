@@ -95,13 +95,20 @@ export function useRevokeKey(accountId: string) {
   })
 }
 
+const unreachableText =
+  "Could not reach the server. Check your connection and try again."
+
+export function loadProblemText(error: unknown): string {
+  if (error instanceof NetworkError) return unreachableText
+  if (error instanceof ApiError) return sentence(error.message)
+  return "Something went wrong. Try again."
+}
+
 export function problemText(
   error: unknown,
   subject: { accountName?: string; what: "account" | "key" | "revoke" }
 ): string {
-  if (error instanceof NetworkError) {
-    return "Could not reach the server. Check your connection and try again."
-  }
+  if (error instanceof NetworkError) return unreachableText
   if (error instanceof ApiError) {
     if (error.status === 409 && error.code === "conflict") {
       return `A service account named ${subject.accountName} already exists.`

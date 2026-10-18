@@ -18,6 +18,7 @@ type DialogState = { open: boolean; account: ServiceAccount | null }
 function KeysPage() {
   const headingId = useId()
   const returnFocus = useRef<HTMLElement | null>(null)
+  const headerButton = useRef<HTMLButtonElement>(null)
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
     account: null,
@@ -48,7 +49,10 @@ function KeysPage() {
             Anyone signed in to this server can create and revoke their keys.
           </p>
         </div>
-        <Button onClick={(event) => openCreate(null, event.currentTarget)}>
+        <Button
+          ref={headerButton}
+          onClick={(event) => openCreate(null, event.currentTarget)}
+        >
           <PlusIcon aria-hidden="true" />
           New service account
         </Button>
@@ -59,7 +63,11 @@ function KeysPage() {
       <NewKeyDialog
         open={dialog.open}
         account={dialog.account}
-        finalFocus={returnFocus}
+        finalFocus={() =>
+          returnFocus.current?.isConnected
+            ? returnFocus.current
+            : headerButton.current
+        }
         onOpenChange={(open) => setDialog((state) => ({ ...state, open }))}
       />
     </main>

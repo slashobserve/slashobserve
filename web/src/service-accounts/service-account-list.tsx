@@ -4,7 +4,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { serviceAccountsQuery, type ServiceAccount } from "./queries"
+import {
+  loadProblemText,
+  serviceAccountsQuery,
+  type ServiceAccount,
+} from "./queries"
 import { ServiceAccountSection } from "./service-account-section"
 
 type Props = {
@@ -33,7 +37,7 @@ export function ServiceAccountList({ labelledBy, onCreateKey }: Props) {
       <Alert variant="destructive">
         <AlertTitle>Could not load service accounts</AlertTitle>
         <AlertDescription>
-          <p>{query.error.message}</p>
+          <p>{loadProblemText(query.error)}</p>
           <Button
             variant="outline"
             size="sm"

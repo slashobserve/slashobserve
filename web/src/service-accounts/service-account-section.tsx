@@ -19,6 +19,7 @@ import { formatDateTime, formatRelative } from "@/lib/time"
 
 import { keyStatus } from "./key-status"
 import {
+  loadProblemText,
   serviceAccountKeysQuery,
   type ServiceAccount,
   type ServiceAccountKey,
@@ -39,7 +40,7 @@ function KeysHeader() {
         <TableHead className="w-32 max-sm:hidden">Created</TableHead>
         <TableHead className="w-32 max-sm:w-24">Last used</TableHead>
         <TableHead className="w-32 max-sm:hidden">Expires</TableHead>
-        <TableHead className="w-20 text-right">
+        <TableHead className="w-24 pr-0 text-right">
           <span className="sr-only">Actions</span>
         </TableHead>
       </TableRow>
@@ -96,9 +97,9 @@ function KeyRow({ account, serviceKey, finalFocus }: RowProps) {
       <TableCell className="max-sm:hidden">
         <ExpiryText serviceKey={serviceKey} />
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="pr-0 text-right">
         {inactive ? (
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="mr-[11px]">
             {status === "revoked" ? "Revoked" : "Expired"}
           </Badge>
         ) : (
@@ -188,7 +189,7 @@ export function ServiceAccountSection({ account, onCreateKey }: Props) {
         <Alert variant="destructive">
           <AlertTitle>Could not load keys for {account.name}</AlertTitle>
           <AlertDescription>
-            <p>{query.error.message}</p>
+            <p>{loadProblemText(query.error)}</p>
             <Button
               variant="outline"
               size="sm"

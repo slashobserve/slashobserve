@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { CodeSnippet } from "./code-snippet"
-import { instanceQuery } from "./queries"
+import { instanceQuery, loadProblemText } from "./queries"
 
 function Code({ children }: { children: string }) {
   return <code className="font-mono text-xs">{children}</code>
@@ -34,7 +34,7 @@ export function ConnectClients() {
         <Alert variant="destructive">
           <AlertTitle>Could not load the server address</AlertTitle>
           <AlertDescription>
-            <p>{query.error.message}</p>
+            <p>{loadProblemText(query.error)}</p>
             <Button
               variant="outline"
               size="sm"

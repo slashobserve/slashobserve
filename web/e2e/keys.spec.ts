@@ -7,6 +7,7 @@ import {
 import {
   createServiceAccount,
   createServiceAccountKey,
+  mutationHeaders,
   uniqueAccountName,
 } from "./api"
 import { expect, test, type Page } from "./fixtures"
@@ -84,6 +85,14 @@ function failedResourceLogged(consoleErrors: string[], status: string) {
   consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
 }
 
+function offlineFailuresLogged(consoleErrors: string[]) {
+  for (let index = consoleErrors.length - 1; index >= 0; index--) {
+    if (consoleErrors[index].includes("ERR_INTERNET_DISCONNECTED")) {
+      consoleErrors.splice(index, 1)
+    }
+  }
+}
+
 test("opens API keys from the header", async ({ page }) => {
   await page.goto("/")
   const link = page.getByRole("banner").getByRole("link", { name: "API keys" })
@@ -129,6 +138,7 @@ test("creates an account and a key and shows the key once", async ({
   const keyInput = dialog.getByLabel("Key", { exact: true })
   const token = await keyInput.inputValue()
   expect(token).toMatch(tokenPattern)
+  expect(await page.content()).not.toContain(token)
 
   await dialog.getByRole("button", { name: "Copy key" }).click()
   expect(await clipboardText(page)).toBe(token)
@@ -298,16 +308,19 @@ test("shows expired keys as inactive", async ({ page, request }) => {
     request,
     account.id,
     "short",
-    new Date(Date.now() + 2000).toISOString()
+    new Date(Date.now() + 10_000).toISOString()
   )
-  await page.waitForTimeout(3000)
-  await openKeysPage(page)
 
   const section = accountSection(page, account.name)
+  const toggle = section.getByRole("button", {
+    name: "Show 1 revoked or expired key",
+  })
+  await expect(async () => {
+    await openKeysPage(page)
+    await expect(toggle).toBeVisible({ timeout: 3000 })
+  }).toPass({ timeout: 20_000 })
   await expect(section.getByText("No active keys.")).toBeVisible()
-  await section
-    .getByRole("button", { name: "Show 1 revoked or expired key" })
-    .click()
+  await toggle.click()
   const table = section.getByRole("table", {
     name: `Revoked and expired keys for ${account.name}`,
   })
@@ -420,13 +433,53 @@ test("shows empty, loading-error and offline states", async ({
     })
   ).toBeVisible()
   await expect(dialog.getByLabel("Key name")).toHaveValue("offline")
-  consoleErrors.length = 0
+  offlineFailuresLogged(consoleErrors)
 
   await page.unroute(isKeys, offline)
   await dialog.getByRole("button", { name: "Create key", exact: true }).click()
   await expect(
     dialog.getByRole("heading", { name: `Copy the key for ${account.name}` })
   ).toBeVisible()
+})
+
+test("returns focus to the header button when the empty state goes away", async ({
+  page,
+}) => {
+  const name = uniqueAccountName()
+  let created = false
+  await page.route(
+    (url) => url.pathname === "/api/v1/service-accounts",
+    async (route) => {
+      const method = route.request().method()
+      if (method === "GET" && !created) {
+        await route.fulfill({ json: { items: [] } })
+      } else if (method === "POST") {
+        const response = await route.fetch()
+        created = true
+        await route.fulfill({ response })
+      } else {
+        await route.fallback()
+      }
+    }
+  )
+  await openKeysPage(page)
+  const empty = page.locator("section", {
+    has: page.getByRole("heading", { name: "No service accounts yet" }),
+  })
+  await empty.getByRole("button", { name: "New service account" }).click()
+
+  const dialog = page.getByRole("dialog")
+  await dialog.getByLabel("Name", { exact: true }).fill(name)
+  await dialog.getByLabel("Name", { exact: true }).press("Enter")
+  await dialog.getByLabel("Key name").fill("first")
+  await dialog.getByRole("button", { name: "Create key", exact: true }).click()
+  await expect(
+    dialog.getByRole("heading", { name: `Copy the key for ${name}` })
+  ).toBeVisible()
+  await dialog.getByRole("button", { name: "Done" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(empty).toBeHidden()
+  await expect(newAccountButton(page)).toBeFocused()
 })
 
 test("works with the keyboard only", async ({ page }) => {
@@ -602,5 +655,33 @@ test("lines up at desktop width", async ({ page, request }) => {
       accountSection(page, name).getByRole("table", { name: /^Active keys/ })
     )
     expectSameEdge(button.x + button.width, table.x + table.width)
+  }
+})
+
+test("key tables do not scroll sideways", async ({ page, request }) => {
+  const account = await createServiceAccount(request, uniqueAccountName())
+  await createServiceAccountKey(request, account.id, "active")
+  const revoked = await createServiceAccountKey(request, account.id, "gone")
+  const response = await request.delete(
+    `/api/v1/service-accounts/${account.id}/keys/${revoked.id}`,
+    { headers: mutationHeaders }
+  )
+  expect(response.status()).toBe(204)
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    await openKeysPage(page)
+    const section = accountSection(page, account.name)
+    await section
+      .getByRole("button", { name: "Show 1 revoked or expired key" })
+      .click()
+    await expect(section.getByRole("table")).toHaveCount(2)
+    const overflowing = await page.evaluate(
+      () =>
+        [...document.querySelectorAll("[data-slot=table-container]")].filter(
+          (element) => element.scrollWidth > element.clientWidth
+        ).length
+    )
+    expect(overflowing, `tables scrolling at ${width}px`).toBe(0)
   }
 })

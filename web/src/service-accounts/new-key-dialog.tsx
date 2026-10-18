@@ -65,7 +65,7 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   account: ServiceAccount | null
-  finalFocus: RefObject<HTMLElement | null>
+  finalFocus: () => HTMLElement | null
 }
 
 const expiryItems = expiryOptions.map(({ value, label }) => ({ value, label }))
@@ -129,6 +129,12 @@ function NewKeyFlow({
     if (step === "key") keyNameInput.current?.focus()
     if (step === "reveal") copyButton.current?.focus()
   }, [step, keyNameInput])
+
+  useEffect(() => {
+    if (step === "reveal" && tokenInput.current !== null) {
+      tokenInput.current.value = token ?? ""
+    }
+  }, [step, token])
 
   const accountNameProblem = accountNameError(accountName)
   const descriptionProblem = descriptionError(description)
@@ -389,7 +395,6 @@ function NewKeyFlow({
             id={`${ids}-token`}
             ref={tokenInput}
             readOnly
-            value={token ?? ""}
             autoComplete="off"
             spellCheck={false}
             className="font-mono"
