@@ -35,15 +35,18 @@ func stringMember(name string) keyFunc {
 }
 
 func queryRefKey(i int, item map[string]any) (string, bool) {
-	if ref, present := item["ref"]; present {
-		if k, ok := ref.(string); !ok || k != "" {
-			return k, ok
+	var ref string
+	if v, present := item["ref"]; present {
+		s, ok := v.(string)
+		if !ok {
+			return "", false
 		}
+		ref = s
 	}
-	if i > 25 {
+	if ref == "" && i > 25 {
 		return "", false
 	}
-	return DefaultQueryRef(i), true
+	return resolveQueryRef(ref, i), true
 }
 
 func overrideMatchKey(_ int, item map[string]any) (string, bool) {
@@ -80,24 +83,30 @@ func matchesPattern(tokens []string, pattern ...string) bool {
 	return true
 }
 
+func trimRowPrefix(tokens []string) []string {
+	if len(tokens) >= 3 && tokens[0] == "panels" && tokens[2] == "panels" {
+		return tokens[2:]
+	}
+	return tokens
+}
+
 func arrayKey(path string) (keyFunc, bool) {
-	tokens := pathTokens(path)
+	tokens := trimRowPrefix(pathTokens(path))
 	switch {
-	case matchesPattern(tokens, "panels"), matchesPattern(tokens, "panels", "*", "panels"):
+	case matchesPattern(tokens, "panels"):
 		return stringMember("id"), true
 	case matchesPattern(tokens, "variables"):
 		return stringMember("name"), true
-	case matchesPattern(tokens, "panels", "*", "queries"), matchesPattern(tokens, "panels", "*", "panels", "*", "queries"):
+	case matchesPattern(tokens, "panels", "*", "queries"):
 		return queryRefKey, true
-	case matchesPattern(tokens, "panels", "*", "overrides"), matchesPattern(tokens, "panels", "*", "panels", "*", "overrides"):
+	case matchesPattern(tokens, "panels", "*", "overrides"):
 		return overrideMatchKey, true
 	}
 	return nil, false
 }
 
 func positionalArray(path string) bool {
-	tokens := pathTokens(path)
-	return matchesPattern(tokens, "panels", "*", "transform") || matchesPattern(tokens, "panels", "*", "panels", "*", "transform")
+	return matchesPattern(trimRowPrefix(pathTokens(path)), "panels", "*", "transform")
 }
 
 func Diff(from, to *Dashboard) []Change {

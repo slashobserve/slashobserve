@@ -346,16 +346,18 @@ func TestDiffQueriesReorderedByExplicitRefs(t *testing.T) {
 }
 
 func TestDiffImplicitRefsFollowPosition(t *testing.T) {
-	from := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Queries[1].Ref = "" })
+	implicit := func(p *spec.Panel) {
+		p.Queries[1].Ref = ""
+		p.Queries[1].Legend = ""
+	}
+	from := nestedMutated(t, func(d *spec.Dashboard) { implicit(nestedPanel(d)) })
 	to := nestedMutated(t, func(d *spec.Dashboard) {
 		p := nestedPanel(d)
-		p.Queries[1].Ref = ""
+		implicit(p)
 		p.Queries[0], p.Queries[1] = p.Queries[1], p.Queries[0]
 	})
 	assertChanges(t, spec.Diff(from, to), []spec.Change{
-		{Op: spec.OpAdd, Path: "/panels/p/queries/A/legend", To: rawJSON(`"{{pod}}"`)},
 		{Op: spec.OpReplace, Path: "/panels/p/queries/A/query", From: rawJSON(`"up"`), To: rawJSON(`"rate(x[5m])"`)},
-		{Op: spec.OpRemove, Path: "/panels/p/queries/B/legend", From: rawJSON(`"{{pod}}"`)},
 		{Op: spec.OpReplace, Path: "/panels/p/queries/B/query", From: rawJSON(`"rate(x[5m])"`), To: rawJSON(`"up"`)},
 	})
 }
