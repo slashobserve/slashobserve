@@ -64,7 +64,7 @@ function AgentCard() {
   const query = useAgentInfo()
   const hint = "The model that builds and revises dashboards."
 
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <SettingsCard title="Agent" hint={hint}>
         <SettingsProblem
@@ -118,7 +118,7 @@ function ServerCard() {
   const query = useQuery(instanceQuery())
   const hint = "Addresses clients use to reach it."
 
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <SettingsCard title="This server" hint={hint}>
         <SettingsProblem
@@ -148,7 +148,7 @@ function SignInCard() {
   const query = useQuery(instanceQuery())
   const hint = "Who can sign in, through your identity provider."
 
-  if (query.isError) {
+  if (query.isError && query.data === undefined) {
     return (
       <SettingsCard title="Sign-in" hint={hint}>
         <SettingsProblem

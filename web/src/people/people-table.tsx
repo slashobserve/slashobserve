@@ -27,7 +27,7 @@ export function PeopleTable() {
     )
   }
 
-  if (query.isError) {
+  if (query.data === undefined) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Could not load people</AlertTitle>

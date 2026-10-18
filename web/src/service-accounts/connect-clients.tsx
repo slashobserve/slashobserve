@@ -31,7 +31,7 @@ export function ConnectClients() {
       </div>
       {query.isPending ? (
         <Skeleton className="h-24 w-full" />
-      ) : query.isError ? (
+      ) : query.data === undefined ? (
         <Alert variant="destructive">
           <AlertTitle>Could not load the server address</AlertTitle>
           <AlertDescription>

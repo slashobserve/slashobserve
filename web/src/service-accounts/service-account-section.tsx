@@ -185,7 +185,7 @@ export function ServiceAccountSection({ account, onCreateKey }: Props) {
             <SkeletonRows />
           </TableBody>
         </Table>
-      ) : query.isError ? (
+      ) : query.data === undefined ? (
         <Alert variant="destructive">
           <AlertTitle>Could not load keys for {account.name}</AlertTitle>
           <AlertDescription>

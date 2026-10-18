@@ -32,7 +32,7 @@ export function ServiceAccountList({ labelledBy, onCreateKey }: Props) {
     )
   }
 
-  if (query.isError) {
+  if (query.data === undefined) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Could not load service accounts</AlertTitle>
