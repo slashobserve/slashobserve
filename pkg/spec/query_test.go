@@ -1,6 +1,7 @@
 package spec_test
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -154,15 +155,33 @@ func TestMacrosAndFormats(t *testing.T) {
 }
 
 func TestScanQueryPathologicalInput(t *testing.T) {
-	for _, unit := range []string{"$__x(", "$__x( /* ", "$__x( '", "$__x( `\\"} {
-		query := strings.Repeat(unit, 200_000/len(unit))
-		start := time.Now()
-		_, err := spec.ScanQuery(query)
-		if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
-			t.Errorf("%q: scanning %d bytes took %s", unit, len(query), elapsed)
+	const (
+		small = 50_000
+		large = 4 * small
+		runs  = 3
+	)
+	scan := func(unit string, size int) (time.Duration, int, error) {
+		query := strings.Repeat(unit, size/len(unit))
+		var err error
+		best := time.Duration(math.MaxInt64)
+		for range runs {
+			start := time.Now()
+			_, err = spec.ScanQuery(query)
+			best = min(best, time.Since(start))
 		}
+		return best, len(query), err
+	}
+	for _, unit := range []string{"$__x(", "$__x( /* ", "$__x( '", "$__x( `\\"} {
+		smallTime, smallLen, err := scan(unit, small)
 		if err == nil {
-			t.Errorf("%q: want an error for unbounded unclosed parentheses", unit)
+			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", unit, smallLen)
+		}
+		largeTime, largeLen, err := scan(unit, large)
+		if err == nil {
+			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", unit, largeLen)
+		}
+		if ratio := float64(largeTime) / float64(max(smallTime, time.Microsecond)); ratio > 6 {
+			t.Errorf("%q: scanning %d bytes took %s and %d bytes took %s (%.1fx for 4x input, want linear or better)", unit, smallLen, smallTime, largeLen, largeTime, ratio)
 		}
 	}
 }
