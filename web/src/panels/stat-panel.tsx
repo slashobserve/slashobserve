@@ -2,7 +2,7 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { firstNumberSeries, legendFor } from "./frames"
+import { firstNumberSeries, legendFor, refPrefixFor } from "./frames"
 import { thresholdFor, thresholdIcons } from "./thresholds"
 import type { PanelRenderer } from "./types"
 
@@ -10,7 +10,12 @@ const charWidth = 0.62
 
 export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
   const tiles = useMemo(
-    () => firstNumberSeries(frames, (frame) => legendFor(panel, frame)),
+    () =>
+      firstNumberSeries(
+        frames,
+        (frame) => legendFor(panel, frame),
+        refPrefixFor(panel)
+      ),
     [frames, panel]
   )
 

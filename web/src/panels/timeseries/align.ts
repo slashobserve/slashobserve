@@ -1,6 +1,6 @@
 import type { WireFrame } from "@/dashboards/queries"
 
-import { seriesKey, seriesLabel, uniqueKey } from "../frames"
+import { seriesKey, seriesLabel, uniqueKey, type RefPrefix } from "../frames"
 
 export type AlignedSeries = {
   key: string
@@ -16,7 +16,8 @@ function asNumber(value: unknown): number | null {
 
 export function alignFrames(
   frames: WireFrame[],
-  legendOf: (frame: WireFrame) => string | undefined
+  legendOf: (frame: WireFrame) => string | undefined,
+  refPrefixOf: (frame: WireFrame) => RefPrefix | undefined = () => undefined
 ): AlignedFrames {
   const timestamps = new Set<number>()
   const pending: {
@@ -39,7 +40,13 @@ export function alignFrames(
     for (const field of numbers) {
       pending.push({
         key: uniqueKey(seen, seriesKey(frame, field.name)),
-        label: seriesLabel(frame, field, legendOf(frame), numbers.length),
+        label: seriesLabel(
+          frame,
+          field,
+          legendOf(frame),
+          numbers.length,
+          refPrefixOf(frame)
+        ),
         times: time.values,
         values: field.values,
       })

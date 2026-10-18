@@ -43,4 +43,13 @@ describe("alignFrames", () => {
     )
     expect(aligned.series[0].label).toBe('{pod="x"}')
   })
+
+  it("prefixes a fallback label with the query ref when asked", () => {
+    const aligned = alignFrames(
+      [frame("A", {}, [1, 2]), frame("B", {}, [3, 4])],
+      () => undefined,
+      () => "fallback"
+    )
+    expect(aligned.series.map((s) => s.label)).toEqual(["A: value", "B: value"])
+  })
 })
