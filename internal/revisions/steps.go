@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -40,7 +41,7 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 	st.DurationMS = max(st.DurationMS, 0)
 	payload, err := json.Marshal(st)
 	if err != nil {
-		s.logger.WarnContext(ctx, "record agent request step", slog.String("agent_request_id", req.ID), slog.String("tool", st.Tool), slog.Any("error", err))
+		s.logger.WarnContext(ctx, "record agent request step", logattrs.Failure("agent_step_encode_failed", err, slog.String("agent_request_id", req.ID), slog.String("tool", st.Tool))...)
 		return
 	}
 	writeCtx, cancel := context.WithTimeout(ctx, stepWriteTimeout)
@@ -49,7 +50,7 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 		ID: id, Attempts: toInt32(req.Attempt), Step: payload, MaxSteps: MaxSteps,
 	})
 	if err != nil {
-		s.logger.WarnContext(ctx, "record agent request step", slog.String("agent_request_id", req.ID), slog.String("tool", st.Tool), slog.Any("error", err))
+		s.logger.WarnContext(ctx, "record agent request step", logattrs.Failure("agent_step_record_failed", err, slog.String("agent_request_id", req.ID), slog.String("tool", st.Tool))...)
 	}
 }
 

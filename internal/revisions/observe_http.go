@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 type ObserveOptions struct {
@@ -133,7 +134,11 @@ func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVe
 		row, err = h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
 	}
 	if err != nil {
-		h.service.fail(c, "enqueue observe request", err)
+		var idAttrs []any
+		if dashboardID.Valid {
+			idAttrs = append(idAttrs, dashboardAttr(dashboardID))
+		}
+		h.service.fail(c, "enqueue observe request", err, idAttrs...)
 		return dbsqlc.AgentRequest{}, false
 	}
 	return row, true
@@ -146,7 +151,7 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 	}
 	row, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
-		h.service.fail(c, "get agent request", err)
+		h.service.fail(c, "get agent request", err, slog.String("agent_request_id", id.String()))
 		return
 	}
 	c.JSON(http.StatusOK, agentRequestEnvelopeJSON{Request: h.view(c, row)})
@@ -193,14 +198,14 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequ
 	}
 	if err := json.Unmarshal(row.Steps, &out.Steps); err != nil || out.Steps == nil {
 		if err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request steps", slog.String("agent_request_id", out.ID), slog.Any("error", err))
+			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request steps", logattrs.Failure("agent_request_steps_decode_failed", err, slog.String("agent_request_id", out.ID))...)
 		}
 		out.Steps = []Step{}
 	}
 	if len(row.RunUsage) > 0 {
 		var usage Usage
 		if err := json.Unmarshal(row.RunUsage, &usage); err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request usage", slog.String("agent_request_id", out.ID), slog.Any("error", err))
+			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request usage", logattrs.Failure("agent_request_usage_decode_failed", err, slog.String("agent_request_id", out.ID))...)
 		} else {
 			out.Usage = &usage
 		}

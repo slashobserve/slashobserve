@@ -531,9 +531,6 @@ To help you find the cause, the line adds only what the server knows from your s
 
 For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABASE_URL"`.
 
-One exception remains.
-The agent request workers (`internal/revisions`) still log the message of the underlying error until their lines move to the same format, so treat the log as sensitive operational data and restrict access to it.
-
 ## Security model
 
 - **Sign-in.**

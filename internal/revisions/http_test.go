@@ -24,6 +24,15 @@ func newRouter(svc *revisions.Service) *gin.Engine {
 	return r
 }
 
+func newObserveRouter(svc *revisions.Service) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), user))
+	}))
+	return r
+}
+
 func call(r http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

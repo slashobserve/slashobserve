@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -247,7 +248,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {
-		s.logger.WarnContext(ctx, "agent request claim hit the one-running-request-per-dashboard index; nothing claimed", slog.Any("error", err))
+		s.logger.WarnContext(ctx, "agent request claim hit the one-running-request-per-dashboard index; nothing claimed", logattrs.Failure("agent_request_claim_conflict", err)...)
 		return dbsqlc.AgentRequest{}, false, nil
 	}
 	return claimed, found, err
@@ -256,6 +257,8 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 type outcome struct {
 	version *int
 	message string
+	code    string
+	cause   error
 	usage   *Usage
 }
 
@@ -264,7 +267,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 	if o.usage != nil {
 		var err error
 		if usage, err = json.Marshal(o.usage); err != nil {
-			s.logger.WarnContext(ctx, "marshal agent run usage", slog.String("agent_request_id", claimed.ID.String()), slog.Any("error", err))
+			s.logger.WarnContext(ctx, "marshal agent run usage", logattrs.Failure("agent_usage_encode_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
 			usage = nil
 		}
 	}

@@ -44,7 +44,7 @@ linters:
       - path: _test\.go$
         linters:
           - gocyclo
-      - path: ^internal/(logattrs|revisions)/
+      - path: ^internal/logattrs/
         linters:
           - sloglint
       - path-except: ^(internal|cmd|pkg)/

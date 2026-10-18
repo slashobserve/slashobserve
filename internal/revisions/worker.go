@@ -10,6 +10,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -25,6 +26,8 @@ const (
 	timedOutMessage    = "the agent run timed out"
 	crashedMessage     = "the agent run crashed"
 )
+
+var errCrashed = errors.New(crashedMessage)
 
 type WorkerOptions struct {
 	Workers    int
@@ -84,7 +87,7 @@ func (w *Worker) relayWakeups(ctx context.Context, wakes []chan struct{}) {
 		if ctx.Err() != nil {
 			return
 		}
-		w.logger.Warn("agent request listener failed", slog.Any("error", err), slog.Duration("retry_in", backoff))
+		w.logger.Warn("agent request listener failed", logattrs.Failure("agent_request_listener_failed", err, slog.Duration("retry_in", backoff))...)
 		if established {
 			backoff = listenBackoff
 		}
@@ -110,7 +113,7 @@ func (w *Worker) loop(ctx context.Context, wake <-chan struct{}) {
 	for ctx.Err() == nil {
 		worked, err := w.step(ctx)
 		if err != nil && ctx.Err() == nil {
-			w.logger.Error("agent request worker step failed", slog.Any("error", err))
+			w.logger.Error("agent request poll failed", logattrs.Failure("agent_request_poll_failed", err)...)
 		}
 		if worked && err == nil {
 			continue
@@ -152,15 +155,23 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 	if settled, progressed := w.settleSaved(ctx, claimed, false, result.Usage); settled {
 		return progressed
 	}
+	crashed := errors.Is(err, errCrashed)
+	code := "agent_run_failed"
+	if crashed {
+		code = "agent_run_panicked"
+	}
 	switch {
 	case ctx.Err() != nil:
 		w.logger.InfoContext(ctx, "agent request interrupted; releasing it", slog.String("agent_request_id", claimed.ID.String()))
 		w.release(ctx, claimed, false)
 		return false
 	case timedOut:
-		w.finish(ctx, claimed, outcome{message: timedOutMessage, usage: result.Usage})
+		if !crashed {
+			code = "agent_run_timed_out"
+		}
+		w.finish(ctx, claimed, outcome{message: timedOutMessage, code: code, cause: err, usage: result.Usage})
 	default:
-		w.finish(ctx, claimed, outcome{message: err.Error(), usage: result.Usage})
+		w.finish(ctx, claimed, outcome{message: err.Error(), code: code, cause: err, usage: result.Usage})
 	}
 	return true
 }
@@ -171,12 +182,12 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, b
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
 	switch {
 	case err != nil:
-		w.logger.ErrorContext(ctx, "check agent request result", slog.String("agent_request_id", claimed.ID.String()), slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
 		if !beforeRun {
 			return false, true
 		}
 		if int(claimed.CheckFailures)+1 >= maxCheckFailures {
-			w.finish(ctx, claimed, outcome{message: checkFailedMessage})
+			w.finish(ctx, claimed, outcome{message: checkFailedMessage, code: "agent_request_check_failed", cause: err})
 			return true, true
 		}
 		w.release(ctx, claimed, true)
@@ -192,7 +203,7 @@ func (w *Worker) revise(ctx context.Context, req Request) (result Result, err er
 	defer func() {
 		if p := recover(); p != nil {
 			w.logger.ErrorContext(ctx, "agent run panicked", slog.String("agent_request_id", req.ID), slog.String("panic_type", fmt.Sprintf("%T", p)))
-			result, err = Result{}, errors.New(crashedMessage)
+			result, err = Result{}, errCrashed
 		}
 	}()
 	return w.service.reviser.Revise(ctx, req)
@@ -209,7 +220,7 @@ func (w *Worker) release(ctx context.Context, claimed dbsqlc.AgentRequest, check
 	attrs := logAttrs(claimed)
 	switch {
 	case err != nil:
-		w.logger.ErrorContext(ctx, "release agent request; its lease will expire", append(attrs, slog.Any("error", err))...)
+		w.logger.ErrorContext(ctx, "release agent request; its lease will expire", logattrs.Failure("agent_request_release_failed", err, attrs...)...)
 	case !released:
 		w.logger.WarnContext(ctx, "agent request was finished elsewhere; not releasing it", attrs...)
 	}
@@ -222,13 +233,13 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 	attrs := logAttrs(claimed)
 	switch {
 	case err != nil:
-		w.logger.ErrorContext(ctx, "finish agent request", append(attrs, slog.Any("error", err))...)
+		w.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
 	case !finished:
 		w.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
 	case o.version != nil:
 		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(claimed.Attempts)))...)
 	default:
-		w.logger.WarnContext(ctx, "agent request failed", append(attrs, slog.String("error", truncateError(o.message)), slog.Int("attempt", int(claimed.Attempts)))...)
+		w.logger.WarnContext(ctx, "agent request failed", logattrs.Failure(o.code, o.cause, append(attrs, slog.Int("attempt", int(claimed.Attempts)))...)...)
 	}
 }
 

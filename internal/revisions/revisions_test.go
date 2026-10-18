@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -39,7 +39,7 @@ func (f reviserFunc) Revise(ctx context.Context, req revisions.Request) (revisio
 }
 
 func quietLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *dbtest.Database) {
@@ -146,6 +146,33 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func logRecords(t *testing.T, logs *logtest.Capture, msg string) []map[string]any {
+	t.Helper()
+	var out []map[string]any
+	for _, record := range logs.Records(t) {
+		if record["msg"] == msg {
+			out = append(out, record)
+		}
+	}
+	return out
+}
+
+func waitForLog(t *testing.T, logs *logtest.Capture, msg string) []map[string]any {
+	t.Helper()
+	var records []map[string]any
+	waitFor(t, fmt.Sprintf("a %q log record", msg), func() bool {
+		records = logRecords(t, logs, msg)
+		return len(records) > 0
+	})
+	return records
+}
+
+func findEventually(t *testing.T, logs *logtest.Capture, msg string) map[string]any {
+	t.Helper()
+	waitForLog(t, logs, msg)
+	return logs.Find(t, msg)
 }
 
 func waitForStatus(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, id string, want revisions.Status) revisions.Revision {
@@ -272,26 +299,8 @@ func TestPanicInTheReviserFailsOnlyThatRequest(t *testing.T) {
 	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
 }
 
-type lockedBuffer struct {
-	mu  sync.Mutex
-	buf strings.Builder
-}
-
-func (b *lockedBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.Write(p)
-}
-
-func (b *lockedBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.String()
-}
-
 func TestWorkerLogsCarryTheRequestIdAsAgentRequestIdAndNoRunText(t *testing.T) {
-	logs := &lockedBuffer{}
-	logger := slog.New(slog.NewTextHandler(logs, nil))
+	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := revisions.NewService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
 		if req.Prompt == "boom" {
@@ -306,18 +315,18 @@ func TestWorkerLogsCarryTheRequestIdAsAgentRequestIdAndNoRunText(t *testing.T) {
 	fine := submit(t, svc, dash, "fine")
 	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
 
-	got := logs.String()
-	for _, want := range []string{
-		"msg=\"agent run panicked\" agent_request_id=" + boom.ID,
-		"msg=\"agent request succeeded\" agent_request_id=" + fine.ID,
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("log lacks %q: %s", want, got)
-		}
+	if got := findEventually(t, logs, "agent run panicked"); got["agent_request_id"] != boom.ID || got["panic_type"] != "string" {
+		t.Errorf("panic record = %v", got)
 	}
-	if strings.Contains(got, "revision_id=") || strings.Contains(got, "secret prompt text") {
-		t.Errorf("log carries the old key or run text: %s", got)
+	failed := findEventually(t, logs, "agent request failed")
+	logs.AssertSafeFailure(t, failed, "agent_run_panicked", "secret prompt text")
+	if failed["agent_request_id"] != boom.ID {
+		t.Errorf("failure record = %v", failed)
 	}
+	if got := findEventually(t, logs, "agent request succeeded"); got["agent_request_id"] != fine.ID {
+		t.Errorf("success record = %v", got)
+	}
+	logs.AssertAbsent(t, "revision_id")
 }
 
 func TestRunTimeoutFailsTheRequest(t *testing.T) {

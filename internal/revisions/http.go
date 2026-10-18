@@ -11,8 +11,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -97,7 +99,7 @@ func (s *Service) createRevision(c *gin.Context) {
 	}
 	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, prompt, httpapi.Caller(c))
 	if err != nil {
-		s.fail(c, "enqueue revision", err)
+		s.fail(c, "enqueue revision", err, dashboardAttr(dashboardID))
 		return
 	}
 	rev := revisionFromRow(row)
@@ -120,12 +122,12 @@ func (s *Service) listRevisions(c *gin.Context) {
 			httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 			return
 		}
-		s.fail(c, "read latest dashboard version", err)
+		s.fail(c, "read latest dashboard version", err, dashboardAttr(dashboardID))
 		return
 	}
 	items, next, err := s.List(ctx, dashboardID, limit, c.Query("cursor"))
 	if err != nil {
-		s.fail(c, "list revisions", err)
+		s.fail(c, "list revisions", err, dashboardAttr(dashboardID))
 		return
 	}
 	body := listJSON{Revisions: make([]revisionJSON, len(items))}
@@ -149,13 +151,13 @@ func (s *Service) getRevision(c *gin.Context) {
 	}
 	rev, err := s.Get(c.Request.Context(), dashboardID, id)
 	if err != nil {
-		s.fail(c, "get revision", err)
+		s.fail(c, "get revision", err, dashboardAttr(dashboardID), slog.String("agent_request_id", id.String()))
 		return
 	}
 	c.JSON(http.StatusOK, envelopeJSON{Revision: newRevisionJSON(rev)})
 }
 
-func (s *Service) fail(c *gin.Context, action string, err error) {
+func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any) {
 	ctx := c.Request.Context()
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -176,9 +178,18 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
-		s.logger.ErrorContext(ctx, action, slog.Any("error", err))
+		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, append(idAttrs, principalAttrs(c)...)...)...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
+}
+
+func principalAttrs(c *gin.Context) []any {
+	principal := httpapi.Caller(c)
+	return []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}
+}
+
+func dashboardAttr(id pgtype.UUID) any {
+	return slog.String("dashboard_id", id.String())
 }
 
 func newRevisionJSON(r Revision) revisionJSON {
