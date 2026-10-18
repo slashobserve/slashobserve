@@ -199,6 +199,13 @@ test.describe("touch device", () => {
   test("keeps Enter for new lines and submits with the button", async ({
     page,
   }) => {
+    let openGate!: () => void
+    const gate = new Promise<void>((resolve) => (openGate = resolve))
+    await page.route(requestApi, async (route) => {
+      await gate
+      await route.continue()
+    })
+
     await page.goto("/")
     const promptBar = page.getByRole("textbox", {
       name: "Describe the dashboard you want",
@@ -215,5 +222,8 @@ test.describe("touch device", () => {
     await page.getByRole("button", { name: "Observe" }).click()
     await expect(page).toHaveURL(requestPath)
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(redPrompt)
+    openGate()
+
+    await expect(page).toHaveURL(dashboardPath, { timeout: 90_000 })
   })
 })
