@@ -189,6 +189,9 @@ Directories are created when their phase starts; this is where things go.
 - The query editor (`web/src/query-editor`) is lazy-loaded CodeMirror with `classHighlighter` tokens styled in `query-editor.css`; lint comes only from `POST /api/v1/datasources/{uid}/lint`, whose byte offsets go through `byteRangeToIndices`, and codemirror-promql never gets a `remote` (the browser never calls a datasource).
 - Panel inspector views open from the URL (`panel` + `tab`) in `web/src/dashboards/panel-inspector.tsx`; add a view as a tab there.
   The query tab keeps an unsaved draft when a newer version arrives live and saves with the `parent_version` it was opened on, so a newer version turns the save button into "Apply my query to version N".
+- Comments load once per dashboard (`dashboardKeys.comments`), per-panel lists and counts are derived, resolve and reopen are optimistic with rollback, bodies render as plain text only, and live updates come from `useDashboardEvents` invalidations.
+  The Comments tab and the dashboard-wide `tab=comments` view live in the panel inspector, which follows the query editor's layout-session rule (unavailable while a layout is being edited) and guards a comment draft and a query draft with one discard prompt.
+  The composer posts `request_revision: false` unless its `requestRevision` prop is set.
 
 ## Dependencies
 

@@ -15,7 +15,7 @@ type Props = {
   panel: Panel
   tableView: boolean
   onToggleTableView: () => void
-  queryEditable: boolean
+  inspectable: boolean
 }
 
 type MenuItem = {
@@ -29,7 +29,7 @@ export function PanelMenu({
   panel,
   tableView,
   onToggleTableView,
-  queryEditable,
+  inspectable,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const items: MenuItem[] = []
@@ -42,10 +42,17 @@ export function PanelMenu({
   }
   items.push({
     id: "edit-query",
-    label: queryEditable ? "Edit query" : "Edit query (finish layout first)",
-    disabled: !queryEditable,
+    label: inspectable ? "Edit query" : "Edit query (finish layout first)",
+    disabled: !inspectable,
     onSelect: () =>
       setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
+  })
+  items.push({
+    id: "comments",
+    label: inspectable ? "Comments" : "Comments (finish layout first)",
+    disabled: !inspectable,
+    onSelect: () =>
+      setSearch((state) => ({ ...state, panel: panel.id, tab: "comments" })),
   })
   return (
     <DropdownMenu>

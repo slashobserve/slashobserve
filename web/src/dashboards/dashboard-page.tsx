@@ -9,10 +9,13 @@ import {
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { HistoryIcon } from "lucide-react"
+import { HistoryIcon, MessageSquareIcon } from "lucide-react"
 
 import type { Selections } from "@/api/keys"
-import { buttonVariants } from "@/components/ui/button"
+import { PanelCommentBadge } from "@/comments/panel-comment-badge"
+import { useComments } from "@/comments/queries"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { refreshToMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -69,6 +72,7 @@ type PanelContainerProps = {
   refreshMs: number | null
   editable: boolean
   layoutSession: boolean
+  openComments: number
 }
 
 const PanelContainer = memo(function PanelContainer({
@@ -86,6 +90,7 @@ const PanelContainer = memo(function PanelContainer({
   refreshMs,
   editable,
   layoutSession,
+  openComments,
 }: PanelContainerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
@@ -138,12 +143,20 @@ const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
+        badge={
+          <PanelCommentBadge
+            panelId={panel.id}
+            title={panel.title}
+            count={openComments}
+            disabled={layoutSession}
+          />
+        }
         menu={
           <PanelMenu
             panel={panel}
             tableView={tableView}
             onToggleTableView={() => setTableView((current) => !current)}
-            queryEditable={!layoutSession}
+            inspectable={!layoutSession}
           />
         }
       >
@@ -175,6 +188,20 @@ function DashboardView({
   liveStatus: LiveStatus
 }) {
   const search = useDashboardSearch()
+  const setSearch = useSetDashboardSearch()
+  const { comments } = useComments(dashboardId)
+  const openByPanel = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const comment of comments) {
+      if (comment.status !== "open") continue
+      counts.set(comment.panel_id, (counts.get(comment.panel_id) ?? 0) + 1)
+    }
+    return counts
+  }, [comments])
+  const openTotal = useMemo(
+    () => comments.reduce((n, c) => n + (c.status === "open" ? 1 : 0), 0),
+    [comments]
+  )
   const envelopeVersion = envelope.version.version
   const envelopeSpec = useMemo(
     () => asDashboardSpec(envelope.version.spec),
@@ -239,6 +266,23 @@ function DashboardView({
       status={liveStatus}
       pinned={search.version !== undefined}
     />,
+    <Button
+      key="comments"
+      variant="outline"
+      disabled={editing}
+      aria-label={openTotal > 0 ? `Comments, ${openTotal} open` : "Comments"}
+      onClick={() =>
+        setSearch((state) => ({ ...state, panel: undefined, tab: "comments" }))
+      }
+    >
+      <MessageSquareIcon data-icon="inline-start" />
+      Comments
+      {openTotal > 0 ? (
+        <Badge variant="secondary" className="tabular-nums">
+          {openTotal}
+        </Badge>
+      ) : null}
+    </Button>,
     <Link
       key="history"
       to="/dashboards/$dashboardId/versions"
@@ -301,6 +345,7 @@ function DashboardView({
               refreshMs={refreshMs}
               editable={editing && canEdit}
               layoutSession={editing}
+              openComments={openByPanel.get(panel.id) ?? 0}
             />
           )}
         />

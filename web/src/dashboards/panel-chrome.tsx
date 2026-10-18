@@ -60,6 +60,7 @@ type Props = {
   refreshing?: boolean
   staleError?: unknown
   onRetry?: () => void
+  badge?: ReactNode
   menu?: ReactNode
   dragHandle?: boolean
   children?: ReactNode
@@ -72,6 +73,7 @@ export function PanelChrome({
   refreshing = false,
   staleError,
   onRetry,
+  badge,
   menu,
   dragHandle = false,
   children,
@@ -141,6 +143,7 @@ export function PanelChrome({
             <TooltipContent>{errorMessage(staleError)}</TooltipContent>
           </Tooltip>
         ) : null}
+        {badge}
         {menu}
       </header>
       <div className="min-h-0 flex-1">
