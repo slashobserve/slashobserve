@@ -220,12 +220,32 @@ Directories are created when their phase starts; this is where things go.
   CI builds the server image once as `slashobserve-e2e:ci` and the shop image as `slashobserve-demo-shop:ci` (`SLASHOBSERVE_SHOP_IMAGE`), and uploads Playwright traces, videos, the HTML report and compose logs when a test fails.
 - `scripts/e2e.sh` boot waits, with bounded polling, until Prometheus has scraped every target and ClickHouse has log and trace rows, so later checks start on a stack that is already exporting; checks on telemetry that may still be arriving poll instead of asserting once.
   The shop contract (pods, routes, metric labels) is shared by the Prometheus backfill and the e2e checks, so change them together.
-  The Prometheus entrypoint picks the backfill's `end` 20 seconds after it starts (generating and importing the backfill takes about 8 seconds) and writes it to `/prometheus/backfill-end`; the load generator mounts that volume read-only (`LOADGEN_START_FILE`), waits for the file and sends its first request exactly at `end` (or at once if `end` is more than a minute ahead), so it does not depend on Prometheus being up.
+  The Prometheus entrypoint picks the backfill's `end` 20 seconds after it starts (generating and importing the backfill takes 5 to 8 seconds on an idle host) and writes it to `/prometheus/backfill-end`.
+  The entrypoint removes any old `backfill-end` first, so the load generator waits for the new one.
+  It regenerates when generation finishes less than 7 seconds before `end` (as on a CPU starved host) or when it finds a stale `.ready` from an earlier start whose `end` is not the one still published in `backfill-end` (when it is, a load generator may already be running on it, so the entrypoint reuses those blocks and that `end` instead of moving it), with a lead of twice the time the last try took plus 10 seconds, capped at 55 seconds because the load generator starts at once when `end` is more than its one minute `maxStartLead` away and would double count the backfill (`demo/shop/internal/loadgen/loadgen_test.go` fails when the two drift apart).
+  It stops retrying after 4 tries or 90 seconds in total and warns that the junction will show a gap, so boot usually stays inside the Prometheus healthcheck window of about 210 seconds; a loaded host therefore boots later instead of starting Prometheus and the load generator after `end`, which would leave a gap of the missed seconds in the junction.
+  The load generator mounts that volume read-only (`LOADGEN_START_FILE`), waits for the file and sends its first request exactly at `end` (or at once if `end` is more than a minute ahead), so it does not depend on Prometheus being up.
   Business counters and histograms are created on the first business request, so a live counter counts requests since `end` and the junction is a counter reset that neither double counts nor loses requests.
   Prometheus starts 5 seconds before `end`: its first shop scrape comes 5 to 10 seconds after it starts, so the first live sample lands at most about 5 seconds after `end` (a scrape before `end` would be dropped as out of bounds).
   A 1 minute `rate()` whose window starts after `end` still misses the requests before its first live sample, less what Prometheus extrapolates, so the junction shows a small dip.
   `backfill_joins_live` in `scripts/e2e.sh` compares, per `service`, `route` and `pod` above 1.5 requests per second, the 1 minute request rate and p95 around the junction with their values 35 seconds before `end`, and requires every 5 second sample from 30 seconds before to 90 seconds after `end` to stay within 0.85 to 1.15 for the rate and 0.95 to 1.6 for the p95.
-  The p95 band is wide above because frontend `/api/products` has its 95th percentile at a bucket edge and sampling noise moves it up, and tight below, where a gap or a double count would show.
+  Every route's 95th percentile must sit inside a well populated histogram bucket whose upper edge is far above the slowest latency the route can produce, or CPU starvation (sleeps overshooting) moves it across the bucket: frontend `/api/products` used to sleep 5 to 25 ms, which put its p95 on the 25 ms edge and let it reach 1.7 on a loaded host.
+  The profiles in `backfill.awk` are calibrated from the shop containers alone (`docker run`, 30 requests per second, 6 minutes), and the highest bucket of each profile is the diurnal tail that is zero at the junction.
+  Per route at the junction, the share of requests in the p95 bucket, that bucket, and the slowest latency the sleeps allow (including about 1 ms of overhead):
+
+  | Route | Sleeps | p95 bucket | Share in bucket | Slowest latency |
+  | --- | --- | --- | --- | --- |
+  | frontend `/api/products` | 5 to 30 ms | 25 to 50 ms | 23% | 31 ms |
+  | frontend `/api/products/{id}` | 5 to 30 ms | 25 to 50 ms | 23% | 31 ms |
+  | frontend `/api/orders/{id}` | 2 to 5 ms and 5 to 30 ms | 25 to 50 ms | 45% | 38 ms |
+  | checkout `/orders/{id}` | 5 to 30 ms | 25 to 50 ms | 30% | 31 ms |
+  | payments `/charge` | 30 to 70 ms | 50 to 100 ms | 52% | 72 ms |
+  | checkout `/checkout` | 10 to 30, 30 to 70, 10 to 30 ms | 100 to 250 ms | 33% | 140 ms |
+  | frontend `/api/checkout` | 2 to 8 ms plus checkout | 100 to 250 ms | 47% | 150 ms |
+
+  Changing a sleep range changes its row, the rows of every route that calls it, and the profile in `backfill.awk`, so recalibrate them together.
+  The p95 band stays wide above (1.6) and tight below, where a gap or a double count would show.
+  The check waits until the window ending 90 seconds after `end` is 10 seconds old, then judges it once: a band violation fails at once with the series outside each band and its value (`query failed` when the re-query broke, `none on re-query` when it found none), next to the loadgen's dropped count, instead of polling out the full timeout.
   The `/orders/{id}` routes are left out because their low request rate swings the rate on seeded traffic alone.
   The backfill rates equal the load generator's steady state at the junction and the diurnal shape has zero offset and slope there.
   The sample spacing grows geometrically from 5 seconds at `end` to 30 seconds going back, and every timestamp carries milliseconds: whole-second spacing makes `rate()` extrapolation dip on the sparser samples.

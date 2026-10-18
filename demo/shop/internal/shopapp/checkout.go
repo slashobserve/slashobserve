@@ -116,7 +116,7 @@ func (a *app) failCheckout(w http.ResponseWriter, r *http.Request, message strin
 }
 
 func (a *app) getOrder(w http.ResponseWriter, r *http.Request) {
-	if !sleep(r.Context(), a.rng.Between(5*time.Millisecond, 20*time.Millisecond)) {
+	if !sleep(r.Context(), a.rng.Between(5*time.Millisecond, 30*time.Millisecond)) {
 		return
 	}
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)

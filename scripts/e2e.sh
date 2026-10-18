@@ -167,8 +167,12 @@ PROM_URL="http://localhost:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}"
 SHOP_URL="http://localhost:${SLASHOBSERVE_SHOP_HOST_PORT}"
 FAULT_SET=0
 
+prom_query() {
+  foreground command curl -fsS --max-time 5 -o "$TMP/prom.body" "$PROM_URL/api/v1/query" --data-urlencode "query=$1"
+}
+
 prom_scalar() {
-  foreground command curl -fsS --max-time 5 -o "$TMP/prom.body" "$PROM_URL/api/v1/query" --data-urlencode "query=scalar($1)" || return 0
+  prom_query "scalar($1)" || return 0
   sed -nE 's/.*"result":\[[^,]*,"([^"]*)"\].*/\1/p' "$TMP/prom.body" || true
 }
 
@@ -232,6 +236,7 @@ poll() {
   fail "$desc (not true after ${timeout}s, last observed: '${LAST}'${detail})"
 }
 
+is_number() { [[ "$1" =~ ^[0-9.eE+-]+$ ]]; }
 in_band() { awk -v v="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(v ~ /^[0-9.eE+-]+$/ && v + 0 >= lo && v + 0 <= hi) }'; }
 
 RATE_BAND_LO=0.85
@@ -243,10 +248,34 @@ BUSY_RPS=1.5
 junction_rate() { printf 'sum by (service, route, pod) (rate(http_requests_total{job="shop"}[1m]%s))' "$1"; }
 junction_p95() { printf 'histogram_quantile(0.95, sum by (le, service, route, pod) (rate(http_request_duration_seconds_bucket{job="shop"}[1m]%s)))' "$1"; }
 
-junction_extreme() {
+junction_inner() {
   local series="$1" before_at="$2" probe_at="$3" agg="$4"
-  printf '%s(%s_over_time(((%s / %s) and on (service, route, pod) (%s > %s))[2m:5s] @ %s))' \
-    "$agg" "$agg" "$("$series" "")" "$("$series" " @ $before_at")" "$(junction_rate " @ $before_at")" "$BUSY_RPS" "$probe_at"
+  printf '%s_over_time(((%s / %s) and on (service, route, pod) (%s > %s))[2m:5s] @ %s)' \
+    "$agg" "$("$series" "")" "$("$series" " @ $before_at")" "$(junction_rate " @ $before_at")" "$BUSY_RPS" "$probe_at"
+}
+
+junction_extreme() {
+  printf '%s(%s)' "$4" "$(junction_inner "$@")"
+}
+
+prom_worst() {
+  prom_query "$1" || { echo "query failed"; return 0; }
+  sed -nE 's/.*"metric":\{([^}]*)\}.*"value":\[[^,]*,"([^"]*)"\].*/\1 = \2/p' "$TMP/prom.body" | tr -d '"' || true
+}
+
+junction_offenders() {
+  local before_at="$1" probe_at="$2" kind series lo hi agg pick worst value out=""
+  for kind in rate p95; do
+    series="junction_${kind}"
+    if [[ "$kind" == rate ]]; then lo="$RATE_BAND_LO"; hi="$RATE_BAND_HI"; else lo="$P95_BAND_LO"; hi="$P95_BAND_HI"; fi
+    for agg in min max; do
+      if [[ "$agg" == min ]]; then pick=bottomk; else pick=topk; fi
+      capture worst prom_worst "${pick}(1, $(junction_inner "$series" "$before_at" "$probe_at" "$agg"))" || true
+      value="${worst##* = }"
+      if ! in_band "$value" "$lo" "$hi"; then out+="; ${kind} ${agg}: ${worst:-no series}"; fi
+    done
+  done
+  printf '%s' "$out"
 }
 
 loadgen_dropped() {
@@ -277,7 +306,13 @@ backfill_joins_live() {
     && in_band "$p95_min" "$P95_BAND_LO" "$P95_BAND_HI" && in_band "$p95_max" "$P95_BAND_LO" "$P95_BAND_HI"; then
     return 0
   fi
-  LAST="${LAST}, loadgen dropped $(loadgen_dropped) requests as of its last summary"
+  local offenders
+  offenders="$(junction_offenders "$before_at" "$probe_at" | cut -c3-)"
+  LAST="${LAST}, out of band: ${offenders:-none on re-query}, loadgen dropped $(loadgen_dropped) requests as of its last summary"
+  if is_number "$rate_min" && is_number "$rate_max" && is_number "$p95_min" && is_number "$p95_max"; then
+    dump_logs 50
+    fail "backfilled request rate and p95 latency continue into live data (out of band once the window settled, last observed: '${LAST}')"
+  fi
   return 1
 }
 

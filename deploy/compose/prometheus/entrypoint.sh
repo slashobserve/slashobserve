@@ -9,23 +9,42 @@ publish_start() {
 
 if [ "${PROMETHEUS_BACKFILL:-1}" = "1" ] && [ ! -f /prometheus/.backfilled ]; then
   tmp=/prometheus/.backfill-tmp
-  if [ ! -f "$tmp/.ready" ]; then
+  reuse=0
+  if [ -f "$tmp/.ready" ] && [ "$(cat /prometheus/backfill-end 2>/dev/null)" = "$(cat "$tmp/.end")" ]; then
+    reuse=1
+  else
+    rm -f /prometheus/backfill-end
+  fi
+  lead=20
+  # must stay below maxStartLead in demo/shop/internal/loadgen/loadgen.go, or the load generator starts at once and double counts; loadgen_test.go checks it
+  max_lead=55
+  budget=90
+  tries=0
+  loop_began=$(date +%s)
+  slack() { echo $(($(cat "$tmp/.end") - $(date +%s))); }
+  while [ "$reuse" = 0 ] && { [ ! -f "$tmp/.ready" ] || [ "$(slack)" -lt 7 ]; }; do
+    if [ "$tries" -ge 4 ] || [ "$(($(date +%s) - loop_began))" -ge "$budget" ]; then
+      echo "backfill generation did not finish 7s ahead of its end time within 4 tries or ${budget}s; the junction will show a gap" >&2
+      break
+    fi
+    tries=$((tries + 1))
     rm -rf "$tmp"
     mkdir "$tmp"
-    end=$(($(date +%s) + 20))
+    began=$(date +%s)
+    end=$((began + lead))
     awk -v now="$end" -f /etc/prometheus/backfill.awk > "$tmp/backfill.om"
     promtool tsdb create-blocks-from openmetrics "$tmp/backfill.om" "$tmp"
     rm -f "$tmp/backfill.om"
     echo "$end" > "$tmp/.end"
     touch "$tmp/.ready"
-  fi
+    lead=$((($(date +%s) - began) * 2 + 10))
+    if [ "$lead" -gt "$max_lead" ]; then lead=$max_lead; fi
+  done
   end=$(cat "$tmp/.end")
   publish_start "$end"
   remaining=$((end - 5 - $(date +%s)))
   if [ "$remaining" -gt 0 ]; then
     sleep "$remaining"
-  elif [ "$remaining" -lt -5 ]; then
-    echo "backfill generation overran its 20s lead by $((-remaining - 5))s; the junction will show a gap" >&2
   fi
   for block in "$tmp"/*; do
     [ -e "$block" ] || continue

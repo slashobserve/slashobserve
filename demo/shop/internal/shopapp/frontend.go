@@ -35,7 +35,7 @@ var catalog = func() []product {
 }()
 
 func (a *app) listProducts(w http.ResponseWriter, r *http.Request) {
-	_, span, ok := a.work(r.Context(), "load_catalog", 5*time.Millisecond, 25*time.Millisecond)
+	_, span, ok := a.work(r.Context(), "load_catalog", 5*time.Millisecond, 30*time.Millisecond)
 	span.End()
 	if !ok {
 		return
@@ -44,7 +44,7 @@ func (a *app) listProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) getProduct(w http.ResponseWriter, r *http.Request) {
-	if !sleep(r.Context(), a.rng.Between(3*time.Millisecond, 15*time.Millisecond)) {
+	if !sleep(r.Context(), a.rng.Between(5*time.Millisecond, 30*time.Millisecond)) {
 		return
 	}
 	id, err := strconv.Atoi(r.PathValue("id"))

@@ -27,7 +27,7 @@ const (
 	summaryEvery   = 30 * time.Second
 	startPoll      = 200 * time.Millisecond
 	startTimeout   = 5 * time.Minute
-	maxStartLead   = time.Minute
+	maxStartLead   = time.Minute // must exceed max_lead in deploy/compose/prometheus/entrypoint.sh; TestStartLeadCoversEntrypointCap checks it
 	emptyCartPct   = 3
 	productCount   = 20
 	orderCount     = 50

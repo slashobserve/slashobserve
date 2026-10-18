@@ -14,7 +14,7 @@ var declineReasons = [...]string{"card_expired", "insufficient_funds"}
 
 func (a *app) charge(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	_, span, ok := a.work(ctx, "authorize_card", 30*time.Millisecond, 90*time.Millisecond)
+	_, span, ok := a.work(ctx, "authorize_card", 30*time.Millisecond, 70*time.Millisecond)
 	defer span.End()
 	if !ok {
 		return

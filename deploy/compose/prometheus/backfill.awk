@@ -36,13 +36,13 @@ BEGIN {
 
     nb = split("0.005 0.01 0.025 0.05 0.1 0.25 0.5 1.0 2.5 5.0 10.0", le, " ")
     split("0 0.005 0.01 0.025 0.05 0.1 0.25 0.5 1 2.5 5 10", bound, " ")
-    profile["frontend|/api/products"] = "2:0.21 3:0.73 4:0.04 5:0.02"
-    profile["frontend|/api/products/{id}"] = "1:0.11 2:0.41 3:0.45 4:0.03"
-    profile["frontend|/api/checkout"] = "1:0.03 2:0.08 5:0.31 6:0.53 7:0.05"
-    profile["frontend|/api/orders/{id}"] = "1:0.04 2:0.08 3:0.80 4:0.05 5:0.03"
-    profile["checkout|/checkout"] = "1:0.11 5:0.39 6:0.45 7:0.05"
-    profile["checkout|/orders/{id}"] = "1:0.11 2:0.22 3:0.64 4:0.03"
-    profile["payments|/charge"] = "4:0.33 5:0.62 6:0.05"
+    profile["frontend|/api/products"] = "2:0.16 3:0.60 4:0.23 5:0.01"
+    profile["frontend|/api/products/{id}"] = "2:0.164 3:0.588 4:0.228 5:0.02"
+    profile["frontend|/api/checkout"] = "1:0.006 2:0.018 5:0.484 6:0.442 7:0.05"
+    profile["frontend|/api/orders/{id}"] = "2:0.015 3:0.520 4:0.436 5:0.03"
+    profile["checkout|/checkout"] = "1:0.024 5:0.615 6:0.311 7:0.05"
+    profile["checkout|/orders/{id}"] = "2:0.162 3:0.582 4:0.226 5:0.03"
+    profile["payments|/charge"] = "4:0.458 5:0.492 6:0.05"
 
     ng = 0
     for (i = 1; i <= n; i++) {
