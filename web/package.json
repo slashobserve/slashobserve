@@ -18,7 +18,8 @@
     "spec:generate": "bun scripts/gen-spec.mjs",
     "spec:check": "bun scripts/gen-spec.mjs --check && bun scripts/check-spec-fixtures.mjs",
     "api:generate": "bun scripts/gen-api.mjs",
-    "api:check": "bun scripts/gen-api.mjs --check"
+    "api:check": "bun scripts/gen-api.mjs --check",
+    "icons:generate": "bun scripts/gen-icons.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
