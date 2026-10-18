@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type PointerEvent } from "react"
+import { useEffect, useId, useRef, useState, type PointerEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useLinkProps, useRouterState } from "@tanstack/react-router"
 import {
@@ -60,7 +60,7 @@ function HomeLink({ collapsed }: { collapsed: boolean }) {
       <Mark size={22} />
       {collapsed ? null : (
         <span className="flex min-w-0 flex-col leading-[1.25]">
-          <Wordmark size={14} />
+          <Wordmark size={14} className="leading-[1.25]" />
           {instance.data ? (
             <span className="truncate text-xs text-muted-foreground">
               {serverHost(instance.data.public_url)}
@@ -149,18 +149,30 @@ function ResizeGrip({
     onDrag(current.latest)
   }
 
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
+  function endDrag(event?: PointerEvent<HTMLDivElement>) {
     const current = drag.current
     if (!current) return
     drag.current = null
     setWidth(current.latest)
     onDrag(null)
-    if (event.currentTarget.hasPointerCapture(current.pointerId)) {
-      event.currentTarget.releasePointerCapture(current.pointerId)
+    const target = event?.currentTarget
+    if (target?.hasPointerCapture(current.pointerId)) {
+      target.releasePointerCapture(current.pointerId)
     }
     document.body.style.cursor = ""
     document.body.style.userSelect = ""
   }
+
+  useEffect(
+    () => () => {
+      if (!drag.current) return
+      drag.current = null
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      onDrag(null)
+    },
+    [onDrag]
+  )
 
   return (
     <div
@@ -178,6 +190,7 @@ function ResizeGrip({
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
       onDoubleClick={resetWidth}
       onKeyDown={(event) => {
         const next = keyboardWidth(width, event.key, event.shiftKey)
@@ -186,7 +199,7 @@ function ResizeGrip({
         setWidth(next)
       }}
       className={cn(
-        "group absolute top-0 -right-1 bottom-0 z-10 grid w-2 cursor-col-resize place-items-center rounded-control",
+        "group absolute top-0 -right-1 bottom-0 z-10 grid w-2 cursor-col-resize touch-none place-items-center rounded-control",
         focusRing
       )}
     >

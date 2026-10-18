@@ -286,14 +286,17 @@ function Stalled({
 
 function RequestNotFound({ removed }: { removed: boolean }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
       <h1 className="text-2xl font-semibold">Request not found</h1>
       <p className="text-sm text-muted-foreground">
         {removed
           ? "This request no longer exists."
           : "This request does not exist."}
       </p>
-      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+      <Link
+        to="/dashboards"
+        className={cn(buttonVariants({ variant: "outline" }))}
+      >
         Back to dashboards
       </Link>
     </div>

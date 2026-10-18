@@ -143,6 +143,19 @@ test("hides the sidebar under 760px", async ({ page }) => {
   await expect(sidebar(page)).toBeVisible()
 })
 
+test("hides an open collapsed-sidebar tooltip under 760px", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "Collapse sidebar" }).click()
+  await page.getByRole("link", { name: "Datasources" }).hover()
+  await expect(page.getByRole("tooltip")).toHaveText("Datasources")
+
+  await page.setViewportSize({ width: 700, height: 900 })
+  await expect(sidebar(page)).toBeHidden()
+  await expect(page.getByRole("tooltip")).toBeHidden()
+})
+
 test("opens the account menu and returns focus", async ({ page }) => {
   await page.goto("/")
   const account = page.getByRole("button", { name: /^Account: / })

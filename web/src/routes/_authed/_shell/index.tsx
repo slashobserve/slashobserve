@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useId } from "react"
 
 import { DashboardList } from "@/dashboards/dashboard-list"
+import { useDocumentTitle } from "@/lib/document-title"
 import { PromptBar } from "@/observe/prompt-bar"
 
 export const Route = createFileRoute("/_authed/_shell/")({
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/_authed/_shell/")({
 })
 
 function Home() {
+  useDocumentTitle("Observe - SlashObserve")
   const headingId = useId()
   return (
     <div className="mx-auto w-full max-w-5xl">
