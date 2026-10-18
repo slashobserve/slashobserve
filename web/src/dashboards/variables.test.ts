@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest"
 
-import type { Variable } from "@/spec"
-
 import { ALL } from "./search"
 import {
   applyVariableChange,
@@ -11,6 +9,8 @@ import {
   sortSelections,
   parentKeyOf,
   variableDisplay,
+  controlVariables,
+  type ControlVariable as Variable,
 } from "./variables"
 
 const pod: Variable = {
@@ -23,7 +23,7 @@ const pod: Variable = {
 const route: Variable = {
   name: "route",
   type: "query",
-  datasource: { type: "prometheus", uid: "prom" },
+  datasource: "prom",
   query: "label_values(x, route)",
 }
 const env: Variable = { name: "env", type: "custom", options: ["prod", "dev"] }
@@ -259,6 +259,26 @@ describe("selection helpers", () => {
     expect(normalizeMultiSelection(["a"], ["a", ALL], false)).toEqual([
       "a",
       ALL,
+    ])
+  })
+})
+
+describe("controlVariables", () => {
+  it("keeps only query and custom variables", () => {
+    const kept = controlVariables([
+      pod,
+      { name: "team", type: "constant", value: "payments" },
+      route,
+      { name: "filter", type: "textbox" },
+      { name: "source", type: "datasource", datasourceType: "prometheus" },
+      { name: "adhoc", type: "adhoc", datasource: "prom" },
+      { name: "window", type: "interval", options: ["1m"] },
+      env,
+    ])
+    expect(kept.map((variable) => variable.name)).toEqual([
+      "pod",
+      "route",
+      "env",
     ])
   })
 })

@@ -1,0 +1,62 @@
+{
+  "specVersion": "0",
+  "title": "Evolved features",
+  "description": "Exercises the variable types, multi-query panels, overrides, mappings, transforms, display options, rows, text and placeholder panels",
+  "tags": ["example", "evolved"],
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "timezone": "utc",
+  "links": [{ "title": "Runbook", "url": "https://example.com/runbook", "newTab": true }],
+  "variables": [
+    { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,
+      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)", "default": "$__all" },
+    { "name": "env", "type": "custom", "options": ["prod", "staging"], "multi": true, "default": ["prod"] },
+    { "name": "team", "type": "constant", "value": "payments" },
+    { "name": "window", "type": "interval", "options": ["1m", "5m", "1h"], "auto": true, "autoSteps": 30, "autoMin": "10s", "default": "5m" },
+    { "name": "filter", "type": "textbox", "default": "" },
+    { "name": "source", "type": "datasource", "datasourceType": "prometheus", "regex": "prom.*", "default": "prom" },
+    { "name": "adhoc", "type": "adhoc", "datasource": "prom" }
+  ],
+  "panels": [
+    { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom", "unit": "reqps",
+      "queries": [
+        { "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))", "legend": "{{pod}}" },
+        { "ref": "B", "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\",status=~\"5..\"}[$__rate_interval]))", "legend": "errors {{pod}}" }
+      ],
+      "overrides": [{ "match": { "query": "B" }, "color": "critical", "lineStyle": "dashed" }],
+      "display": { "legend": "right", "tooltip": "all" } },
+    { "id": "p_status", "type": "stat", "title": "Checkout up",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }, "datasource": "prom",
+      "queries": [{ "query": "min(up{service=\"checkout\"})", "instant": true }],
+      "mappings": [
+        { "value": "1", "text": "Up", "color": "ok" },
+        { "range": [null, 0], "text": "Down", "color": "critical" },
+        { "regex": "^[0-9]+$", "text": "Numeric" },
+        { "special": "null", "text": "No data", "color": "info" }
+      ],
+      "thresholds": [{ "color": "critical" }, { "value": 1, "color": "ok" }],
+      "display": { "graph": false, "colorMode": "background" } },
+    { "id": "p_note", "type": "text", "title": "Notes",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "content": "Notes for the on-call engineer." },
+    { "id": "p_table", "type": "table", "title": "Slowest spans",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY span", "format": "table" }],
+      "transform": [
+        { "type": "organize", "exclude": ["n"], "rename": { "p99_ms": "p99 (ms)" }, "order": ["span", "p99_ms"] },
+        { "type": "sortBy", "field": "p99_ms", "desc": true }
+      ],
+      "display": { "header": true } },
+    { "id": "p_world", "type": "placeholder", "title": "Traffic map",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 4 },
+      "reason": "Grafana panel type worldmap is not supported yet", "sourceType": "worldmap" },
+    { "id": "r_logs", "type": "row", "title": "Logs", "collapsed": false,
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 1 },
+      "panels": [
+        { "id": "p_errors", "type": "stat", "title": "Error logs",
+          "gridPos": { "x": 0, "y": 13, "w": 6, "h": 4 }, "datasource": "ch",
+          "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }] }
+      ] }
+  ]
+}

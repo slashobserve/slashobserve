@@ -13,16 +13,20 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   asDashboardSpec,
   latestDashboardQuery,
   useAddVersion,
 } from "@/dashboards/queries"
 import { cn } from "@/lib/utils"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import {
+  findPanel,
+  isDataPanel,
   validateSpecSchema,
   type Dashboard,
-  type Panel,
+  type DataPanel,
   type SpecIssue,
 } from "@/spec"
 
@@ -40,7 +44,7 @@ const unknownDatasourceText =
 type Props = {
   dashboardId: string
   spec: Dashboard
-  panel: Panel
+  panel: DataPanel
   version: number
   latestVersion: number
   readOnly: boolean
@@ -53,13 +57,13 @@ type Base = {
   version: number
   query: string
   title: string
-  datasource: Panel["datasource"]
+  datasource: string
 }
 
 type Problem =
   | { kind: "conflict"; latest: number }
   | { kind: "gone" }
-  | { kind: "rejected"; issues: ApiIssue[]; index: number }
+  | { kind: "rejected"; issues: ApiIssue[]; pointer: string }
   | { kind: "transient" }
   | { kind: "schema"; issues: SpecIssue[] }
   | { kind: "failed"; message: string }
@@ -83,13 +87,13 @@ function withDraft(
   base: Base,
   query: string,
   title: string
-): { spec: Dashboard; index: number } | null {
+): { spec: Dashboard; pointer: string } | null {
   const next = structuredClone(source)
-  const index = next.panels.findIndex((item) => item.id === panelId)
-  if (index < 0) return null
-  if (query !== base.query) next.panels[index].query = query
-  if (title !== base.title) next.panels[index].title = title
-  return { spec: next, index }
+  const entry = findPanel(next, panelId)
+  if (!entry || !isDataPanel(entry.panel)) return null
+  if (query !== base.query) entry.panel.queries[0].query = query
+  if (title !== base.title) entry.panel.title = title
+  return { spec: next, pointer: entry.pointer }
 }
 
 function IssueList({ lines }: { lines: string[] }) {
@@ -137,7 +141,7 @@ function ProblemAlert({
     )
   }
   if (problem.kind === "rejected") {
-    const prefix = `/panels/${problem.index}/`
+    const prefix = `${problem.pointer}/`
     const own = problem.issues.filter((issue) => issue.path.startsWith(prefix))
     const others = problem.issues.filter(
       (issue) => !issue.path.startsWith(prefix)
@@ -292,11 +296,12 @@ export default function QueryTab({
 
   const [base, setBase] = useState<Base>(() => ({
     version,
-    query: panel.query,
+    query: panel.queries[0].query,
     title: panel.title,
-    datasource: panel.datasource,
+    datasource: panel.queries[0].datasource ?? panel.datasource,
   }))
-  const [draft, setDraft] = useState(panel.query)
+  const datasources = useDatasources()
+  const [draft, setDraft] = useState(panel.queries[0].query)
   const [title, setTitle] = useState(panel.title)
   const [summaryDraft, setSummaryDraft] = useState<string | null>(null)
   const [lint, setLint] = useState<LintResult | null>(null)
@@ -308,11 +313,11 @@ export default function QueryTab({
   if (!dirty && version !== base.version) {
     setBase({
       version,
-      query: panel.query,
+      query: panel.queries[0].query,
       title: panel.title,
-      datasource: panel.datasource,
+      datasource: panel.queries[0].datasource ?? panel.datasource,
     })
-    setDraft(panel.query)
+    setDraft(panel.queries[0].query)
     setTitle(panel.title)
   }
 
@@ -389,7 +394,7 @@ export default function QueryTab({
               setProblem({
                 kind: "rejected",
                 issues: error.issues,
-                index: built.index,
+                pointer: built.pointer,
               })
               return
             }
@@ -449,16 +454,23 @@ export default function QueryTab({
         />
       </div>
       <div className="flex flex-col gap-2">
-        <CodeEditor
-          value={draft}
-          onChange={setDraft}
-          datasource={base.datasource}
-          readOnly={readOnly}
-          ariaLabel={`Query for ${base.title}`}
-          onLint={setLint}
-          editorRef={editor}
-          autoFocus={!readOnly && !hasCoarsePointer()}
-        />
+        {datasources.isPending ? (
+          <Skeleton className="h-40 w-full animate-none motion-safe:animate-pulse" />
+        ) : (
+          <CodeEditor
+            value={draft}
+            onChange={setDraft}
+            datasource={{
+              uid: base.datasource,
+              type: datasourceTypeOf(datasources.data, base.datasource),
+            }}
+            readOnly={readOnly}
+            ariaLabel={`Query for ${base.title}`}
+            onLint={setLint}
+            editorRef={editor}
+            autoFocus={!readOnly && !hasCoarsePointer()}
+          />
+        )}
         {tooLong ? (
           <p className="text-sm text-destructive">
             The query is longer than {maxQueryLength} characters.

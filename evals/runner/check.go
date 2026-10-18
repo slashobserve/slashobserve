@@ -29,6 +29,32 @@ type observation struct {
 	specErr   string
 	dashboard *spec.Dashboard
 	panels    map[string]panelOutcome
+
+	datasourceTypes map[string]string
+}
+
+func dataPanels(d *spec.Dashboard) []*spec.Panel {
+	entries := d.DataPanels()
+	out := make([]*spec.Panel, len(entries))
+	for i, e := range entries {
+		out[i] = e.Panel
+	}
+	return out
+}
+
+func (o observation) panelDatasourceTypes(p *spec.Panel) []string {
+	var types []string
+	for j := range p.Queries {
+		uid := p.QueryDatasource(j)
+		t, ok := o.datasourceTypes[uid]
+		if !ok {
+			t = uid
+		}
+		if !slices.Contains(types, t) {
+			types = append(types, t)
+		}
+	}
+	return types
 }
 
 func runChecks(sc Scenario, obs observation) []CheckResult {
@@ -89,7 +115,7 @@ func checkData(obs observation) CheckResult {
 		return c
 	}
 	var failures []string
-	for _, panel := range obs.dashboard.Panels {
+	for _, panel := range dataPanels(obs.dashboard) {
 		outcome, ok := obs.panels[panel.ID]
 		switch {
 		case !ok:
@@ -122,8 +148,10 @@ func checkSource(ex Expect, obs observation) CheckResult {
 		return c
 	}
 	got := map[string]bool{}
-	for _, panel := range obs.dashboard.Panels {
-		got[string(panel.Datasource.Type)] = true
+	for _, panel := range dataPanels(obs.dashboard) {
+		for _, t := range obs.panelDatasourceTypes(panel) {
+			got[t] = true
+		}
 	}
 	names := make([]string, 0, len(got))
 	for name := range got {
@@ -141,8 +169,8 @@ func checkQueries(name string, needles []string, kind spec.DatasourceType, obs o
 	}
 	var missing []string
 	for _, needle := range needles {
-		found := slices.ContainsFunc(obs.dashboard.Panels, func(p spec.Panel) bool {
-			return p.Datasource.Type == kind && strings.Contains(searchableQuery(p), needle)
+		found := slices.ContainsFunc(dataPanels(obs.dashboard), func(p *spec.Panel) bool {
+			return slices.Contains(obs.panelDatasourceTypes(p), string(kind)) && strings.Contains(obs.searchableQuery(p), needle)
 		})
 		if !found {
 			missing = append(missing, needle)
@@ -155,7 +183,7 @@ func checkUnits(ex Expect, obs observation) CheckResult {
 	if c, skip := noSpec("units", obs); skip {
 		return c
 	}
-	found := slices.ContainsFunc(obs.dashboard.Panels, func(p spec.Panel) bool {
+	found := slices.ContainsFunc(dataPanels(obs.dashboard), func(p *spec.Panel) bool {
 		return slices.Contains(ex.Units, p.Unit)
 	})
 	return result("units", found, fmt.Sprintf("no panel unit in %v", ex.Units))
@@ -165,7 +193,7 @@ func checkPanels(ex Expect, obs observation) CheckResult {
 	if c, skip := noSpec("panels", obs); skip {
 		return c
 	}
-	n := len(obs.dashboard.Panels)
+	n := len(dataPanels(obs.dashboard))
 	return result("panels", n >= ex.MinPanels && n <= ex.MaxPanels, fmt.Sprintf("%d panels, expected %d to %d", n, ex.MinPanels, ex.MaxPanels))
 }
 
@@ -174,30 +202,31 @@ func checkThresholds(ex Expect, obs observation) CheckResult {
 		return c
 	}
 	var failures []string
-	if ex.Thresholds && !slices.ContainsFunc(obs.dashboard.Panels, func(p spec.Panel) bool { return len(p.Thresholds) > 0 }) {
+	if ex.Thresholds && !slices.ContainsFunc(dataPanels(obs.dashboard), func(p *spec.Panel) bool { return len(p.Thresholds) > 0 }) {
 		failures = append(failures, "no panel has thresholds")
 	}
-	if len(ex.ThresholdAt) > 0 && !slices.ContainsFunc(obs.dashboard.Panels, func(p spec.Panel) bool { return hasThresholdAt(p, ex.ThresholdAt) }) {
+	if len(ex.ThresholdAt) > 0 && !slices.ContainsFunc(dataPanels(obs.dashboard), func(p *spec.Panel) bool { return hasThresholdAt(p, ex.ThresholdAt) }) {
 		failures = append(failures, fmt.Sprintf("no panel has a threshold at %v for its unit", ex.ThresholdAt))
 	}
 	return result("thresholds", len(failures) == 0, strings.Join(failures, "; "))
 }
 
-func hasThresholdAt(p spec.Panel, at map[string]float64) bool {
+func hasThresholdAt(p *spec.Panel, at map[string]float64) bool {
 	want, ok := at[p.Unit]
 	if !ok {
 		return false
 	}
-	return slices.ContainsFunc(p.Thresholds, func(t spec.Threshold) bool { return math.Abs(t.Value-want) < 1e-9 })
+	return slices.ContainsFunc(p.Thresholds, func(t spec.Threshold) bool { return t.Value != nil && math.Abs(*t.Value-want) < 1e-9 })
 }
 
 func checkQueryGroups(ex Expect, obs observation) CheckResult {
 	if c, skip := noSpec("query", obs); skip {
 		return c
 	}
-	queries := make([]string, len(obs.dashboard.Panels))
-	for i, p := range obs.dashboard.Panels {
-		queries[i] = searchableQuery(p)
+	panels := dataPanels(obs.dashboard)
+	queries := make([]string, len(panels))
+	for i, p := range panels {
+		queries[i] = obs.searchableQuery(p)
 	}
 	var missing []string
 	for _, group := range ex.QueryContainsAny {
@@ -230,11 +259,15 @@ func alternativePattern(alt string) *regexp.Regexp {
 	return regexp.MustCompile(`(?i)` + pattern)
 }
 
-func searchableQuery(p spec.Panel) string {
-	if p.Datasource.Type == spec.Prometheus {
-		return stripPromQLComments(p.Query)
+func (o observation) searchableQuery(p *spec.Panel) string {
+	texts := make([]string, len(p.Queries))
+	for j, q := range p.Queries {
+		texts[j] = q.Query
+		if o.datasourceTypes[p.QueryDatasource(j)] == string(spec.Prometheus) {
+			texts[j] = stripPromQLComments(q.Query)
+		}
 	}
-	return p.Query
+	return strings.Join(texts, "\n")
 }
 
 func stripPromQLComments(q string) string {
@@ -272,8 +305,8 @@ func checkTimeRange(ex Expect, obs observation) CheckResult {
 	if c, skip := noSpec("time_range", obs); skip {
 		return c
 	}
-	from := obs.dashboard.TimeRange.From
-	return result("time_range", slices.Contains(ex.TimeRangeFrom, from), fmt.Sprintf("timeRange.from is %q, expected one of %v", from, ex.TimeRangeFrom))
+	from := obs.dashboard.Time.From
+	return result("time_range", slices.Contains(ex.TimeRangeFrom, from), fmt.Sprintf("time.from is %q, expected one of %v", from, ex.TimeRangeFrom))
 }
 
 func checkLatency(ex Expect, obs observation) CheckResult {

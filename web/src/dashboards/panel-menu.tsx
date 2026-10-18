@@ -7,12 +7,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Panel } from "@/spec"
+import { panelRenderers } from "@/panels"
+import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { useSetDashboardSearch } from "./search"
 
 type Props = {
-  panel: Panel
+  panel: LayoutPanel
   tableView: boolean
   onToggleTableView: () => void
   inspectable: boolean
@@ -33,20 +34,23 @@ export function PanelMenu({
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const items: MenuItem[] = []
-  if (panel.type !== "table") {
+  const data = isDataPanel(panel)
+  if (data && panel.type !== "table" && panelRenderers[panel.type]) {
     items.push({
       id: "table-view",
       label: tableView ? "Show chart" : "Show table view",
       onSelect: onToggleTableView,
     })
   }
-  items.push({
-    id: "edit-query",
-    label: inspectable ? "Edit query" : "Edit query (finish layout first)",
-    disabled: !inspectable,
-    onSelect: () =>
-      setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
-  })
+  if (data) {
+    items.push({
+      id: "edit-query",
+      label: inspectable ? "Edit query" : "Edit query (finish layout first)",
+      disabled: !inspectable,
+      onSelect: () =>
+        setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
+    })
+  }
   items.push({
     id: "comments",
     label: inspectable ? "Comments" : "Comments (finish layout first)",
@@ -61,7 +65,7 @@ export function PanelMenu({
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={`Panel menu: ${panel.title}`}
+            aria-label={`Panel menu: ${panelTitle(panel)}`}
             data-panel-menu={panel.id}
           />
         }

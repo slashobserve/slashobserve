@@ -782,7 +782,7 @@ expect_rejected() {
 
 dashboards_suite() {
   api_token
-  local out id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found
+  local out id evolved_id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found panel_id path
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   if [[ "$out" != 201 ]] || ! grep -q '"version":1' "$TMP/api.body" || ! grep -q '"parent_version":null' "$TMP/api.body"; then
@@ -794,6 +794,24 @@ dashboards_suite() {
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
   [[ -z "$leak" ]] || fail "create response exposes connection details ($leak)"
   pass "a valid dashboard is saved as version 1 without exposing connection details"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-evolved.json")"
+  if [[ "$out" != 201 ]]; then
+    fail "create the evolved shape dashboard ($out: $(cat "$TMP/api.body"))"
+  fi
+  evolved_id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$evolved_id" ]] || fail "evolved dashboard has no id ($(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$evolved_id/versions/1/panels/p_up/data")"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
+    fail "a row child returns frames ($out: $(cat "$TMP/api.body"))"
+  fi
+  for panel_id in p_note r_prom; do
+    out="$(api GET "/dashboards/$evolved_id/versions/1/panels/$panel_id/data")"
+    if [[ "$out" != 404 ]] || ! grep -q '"code":"panel_not_found"' "$TMP/api.body"; then
+      fail "panel $panel_id should have no data ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  pass "an evolved Spec with a row, a text panel and a placeholder saves, and only data panels return data"
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-blank-summary.json")"
   if [[ "$out" != 201 ]] || ! grep -q '"summary":"Create dashboard"' "$TMP/api.body"; then
@@ -813,7 +831,7 @@ dashboards_suite() {
   expect_rejected dashboard-invalid-schema.json schema
   pass "a Spec that breaks the schema is rejected with its issues"
 
-  expect_rejected dashboard-failing-query.json query_invalid /panels/0/query
+  expect_rejected dashboard-failing-query.json query_invalid /panels/0/queries/0/query
   pass "a panel whose query fails is rejected with the reason"
 
   expect_rejected dashboard-empty-query.json query_empty
@@ -825,6 +843,9 @@ dashboards_suite() {
 
   expect_rejected dashboard-unknown-ds.json unknown_datasource
   pass "a panel on an unknown datasource is rejected"
+
+  expect_rejected dashboard-legacy.json schema
+  pass "a Spec in the legacy v0 shape is rejected"
 
   version_body dashboard-v2.json 1
   out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/version-body.json")"
@@ -937,7 +958,7 @@ dashboards_suite() {
   if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/api.body" \
     || ! grep -q '"path":"/variables/0","code":"variable_empty"' "$TMP/api.body" \
     || ! grep -q '"path":"/variables/1","code":"variable_failed"' "$TMP/api.body" \
-    || ! grep -q '"path":"/panels/0/query","code":"variable_unresolved"' "$TMP/api.body" \
+    || ! grep -q '"path":"/panels/0/queries/0/query","code":"variable_unresolved"' "$TMP/api.body" \
     || grep -q '"path":"/panels/1' "$TMP/api.body"; then
     fail "broken variables ($out: $(cat "$TMP/api.body"))"
   fi
@@ -1148,7 +1169,7 @@ comments_suite() {
   [[ "$out" == 404 ]] || fail "list comments of an unknown dashboard ($out: $(cat "$TMP/api.body"))"
   pass "comments list oldest first with cursors, panel filters and validated parameters"
 
-  printf '{"parent_version":1,"summary":"Drop the first panel","spec":{"specVersion":"0","title":"E2E dashboard","timeRange":{"from":"now-15m","to":"now"},"panels":[{"id":"%s","type":"table","title":"Log rows by service","gridPos":{"x":0,"y":0,"w":24,"h":8},"datasource":{"type":"clickhouse","uid":"ch"},"query":"SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"}]}}' "$second_panel" >"$TMP/comments-v2.json"
+  printf '{"parent_version":1,"summary":"Drop the first panel","spec":{"specVersion":"0","title":"E2E dashboard","time":{"from":"now-15m","to":"now"},"panels":[{"id":"%s","type":"table","title":"Log rows by service","gridPos":{"x":0,"y":0,"w":24,"h":8},"datasource":"ch","queries":[{"query":"SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"}]}]}}' "$second_panel" >"$TMP/comments-v2.json"
   out="$(api POST "/dashboards/$id/versions" --data-binary "@$TMP/comments-v2.json")"
   [[ "$out" == 201 ]] || fail "add a version without the first panel ($out: $(cat "$TMP/api.body"))"
   out="$(api GET "/dashboards/$id/comments?panel_id=$panel")"

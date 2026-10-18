@@ -139,7 +139,7 @@ test("a variable filters the series and survives reload", async ({
 function dependentVariablesSpec() {
   const spec = loadSpec("overview")
   spec.title = uniqueTitle("E2E dependent variables")
-  const datasource = { type: "prometheus", uid: "prom" }
+  const datasource = "prom"
   spec.variables = [
     {
       name: "service",
@@ -167,8 +167,12 @@ function dependentVariablesSpec() {
   spec.panels = [
     {
       ...spec.panels[0],
-      query:
-        'sum by (pod) (rate(http_requests_total{service="$service",route="$route",pod=~"$pod"}[$__rate_interval]))',
+      queries: [
+        {
+          query:
+            'sum by (pod) (rate(http_requests_total{service="$service",route="$route",pod=~"$pod"}[$__rate_interval]))',
+        },
+      ],
     },
   ]
   return spec
@@ -430,4 +434,31 @@ test("falls back to a single column on narrow screens", async ({
     xs.add(Math.round(box?.x ?? -1))
   }
   expect(xs.size).toBe(1)
+})
+
+test("renders row children and marks panels it cannot show yet", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("evolved")
+  spec.title = uniqueTitle("E2E evolved")
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+
+  const article = (panelId: string) =>
+    page.locator(`article[data-panel-id="${panelId}"]`)
+  await article("p_up").scrollIntoViewIfNeeded()
+  await expect(article("p_up")).toHaveAttribute("data-state", "ready", {
+    timeout: 30_000,
+  })
+  for (const panelId of ["p_note", "p_world"]) {
+    await expect(article(panelId)).toHaveAttribute("data-state", "unsupported")
+    await expect(article(panelId)).toContainText(
+      "This panel type is not shown yet."
+    )
+  }
+  await expect(article("r_prom")).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "Prometheus", level: 2 })
+  ).toBeVisible()
 })

@@ -5,10 +5,7 @@
       "tool_calls": [
         {
           "name": "get_schema",
-          "input": {
-            "datasource": "ch",
-            "table": "otel_logs"
-          }
+          "input": { "datasource": "ch", "table": "otel_logs" }
         }
       ]
     },
@@ -39,45 +36,32 @@
             "spec": {
               "specVersion": "0",
               "title": "Log volume by service",
-              "tags": [
-                "e2e"
-              ],
-              "timeRange": {
-                "from": "now-15m",
-                "to": "now"
-              },
+              "tags": ["e2e"],
+              "time": { "from": "now-15m", "to": "now" },
               "panels": [
                 {
                   "id": "log_volume",
                   "type": "timeseries",
                   "title": "Log volume by service",
-                  "gridPos": {
-                    "x": 0,
-                    "y": 0,
-                    "w": 12,
-                    "h": 8
-                  },
-                  "datasource": {
-                    "type": "clickhouse",
-                    "uid": "ch"
-                  },
-                  "query": "SELECT $__timeGroup(Timestamp) AS t, ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY t, service ORDER BY t"
+                  "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+                  "datasource": "ch",
+                  "queries": [
+                    {
+                      "query": "SELECT $__timeGroup(Timestamp) AS t, ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY t, service ORDER BY t"
+                    }
+                  ]
                 },
                 {
                   "id": "log_services",
                   "type": "table",
                   "title": "Log rows by service",
-                  "gridPos": {
-                    "x": 12,
-                    "y": 0,
-                    "w": 12,
-                    "h": 8
-                  },
-                  "datasource": {
-                    "type": "clickhouse",
-                    "uid": "ch"
-                  },
-                  "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 20"
+                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+                  "datasource": "ch",
+                  "queries": [
+                    {
+                      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 20"
+                    }
+                  ]
                 }
               ]
             }

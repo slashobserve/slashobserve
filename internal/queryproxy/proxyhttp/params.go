@@ -146,11 +146,11 @@ func selectionOf(values []string) queryproxy.Selection {
 }
 
 func (p params) timeRange(d *spec.Dashboard, now time.Time) (datasource.TimeRange, error) {
-	from, err := spec.ResolveTime(cmp.Or(p.from, d.TimeRange.From), now, false)
+	from, err := spec.ResolveTime(cmp.Or(p.from, d.Time.From), now, false)
 	if err != nil {
 		return datasource.TimeRange{}, invalidf("%s is not a valid time", paramFrom)
 	}
-	to, err := spec.ResolveTime(cmp.Or(p.to, d.TimeRange.To), now, true)
+	to, err := spec.ResolveTime(cmp.Or(p.to, d.Time.To), now, true)
 	if err != nil {
 		return datasource.TimeRange{}, invalidf("%s is not a valid time", paramTo)
 	}

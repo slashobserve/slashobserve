@@ -3,15 +3,17 @@
   "spec": {
     "specVersion": "0",
     "title": "Unknown datasource",
-    "timeRange": { "from": "now-15m", "to": "now" },
+    "time": { "from": "now-15m", "to": "now" },
     "panels": [
       {
         "id": "lost",
         "type": "timeseries",
         "title": "Lost",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
-        "datasource": { "type": "prometheus", "uid": "nope" },
-        "query": "up"
+        "datasource": "nope",
+        "queries": [
+          { "query": "up" }
+        ]
       }
     ]
   }

@@ -12,15 +12,16 @@ export const BargaugePanel: PanelRenderer = ({
   width,
   height,
 }) => {
+  const legend = panel.queries[0]?.legend
   const rows = useMemo(
     () =>
-      firstNumberSeries(frames, panel.legend).sort((a, b) => {
+      firstNumberSeries(frames, legend).sort((a, b) => {
         if (a.value === null || b.value === null) {
           return a.value === b.value ? 0 : a.value === null ? 1 : -1
         }
         return b.value - a.value
       }),
-    [frames, panel.legend]
+    [frames, legend]
   )
 
   const min = panel.min ?? 0

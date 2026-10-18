@@ -126,10 +126,14 @@ test("keeps the tooltip inside a short panel with many series", async ({
       type: "timeseries",
       title: "Requests by service, route and pod",
       gridPos: { x: 0, y: 0, w: 12, h: 4 },
-      datasource: { type: "prometheus", uid: "prom" },
-      query:
-        "sum by (service, route, pod) (rate(http_requests_total[$__rate_interval]))",
-      legend: "{{service}} {{route}} {{pod}}",
+      datasource: "prom",
+      queries: [
+        {
+          query:
+            "sum by (service, route, pod) (rate(http_requests_total[$__rate_interval]))",
+          legend: "{{service}} {{route}} {{pod}}",
+        },
+      ],
       unit: "reqps",
     },
   ]

@@ -13,6 +13,7 @@ import { HistoryIcon, MessageSquareIcon } from "lucide-react"
 
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
+import { panelRefs } from "@/comments/latest-panels"
 import { useComments } from "@/comments/queries"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -23,7 +24,7 @@ import { refreshToMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
-import type { Panel } from "@/spec"
+import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardToolbar } from "./dashboard-toolbar"
@@ -57,12 +58,12 @@ import { useSeen } from "./use-seen"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionBanner } from "./version-banner"
-import { VariableLoadError } from "./variables"
+import { controlVariables, VariableLoadError } from "./variables"
 
 type PanelContainerProps = {
   dashboardId: string
   version: number
-  panel: Panel
+  panel: LayoutPanel
   width: number
   height: number
   from: string | undefined
@@ -99,6 +100,8 @@ const PanelContainer = memo(function PanelContainer({
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const body = panelBodySize(Math.floor(width), Math.floor(height))
+  const supported =
+    isDataPanel(panel) && panelRenderers[panel.type] !== undefined
 
   const query = usePanelData({
     dashboardId,
@@ -109,7 +112,7 @@ const PanelContainer = memo(function PanelContainer({
     vars: selections,
     maxDataPoints: maxDataPointsFor(panel, body.width),
     refreshMs,
-    enabled: seen && selectionsReady,
+    enabled: supported && seen && selectionsReady,
   })
 
   const onTimeRangeSelect = useCallback(
@@ -123,7 +126,8 @@ const PanelContainer = memo(function PanelContainer({
   )
 
   let state: PanelState = "loading"
-  if (query.data) state = hasData(query.data.frames) ? "ready" : "empty"
+  if (!supported) state = "unsupported"
+  else if (query.data) state = hasData(query.data.frames) ? "ready" : "empty"
   else if (blockedBy !== undefined) state = "error"
   else if (query.isError) state = "error"
 
@@ -133,7 +137,9 @@ const PanelContainer = memo(function PanelContainer({
     [blockedBy]
   )
 
-  const Renderer = panelRenderers[tableView ? "table" : panel.type]
+  const Renderer = isDataPanel(panel)
+    ? panelRenderers[tableView ? "table" : panel.type]
+    : undefined
 
   return (
     <div ref={ref} className="size-full">
@@ -148,7 +154,7 @@ const PanelContainer = memo(function PanelContainer({
         badge={
           <PanelCommentBadge
             panelId={panel.id}
-            title={panel.title}
+            title={panelTitle(panel)}
             count={openComments}
             disabled={layoutSession}
           />
@@ -162,7 +168,7 @@ const PanelContainer = memo(function PanelContainer({
           />
         }
       >
-        {query.data ? (
+        {query.data && Renderer && isDataPanel(panel) ? (
           <Renderer
             panel={panel}
             frames={query.data.frames}
@@ -219,7 +225,10 @@ function DashboardView({
     search.version === undefined
   const version = editing ? session.baseVersion : envelopeVersion
   const spec = editing ? session.baseSpec : envelopeSpec
-  const variables = useMemo(() => spec.variables ?? [], [spec])
+  const variables = useMemo(
+    () => controlVariables(spec.variables ?? []),
+    [spec]
+  )
 
   const { states, selections, ready, blocking } = useVariables({
     dashboardId,
@@ -247,8 +256,9 @@ function DashboardView({
     }
   }, [spec.title])
 
-  const effectiveFrom = search.from ?? spec.timeRange.from
-  const effectiveTo = search.to ?? spec.timeRange.to
+  const refs = useMemo(() => panelRefs(spec), [spec])
+  const effectiveFrom = search.from ?? spec.time.from
+  const effectiveTo = search.to ?? spec.time.to
   const refreshValue = search.refresh ?? spec.refresh ?? "off"
   const refreshMs = refreshToMs(refreshValue)
 
@@ -328,7 +338,7 @@ function DashboardView({
       <FollowUpBar
         dashboardId={dashboardId}
         version={version}
-        panels={spec.panels}
+        panels={refs}
         canAsk={search.version === undefined && !editing}
       />
       <LayoutAnnouncer />

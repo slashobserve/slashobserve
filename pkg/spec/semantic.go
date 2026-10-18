@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
@@ -10,33 +11,52 @@ import (
 	"time"
 )
 
+const maxPanels = 100
+
 func checkSemantics(d *Dashboard) []Issue {
 	var issues []Issue
-	issues = append(issues, checkDuplicatePanelIDs(d.Panels)...)
+	entries := d.AllPanels()
+	issues = append(issues, checkPanelCount(d)...)
+	issues = append(issues, checkDuplicatePanelIDs(entries)...)
 	issues = append(issues, checkDuplicateVariableNames(d.Variables)...)
-	issues = append(issues, checkGridOverflow(d.Panels)...)
-	issues = append(issues, checkGridOverlap(d.Panels)...)
-	issues = append(issues, checkTimeRange(d.TimeRange)...)
-	issues = append(issues, checkThresholds(d.Panels)...)
-	issues = append(issues, checkMinMax(d.Panels)...)
+	issues = append(issues, checkGridOverflow(entries)...)
+	issues = append(issues, checkGridOverlap(d)...)
+	issues = append(issues, checkTime(d.Time)...)
+	issues = append(issues, checkThresholds(entries)...)
+	issues = append(issues, checkMinMax(entries)...)
+	issues = append(issues, checkQueryRefs(entries)...)
+	issues = append(issues, checkOverrideMembers(entries)...)
+	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkVariableQueries(d.Variables)...)
-	issues = append(issues, checkPanelQueries(d)...)
+	issues = append(issues, checkPanelQueries(d, entries)...)
 	return issues
 }
 
-func checkDuplicatePanelIDs(panels []Panel) []Issue {
+func checkPanelCount(d *Dashboard) []Issue {
+	n := d.PanelCount()
+	if n <= maxPanels {
+		return nil
+	}
+	return []Issue{{
+		Path:    pointer("panels"),
+		Code:    CodeTooManyPanels,
+		Message: fmt.Sprintf("the dashboard has %d panels including row children; the limit is %d", n, maxPanels),
+	}}
+}
+
+func checkDuplicatePanelIDs(entries []PanelEntry) []Issue {
 	var issues []Issue
-	first := map[string]int{}
-	for j, p := range panels {
-		i, dup := first[p.ID]
+	first := map[string]string{}
+	for _, e := range entries {
+		at, dup := first[e.Panel.ID]
 		if !dup {
-			first[p.ID] = j
+			first[e.Panel.ID] = e.Pointer
 			continue
 		}
 		issues = append(issues, Issue{
-			Path:    pointer("panels", strconv.Itoa(j), "id"),
+			Path:    e.Pointer + "/id",
 			Code:    CodeDuplicatePanelID,
-			Message: fmt.Sprintf("panel id %q is already used by %s", p.ID, pointer("panels", strconv.Itoa(i))),
+			Message: fmt.Sprintf("panel id %q is already used by %s", e.Panel.ID, at),
 		})
 	}
 	return issues
@@ -60,13 +80,13 @@ func checkDuplicateVariableNames(vars []Variable) []Issue {
 	return issues
 }
 
-func checkGridOverflow(panels []Panel) []Issue {
+func checkGridOverflow(entries []PanelEntry) []Issue {
 	var issues []Issue
-	for i, p := range panels {
-		g := p.GridPos
+	for _, e := range entries {
+		g := e.Panel.GridPos
 		if g.X+g.W > GridColumns {
 			issues = append(issues, Issue{
-				Path:    pointer("panels", strconv.Itoa(i), "gridPos"),
+				Path:    e.Pointer + "/gridPos",
 				Code:    CodeGridOverflow,
 				Message: fmt.Sprintf("gridPos x %d + w %d = %d exceeds the %d-column grid; reduce x or w", g.X, g.W, g.X+g.W, GridColumns),
 			})
@@ -79,17 +99,43 @@ func gridsOverlap(a, b GridPos) bool {
 	return a.X < b.X+b.W && b.X < a.X+a.W && a.Y < b.Y+b.H && b.Y < a.Y+a.H
 }
 
-func checkGridOverlap(panels []Panel) []Issue {
+func checkGridOverlap(d *Dashboard) []Issue {
+	var layout []PanelEntry
+	for _, e := range d.AllPanels() {
+		if e.Row == nil || !e.Row.Collapsed {
+			layout = append(layout, e)
+		}
+	}
+	issues := overlaps(layout)
+	for i := range d.Panels {
+		row := &d.Panels[i]
+		if row.Type != Row || !row.Collapsed {
+			continue
+		}
+		var children []PanelEntry
+		for j := range row.Panels {
+			children = append(children, PanelEntry{
+				Pointer: pointer("panels", strconv.Itoa(i), "panels", strconv.Itoa(j)),
+				Panel:   &row.Panels[j],
+				Row:     row,
+			})
+		}
+		issues = append(issues, overlaps(children)...)
+	}
+	return issues
+}
+
+func overlaps(set []PanelEntry) []Issue {
 	var issues []Issue
-	for j, pj := range panels {
+	for j, pj := range set {
 		for i := range j {
-			if !gridsOverlap(panels[i].GridPos, pj.GridPos) {
+			if !gridsOverlap(set[i].Panel.GridPos, pj.Panel.GridPos) {
 				continue
 			}
 			issues = append(issues, Issue{
-				Path:    pointer("panels", strconv.Itoa(j), "gridPos"),
+				Path:    pj.Pointer + "/gridPos",
 				Code:    CodeGridOverlap,
-				Message: fmt.Sprintf("panel %q overlaps panel %q at %s; move one of them to free grid cells", pj.ID, panels[i].ID, pointer("panels", strconv.Itoa(i))),
+				Message: fmt.Sprintf("panel %q overlaps panel %q at %s; move one of them to free grid cells", pj.Panel.ID, set[i].Panel.ID, set[i].Pointer),
 			})
 			break
 		}
@@ -239,7 +285,7 @@ func monthOrder(from, to timePoint) (inOrder, exact bool) {
 	return from.months/step >= to.months/step, true
 }
 
-func checkTimeRange(tr TimeRange) []Issue {
+func checkTime(tr TimeRange) []Issue {
 	var issues []Issue
 	from, fromOK := parseTimePoint(tr.From)
 	to, toOK := parseTimePoint(tr.To)
@@ -250,9 +296,9 @@ func checkTimeRange(tr TimeRange) []Issue {
 	}{{"from", tr.From, fromOK}, {"to", tr.To, toOK}} {
 		if !f.ok {
 			issues = append(issues, Issue{
-				Path:    pointer("timeRange", f.name),
+				Path:    pointer("time", f.name),
 				Code:    CodeSchema,
-				Message: fmt.Sprintf("timeRange.%s %q is not a valid time; use a relative time such as \"now-6h\" or a real RFC 3339 timestamp", f.name, f.value),
+				Message: fmt.Sprintf("time.%s %q is not a valid time; use a relative time such as \"now-6h\" or a real RFC 3339 timestamp", f.name, f.value),
 			})
 		}
 	}
@@ -265,42 +311,172 @@ func checkTimeRange(tr TimeRange) []Issue {
 	}
 	if !inOrder {
 		issues = append(issues, Issue{
-			Path:    pointer("timeRange"),
+			Path:    pointer("time"),
 			Code:    CodeTimeRangeOrder,
-			Message: fmt.Sprintf("timeRange.from %q is not earlier than timeRange.to %q; swap them or move from further back", tr.From, tr.To),
+			Message: fmt.Sprintf("time.from %q is not earlier than time.to %q; swap them or move from further back", tr.From, tr.To),
 		})
 	}
 	return issues
 }
 
-func checkThresholds(panels []Panel) []Issue {
-	var issues []Issue
-	for i, p := range panels {
-		for k := 1; k < len(p.Thresholds); k++ {
-			if p.Thresholds[k].Value > p.Thresholds[k-1].Value {
-				continue
-			}
-			issues = append(issues, Issue{
-				Path:    pointer("panels", strconv.Itoa(i), "thresholds", strconv.Itoa(k)),
-				Code:    CodeThresholdsUnordered,
-				Message: fmt.Sprintf("threshold value %v must be greater than the previous value %v; list thresholds in strictly ascending order", p.Thresholds[k].Value, p.Thresholds[k-1].Value),
+type fieldLocation struct {
+	prefix string
+	props  *FieldProps
+}
+
+func fieldLocations(entries []PanelEntry) []fieldLocation {
+	var out []fieldLocation
+	for _, e := range entries {
+		if !e.Panel.Type.IsData() {
+			continue
+		}
+		out = append(out, fieldLocation{prefix: e.Pointer, props: &e.Panel.FieldProps})
+		for k := range e.Panel.Overrides {
+			out = append(out, fieldLocation{
+				prefix: e.Pointer + pointer("overrides", strconv.Itoa(k)),
+				props:  &e.Panel.Overrides[k].FieldProps,
 			})
-			break
+		}
+	}
+	return out
+}
+
+func checkThresholds(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, loc := range fieldLocations(entries) {
+		var prev *float64
+		for k, step := range loc.props.Thresholds {
+			path := loc.prefix + pointer("thresholds", strconv.Itoa(k))
+			if step.Value == nil {
+				if k == 0 {
+					continue
+				}
+				issues = append(issues, Issue{
+					Path:    path,
+					Code:    CodeThresholdValueMissing,
+					Message: "only the first threshold may omit value",
+				})
+				break
+			}
+			if prev != nil && *step.Value <= *prev {
+				issues = append(issues, Issue{
+					Path:    path,
+					Code:    CodeThresholdsUnordered,
+					Message: fmt.Sprintf("threshold value %v must be greater than the previous value %v; list thresholds in strictly ascending order", *step.Value, *prev),
+				})
+				break
+			}
+			prev = step.Value
 		}
 	}
 	return issues
 }
 
-func checkMinMax(panels []Panel) []Issue {
+func checkMinMax(entries []PanelEntry) []Issue {
 	var issues []Issue
-	for i, p := range panels {
+	for _, loc := range fieldLocations(entries) {
+		p := loc.props
 		if p.Min == nil || p.Max == nil || *p.Min < *p.Max {
 			continue
 		}
 		issues = append(issues, Issue{
-			Path:    pointer("panels", strconv.Itoa(i), "max"),
+			Path:    loc.prefix + "/max",
 			Code:    CodeMinMaxOrder,
 			Message: fmt.Sprintf("max %v must be greater than min %v", *p.Max, *p.Min),
+		})
+	}
+	return issues
+}
+
+func checkQueryRefs(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, e := range entries {
+		p := e.Panel
+		if !p.Type.IsData() {
+			continue
+		}
+		first := map[string]int{}
+		for j := range p.Queries {
+			ref := p.QueryRef(j)
+			k, dup := first[ref]
+			if !dup {
+				first[ref] = j
+				continue
+			}
+			path := e.Pointer + pointer("queries", strconv.Itoa(j))
+			if p.Queries[j].Ref != "" {
+				path += "/ref"
+			}
+			issues = append(issues, Issue{
+				Path:    path,
+				Code:    CodeDuplicateQueryRef,
+				Message: fmt.Sprintf("query ref %q is already used by %s", ref, e.Pointer+pointer("queries", strconv.Itoa(k))),
+			})
+		}
+		for k, o := range p.Overrides {
+			if o.Match.Query == "" {
+				continue
+			}
+			if _, ok := first[o.Match.Query]; ok {
+				continue
+			}
+			issues = append(issues, Issue{
+				Path:    e.Pointer + pointer("overrides", strconv.Itoa(k), "match", "query"),
+				Code:    CodeUnknownQueryRef,
+				Message: fmt.Sprintf("override matches query ref %q, which the panel does not have", o.Match.Query),
+			})
+		}
+	}
+	return issues
+}
+
+func checkOverrideMembers(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, e := range entries {
+		if !e.Panel.Type.IsData() {
+			continue
+		}
+		for k, o := range e.Panel.Overrides {
+			if storesMembers(o.FieldProps) {
+				continue
+			}
+			for _, empty := range []struct {
+				name string
+				set  bool
+			}{{"mappings", o.Mappings != nil}, {"links", o.Links != nil}} {
+				if !empty.set {
+					continue
+				}
+				issues = append(issues, Issue{
+					Path:    e.Pointer + pointer("overrides", strconv.Itoa(k), empty.name),
+					Code:    CodeSchema,
+					Message: fmt.Sprintf("override sets only an empty %q array, which is not stored; add a field option or remove the override", empty.name),
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func storesMembers(p FieldProps) bool {
+	b, err := json.Marshal(p)
+	return err != nil || string(b) != "{}"
+}
+
+func checkRepeat(d *Dashboard, entries []PanelEntry) []Issue {
+	declared := map[string]bool{}
+	for _, v := range d.Variables {
+		declared[v.Name] = true
+	}
+	var issues []Issue
+	for _, e := range entries {
+		if e.Panel.Repeat == "" || declared[e.Panel.Repeat] {
+			continue
+		}
+		issues = append(issues, Issue{
+			Path:    e.Pointer + "/repeat",
+			Code:    CodeUnknownVariable,
+			Message: fmt.Sprintf("repeat references undeclared variable %q; declare it in variables or remove repeat", e.Panel.Repeat),
 		})
 	}
 	return issues
@@ -324,10 +500,10 @@ func checkVariableQueries(vars []Variable) []Issue {
 	var issues []Issue
 	rc := newRefChecker(vars)
 	for i, v := range vars {
-		if v.Type != QueryVariable || v.Datasource == nil {
+		if v.Type != QueryVariable {
 			continue
 		}
-		if issue := rc.checkQuery(v.Query, v.Datasource.Type, i); issue != nil {
+		if issue := rc.checkQuery(v.Query, i); issue != nil {
 			issue.Path = pointer("variables", strconv.Itoa(i), "query")
 			issues = append(issues, *issue)
 		}
@@ -335,19 +511,24 @@ func checkVariableQueries(vars []Variable) []Issue {
 	return issues
 }
 
-func checkPanelQueries(d *Dashboard) []Issue {
+func checkPanelQueries(d *Dashboard, entries []PanelEntry) []Issue {
 	var issues []Issue
 	rc := newRefChecker(d.Variables)
-	for i, p := range d.Panels {
-		if issue := rc.checkQuery(p.Query, p.Datasource.Type, len(d.Variables)); issue != nil {
-			issue.Path = pointer("panels", strconv.Itoa(i), "query")
-			issues = append(issues, *issue)
+	for _, e := range entries {
+		if !e.Panel.Type.IsData() {
+			continue
+		}
+		for j, q := range e.Panel.Queries {
+			if issue := rc.checkQuery(q.Query, len(d.Variables)); issue != nil {
+				issue.Path = e.Pointer + pointer("queries", strconv.Itoa(j), "query")
+				issues = append(issues, *issue)
+			}
 		}
 	}
 	return issues
 }
 
-func (rc refChecker) checkQuery(query string, ds DatasourceType, visible int) *Issue {
+func (rc refChecker) checkQuery(query string, visible int) *Issue {
 	refs, err := ScanQuery(query)
 	if err != nil {
 		return &Issue{Code: CodeInvalidReference, Message: err.Error()}
@@ -355,7 +536,7 @@ func (rc refChecker) checkQuery(query string, ds DatasourceType, visible int) *I
 	for _, ref := range refs {
 		var issue *Issue
 		if ref.Kind == MacroRef {
-			issue = checkMacroRef(ref, ds)
+			issue = checkMacroRef(ref)
 		} else {
 			issue = rc.checkVariableRef(ref, visible)
 		}
@@ -379,20 +560,20 @@ func (rc refChecker) checkVariableRef(ref Reference, visible int) *Issue {
 	return nil
 }
 
-func checkMacroRef(ref Reference, ds DatasourceType) *Issue {
-	macros := Macros(ds)
-	idx := slices.IndexFunc(macros, func(m Macro) bool { return m.Name == ref.Name })
+func checkMacroRef(ref Reference) *Issue {
+	idx := slices.IndexFunc(macroTable, func(m macroDef) bool { return m.Name == ref.Name })
 	if idx < 0 {
-		return &Issue{Code: CodeUnknownMacro, Message: fmt.Sprintf("macro $%s is not available for %s queries", ref.Name, ds)}
+		return &Issue{Code: CodeUnknownMacro, Message: fmt.Sprintf("macro $%s does not exist", ref.Name)}
 	}
+	macro := macroTable[idx].Macro
 	switch {
 	case ref.Format != "":
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take a format", ref.Name)}
-	case macros[idx].Function && strings.TrimSpace(ref.Args) == "":
+	case macro.Function && strings.TrimSpace(ref.Args) == "":
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
-	case macros[idx].Function && !IsColumnArg(strings.TrimSpace(ref.Args)):
+	case macro.Function && !IsColumnArg(strings.TrimSpace(ref.Args)):
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s argument must be a column name such as column or table.column", ref.Name)}
-	case !macros[idx].Function && ref.HasArgs:
+	case !macro.Function && ref.HasArgs:
 		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take arguments; remove the parentheses", ref.Name)}
 	}
 	return nil

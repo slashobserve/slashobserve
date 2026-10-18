@@ -259,7 +259,13 @@ func runScenario(ctx context.Context, c *client, pricing Pricing, sc Scenario, t
 		res.Error = *req.Error
 	}
 	if err == nil && req.Status == "succeeded" {
-		inspect(ctx, c, req, &obs, &res)
+		types, typesErr := c.datasourceTypes(ctx)
+		if typesErr != nil {
+			res.Error = "read the datasources: " + typesErr.Error()
+		} else {
+			obs.datasourceTypes = types
+			inspect(ctx, c, req, &obs, &res)
+		}
 	}
 	var abandoned *AgentRequest
 	if !req.finished() {
@@ -285,7 +291,7 @@ func inspect(ctx context.Context, c *client, req AgentRequest, obs *observation,
 		return
 	}
 	obs.dashboard = dash
-	for _, panel := range dash.Panels {
+	for _, panel := range dataPanels(dash) {
 		data, err := c.getPanelData(ctx, *req.DashboardID, *req.ResultVersion, panel.ID)
 		obs.panels[panel.ID] = panelOutcome{data: data, err: err}
 	}
@@ -297,7 +303,7 @@ func finish(sc Scenario, pricing Pricing, res Result, obs observation) Result {
 	res.Usage = obs.request.Usage
 	res.CostUSD = pricing.cost(obs.request.Usage)
 	if obs.dashboard != nil {
-		res.Panels = len(obs.dashboard.Panels)
+		res.Panels = len(dataPanels(obs.dashboard))
 	}
 	if elapsed, ok := latency(obs.request); ok {
 		seconds := elapsed.Seconds()

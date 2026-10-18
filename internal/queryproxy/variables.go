@@ -101,10 +101,13 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 	if v.Type == spec.CustomVariable {
 		return slices.Clone(v.Options), nil
 	}
-	if v.Datasource == nil {
+	if v.Type != spec.QueryVariable {
+		return nil, fmt.Errorf("%w: variable %q of type %s is not supported by the query proxy yet", ErrInvalidRequest, v.Name, v.Type)
+	}
+	if v.Datasource == "" {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "variable %q has no datasource", v.Name)
 	}
-	inst, err := r.instance(*v.Datasource)
+	inst, err := r.instance(v.Datasource)
 	if err != nil {
 		return nil, err
 	}

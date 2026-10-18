@@ -1,10 +1,10 @@
 import type { ComponentType } from "react"
 
 import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
-import type { Panel, PanelType } from "@/spec"
+import type { DataPanel, DataPanelType } from "@/spec"
 
 export type PanelRendererProps = {
-  panel: Panel
+  panel: DataPanel
   frames: WireFrame[]
   meta: PanelDataMeta
   width: number
@@ -15,4 +15,4 @@ export type PanelRendererProps = {
 
 export type PanelRenderer = ComponentType<PanelRendererProps>
 
-export type PanelRegistry = Record<PanelType, PanelRenderer>
+export type PanelRegistry = Partial<Record<DataPanelType, PanelRenderer>>

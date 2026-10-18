@@ -3,15 +3,17 @@
   "spec": {
     "specVersion": "0",
     "title": "ClickHouse insert",
-    "timeRange": { "from": "now-15m", "to": "now" },
+    "time": { "from": "now-15m", "to": "now" },
     "panels": [
       {
         "id": "insert",
         "type": "table",
         "title": "Insert",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
-        "datasource": { "type": "clickhouse", "uid": "ch" },
-        "query": "INSERT INTO otel_logs (Body) VALUES ('x')"
+        "datasource": "ch",
+        "queries": [
+          { "query": "INSERT INTO otel_logs (Body) VALUES ('x')" }
+        ]
       }
     ]
   }

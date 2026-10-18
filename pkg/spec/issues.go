@@ -25,6 +25,10 @@ const (
 	CodeMinMaxOrder           IssueCode = "min_max_order"
 	CodeTimeRangeOrder        IssueCode = "time_range_order"
 	CodeTooManyIssues         IssueCode = "too_many_issues"
+	CodeTooManyPanels         IssueCode = "too_many_panels"
+	CodeDuplicateQueryRef     IssueCode = "duplicate_query_ref"
+	CodeUnknownQueryRef       IssueCode = "unknown_query_ref"
+	CodeThresholdValueMissing IssueCode = "threshold_value_missing"
 )
 
 const maxIssues = 50
@@ -61,7 +65,10 @@ func newValidationError(issues []Issue) *ValidationError {
 	return &ValidationError{Issues: issues}
 }
 
-var pointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
+var (
+	pointerEscaper   = strings.NewReplacer("~", "~0", "/", "~1")
+	pointerUnescaper = strings.NewReplacer("~1", "/", "~0", "~")
+)
 
 func pointer(tokens ...string) string {
 	var b strings.Builder

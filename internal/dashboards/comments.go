@@ -305,9 +305,10 @@ func (cm *Comments) panels(ctx context.Context, dashboardID pgtype.UUID, version
 }
 
 func panelSet(d *spec.Dashboard) map[string]struct{} {
-	set := make(map[string]struct{}, len(d.Panels))
-	for _, p := range d.Panels {
-		set[p.ID] = struct{}{}
+	entries := d.AllPanels()
+	set := make(map[string]struct{}, len(entries))
+	for _, e := range entries {
+		set[e.Panel.ID] = struct{}{}
 	}
 	return set
 }

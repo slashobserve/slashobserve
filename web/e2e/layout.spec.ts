@@ -6,6 +6,7 @@ import {
   getDashboard,
   loadSpec,
   uniqueTitle,
+  type Spec,
 } from "./api"
 import { expectPanelsReady, openDashboard, panel } from "./dashboards"
 import { expect, test } from "./fixtures"
@@ -518,12 +519,12 @@ test("offers Try again when the server cannot check the layout right now", async
         code: "invalid_spec",
         issues: [
           {
-            path: "/panels/0/query",
+            path: "/panels/0/queries/0/query",
             code: "datasource_unavailable",
             message: "prometheus returned 502",
           },
           {
-            path: "/panels/2/query",
+            path: "/panels/2/queries/0/query",
             code: "query_timeout",
             message: "query timed out",
           },
@@ -645,4 +646,62 @@ test("shows a single resize grip on hover", async ({ page, request }) => {
   )
   expect(after).toBe("none")
   await expect(item.locator("svg.size-2\\.5")).toHaveCount(1)
+})
+
+type PanelBox = GridPos & { id: string }
+
+function visibleBoxes(spec: Spec): PanelBox[] {
+  const box = (item: Record<string, unknown>) => ({
+    id: String(item.id),
+    ...(item.gridPos as GridPos),
+  })
+  return spec.panels.flatMap((item) => {
+    const children =
+      item.type === "row" && item.collapsed !== true
+        ? ((item.panels ?? []) as Array<Record<string, unknown>>)
+        : []
+    return [box(item), ...children.map(box)]
+  })
+}
+
+function overlapping(boxes: PanelBox[]): string[] {
+  const found: string[] = []
+  boxes.forEach((a, index) => {
+    for (const b of boxes.slice(index + 1)) {
+      if (
+        a.x < b.x + b.w &&
+        b.x < a.x + a.w &&
+        a.y < b.y + b.h &&
+        b.y < a.y + a.h
+      ) {
+        found.push(`${a.id} overlaps ${b.id}`)
+      }
+    }
+  })
+  return found
+}
+
+test("saves a layout change on a dashboard with an expanded row", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("evolved")
+  spec.title = uniqueTitle("E2E layout rows")
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await expect(
+    page.getByRole("heading", { name: "Prometheus", level: 2 })
+  ).toBeVisible()
+  await startEditing(page)
+
+  await moveHandle(page, "Log rows").focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(moveHandle(page, "Log rows")).toBeFocused()
+
+  await saveLayout(page)
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  const saved = await getDashboard(request, id)
+  expect(gridPos(saved.spec, "r_prom")).toEqual({ x: 0, y: 4, w: 24, h: 1 })
+  expect(gridPos(saved.spec, "p_logs")).toMatchObject({ x: 1, y: 0 })
+  expect(overlapping(visibleBoxes(saved.spec))).toEqual([])
 })

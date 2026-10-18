@@ -97,11 +97,13 @@ components:
         code:
           type: string
           description: >-
-            Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `duplicate_panel_id` and `unknown_variable`.
-            Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `datasource_type_mismatch`, `time_range_invalid` (path `/timeRange`),
-            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/query`),
+            Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`,
+            `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have)
+            and `threshold_value_missing` (a threshold other than the first omits its value).
+            Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
+            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/0/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal`
-            (paths `/panels/{i}/query` or `/panels/{i}/datasource/uid` and `/type`).
+            (paths `/panels/{i}/queries/0/query` or `/panels/{i}/datasource` and `/panels/{i}/queries/0/datasource`).
         message:
           type: string
     ValidationError:

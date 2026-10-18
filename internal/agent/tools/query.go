@@ -225,13 +225,14 @@ func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in insta
 	dash := &spec.Dashboard{
 		SpecVersion: spec.Version,
 		Title:       adhocPanelID,
+		Time:        spec.TimeRange{From: "now-1h", To: "now"},
 		Variables:   variables,
 		Panels: []spec.Panel{{
 			ID:         adhocPanelID,
 			Type:       panelType,
 			Title:      adhocPanelID,
-			Datasource: spec.DatasourceRef{Type: spec.DatasourceType(inst.Datasource.Type()), UID: inst.UID},
-			Query:      in.Query,
+			Datasource: inst.UID,
+			Queries:    []spec.Query{{Query: in.Query}},
 		}},
 	}
 	return dash, selections, Result{}, true

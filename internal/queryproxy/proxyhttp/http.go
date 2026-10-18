@@ -132,8 +132,8 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	panelID := c.Param("panel_id")
-	i := slices.IndexFunc(d.Panels, func(panel spec.Panel) bool { return panel.ID == panelID })
-	if i < 0 {
+	found, ok := d.FindDataPanel(panelID)
+	if !ok {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
 		return
 	}
@@ -142,7 +142,7 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	kind := queryproxy.KindFor(d.Panels[i].Type)
+	kind := queryproxy.KindFor(found.Panel.Type)
 	al := align(rng, kind, p.maxDataPoints)
 	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections)
 	if err != nil {

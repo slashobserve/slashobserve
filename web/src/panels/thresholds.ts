@@ -72,12 +72,11 @@ function stateOf(
       threshold,
     }
   }
-  return {
-    level: "custom",
-    color: threshold.color,
-    label: `At or above ${formatValue(threshold.value, unit, labelDecimals(threshold.value, unit, decimals))}`,
-    threshold,
-  }
+  const label =
+    threshold.value === undefined
+      ? "Base"
+      : `At or above ${formatValue(threshold.value, unit, labelDecimals(threshold.value, unit, decimals))}`
+  return { level: "custom", color: threshold.color, label, threshold }
 }
 
 export function thresholdFor(
@@ -87,6 +86,8 @@ export function thresholdFor(
   decimals?: number
 ): ThresholdState {
   if (value === null || !thresholds) return baseState
-  const active = thresholds.findLast((threshold) => value >= threshold.value)
+  const active = thresholds.findLast(
+    (threshold) => value >= (threshold.value ?? -Infinity)
+  )
   return active ? stateOf(active, unit, decimals) : baseState
 }

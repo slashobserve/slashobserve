@@ -3,15 +3,17 @@
   "spec": {
     "specVersion": "0",
     "title": "Empty query",
-    "timeRange": { "from": "now-15m", "to": "now" },
+    "time": { "from": "now-15m", "to": "now" },
     "panels": [
       {
         "id": "empty",
         "type": "timeseries",
         "title": "Empty",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
-        "datasource": { "type": "prometheus", "uid": "prom" },
-        "query": "up{job=\"does-not-exist\"}"
+        "datasource": "prom",
+        "queries": [
+          { "query": "up{job=\"does-not-exist\"}" }
+        ]
       }
     ]
   }

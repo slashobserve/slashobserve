@@ -13,8 +13,6 @@ import {
 import { classHighlighter } from "@lezer/highlight"
 import { PromQLExtension } from "@prometheus-io/codemirror-promql"
 
-export type QueryLanguage = "prometheus" | "clickhouse"
-
 const theme = EditorView.theme({
   "&": {
     backgroundColor: "transparent",
@@ -74,17 +72,20 @@ const theme = EditorView.theme({
     },
 })
 
-function languageExtension(type: QueryLanguage): Extension {
+function languageExtension(type: string | undefined): Extension {
   if (type === "prometheus") {
     return new PromQLExtension()
       .activateLinter(false)
       .setComplete({})
       .asExtension()
   }
-  return sql({ dialect: StandardSQL, upperCaseKeywords: true })
+  if (type === "clickhouse") {
+    return sql({ dialect: StandardSQL, upperCaseKeywords: true })
+  }
+  return []
 }
 
-export function languageFor(type: QueryLanguage): Extension {
+export function languageFor(type: string | undefined): Extension {
   return [
     languageExtension(type),
     syntaxHighlighting(classHighlighter),

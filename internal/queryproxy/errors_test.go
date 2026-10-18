@@ -30,7 +30,6 @@ func TestClassify(t *testing.T) {
 		{"not found", datasource.Errorf(datasource.ErrNotFound, "no such metric"), http.StatusNotFound, "not_found", "not found: no such metric"},
 		{"panel not found", fmt.Errorf("%w: %q", ErrPanelNotFound, "p9"), http.StatusNotFound, "panel_not_found", `panel not found: "p9"`},
 		{"unknown datasource", fmt.Errorf("%w: %q", ErrUnknownDatasource, "x"), http.StatusUnprocessableEntity, "unknown_datasource", `unknown datasource: "x"`},
-		{"type mismatch", fmt.Errorf("%w: boom", ErrDatasourceTypeMismatch), http.StatusUnprocessableEntity, "datasource_type_mismatch", "datasource type mismatch: boom"},
 		{"unknown variable", fmt.Errorf("%w: %q", ErrUnknownVariable, "v"), http.StatusBadRequest, "invalid_request", `unknown variable: "v"`},
 		{"variable empty", fmt.Errorf("%w: %q", ErrVariableEmpty, "v"), http.StatusUnprocessableEntity, "variable_empty", `variable has no values: "v"`},
 		{"canceled", context.Canceled, statusClientGone, "canceled", "request canceled"},

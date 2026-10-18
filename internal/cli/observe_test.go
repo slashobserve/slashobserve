@@ -169,3 +169,27 @@ func TestPollReportsAnInterrupt(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestShowPrintsEveryPanelShape(t *testing.T) {
+	const id = "11111111-2222-3333-4444-555555555555"
+	body := `{"dashboard":{"id":"` + id + `","title":"Shop","latest_version":1,"updated_at":"2026-01-01T00:00:00Z","updated_by":{"name":"Ada"}},
+"version":{"version":1,"summary":"s","author":{"name":"Ada"},"created_at":"2026-01-01T00:00:00Z","spec":{"specVersion":"0","title":"Shop","timeRange":{"from":"now-1h","to":"now"},"futureField":{"a":1},"panels":[
+{"id":"old","type":"timeseries","title":"Legacy","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"prometheus","uid":"prom"},"query":"up"},
+{"id":"row","type":"row","title":"Row","gridPos":{"x":0,"y":4,"w":24,"h":1},"collapsed":true,"panels":[
+{"id":"child","type":"stat","title":"Child","gridPos":{"x":0,"y":5,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up","datasource":"ch"},{"query":"up"}]}]},
+{"id":"note","type":"text","gridPos":{"x":0,"y":9,"w":6,"h":4},"content":"hi","newThing":[1,2]}]}}}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, body)
+	}))
+	t.Cleanup(server.Close)
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"--server", server.URL, "--token", "k", "dashboards", "show", id}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	for _, want := range []string{"old", "prom", "row", "child", "ch", "note"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("output lacks %q:\n%s", want, stdout.String())
+		}
+	}
+}

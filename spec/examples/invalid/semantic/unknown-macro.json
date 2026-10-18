@@ -1,7 +1,7 @@
 {
   "specVersion": "0",
   "title": "Minimal",
-  "timeRange": {
+  "time": {
     "from": "now-15m",
     "to": "now"
   },
@@ -16,11 +16,12 @@
         "w": 6,
         "h": 4
       },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prom"
-      },
-      "query": "sum(rate(up[$__timeFilter(ts)]))"
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum(rate(up[$__bogus]))"
+        }
+      ]
     }
   ]
 }

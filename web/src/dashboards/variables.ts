@@ -1,7 +1,16 @@
 import type { Selections } from "@/api/keys"
-import type { Variable } from "@/spec"
+import type { CustomVariable, QueryVariable, Variable } from "@/spec"
 
 import { ALL } from "./search"
+
+export type ControlVariable = QueryVariable | CustomVariable
+
+export function controlVariables(variables: Variable[]): ControlVariable[] {
+  return variables.filter(
+    (variable): variable is ControlVariable =>
+      variable.type === "query" || variable.type === "custom"
+  )
+}
 
 export class VariableLoadError extends Error {
   constructor(label: string) {
@@ -21,7 +30,7 @@ export function sortSelections(selections: Selections): Selections {
 }
 
 export function earlierSelections(
-  variables: Variable[],
+  variables: ControlVariable[],
   index: number,
   urlVars: Record<string, string[]>
 ): Selections {
@@ -48,7 +57,7 @@ export function parentKeyOf(selections: Selections): string {
 }
 
 export function variableDisplay(
-  variable: Variable,
+  variable: ControlVariable,
   request: {
     data: ValuesData | undefined
     last: LoadedValues | undefined
@@ -87,7 +96,7 @@ export function variableDisplay(
   return { status: "loading", shown: undefined, selectable: undefined }
 }
 
-function fromUrl(variable: Variable, values: string[]): string[] {
+function fromUrl(variable: ControlVariable, values: string[]): string[] {
   if (variable.includeAll && values.includes(ALL)) return [ALL]
   const concrete = values.filter((value) => value !== ALL)
   if (concrete.length === 0) return []
@@ -95,7 +104,7 @@ function fromUrl(variable: Variable, values: string[]): string[] {
 }
 
 export function resolveSelections(
-  variables: Variable[],
+  variables: ControlVariable[],
   urlVars: Record<string, string[]>,
   options: VariableOptions
 ): { selections: Selections; pending: boolean; waiting: string[] } {
@@ -117,7 +126,7 @@ export function resolveSelections(
 }
 
 export function applyVariableChange(
-  variables: Variable[],
+  variables: ControlVariable[],
   urlVars: Record<string, string[]>,
   name: string,
   values: string[]

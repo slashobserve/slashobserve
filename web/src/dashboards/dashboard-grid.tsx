@@ -2,7 +2,14 @@ import { useMemo, type ReactNode } from "react"
 import { GridLayout, useContainerWidth, type Layout } from "react-grid-layout"
 import "react-grid-layout/css/styles.css"
 
-import type { Dashboard, Panel } from "@/spec"
+import {
+  isRowPanel,
+  type Dashboard,
+  type LayoutPanel,
+  type RowPanel,
+} from "@/spec"
+
+import { layoutFromSpec, layoutPanels } from "./edit/layout"
 
 export const gridColumns = 24
 export const gridRowHeight = 30
@@ -13,22 +20,10 @@ type Size = { width: number; height: number }
 
 type Props = {
   spec: Dashboard
-  renderPanel: (panel: Panel, size: Size) => ReactNode
+  renderPanel: (panel: LayoutPanel, size: Size) => ReactNode
   editable?: boolean
   layout?: Layout
   onLayoutChange?: (layout: Layout) => void
-}
-
-function specLayout(spec: Dashboard): Layout {
-  return spec.panels.map((panel) => ({
-    i: panel.id,
-    x: panel.gridPos.x,
-    y: panel.gridPos.y,
-    w: panel.gridPos.w,
-    h: panel.gridPos.h,
-    minW: 2,
-    minH: 3,
-  }))
 }
 
 function pixelWidth(containerWidth: number, w: number): number {
@@ -38,6 +33,17 @@ function pixelWidth(containerWidth: number, w: number): number {
 
 function pixelHeight(h: number): number {
   return h * gridRowHeight + (h - 1) * gridMargin
+}
+
+function RowHeader({ row }: { row: RowPanel }) {
+  return (
+    <div
+      data-row-id={row.id}
+      className="flex size-full items-center border-b px-1"
+    >
+      <h2 className="min-w-0 truncate text-sm font-semibold">{row.title}</h2>
+    </div>
+  )
 }
 
 export function DashboardGrid({
@@ -50,17 +56,17 @@ export function DashboardGrid({
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })
-  const items = layout ?? specLayout(spec)
+  const items = layout ?? layoutFromSpec(spec)
 
   const ordered = useMemo(() => {
     const byId = new Map(items.map((item) => [item.i, item]))
-    return spec.panels
+    return layoutPanels(spec)
       .flatMap((panel) => {
         const item = byId.get(panel.id)
         return item ? [{ panel, item }] : []
       })
       .sort((a, b) => a.item.y - b.item.y || a.item.x - b.item.x)
-  }, [spec.panels, items])
+  }, [spec, items])
 
   const stacked = width < singleColumnBelow
   const columns = stacked ? 1 : gridColumns
@@ -96,10 +102,14 @@ export function DashboardGrid({
         >
           {ordered.map(({ panel, item }) => (
             <div key={panel.id}>
-              {renderPanel(panel, {
-                width: stacked ? width : pixelWidth(width, item.w),
-                height: pixelHeight(item.h),
-              })}
+              {isRowPanel(panel) ? (
+                <RowHeader row={panel} />
+              ) : (
+                renderPanel(panel, {
+                  width: stacked ? width : pixelWidth(width, item.w),
+                  height: pixelHeight(item.h),
+                })
+              )}
             </div>
           ))}
         </GridLayout>

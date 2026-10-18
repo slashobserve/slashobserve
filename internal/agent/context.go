@@ -73,10 +73,9 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, panelID string,
 }
 
 func panelTitle(d *spec.Dashboard, id string) (string, bool) {
-	for _, p := range d.Panels {
-		if p.ID == id {
-			return p.Title, true
-		}
+	entry, ok := d.FindPanel(id)
+	if !ok {
+		return "", false
 	}
-	return "", false
+	return entry.Panel.Title, true
 }

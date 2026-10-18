@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -32,9 +33,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentsTab } from "@/comments/comments-tab"
 import { DashboardComments } from "@/comments/dashboard-comments"
-import { useLatestPanels } from "@/comments/latest-panels"
+import { panelRefs, useLatestPanels } from "@/comments/latest-panels"
 import { useCommentRevision } from "@/revisions/comment-revision"
-import type { Dashboard, Panel } from "@/spec"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import {
+  findPanel,
+  isDataPanel,
+  panelTitle,
+  type Dashboard,
+  type Panel,
+} from "@/spec"
 
 import {
   useDashboardSearch,
@@ -186,19 +194,34 @@ export function PanelInspector({
     }
   }, [suspended, requested, setSearch])
   const current =
-    open && panelId !== undefined
-      ? spec.panels.find((item) => item.id === panelId)
-      : undefined
+    open && panelId !== undefined ? findPanel(spec, panelId)?.panel : undefined
   const [retained, setRetained] = useState<Panel | undefined>()
   if (current && current !== retained) setRetained(current)
   const draftKept = queryDirty || commentDirty
   const kept = draftKept && retained?.id === panelId ? retained : undefined
   const panel = open ? (current ?? kept) : retained
 
+  const refs = useMemo(() => panelRefs(spec), [spec])
+  const datasources = useDatasources()
+  const datasourceUid =
+    panel && isDataPanel(panel)
+      ? (panel.queries[0]?.datasource ?? panel.datasource)
+      : undefined
+  const datasourceType =
+    datasourceUid === undefined
+      ? undefined
+      : datasourceTypeOf(datasources.data, datasourceUid)
+  const datasourceLabel =
+    datasourceUid === undefined
+      ? undefined
+      : datasourceType
+        ? `${datasourceType} / ${datasourceUid}`
+        : datasourceUid
+
   const latestPanels = useLatestPanels(dashboardId)
   const panelRemoved =
     panel !== undefined &&
-    !spec.panels.some((item) => item.id === panel.id) &&
+    findPanel(spec, panel.id) === undefined &&
     (version === latestVersion ||
       (latestPanels !== undefined &&
         !latestPanels.some((item) => item.id === panel.id)))
@@ -263,28 +286,34 @@ export function PanelInspector({
     close()
   }, [blocker, close])
 
+  const queryView: InspectorView[] =
+    panel && isDataPanel(panel)
+      ? [
+          {
+            id: "query",
+            label: "Query",
+            content: (
+              <Suspense fallback={<QuerySkeleton />}>
+                <QueryTab
+                  key={`${panel.id}:${saves}`}
+                  dashboardId={dashboardId}
+                  spec={spec}
+                  panel={panel}
+                  version={version}
+                  latestVersion={latestVersion}
+                  readOnly={readOnly}
+                  onDirtyChange={onQueryDirty}
+                  onSaved={querySaved}
+                  onOpenLatest={openLatest}
+                />
+              </Suspense>
+            ),
+          },
+        ]
+      : []
   const views: InspectorView[] = panel
     ? [
-        {
-          id: "query",
-          label: "Query",
-          content: (
-            <Suspense fallback={<QuerySkeleton />}>
-              <QueryTab
-                key={`${panel.id}:${saves}`}
-                dashboardId={dashboardId}
-                spec={spec}
-                panel={panel}
-                version={version}
-                latestVersion={latestVersion}
-                readOnly={readOnly}
-                onDirtyChange={onQueryDirty}
-                onSaved={querySaved}
-                onOpenLatest={openLatest}
-              />
-            </Suspense>
-          ),
-        },
+        ...queryView,
         {
           id: "comments",
           label: "Comments",
@@ -358,7 +387,7 @@ export function PanelInspector({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
                 <DashboardComments
                   dashboardId={dashboardId}
-                  panels={spec.panels}
+                  panels={refs}
                   version={version}
                   latestVersion={latestVersion}
                   onOpenPanel={openPanelComments}
@@ -374,12 +403,12 @@ export function PanelInspector({
                   tabIndex={-1}
                   className="wrap-anywhere outline-none"
                 >
-                  {panel.title}
+                  {panelTitle(panel)}
                 </SheetTitle>
                 <SheetDescription render={<div />}>
-                  <Badge variant="outline">
-                    {panel.datasource.type} / {panel.datasource.uid}
-                  </Badge>
+                  {datasourceLabel ? (
+                    <Badge variant="outline">{datasourceLabel}</Badge>
+                  ) : null}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">

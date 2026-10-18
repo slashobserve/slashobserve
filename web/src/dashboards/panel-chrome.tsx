@@ -15,12 +15,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { Panel } from "@/spec"
+import { panelTitle, type LayoutPanel } from "@/spec"
 
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { VariableLoadError } from "./variables"
 
-export type PanelState = "loading" | "ready" | "empty" | "error"
+export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
 export const panelHeaderHeight = 32
 export const panelBorderWidth = 1
@@ -54,7 +54,7 @@ function errorMessage(error: unknown): string {
 }
 
 type Props = {
-  panel: Panel
+  panel: LayoutPanel
   state: PanelState
   error?: unknown
   refreshing?: boolean
@@ -79,6 +79,7 @@ export function PanelChrome({
   children,
 }: Props) {
   const titleId = useId()
+  const title = panelTitle(panel)
   return (
     <article
       aria-labelledby={titleId}
@@ -99,10 +100,10 @@ export function PanelChrome({
         {dragHandle ? <PanelMoveHandle panel={panel} /> : null}
         <h2
           id={titleId}
-          title={panel.title}
+          title={title}
           className="min-w-0 truncate text-sm font-medium"
         >
-          {panel.title}
+          {title}
         </h2>
         {panel.description ? (
           <Tooltip>
@@ -111,7 +112,7 @@ export function PanelChrome({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={`About ${panel.title}`}
+                  aria-label={`About ${title}`}
                 />
               }
             >
@@ -170,6 +171,11 @@ export function PanelChrome({
             <Button variant="outline" size="sm" onClick={onRetry}>
               Retry
             </Button>
+          </div>
+        ) : null}
+        {state === "unsupported" ? (
+          <div className="flex size-full items-center justify-center p-3 text-center text-sm text-muted-foreground">
+            This panel type is not shown yet.
           </div>
         ) : null}
         {state === "ready" ? children : null}

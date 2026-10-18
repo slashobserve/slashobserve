@@ -161,7 +161,7 @@ test.describe("with the replay agent", () => {
     const restored = await getDashboard(page.request, id)
     expect(restored.latestVersion).toBe(3)
     const shape = (panels: Spec["panels"]) =>
-      panels.map((item) => ({ id: item.id, query: item.query }))
+      panels.map((item) => ({ id: item.id, queries: item.queries }))
     expect(shape(restored.spec.panels)).toEqual(shape(spec.panels))
   })
 

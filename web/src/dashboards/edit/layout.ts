@@ -7,7 +7,7 @@ import {
   sortLayoutItems,
 } from "react-grid-layout/core"
 
-import type { Dashboard } from "@/spec"
+import { allPanels, isRowPanel, type Dashboard, type Panel } from "@/spec"
 
 const columns = 24
 const minWidth = 2
@@ -16,23 +16,41 @@ const maxHeight = 100
 const maxVerticalSteps = 100
 const compactor = getCompactor("vertical")
 
+export function layoutPanels(spec: Dashboard): Panel[] {
+  return allPanels(spec).flatMap(({ panel, row }) =>
+    row?.collapsed ? [] : [panel]
+  )
+}
+
 export function layoutFromSpec(spec: Dashboard): Layout {
-  return spec.panels.map((panel) => ({
-    i: panel.id,
-    x: panel.gridPos.x,
-    y: panel.gridPos.y,
-    w: panel.gridPos.w,
-    h: panel.gridPos.h,
-    minW: minWidth,
-    minH: minHeight,
-    maxH: maxHeight,
-  }))
+  return layoutPanels(spec).map((panel) =>
+    isRowPanel(panel)
+      ? {
+          i: panel.id,
+          x: 0,
+          y: panel.gridPos.y,
+          w: columns,
+          h: panel.gridPos.h,
+          static: true,
+        }
+      : {
+          i: panel.id,
+          x: panel.gridPos.x,
+          y: panel.gridPos.y,
+          w: panel.gridPos.w,
+          h: panel.gridPos.h,
+          minW: minWidth,
+          minH: minHeight,
+          maxH: maxHeight,
+        }
+  )
 }
 
 export function applyLayout(spec: Dashboard, layout: Layout): Dashboard {
   const next = structuredClone(spec)
   const byId = new Map(layout.map((item) => [item.i, item]))
-  for (const panel of next.panels) {
+  for (const panel of layoutPanels(next)) {
+    if (isRowPanel(panel)) continue
     const item = byId.get(panel.id)
     if (!item) continue
     panel.gridPos = {

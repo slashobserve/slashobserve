@@ -145,18 +145,21 @@ func bigFrames(bytes int) []datasource.Frame {
 }
 
 func testDashboard() *spec.Dashboard {
-	ref := spec.DatasourceRef{Type: spec.Prometheus, UID: "prom"}
 	return &spec.Dashboard{
 		SpecVersion: spec.Version,
 		Title:       "test",
-		TimeRange:   spec.TimeRange{From: "now-6h", To: "now"},
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
 		Variables: []spec.Variable{
-			{Name: "job", Type: spec.QueryVariable, Datasource: &ref, Query: "label_values(up, job)"},
+			{Name: "job", Type: spec.QueryVariable, Datasource: "prom", Query: "label_values(up, job)"},
 			{Name: "env", Type: spec.CustomVariable, Options: []string{"prod", "dev"}},
 		},
 		Panels: []spec.Panel{
-			{ID: "p_ts", Type: spec.Timeseries, Title: "ts", Datasource: ref, Query: `up{job="$job"}`},
-			{ID: "p_tbl", Type: spec.Table, Title: "tbl", Datasource: ref, Query: `count(up{job="$job"})`},
+			{ID: "p_ts", Type: spec.Timeseries, Title: "ts", Datasource: "prom", Queries: []spec.Query{{Query: `up{job="$job"}`}}},
+			{ID: "p_tbl", Type: spec.Table, Title: "tbl", Datasource: "prom", Queries: []spec.Query{{Query: `count(up{job="$job"})`}}},
+			{ID: "p_note", Type: spec.Text},
+			{ID: "r_row", Type: spec.Row, Panels: []spec.Panel{
+				{ID: "p_child", Type: spec.Stat, Title: "child", Datasource: "prom", Queries: []spec.Query{{Query: `count(up)`}}},
+			}},
 		},
 	}
 }
@@ -423,6 +426,16 @@ func TestRangePanelDataIsAlignedAndCachedWithItsOriginalExecutionTime(t *testing
 	if other.Meta.Cached {
 		t.Fatal("a different variable selection was served from the cache")
 	}
+}
+
+func TestRowChildReturnsDataAndOtherKindsAreNotFound(t *testing.T) {
+	hn := newHarness(t)
+	body := decodeData(t, hn.get(hn.dataPath("p_child", window+"&var-job=api"), ""))
+	if body.Meta.Kind != queryproxy.KindInstant {
+		t.Fatalf("meta = %+v, want an instant panel", body.Meta)
+	}
+	expectError(t, hn.get(hn.dataPath("p_note", window), ""), http.StatusNotFound, "panel_not_found")
+	expectError(t, hn.get(hn.dataPath("r_row", window), ""), http.StatusNotFound, "panel_not_found")
 }
 
 func TestInstantPanelAlignsToFiveSeconds(t *testing.T) {

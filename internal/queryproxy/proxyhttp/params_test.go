@@ -144,7 +144,7 @@ func TestParseParamsRefusesMaxDataPointsWhereItIsNotAccepted(t *testing.T) {
 
 func TestTimeRange(t *testing.T) {
 	now := time.Date(2026, 10, 18, 10, 0, 0, 0, time.UTC)
-	d := &spec.Dashboard{TimeRange: spec.TimeRange{From: "now-1h", To: "now"}}
+	d := &spec.Dashboard{Time: spec.TimeRange{From: "now-1h", To: "now"}}
 
 	p, _ := parse(t, "", true)
 	rng, err := p.timeRange(d, now)

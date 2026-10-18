@@ -378,9 +378,10 @@ func summaryOr(summary, fallback string) string {
 }
 
 func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, replayed *bool) savedOut {
-	panels := make([]panelOut, len(ver.Spec.Panels))
-	for i, p := range ver.Spec.Panels {
-		panels[i] = panelOut{ID: p.ID, Title: p.Title, Type: p.Type}
+	entries := ver.Spec.AllPanels()
+	panels := make([]panelOut, len(entries))
+	for i, e := range entries {
+		panels[i] = panelOut{ID: e.Panel.ID, Title: e.Panel.Title, Type: e.Panel.Type}
 	}
 	panels, truncated := fit(panels, listBudget)
 	return savedOut{

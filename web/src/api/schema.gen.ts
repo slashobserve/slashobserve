@@ -422,7 +422,7 @@ export interface paths {
         };
         /**
          * Run the saved query of one panel in one dashboard version and return its frames.
-         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `timeRange`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `time`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
          */
         get: operations["getPanelData"];
         put?: never;
@@ -594,7 +594,7 @@ export interface components {
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `duplicate_panel_id` and `unknown_variable`. Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `datasource_type_mismatch`, `time_range_invalid` (path `/timeRange`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/query`), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/query` or `/panels/{i}/datasource/uid` and `/type`). */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have) and `threshold_value_missing` (a threshold other than the first omits its value). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/0/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/0/query` or `/panels/{i}/datasource` and `/panels/{i}/queries/0/datasource`). */
             code: string;
             message: string;
         };
@@ -1945,7 +1945,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `datasource_type_mismatch` or `variable_empty`. */
+            /** @description The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource` or `variable_empty`. */
             422: {
                 headers: {
                     [name: string]: unknown;

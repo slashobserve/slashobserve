@@ -1,7 +1,7 @@
 {
   "specVersion": "0",
   "title": "E2E live fault",
-  "timeRange": { "from": "now-5m", "to": "now" },
+  "time": { "from": "now-5m", "to": "now" },
   "refresh": "5s",
   "panels": [
     {
@@ -9,8 +9,12 @@
       "type": "stat",
       "title": "checkout-0 error rate",
       "gridPos": { "x": 0, "y": 0, "w": 8, "h": 5 },
-      "datasource": { "type": "prometheus", "uid": "prom" },
-      "query": "(sum(rate(http_requests_total{service=\"checkout\",pod=\"checkout-0\",status=~\"5..\"}[30s])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\",pod=\"checkout-0\"}[30s]))",
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "(sum(rate(http_requests_total{service=\"checkout\",pod=\"checkout-0\",status=~\"5..\"}[30s])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\",pod=\"checkout-0\"}[30s]))"
+        }
+      ],
       "unit": "percentunit",
       "thresholds": [
         { "value": 0.01, "color": "warning" },

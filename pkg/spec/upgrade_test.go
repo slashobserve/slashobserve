@@ -66,6 +66,9 @@ func TestUpgradeGolden(t *testing.T) {
 			if got := decodeJSON(t, out); !reflect.DeepEqual(got, want) {
 				t.Fatalf("upgraded document differs from golden\ngot:  %s\nwant: %v", out, want)
 			}
+			if _, err := spec.Parse(out); err != nil {
+				t.Fatalf("Parse of the upgraded document: %v", err)
+			}
 			again, changed, err := spec.Upgrade(out)
 			if err != nil {
 				t.Fatal(err)

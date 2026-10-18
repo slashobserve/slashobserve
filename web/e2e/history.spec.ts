@@ -14,7 +14,9 @@ async function createHistory(request: APIRequestContext) {
   const renamed = { ...spec, title: `${spec.title} renamed` }
   await addVersion(request, id, renamed, 1, "Rename")
   const panels = renamed.panels.map((panel) =>
-    panel.id === "rps" ? { ...panel, query: simplifiedQuery } : panel
+    panel.id === "rps"
+      ? { ...panel, queries: [{ query: simplifiedQuery }] }
+      : panel
   )
   const simplified = { ...renamed, panels }
   await addVersion(request, id, simplified, 2, "Simplify query")
@@ -108,7 +110,7 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
     name: 'Panel "Checkout requests per second"',
   })
   await expect(panelGroup.getByText("Changed")).toBeVisible()
-  await expect(panelGroup.getByText("query", { exact: true })).toBeVisible()
+  await expect(panelGroup.getByText("queries", { exact: true })).toBeVisible()
   await expect(panelGroup.getByRole("group", { name: "Before" })).toContainText(
     "sum by (pod)"
   )
@@ -388,17 +390,17 @@ test("explains a transient restore failure as try again later", async ({
         code: "invalid_spec",
         issues: [
           {
-            path: "/panels/0/query",
+            path: "/panels/0/queries/0/query",
             code: "datasource_unavailable",
             message: "prometheus returned 502",
           },
           {
-            path: "/panels/1/query",
+            path: "/panels/1/queries/0/query",
             code: "datasource_unavailable",
             message: "prometheus returned 502",
           },
           {
-            path: "/panels/2/query",
+            path: "/panels/2/queries/0/query",
             code: "query_timeout",
             message: "query timed out",
           },

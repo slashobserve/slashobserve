@@ -1,7 +1,7 @@
 {
   "specVersion": "0",
   "title": "E2E overview",
-  "timeRange": { "from": "now-15m", "to": "now" },
+  "time": { "from": "now-15m", "to": "now" },
   "variables": [
     {
       "name": "pod",
@@ -9,7 +9,7 @@
       "type": "query",
       "multi": true,
       "includeAll": true,
-      "datasource": { "type": "prometheus", "uid": "prom" },
+      "datasource": "prom",
       "query": "label_values(http_requests_total{service=\"checkout\"}, pod)"
     }
   ],
@@ -19,9 +19,13 @@
       "type": "timeseries",
       "title": "Checkout requests per second",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "prom" },
-      "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))",
-      "legend": "{{pod}}",
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ],
       "unit": "reqps"
     },
     {
@@ -29,8 +33,12 @@
       "type": "stat",
       "title": "Checkout error rate",
       "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "prom" },
-      "query": "(sum(rate(http_requests_total{service=\"checkout\",status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\"}[1m]))",
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "(sum(rate(http_requests_total{service=\"checkout\",status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\"}[1m]))"
+        }
+      ],
       "unit": "percentunit",
       "decimals": 2,
       "thresholds": [
@@ -43,9 +51,13 @@
       "type": "bargauge",
       "title": "Requests by pod",
       "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
-      "datasource": { "type": "prometheus", "uid": "prom" },
-      "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[1m]))",
-      "legend": "{{pod}}",
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[1m]))",
+          "legend": "{{pod}}"
+        }
+      ],
       "unit": "reqps",
       "min": 0
     },
@@ -54,8 +66,12 @@
       "type": "table",
       "title": "Log rows by service",
       "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
-      "datasource": { "type": "clickhouse", "uid": "ch" },
-      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+        }
+      ]
     }
   ]
 }

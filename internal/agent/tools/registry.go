@@ -55,7 +55,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10}
 
 type Tool struct {
 	Name        string
