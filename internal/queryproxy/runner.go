@@ -32,6 +32,7 @@ const (
 	defaultMaxDataPoints = 1000
 	minMaxDataPoints     = 10
 	maxMaxDataPoints     = 11000
+	panelDeadline        = 55 * time.Second
 )
 
 var upstreamCalls = semaphore.NewWeighted(maxUpstreamCalls)
@@ -89,6 +90,8 @@ type Runner struct {
 	logger *slog.Logger
 	sem    *semaphore.Weighted
 	values *valueCache
+
+	panelDeadline time.Duration
 }
 
 type RunnerOption func(*Runner)
@@ -101,7 +104,7 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	if logger == nil {
 		logger = slog.Default()
 	}
-	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls}
+	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, panelDeadline: panelDeadline}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -175,6 +178,8 @@ func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
 }
 
 func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.panelDeadline)
+	defer cancel()
 	_, res, errs, err := r.runQueries(ctx, req, map[string]allList{}, true)
 	if err != nil {
 		return Result{}, err

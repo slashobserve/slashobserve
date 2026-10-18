@@ -105,7 +105,7 @@ dashboards-id-versions-version-panels-panel-id-data:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "504":
-        description: A datasource did not answer within the query timeout.
+        description: A datasource did not answer within the query timeout, or the panel's queries did not all finish within 55 seconds; `ref` names the first query that had not finished.
         content:
           application/json:
             schema:

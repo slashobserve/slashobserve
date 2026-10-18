@@ -2001,7 +2001,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelDataError"];
                 };
             };
-            /** @description A datasource did not answer within the query timeout. */
+            /** @description A datasource did not answer within the query timeout, or the panel's queries did not all finish within 55 seconds; `ref` names the first query that had not finished. */
             504: {
                 headers: {
                     [name: string]: unknown;

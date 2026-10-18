@@ -865,3 +865,33 @@ func TestRunPanelKeepsARangeNonEmptyWhenAQueryStepIsLongerThanIt(t *testing.T) {
 		t.Fatalf("range = %v, want one day wide", got)
 	}
 }
+
+func TestRunPanelStopsAtThePanelDeadlineAndNamesTheLowestUnfinishedQuery(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = func(ctx context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		if q.Text == "fast" {
+			return dataFrames(), nil
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	runner.panelDeadline = 50 * time.Millisecond
+	queries := []spec.Query{{Query: "fast"}}
+	for i := range 9 {
+		queries = append(queries, spec.Query{Query: fmt.Sprintf("slow%d", i)})
+	}
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, queries...)})
+	start := time.Now()
+	_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("RunPanel took %v, want it to stop at the panel deadline", elapsed)
+	}
+	var qe *QueryError
+	if !errors.As(err, &qe) || qe.Index != 1 || qe.Ref != "B" {
+		t.Fatalf("err = %v (%+v), want a QueryError for the lowest unfinished query B", err, qe)
+	}
+	if status, code, _ := Classify(err); status != 504 || code != string(CodeQueryTimeout) {
+		t.Fatalf("Classify = %d %s, want 504 query_timeout", status, code)
+	}
+}
