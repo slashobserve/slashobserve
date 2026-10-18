@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -773,30 +772,47 @@ func TestRunPanelQueryDatasourceOverride(t *testing.T) {
 }
 
 func TestRunPanelQueriesRunConcurrentlyUpToFour(t *testing.T) {
+	const total = 10
 	fake := newFake("prometheus")
-	var running, peak atomic.Int32
+	entered := make(chan struct{}, total)
+	release := make(chan struct{})
 	fake.onRange = func(ctx context.Context, _ datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
-		n := running.Add(1)
-		defer running.Add(-1)
-		for {
-			old := peak.Load()
-			if n <= old || peak.CompareAndSwap(old, n) {
-				break
-			}
+		entered <- struct{}{}
+		select {
+		case <-release:
+		case <-ctx.Done():
 		}
-		time.Sleep(20 * time.Millisecond)
 		return dataFrames(), nil
 	}
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-	queries := make([]spec.Query, 10)
+	queries := make([]spec.Query, total)
 	for i := range queries {
 		queries[i] = spec.Query{Query: fmt.Sprintf("q%d", i)}
 	}
 	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, queries...)})
-	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
+	done := make(chan error, 1)
+	go func() {
+		_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+		done <- err
+	}()
+	for range queryParallelism {
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for four queries to run at once")
+		}
+	}
+	if got := fake.inflightNow(); got != queryParallelism {
+		t.Fatalf("in flight = %d, want %d while the first four are blocked", got, queryParallelism)
+	}
+	close(release)
+	if err := <-done; err != nil {
 		t.Fatalf("RunPanel: %v", err)
 	}
-	if got := peak.Load(); got < 2 || got > 4 {
-		t.Fatalf("peak concurrent queries = %d, want between 2 and 4", got)
+	if got := fake.peakInflight(); got != queryParallelism {
+		t.Fatalf("peak concurrent queries = %d, want exactly %d", got, queryParallelism)
+	}
+	if got := fake.callCount(); got != total {
+		t.Fatalf("upstream calls = %d, want %d", got, total)
 	}
 }
