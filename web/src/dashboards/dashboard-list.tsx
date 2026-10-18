@@ -63,7 +63,7 @@ function DashboardRow({ dashboard }: { dashboard: DashboardSummary }) {
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId: dashboard.id }}
-            className="rounded-sm font-medium wrap-anywhere underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="rounded-sm font-medium wrap-anywhere underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
             {dashboard.title}
           </Link>

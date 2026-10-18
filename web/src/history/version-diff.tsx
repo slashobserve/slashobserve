@@ -182,7 +182,7 @@ function ValueBox({
       <p className="px-2.5 pt-1.5 text-xs font-medium">{caption}</p>
       <pre
         tabIndex={0}
-        className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {text === "" ? (
           <span className="font-sans text-muted-foreground">(empty)</span>

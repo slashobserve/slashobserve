@@ -45,7 +45,7 @@ export function CommentItem({
       aria-labelledby={headingId}
       data-comment-id={comment.id}
       tabIndex={-1}
-      className="flex scroll-mb-[calc(var(--comment-composer-height,0px)+0.5rem)] flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex scroll-mb-[calc(var(--comment-composer-height,0px)+0.5rem)] flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div
         id={headingId}

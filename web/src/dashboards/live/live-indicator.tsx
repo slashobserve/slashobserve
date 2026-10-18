@@ -27,7 +27,7 @@ export function LiveIndicator({
           render={
             <button
               type="button"
-              className="-mx-1.5 flex items-center gap-1.5 rounded-md border border-transparent px-1.5 py-1 text-xs text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="-mx-1.5 flex items-center gap-1.5 rounded-md border border-transparent px-1.5 py-1 text-xs text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             />
           }
         >

@@ -114,7 +114,7 @@ function HistoryRoute() {
         to="/dashboards/$dashboardId"
         params={{ dashboardId }}
         search={dashboardSearchFromBack(search.back)}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
         Back to dashboard
