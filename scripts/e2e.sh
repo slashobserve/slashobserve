@@ -463,7 +463,7 @@ dex_login() {
 }
 
 suite() {
-  local out asset llm_line logs
+  local out asset llm_line logs field
 
   out="$(curl -sS -o "$TMP/healthz" -w '%{http_code}' "$BASE_URL/healthz")"
   if [[ "$out" != 200 ]] || ! grep -q '"status":"ok"' "$TMP/healthz"; then
@@ -557,9 +557,16 @@ suite() {
     || ! grep -qi '^cache-control: no-store' "$TMP/instance.headers"; then
     fail "/api/v1/instance with a session cookie ($out: $(cat "$TMP/instance"))"
   fi
+  for field in "\"oidc_issuer_url\":\"http://localhost:$DEX_PORT/dex\"" '"oidc_provider_name":"Dex"' '"allowed_email_domains":["example.com"]' \
+    '"any_email_domain":false' '"session_ttl_seconds":604800'; do
+    grep -qF -- "$field" "$TMP/instance" || fail "/api/v1/instance lacks $field ($(cat "$TMP/instance"))"
+  done
+  if grep -qiE 'client_secret|internal|password' "$TMP/instance"; then
+    fail "/api/v1/instance exposes a secret-looking key ($(cat "$TMP/instance"))"
+  fi
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/instance")"
   [[ "$out" == 401 ]] || fail "/api/v1/instance without credentials ($out)"
-  pass "instance URLs are served to signed-in clients"
+  pass "instance URLs and sign-in settings are served to signed-in clients, with no secrets"
 
   out="$(curl -sS -b "$TMP/jar" -o /dev/null -w '%{http_code} %{redirect_url}' "$BASE_URL/api/v1/auth/callback?code=x&state=bogus")"
   [[ "$out" == "302 "*"/login?error=state_mismatch" ]] || fail "forged callback state ($out)"
@@ -1378,10 +1385,10 @@ observe_suite() {
 
   out="$(api GET /agent)"
   [[ "$out" == 200 ]] || fail "read the agent configuration ($out: $(cat "$TMP/api.body"))"
-  observe_expect "the agent configuration" '"available":true,"provider":"replay","model":"replay"'
+  observe_expect "the agent configuration" '"available":true,"provider":"replay","model":"replay","effort":null'
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/agent")"
   [[ "$out" == 401 ]] || fail "read the agent configuration without a token ($out)"
-  pass "the agent configuration names the replay provider and needs a token"
+  pass "the agent configuration names the replay provider with no effort and needs a token"
 
   out="$(api POST /observe -d '{"prompt":"demo shop RED metrics by endpoint"}')"
   [[ "$out" == 202 ]] || fail "queue a new dashboard request ($out: $(cat "$TMP/api.body"))"

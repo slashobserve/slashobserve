@@ -19,6 +19,7 @@ import (
 type ObserveOptions struct {
 	Provider     string
 	Model        string
+	Effort       string
 	DashboardURL func(dashboardID string) string
 }
 
@@ -41,6 +42,7 @@ type agentInfoJSON struct {
 	Available bool    `json:"available"`
 	Provider  *string `json:"provider"`
 	Model     *string `json:"model"`
+	Effort    *string `json:"effort"`
 }
 
 type agentRequestJSON struct {
@@ -78,6 +80,9 @@ func (h *ObserveHandler) getAgent(c *gin.Context) {
 	info := agentInfoJSON{Available: h.service.Available()}
 	if info.Available {
 		info.Provider, info.Model = &h.opts.Provider, &h.opts.Model
+		if h.opts.Effort != "" {
+			info.Effort = &h.opts.Effort
+		}
 	}
 	c.JSON(http.StatusOK, info)
 }

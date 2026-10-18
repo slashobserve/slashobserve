@@ -131,7 +131,14 @@ components:
     Instance:
       type: object
       additionalProperties: false
-      required: [public_url, mcp_url]
+      required:
+        - public_url
+        - mcp_url
+        - oidc_issuer_url
+        - oidc_provider_name
+        - allowed_email_domains
+        - any_email_domain
+        - session_ttl_seconds
       properties:
         public_url:
           type: string
@@ -139,6 +146,22 @@ components:
         mcp_url:
           type: string
           format: uri
+        oidc_issuer_url:
+          type: string
+          description: The identity provider's issuer, as browsers reach it.
+        oidc_provider_name:
+          type: string
+          description: The identity provider's display name, empty when none is configured.
+        allowed_email_domains:
+          type: array
+          items:
+            type: string
+          description: Empty when any domain may sign in.
+        any_email_domain:
+          type: boolean
+        session_ttl_seconds:
+          type: integer
+          minimum: 300
     SessionState:
       type: object
       additionalProperties: false
@@ -686,7 +709,7 @@ components:
     AgentInfo:
       type: object
       additionalProperties: false
-      required: [available, provider, model]
+      required: [available, provider, model, effort]
       properties:
         available:
           type: boolean
@@ -698,6 +721,11 @@ components:
           type: string
           nullable: true
           description: The model the agent uses, null when no agent is configured.
+        effort:
+          type: string
+          enum: [low, medium, high, xhigh, max]
+          nullable: true
+          description: Reasoning effort of the Anthropic provider; null otherwise.
     AgentStep:
       type: object
       additionalProperties: false

@@ -177,6 +177,7 @@ func run() error {
 		SessionTTL:          cfg.SessionTTL,
 		AllowedEmailDomains: cfg.AllowedEmailDomains,
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
+		ProviderName:        cfg.AuthProviderName,
 	}, database.Queries(), logger)
 	if err != nil {
 		return withheld("auth_setup_failed", err)
@@ -212,6 +213,7 @@ func run() error {
 			Logger:      logger,
 		}), revisions.NewSteps(database, logger))
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
+		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
 	revisionsService := revisions.NewService(database, reviser, logger)
 
@@ -250,6 +252,14 @@ func run() error {
 		return described("http_server_failed", err)
 	}
 	return nil
+}
+
+func reportedEffort(llm config.LLM) string {
+	if llm.Provider == config.LLMProviderAnthropic {
+		return llm.Effort
+	}
+
+	return ""
 }
 
 func startWorkers(ctx context.Context, service *revisions.Service, listen events.Listener, logger *slog.Logger) func() {

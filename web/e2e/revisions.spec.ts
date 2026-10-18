@@ -439,7 +439,7 @@ test("shows no revision controls when no agent is configured", async ({
   const { id } = await createRevisionDashboard(page)
   await page.route("**/api/v1/agent", (route) =>
     route.fulfill({
-      json: { available: false, provider: null, model: null },
+      json: { available: false, provider: null, model: null, effort: null },
     })
   )
   await openDashboard(page, id)
@@ -525,7 +525,7 @@ test("lists past revisions when the agent is unavailable", async ({ page }) => {
   await seedRevision(page, id)
   await page.route("**/api/v1/agent", (route) =>
     route.fulfill({
-      json: { available: false, provider: null, model: null },
+      json: { available: false, provider: null, model: null, effort: null },
     })
   )
   await openDashboard(page, id)

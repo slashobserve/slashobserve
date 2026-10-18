@@ -137,6 +137,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | `SLASHOBSERVE_OIDC_CLIENT_SECRET`         | none    | Required. Never logged.                                                                                                          |
 | `SLASHOBSERVE_SESSION_TTL`                | `168h`  | A Go duration from `5m` to `720h`. A session lasts this long from sign-in.                                                       |
 | `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none    | Required. Comma-separated domains, or `*` for every account. See [Sign-in with OIDC](#sign-in-with-oidc).                        |
+| `SLASHOBSERVE_AUTH_PROVIDER_NAME`         | unset   | Optional. The identity provider's display name, up to 64 characters, shown to signed-in clients next to the sign-in rules.       |
 
 ### Datasources
 

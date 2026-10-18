@@ -92,7 +92,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Return the server's public and MCP URLs. */
+        /** Return the server's public and MCP URLs and its sign-in settings; never a secret. */
         get: operations["getInstance"];
         put?: never;
         post?: never;
@@ -574,6 +574,14 @@ export interface components {
             public_url: string;
             /** Format: uri */
             mcp_url: string;
+            /** @description The identity provider's issuer, as browsers reach it. */
+            oidc_issuer_url: string;
+            /** @description The identity provider's display name, empty when none is configured. */
+            oidc_provider_name: string;
+            /** @description Empty when any domain may sign in. */
+            allowed_email_domains: string[];
+            any_email_domain: boolean;
+            session_ttl_seconds: number;
         };
         SessionState: {
             authenticated: boolean;
@@ -832,6 +840,11 @@ export interface components {
             provider: string | null;
             /** @description The model the agent uses, null when no agent is configured. */
             model: string | null;
+            /**
+             * @description Reasoning effort of the Anthropic provider; null otherwise.
+             * @enum {string|null}
+             */
+            effort: "low" | "medium" | "high" | "xhigh" | "max" | null;
         };
         AgentStep: {
             /** Format: date-time */
@@ -1143,7 +1156,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The URLs clients use to reach this server. */
+            /** @description The URLs clients use to reach this server and who may sign in. */
             200: {
                 headers: {
                     [name: string]: unknown;

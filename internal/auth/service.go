@@ -25,6 +25,7 @@ type Config struct {
 	SessionTTL          time.Duration
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
+	ProviderName        string
 }
 
 type Service struct {
