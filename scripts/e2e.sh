@@ -675,6 +675,7 @@ suite() {
   cli_suite
   evals_smoke_suite
   check_api_contract
+  check_no_keys_in_server_log
 }
 
 check_api_contract() {
@@ -685,6 +686,15 @@ check_api_contract() {
   violations="$(grep 'api contract violation' <<<"$logs" || true)"
   [[ -z "$violations" ]] || fail "API calls broke the OpenAPI contract:"$'\n'"$violations"
   pass "every API call matched the OpenAPI contract"
+}
+
+check_no_keys_in_server_log() {
+  local logs
+  logs_into logs server
+  if grep -qE 'sok_[A-Za-z0-9_-]{43}' <<<"$logs"; then
+    fail "the server log contains a service-account key"
+  fi
+  pass "the server log contains no service-account keys"
 }
 
 all_datasources_listed() {
@@ -2080,6 +2090,7 @@ browser() {
   grouped bun run e2e:install
   grouped env SLASHOBSERVE_E2E_BASE_URL="$BASE_URL" bun run e2e
   check_api_contract
+  check_no_keys_in_server_log
 }
 
 case "${1:-run}" in

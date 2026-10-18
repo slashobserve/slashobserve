@@ -47,3 +47,13 @@ export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
 }
+
+export const serviceAccountKeys = {
+  all: ["service-accounts"] as const,
+  list: () => ["service-accounts", "list"] as const,
+  keys: (accountId: string) => ["service-accounts", accountId, "keys"] as const,
+}
+
+export const instanceKeys = {
+  info: () => ["instance"] as const,
+}

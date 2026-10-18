@@ -13,6 +13,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedObserveRequestIdRouteImport } from './routes/_authed/observe/$requestId'
+import { Route as AuthedSettingsKeysRouteImport } from './routes/_authed/settings/keys'
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
 
@@ -35,6 +36,11 @@ const AuthedObserveRequestIdRoute = AuthedObserveRequestIdRouteImport.update({
   path: '/observe/$requestId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedSettingsKeysRoute = AuthedSettingsKeysRouteImport.update({
+  id: '/settings/keys',
+  path: '/settings/keys',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedDashboardsDashboardIdIndexRoute =
   AuthedDashboardsDashboardIdIndexRouteImport.update({
     id: '/dashboards/$dashboardId/',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/settings/keys': typeof AuthedSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthedIndexRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/settings/keys': typeof AuthedSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
 }
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/_authed/settings/keys': typeof AuthedSettingsKeysRoute
   '/_authed/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/observe/$requestId'
+    | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards/$dashboardId/'
   fileRoutesByTo: FileRoutesByTo
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/'
     | '/observe/$requestId'
+    | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards/$dashboardId'
   id:
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/'
     | '/_authed/observe/$requestId'
+    | '/_authed/settings/keys'
     | '/_authed/dashboards/$dashboardId/versions'
     | '/_authed/dashboards/$dashboardId/'
   fileRoutesById: FileRoutesById
@@ -131,6 +143,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedObserveRequestIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/settings/keys': {
+      id: '/_authed/settings/keys'
+      path: '/settings/keys'
+      fullPath: '/settings/keys'
+      preLoaderRoute: typeof AuthedSettingsKeysRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/dashboards/$dashboardId/': {
       id: '/_authed/dashboards/$dashboardId/'
       path: '/dashboards/$dashboardId'
@@ -151,6 +170,7 @@ declare module '@tanstack/react-router' {
 interface AuthedRouteChildren {
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedObserveRequestIdRoute: typeof AuthedObserveRequestIdRoute
+  AuthedSettingsKeysRoute: typeof AuthedSettingsKeysRoute
   AuthedDashboardsDashboardIdVersionsRoute: typeof AuthedDashboardsDashboardIdVersionsRoute
   AuthedDashboardsDashboardIdIndexRoute: typeof AuthedDashboardsDashboardIdIndexRoute
 }
@@ -158,6 +178,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedObserveRequestIdRoute: AuthedObserveRequestIdRoute,
+  AuthedSettingsKeysRoute: AuthedSettingsKeysRoute,
   AuthedDashboardsDashboardIdVersionsRoute:
     AuthedDashboardsDashboardIdVersionsRoute,
   AuthedDashboardsDashboardIdIndexRoute: AuthedDashboardsDashboardIdIndexRoute,

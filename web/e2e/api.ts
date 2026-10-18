@@ -142,3 +142,52 @@ export async function requestRevision(
   const body = (await response.json()) as { revision: { id: string } }
   return { status, id: body.revision.id }
 }
+
+export function uniqueAccountName(base = "e2e-keys"): string {
+  const random = Array.from(
+    { length: 4 },
+    () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]
+  ).join("")
+  return `${base}-${Date.now().toString(36)}${random}`
+}
+
+export async function createServiceAccount(
+  request: APIRequestContext,
+  name: string,
+  description?: string
+): Promise<{ id: string; name: string }> {
+  const response = await request.post("/api/v1/service-accounts", {
+    headers: mutationHeaders,
+    data: { name, description },
+  })
+  const body = (await expectStatus(
+    response,
+    201,
+    "create service account"
+  )) as { id: string; name: string }
+  return { id: body.id, name: body.name }
+}
+
+export async function createServiceAccountKey(
+  request: APIRequestContext,
+  accountId: string,
+  name: string,
+  expiresAt?: string
+): Promise<{ id: string; token: string; display_prefix: string }> {
+  const response = await request.post(
+    `/api/v1/service-accounts/${accountId}/keys`,
+    {
+      headers: mutationHeaders,
+      data: { name, expires_at: expiresAt },
+    }
+  )
+  const body = (await expectStatus(response, 201, "create key")) as {
+    key: { id: string; display_prefix: string }
+    token: string
+  }
+  return {
+    id: body.key.id,
+    token: body.token,
+    display_prefix: body.key.display_prefix,
+  }
+}

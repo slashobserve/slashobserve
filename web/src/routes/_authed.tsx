@@ -7,9 +7,12 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 
+import { KeyRoundIcon } from "lucide-react"
+
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { getSession, invalidateSession, logout } from "@/lib/auth"
+import { cn } from "cn"
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: async ({ location }) => {
@@ -49,6 +52,16 @@ function AuthedLayout() {
           SlashObserve
         </Link>
         <div className="flex min-w-0 items-center gap-3 text-sm">
+          <Link
+            to="/settings/keys"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "data-[status=active]:bg-muted max-sm:size-8 max-sm:px-0"
+            )}
+          >
+            <KeyRoundIcon aria-hidden="true" />
+            <span className="max-sm:sr-only">API keys</span>
+          </Link>
           <ThemeToggle />
           <span className="truncate max-sm:sr-only">
             {principal.email || principal.name}

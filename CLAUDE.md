@@ -91,12 +91,14 @@ Directories are created when their phase starts; this is where things go.
 - MCP: `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB, 429 above 8 in-flight requests per principal and 503 `busy` above 32 in flight across all principals, and keeps no session state.
   Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
+  Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/settings/keys`.
 - Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
   Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
+  `GET /api/v1/instance` returns the public URL and the MCP URL for client setup snippets.
 - Database: Postgres through a pgx v5 pool.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
   The server applies migrations at boot under a Postgres advisory lock.
@@ -194,6 +196,7 @@ Directories are created when their phase starts; this is where things go.
   The composer posts `request_revision: false` unless its `requestRevision` prop is set.
   `CommentsTab` forwards `requestRevision`, `composerExtraFields` and `renderRevision` (and `DashboardComments` forwards `renderRevision`), so a parent owns the revision checkbox state and renders each comment's revision status.
   Comment paging stops after a failed page until the next successful refetch, the flattened list is deduplicated by id, and status announcements follow a saved change through `liveRegionText`.
+- The API keys page (`/settings/keys`, reached from the header) keeps a new key only in the create dialog's component state: the create-key mutation uses `gcTime: 0`, the response is never written to the query cache, and snippets reference `OBSERVE_TOKEN` instead of the key (Claude Code through `.mcp.json` `${OBSERVE_TOKEN}` expansion, OpenCode through `{env:OBSERVE_TOKEN}` with `oauth: false`).
 
 ## Dependencies
 
