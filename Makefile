@@ -15,13 +15,16 @@ SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
 
-.PHONY: build server web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all tidy-check clean
 
 build: web
-	$(MAKE) server
+	$(MAKE) server cli
 
 server:
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(GO_LDFLAGS)' -o bin/slashobserve-server ./cmd/slashobserve-server
+
+cli:
+	CGO_ENABLED=0 go build -trimpath -ldflags '$(GO_LDFLAGS)' -o bin/observe ./cmd/observe
 
 web-deps:
 	cd web && bun install --frozen-lockfile

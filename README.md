@@ -27,6 +27,23 @@ Node and container metrics, logs and traces start when the stack starts.
 
 If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the `slashobserve_ro` user or holds another password for it; run `make demo-reset` to recreate the volumes.
 
+## CLI
+
+`make cli` builds `bin/observe`, a thin client of the public API that uses a service-account key.
+Create a service-account key with `POST /api/v1/service-accounts/{id}/keys` while signed in, then sign in once:
+
+    bin/observe login --server http://localhost:8080 --with-token
+
+`login` reads the key from standard input with `--with-token`, or prompts for it on a terminal.
+Then give it a prompt and it prints the dashboard address:
+
+    bin/observe "checkout p99 latency, last 6h"
+    bin/observe dashboards list
+
+Add `--json` to any command to get the API response as it is, and see `bin/observe --help` for the rest.
+Settings come from flags, then `OBSERVE_SERVER` and `OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`.
+The saved key is sent only to the server it was saved for; for another server, pass `--token` or set `OBSERVE_TOKEN`.
+
 ## Develop
 
 Requirements: Go 1.27.2 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2, Docker.

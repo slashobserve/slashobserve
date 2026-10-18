@@ -11,6 +11,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | --- | --- |
 | `make build` | Install web dependencies, build the Vite app into `internal/server/webdist`, then build `bin/slashobserve-server` with the UI embedded. |
 | `make server` | Build only the Go binary, embedding whatever is in `internal/server/webdist`. |
+| `make cli` | Build only `bin/observe`; `make build` builds it too. |
 | `make test` | `go test -race ./...` for the root module and `demo/shop`, then the web Vitest suite. |
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, Prettier check. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
@@ -31,7 +32,7 @@ Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`
 Directories are created when their phase starts; this is where things go.
 
 - `cmd/slashobserve-server/`: server binary (`healthcheck` subcommand backs the Docker health check).
-  `cmd/observe/` (CLI) comes later.
+- `cmd/observe/` + `internal/cli/`: the `observe` CLI (API client with a service-account key; settings from flags, `OBSERVE_SERVER`/`OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`; the saved key goes only to the server it was saved for).
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
@@ -108,7 +109,7 @@ Directories are created when their phase starts; this is where things go.
 - Observe requests: `POST /api/v1/observe` enqueues an `agent_requests` row with `source = 'observe'` and no dashboard (at most 3 queued or running per principal, 429 `too_many_requests`, and 20 per instance, 429 `agent_busy`), or, with `dashboard_id`, a follow-up revision with `source = 'prompt'`.
   Observe rows never block each other in the claim; `dashboard_id` is filled from the version saved under the request id when the request finishes, so queue lookups of a saved version use the request id only.
   `create_dashboard` saves through `dashboard_versions.agent_request_id`, so a retried run returns the dashboard it already created.
-  `GET /api/v1/observe/{id}` returns any agent request with progress `steps` (the tools' fixed step strings, at most 100 per attempt, tagged by attempt) and `usage` (tokens, model calls and repair rounds of the finishing attempt, null when the run made no model call); clients poll it every second; observe rows send no `revision.updated` events.
+  `GET /api/v1/observe/{id}` returns any agent request with progress `steps` (the tools' fixed step strings, at most 100 per attempt, tagged by attempt) and `usage` (tokens, model calls and repair rounds of the finishing attempt, null when the run made no model call); a shutdown release deletes the released attempt's steps and the re-claimed run reuses its attempt number, so clients tell a restarted list by each step's `at`, not by `attempt` alone; the `observe` CLI polls it every second, rides out two consecutive transport or 5xx failures and gives up on the third, and the web client does not call it; observe rows send no `revision.updated` events.
   `GET /api/v1/agent` tells clients whether an agent is configured and which provider and model it uses.
 - Comments: anchored to `(dashboard, version, panel_id)`, never moved when panels change (`panel_present` tells clients); resolve and reopen are idempotent `PATCH` status changes that send `comment.updated` only when the status really changed; `revision` holds the latest agent request for the comment (null when none was requested); event payloads carry ids and a capped author name, never comment text, so they stay far below the 8000 byte `pg_notify` limit.
   Comment lists page by `(created_at, id)` with `created_at` taken at insert, so a comment that commits after a later one was already listed can be missed by a client paging at that moment, and a fresh listing or its `comment.created` event recovers it.
