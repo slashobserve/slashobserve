@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
+import { instanceQuery } from "@/api/instance"
 import { serviceAccountKeys } from "@/api/keys"
 import { CopyButton } from "@/components/copy-button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -44,7 +45,6 @@ import {
   type ExpiryValue,
 } from "./key-status"
 import {
-  instanceQuery,
   problemText,
   useCreateKey,
   useCreateServiceAccount,

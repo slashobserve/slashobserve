@@ -2037,7 +2037,7 @@ print(admin[0][sys.argv[2]])
 
 people_suite() {
   api_token
-  local out admin_id sessions keys nil_id=00000000-0000-0000-0000-000000000000
+  local out admin_id sessions keys stream_dashboard stream_pid tries nil_id=00000000-0000-0000-0000-000000000000
 
   out="$(curl -sS -o "$TMP/people.body" -w '%{http_code}' "$BASE_URL/api/v1/users")"
   [[ "$out" == 401 ]] || fail "list people without credentials ($out: $(cat "$TMP/people.body"))"
@@ -2084,8 +2084,30 @@ people_suite() {
   [[ "$out" == 400 ]] || fail "sign out with a bad id ($out: $(cat "$TMP/people.body"))"
   pass "signing out is refused cross-origin and for keys, and unknown or malformed ids are rejected"
 
-  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$admin_id/sessions")"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the dashboard for the open stream ($out: $(cat "$TMP/api.body"))"
+  stream_dashboard="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  : >"$TMP/people.sse"
+  command curl -sS -N --max-time 90 -b "$TMP/people-jar" "$BASE_URL/api/v1/dashboards/$stream_dashboard/events" >"$TMP/people.sse" 9>&- &
+  stream_pid=$!
+  disown "$stream_pid"
+  tries=50
+  until grep -q '^event: ready$' "$TMP/people.sse"; do
+    ((--tries > 0)) || { kill "$stream_pid" 2>/dev/null || true; fail "the session stream sent no ready event ($(cat "$TMP/people.sse"))"; }
+    sleep 0.2
+  done
+
+  out="$(curl -sS -b "$TMP/people-jar" -o "$TMP/people.body" -D "$TMP/people.headers" -w '%{http_code}' -X DELETE -H "Origin: $BASE_URL" "$BASE_URL/api/v1/users/$admin_id/sessions")"
   [[ "$out" == 204 ]] || fail "sign a person out everywhere ($out: $(cat "$TMP/people.body"))"
+  if ! grep -i '^set-cookie: so_session=;' "$TMP/people.headers" | grep -qi 'max-age=0'; then
+    kill "$stream_pid" 2>/dev/null || true
+    fail "signing yourself out everywhere did not expire the session cookie ($(cat "$TMP/people.headers"))"
+  fi
+  tries=125
+  while kill -0 "$stream_pid" 2>/dev/null; do
+    ((--tries > 0)) || { kill "$stream_pid" 2>/dev/null || true; fail "an open event stream survived the sign out for 25 seconds"; }
+    sleep 0.2
+  done
   out="$(curl -sS -b "$TMP/people-jar" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"
   [[ "$out" == 401 ]] || fail "the calling session survived its own sign out ($out)"
   out="$(curl -sS -b "$TMP/api-jar" -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/me")"

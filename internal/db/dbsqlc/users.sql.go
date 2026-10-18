@@ -35,15 +35,15 @@ LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
   WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
 LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
 WHERE $1::timestamptz IS NULL
-  OR (u.last_seen_at, u.id) < ($1::timestamptz, $2::uuid)
-ORDER BY u.last_seen_at DESC, u.id DESC
+  OR (u.created_at, u.id) < ($1::timestamptz, $2::uuid)
+ORDER BY u.created_at DESC, u.id DESC
 LIMIT $3
 `
 
 type ListUsersParams struct {
-	CursorSeenAt pgtype.Timestamptz
-	CursorID     pgtype.UUID
-	RowLimit     int32
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	RowLimit        int32
 }
 
 type ListUsersRow struct {
@@ -59,7 +59,7 @@ type ListUsersRow struct {
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.CursorSeenAt, arg.CursorID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listUsers, arg.CursorCreatedAt, arg.CursorID, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}

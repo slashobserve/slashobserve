@@ -114,7 +114,7 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 		var err error
 		row, err = q.CreateComment(ctx, dbsqlc.CreateCommentParams{
 			DashboardID: dashboardID,
-			Version:     toInt32(version),
+			Version:     httpapi.Int32(version),
 			PanelID:     panelID,
 			Body:        body,
 			AuthorKind:  author.Kind,
@@ -159,7 +159,7 @@ func (cm *Comments) announce(ctx context.Context, q *dbsqlc.Queries, by auth.Pri
 }
 
 func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, panelID string, limit int, cursor string) ([]Comment, string, error) {
-	params := dbsqlc.ListCommentsParams{DashboardID: dashboardID, RowLimit: toInt32(limit + 1)}
+	params := dbsqlc.ListCommentsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1)}
 	switch status {
 	case CommentOpen, CommentResolved:
 		params.Status = pgtype.Text{String: status, Valid: true}

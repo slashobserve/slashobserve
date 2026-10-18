@@ -54,7 +54,7 @@ type keyJSON struct {
 }
 
 func (s *Service) mountServiceAccounts(authenticated *gin.RouterGroup) {
-	accounts := authenticated.Group("/service-accounts", requireUser)
+	accounts := authenticated.Group("/service-accounts", RequireUser)
 	accounts.POST("", s.createServiceAccount)
 	accounts.GET("", s.listServiceAccounts)
 	accounts.POST("/:id/keys", s.createKey)
@@ -62,9 +62,9 @@ func (s *Service) mountServiceAccounts(authenticated *gin.RouterGroup) {
 	accounts.DELETE("/:id/keys/:keyId", s.revokeKey)
 }
 
-func requireUser(c *gin.Context) {
+func RequireUser(c *gin.Context) {
 	if p, ok := FromContext(c.Request.Context()); !ok || p.Kind != KindUser {
-		abortError(c, http.StatusForbidden, "forbidden", "service accounts cannot manage service accounts")
+		abortError(c, http.StatusForbidden, "forbidden", "service accounts cannot use this endpoint")
 		return
 	}
 	c.Next()

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -108,7 +107,7 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 			ID:              in.dashboardID,
 			Title:           in.spec.Title,
 			Tags:            tagsOf(in.spec),
-			ExpectedVersion: toInt32(in.parent),
+			ExpectedVersion: httpapi.Int32(in.parent),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errStaleParent
@@ -149,7 +148,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	}
 	params := dbsqlc.InsertDashboardVersionParams{
 		DashboardID:    in.dashboardID,
-		Version:        toInt32(number),
+		Version:        httpapi.Int32(number),
 		Spec:           in.canonical,
 		Summary:        in.summary,
 		AuthorKind:     in.author.Kind,
@@ -159,10 +158,10 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		AgentRequestID: in.requestID,
 	}
 	if number > 1 {
-		params.ParentVersion = pgtype.Int4{Int32: toInt32(in.parent), Valid: true}
+		params.ParentVersion = pgtype.Int4{Int32: httpapi.Int32(in.parent), Valid: true}
 	}
 	if in.restoredFrom != nil {
-		params.RestoredFrom = pgtype.Int4{Int32: toInt32(*in.restoredFrom), Valid: true}
+		params.RestoredFrom = pgtype.Int4{Int32: httpapi.Int32(*in.restoredFrom), Valid: true}
 	}
 	row, err := q.InsertDashboardVersion(ctx, params)
 	if err != nil {
@@ -227,7 +226,7 @@ func (st store) latest(ctx context.Context, id pgtype.UUID) (Dashboard, Version,
 }
 
 func (st store) version(ctx context.Context, id pgtype.UUID, number int) (Dashboard, Version, error) {
-	row, err := st.db.Queries().GetDashboardVersion(ctx, dbsqlc.GetDashboardVersionParams{ID: id, Version: toInt32(number)})
+	row, err := st.db.Queries().GetDashboardVersion(ctx, dbsqlc.GetDashboardVersionParams{ID: id, Version: httpapi.Int32(number)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Dashboard{}, Version{}, ErrNotFound
 	}
@@ -240,7 +239,7 @@ func (st store) version(ctx context.Context, id pgtype.UUID, number int) (Dashbo
 }
 
 func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]byte, error) {
-	raw, err := st.db.Queries().GetDashboardVersionSpec(ctx, dbsqlc.GetDashboardVersionSpecParams{ID: id, Version: toInt32(number)})
+	raw, err := st.db.Queries().GetDashboardVersionSpec(ctx, dbsqlc.GetDashboardVersionSpecParams{ID: id, Version: httpapi.Int32(number)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -251,7 +250,7 @@ func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]by
 }
 
 func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int) ([]Dashboard, error) {
-	params := dbsqlc.ListDashboardsParams{RowLimit: toInt32(limit)}
+	params := dbsqlc.ListDashboardsParams{RowLimit: httpapi.Int32(limit)}
 	if after != nil {
 		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -268,9 +267,9 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int) 
 }
 
 func (st store) listVersions(ctx context.Context, id pgtype.UUID, before, limit int) ([]VersionMeta, error) {
-	params := dbsqlc.ListDashboardVersionsParams{ID: id, RowLimit: toInt32(limit)}
+	params := dbsqlc.ListDashboardVersionsParams{ID: id, RowLimit: httpapi.Int32(limit)}
 	if before > 0 {
-		params.Before = pgtype.Int4{Int32: toInt32(before), Valid: true}
+		params.Before = pgtype.Int4{Int32: httpapi.Int32(before), Valid: true}
 	}
 	rows, err := st.db.Queries().ListDashboardVersions(ctx, params)
 	if err != nil {
@@ -344,11 +343,4 @@ func decodeSpec(raw []byte) (*spec.Dashboard, error) {
 		return nil, fmt.Errorf("decode stored spec: %w", err)
 	}
 	return &d, nil
-}
-
-func toInt32(n int) int32 {
-	if n < math.MinInt32 || n > math.MaxInt32 {
-		panic("dashboards: integer outside the int32 range")
-	}
-	return int32(n)
 }

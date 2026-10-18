@@ -18,8 +18,7 @@ test("switches and remembers light and dark", async ({ page }) => {
     page.evaluate(() => document.documentElement.classList.contains("dark"))
   const lightBackground = await background()
 
-  await page.getByRole("button", { name: "Theme" }).click()
-  await page.getByRole("menuitemradio", { name: "Dark" }).click()
+  await page.getByRole("button", { name: "Switch theme" }).click()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   expect(await background()).not.toBe(lightBackground)
 
@@ -27,18 +26,13 @@ test("switches and remembers light and dark", async ({ page }) => {
   expect(await isDark()).toBe(true)
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
-  await page.getByRole("button", { name: "Theme" }).click()
-  await page.getByRole("menuitemradio", { name: "Light" }).click()
+  await page.getByRole("button", { name: "Switch theme" }).click()
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
 
   await page.reload({ waitUntil: "domcontentloaded" })
   expect(await isDark()).toBe(false)
-  await expect(page.getByRole("button", { name: "Theme" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible()
   await expect(page.locator("html")).not.toHaveClass(/\bdark\b/)
-
-  await page.getByRole("button", { name: "Theme" }).click()
-  await page.getByRole("menuitemradio", { name: "System" }).click()
-  await expect(page.getByRole("menuitemradio")).toHaveCount(0)
 })
 
 test("uses the M1 tokens in both themes", async ({ page }) => {
@@ -88,13 +82,12 @@ test("keeps plain search parameters", async ({ page }) => {
   await expect(page).toHaveURL(/\/\?from=now-1h&var-pod=a&var-pod=b$/)
 })
 
-test("opens the theme menu from the keyboard", async ({ page }) => {
+test("switches the theme from the keyboard", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/")
-  const trigger = page.getByRole("button", { name: "Theme" })
-  await trigger.focus()
+  const toggle = page.getByRole("button", { name: "Switch theme" })
+  await toggle.focus()
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("menuitemradio", { name: "Dark" })).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(page.getByRole("menuitemradio", { name: "Dark" })).toHaveCount(0)
-  await expect(trigger).toBeFocused()
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+  await expect(toggle).toBeFocused()
 })

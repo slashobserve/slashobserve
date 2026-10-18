@@ -1,13 +1,14 @@
 import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
 
+import { instanceQuery } from "@/api/instance"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { CodeSnippet } from "./code-snippet"
-import { instanceQuery, loadProblemText } from "./queries"
+import { loadProblemText } from "./queries"
 
 function Code({ children }: { children: string }) {
   return <code className="font-mono text-xs">{children}</code>

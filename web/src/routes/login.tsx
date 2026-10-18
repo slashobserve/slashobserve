@@ -3,7 +3,7 @@ import { createFileRoute, isRedirect, redirect } from "@tanstack/react-router"
 
 import { buttonVariants } from "@/components/ui/button"
 import { getSession, loginHref } from "@/lib/auth"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 type LoginSearch = { return_to?: string; error?: string }
 

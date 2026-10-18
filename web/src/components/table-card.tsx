@@ -1,10 +1,11 @@
 import type { ComponentProps, ReactNode } from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
-type TableCardProps = {
+type TableCardName =
+  { label: string; labelledBy?: never } | { labelledBy: string; label?: never }
+
+type TableCardProps = TableCardName & {
   minWidth: number | string
-  label?: string
-  labelledBy?: string
   children: ReactNode
   className?: string
 }

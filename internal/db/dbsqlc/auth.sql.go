@@ -123,11 +123,16 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (GetSess
 
 const touchUserSeen = `-- name: TouchUserSeen :exec
 UPDATE users SET last_seen_at = now()
-WHERE id = $1 AND last_seen_at < now() - interval '1 minute'
+WHERE id = $1 AND last_seen_at < now() - $2::interval
 `
 
-func (q *Queries) TouchUserSeen(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, touchUserSeen, id)
+type TouchUserSeenParams struct {
+	ID     pgtype.UUID
+	MinAge pgtype.Interval
+}
+
+func (q *Queries) TouchUserSeen(ctx context.Context, arg TouchUserSeenParams) error {
+	_, err := q.db.Exec(ctx, touchUserSeen, arg.ID, arg.MinAge)
 	return err
 }
 

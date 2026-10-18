@@ -1,62 +1,64 @@
-import { useSyncExternalStore } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 
-import { formatDateTime, formatShortRelative } from "@/lib/time"
+import {
+  formatDateTime,
+  formatShortRelative,
+  isSubMinuteOffset,
+  relativeTickMs,
+} from "@/lib/time"
 
-type Clock = {
-  subscribe: (listener: () => void) => () => void
-  getSnapshot: () => number
+const listeners = new Set<() => void>()
+let now = Date.now()
+let fastCount = 0
+let timer: ReturnType<typeof setInterval> | undefined
+
+function schedule() {
+  clearInterval(timer)
+  timer = undefined
+  if (listeners.size === 0) return
+  timer = setInterval(() => {
+    now = Date.now()
+    for (const notify of listeners) notify()
+  }, relativeTickMs(fastCount))
 }
 
-const clocks = new Map<number, Clock>()
-
-function createClock(intervalMs: number): Clock {
-  const listeners = new Set<() => void>()
-  let now = Date.now()
-  let timer: ReturnType<typeof setInterval> | undefined
-  return {
-    subscribe(listener) {
-      listeners.add(listener)
-      if (listeners.size === 1) {
-        now = Date.now()
-        timer = setInterval(() => {
-          now = Date.now()
-          for (const notify of listeners) notify()
-        }, intervalMs)
-      }
-      return () => {
-        listeners.delete(listener)
-        if (listeners.size === 0) {
-          clearInterval(timer)
-          timer = undefined
-        }
-      }
-    },
-    getSnapshot: () => now,
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  now = Date.now()
+  if (listeners.size === 1) schedule()
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0) schedule()
   }
 }
 
-function clockFor(intervalMs: number): Clock {
-  let clock = clocks.get(intervalMs)
-  if (!clock) {
-    clock = createClock(intervalMs)
-    clocks.set(intervalMs, clock)
-  }
-  return clock
+function getSnapshot() {
+  return now
 }
 
-export function useNow(intervalMs = 30_000): number {
-  const { subscribe, getSnapshot } = clockFor(intervalMs)
+function requestFastTick() {
+  fastCount += 1
+  if (fastCount === 1) schedule()
+  return () => {
+    fastCount -= 1
+    if (fastCount === 0) schedule()
+  }
+}
+
+export function useNow(): number {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }
 
 type Props = { iso: string | null; fallback?: string }
 
 export function RelativeTime({ iso, fallback = "Never" }: Props) {
-  const now = useNow()
+  const current = useNow()
+  const fast = iso !== null && isSubMinuteOffset(iso, current)
+  useEffect(() => (fast ? requestFastTick() : undefined), [fast])
   if (iso === null) return <>{fallback}</>
   return (
     <time dateTime={iso} title={formatDateTime(iso)}>
-      {formatShortRelative(iso, now)}
+      {formatShortRelative(iso, current)}
     </time>
   )
 }

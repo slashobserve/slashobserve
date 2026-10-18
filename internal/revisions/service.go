@@ -86,7 +86,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		CommentID:        p.CommentID,
 		Prompt:           p.Prompt,
 		PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
-		BaseVersion:      toInt32(p.BaseVersion),
+		BaseVersion:      httpapi.Int32(p.BaseVersion),
 		RequestedByKind:  string(p.By.Kind),
 		RequestedByID:    requesterID,
 		RequestedByName:  p.By.Name,
@@ -199,7 +199,7 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
-	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: toInt32(limit + 1)}
+	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: httpapi.Int32(limit + 1)}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -277,7 +277,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		var err error
 		if o.version != nil {
 			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
-				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: toInt32(*o.version), RunUsage: usage,
+				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
 			})
 		} else {
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{

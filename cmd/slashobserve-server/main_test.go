@@ -121,3 +121,24 @@ func TestUnknownExitErrorIsReportedByTypeOnly(t *testing.T) {
 	record, logs := logExit(t, errors.New("dial tcp 10.1.2.3:5432: secret"))
 	logs.AssertSafeFailure(t, record, "internal", "10.1.2.3", "secret")
 }
+
+func TestReportedEffortIsOnlyAnAnthropicSetting(t *testing.T) {
+	tests := []struct {
+		provider string
+		effort   string
+		want     string
+	}{
+		{config.LLMProviderAnthropic, "high", "high"},
+		{config.LLMProviderAnthropic, "", ""},
+		{config.LLMProviderOpenAI, "medium", ""},
+		{config.LLMProviderReplay, "medium", ""},
+		{"", "medium", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.provider+"/"+tt.effort, func(t *testing.T) {
+			if got := reportedEffort(config.LLM{Provider: tt.provider, Effort: tt.effort}); got != tt.want {
+				t.Fatalf("reportedEffort = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

@@ -15,7 +15,7 @@ WHERE s.token_hash = $1 AND s.expires_at > now();
 
 -- name: TouchUserSeen :exec
 UPDATE users SET last_seen_at = now()
-WHERE id = $1 AND last_seen_at < now() - interval '1 minute';
+WHERE id = @id AND last_seen_at < now() - @min_age::interval;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE token_hash = $1;

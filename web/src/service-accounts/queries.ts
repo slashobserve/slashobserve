@@ -6,7 +6,7 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, NetworkError, unwrap } from "@/api/errors"
-import { instanceKeys, serviceAccountKeys } from "@/api/keys"
+import { serviceAccountKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import { sentence } from "@/observe/queries"
 
@@ -15,9 +15,6 @@ export type ServiceAccount =
 
 export type ServiceAccountKey =
   paths["/service-accounts/{id}/keys"]["get"]["responses"][200]["content"]["application/json"]["items"][number]
-
-export type Instance =
-  paths["/instance"]["get"]["responses"][200]["content"]["application/json"]
 
 export function serviceAccountsQuery() {
   return queryOptions({
@@ -39,14 +36,6 @@ export function serviceAccountKeysQuery(accountId: string) {
         })
         .then(unwrap),
     select: (data) => data.items,
-  })
-}
-
-export function instanceQuery() {
-  return queryOptions({
-    queryKey: instanceKeys.info(),
-    queryFn: ({ signal }) => api.GET("/instance", { signal }).then(unwrap),
-    staleTime: Infinity,
   })
 }
 

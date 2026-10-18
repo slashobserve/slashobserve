@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,6 +45,13 @@ func DecodeBody(c *gin.Context, dst any, limit int64) bool {
 	}
 	AbortError(c, http.StatusBadRequest, "invalid_request", "request body must be valid JSON with known fields")
 	return false
+}
+
+func Int32(n int) int32 {
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		panic("httpapi: integer outside the int32 range")
+	}
+	return int32(n)
 }
 
 func Caller(c *gin.Context) auth.Principal {

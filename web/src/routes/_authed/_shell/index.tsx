@@ -2,14 +2,19 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useId } from "react"
 
 import { DashboardList } from "@/dashboards/dashboard-list"
+import { useDocumentTitle } from "@/lib/document-title"
 import { PromptBar } from "@/observe/prompt-bar"
 
-export const Route = createFileRoute("/_authed/")({ component: Home })
+export const Route = createFileRoute("/_authed/_shell/")({
+  staticData: { crumbs: [{ label: "Observe" }] },
+  component: Home,
+})
 
 function Home() {
+  useDocumentTitle("Observe - SlashObserve")
   const headingId = useId()
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
+    <div className="mx-auto w-full max-w-5xl">
       <header className="mb-6 flex flex-col gap-1">
         <h1 id={headingId} className="text-2xl font-semibold">
           Dashboards
@@ -20,6 +25,6 @@ function Home() {
       </header>
       <PromptBar />
       <DashboardList labelledBy={headingId} />
-    </main>
+    </div>
   )
 }

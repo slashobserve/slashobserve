@@ -1,5 +1,5 @@
 import { CopyButton } from "@/components/copy-button"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 type Props = { code: string; label: string; wrap: boolean }
 

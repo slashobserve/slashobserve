@@ -10,7 +10,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient

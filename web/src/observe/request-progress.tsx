@@ -9,7 +9,7 @@ import { dashboardKeys } from "@/api/keys"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
   isTerminal,
@@ -286,27 +286,30 @@ function Stalled({
 
 function RequestNotFound({ removed }: { removed: boolean }) {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 text-center">
       <h1 className="text-2xl font-semibold">Request not found</h1>
       <p className="text-sm text-muted-foreground">
         {removed
           ? "This request no longer exists."
           : "This request does not exist."}
       </p>
-      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+      <Link
+        to="/dashboards"
+        className={cn(buttonVariants({ variant: "outline" }))}
+      >
         Back to dashboards
       </Link>
-    </main>
+    </div>
   )
 }
 
 function ProgressSkeleton() {
   return (
-    <main aria-busy className="mx-auto w-full max-w-5xl p-6">
+    <div aria-busy className="mx-auto w-full max-w-5xl">
       <Skeleton className="h-8 w-2/3" />
       <Skeleton className="mt-1 h-5 w-24" />
       <Skeleton className="mt-6 h-24 w-full" />
-    </main>
+    </div>
   )
 }
 
@@ -354,7 +357,7 @@ export function RequestProgress({ requestId }: { requestId: string }) {
   if (request === undefined) {
     if (query.isError) {
       return (
-        <main className="mx-auto w-full max-w-5xl p-6">
+        <div className="mx-auto w-full max-w-5xl">
           <Alert variant="destructive">
             <AlertTitle>Could not load this request</AlertTitle>
             <AlertDescription>
@@ -367,14 +370,14 @@ export function RequestProgress({ requestId }: { requestId: string }) {
               </RetryButton>
             </AlertDescription>
           </Alert>
-        </main>
+        </div>
       )
     }
     return <ProgressSkeleton />
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
+    <div className="mx-auto w-full max-w-5xl">
       <header className="mb-6 flex flex-col gap-1">
         <PromptHeading prompt={request.prompt} />
         <p className="text-sm text-muted-foreground tabular-nums">
@@ -405,6 +408,6 @@ export function RequestProgress({ requestId }: { requestId: string }) {
           reconnecting={reconnecting}
         />
       </div>
-    </main>
+    </div>
   )
 }

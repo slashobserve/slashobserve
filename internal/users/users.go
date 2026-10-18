@@ -2,7 +2,6 @@ package users
 
 import (
 	"log/slog"
-	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,25 +38,18 @@ type listJSON struct {
 
 type Handler struct {
 	db     *db.DB
+	auth   *auth.Service
 	logger *slog.Logger
 }
 
-func NewHandler(database *db.DB, logger *slog.Logger) *Handler {
-	return &Handler{db: database, logger: logger}
+func NewHandler(database *db.DB, authService *auth.Service, logger *slog.Logger) *Handler {
+	return &Handler{db: database, auth: authService, logger: logger}
 }
 
 func (h *Handler) Register(api *gin.RouterGroup) {
-	g := api.Group("/users", requireUser)
+	g := api.Group("/users", auth.RequireUser)
 	g.GET("", h.list)
 	g.DELETE("/:id/sessions", h.signOut)
-}
-
-func requireUser(c *gin.Context) {
-	if httpapi.Caller(c).Kind != auth.KindUser {
-		httpapi.AbortError(c, http.StatusForbidden, "forbidden", "service accounts cannot manage people")
-		return
-	}
-	c.Next()
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -70,9 +62,9 @@ func (h *Handler) list(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "invalid cursor")
 		return
 	}
-	params := dbsqlc.ListUsersParams{RowLimit: toInt32(limit + 1)}
+	params := dbsqlc.ListUsersParams{RowLimit: httpapi.Int32(limit + 1)}
 	if after != nil {
-		params.CursorSeenAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
 	}
 	ctx := c.Request.Context()
@@ -86,7 +78,7 @@ func (h *Handler) list(c *gin.Context) {
 	if len(rows) > limit {
 		rows = rows[:limit]
 		last := rows[limit-1]
-		next := httpapi.EncodeTimeCursor(last.LastSeenAt.Time, last.ID.String())
+		next := httpapi.EncodeTimeCursor(last.CreatedAt.Time, last.ID.String())
 		body.NextCursor = &next
 	}
 	for _, r := range rows {
@@ -131,12 +123,8 @@ func (h *Handler) signOut(c *gin.Context) {
 		return
 	}
 	h.logger.InfoContext(ctx, "signed a person out everywhere", slog.String("actor_id", caller.ID), slog.String("user_id", id.String()), slog.Int64("sessions", n))
-	c.Status(http.StatusNoContent)
-}
-
-func toInt32(n int) int32 {
-	if n < math.MinInt32 || n > math.MaxInt32 {
-		panic("users: integer outside the int32 range")
+	if id.String() == caller.ID {
+		h.auth.ClearSessionCookie(c)
 	}
-	return int32(n)
+	c.Status(http.StatusNoContent)
 }

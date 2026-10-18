@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -323,5 +324,36 @@ func TestCommentIsNotCreatedWhenTheDashboardIsFull(t *testing.T) {
 	}
 	if _, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "plain note", false); err != nil {
 		t.Fatalf("a comment that asks for no revision is not capped: %v", err)
+	}
+}
+
+func TestPeopleCountDashboardsSavedByTheirAgentRequests(t *testing.T) {
+	r := newRig(t, true)
+	user, err := r.db.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "i", OidcSubject: "s", Email: "ada@example.com", Name: "Ada"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	person := auth.Principal{Kind: auth.KindUser, ID: user.ID.String(), Name: "Ada", Email: "ada@example.com"}
+	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci"}
+
+	if _, _, err := r.service.Create(t.Context(), person, panelsSpec("by hand", "rps"), "create"); err != nil {
+		t.Fatal(err)
+	}
+	for _, requester := range []auth.Principal{person, key} {
+		request, err := r.revisions.SubmitObserve(t.Context(), requester, "show checkout")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := r.service.CreateRequestDashboard(t.Context(), requester, panelsSpec("by agent", "rps"), "create", request.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rows, err := r.db.Queries().ListUsers(t.Context(), dbsqlc.ListUsersParams{RowLimit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].DashboardCount != 2 {
+		t.Fatalf("dashboard_count = %+v, want 2: the one saved by hand and the one saved by the person's agent request, not the key's", rows)
 	}
 }

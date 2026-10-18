@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 	"unicode"
@@ -138,13 +137,6 @@ func forbiddenRune(r rune) bool {
 	default:
 		return r >= '\u202a' && r <= '\u202e' || r >= '\u2066' && r <= '\u2069'
 	}
-}
-
-func toInt32(n int) int32 {
-	if n < math.MinInt32 || n > math.MaxInt32 {
-		panic("revisions: integer outside the int32 range")
-	}
-	return int32(n)
 }
 
 func truncateError(message string) string {

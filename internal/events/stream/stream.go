@@ -20,32 +20,39 @@ import (
 )
 
 const (
-	pingInterval       = 15 * time.Second
-	maxStreamLifetime  = 30 * time.Minute
-	retryMilliseconds  = 3000
-	maxStreamsPerUser  = 20
-	maxStreamsPerProc  = 1000
-	uuidTextBytes      = 36
-	eventStreamContent = "text/event-stream"
-	writeTimeout       = 30 * time.Second
+	pingInterval        = 15 * time.Second
+	maxStreamLifetime   = 30 * time.Minute
+	retryMilliseconds   = 3000
+	maxStreamsPerUser   = 20
+	maxStreamsPerProc   = 1000
+	uuidTextBytes       = 36
+	eventStreamContent  = "text/event-stream"
+	writeTimeout        = 30 * time.Second
+	sessionCheckTimeout = 5 * time.Second
 )
 
 type Dashboards interface {
 	LatestVersion(ctx context.Context, id pgtype.UUID) (int, error)
 }
 
+type Sessions interface {
+	Valid(r *http.Request) (bool, error)
+}
+
 type Handler struct {
-	broker     *events.Broker
-	dashboards Dashboards
-	logger     *slog.Logger
+	broker       *events.Broker
+	dashboards   Dashboards
+	sessions     Sessions
+	logger       *slog.Logger
+	pingInterval time.Duration
 
 	mu          sync.Mutex
 	total       int
 	byPrincipal map[string]int
 }
 
-func NewHandler(b *events.Broker, d Dashboards, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, logger: logger, byPrincipal: map[string]int{}}
+func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, logger *slog.Logger) *Handler {
+	return &Handler{broker: b, dashboards: d, sessions: sessions, logger: logger, pingInterval: pingInterval, byPrincipal: map[string]int{}}
 }
 
 func (h *Handler) Register(api *gin.RouterGroup) {
@@ -99,7 +106,7 @@ func (h *Handler) serve(c *gin.Context) {
 		!writeEvent(c, "ready", readyData{DashboardID: dashboardID, LatestVersion: latest}) {
 		return
 	}
-	pump(c, sub)
+	h.pump(c, sub)
 }
 
 func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
@@ -118,8 +125,8 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	return 0, false
 }
 
-func pump(c *gin.Context, sub *events.Subscription) {
-	ping := time.NewTicker(pingInterval)
+func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
+	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
 	lifetime := time.NewTimer(maxStreamLifetime)
 	defer lifetime.Stop()
@@ -134,7 +141,7 @@ func pump(c *gin.Context, sub *events.Subscription) {
 				return
 			}
 		case <-ping.C:
-			if !write(c, ": ping\n\n") {
+			if !h.credentialsValid(c) || !write(c, ": ping\n\n") {
 				return
 			}
 		case <-lifetime.C:
@@ -145,6 +152,19 @@ func pump(c *gin.Context, sub *events.Subscription) {
 			return
 		}
 	}
+}
+
+func (h *Handler) credentialsValid(c *gin.Context) bool {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
+	defer cancel()
+	ok, err := h.sessions.Valid(c.Request.WithContext(ctx))
+	if err != nil {
+		if c.Request.Context().Err() == nil {
+			h.logger.WarnContext(c.Request.Context(), "re-check event stream credentials", logattrs.Failure("stream_auth_check_failed", err)...)
+		}
+		return c.Request.Context().Err() == nil
+	}
+	return ok
 }
 
 func (h *Handler) acquire(key string) (int, string) {

@@ -22,6 +22,11 @@ describe("dashboardKeys", () => {
     ).toBe(false)
   })
 
+  test("titles and the list do not contain each other", () => {
+    expect(isPrefix(dashboardKeys.list(), dashboardKeys.titles())).toBe(false)
+    expect(isPrefix(dashboardKeys.titles(), dashboardKeys.list())).toBe(false)
+  })
+
   test("version, panel and variable keys share the version prefix", () => {
     const params = { selections: {} }
     const version = dashboardKeys.version("d1", 3)

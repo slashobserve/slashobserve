@@ -1,7 +1,14 @@
 import type { APIRequestContext, Page } from "@playwright/test"
 
-import { createDashboard, loadSpec, uniqueTitle } from "./api"
-import { openDashboard } from "./dashboards"
+import {
+  createDashboard,
+  createServiceAccount,
+  createServiceAccountKey,
+  loadSpec,
+  uniqueAccountName,
+  uniqueTitle,
+} from "./api"
+import { expectPanelsReady, openDashboard } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 async function createPrimitivesDashboard(request: APIRequestContext) {
@@ -78,4 +85,52 @@ test("menus stay flat in dark mode", async ({ page, request }) => {
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
 
   await expectFlatMenu(page)
+})
+
+test("a focused multi-value variable control has a 2px brand ring", async ({
+  page,
+  request,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" })
+  const id = await createPrimitivesDashboard(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const input = page.getByRole("combobox", { name: "Pod" })
+  await expect(input).toBeEnabled()
+  const chips = page
+    .locator('[data-slot="combobox-chips"]')
+    .filter({ has: input })
+  await input.focus()
+  await expect(input).toBeFocused()
+  await expect
+    .poll(() => chips.evaluate((el) => getComputedStyle(el).boxShadow))
+    .toContain("42, 120, 214")
+  const shadow = await chips.evaluate((el) => getComputedStyle(el).boxShadow)
+  expect(shadow).toContain("0px 0px 0px 2px")
+})
+
+test("a destructive button focused by keyboard shows the brand ring", async ({
+  page,
+  request,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" })
+  const account = await createServiceAccount(request, uniqueAccountName())
+  await createServiceAccountKey(request, account.id, "ci")
+  await page.goto("/settings/keys")
+  await page
+    .getByRole("button", { name: `Revoke key ci for ${account.name}` })
+    .click()
+  const confirm = page.getByRole("alertdialog", { name: "Revoke key ci?" })
+  const revoke = confirm.getByRole("button", {
+    name: "Revoke key",
+    exact: true,
+  })
+  await revoke.focus()
+  await page.keyboard.press("Shift+Tab")
+  await page.keyboard.press("Tab")
+  await expect(revoke).toBeFocused()
+  await expect
+    .poll(() => revoke.evaluate((el) => getComputedStyle(el).boxShadow))
+    .toContain("42, 120, 214")
 })
