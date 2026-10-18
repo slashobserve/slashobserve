@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedObserveRequestIdRouteImport } from './routes/_authed/observe/$requestId'
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
+import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -40,17 +41,25 @@ const AuthedDashboardsDashboardIdIndexRoute =
     path: '/dashboards/$dashboardId/',
     getParentRoute: () => AuthedRoute,
   } as any)
+const AuthedDashboardsDashboardIdVersionsRoute =
+  AuthedDashboardsDashboardIdVersionsRouteImport.update({
+    id: '/dashboards/$dashboardId/versions',
+    path: '/dashboards/$dashboardId/versions',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthedIndexRoute
   '/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRoutesById {
@@ -59,20 +68,31 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/observe/$requestId': typeof AuthedObserveRequestIdRoute
+  '/_authed/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/observe/$requestId' | '/dashboards/$dashboardId/'
+    | '/'
+    | '/login'
+    | '/observe/$requestId'
+    | '/dashboards/$dashboardId/versions'
+    | '/dashboards/$dashboardId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/observe/$requestId' | '/dashboards/$dashboardId'
+  to:
+    | '/login'
+    | '/'
+    | '/observe/$requestId'
+    | '/dashboards/$dashboardId/versions'
+    | '/dashboards/$dashboardId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/'
     | '/_authed/observe/$requestId'
+    | '/_authed/dashboards/$dashboardId/versions'
     | '/_authed/dashboards/$dashboardId/'
   fileRoutesById: FileRoutesById
 }
@@ -118,18 +138,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedDashboardsDashboardIdIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/dashboards/$dashboardId/versions': {
+      id: '/_authed/dashboards/$dashboardId/versions'
+      path: '/dashboards/$dashboardId/versions'
+      fullPath: '/dashboards/$dashboardId/versions'
+      preLoaderRoute: typeof AuthedDashboardsDashboardIdVersionsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedObserveRequestIdRoute: typeof AuthedObserveRequestIdRoute
+  AuthedDashboardsDashboardIdVersionsRoute: typeof AuthedDashboardsDashboardIdVersionsRoute
   AuthedDashboardsDashboardIdIndexRoute: typeof AuthedDashboardsDashboardIdIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedObserveRequestIdRoute: AuthedObserveRequestIdRoute,
+  AuthedDashboardsDashboardIdVersionsRoute:
+    AuthedDashboardsDashboardIdVersionsRoute,
   AuthedDashboardsDashboardIdIndexRoute: AuthedDashboardsDashboardIdIndexRoute,
 }
 

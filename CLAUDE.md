@@ -172,6 +172,7 @@ Directories are created when their phase starts; this is where things go.
 - Each open dashboard holds one `EventSource` (`useDashboardEvents`); events only invalidate TanStack Query keys (never write server data into stores), and `ready` and `resync` refetch whatever is stale.
   Fatal stream errors re-check the session and reconnect with jittered backoff, and every third consecutive failure also refetches the dashboard so a deleted one shows not found.
   The indicator shows "Reconnecting" only after 2 seconds, version toasts skip a save this tab is still sending (a mutation under `dashboardKeys.saves`) and are dismissed with the page, and hidden tabs drop the stream after 5 minutes.
+- Version history lives at `/dashboards/$dashboardId/versions?from=&to=`; the browser never computes diffs, it groups the server's `pkg/spec.Diff` changes with `groupChanges`.
 
 ## Dependencies
 

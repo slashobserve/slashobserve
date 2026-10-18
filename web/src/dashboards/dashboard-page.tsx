@@ -8,10 +8,14 @@ import {
   type ReactNode,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { HistoryIcon } from "lucide-react"
 
 import type { Selections } from "@/api/keys"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { refreshToMs } from "@/lib/time"
+import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
 import type { Panel } from "@/spec"
@@ -210,6 +214,15 @@ function DashboardView({
       status={liveStatus}
       pinned={search.version !== undefined}
     />,
+    <Link
+      key="history"
+      to="/dashboards/$dashboardId/versions"
+      params={{ dashboardId }}
+      className={cn(buttonVariants({ variant: "outline" }))}
+    >
+      <HistoryIcon data-icon="inline-start" />
+      History
+    </Link>,
   ]
 
   return (
