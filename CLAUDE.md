@@ -158,6 +158,11 @@ Directories are created when their phase starts; this is where things go.
   While a variable's values reload, its control keeps the last values visible but disabled with a spinner, and it shows no selected value unless the URL or All supplies one when the parents changed; the hook keeps the last loaded values itself because `useQueries` does not carry data across keys.
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal; panels fetch once they scroll near the viewport.
 - Panel renderers implement `PanelRendererProps` in `web/src/panels/types.ts` and are registered only in `web/src/panels/index.tsx`; panel states are exposed as `data-state` on the panel `article` for tests.
+- Timeseries panels use one uPlot instance per panel, re-created only when series identity, units, thresholds or theme change, with `cursor.sync.key` set to the dashboard id.
+  Data refreshes call `setData`.
+- Series colors come from `--series-1..8` in a fixed order and stick to a series key for the panel's lifetime; series past eight reuse hues with dash patterns.
+- Threshold states always pair the threshold color with an icon and a word, and expose `data-threshold` for tests.
+- Values that appear together (a table column, stat tiles, bargauge rows, tooltip rows, axis ticks) share one decimal count from `commonDecimals` in `web/src/lib/units.ts`, so `2.40` and `2.45` never mix with `2.4`.
 - Browser specs create their own dashboards through `web/e2e/api.ts` with `uniqueTitle`, from Specs in `web/e2e/data/`.
 - Theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`; chart colors use the `--series-1..8` and `--threshold-*` tokens in `web/src/index.css`, never ad-hoc hex values.
 - Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels (monospace is only for query text, JSON values and ids), pill-shaped buttons, gradients, heavy drop shadows, colored left-border callouts, uppercase eyebrow labels, emoji, and chart animations.
