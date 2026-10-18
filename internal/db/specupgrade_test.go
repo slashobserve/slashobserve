@@ -194,20 +194,55 @@ func TestUpgradeStoredSpecsPages(t *testing.T) {
 
 func TestUpgradeStoredSpecsFailsLoudly(t *testing.T) {
 	d := dbtest.New(t)
-	seedDashboard(t, d, dashboardA, 1)
+	seedDashboard(t, d, dashboardA, 2)
+	legacy := readUpgradeFile(t, "legacy/minimal.json")
 	const broken = `{"timeRange": {}, "time": {}}`
-	seedVersion(t, d, dashboardA, 1, broken)
+	seedVersion(t, d, dashboardA, 1, legacy)
+	seedVersion(t, d, dashboardA, 2, broken)
 	sqlDB := d.SQLDB(t)
 
 	err := runUpgrade(t, sqlDB)
 	if err == nil {
 		t.Fatal("UpgradeStoredSpecs succeeded on an ambiguous spec")
 	}
+	if !strings.Contains(err.Error(), dashboardA) || !strings.Contains(err.Error(), " version 2") {
+		t.Errorf("error %q does not name the dashboard and version", err)
+	}
+	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 2)); !reflect.DeepEqual(got, decodeJSON(t, broken)) {
+		t.Error("the broken row changed although the migration failed")
+	}
+	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 1)); !reflect.DeepEqual(got, decodeJSON(t, legacy)) {
+		t.Error("the earlier good row was upgraded although the migration failed")
+	}
+}
+
+func TestUpgradeStoredSpecsReportsNoSpecValuesWhenTheUpgradedSpecIsInvalid(t *testing.T) {
+	d := dbtest.New(t)
+	seedDashboard(t, d, dashboardA, 2)
+	legacy := readUpgradeFile(t, "legacy/minimal.json")
+	invalid := strings.Replace(legacy, `"now-15m"`, `"SECRET-not-a-time"`, 1)
+	if invalid == legacy {
+		t.Fatal("the legacy fixture no longer carries the time range the test rewrites")
+	}
+	seedVersion(t, d, dashboardA, 1, invalid)
+	seedVersion(t, d, dashboardA, 2, legacy)
+	sqlDB := d.SQLDB(t)
+
+	err := runUpgrade(t, sqlDB)
+	if err == nil {
+		t.Fatal("UpgradeStoredSpecs succeeded although the upgraded spec is invalid")
+	}
 	if !strings.Contains(err.Error(), dashboardA) || !strings.Contains(err.Error(), " version 1") {
 		t.Errorf("error %q does not name the dashboard and version", err)
 	}
-	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 1)); !reflect.DeepEqual(got, decodeJSON(t, broken)) {
-		t.Error("the row changed although the migration failed")
+	if strings.Contains(err.Error(), "SECRET") {
+		t.Errorf("error %q leaks spec content", err)
+	}
+	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 1)); !reflect.DeepEqual(got, decodeJSON(t, invalid)) {
+		t.Error("the invalid row changed although the migration failed")
+	}
+	if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, 2)); !reflect.DeepEqual(got, decodeJSON(t, legacy)) {
+		t.Error("the legacy row changed although the migration failed")
 	}
 }
 

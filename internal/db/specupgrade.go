@@ -89,7 +89,7 @@ func upgradeStoredSpec(ctx context.Context, tx *sql.Tx, row storedSpec) error {
 		return nil
 	}
 	if _, err := spec.Parse(out); err != nil {
-		return fmt.Errorf("parse the upgraded spec of dashboard %s version %d: %w", row.dashboardID, row.version, err)
+		return fmt.Errorf("the upgraded spec of dashboard %s version %d is not a valid Spec: %s", row.dashboardID, row.version, describeParseFailure(err))
 	}
 	result, err := tx.ExecContext(ctx,
 		`UPDATE dashboard_versions SET spec = $1::jsonb WHERE dashboard_id = $2::uuid AND version = $3`,
@@ -105,6 +105,16 @@ func upgradeStoredSpec(ctx context.Context, tx *sql.Tx, row storedSpec) error {
 		return fmt.Errorf("store the upgraded spec of dashboard %s version %d: updated %d rows, want 1", row.dashboardID, row.version, affected)
 	}
 	return nil
+}
+
+// A spec.ValidationError message quotes spec values, which must not reach the server log, so only counts, paths and codes are reported.
+func describeParseFailure(err error) string {
+	var invalid *spec.ValidationError
+	if !errors.As(err, &invalid) || len(invalid.Issues) == 0 {
+		return "the Spec could not be parsed"
+	}
+	first := invalid.Issues[0]
+	return fmt.Sprintf("%d issue(s), the first at path %q with code %s", len(invalid.Issues), first.Path, first.Code)
 }
 
 func refuseDown(context.Context, *sql.Tx) error {
