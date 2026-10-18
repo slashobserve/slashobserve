@@ -91,3 +91,29 @@ test("switches the theme from the keyboard", async ({ page }) => {
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   await expect(toggle).toBeFocused()
 })
+
+test("matches the system theme from Settings", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.goto("/settings")
+  const html = page.locator("html")
+  await expect(html).toHaveClass(/\bdark\b/)
+  const theme = page.getByRole("combobox", { name: "Theme" })
+  await expect(theme).toContainText("Match the system")
+  const stored = () =>
+    page.evaluate(() => localStorage.getItem("slashobserve-theme"))
+
+  await theme.click()
+  await page.getByRole("option", { name: "Light", exact: true }).click()
+  await expect(html).not.toHaveClass(/\bdark\b/)
+  expect(await stored()).toBe("light")
+
+  await theme.click()
+  await page
+    .getByRole("option", { name: "Match the system", exact: true })
+    .click()
+  await expect(html).toHaveClass(/\bdark\b/)
+  expect(await stored()).toBeNull()
+
+  await page.getByRole("button", { name: "Switch theme" }).click()
+  await expect(html).not.toHaveClass(/\bdark\b/)
+})
