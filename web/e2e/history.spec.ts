@@ -7,6 +7,9 @@ import { expect, test } from "./fixtures"
 const simplifiedQuery =
   'sum(rate(http_requests_total{service="checkout"}[$__rate_interval]))'
 
+const byPodQuery =
+  'sum by (pod) (rate(http_requests_total{service="checkout"}[$__rate_interval]))'
+
 async function createHistory(request: APIRequestContext) {
   const spec = loadSpec("overview")
   spec.title = uniqueTitle("E2E history")
@@ -15,7 +18,13 @@ async function createHistory(request: APIRequestContext) {
   await addVersion(request, id, renamed, 1, "Rename")
   const panels = renamed.panels.map((panel) =>
     panel.id === "rps"
-      ? { ...panel, queries: [{ query: simplifiedQuery }] }
+      ? {
+          ...panel,
+          queries: [
+            { query: simplifiedQuery },
+            { query: byPodQuery, legend: "per pod" },
+          ],
+        }
       : panel
   )
   const simplified = { ...renamed, panels }
@@ -111,12 +120,20 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   })
   await expect(panelGroup.getByText("Changed")).toBeVisible()
   await expect(panelGroup.getByText("queries", { exact: true })).toBeVisible()
-  await expect(panelGroup.getByRole("group", { name: "Before" })).toContainText(
-    "sum by (pod)"
+  const before = panelGroup.getByRole("group", { name: "Before", exact: true })
+  const after = panelGroup.getByRole("group", { name: "After", exact: true })
+  await expect(before).toContainText("sum by (pod)")
+  await expect(before).toContainText("legend: {{pod}}")
+  await expect(before.getByText("Query A", { exact: true })).toBeVisible()
+  await expect(before).not.toContainText('"query":')
+  await expect(after).toContainText(simplifiedQuery)
+  await expect(after.getByText("Query A", { exact: true })).toBeVisible()
+  await expect(after.getByText("Query B", { exact: true })).toBeVisible()
+  await expect(after.getByText("legend: per pod")).toBeVisible()
+  await expect(after.getByRole("group", { name: "Query B" })).toContainText(
+    byPodQuery
   )
-  await expect(panelGroup.getByRole("group", { name: "After" })).toContainText(
-    simplifiedQuery
-  )
+  await expect(after).not.toContainText('"query":')
 
   await page.getByRole("combobox", { name: "From" }).click()
   await page.getByRole("option", { name: "v1", exact: true }).click()

@@ -31,6 +31,12 @@ import {
   type GroupedChange,
   type TitleMaps,
 } from "./diff-groups"
+import {
+  formatValue,
+  limitBlocks,
+  shouldLabelQueries,
+  type ValueBlock,
+} from "./diff-values"
 import { useVersionHistory } from "./use-version-history"
 
 type Props = {
@@ -153,35 +159,50 @@ function VersionSelect({
   )
 }
 
-function formatValue(value: unknown, titles: TitleMaps, reorder: boolean) {
-  if (reorder && Array.isArray(value)) {
-    return value
-      .map((item, index) => {
-        const id = String(item)
-        const title =
-          (Object.hasOwn(titles.to, id) ? titles.to[id] : undefined) ??
-          (Object.hasOwn(titles.from, id) ? titles.from[id] : undefined) ??
-          id
-        return `${index + 1}. ${title}`
-      })
-      .join("\n")
-  }
-  if (typeof value === "string") return value
-  if (value === undefined) return ""
-  return JSON.stringify(value, null, 2) ?? ""
+function BlockView({ block }: { block: ValueBlock }) {
+  const labelId = useId()
+  return (
+    <div
+      role={block.label ? "group" : undefined}
+      aria-labelledby={block.label ? labelId : undefined}
+    >
+      {block.label ? (
+        <p id={labelId} className="px-2.5 pt-1.5 text-xs text-muted-foreground">
+          {block.label}
+        </p>
+      ) : null}
+      <pre
+        tabIndex={0}
+        className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {block.text === "" ? (
+          <span className="font-sans text-muted-foreground">(empty)</span>
+        ) : (
+          block.text
+        )}
+      </pre>
+      {block.options !== "" ? (
+        <p className="px-2.5 pb-1.5 text-xs wrap-anywhere text-muted-foreground">
+          {block.options}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 function ValueBox({
   caption,
   tone,
-  text,
+  blocks,
 }: {
   caption: "Before" | "After"
   tone: "before" | "after"
-  text: string
+  blocks: ValueBlock[]
 }) {
   const [expanded, setExpanded] = useState(false)
-  const cut = !expanded && text.length > valueLimit
+  const limited = limitBlocks(blocks, valueLimit)
+  const cutAll = !expanded && limited.cut
+  const shown = cutAll ? limited.blocks : blocks
   return (
     <div
       role="group"
@@ -192,19 +213,10 @@ function ValueBox({
       )}
     >
       <p className="px-2.5 pt-1.5 text-xs font-medium">{caption}</p>
-      <pre
-        tabIndex={0}
-        className="max-h-64 overflow-auto px-2.5 py-1.5 font-mono text-xs break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {text === "" ? (
-          <span className="font-sans text-muted-foreground">(empty)</span>
-        ) : cut ? (
-          `${text.slice(0, valueLimit)}...`
-        ) : (
-          text
-        )}
-      </pre>
-      {cut ? (
+      {shown.map((block, index) => (
+        <BlockView key={index} block={block} />
+      ))}
+      {cutAll ? (
         <Button
           variant="ghost"
           size="xs"
@@ -230,6 +242,12 @@ function ChangeRow({
   const showBefore =
     change.op === "replace" || change.op === "remove" || reorder
   const showAfter = change.op === "replace" || change.op === "add" || reorder
+  const labelQueries = shouldLabelQueries(
+    change.field,
+    reorder,
+    change.from,
+    change.to
+  )
   return (
     <li className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -253,14 +271,26 @@ function ChangeRow({
           <ValueBox
             caption="Before"
             tone="before"
-            text={formatValue(change.from, titles, reorder)}
+            blocks={formatValue(
+              change.field,
+              change.from,
+              titles,
+              reorder,
+              labelQueries
+            )}
           />
         ) : null}
         {showAfter ? (
           <ValueBox
             caption="After"
             tone="after"
-            text={formatValue(change.to, titles, reorder)}
+            blocks={formatValue(
+              change.field,
+              change.to,
+              titles,
+              reorder,
+              labelQueries
+            )}
           />
         ) : null}
       </div>
