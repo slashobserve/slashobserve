@@ -185,6 +185,9 @@ Directories are created when their phase starts; this is where things go.
   Saving a Spec that has vertical gaps compacts it to the layout the user saw.
   The grid renders from the session's base Spec while editing, so a version that arrives over the event stream never moves panels.
   Every panel's move handle also moves (arrow keys) and resizes (Shift and arrow keys) it, and vertical moves step past the neighbouring panel because the grid compacts upward.
+- The query editor (`web/src/query-editor`) is lazy-loaded CodeMirror with `classHighlighter` tokens styled in `query-editor.css`; lint comes only from `POST /api/v1/datasources/{uid}/lint`, whose byte offsets go through `byteRangeToIndices`, and codemirror-promql never gets a `remote` (the browser never calls a datasource).
+- Panel inspector views open from the URL (`panel` + `tab`) in `web/src/dashboards/panel-inspector.tsx`; add a view as a tab there.
+  The query tab keeps an unsaved draft when a newer version arrives live and saves with the `parent_version` it was opened on, so a newer version turns the save button into "Apply my query to version N".
 
 ## Dependencies
 

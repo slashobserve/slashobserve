@@ -32,6 +32,7 @@ import {
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
+import { PanelInspector } from "./panel-inspector"
 import { PanelMenu } from "./panel-menu"
 import {
   asDashboardSpec,
@@ -300,6 +301,13 @@ function DashboardView({
           )}
         />
       </div>
+      <PanelInspector
+        spec={spec}
+        dashboardId={dashboardId}
+        version={version}
+        latestVersion={latestVersion}
+        pinned={search.version !== undefined}
+      />
     </main>
   )
 }

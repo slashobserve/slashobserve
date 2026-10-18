@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Panel } from "@/spec"
 
+import { useSetDashboardSearch } from "./search"
+
 type Props = {
   panel: Panel
   tableView: boolean
@@ -18,6 +20,7 @@ type Props = {
 type MenuItem = { id: string; label: string; onSelect: () => void }
 
 export function PanelMenu({ panel, tableView, onToggleTableView }: Props) {
+  const setSearch = useSetDashboardSearch()
   const items: MenuItem[] = []
   if (panel.type !== "table") {
     items.push({
@@ -26,6 +29,12 @@ export function PanelMenu({ panel, tableView, onToggleTableView }: Props) {
       onSelect: onToggleTableView,
     })
   }
+  items.push({
+    id: "edit-query",
+    label: "Edit query",
+    onSelect: () =>
+      setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
+  })
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
