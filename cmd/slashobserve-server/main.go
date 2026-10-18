@@ -134,6 +134,9 @@ func run() error {
 	})
 
 	var reviser revisions.Reviser
+	observeOpts := revisions.ObserveOptions{
+		DashboardURL: func(id string) string { return tools.DashboardURL(cfg.PublicURL, id) },
+	}
 	if llmProvider != nil {
 		reviser = agent.NewReviser(agent.New(agent.Config{
 			Provider:    llmProvider,
@@ -141,7 +144,8 @@ func run() error {
 			Dashboards:  dashboardsService,
 			Datasources: registry,
 			Logger:      logger,
-		}))
+		}), revisions.NewSteps(database, logger))
+		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 	}
 	revisionsService := revisions.NewService(database, reviser, logger)
 
@@ -160,6 +164,7 @@ func run() error {
 			stream.NewHandler(broker, dashboardsService, logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
+			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 		},
 		Mounts: []server.Mount{{

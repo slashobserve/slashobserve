@@ -18,6 +18,11 @@ const (
 	MaxAttempts    = 2
 	MaxErrorRunes  = 500
 
+	MaxActiveObservePerPrincipal = 3
+	MaxActiveObserve             = 20
+	MaxSteps                     = 100
+	MaxStepMessageRunes          = 200
+
 	WakeChannel      = "slashobserve_agent_requests"
 	ExhaustedMessage = "agent run did not finish"
 )
@@ -27,6 +32,7 @@ type Source string
 const (
 	SourceComment Source = "comment"
 	SourcePrompt  Source = "prompt"
+	SourceObserve Source = "observe"
 )
 
 type Status string
@@ -43,6 +49,9 @@ var (
 	ErrTooManyRevisions = errors.New("too many revisions are queued or running for this dashboard")
 	ErrNotFound         = errors.New("revision not found")
 	ErrInvalidCursor    = errors.New("invalid cursor")
+	ErrTooManyRequests  = errors.New("you already have 3 agent requests queued or running")
+	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
+	ErrRequestNotFound  = errors.New("agent request not found")
 )
 
 type Request struct {
@@ -52,10 +61,40 @@ type Request struct {
 	Prompt      string
 	PanelID     string
 	BaseVersion int
+	Attempt     int
 	RequestedBy auth.Principal
 }
 
-type Result struct{ Version int }
+type Result struct {
+	Version     int
+	DashboardID string
+	Usage       *Usage
+}
+
+type Usage struct {
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	InputTokens      int64  `json:"input_tokens"`
+	OutputTokens     int64  `json:"output_tokens"`
+	CacheReadTokens  int64  `json:"cache_read_tokens"`
+	CacheWriteTokens int64  `json:"cache_write_tokens"`
+	ModelCalls       int    `json:"model_calls"`
+	RepairRounds     int    `json:"repair_rounds"`
+}
+
+type Step struct {
+	At         time.Time `json:"at"`
+	Attempt    int       `json:"attempt"`
+	Phase      string    `json:"phase"`
+	Tool       string    `json:"tool"`
+	Status     string    `json:"status"`
+	Message    string    `json:"message"`
+	DurationMS int64     `json:"duration_ms"`
+}
+
+type StepRecorder interface {
+	RecordStep(ctx context.Context, req Request, s Step)
+}
 
 type Reviser interface {
 	Revise(ctx context.Context, req Request) (Result, error)

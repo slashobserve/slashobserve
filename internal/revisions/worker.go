@@ -136,7 +136,7 @@ func (w *Worker) step(ctx context.Context) (bool, error) {
 }
 
 func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool {
-	if settled, progressed := w.settleSaved(ctx, claimed, true); settled {
+	if settled, progressed := w.settleSaved(ctx, claimed, true, nil); settled {
 		return progressed
 	}
 
@@ -146,10 +146,10 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 	cancel()
 
 	if err == nil {
-		w.finish(ctx, claimed, outcome{version: &result.Version})
+		w.finish(ctx, claimed, outcome{version: &result.Version, usage: result.Usage})
 		return true
 	}
-	if settled, progressed := w.settleSaved(ctx, claimed, false); settled {
+	if settled, progressed := w.settleSaved(ctx, claimed, false, result.Usage); settled {
 		return progressed
 	}
 	switch {
@@ -158,14 +158,14 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		w.release(ctx, claimed, false)
 		return false
 	case timedOut:
-		w.finish(ctx, claimed, outcome{message: timedOutMessage})
+		w.finish(ctx, claimed, outcome{message: timedOutMessage, usage: result.Usage})
 	default:
-		w.finish(ctx, claimed, outcome{message: err.Error()})
+		w.finish(ctx, claimed, outcome{message: err.Error(), usage: result.Usage})
 	}
 	return true
 }
 
-func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, beforeRun bool) (settled, progressed bool) {
+func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, beforeRun bool, usage *Usage) (settled, progressed bool) {
 	checkCtx, cancel := finishContext(ctx)
 	defer cancel()
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
@@ -182,7 +182,7 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, b
 		w.release(ctx, claimed, true)
 		return true, false
 	case saved:
-		w.finish(ctx, claimed, outcome{version: &version})
+		w.finish(ctx, claimed, outcome{version: &version, usage: usage})
 		return true, true
 	}
 	return false, true
@@ -240,6 +240,7 @@ func requestFrom(row dbsqlc.AgentRequest) Request {
 		Prompt:      row.Prompt,
 		PanelID:     row.PanelID.String,
 		BaseVersion: int(row.BaseVersion.Int32),
+		Attempt:     int(row.Attempts),
 		RequestedBy: requesterOf(row),
 	}
 }

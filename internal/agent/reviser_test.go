@@ -33,7 +33,7 @@ func TestReviserRunsTheAgentInReviseModeForTheRequest(t *testing.T) {
 	r := newRig(t, session(toolTurn(call("c1", "update_dashboard", `{"spec":{}}`))))
 	r.tools.onSave("update_dashboard", savedResult(dashID, 4))
 
-	result, err := agent.NewReviser(r.agent).Revise(context.Background(), revisionRequest())
+	result, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
 	if err != nil || result.Version != 4 {
 		t.Fatalf("result = %+v, err %v", result, err)
 	}
@@ -90,7 +90,7 @@ func TestReviserStoresOnlyTheAgentsOwnMessages(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := agent.NewReviser(c.rig(t).agent).Revise(context.Background(), revisionRequest())
+			_, err := agent.NewReviser(c.rig(t).agent, nil).Revise(context.Background(), revisionRequest())
 			if err == nil || err.Error() != c.want {
 				t.Fatalf("err = %v, want %q", err, c.want)
 			}
@@ -105,7 +105,7 @@ func TestReviserPassesCancellationThrough(t *testing.T) {
 	r := newRig(t, session(toolTurn(call("c1", "get_spec_guide", `{}`))))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := agent.NewReviser(r.agent).Revise(ctx, revisionRequest())
+	_, err := agent.NewReviser(r.agent, nil).Revise(ctx, revisionRequest())
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}

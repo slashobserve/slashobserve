@@ -463,6 +463,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tell whether an agent is configured and which provider and model it uses.
+         * @description Clients check this before offering a prompt bar. Without a configured LLM provider `available` is false and `provider` and `model` are null.
+         */
+        get: operations["getAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.
+         * @description The request is queued and answers 202 at once; poll `GET /observe/{id}` until the status is `succeeded` or `failed`. Without `dashboard_id` the agent builds a new dashboard (`source` is `observe`); the finished request carries the new `dashboard_id` and `url`. With `dashboard_id` the agent revises that dashboard (`source` is `prompt`), exactly like `POST /dashboards/{id}/revisions`; `base_version` defaults to the dashboard's latest version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A caller may have at most 3 new-dashboard requests queued or running (429 `too_many_requests`), the instance at most 20 (429 `agent_busy`), and a dashboard at most 5 revisions (429 `too_many_revisions`). Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["createObserveRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/observe/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one agent request with its progress steps and usage.
+         * @description Works for any agent request, including comment and prompt revisions. Clients poll it once a second until the status is `succeeded` or `failed`.
+         */
+        get: operations["getObserveRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -740,6 +802,75 @@ export interface components {
         };
         RevisionEnvelope: {
             revision: components["schemas"]["Revision"];
+        };
+        AgentInfo: {
+            available: boolean;
+            /** @description The configured LLM provider, null when no agent is configured. */
+            provider: string | null;
+            /** @description The model the agent uses, null when no agent is configured. */
+            model: string | null;
+        };
+        AgentStep: {
+            /** Format: date-time */
+            at: string;
+            attempt: number;
+            /** @enum {string} */
+            phase: "discover" | "lint" | "query" | "save" | "repair";
+            tool: string;
+            /** @enum {string} */
+            status: "ok" | "error";
+            /** @description The tool's fixed progress text, for example `Listed 37 metrics on prom`. */
+            message: string;
+            duration_ms: number;
+        };
+        AgentUsage: {
+            provider: string;
+            model: string;
+            input_tokens: number;
+            output_tokens: number;
+            cache_read_tokens: number;
+            cache_write_tokens: number;
+            model_calls: number;
+            repair_rounds: number;
+        };
+        AgentRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            source: "comment" | "prompt" | "observe";
+            prompt: string;
+            /**
+             * Format: uuid
+             * @description The dashboard the request targets; for a new-dashboard request it is null until the request has succeeded.
+             */
+            dashboard_id: string | null;
+            /** @description The version a revision was requested against; null for a new-dashboard request. */
+            base_version: number | null;
+            panel_id: string | null;
+            /** Format: uuid */
+            comment_id: string | null;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            attempts: number;
+            /** @description The version the request saved, set when the status is `succeeded`. */
+            result_version: number | null;
+            /** @description The address of the dashboard, set when the status is `succeeded`. */
+            url: string | null;
+            /** @description Why the request failed, set when the status is `failed`. */
+            error: string | null;
+            steps: components["schemas"]["AgentStep"][];
+            /** @description Tokens, model calls and repair rounds of the attempt that finished the request. */
+            usage: components["schemas"]["AgentUsage"] | null;
+            requested_by: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        AgentRequestEnvelope: {
+            request: components["schemas"]["AgentRequest"];
         };
     };
     responses: {
@@ -1835,6 +1966,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevisionEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The agent configuration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentInfo"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    prompt: string;
+                    /**
+                     * Format: uuid
+                     * @description The dashboard to revise; omit to build a new dashboard.
+                     */
+                    dashboard_id?: string;
+                    /** @description A version that exists on the dashboard; only allowed together with `dashboard_id`. */
+                    base_version?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The queued agent request. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
+            /** @description Too many agent requests are queued or running (`too_many_requests` for the caller, `agent_busy` for the instance, `too_many_revisions` for the dashboard). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getObserveRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The agent request with its current status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRequestEnvelope"];
                 };
             };
             400: components["responses"]["BadRequest"];

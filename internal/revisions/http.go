@@ -183,6 +183,12 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
+	case errors.Is(err, ErrTooManyRequests):
+		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_requests", err.Error())
+	case errors.Is(err, ErrAgentBusy):
+		httpapi.AbortError(c, http.StatusTooManyRequests, "agent_busy", err.Error())
+	case errors.Is(err, ErrRequestNotFound):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnavailable):
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
 	case errors.Is(err, ErrInvalidCursor):

@@ -18,24 +18,45 @@ const (
 
 type Reviser struct {
 	agent *Agent
+	steps revisions.StepRecorder
 }
 
-func NewReviser(a *Agent) *Reviser {
-	return &Reviser{agent: a}
+func NewReviser(a *Agent, steps revisions.StepRecorder) *Reviser {
+	return &Reviser{agent: a, steps: steps}
 }
 
 func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-	out, err := r.agent.Run(ctx, Task{
-		Prompt:      req.Prompt,
-		DashboardID: req.DashboardID,
-		PanelID:     req.PanelID,
-		RequestID:   req.ID,
-		Principal:   req.RequestedBy,
-	})
-	if err != nil {
-		return revisions.Result{}, storedError(err)
+	task := Task{Prompt: req.Prompt, RequestID: req.ID, Principal: req.RequestedBy}
+	if req.Source != revisions.SourceObserve {
+		task.DashboardID = req.DashboardID
+		task.PanelID = req.PanelID
 	}
-	return revisions.Result{Version: out.Version}, nil
+	if r.steps != nil {
+		task.Progress = func(s Step) {
+			r.steps.RecordStep(ctx, req, revisions.Step{
+				At: s.At, Attempt: req.Attempt, Phase: s.Phase, Tool: s.Tool, Status: s.Status, Message: s.Message, DurationMS: s.DurationMS,
+			})
+		}
+	}
+	out, err := r.agent.Run(ctx, task)
+	result := revisions.Result{
+		Version:     out.Version,
+		DashboardID: out.DashboardID,
+		Usage: &revisions.Usage{
+			Provider:         out.Provider,
+			Model:            out.Model,
+			InputTokens:      out.Usage.InputTokens,
+			OutputTokens:     out.Usage.OutputTokens,
+			CacheReadTokens:  out.Usage.CacheReadTokens,
+			CacheWriteTokens: out.Usage.CacheWriteTokens,
+			ModelCalls:       out.Usage.Calls,
+			RepairRounds:     out.RepairRounds,
+		},
+	}
+	if err != nil {
+		return result, storedError(err)
+	}
+	return result, nil
 }
 
 // The returned error is stored on the request and shown to users, so its text is limited to the agent's own
