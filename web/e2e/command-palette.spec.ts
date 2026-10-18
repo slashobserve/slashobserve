@@ -48,6 +48,8 @@ test("opens from the button and lists the pages", async ({ page }) => {
   expect(
     await palette(page).getByRole("option").count()
   ).toBeGreaterThanOrEqual(pageNames.length)
+  await page.keyboard.press("Escape")
+  await expect(palette(page)).toHaveCount(0)
   await expect(trigger(page).locator("kbd")).toHaveText(/^(⌘K|Ctrl K)$/)
 })
 
