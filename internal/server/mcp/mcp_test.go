@@ -89,6 +89,25 @@ func (s *syncWriter) Write(p []byte) (int, error) {
 	return s.w.Write(p)
 }
 
+func (f *fixture) waitHeld(t *testing.T, principalID string, want int) {
+	t.Helper()
+	s := &f.handler.(*handler).slots
+	key := principalKey(auth.Principal{Kind: auth.KindServiceAccount, ID: principalID})
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		s.mu.Lock()
+		held := s.held[key]
+		s.mu.Unlock()
+		if held == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%s holds %d slots, want %d", principalID, held, want)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
 func rpc(id int, method string, params any) string {
 	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
 	return string(body)
@@ -501,7 +520,7 @@ func TestInFlightLimitIsPerPrincipalAndReleased(t *testing.T) {
 		}
 	}
 
-	waitForStatus(goodKey, http.StatusTooManyRequests)
+	f.waitHeld(t, "sa-1", maxInFlight)
 	status, retryAfter, body := post(goodKey)
 	if status != http.StatusTooManyRequests || retryAfter != "1" || !strings.Contains(body, "too_many_requests") {
 		t.Errorf("over-limit request: %d retry-after %q %s", status, retryAfter, body)
@@ -795,18 +814,13 @@ func TestSlowUploadsHoldOnlyThePrincipalSlot(t *testing.T) {
 	if len(stalled) <= maxTotalInFlight {
 		t.Fatalf("only %d uploads are stalled, want more than the global cap %d", len(stalled), maxTotalInFlight)
 	}
-
-	deadline := time.Now().Add(5 * time.Second)
 	for p := range principals {
-		for {
-			status, body := post("Bearer pool-" + strconv.Itoa(p))
-			if status == http.StatusTooManyRequests {
-				break
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("pool-%d: status %d %s, want 429 once its uploads hold its slots", p, status, body)
-			}
-			time.Sleep(10 * time.Millisecond)
+		f.waitHeld(t, "pool-"+strconv.Itoa(p), maxInFlight)
+	}
+
+	for p := range principals {
+		if status, body := post("Bearer pool-" + strconv.Itoa(p)); status != http.StatusTooManyRequests {
+			t.Errorf("pool-%d: status %d %s, want 429 while its uploads hold its slots", p, status, body)
 		}
 	}
 	if status, body := post("Bearer pool-free"); status != http.StatusOK {

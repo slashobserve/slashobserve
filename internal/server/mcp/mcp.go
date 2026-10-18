@@ -175,7 +175,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		unauthenticated(w, "invalid credentials")
 		return
 	}
-	key := string(principal.Kind) + ":" + principal.ID
+	key := principalKey(principal)
 	if !h.slots.acquire(key) {
 		w.Header().Set("Retry-After", "1")
 		writeError(w, http.StatusTooManyRequests, "too_many_requests", "too many concurrent requests")
@@ -241,6 +241,10 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	w.WriteHeader(status)
 	body, _ := json.Marshal(map[string]string{"error": message, "code": code})
 	_, _ = w.Write(body)
+}
+
+func principalKey(p auth.Principal) string {
+	return string(p.Kind) + ":" + p.ID
 }
 
 type slots struct {
