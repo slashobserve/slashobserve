@@ -16,7 +16,7 @@ import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
 import type { Panel } from "@/spec"
 
-import { DashboardGrid } from "./dashboard-grid"
+import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardToolbar } from "./dashboard-toolbar"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { PanelMenu } from "./panel-menu"
@@ -280,20 +280,32 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   )
 }
 
+const skeletonPanels = [
+  "min-[800px]:col-span-12 row-span-8",
+  "min-[800px]:col-span-6 row-span-4",
+  "min-[800px]:col-span-6 row-span-4",
+  "min-[800px]:col-span-24 row-span-8",
+]
+
 export function DashboardPageSkeleton() {
   return (
     <main className="flex flex-1 flex-col" aria-busy="true">
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
         <Skeleton className="h-7 w-56 animate-none motion-safe:animate-pulse" />
         <Skeleton className="h-8 w-48 animate-none motion-safe:animate-pulse" />
       </div>
-      <div className="grid flex-1 grid-cols-2 gap-2 p-4">
-        {[0, 1, 2, 3].map((index) => (
-          <Skeleton
-            key={index}
-            className="h-52 animate-none motion-safe:animate-pulse"
-          />
-        ))}
+      <div className="flex-1 p-4">
+        <div
+          className="grid grid-cols-1 min-[800px]:grid-cols-24"
+          style={{ gridAutoRows: gridRowHeight, gap: gridMargin }}
+        >
+          {skeletonPanels.map((span, index) => (
+            <Skeleton
+              key={index}
+              className={`${span} animate-none motion-safe:animate-pulse`}
+            />
+          ))}
+        </div>
       </div>
     </main>
   )

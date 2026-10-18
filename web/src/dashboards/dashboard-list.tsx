@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
+import { useEffect, useId, useRef } from "react"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -24,6 +25,7 @@ type DashboardSummary =
 
 const pageSize = 50
 const skeletonRows = 5
+const busyButton = "text-foreground"
 
 function useDashboardList() {
   return useInfiniteQuery({
@@ -45,9 +47,9 @@ function ListHeader() {
   return (
     <TableHeader>
       <TableRow className="hover:bg-transparent">
-        <TableHead className="w-full">Title</TableHead>
-        <TableHead>Updated</TableHead>
-        <TableHead className="text-right">Version</TableHead>
+        <TableHead>Title</TableHead>
+        <TableHead className="w-36 sm:w-64">Updated</TableHead>
+        <TableHead className="w-16 text-right">Version</TableHead>
       </TableRow>
     </TableHeader>
   )
@@ -61,18 +63,20 @@ function DashboardRow({ dashboard }: { dashboard: DashboardSummary }) {
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId: dashboard.id }}
-            className="font-medium underline-offset-4 hover:underline focus-visible:underline"
+            className="rounded-sm font-medium wrap-anywhere underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {dashboard.title}
           </Link>
           {dashboard.tags.map((tag) => (
-            <Badge key={tag} variant="outline">
-              {tag}
+            <Badge key={tag} variant="outline" className="max-w-full">
+              <span className="truncate" title={tag}>
+                {tag}
+              </span>
             </Badge>
           ))}
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">
+      <TableCell className="whitespace-normal text-muted-foreground">
         <time
           dateTime={dashboard.updated_at}
           title={formatDateTime(dashboard.updated_at)}
@@ -104,28 +108,54 @@ function SkeletonRows() {
   ))
 }
 
-export function DashboardList() {
+export function DashboardList({ labelledBy }: { labelledBy: string }) {
   const query = useDashboardList()
   const dashboards = query.data?.pages.flatMap((page) => page.dashboards) ?? []
-  const empty = query.isSuccess && dashboards.length === 0
+  const empty = query.data !== undefined && dashboards.length === 0
   const showTable = query.isPending || (query.data !== undefined && !empty)
-  const retry = () =>
-    void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch())
+  const loadMoreFailed = query.isFetchNextPageError
+  const loadMoreErrorId = useId()
+  const rows = useRef<HTMLTableSectionElement>(null)
+  const loadMoreButton = useRef<HTMLButtonElement>(null)
+  const focusFrom = useRef<number | null>(null)
+  const rowCount = dashboards.length
+
+  const fetchingNextPage = query.isFetchingNextPage
+  useEffect(() => {
+    const from = focusFrom.current
+    if (fetchingNextPage || from === null) return
+    focusFrom.current = null
+    const active = document.activeElement
+    const onBody = !active || active === document.body
+    if (rowCount > from) {
+      if (!onBody && active !== loadMoreButton.current) return
+      rows.current?.rows[from]?.querySelector("a")?.focus()
+    } else if (onBody) {
+      rows.current?.rows[rowCount - 1]?.querySelector("a")?.focus()
+    }
+  }, [rowCount, fetchingNextPage])
+
+  const loadMore = () => {
+    focusFrom.current = rowCount
+    void query.fetchNextPage()
+  }
 
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
-      <header className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Dashboards</h1>
-        <p className="text-sm text-muted-foreground">
-          Every dashboard, most recently updated first.
-        </p>
-      </header>
-      {query.isError ? (
+    <>
+      {query.isError && !loadMoreFailed ? (
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Could not load dashboards</AlertTitle>
           <AlertDescription>
             <p>{query.error.message}</p>
-            <Button variant="outline" size="sm" onClick={retry}>
+            <Button
+              variant="outline"
+              size="sm"
+              className={busyButton}
+              disabled={query.isFetching}
+              focusableWhenDisabled
+              aria-busy={query.isFetching}
+              onClick={() => void query.refetch()}
+            >
               Retry
             </Button>
           </AlertDescription>
@@ -141,9 +171,13 @@ export function DashboardList() {
       ) : null}
       {showTable ? (
         <>
-          <Table aria-busy={query.isPending}>
+          <Table
+            className="table-fixed"
+            aria-labelledby={labelledBy}
+            aria-busy={query.isPending}
+          >
             <ListHeader />
-            <TableBody>
+            <TableBody ref={rows}>
               {query.isPending ? (
                 <SkeletonRows />
               ) : (
@@ -154,12 +188,25 @@ export function DashboardList() {
             </TableBody>
           </Table>
           {query.hasNextPage ? (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+              {loadMoreFailed ? (
+                <p
+                  id={loadMoreErrorId}
+                  role="alert"
+                  className="text-center text-sm text-destructive"
+                >
+                  Could not load more dashboards: {query.error?.message}
+                </p>
+              ) : null}
               <Button
+                ref={loadMoreButton}
                 variant="outline"
+                className={busyButton}
                 disabled={query.isFetchingNextPage}
+                focusableWhenDisabled
                 aria-busy={query.isFetchingNextPage}
-                onClick={() => void query.fetchNextPage()}
+                aria-describedby={loadMoreFailed ? loadMoreErrorId : undefined}
+                onClick={loadMore}
               >
                 Load more
               </Button>
@@ -167,6 +214,6 @@ export function DashboardList() {
           ) : null}
         </>
       ) : null}
-    </main>
+    </>
   )
 }
