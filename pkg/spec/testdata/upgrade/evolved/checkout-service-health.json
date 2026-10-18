@@ -1,0 +1,90 @@
+{
+  "specVersion": "0",
+  "title": "Checkout service health",
+  "description": "RED metrics and error logs for checkout",
+  "tags": [
+    "checkout",
+    "red"
+  ],
+  "refresh": "30s",
+  "variables": [
+    {
+      "name": "pod",
+      "type": "query",
+      "multi": true,
+      "includeAll": true,
+      "datasource": "prom",
+      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)"
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_rps",
+      "type": "timeseries",
+      "title": "Requests per second by pod",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": "p_p99",
+      "type": "timeseries",
+      "title": "p99 latency",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "s",
+      "thresholds": [
+        {
+          "value": 0.25,
+          "color": "warning"
+        },
+        {
+          "value": 0.5,
+          "color": "critical"
+        }
+      ],
+      "queries": [
+        {
+          "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service=\"checkout\"}[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": "p_errlogs",
+      "type": "table",
+      "title": "Error logs by message (ClickHouse)",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT Body AS message, count() AS n FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) GROUP BY message ORDER BY n DESC LIMIT 20"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  }
+}
