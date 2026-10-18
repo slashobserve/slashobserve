@@ -20,7 +20,7 @@ import {
   styleForSlot,
   type SeriesStyle,
 } from "../colors"
-import { legendFor, refPrefixFor } from "../frames"
+import { legendFor } from "../frames"
 import { TablePanel } from "../table-panel"
 import { thresholdColor } from "../thresholds"
 import type { PanelRenderer, PanelRendererProps } from "../types"
@@ -412,12 +412,7 @@ function TimeseriesChart({
 export const TimeseriesPanel: PanelRenderer = (props) => {
   const { frames, panel } = props
   const aligned = useMemo(
-    () =>
-      alignFrames(
-        frames,
-        (frame) => legendFor(panel, frame),
-        refPrefixFor(panel)
-      ),
+    () => alignFrames(frames, (frame) => legendFor(panel, frame)),
     [frames, panel]
   )
   if (aligned.series.length === 0 || aligned.xs.length === 0) {

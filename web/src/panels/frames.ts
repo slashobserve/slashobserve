@@ -16,21 +16,17 @@ function escapeLabelValue(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')
 }
 
-export type RefPrefix = "fallback" | "always"
-
 export function seriesLabel(
   frame: WireFrame,
   field: WireField,
   legend: string | undefined,
-  numberFieldCount: number,
-  refPrefix?: RefPrefix
+  numberFieldCount: number
 ): string {
   let label: string
   if (legend) {
     label = legend.replace(legendToken, (_match, key: string) =>
       key === "__name__" ? (frame.name ?? "") : (frame.labels?.[key] ?? "")
     )
-    if (refPrefix === "always") label = `${frame.ref}: ${label}`
   } else {
     const keys = Object.keys(frame.labels ?? {}).sort()
     if (keys.length > 0) {
@@ -40,10 +36,25 @@ export function seriesLabel(
       label = `${frame.name ?? ""}{${pairs.join(", ")}}`
     } else {
       label = frame.name ?? field.name
-      if (refPrefix) label = `${frame.ref}: ${label}`
     }
   }
   return numberFieldCount > 1 ? `${label} ${field.name}` : label
+}
+
+export function qualifyCollidingLabels<
+  T extends { ref: string; label: string },
+>(series: T[]): T[] {
+  const refsByLabel = new Map<string, Set<string>>()
+  for (const { ref, label } of series) {
+    const refs = refsByLabel.get(label) ?? new Set<string>()
+    refs.add(ref)
+    refsByLabel.set(label, refs)
+  }
+  return series.map((item) =>
+    (refsByLabel.get(item.label)?.size ?? 0) > 1
+      ? { ...item, label: `${item.ref}: ${item.label}` }
+      : item
+  )
 }
 
 export function legendFor(
@@ -53,27 +64,6 @@ export function legendFor(
   return panel.queries.find(
     (query, index) => queryRef(query, index) === frame.ref
   )?.legend
-}
-
-export function refPrefixFor(
-  panel: DataPanel
-): (frame: WireFrame) => RefPrefix | undefined {
-  const visible = panel.queries
-    .map((query, index) => ({ query, ref: queryRef(query, index) }))
-    .filter(({ query }) => !query.hide)
-  if (visible.length < 2) return () => undefined
-  const legendCounts = new Map<string, number>()
-  for (const { query } of visible) {
-    if (query.legend) {
-      legendCounts.set(query.legend, (legendCounts.get(query.legend) ?? 0) + 1)
-    }
-  }
-  return (frame) => {
-    const entry = visible.find(({ ref }) => ref === frame.ref)
-    if (!entry) return undefined
-    const shared = entry.query.legend && legendCounts.get(entry.query.legend)
-    return shared && shared > 1 ? "always" : "fallback"
-  }
 }
 
 export function seriesKey(frame: WireFrame, fieldName: string): string {
@@ -115,27 +105,26 @@ export type NumberSeries = {
 
 export function firstNumberSeries(
   frames: WireFrame[],
-  legendOf: (frame: WireFrame) => string | undefined,
-  refPrefixOf: (frame: WireFrame) => RefPrefix | undefined = () => undefined
+  legendOf: (frame: WireFrame) => string | undefined
 ): NumberSeries[] {
   const seen = new Map<string, number>()
-  return frames.flatMap((frame) => {
+  const series = frames.flatMap((frame) => {
     const numbers = frame.fields.filter((field) => field.type === "number")
     if (numbers.length === 0) return []
     return [
       {
+        ref: frame.ref,
         key: uniqueKey(seen, seriesKey(frame, numbers[0].name)),
-        label: seriesLabel(
-          frame,
-          numbers[0],
-          legendOf(frame),
-          numbers.length,
-          refPrefixOf(frame)
-        ),
+        label: seriesLabel(frame, numbers[0], legendOf(frame), numbers.length),
         value: lastNumber(numbers[0]),
       },
     ]
   })
+  return qualifyCollidingLabels(series).map(({ key, label, value }) => ({
+    key,
+    label,
+    value,
+  }))
 }
 
 export function hasData(frames: WireFrame[]): boolean {

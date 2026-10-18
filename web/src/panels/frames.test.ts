@@ -8,7 +8,6 @@ import {
   hasData,
   lastNumber,
   legendFor,
-  refPrefixFor,
   seriesKey,
   seriesLabel,
   toTable,
@@ -240,19 +239,55 @@ describe("firstNumberSeries", () => {
   })
 })
 
-describe("firstNumberSeries with ref prefixes", () => {
-  it("keeps same-named fallback series of two queries distinguishable", () => {
-    const value = (ref: string, n: number) =>
-      frame({
-        ref,
-        fields: [time, { name: "value", type: "number", values: [n] }],
+describe("firstNumberSeries label collisions", () => {
+  const value = (ref: string, labels?: Record<string, string>) =>
+    frame({
+      ref,
+      labels,
+      fields: [time, { name: "value", type: "number", values: [1] }],
+    })
+  const labelsOf = (
+    frames: WireFrame[],
+    legends: Record<string, string | undefined> = {}
+  ) => firstNumberSeries(frames, (f) => legends[f.ref]).map((s) => s.label)
+
+  it("prefixes identical label sets from two queries", () => {
+    expect(
+      labelsOf([value("A", { pod: "x" }), value("B", { pod: "x" })])
+    ).toEqual(['A: {pod="x"}', 'B: {pod="x"}'])
+  })
+
+  it("leaves a shared templated legend alone when it resolves differently", () => {
+    expect(
+      labelsOf([value("A", { pod: "x" }), value("B", { pod: "y" })], {
+        A: "{{pod}}",
+        B: "{{pod}}",
       })
-    const labels = firstNumberSeries(
-      [value("A", 1), value("B", 2)],
-      noLegend,
-      () => "fallback"
-    ).map((series) => series.label)
-    expect(labels).toEqual(["A: value", "B: value"])
+    ).toEqual(["x", "y"])
+  })
+
+  it("prefixes a shared literal legend", () => {
+    expect(
+      labelsOf([value("A", { pod: "x" }), value("B", { pod: "y" })], {
+        A: "total",
+        B: "total",
+      })
+    ).toEqual(["A: total", "B: total"])
+  })
+
+  it("prefixes unlabeled fallbacks from two queries", () => {
+    expect(labelsOf([value("A"), value("B")])).toEqual(["A: value", "B: value"])
+  })
+
+  it("leaves collisions inside one query alone", () => {
+    const a = value("A", { pod: "x" })
+    expect(labelsOf([a, a])).toEqual(['{pod="x"}', '{pod="x"}'])
+  })
+
+  it("only prefixes the colliding labels", () => {
+    expect(
+      labelsOf([value("A", { pod: "x" }), value("B", { pod: "x" }), value("C")])
+    ).toEqual(['A: {pod="x"}', 'B: {pod="x"}', "value"])
   })
 })
 
@@ -265,74 +300,6 @@ describe("seriesKey", () => {
       fields: [],
     })
     expect(seriesKey(f, "value")).toBe("errors:up{a=1,b=2}#value")
-  })
-})
-
-describe("seriesLabel with a ref prefix", () => {
-  const bare = frame({
-    ref: "B",
-    fields: [time, { name: "value", type: "number", values: [1] }],
-  })
-
-  it("prefixes only the fallback label", () => {
-    expect(seriesLabel(bare, bare.fields[1], undefined, 1, "fallback")).toBe(
-      "B: value"
-    )
-    expect(seriesLabel(bare, bare.fields[1], "mine", 1, "fallback")).toBe(
-      "mine"
-    )
-  })
-
-  it("prefixes a legend when asked to always", () => {
-    expect(seriesLabel(bare, bare.fields[1], "mine", 1, "always")).toBe(
-      "B: mine"
-    )
-  })
-})
-
-describe("refPrefixFor", () => {
-  const panelWith = (queries: object[]) =>
-    ({
-      id: "p",
-      type: "timeseries",
-      gridPos: { x: 0, y: 0, w: 6, h: 4 },
-      queries,
-    }) as unknown as DataPanel
-  const prefixOf = (panel: DataPanel, ref: string) =>
-    refPrefixFor(panel)(frame({ ref, fields: [] }))
-
-  it("leaves a single visible query alone", () => {
-    expect(prefixOf(panelWith([{ query: "a" }]), "A")).toBeUndefined()
-    expect(
-      prefixOf(panelWith([{ query: "a" }, { query: "b", hide: true }]), "A")
-    ).toBeUndefined()
-  })
-
-  it("prefixes the fallback label of every query in a multi-query panel", () => {
-    const panel = panelWith([{ query: "a", legend: "x" }, { query: "b" }])
-    expect(prefixOf(panel, "A")).toBe("fallback")
-    expect(prefixOf(panel, "B")).toBe("fallback")
-    expect(prefixOf(panel, "Z")).toBeUndefined()
-  })
-
-  it("always prefixes queries that share a legend", () => {
-    const panel = panelWith([
-      { query: "a", legend: "same" },
-      { query: "b", legend: "same" },
-      { query: "c", legend: "other" },
-    ])
-    expect(prefixOf(panel, "A")).toBe("always")
-    expect(prefixOf(panel, "B")).toBe("always")
-    expect(prefixOf(panel, "C")).toBe("fallback")
-  })
-
-  it("ignores a hidden query that shares a legend", () => {
-    const panel = panelWith([
-      { query: "a", legend: "same" },
-      { query: "b", legend: "same", hide: true },
-      { query: "c" },
-    ])
-    expect(prefixOf(panel, "A")).toBe("fallback")
   })
 })
 

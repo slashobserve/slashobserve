@@ -44,12 +44,27 @@ describe("alignFrames", () => {
     expect(aligned.series[0].label).toBe('{pod="x"}')
   })
 
-  it("prefixes a fallback label with the query ref when asked", () => {
+  it("prefixes labels that two queries share", () => {
     const aligned = alignFrames(
       [frame("A", {}, [1, 2]), frame("B", {}, [3, 4])],
-      () => undefined,
-      () => "fallback"
+      () => undefined
     )
     expect(aligned.series.map((s) => s.label)).toEqual(["A: value", "B: value"])
+  })
+
+  it("does not prefix a shared templated legend that resolves differently", () => {
+    const aligned = alignFrames(
+      [frame("A", { pod: "x" }, [1, 2]), frame("B", { pod: "y" }, [3, 4])],
+      () => "{{pod}}"
+    )
+    expect(aligned.series.map((s) => s.label)).toEqual(["x", "y"])
+  })
+
+  it("does not prefix labels that collide inside one query", () => {
+    const aligned = alignFrames(
+      [frame("A", {}, [1, 2]), frame("A", {}, [3, 4])],
+      () => undefined
+    )
+    expect(aligned.series.map((s) => s.label)).toEqual(["value", "value"])
   })
 })
