@@ -3,6 +3,7 @@ package queryproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -394,6 +395,48 @@ func TestCheckSpecPanelCallShape(t *testing.T) {
 		if !c.hasDeadline || c.deadline.Before(before.Add(15*time.Second)) || c.deadline.After(after.Add(15*time.Second)) {
 			t.Fatalf("%s deadline = %v, want 15s from the call (between %v and %v)", c.method, c.deadline, before, after)
 		}
+	}
+}
+
+func TestCheckSpecPanelBudgetScalesWithItsQueryCount(t *testing.T) {
+	tests := []struct {
+		queries int
+		want    time.Duration
+	}{
+		{1, 15 * time.Second},
+		{4, 15 * time.Second},
+		{5, 30 * time.Second},
+		{8, 30 * time.Second},
+		{12, 45 * time.Second},
+		{26, 45 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d queries", tt.queries), func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			queries := make([]spec.Query, tt.queries)
+			for i := range queries {
+				queries[i] = spec.Query{Query: fmt.Sprintf("q%d", i)}
+			}
+			p := spec.Panel{ID: "p0", Type: spec.Timeseries, Title: "p0", Datasource: "prom", Queries: queries}
+			before := time.Now()
+			if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{p}), testNow); err != nil || issues != nil {
+				t.Fatalf("issues = %+v, err = %v", issues, err)
+			}
+			after := time.Now()
+			calls := fake.callsTo("range")
+			if len(calls) != tt.queries {
+				t.Fatalf("%d range calls, want %d", len(calls), tt.queries)
+			}
+			for _, c := range calls {
+				if c.query.Limits.Timeout != checkPanelBudget {
+					t.Fatalf("per-query timeout = %v, want %v", c.query.Limits.Timeout, checkPanelBudget)
+				}
+				if !c.hasDeadline || c.deadline.Before(before.Add(tt.want)) || c.deadline.After(after.Add(tt.want)) {
+					t.Fatalf("deadline = %v, want %v from the check (between %v and %v)", c.deadline, tt.want, before, after)
+				}
+			}
+		})
 	}
 }
 

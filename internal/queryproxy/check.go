@@ -196,7 +196,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 }
 
 func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList, skip []bool) []spec.Issue {
-	ctx, cancel := context.WithTimeout(ctx, checkPanelBudget)
+	ctx, cancel := context.WithTimeout(ctx, checkPanelDeadline(skip))
 	defer cancel()
 	maxDataPoints := checkMaxDataPoints
 	if e.Panel.MaxDataPoints > 0 {
@@ -231,6 +231,17 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 		return []spec.Issue{issue(e.Pointer+"/queries", CodeQueryEmpty, "%s", emptyPanelMessage)}
 	}
 	return nil
+}
+
+func checkPanelDeadline(skip []bool) time.Duration {
+	running := 0
+	for _, skipped := range skip {
+		if !skipped {
+			running++
+		}
+	}
+	waves := max(1, (running+queryParallelism-1)/queryParallelism)
+	return min(checkPanelBudget*time.Duration(waves), checkSpecBudget)
 }
 
 func skippedVisible(p *spec.Panel, skip []bool) bool {
