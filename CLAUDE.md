@@ -24,6 +24,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make e2e-browser` | Reuse the running, healthy e2e stack or boot one, then run Playwright in `web/e2e`; reuse does not rebuild, so rerun `make e2e` after code changes. |
 | `make e2e-all` | Both suites, as CI runs them. |
 | `scripts/e2e.sh down` | Tear the e2e stack down, including volumes. |
+| `make evals EVALS_ARGS=...` | Run the eval runner (`go run ./evals/runner`) against a stack with a real LLM provider; needs `OBSERVE_SERVER` and `OBSERVE_TOKEN` (a service-account key) in the environment. |
 
 Web-only commands run from `web/`: `bun run dev` (Vite on :5173, proxying `/api`, `/healthz` and `/readyz` to :8080), `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
 
@@ -51,7 +52,10 @@ Directories are created when their phase starts; this is where things go.
 - `internal/agent/tools/`: the only place agent tools are defined (14 tools, sorted, constant schemas); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
 - `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
 - `internal/agent/prompts/`: embedded prompts, including the system prompt and the Spec authoring guide.
-- Later: `pkg/extension`, `evals/`, `deploy/helm/`.
+- `evals/`: scenarios (`scenarios/*.yaml`), pricing, and the runner (`go run ./evals/runner`), which scores validity, data, source, metrics, tables, units, panel count, thresholds and latency through the public API and reports cost; scenarios tagged `replay-smoke` run in e2e with replay fixtures.
+  A scenario's `expect` takes `datasources`, `metrics`, `tables`, `units` (ids from the Spec unit enum), `min_panels`, `max_panels`, `max_seconds`, `thresholds`, and three optional feature checks: `query_contains_any` (a list of groups; each group needs at least one alternative to appear, case and whitespace insensitive and on word boundaries, in some panel query; PromQL `#` comments are ignored), `time_range_from` (accepted values of the dashboard's `timeRange.from`) and `threshold_at` (unit to threshold value, matched on a single panel).
+  The runner holds a slot per scenario until its request finishes server-side (a timed-out request is polled for up to 3 minutes) and retries a 429 on create, so `--parallel` stays within the server's 3 active observe requests per key and is capped at 3.
+- Later: `pkg/extension`, `deploy/helm/`.
 - `spec/schema/observespec.v0.json` is the ObserveSpec source of truth; `spec/examples/` holds valid examples and `invalid/` fixtures with `expected.json`, shared by Go, TS and e2e tests.
 - `pkg/spec/` (public): hand-written types checked against the schema by a conformance test; `Parse` is the only validation entry point and returns `*ValidationError` with JSON-Pointer issues; `ScanQuery` and `Macros` define query reference syntax for the macros package; `Diff` returns a stable structural change list between two Specs (panels matched by `id`, variables by `name`) for version history.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
@@ -231,6 +235,8 @@ Directories are created when their phase starts; this is where things go.
   A fixture is one JSON file per prompt with `prompt` and `turns` (`text`, `tool_calls`, `expect`); a tool error not declared in `expect` fails the run.
   A revise fixture may leave `dashboard_id` and `parent_version` out of `update_dashboard`, so it never depends on generated ids; a comment or prompt with no fixture fails its revision with `model call failed: no replay fixture`.
   With the replay provider on, a comment queues a revision by default, so e2e comment checks that are not about revisions send `"request_revision": false`.
+  `evals_smoke_suite` runs the eval runner on the scenarios tagged `replay-smoke` (`red-metrics-by-endpoint`, `log-volume-by-service`) and expects every check to pass, so those two prompts need fixtures.
+  The runner exits 1 when the pass rate is below `--min-pass` (0.8) or, with all 10 `done_when` scenarios run, fewer than `--min-done-when` (8, or the number of `done_when` scenarios in a custom folder when fewer) pass, and 2 on a usage or setup error.
   Observe fixtures cover the brief's broken-query repair path (`observe-red-metrics.json` saves a query with an unbalanced parenthesis, gets `query_invalid`, and repairs it).
 - Compose: add new services (Dex, Prometheus, ClickHouse, OTel Collector, demo/shop) to `deploy/compose/compose.yaml`; publish host ports only for what a browser or developer must reach, bound to 127.0.0.1 with a `${...}` override.
   Only `frontend-0` builds the shop image (`pull_policy: build`), so a plain `docker compose up` rebuilds the image named by `SLASHOBSERVE_SHOP_IMAGE` even when it is prebuilt; pass `--no-build` to keep it.

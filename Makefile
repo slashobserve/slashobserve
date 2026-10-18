@@ -15,7 +15,7 @@ SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
 
-.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -91,6 +91,9 @@ e2e-browser: web-deps
 e2e-all:
 	scripts/e2e.sh
 	$(MAKE) e2e-browser
+
+evals:
+	go run ./evals/runner $(EVALS_ARGS)
 
 clean:
 	rm -rf bin web/dist web/playwright-report web/test-results

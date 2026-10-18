@@ -629,6 +629,7 @@ suite() {
   mcp_suite
   proxy_suite
   cli_suite
+  evals_smoke_suite
   check_api_contract
 }
 
@@ -1922,6 +1923,22 @@ cli_suite() {
     "$TMP/observe" --server "$BASE_URL" dashboards list </dev/null >"$TMP/cli.out" 2>"$TMP/cli.err" || CLI_CODE=$?
   cli_expect "observe with an invalid key" 1 "not signed in, or the key is invalid; run observe login"
   pass "observe reports an invalid key from the environment"
+}
+
+evals_smoke_suite() {
+  api_token
+  local rc=0 flat
+
+  OBSERVE_SERVER="$BASE_URL" OBSERVE_TOKEN="$API_TOKEN" \
+    bounded 600 go -C "$ROOT" run ./evals/runner --tag replay-smoke --min-pass 1 --out "$TMP/evals.json" --markdown "$TMP/evals.md" \
+    >"$TMP/evals.out" 2>"$TMP/evals.err" || rc=$?
+  [[ "$rc" == 0 ]] || fail "the eval runner exited $rc ($(cat "$TMP/evals.err") $(cat "$TMP/evals.out"))"
+  flat="$(tr -d ' \n' <"$TMP/evals.json")"
+  [[ "$flat" == *'"scenarios":{"passed":2,"total":2,"rate":1}'* ]] || fail "the eval report should show 2 of 2 scenarios passed ($(cat "$TMP/evals.out"))"
+  [[ "$flat" != *'"passed":false'* ]] || fail "the eval report has a failed check ($(cat "$TMP/evals.out"))"
+  [[ "$flat" == *'"model":"replay"'* ]] || fail "the eval report does not name the replay model"
+  grep -q '^| red-metrics-by-endpoint |' "$TMP/evals.md" || fail "the eval Markdown report has no row for red-metrics-by-endpoint"
+  pass "eval runner scores replay scenarios"
 }
 
 stack_suite() {
