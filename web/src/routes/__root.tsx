@@ -9,6 +9,7 @@ import {
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,7 +30,9 @@ function Shell({ children }: { children: ReactNode }) {
 function RootLayout() {
   return (
     <Shell>
-      <Outlet />
+      <TooltipProvider>
+        <Outlet />
+      </TooltipProvider>
       <Toaster position="bottom-right" />
     </Shell>
   )
