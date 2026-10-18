@@ -7,9 +7,11 @@ import {
   formatShortRelative,
   formatTimeValue,
   isAbsoluteOrdered,
+  isSubMinuteOffset,
   isTimeValue,
   parseUserTime,
   refreshToMs,
+  relativeTickMs,
 } from "./time"
 
 describe("isTimeValue", () => {
@@ -209,6 +211,7 @@ describe("formatShortRelative", () => {
   it.each([
     [-2 * second, "Just now"],
     [-12 * second, "12 s ago"],
+    [-59.7 * second, "59 s ago"],
     [-52 * minute, "52 min ago"],
     [-3 * hour, "3 h ago"],
     [-30 * hour, "Yesterday"],
@@ -219,7 +222,9 @@ describe("formatShortRelative", () => {
     [-70 * day, "2 months ago"],
     [-400 * day, "Last year"],
     [-800 * day, "2 years ago"],
-    [30 * second, "In under a minute"],
+    [30 * second, "Just now"],
+    [59.7 * second, "Just now"],
+    [60 * second, "In 1 min"],
     [5 * minute, "In 5 min"],
     [5 * hour, "In 5 h"],
     [30 * hour, "Tomorrow"],
@@ -233,5 +238,23 @@ describe("formatShortRelative", () => {
 
   it("returns an unparsable value unchanged", () => {
     expect(formatShortRelative("not a date", now)).toBe("not a date")
+  })
+})
+
+describe("relative clock interval", () => {
+  const now = Date.parse("2026-10-19T12:00:00Z")
+
+  it("flags offsets under a minute in either direction", () => {
+    const at = (offset: number) => new Date(now + offset).toISOString()
+    expect(isSubMinuteOffset(at(-59_000), now)).toBe(true)
+    expect(isSubMinuteOffset(at(30_000), now)).toBe(true)
+    expect(isSubMinuteOffset(at(-60_000), now)).toBe(false)
+    expect(isSubMinuteOffset(at(60_000), now)).toBe(false)
+    expect(isSubMinuteOffset("not a date", now)).toBe(false)
+  })
+
+  it("ticks every second only while a sub-minute offset is shown", () => {
+    expect(relativeTickMs(0)).toBe(30_000)
+    expect(relativeTickMs(2)).toBe(1000)
   })
 })

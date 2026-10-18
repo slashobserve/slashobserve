@@ -12,7 +12,7 @@ import { KeyRoundIcon } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { getSession, invalidateSession, logout } from "@/lib/auth"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: async ({ location }) => {

@@ -9,7 +9,7 @@ import { dashboardKeys } from "@/api/keys"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import {
   describeSubmitError,
   isTerminal,

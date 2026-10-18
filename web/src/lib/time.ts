@@ -209,17 +209,29 @@ export function formatRelative(iso: string, now = Date.now()): string {
   return relativeFormat.format(seconds, "second")
 }
 
+export const slowRelativeTickMs = 30_000
+export const fastRelativeTickMs = 1000
+
+export function isSubMinuteOffset(iso: string, now: number): boolean {
+  const target = Date.parse(iso)
+  return !Number.isNaN(target) && Math.abs(target - now) < 60_000
+}
+
+export function relativeTickMs(fastCount: number): number {
+  return fastCount > 0 ? fastRelativeTickMs : slowRelativeTickMs
+}
+
 export function formatShortRelative(iso: string, now = Date.now()): string {
   const target = Date.parse(iso)
   if (Number.isNaN(target)) return iso
   const diff = target - now
   const abs = Math.abs(diff)
-  const s = Math.round(abs / 1000)
+  const s = Math.floor(abs / 1000)
   const m = Math.floor(abs / 60_000)
   const h = Math.floor(abs / 3_600_000)
   const d = Math.floor(abs / 86_400_000)
   if (diff > 0) {
-    if (s < 60) return "In under a minute"
+    if (s < 60) return "Just now"
     if (m < 60) return `In ${m} min`
     if (h < 24) return `In ${h} h`
     if (d === 1) return "Tomorrow"

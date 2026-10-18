@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
