@@ -17,6 +17,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/tctest"
 )
 
 const (
@@ -41,14 +42,17 @@ func Main(m *testing.M) int {
 		return m.Run()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), setupTimeout)
-	container, err := tcpostgres.Run(ctx, image,
-		tcpostgres.WithDatabase(adminDB),
-		tcpostgres.WithUsername("slashobserve"),
-		tcpostgres.WithPassword("slashobserve"),
-		tcpostgres.BasicWaitStrategies(),
-	)
+	container, err := tctest.Retry(ctx, func() (*tcpostgres.PostgresContainer, error) {
+		return tcpostgres.Run(ctx, image,
+			tcpostgres.WithDatabase(adminDB),
+			tcpostgres.WithUsername("slashobserve"),
+			tcpostgres.WithPassword("slashobserve"),
+			tcpostgres.BasicWaitStrategies(),
+		)
+	})
 	if err != nil {
 		cancel()
+		_ = testcontainers.TerminateContainer(container)
 		fmt.Fprintln(os.Stderr, "start postgres:", err)
 		return 1
 	}

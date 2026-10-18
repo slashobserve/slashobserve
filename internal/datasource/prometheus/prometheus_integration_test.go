@@ -20,6 +20,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
+	"github.com/slashobserve/slashobserve/internal/tctest"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -75,22 +76,24 @@ func startPrometheus(ctx context.Context) (testcontainers.Container, *environmen
 	}
 	scrapeConfig := fmt.Sprintf("global:\n  scrape_interval: 1s\nscrape_configs:\n  - job_name: prometheus\n    basic_auth:\n      username: %s\n      password: %s\n    static_configs:\n      - targets: [\"localhost:9090\"]\n", basicAuthUser, password)
 	webConfig := fmt.Sprintf("basic_auth_users:\n  %s: %q\n", basicAuthUser, string(hash))
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        prometheusImage,
-			ExposedPorts: []string{"9090/tcp"},
-			Cmd: []string{
-				"--config.file=/etc/prometheus/prometheus.yml",
-				"--web.config.file=/etc/prometheus/web.yml",
-				"--storage.tsdb.path=/prometheus",
+	container, err := tctest.Retry(ctx, func() (testcontainers.Container, error) {
+		return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        prometheusImage,
+				ExposedPorts: []string{"9090/tcp"},
+				Cmd: []string{
+					"--config.file=/etc/prometheus/prometheus.yml",
+					"--web.config.file=/etc/prometheus/web.yml",
+					"--storage.tsdb.path=/prometheus",
+				},
+				Files: []testcontainers.ContainerFile{
+					{Reader: strings.NewReader(scrapeConfig), ContainerFilePath: "/etc/prometheus/prometheus.yml", FileMode: 0o644},
+					{Reader: strings.NewReader(webConfig), ContainerFilePath: "/etc/prometheus/web.yml", FileMode: 0o644},
+				},
+				WaitingFor: wait.ForHTTP("/-/healthy").WithPort("9090/tcp").WithBasicAuth(basicAuthUser, password).WithStartupTimeout(2 * time.Minute),
 			},
-			Files: []testcontainers.ContainerFile{
-				{Reader: strings.NewReader(scrapeConfig), ContainerFilePath: "/etc/prometheus/prometheus.yml", FileMode: 0o644},
-				{Reader: strings.NewReader(webConfig), ContainerFilePath: "/etc/prometheus/web.yml", FileMode: 0o644},
-			},
-			WaitingFor: wait.ForHTTP("/-/healthy").WithPort("9090/tcp").WithBasicAuth(basicAuthUser, password).WithStartupTimeout(2 * time.Minute),
-		},
-		Started: true,
+			Started: true,
+		})
 	})
 	if err != nil {
 		return container, nil, err

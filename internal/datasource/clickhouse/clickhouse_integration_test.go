@@ -22,6 +22,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
+	"github.com/slashobserve/slashobserve/internal/tctest"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -70,18 +71,21 @@ func run(m *testing.M) int {
 	ctx := context.Background()
 	adminPass = randomHex()
 	roPass = randomHex()
-	container, err := tcclickhouse.Run(ctx, image,
-		tcclickhouse.WithUsername("admin"),
-		tcclickhouse.WithPassword(adminPass),
-		tcclickhouse.WithDatabase(adminDB),
-		testcontainers.WithEnv(map[string]string{"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1"}),
-		testcontainers.WithFiles(testcontainers.ContainerFile{
-			Reader:            strings.NewReader(deadClusterXML),
-			ContainerFilePath: "/etc/clickhouse-server/config.d/dead_cluster.xml",
-			FileMode:          0o644,
-		}),
-	)
+	container, err := tctest.Retry(ctx, func() (*tcclickhouse.ClickHouseContainer, error) {
+		return tcclickhouse.Run(ctx, image,
+			tcclickhouse.WithUsername("admin"),
+			tcclickhouse.WithPassword(adminPass),
+			tcclickhouse.WithDatabase(adminDB),
+			testcontainers.WithEnv(map[string]string{"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1"}),
+			testcontainers.WithFiles(testcontainers.ContainerFile{
+				Reader:            strings.NewReader(deadClusterXML),
+				ContainerFilePath: "/etc/clickhouse-server/config.d/dead_cluster.xml",
+				FileMode:          0o644,
+			}),
+		)
+	})
 	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
 		fmt.Fprintln(os.Stderr, "start clickhouse:", err)
 		return 1
 	}

@@ -36,6 +36,7 @@ Directories are created when their phase starts; this is where things go.
 - `cmd/observe/` + `internal/cli/`: the `observe` CLI (API client with a service-account key; settings from flags, `OBSERVE_SERVER`/`OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`; the saved key goes only to the server it was saved for).
 - `internal/config/`: the only reader of `SLASHOBSERVE_*` environment variables.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`; skipped under `-short`).
+- `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
