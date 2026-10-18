@@ -458,4 +458,7 @@ test("renders row children and marks panels it cannot show yet", async ({
     )
   }
   await expect(article("r_prom")).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "Prometheus", level: 2 })
+  ).toBeVisible()
 })

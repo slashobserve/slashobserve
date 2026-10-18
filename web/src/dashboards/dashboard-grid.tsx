@@ -2,7 +2,12 @@ import { useMemo, type ReactNode } from "react"
 import { GridLayout, useContainerWidth, type Layout } from "react-grid-layout"
 import "react-grid-layout/css/styles.css"
 
-import type { Dashboard, LayoutPanel } from "@/spec"
+import {
+  isRowPanel,
+  type Dashboard,
+  type LayoutPanel,
+  type RowPanel,
+} from "@/spec"
 
 import { layoutFromSpec, layoutPanels } from "./edit/layout"
 
@@ -28,6 +33,17 @@ function pixelWidth(containerWidth: number, w: number): number {
 
 function pixelHeight(h: number): number {
   return h * gridRowHeight + (h - 1) * gridMargin
+}
+
+function RowHeader({ row }: { row: RowPanel }) {
+  return (
+    <div
+      data-row-id={row.id}
+      className="flex size-full items-center border-b px-1"
+    >
+      <h2 className="min-w-0 truncate text-sm font-semibold">{row.title}</h2>
+    </div>
+  )
 }
 
 export function DashboardGrid({
@@ -86,10 +102,14 @@ export function DashboardGrid({
         >
           {ordered.map(({ panel, item }) => (
             <div key={panel.id}>
-              {renderPanel(panel, {
-                width: stacked ? width : pixelWidth(width, item.w),
-                height: pixelHeight(item.h),
-              })}
+              {isRowPanel(panel) ? (
+                <RowHeader row={panel} />
+              ) : (
+                renderPanel(panel, {
+                  width: stacked ? width : pixelWidth(width, item.w),
+                  height: pixelHeight(item.h),
+                })
+              )}
             </div>
           ))}
         </GridLayout>

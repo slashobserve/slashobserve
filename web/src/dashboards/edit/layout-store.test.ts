@@ -198,10 +198,13 @@ describe("row children", () => {
     ],
   }
 
-  it("lays out row children by their own gridPos and leaves the row out", () => {
-    expect(layoutFromSpec(withRow).map((item) => item.i)).toEqual([
-      "a",
-      "child",
+  it("lays out the row as a static item and its children by their own gridPos", () => {
+    const items = layoutFromSpec(withRow)
+    expect(items.map((item) => item.i)).toEqual(["a", "r", "child"])
+    expect(items.map((item) => item.static === true)).toEqual([
+      false,
+      true,
+      false,
     ])
   })
 
