@@ -147,6 +147,19 @@ func QueryStep(base time.Duration, p *spec.Panel, q spec.Query) time.Duration {
 	return max(base, minimum)
 }
 
+func Floor(t time.Time, unit time.Duration) time.Time {
+	ms, u := t.UnixMilli(), unit.Milliseconds()
+	return time.UnixMilli(ms - ((ms%u)+u)%u).UTC()
+}
+
+func alignToStep(r datasource.TimeRange, step time.Duration) datasource.TimeRange {
+	from, to := Floor(r.From, step), Floor(r.To, step)
+	if !to.After(from) {
+		to = from.Add(step)
+	}
+	return datasource.TimeRange{From: from, To: to}
+}
+
 func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
 	if maxDataPoints == 0 {
 		maxDataPoints = defaultMaxDataPoints
@@ -273,8 +286,12 @@ func (r *Runner) prepare(ctx context.Context, req Request, lists map[string]allL
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
 	if pq.kind == KindRange {
 		pq.step = QueryStep(baseStep, panel, q)
+		rng := req.Range
+		if pq.step > baseStep {
+			rng = alignToStep(rng, pq.step)
+		}
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
-			return inst.Datasource.QueryRange(ctx, dq, req.Range, pq.step)
+			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
 		}
 	} else {
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {

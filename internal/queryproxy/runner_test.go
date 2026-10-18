@@ -816,3 +816,52 @@ func TestRunPanelQueriesRunConcurrentlyUpToFour(t *testing.T) {
 		t.Fatalf("upstream calls = %d, want %d", got, total)
 	}
 }
+
+func TestFloorHandlesTimesBeforeTheEpoch(t *testing.T) {
+	got := Floor(time.UnixMilli(-1500), time.Second)
+	if want := time.UnixMilli(-2000); !got.Equal(want) {
+		t.Fatalf("Floor = %v, want %v", got, want)
+	}
+}
+
+func TestRunPanelAlignsAQueryWithALargerStepToItsOwnGrid(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries,
+		spec.Query{Query: "plain"},
+		spec.Query{Query: "slow", Interval: "5m"},
+	)})
+	rng := datasource.TimeRange{From: testNow.Add(-6*time.Hour + 37*time.Second), To: testNow.Add(37 * time.Second)}
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: rng, MaxDataPoints: 200})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	ranges := map[string]datasource.TimeRange{}
+	for _, c := range fake.callsTo("range") {
+		ranges[c.query.Text] = c.rng
+	}
+	if ranges["plain"] != rng {
+		t.Fatalf("plain range = %v, want the request range %v", ranges["plain"], rng)
+	}
+	wantSlow := datasource.TimeRange{From: testNow.Add(-6 * time.Hour), To: testNow}
+	if !ranges["slow"].From.Equal(wantSlow.From) || !ranges["slow"].To.Equal(wantSlow.To) {
+		t.Fatalf("slow range = %v, want %v", ranges["slow"], wantSlow)
+	}
+	if res.Range != rng {
+		t.Fatalf("result range = %v, want the request range %v", res.Range, rng)
+	}
+}
+
+func TestRunPanelKeepsARangeNonEmptyWhenAQueryStepIsLongerThanIt(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "daily", Interval: "1d"})})
+	rng := datasource.TimeRange{From: testNow.Add(-time.Hour), To: testNow}
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: rng, MaxDataPoints: 200}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	got := fake.callsTo("range")[0].rng
+	if !got.To.After(got.From) || got.To.Sub(got.From) != 24*time.Hour {
+		t.Fatalf("range = %v, want one day wide", got)
+	}
+}
