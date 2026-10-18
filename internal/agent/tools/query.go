@@ -286,19 +286,20 @@ func (s querySummary) describe() string {
 }
 
 func summarize(res queryproxy.Result) querySummary {
+	frames := res.Frames()
 	s := querySummary{
 		Kind:   res.Kind,
 		From:   res.Range.From.UTC().Format(time.RFC3339),
 		To:     res.Range.To.UTC().Format(time.RFC3339),
 		StepMS: res.Step.Milliseconds(),
-		Empty:  framesEmpty(res.Frames),
-		Frames: len(res.Frames),
+		Empty:  framesEmpty(frames),
+		Frames: len(frames),
 	}
 	if s.Empty {
 		return s
 	}
 	var series []seriesOut
-	for _, f := range res.Frames {
+	for _, f := range frames {
 		if isSeriesFrame(f) {
 			series = append(series, frameSeries(f)...)
 			continue

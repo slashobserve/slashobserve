@@ -317,3 +317,32 @@ test("shows a series again after it left and came back", async ({
     "true"
   )
 })
+
+test("labels each query's series with its own legend", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E two queries")
+  spec.variables = []
+  spec.panels = [
+    {
+      id: "two",
+      type: "timeseries",
+      title: "Two queries",
+      gridPos: { x: 0, y: 0, w: 12, h: 8 },
+      datasource: "prom",
+      queries: [
+        { query: "count(up)", legend: "all" },
+        { query: 'count(up{job=~".+"})', legend: "job" },
+      ],
+    },
+  ]
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const two = panel(page, "Two queries")
+  await expect(legendButton(two, "all")).toBeVisible()
+  await expect(legendButton(two, "job")).toBeVisible()
+})

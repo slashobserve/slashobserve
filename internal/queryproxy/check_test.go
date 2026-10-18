@@ -3,7 +3,9 @@ package queryproxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -112,7 +114,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			name:      "empty result",
 			panels:    oneTimeseries("up"),
 			setup:     emptyFrames(nil),
-			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -121,7 +123,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			setup: emptyFrames([]datasource.Frame{{Fields: []datasource.Field{
 				{Name: "time", Type: datasource.FieldTime, Values: []any{1.0}},
 			}}}),
-			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -131,7 +133,7 @@ func TestCheckSpecIssues(t *testing.T) {
 				{Name: "time", Type: datasource.FieldTime, Values: []any{1.0, 2.0}},
 				{Name: "value", Type: datasource.FieldNumber, Values: []any{nil, nil}},
 			}}}),
-			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryEmpty, emptyPanelMessage}},
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
 			wantCalls: 1,
 		},
 		{
@@ -393,6 +395,48 @@ func TestCheckSpecPanelCallShape(t *testing.T) {
 		if !c.hasDeadline || c.deadline.Before(before.Add(15*time.Second)) || c.deadline.After(after.Add(15*time.Second)) {
 			t.Fatalf("%s deadline = %v, want 15s from the call (between %v and %v)", c.method, c.deadline, before, after)
 		}
+	}
+}
+
+func TestCheckSpecPanelBudgetScalesWithItsQueryCount(t *testing.T) {
+	tests := []struct {
+		queries int
+		want    time.Duration
+	}{
+		{1, 15 * time.Second},
+		{4, 15 * time.Second},
+		{5, 30 * time.Second},
+		{8, 30 * time.Second},
+		{12, 45 * time.Second},
+		{26, 45 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%d queries", tt.queries), func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			queries := make([]spec.Query, tt.queries)
+			for i := range queries {
+				queries[i] = spec.Query{Query: fmt.Sprintf("q%d", i)}
+			}
+			p := spec.Panel{ID: "p0", Type: spec.Timeseries, Title: "p0", Datasource: "prom", Queries: queries}
+			before := time.Now()
+			if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{p}), testNow); err != nil || issues != nil {
+				t.Fatalf("issues = %+v, err = %v", issues, err)
+			}
+			after := time.Now()
+			calls := fake.callsTo("range")
+			if len(calls) != tt.queries {
+				t.Fatalf("%d range calls, want %d", len(calls), tt.queries)
+			}
+			for _, c := range calls {
+				if c.query.Limits.Timeout != checkPanelBudget {
+					t.Fatalf("per-query timeout = %v, want %v", c.query.Limits.Timeout, checkPanelBudget)
+				}
+				if !c.hasDeadline || c.deadline.Before(before.Add(tt.want)) || c.deadline.After(after.Add(tt.want)) {
+					t.Fatalf("deadline = %v, want %v from the check (between %v and %v)", c.deadline, tt.want, before, after)
+				}
+			}
+		})
 	}
 }
 
@@ -736,5 +780,194 @@ func TestCheckDatasources(t *testing.T) {
 	}
 	if got := runner.CheckDatasources(dashboardOf([]spec.Panel{panelOf("ok", spec.Stat, "prom", "up")})); got != nil {
 		t.Fatalf("clean dashboard issues = %+v", got)
+	}
+}
+
+func TestCheckSpecMultiQueryPanels(t *testing.T) {
+	multi := func(queries ...spec.Query) spec.Panel {
+		return spec.Panel{ID: "p0", Type: spec.Timeseries, Title: "p0", Datasource: "prom", Queries: queries}
+	}
+	rowOf := func(children ...spec.Panel) spec.Panel {
+		return spec.Panel{ID: "row", Type: spec.Row, Title: "row", Panels: children}
+	}
+	emptyFrame := []datasource.Frame{{Fields: []datasource.Field{
+		{Name: "time", Type: datasource.FieldTime, Values: []any{1.0}},
+		{Name: "value", Type: datasource.FieldNumber, Values: []any{nil}},
+	}}}
+	byText := func(results map[string]error, empty ...string) func(*fakeDatasource) {
+		return func(f *fakeDatasource) {
+			f.onRange = func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+				if err := results[q.Text]; err != nil {
+					return nil, err
+				}
+				if slices.Contains(empty, q.Text) {
+					return emptyFrame, nil
+				}
+				return dataFrames(), nil
+			}
+		}
+	}
+	invalid := datasource.Errorf(datasource.ErrInvalidQuery, "nope")
+
+	tests := []struct {
+		name      string
+		panels    []spec.Panel
+		variables []spec.Variable
+		setup     func(*fakeDatasource)
+		want      []wantIssue
+		wantCalls int
+	}{
+		{
+			name:      "second query fails",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "bad"})},
+			setup:     byText(map[string]error{"bad": invalid}),
+			want:      []wantIssue{{"/panels/0/queries/1/query", CodeQueryInvalid, ""}},
+			wantCalls: 2,
+		},
+		{
+			name:      "both queries fail",
+			panels:    []spec.Panel{multi(spec.Query{Query: "bad1"}, spec.Query{Query: "bad2"})},
+			setup:     byText(map[string]error{"bad1": invalid, "bad2": invalid}),
+			want:      []wantIssue{{"/panels/0/queries/0/query", CodeQueryInvalid, ""}, {"/panels/0/queries/1/query", CodeQueryInvalid, ""}},
+			wantCalls: 2,
+		},
+		{
+			name:      "hidden failing query is an issue",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "bad", Hide: true})},
+			setup:     byText(map[string]error{"bad": invalid}),
+			want:      []wantIssue{{"/panels/0/queries/1/query", CodeQueryInvalid, ""}},
+			wantCalls: 2,
+		},
+		{
+			name:      "hidden empty query next to data is fine",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "none", Hide: true})},
+			setup:     byText(nil, "none"),
+			wantCalls: 2,
+		},
+		{
+			name:      "hidden query with data does not rescue empty visible queries",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "ok", Hide: true})},
+			setup:     byText(nil, "none"),
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
+			wantCalls: 2,
+		},
+		{
+			name:      "all visible queries empty",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none1"}, spec.Query{Query: "none2"})},
+			setup:     byText(nil, "none1", "none2"),
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
+			wantCalls: 2,
+		},
+		{
+			name:      "one visible query with data is enough",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "ok"})},
+			setup:     byText(nil, "none"),
+			wantCalls: 2,
+		},
+		{
+			name:      "query level unknown datasource",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "x", Datasource: "missing"})},
+			want:      []wantIssue{{"/panels/0/queries/1/datasource", CodeUnknownDatasource, `datasource "missing" is not configured`}},
+			wantCalls: 1,
+		},
+		{
+			name:   "panel datasource unknown is reported once",
+			panels: []spec.Panel{{ID: "p0", Type: spec.Timeseries, Title: "p0", Datasource: "missing", Queries: []spec.Query{{Query: "a"}, {Query: "b"}}}},
+			want:   []wantIssue{{"/panels/0/datasource", CodeUnknownDatasource, ""}},
+		},
+		{
+			name:      "a skipped visible query keeps an empty panel from being reported empty",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "x", Datasource: "missing"})},
+			setup:     byText(nil, "none"),
+			want:      []wantIssue{{"/panels/0/queries/1/datasource", CodeUnknownDatasource, ""}},
+			wantCalls: 1,
+		},
+		{
+			name:      "a visible query with an unresolved variable keeps an empty panel from being reported empty",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "up$v"})},
+			variables: []spec.Variable{queryVariable("v", "prom", "x")},
+			setup: func(f *fakeDatasource) {
+				byText(nil, "none")(f)
+				f.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+					return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+				}
+			},
+			want: []wantIssue{
+				{"/panels/0/queries/1/query", CodeVariableUnresolved, ""},
+				{"/variables/0", CodeVariableFailed, ""},
+			},
+			wantCalls: 2,
+		},
+		{
+			name:      "a skipped hidden query does not stop an empty panel from being reported",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "x", Datasource: "missing", Hide: true})},
+			setup:     byText(nil, "none"),
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}, {"/panels/0/queries/1/datasource", CodeUnknownDatasource, ""}},
+			wantCalls: 1,
+		},
+		{
+			name:      "unknown macro in the second query",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "$__timeFilter(x)"})},
+			want:      []wantIssue{{"/panels/0/queries/1/query", spec.CodeUnknownMacro, ""}},
+			wantCalls: 1,
+		},
+		{
+			name:      "row child query path",
+			panels:    []spec.Panel{panelOf("top", spec.Stat, "prom", "ok"), rowOf(multi(spec.Query{Query: "bad"}))},
+			setup:     byText(map[string]error{"bad": invalid}),
+			want:      []wantIssue{{"/panels/1/panels/0/queries/0/query", CodeQueryInvalid, ""}},
+			wantCalls: 2,
+		},
+		{
+			name:      "failed variable only unresolves the queries that use it",
+			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "up$v"})},
+			variables: []spec.Variable{queryVariable("v", "prom", "x")},
+			setup: func(f *fakeDatasource) {
+				f.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+					return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+				}
+			},
+			want: []wantIssue{
+				{"/panels/0/queries/1/query", CodeVariableUnresolved, ""},
+				{"/variables/0", CodeVariableFailed, ""},
+			},
+			wantCalls: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			if tt.setup != nil {
+				tt.setup(fake)
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			issues, err := runner.CheckSpec(t.Context(), dashboardOf(tt.panels, tt.variables...), testNow)
+			if err != nil {
+				t.Fatalf("CheckSpec error: %v", err)
+			}
+			assertIssues(t, issues, tt.want)
+			if got := fake.callCount(); got != tt.wantCalls {
+				t.Fatalf("upstream calls = %d, want %d: %+v", got, tt.wantCalls, fake.recorded())
+			}
+		})
+	}
+}
+
+func TestCheckSpecCapsDataPointsByPanel(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	capped := panelOf("p0", spec.Timeseries, "prom", "up")
+	capped.MaxDataPoints = 50
+	loose := panelOf("p1", spec.Timeseries, "prom", "up2")
+	loose.MaxDataPoints = 5000
+	if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{capped, loose}), testNow); err != nil || issues != nil {
+		t.Fatalf("issues = %+v, err = %v", issues, err)
+	}
+	steps := map[string]time.Duration{}
+	for _, c := range fake.callsTo("range") {
+		steps[c.query.Text] = c.step
+	}
+	if steps["up"] != 432*time.Second || steps["up2"] != 108*time.Second {
+		t.Fatalf("steps = %v, want up 432s (maxDataPoints 50) and up2 108s (capped at 200)", steps)
 	}
 }

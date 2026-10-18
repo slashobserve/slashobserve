@@ -2,17 +2,16 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { firstNumberSeries } from "./frames"
+import { firstNumberSeries, legendFor } from "./frames"
 import { thresholdFor, thresholdIcons } from "./thresholds"
 import type { PanelRenderer } from "./types"
 
 const charWidth = 0.62
 
 export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
-  const legend = panel.queries[0]?.legend
   const tiles = useMemo(
-    () => firstNumberSeries(frames, legend),
-    [frames, legend]
+    () => firstNumberSeries(frames, (frame) => legendFor(panel, frame)),
+    [frames, panel]
   )
 
   const decimals = commonDecimals(

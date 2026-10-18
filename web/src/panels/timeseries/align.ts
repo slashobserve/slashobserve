@@ -1,6 +1,11 @@
 import type { WireFrame } from "@/dashboards/queries"
 
-import { seriesKey, seriesLabel, uniqueKey } from "../frames"
+import {
+  qualifyCollidingLabels,
+  seriesKey,
+  seriesLabel,
+  uniqueKey,
+} from "../frames"
 
 export type AlignedSeries = {
   key: string
@@ -16,10 +21,11 @@ function asNumber(value: unknown): number | null {
 
 export function alignFrames(
   frames: WireFrame[],
-  legend?: string
+  legendOf: (frame: WireFrame) => string | undefined
 ): AlignedFrames {
   const timestamps = new Set<number>()
   const pending: {
+    ref: string
     key: string
     label: string
     times: unknown[]
@@ -38,8 +44,9 @@ export function alignFrames(
     const numbers = frame.fields.filter((field) => field.type === "number")
     for (const field of numbers) {
       pending.push({
+        ref: frame.ref,
         key: uniqueKey(seen, seriesKey(frame, field.name)),
-        label: seriesLabel(frame, field, legend, numbers.length),
+        label: seriesLabel(frame, field, legendOf(frame), numbers.length),
         times: time.values,
         values: field.values,
       })
@@ -48,14 +55,16 @@ export function alignFrames(
 
   const sorted = [...timestamps].sort((a, b) => a - b)
   const index = new Map(sorted.map((ms, position) => [ms, position]))
-  const series = pending.map(({ key, label, times, values }) => {
-    const aligned: (number | null)[] = new Array(sorted.length).fill(null)
-    times.forEach((ms, row) => {
-      const position = typeof ms === "number" ? index.get(ms) : undefined
-      if (position !== undefined) aligned[position] = asNumber(values[row])
-    })
-    return { key, label, values: aligned }
-  })
+  const series = qualifyCollidingLabels(pending).map(
+    ({ key, label, times, values }) => {
+      const aligned: (number | null)[] = new Array(sorted.length).fill(null)
+      times.forEach((ms, row) => {
+        const position = typeof ms === "number" ? index.get(ms) : undefined
+        if (position !== undefined) aligned[position] = asNumber(values[row])
+      })
+      return { key, label, values: aligned }
+    }
+  )
 
   return { xs: sorted.map((ms) => ms / 1000), series }
 }

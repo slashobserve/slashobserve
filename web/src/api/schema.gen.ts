@@ -421,8 +421,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Run the saved query of one panel in one dashboard version and return its frames.
-         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `time`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+         * Run the saved queries of one panel in one dashboard version and return their frames.
+         * @description The queries are fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `time`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run. The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query. A failing query fails the whole request, and the error names it in `ref`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
          */
         get: operations["getPanelData"];
         put?: never;
@@ -594,7 +594,7 @@ export interface components {
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have) and `threshold_value_missing` (a threshold other than the first omits its value). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/0/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/0/query` or `/panels/{i}/datasource` and `/panels/{i}/queries/0/datasource`). */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have) and `threshold_value_missing` (a threshold other than the first omits its value). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`). */
             code: string;
             message: string;
         };
@@ -810,14 +810,26 @@ export interface components {
             values: unknown[];
         };
         Frame: {
+            /** @description The ref of the panel query that produced this frame: its written ref, or A, B, C... by position. */
+            ref: string;
             name?: string;
             labels?: {
                 [key: string]: string;
             };
             fields: components["schemas"]["Field"][];
         };
-        DataMeta: {
+        QueryMeta: {
+            ref: string;
             /** @enum {string} */
+            kind: "range" | "instant";
+            /** @description The query's resolution; 0 for an instant query. */
+            step_ms: number;
+        };
+        DataMeta: {
+            /**
+             * @description range when any visible query runs as a range query, which also decides how from and to are aligned.
+             * @enum {string}
+             */
             kind: "range" | "instant";
             /**
              * Format: date-time
@@ -829,8 +841,10 @@ export interface components {
              * @description The end of the aligned range the query ran over.
              */
             to: string;
-            /** @description The query resolution; 0 for an instant panel. */
+            /** @description The panel's resolution; 0 for an instant panel. */
             step_ms: number;
+            /** @description Every query that ran, in panel order; hidden queries do not run. */
+            queries: components["schemas"]["QueryMeta"][];
             /** @description True when the response was served from the proxy's response cache instead of running the query. */
             cached: boolean;
             /**
@@ -838,6 +852,12 @@ export interface components {
              * @description When the query ran upstream, which for a cached response is earlier than the request.
              */
             executed_at: string;
+        };
+        PanelDataError: {
+            error: string;
+            code: string;
+            /** @description The query that failed, when one query's run failed. */
+            ref?: string;
         };
         PanelData: {
             frames: components["schemas"]["Frame"][];
@@ -1916,7 +1936,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The frames the saved query returned, an empty list when the result is empty. */
+            /** @description The frames the saved queries returned, an empty list when the result is empty or every query is hidden. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1925,7 +1945,15 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            400: components["responses"]["BadRequest"];
+            /** @description The request is malformed or fails validation, for example an undeclared variable or an invalid variable selection. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             /** @description The request carried query text; the code is `query_not_in_spec`. */
             403: {
@@ -1942,22 +1970,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["PanelDataError"];
                 };
             };
-            /** @description The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource` or `variable_empty`. */
+            /** @description A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource` or `variable_empty`. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["PanelDataError"];
                 };
             };
             429: components["responses"]["TooManyRequests"];
-            500: components["responses"]["Internal"];
-            502: components["responses"]["QueryBadGateway"];
-            504: components["responses"]["QueryTimeout"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the query timeout, or the panel's queries did not all finish within 55 seconds; `ref` names the lowest-index query that failed. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
         };
     };
     getVariableValues: {

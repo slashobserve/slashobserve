@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 type wireFrame struct {
+	Ref    string            `json:"ref"`
 	Name   string            `json:"name,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 	Fields []wireField       `json:"fields"`
@@ -20,20 +22,37 @@ type wireField struct {
 	Values []any                `json:"values"`
 }
 
-func marshalFrames(frames []datasource.Frame) ([]byte, error) {
-	out := make([]wireFrame, len(frames))
-	for i, f := range frames {
-		wf := wireFrame{Name: f.Name, Labels: f.Labels, Fields: make([]wireField, len(f.Fields))}
-		for j, field := range f.Fields {
-			values, err := wireValues(field)
-			if err != nil {
-				return nil, err
+func marshalFrames(queries []queryproxy.QueryResult) ([]byte, error) {
+	out := []wireFrame{}
+	for _, q := range queries {
+		for _, f := range q.Frames {
+			wf := wireFrame{Ref: q.Ref, Name: f.Name, Labels: f.Labels, Fields: make([]wireField, len(f.Fields))}
+			for j, field := range f.Fields {
+				values, err := wireValues(field)
+				if err != nil {
+					return nil, err
+				}
+				wf.Fields[j] = wireField{Name: field.Name, Type: field.Type, Values: values}
 			}
-			wf.Fields[j] = wireField{Name: field.Name, Type: field.Type, Values: values}
+			out = append(out, wf)
 		}
-		out[i] = wf
 	}
 	return json.Marshal(out)
+}
+
+func joinFrames(parts [][]byte) []byte {
+	out := []byte{'['}
+	for _, part := range parts {
+		if len(part) <= len("[]") {
+			continue
+		}
+		inner := part[1 : len(part)-1]
+		if len(out) > 1 {
+			out = append(out, ',')
+		}
+		out = append(out, inner...)
+	}
+	return append(out, ']')
 }
 
 func wireValues(field datasource.Field) ([]any, error) {

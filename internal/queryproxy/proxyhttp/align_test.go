@@ -110,10 +110,3 @@ func TestAlignStepMatchesRunnerStepOnTheAlignedRange(t *testing.T) {
 		}
 	}
 }
-
-func TestFloorHandlesTimesBeforeTheEpoch(t *testing.T) {
-	got := floor(time.UnixMilli(-1500), time.Second)
-	if want := time.UnixMilli(-2000); !got.Equal(want) {
-		t.Fatalf("floor = %v, want %v", got, want)
-	}
-}

@@ -82,6 +82,7 @@ type dataMeta struct {
 	From       string          `json:"from"`
 	To         string          `json:"to"`
 	StepMS     int64           `json:"step_ms"`
+	Queries    []queryMeta     `json:"queries"`
 	Cached     bool            `json:"cached"`
 	ExecutedAt string          `json:"executed_at"`
 }
@@ -142,8 +143,12 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	kind := queryproxy.KindFor(found.Panel.Type)
-	al := align(rng, kind, p.maxDataPoints)
+	maxDataPoints := p.maxDataPoints
+	if found.Panel.MaxDataPoints > 0 {
+		maxDataPoints = min(maxDataPoints, found.Panel.MaxDataPoints)
+	}
+	kind := queryproxy.PanelKind(found.Panel)
+	al := align(rng, kind, maxDataPoints)
 	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections)
 	if err != nil {
 		h.fail(c, err)
@@ -178,25 +183,43 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		cached.executedAt = stored
 		return cached, nil
 	}
+	found, _ := d.FindDataPanel(panelID)
+	parts := make([][]byte, len(found.Panel.Queries))
+	var (
+		mu    sync.Mutex
+		total int
+	)
+	admit := func(index int, q queryproxy.QueryResult) error {
+		part, err := marshalFrames([]queryproxy.QueryResult{q})
+		if err != nil {
+			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", panelID)}, failureAttrs(err)...)...)
+			return errInternal
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		parts[index] = part
+		if total += len(part); total > maxResponseBytes {
+			return &queryproxy.AbortError{Err: errTooLarge}
+		}
+		return nil
+	}
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     d,
 		PanelID:       panelID,
 		Range:         al.rng,
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
+		Admit:         admit,
 	})
 	if err != nil {
 		return dataEntry{}, err
 	}
-	frames, err := marshalFrames(res.Frames)
-	if err != nil {
-		h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", panelID)}, failureAttrs(err)...)...)
-		return dataEntry{}, errInternal
+	frames := joinFrames(parts)
+	queries := make([]queryMeta, len(res.Queries))
+	for i, q := range res.Queries {
+		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds()}
 	}
-	if len(frames) > maxResponseBytes {
-		return dataEntry{}, errTooLarge
-	}
-	entry = dataEntry{frames: frames, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}
+	entry = dataEntry{frames: frames, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}
 	if entry.cost() <= resultMaxEntry {
 		entry.executedAt = h.caches.data.Put(key, entry, entry.cost())
 	}
@@ -211,6 +234,7 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
 			From:       formatTime(e.from),
 			To:         formatTime(e.to),
 			StepMS:     e.step.Milliseconds(),
+			Queries:    e.queries,
 			Cached:     cached,
 			ExecutedAt: formatTime(executedAt),
 		},
@@ -398,6 +422,11 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	if status == 0 {
 		h.logger.DebugContext(c.Request.Context(), "query proxy: client went away")
 		c.Abort()
+		return
+	}
+	var qe *queryproxy.QueryError
+	if errors.As(err, &qe) {
+		c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code, "ref": qe.Ref})
 		return
 	}
 	abortError(c, status, code, message)

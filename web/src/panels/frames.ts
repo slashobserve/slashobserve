@@ -1,4 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
+import { queryRef, type DataPanel } from "@/spec"
 
 export type WireField = WireFrame["fields"][number]
 export type ColumnType = WireField["type"]
@@ -40,12 +41,37 @@ export function seriesLabel(
   return numberFieldCount > 1 ? `${label} ${field.name}` : label
 }
 
+export function qualifyCollidingLabels<
+  T extends { ref: string; label: string },
+>(series: T[]): T[] {
+  const refsByLabel = new Map<string, Set<string>>()
+  for (const { ref, label } of series) {
+    const refs = refsByLabel.get(label) ?? new Set<string>()
+    refs.add(ref)
+    refsByLabel.set(label, refs)
+  }
+  return series.map((item) =>
+    (refsByLabel.get(item.label)?.size ?? 0) > 1
+      ? { ...item, label: `${item.ref}: ${item.label}` }
+      : item
+  )
+}
+
+export function legendFor(
+  panel: DataPanel,
+  frame: WireFrame
+): string | undefined {
+  return panel.queries.find(
+    (query, index) => queryRef(query, index) === frame.ref
+  )?.legend
+}
+
 export function seriesKey(frame: WireFrame, fieldName: string): string {
   const labels = Object.entries(frame.labels ?? {})
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`)
     .join(",")
-  return `${frame.name ?? ""}{${labels}}#${fieldName}`
+  return `${frame.ref}:${frame.name ?? ""}{${labels}}#${fieldName}`
 }
 
 export function uniqueKey(seen: Map<string, number>, base: string): string {
@@ -79,20 +105,26 @@ export type NumberSeries = {
 
 export function firstNumberSeries(
   frames: WireFrame[],
-  legend?: string
+  legendOf: (frame: WireFrame) => string | undefined
 ): NumberSeries[] {
   const seen = new Map<string, number>()
-  return frames.flatMap((frame) => {
+  const series = frames.flatMap((frame) => {
     const numbers = frame.fields.filter((field) => field.type === "number")
     if (numbers.length === 0) return []
     return [
       {
+        ref: frame.ref,
         key: uniqueKey(seen, seriesKey(frame, numbers[0].name)),
-        label: seriesLabel(frame, numbers[0], legend, numbers.length),
+        label: seriesLabel(frame, numbers[0], legendOf(frame), numbers.length),
         value: lastNumber(numbers[0]),
       },
     ]
   })
+  return qualifyCollidingLabels(series).map(({ key, label, value }) => ({
+    key,
+    label,
+    value,
+  }))
 }
 
 export function hasData(frames: WireFrame[]): boolean {
@@ -109,26 +141,49 @@ function hasLabels(frame: WireFrame): boolean {
   return Object.keys(frame.labels ?? {}).length > 0
 }
 
-export function toTable(frames: WireFrame[]): TableData {
-  if (frames.length === 1 && !hasLabels(frames[0])) {
-    const frame = frames[0]
+const refColumn: TableColumn = {
+  key: "query:ref",
+  label: "Query",
+  type: "string",
+}
+
+function unlabeledTable(frames: WireFrame[]): TableData {
+  const withRef = new Set(frames.map((frame) => frame.ref)).size > 1
+  const columns: TableColumn[] = withRef ? [refColumn] : []
+  const known = new Set(columns.map((column) => column.key))
+  const rows: Record<string, unknown>[] = []
+  for (const frame of frames) {
     const used = new Set<string>()
-    const columns = frame.fields.map((field, index) => {
+    const keys = frame.fields.map((field, index) => {
       let key = `field:${field.name}`
       if (used.has(key)) key = `${key}#${index}`
       used.add(key)
-      return { key, label: field.name, type: field.type }
+      if (!known.has(key)) {
+        known.add(key)
+        columns.push({ key, label: field.name, type: field.type })
+      }
+      return key
     })
     const rowCount = Math.max(0, ...frame.fields.map((f) => f.values.length))
-    const rows: Record<string, unknown>[] = []
     for (let i = 0; i < rowCount; i++) {
-      const row: Record<string, unknown> = {}
+      const row: Record<string, unknown> = withRef
+        ? { [refColumn.key]: frame.ref }
+        : {}
       frame.fields.forEach((field, index) => {
-        row[columns[index].key] = field.values[i] ?? null
+        row[keys[index]] = field.values[i] ?? null
       })
       rows.push(row)
     }
-    return { columns, rows }
+  }
+  for (const row of rows) {
+    for (const column of columns) row[column.key] ??= null
+  }
+  return { columns, rows }
+}
+
+export function toTable(frames: WireFrame[]): TableData {
+  if (frames.length > 0 && !frames.some(hasLabels)) {
+    return unlabeledTable(frames)
   }
 
   const labelKeys = [

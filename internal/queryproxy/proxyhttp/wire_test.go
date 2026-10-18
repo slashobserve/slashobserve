@@ -8,7 +8,12 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
+
+func refA(frames []datasource.Frame) []queryproxy.QueryResult {
+	return []queryproxy.QueryResult{{Ref: "A", Frames: frames}}
+}
 
 func TestMarshalFramesConvertsTimesToEpochMilliseconds(t *testing.T) {
 	ts := time.Date(2026, 10, 18, 10, 0, 0, 123_000_000, time.UTC)
@@ -20,11 +25,11 @@ func TestMarshalFramesConvertsTimesToEpochMilliseconds(t *testing.T) {
 			{Name: "Value", Type: datasource.FieldNumber, Values: []any{1.5, 2.0}},
 		},
 	}}
-	body, err := marshalFrames(frames)
+	body, err := marshalFrames(refA(frames))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `[{"name":"up","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1792317600123,1792317601123]},{"name":"Value","type":"number","values":[1.5,2]}]}]`
+	want := `[{"ref":"A","name":"up","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1792317600123,1792317601123]},{"name":"Value","type":"number","values":[1.5,2]}]}]`
 	if string(body) != want {
 		t.Fatalf("body = %s\nwant   %s", body, want)
 	}
@@ -35,7 +40,7 @@ func TestMarshalFramesRendersNaNAndInfAsNull(t *testing.T) {
 		Name: "Value", Type: datasource.FieldNumber,
 		Values: []any{math.NaN(), math.Inf(1), math.Inf(-1), float32(math.NaN()), nil, 3.0},
 	}}}}
-	body, err := marshalFrames(frames)
+	body, err := marshalFrames(refA(frames))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +50,7 @@ func TestMarshalFramesRendersNaNAndInfAsNull(t *testing.T) {
 }
 
 func TestMarshalFramesOmitsEmptyNameAndLabels(t *testing.T) {
-	body, err := marshalFrames([]datasource.Frame{{Fields: []datasource.Field{{Name: "n", Type: datasource.FieldString, Values: []any{"x"}}}}})
+	body, err := marshalFrames(refA([]datasource.Frame{{Fields: []datasource.Field{{Name: "n", Type: datasource.FieldString, Values: []any{"x"}}}}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +68,7 @@ func TestMarshalFramesEmptyResultIsAnEmptyArray(t *testing.T) {
 
 func TestMarshalFramesKeepsOtherValuesAsProduced(t *testing.T) {
 	frames := []datasource.Frame{{Fields: []datasource.Field{{Name: "o", Type: datasource.FieldOther, Values: []any{map[string]any{"a": 1}, "s", true}}}}}
-	body, err := marshalFrames(frames)
+	body, err := marshalFrames(refA(frames))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +88,7 @@ func TestMarshalFramesRejectsWronglyTypedTimeField(t *testing.T) {
 		"int":    {int64(1)},
 	} {
 		frames := []datasource.Frame{{Fields: []datasource.Field{{Name: "Time", Type: datasource.FieldTime, Values: values}}}}
-		if _, err := marshalFrames(frames); err == nil {
+		if _, err := marshalFrames(refA(frames)); err == nil {
 			t.Errorf("%s value in a time field was accepted", name)
 		}
 	}
@@ -91,7 +96,32 @@ func TestMarshalFramesRejectsWronglyTypedTimeField(t *testing.T) {
 
 func TestMarshalFramesRejectsTimeValueInNonTimeField(t *testing.T) {
 	frames := []datasource.Frame{{Fields: []datasource.Field{{Name: "Value", Type: datasource.FieldNumber, Values: []any{time.Now()}}}}}
-	if _, err := marshalFrames(frames); err == nil {
+	if _, err := marshalFrames(refA(frames)); err == nil {
 		t.Fatal("a time value in a number field was accepted")
+	}
+}
+
+func TestMarshalFramesTagsEachFrameWithItsQueryRefInPanelOrder(t *testing.T) {
+	frame := func(name string) datasource.Frame {
+		return datasource.Frame{Name: name, Fields: []datasource.Field{{Name: "v", Type: datasource.FieldNumber, Values: []any{1.0}}}}
+	}
+	body, err := marshalFrames([]queryproxy.QueryResult{
+		{Ref: "A", Frames: []datasource.Frame{frame("a1"), frame("a2")}},
+		{Ref: "errors", Frames: nil},
+		{Ref: "D", Frames: []datasource.Frame{frame("d1")}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded []wireFrame
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range decoded {
+		got = append(got, f.Ref+":"+f.Name)
+	}
+	if want := "A:a1 A:a2 D:d1"; strings.Join(got, " ") != want {
+		t.Fatalf("frames = %v, want %s", got, want)
 	}
 }

@@ -1,14 +1,18 @@
 package queryproxy
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
+	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -25,9 +29,11 @@ const (
 
 const (
 	maxUpstreamCalls     = 32
+	queryParallelism     = 4
 	defaultMaxDataPoints = 1000
 	minMaxDataPoints     = 10
 	maxMaxDataPoints     = 11000
+	panelDeadline        = 55 * time.Second
 )
 
 var upstreamCalls = semaphore.NewWeighted(maxUpstreamCalls)
@@ -44,20 +50,55 @@ type Request struct {
 	Selections    map[string]Selection
 	MaxDataPoints int
 	Limits        datasource.Limits
+	IncludeHidden bool
+	Admit         func(index int, q QueryResult) error // an *AbortError stops the other queries and fails the request with its Err
+
+	skip []bool
+}
+
+type QueryResult struct {
+	Ref    string
+	Kind   Kind
+	Step   time.Duration
+	Frames []datasource.Frame
 }
 
 type Result struct {
-	Frames []datasource.Frame
-	Kind   Kind
-	Step   time.Duration
-	Range  datasource.TimeRange
+	Queries []QueryResult
+	Kind    Kind
+	Step    time.Duration
+	Range   datasource.TimeRange
 }
+
+func (r Result) Frames() []datasource.Frame {
+	var frames []datasource.Frame
+	for _, q := range r.Queries {
+		frames = append(frames, q.Frames...)
+	}
+	return frames
+}
+
+type QueryError struct {
+	Ref   string
+	Index int
+	Err   error
+}
+
+func (e *QueryError) Error() string { return e.Err.Error() }
+func (e *QueryError) Unwrap() error { return e.Err }
+
+type AbortError struct{ Err error }
+
+func (e *AbortError) Error() string { return e.Err.Error() }
+func (e *AbortError) Unwrap() error { return e.Err }
 
 type Runner struct {
 	reg    *datasource.Registry
 	logger *slog.Logger
 	sem    *semaphore.Weighted
 	values *valueCache
+
+	panelDeadline time.Duration
 }
 
 type RunnerOption func(*Runner)
@@ -70,7 +111,7 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	if logger == nil {
 		logger = slog.Default()
 	}
-	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls}
+	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, panelDeadline: panelDeadline}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -84,11 +125,49 @@ func (r *Runner) AcquireUpstream(ctx context.Context) (release func(), err error
 	return func() { r.sem.Release(1) }, nil
 }
 
-func KindFor(t spec.PanelType) Kind {
-	if t == spec.Timeseries {
+func QueryKind(p *spec.Panel, q spec.Query) Kind {
+	if q.Instant {
+		return KindInstant
+	}
+	switch p.Type {
+	case spec.Timeseries, spec.Heatmap, spec.StateTimeline, spec.Histogram:
 		return KindRange
 	}
 	return KindInstant
+}
+
+func PanelKind(p *spec.Panel) Kind {
+	for _, q := range p.Queries {
+		if !q.Hide && QueryKind(p, q) == KindRange {
+			return KindRange
+		}
+	}
+	return KindInstant
+}
+
+func QueryStep(base time.Duration, p *spec.Panel, q spec.Query) time.Duration {
+	text := cmp.Or(q.Interval, p.Interval)
+	if text == "" {
+		return base
+	}
+	minimum, err := spec.ParseInterval(text)
+	if err != nil {
+		return base
+	}
+	return max(base, minimum)
+}
+
+func Floor(t time.Time, unit time.Duration) time.Time {
+	ms, u := t.UnixMilli(), unit.Milliseconds()
+	return time.UnixMilli(ms - ((ms%u)+u)%u).UTC()
+}
+
+func alignToStep(r datasource.TimeRange, step time.Duration) datasource.TimeRange {
+	from, to := Floor(r.From, step), Floor(r.To, step)
+	if !to.After(from) {
+		to = from.Add(step)
+	}
+	return datasource.TimeRange{From: from, To: to}
 }
 
 func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
@@ -106,54 +185,168 @@ func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
 }
 
 func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
-	return r.runPanel(ctx, req, map[string]allList{}, true)
-}
-
-func (r *Runner) runPanel(ctx context.Context, req Request, lists map[string]allList, requireAll bool) (Result, error) {
-	panel, ok := dataPanel(req.Dashboard, req.PanelID)
-	if !ok {
-		return Result{}, fmt.Errorf("%w: %q", ErrPanelNotFound, req.PanelID)
-	}
-	text := panel.Queries[0].Query
-	inst, err := r.instance(panel.QueryDatasource(0))
+	ctx, cancel := context.WithTimeout(ctx, r.panelDeadline)
+	defer cancel()
+	_, res, errs, err := r.runQueries(ctx, req, map[string]allList{}, true)
 	if err != nil {
 		return Result{}, err
 	}
+	if i := slices.IndexFunc(errs, func(err error) bool { return err != nil }); i >= 0 {
+		return Result{}, errs[i]
+	}
+	return res, nil
+}
+
+func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]allList, requireAll bool) (panel *spec.Panel, res Result, errs []error, err error) {
+	panel, err = checkRequest(req, requireAll)
+	if err != nil {
+		return nil, Result{}, nil, err
+	}
+
+	baseStep := StepFor(req.Range, req.MaxDataPoints)
+	errs = make([]error, len(panel.Queries))
+	prepared := make([]*preparedQuery, len(panel.Queries))
+	for j, q := range panel.Queries {
+		if skipped(req, j, q) {
+			continue
+		}
+		pq, err := r.prepare(ctx, req, lists, panel, j, baseStep)
+		if err != nil {
+			errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
+			continue
+		}
+		prepared[j] = pq
+	}
+
+	frames, abortErr := r.runPrepared(ctx, req, panel, prepared, errs)
+	if abortErr != nil {
+		return panel, Result{}, nil, abortErr
+	}
+
+	res = Result{Kind: PanelKind(panel), Range: req.Range}
+	if res.Kind == KindRange {
+		res.Step = baseStep
+	}
+	for j, pq := range prepared {
+		if pq == nil || errs[j] != nil || panel.Queries[j].Hide {
+			continue
+		}
+		res.Queries = append(res.Queries, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: frames[j]})
+	}
+	return panel, res, errs, nil
+}
+
+func (r *Runner) runPrepared(ctx context.Context, req Request, panel *spec.Panel, prepared []*preparedQuery, errs []error) (frames [][]datasource.Frame, abortErr error) {
+	frames = make([][]datasource.Frame, len(panel.Queries))
+	runCtx, stop := context.WithCancel(ctx)
+	defer stop()
+	var (
+		group   errgroup.Group
+		abortMu sync.Mutex
+	)
+	group.SetLimit(queryParallelism)
+	for j, pq := range prepared {
+		if pq == nil {
+			continue
+		}
+		group.Go(func() error {
+			out, err := r.runQuery(runCtx, req, panel, j, pq)
+			var abort *AbortError
+			if errors.As(err, &abort) {
+				abortMu.Lock()
+				if abortErr == nil {
+					abortErr = abort.Err
+				}
+				abortMu.Unlock()
+				stop()
+				return nil
+			}
+			if err != nil {
+				errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
+				return nil
+			}
+			frames[j] = out
+			return nil
+		})
+	}
+	_ = group.Wait()
+	return frames, abortErr
+}
+
+func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j int, pq *preparedQuery) ([]datasource.Frame, error) {
+	out, err := upstream(ctx, r, panel.ID, pq.inst, pq.call)
+	if err != nil {
+		return nil, err
+	}
+	if req.Admit != nil && !panel.Queries[j].Hide {
+		if err := req.Admit(j, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: out}); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func checkRequest(req Request, requireAll bool) (*spec.Panel, error) {
+	panel, ok := dataPanel(req.Dashboard, req.PanelID)
+	if !ok {
+		return nil, fmt.Errorf("%w: %q", ErrPanelNotFound, req.PanelID)
+	}
 	if err := req.Range.Validate(); err != nil {
-		return Result{}, invalidRangeError(err)
+		return nil, invalidRangeError(err)
 	}
 	for name := range req.Selections {
 		if variableIndex(req.Dashboard, name) < 0 {
-			return Result{}, fmt.Errorf("%w: %q", ErrUnknownVariable, name)
+			return nil, fmt.Errorf("%w: %q", ErrUnknownVariable, name)
 		}
 	}
 	if requireAll {
 		for _, v := range req.Dashboard.Variables {
 			if _, ok := req.Selections[v.Name]; !ok {
-				return Result{}, fmt.Errorf("%w: no selection for variable %q", ErrInvalidRequest, v.Name)
+				return nil, fmt.Errorf("%w: no selection for variable %q", ErrInvalidRequest, v.Name)
 			}
 		}
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), text, req.Range, req.Selections, lists)
+	return panel, nil
+}
+
+type preparedQuery struct {
+	inst datasource.Instance
+	kind Kind
+	step time.Duration
+	call func(context.Context) ([]datasource.Frame, error)
+}
+
+func skipped(req Request, j int, q spec.Query) bool {
+	return (q.Hide && !req.IncludeHidden) || (j < len(req.skip) && req.skip[j])
+}
+
+func (r *Runner) prepare(ctx context.Context, req Request, lists map[string]allList, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
+	q := panel.Queries[j]
+	inst, err := r.instance(panel.QueryDatasource(j))
 	if err != nil {
-		return Result{}, err
+		return nil, err
 	}
-	q := datasource.Query{Text: text, Variables: vars, Limits: req.Limits}
-	kind := KindFor(panel.Type)
-	res := Result{Kind: kind, Range: req.Range}
-	if kind == KindRange {
-		res.Step = StepFor(req.Range, req.MaxDataPoints)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, lists)
+	if err != nil {
+		return nil, err
 	}
-	res.Frames, err = upstream(ctx, r, panel.ID, inst, func(ctx context.Context) ([]datasource.Frame, error) {
-		if kind == KindRange {
-			return inst.Datasource.QueryRange(ctx, q, req.Range, res.Step)
+	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits}
+	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
+	if pq.kind == KindRange {
+		pq.step = QueryStep(baseStep, panel, q)
+		rng := req.Range
+		if pq.step > baseStep {
+			rng = alignToStep(rng, pq.step)
 		}
-		return inst.Datasource.QueryInstant(ctx, q, req.Range)
-	})
-	if err != nil {
-		return Result{}, err
+		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
+			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
+		}
+	} else {
+		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
+			return inst.Datasource.QueryInstant(ctx, dq, req.Range)
+		}
 	}
-	return res, nil
+	return pq, nil
 }
 
 func invalidRangeError(err error) error {

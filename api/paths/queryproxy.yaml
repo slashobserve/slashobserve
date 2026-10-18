@@ -20,9 +20,9 @@ dashboards-id-versions-version-panels-panel-id-data:
         type: string
   get:
     operationId: getPanelData
-    summary: Run the saved query of one panel in one dashboard version and return its frames.
+    summary: Run the saved queries of one panel in one dashboard version and return their frames.
     description: >-
-      The query is fixed by the saved version, so the request names a panel and never carries query text;
+      The queries are fixed by the saved version, so the request names a panel and never carries query text;
       the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400.
       Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`,
       and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below.
@@ -31,6 +31,9 @@ dashboards-id-versions-version-panels-panel-id-data:
       default to the version's `time`, and may span at most 400 days.
       A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds;
       the aligned range comes back in `meta`.
+      Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run.
+      The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query.
+      A failing query fails the whole request, and the error names it in `ref`.
       Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
     parameters:
       - name: from
@@ -54,13 +57,17 @@ dashboards-id-versions-version-panels-panel-id-data:
           default: 1000
     responses:
       "200":
-        description: The frames the saved query returned, an empty list when the result is empty.
+        description: The frames the saved queries returned, an empty list when the result is empty or every query is hidden.
         content:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelData"
       "400":
-        $ref: "../openapi.yaml#/components/responses/BadRequest"
+        description: The request is malformed or fails validation, for example an undeclared variable or an invalid variable selection.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
@@ -74,23 +81,35 @@ dashboards-id-versions-version-panels-panel-id-data:
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "422":
         description: >-
-          The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
+          A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
           `unknown_datasource` or `variable_empty`.
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "429":
         $ref: "../openapi.yaml#/components/responses/TooManyRequests"
       "500":
-        $ref: "../openapi.yaml#/components/responses/Internal"
+        description: The server failed to handle the request, including a datasource call that failed without a classified cause.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "502":
-        $ref: "../openapi.yaml#/components/responses/QueryBadGateway"
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "504":
-        $ref: "../openapi.yaml#/components/responses/QueryTimeout"
+        description: A datasource did not answer within the query timeout, or the panel's queries did not all finish within 55 seconds; `ref` names the lowest-index query that failed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
 dashboards-id-versions-version-variables-name-values:
   parameters:
     - name: id

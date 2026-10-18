@@ -171,11 +171,11 @@ type alignment struct {
 
 func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) alignment {
 	if kind == queryproxy.KindInstant {
-		to := floor(rng.To, instantResolution)
+		to := queryproxy.Floor(rng.To, instantResolution)
 		return alignment{rng: datasource.TimeRange{From: to.Add(-rng.To.Sub(rng.From)), To: to}}
 	}
 	step := queryproxy.StepFor(rng, maxDataPoints)
-	from, to := floor(rng.From, step), floor(rng.To, step)
+	from, to := queryproxy.Floor(rng.From, step), queryproxy.Floor(rng.To, step)
 	if !to.After(from) {
 		to = from.Add(step)
 	}
@@ -184,9 +184,4 @@ func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) al
 		from, points = to.Add(-minMaxDataPoints*step), minMaxDataPoints
 	}
 	return alignment{rng: datasource.TimeRange{From: from, To: to}, step: step, maxDataPoints: points}
-}
-
-func floor(t time.Time, unit time.Duration) time.Time {
-	ms, u := t.UnixMilli(), unit.Milliseconds()
-	return time.UnixMilli(ms - ((ms%u)+u)%u).UTC()
 }
