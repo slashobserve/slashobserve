@@ -125,7 +125,7 @@ export function CodeEditor({
     <div
       ref={host}
       className={cn(
-        "overflow-hidden rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30 [&_.cm-editor]:max-h-[50vh] [&_.cm-editor]:min-h-40",
+        "overflow-hidden rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring dark:bg-input/30 [&_.cm-editor]:max-h-[50vh] [&_.cm-editor]:min-h-40",
         readOnly && "border-transparent bg-muted/50 dark:bg-muted/30"
       )}
     />

@@ -53,7 +53,7 @@ export const BargaugePanel: PanelRenderer = ({
       role="region"
       aria-label={`${panel.title} values`}
       tabIndex={0}
-      className="flex flex-col gap-2 overflow-y-auto px-3 pt-1 pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+      className="flex flex-col gap-2 overflow-y-auto px-3 pt-1 pb-2 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={{ width, height }}
     >
       {rows.map((row, index) => {

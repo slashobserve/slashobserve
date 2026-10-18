@@ -93,7 +93,7 @@ export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
       role="region"
       aria-label={`${panel.title} table`}
       tabIndex={0}
-      className="overflow-auto text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
+      className="overflow-auto text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={{ width, height }}
     >
       {/* The shadcn Table wrapper adds its own overflow container, which breaks the sticky header */}
@@ -113,7 +113,7 @@ export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
                     type="button"
                     onClick={() => toggleSort(column.key)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                      "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
                       numeric && "flex-row-reverse"
                     )}
                   >

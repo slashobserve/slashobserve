@@ -486,7 +486,7 @@ export default function QueryTab({
             <Alert
               ref={notice}
               tabIndex={-1}
-              className="outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             >
               <AlertTitle>
                 Version {newer} was saved while you were editing.

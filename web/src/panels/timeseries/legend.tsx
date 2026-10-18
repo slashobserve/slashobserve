@@ -57,7 +57,7 @@ export function Legend({ ref, items, hidden, available, onToggle }: Props) {
             aria-pressed={visible}
             onClick={() => onToggle(item.key)}
             className={cn(
-              "flex max-w-full items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+              "flex max-w-full items-center gap-1.5 rounded-sm px-1.5 py-0.5 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
               !visible && "opacity-50"
             )}
           >

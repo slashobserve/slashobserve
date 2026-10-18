@@ -11,7 +11,7 @@ export function CodeSnippet({ code, label, wrap }: Props) {
         role="region"
         aria-label={label}
         className={cn(
-          "rounded-lg p-3 pr-11 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          "rounded-lg p-3 pr-11 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring",
           wrap
             ? "wrap-anywhere whitespace-pre-wrap"
             : "overflow-x-auto whitespace-pre"
