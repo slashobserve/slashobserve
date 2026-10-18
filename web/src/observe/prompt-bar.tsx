@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import type { FormEvent, KeyboardEvent } from "react"
 import { toast } from "sonner"
 
@@ -14,6 +14,8 @@ import {
 
 const maxPromptLength = 4000
 
+type Notice = { text: string; invalid: boolean }
+
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   return (
@@ -24,19 +26,37 @@ function isEditable(target: EventTarget | null): boolean {
   )
 }
 
+const coarsePointer = "(pointer: coarse)"
+
+function subscribeCoarsePointer(onChange: () => void) {
+  const media = window.matchMedia(coarsePointer)
+  media.addEventListener("change", onChange)
+  return () => media.removeEventListener("change", onChange)
+}
+
+function useCoarsePointer(): boolean {
+  return useSyncExternalStore(
+    subscribeCoarsePointer,
+    () => window.matchMedia(coarsePointer).matches,
+    () => false
+  )
+}
+
 export function PromptBar() {
   const navigate = useNavigate()
   const agent = useAgentInfo()
   const create = useCreateObserveRequest()
+  const coarse = useCoarsePointer()
   const [prompt, setPrompt] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const field = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
+  const hintId = useId()
   const messageId = useId()
 
   const agentOff = agent.data?.available === false
-  const message = agentOff ? agentOffMessage : error
+  const message = agentOff ? agentOffMessage : (notice?.text ?? null)
 
   useEffect(() => {
     function focusOnSlash(event: globalThis.KeyboardEvent) {
@@ -51,37 +71,51 @@ export function PromptBar() {
       ) {
         return
       }
+      const element = field.current
+      if (element === null || element.disabled) return
       event.preventDefault()
-      field.current?.focus()
+      element.focus()
     }
     window.addEventListener("keydown", focusOnSlash)
     return () => window.removeEventListener("keydown", focusOnSlash)
   }, [])
 
+  function reject(next: Notice) {
+    setNotice(next)
+    field.current?.focus()
+  }
+
   async function submit() {
     if (submitting || agentOff) return
     const trimmed = prompt.trim()
     if (trimmed === "") {
-      setError("Describe the dashboard you want first.")
+      reject({ text: "Describe the dashboard you want first.", invalid: true })
       return
     }
-    if (trimmed.length > maxPromptLength) {
-      setError(`Use at most ${maxPromptLength} characters.`)
+    if ([...trimmed].length > maxPromptLength) {
+      reject({
+        text: `Use at most ${maxPromptLength} characters.`,
+        invalid: true,
+      })
       return
     }
-    setError(null)
+    setNotice(null)
     setSubmitting(true)
     try {
-      const request = await create.mutateAsync(trimmed)
+      const request = await create.mutateAsync({ prompt: trimmed })
       await navigate({
         to: "/observe/$requestId",
         params: { requestId: request.id },
       })
     } catch (cause) {
       const described = describeSubmitError(cause)
-      if (described.inline) setError(described.message)
-      else toast.error(described.message)
       setSubmitting(false)
+      if (described.inline) {
+        reject({ text: described.message, invalid: described.invalid })
+      } else {
+        toast.error(described.message)
+        field.current?.focus()
+      }
     }
   }
 
@@ -92,6 +126,7 @@ export function PromptBar() {
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (
+      !coarse &&
       event.key === "Enter" &&
       !event.shiftKey &&
       !event.nativeEvent.isComposing
@@ -115,20 +150,25 @@ export function PromptBar() {
         placeholder="checkout health by pod, last 6h"
         disabled={agentOff}
         readOnly={submitting}
-        aria-invalid={error !== null}
-        aria-describedby={message === null ? undefined : messageId}
+        aria-invalid={!agentOff && notice?.invalid === true}
+        enterKeyHint={coarse ? "enter" : "send"}
+        aria-describedby={
+          message !== null ? messageId : coarse ? undefined : hintId
+        }
         onChange={(event) => {
           setPrompt(event.target.value)
-          setError(null)
+          setNotice(null)
         }}
         onKeyDown={onKeyDown}
       />
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-h-8 min-w-0 items-center text-sm">
           {message === null ? (
-            <p className="text-muted-foreground max-sm:hidden">
-              Press Enter to send and Shift+Enter for a new line.
-            </p>
+            coarse ? null : (
+              <p id={hintId} className="text-balance text-muted-foreground">
+                Enter sends. Shift+Enter adds a new line.
+              </p>
+            )
           ) : (
             <p
               id={messageId}

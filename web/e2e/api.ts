@@ -11,7 +11,7 @@ export type Spec = Record<string, unknown> & {
 const baseURL =
   process.env.SLASHOBSERVE_E2E_BASE_URL ?? "http://localhost:18080"
 
-const mutationHeaders = {
+export const mutationHeaders = {
   Origin: baseURL,
   "Content-Type": "application/json",
 }
