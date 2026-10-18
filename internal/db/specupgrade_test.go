@@ -235,6 +235,11 @@ func TestUpgradeStoredSpecsReportsNoSpecValuesWhenTheUpgradedSpecIsInvalid(t *te
 	if !strings.Contains(err.Error(), dashboardA) || !strings.Contains(err.Error(), " version 1") {
 		t.Errorf("error %q does not name the dashboard and version", err)
 	}
+	for _, want := range []string{"is not a valid Spec", "code "} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not contain %q, so the Parse branch was not reached", err, want)
+		}
+	}
 	if strings.Contains(err.Error(), "SECRET") {
 		t.Errorf("error %q leaks spec content", err)
 	}
