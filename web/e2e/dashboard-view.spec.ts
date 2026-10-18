@@ -66,6 +66,15 @@ test("changing the time range updates the URL and reloads panels", async ({
   await expectPanelsReady(page)
 })
 
+test("labels a non-preset relative range", async ({ page, request }) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id, "?from=now-20m&to=now")
+  await expect(
+    page.getByRole("button", { name: "Time range: Last 20 minutes" })
+  ).toBeVisible()
+  await expectPanelsReady(page)
+})
+
 test("applies a custom absolute range", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)

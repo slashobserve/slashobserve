@@ -73,8 +73,72 @@ describe("formatting", () => {
 
   it("describes ranges", () => {
     expect(describeRange("now-6h", "now")).toBe("Last 6 hours")
+  })
+
+  it("keeps preset labels", () => {
+    expect(describeRange("now/d", "now")).toBe("Today so far")
     expect(describeRange("now-1d/d", "now-1d/d")).toBe("Yesterday")
-    expect(describeRange("now-7h", "now")).toBe("now-7h to now")
+  })
+
+  it("labels any other relative range", () => {
+    expect(describeRange("now-7h", "now")).toBe("Last 7 hours")
+    expect(describeRange("now-90d", "now")).toBe("Last 90 days")
+  })
+
+  it("uses the singular for one", () => {
+    expect(describeRange("now-1m", "now")).toBe("Last 1 minute")
+    expect(describeRange("now-1d", "now")).toBe("Last 1 day")
+  })
+
+  it("names every unit", () => {
+    const cases: [string, string][] = [
+      ["now-45s", "Last 45 seconds"],
+      ["now-20m", "Last 20 minutes"],
+      ["now-8h", "Last 8 hours"],
+      ["now-3d", "Last 3 days"],
+      ["now-2w", "Last 2 weeks"],
+      ["now-1M", "Last 1 month"],
+      ["now-6M", "Last 6 months"],
+      ["now-1y", "Last 1 year"],
+      ["now-2y", "Last 2 years"],
+    ]
+    for (const [from, label] of cases) {
+      expect(describeRange(from, "now")).toBe(label)
+    }
+  })
+
+  it("falls back to the raw text for everything else", () => {
+    expect(describeRange("now-20m", "now-5m")).toBe("now-20m to now-5m")
+    expect(describeRange("now-20m/m", "now")).toBe("now-20m/m to now")
+    expect(describeRange("now-1d/d", "now")).toBe("now-1d/d to now")
+    expect(describeRange("now/w", "now")).toBe("now/w to now")
+    expect(describeRange("now-20m", "now/m")).toBe("now-20m to now/m")
+    expect(describeRange("now+20m", "now")).toBe("now+20m to now")
+    expect(describeRange("now-0m", "now")).toBe("now-0m to now")
+    expect(describeRange("now-05m", "now")).toBe("now-05m to now")
+    expect(describeRange("now", "now")).toBe("now to now")
+    expect(describeRange("now-20x", "now")).toBe("now-20x to now")
+    expect(describeRange("now-2147483647m", "now")).toBe(
+      "Last 2147483647 minutes"
+    )
+    expect(describeRange("now-3000000000s", "now")).toBe(
+      "now-3000000000s to now"
+    )
+    expect(describeRange("now-1000000000000000000000m", "now")).toBe(
+      "now-1000000000000000000000m to now"
+    )
+    expect(describeRange("2026-10-17T09:00:00Z", "now")).toBe(
+      "2026-10-17T09:00:00Z to now"
+    )
+    expect(describeRange("now-2h", "2026-10-17T09:00:00Z")).toBe(
+      "now-2h to 2026-10-17T09:00:00Z"
+    )
+  })
+
+  it("formats epoch ranges as local times", () => {
+    expect(describeRange("1760695200000", "1760698800000")).toBe(
+      `${formatDateTime(1760695200000)} to ${formatDateTime(1760698800000)}`
+    )
   })
 
   it("formats relative times", () => {

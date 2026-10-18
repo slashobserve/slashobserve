@@ -69,6 +69,8 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
     choose(parsedFrom, parsedTo)
   }
 
+  const rangeLabel = describeRange(from, to)
+
   return (
     <div className="flex items-center gap-1">
       <Popover open={open} onOpenChange={onOpenChange}>
@@ -76,12 +78,12 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
           render={
             <Button
               variant="outline"
-              aria-label={`Time range: ${describeRange(from, to)}`}
+              aria-label={`Time range: ${rangeLabel}`}
             />
           }
         >
           <ClockIcon />
-          {describeRange(from, to)}
+          {rangeLabel}
         </PopoverTrigger>
         <PopoverContent
           align="end"

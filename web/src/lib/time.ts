@@ -62,13 +62,43 @@ export function formatTimeValue(value: string): string {
   return epochMillis.test(value) ? formatDateTime(Number(value)) : value
 }
 
+type TimeUnit = "s" | "m" | "h" | "d" | "w" | "M" | "y"
+
+const unitNames: Record<TimeUnit, string> = {
+  s: "second",
+  m: "minute",
+  h: "hour",
+  d: "day",
+  w: "week",
+  M: "month",
+  y: "year",
+}
+
+const maxRelativeCount = 2147483647
+
+function isTimeUnit(value: string): value is TimeUnit {
+  return Object.hasOwn(unitNames, value)
+}
+
+function describeRelativeRange(from: string, to: string): string | null {
+  if (to !== "now" || !isTimeValue(from)) return null
+  const match = relativeExpression.exec(from)
+  if (!match || match[1] !== "-" || match[4]) return null
+  const count = Number(match[2])
+  if (!Number.isSafeInteger(count) || count > maxRelativeCount) return null
+  if (!isTimeUnit(match[3])) return null
+  return `Last ${count} ${unitNames[match[3]]}${count === 1 ? "" : "s"}`
+}
+
 export function describeRange(from: string, to: string): string {
   const quick = quickRanges.find(
     (range) => range.from === from && range.to === to
   )
-  return quick
-    ? quick.label
-    : `${formatTimeValue(from)} to ${formatTimeValue(to)}`
+  return (
+    quick?.label ??
+    describeRelativeRange(from, to) ??
+    `${formatTimeValue(from)} to ${formatTimeValue(to)}`
+  )
 }
 
 const fixedUnitMs = {
