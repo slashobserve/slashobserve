@@ -219,6 +219,20 @@ func TestRequestIdOfAnotherDashboardIsAConflictNotAReplay(t *testing.T) {
 	}
 }
 
+func TestRequestSaveNeverReplaysAnIdenticalSaveMadeWithoutItsId(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	request := r.queueRevision(t, dash)
+	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "same spec, no request id"); err != nil {
+		t.Fatal(err)
+	}
+	_, _, replayed, err := r.service.AddRequestVersion(t.Context(), testUser, dash, 1, panelsSpec("t", "rps", "p99"), "same spec", request)
+	var conflict *ConflictError
+	if !errors.As(err, &conflict) || replayed || conflict.Latest != 2 {
+		t.Fatalf("replayed %t, err %v, want a conflict at version 2", replayed, err)
+	}
+}
+
 func TestSavesWithoutARequestIdAreUnchanged(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)

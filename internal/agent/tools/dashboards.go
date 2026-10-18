@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	errRequestIDUnsupported = errors.New("request-id saves need plan 036")
+	errRequestIDUnsupported = errors.New("create_dashboard does not support request ids yet")
 	errInvalidRun           = errors.New("invalid run scope")
 )
 

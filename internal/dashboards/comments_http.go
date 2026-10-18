@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -64,20 +65,20 @@ func (cm *Comments) Register(api *gin.RouterGroup) {
 }
 
 func (cm *Comments) createComment(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
 	var req createCommentRequest
-	if !decodeBody(c, &req, maxCommentRequestBytes) {
+	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
 	if req.Version == nil || req.PanelID == nil || req.Body == nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
 		return
 	}
 	requestRevision := req.RequestRevision == nil || *req.RequestRevision
-	comment, err := cm.Create(c.Request.Context(), caller(c), id, *req.Version, *req.PanelID, *req.Body, requestRevision)
+	comment, err := cm.Create(c.Request.Context(), httpapi.Caller(c), id, *req.Version, *req.PanelID, *req.Body, requestRevision)
 	if err != nil {
 		cm.fail(c, "create comment", err)
 		return
@@ -87,11 +88,11 @@ func (cm *Comments) createComment(c *gin.Context) {
 }
 
 func (cm *Comments) listComments(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
-	limit, ok := limitParam(c, defaultCommentLimit, maxCommentLimit)
+	limit, ok := httpapi.LimitParam(c, defaultCommentLimit, maxCommentLimit)
 	if !ok {
 		return
 	}
@@ -108,7 +109,7 @@ func (cm *Comments) listComments(c *gin.Context) {
 		cm.fail(c, "list comments", err)
 		return
 	}
-	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: optionalString(next)}
+	body := commentListJSON{Comments: make([]commentJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
 	for _, item := range items {
 		body.Comments = append(body.Comments, newCommentJSON(item))
 	}
@@ -116,23 +117,23 @@ func (cm *Comments) listComments(c *gin.Context) {
 }
 
 func (cm *Comments) patchComment(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
-	commentID, ok := uuidParam(c, "comment_id")
+	commentID, ok := httpapi.UUIDParam(c, "comment_id")
 	if !ok {
 		return
 	}
 	var req setCommentStatusRequest
-	if !decodeBody(c, &req, maxCommentRequestBytes) {
+	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
 	if req.Status == nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", "status is required")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "status is required")
 		return
 	}
-	comment, err := cm.SetStatus(c.Request.Context(), caller(c), id, commentID, *req.Status)
+	comment, err := cm.SetStatus(c.Request.Context(), httpapi.Caller(c), id, commentID, *req.Status)
 	if err != nil {
 		cm.fail(c, "set comment status", err)
 		return
@@ -144,13 +145,13 @@ func (cm *Comments) fail(c *gin.Context, action string, err error) {
 	var invalid *InvalidInputError
 	switch {
 	case errors.Is(err, ErrCommentNotFound):
-		abortError(c, http.StatusNotFound, "not_found", err.Error())
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
-		abortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.Is(err, revisions.ErrTooManyRevisions):
-		abortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
+		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
-		abortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalid.Message)
 	default:
 		cm.dashboards.fail(c, action, err)
 	}
@@ -159,7 +160,7 @@ func (cm *Comments) fail(c *gin.Context, action string, err error) {
 func nonEmptyQuery(c *gin.Context, name string) (string, bool) {
 	value, present := c.GetQuery(name)
 	if present && value == "" {
-		abortError(c, http.StatusBadRequest, "invalid_request", name+" must not be empty")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must not be empty")
 		return "", false
 	}
 	return value, true
@@ -174,12 +175,12 @@ func newCommentJSON(c Comment) commentJSON {
 		Body:         c.Body,
 		Status:       c.Status,
 		Author:       newAuthorJSON(c.Author),
-		CreatedAt:    formatTime(c.CreatedAt),
-		UpdatedAt:    formatTime(c.UpdatedAt),
+		CreatedAt:    httpapi.FormatTime(c.CreatedAt),
+		UpdatedAt:    httpapi.FormatTime(c.UpdatedAt),
 		PanelPresent: c.PanelPresent,
 	}
 	if c.ResolvedAt != nil {
-		at := formatTime(*c.ResolvedAt)
+		at := httpapi.FormatTime(*c.ResolvedAt)
 		out.ResolvedAt = &at
 	}
 	if c.ResolvedBy != nil {

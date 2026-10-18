@@ -1,8 +1,7 @@
 package dashboards
 
 import (
-	"time"
-
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -80,8 +79,8 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Title:         d.Title,
 		Tags:          d.Tags,
 		LatestVersion: d.LatestVersion,
-		CreatedAt:     formatTime(d.CreatedAt),
-		UpdatedAt:     formatTime(d.UpdatedAt),
+		CreatedAt:     httpapi.FormatTime(d.CreatedAt),
+		UpdatedAt:     httpapi.FormatTime(d.UpdatedAt),
 		UpdatedBy:     newAuthorJSON(d.UpdatedBy),
 	}
 }
@@ -93,7 +92,7 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 		RestoredFrom:  v.RestoredFrom,
 		Summary:       v.Summary,
 		Author:        newAuthorJSON(v.Author),
-		CreatedAt:     formatTime(v.CreatedAt),
+		CreatedAt:     httpapi.FormatTime(v.CreatedAt),
 	}
 }
 
@@ -102,8 +101,4 @@ func newDashboardVersionJSON(d Dashboard, v Version) dashboardVersionJSON {
 		Dashboard: newDashboardJSON(d),
 		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec},
 	}
-}
-
-func formatTime(t time.Time) string {
-	return t.UTC().Format(time.RFC3339Nano)
 }

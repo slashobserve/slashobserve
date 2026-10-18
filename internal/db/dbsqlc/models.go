@@ -18,6 +18,7 @@ type AgentRequest struct {
 	BaseVersion      int32
 	Status           string
 	Attempts         int32
+	CheckFailures    int32
 	LeaseUntil       pgtype.Timestamptz
 	ResultVersion    pgtype.Int4
 	Error            pgtype.Text

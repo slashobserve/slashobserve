@@ -5,15 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -55,10 +52,10 @@ func (s *Service) Register(api *gin.RouterGroup) {
 
 func (s *Service) createDashboard(c *gin.Context) {
 	var req createRequest
-	if !decodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
 	}
-	dash, ver, err := s.Create(c.Request.Context(), caller(c), req.Spec, req.Summary)
+	dash, ver, err := s.Create(c.Request.Context(), httpapi.Caller(c), req.Spec, req.Summary)
 	if err != nil {
 		s.fail(c, "create dashboard", err)
 		return
@@ -68,7 +65,7 @@ func (s *Service) createDashboard(c *gin.Context) {
 }
 
 func (s *Service) listDashboards(c *gin.Context) {
-	limit, ok := limitParam(c, defaultLimit, maxLimit)
+	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
@@ -77,7 +74,7 @@ func (s *Service) listDashboards(c *gin.Context) {
 		s.fail(c, "list dashboards", err)
 		return
 	}
-	body := dashboardListJSON{Dashboards: make([]dashboardJSON, 0, len(items)), NextCursor: optionalString(next)}
+	body := dashboardListJSON{Dashboards: make([]dashboardJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
 	for _, d := range items {
 		body.Dashboards = append(body.Dashboards, newDashboardJSON(d))
 	}
@@ -85,7 +82,7 @@ func (s *Service) listDashboards(c *gin.Context) {
 }
 
 func (s *Service) getDashboard(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -98,11 +95,11 @@ func (s *Service) getDashboard(c *gin.Context) {
 }
 
 func (s *Service) listVersions(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
-	limit, ok := limitParam(c, defaultLimit, maxLimit)
+	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
@@ -111,7 +108,7 @@ func (s *Service) listVersions(c *gin.Context) {
 		s.fail(c, "list dashboard versions", err)
 		return
 	}
-	body := versionListJSON{Versions: make([]versionMetaJSON, 0, len(items)), NextCursor: optionalString(next)}
+	body := versionListJSON{Versions: make([]versionMetaJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
 	for _, v := range items {
 		body.Versions = append(body.Versions, newVersionMetaJSON(v))
 	}
@@ -119,7 +116,7 @@ func (s *Service) listVersions(c *gin.Context) {
 }
 
 func (s *Service) getVersion(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -136,23 +133,23 @@ func (s *Service) getVersion(c *gin.Context) {
 }
 
 func (s *Service) addVersion(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
 	var req versionRequest
-	if !decodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
 	}
 	if req.Summary == nil || req.ParentVersion == nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", "spec, summary and parent_version are required")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "spec, summary and parent_version are required")
 		return
 	}
 	if !validVersion(*req.ParentVersion) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "parent_version must be a positive 32-bit integer")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "parent_version must be a positive 32-bit integer")
 		return
 	}
-	dash, ver, replayed, err := s.AddVersion(c.Request.Context(), caller(c), id, *req.ParentVersion, req.Spec, *req.Summary)
+	dash, ver, replayed, err := s.AddVersion(c.Request.Context(), httpapi.Caller(c), id, *req.ParentVersion, req.Spec, *req.Summary)
 	if err != nil {
 		s.fail(c, "add dashboard version", err)
 		return
@@ -168,7 +165,7 @@ func (s *Service) addVersion(c *gin.Context) {
 }
 
 func (s *Service) restoreVersion(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -177,14 +174,14 @@ func (s *Service) restoreVersion(c *gin.Context) {
 		return
 	}
 	var req restoreRequest
-	if !decodeBody(c, &req, maxBodyBytes) {
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
 	}
 	if req.ParentVersion == nil || !validVersion(*req.ParentVersion) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "parent_version is required and must be a positive 32-bit integer")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "parent_version is required and must be a positive 32-bit integer")
 		return
 	}
-	dash, ver, err := s.Restore(c.Request.Context(), caller(c), id, from, *req.ParentVersion, req.Summary)
+	dash, ver, err := s.Restore(c.Request.Context(), httpapi.Caller(c), id, from, *req.ParentVersion, req.Summary)
 	if err != nil {
 		s.fail(c, "restore dashboard version", err)
 		return
@@ -194,7 +191,7 @@ func (s *Service) restoreVersion(c *gin.Context) {
 }
 
 func (s *Service) diff(c *gin.Context) {
-	id, ok := uuidParam(c, "id")
+	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -223,85 +220,31 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		s.logger.DebugContext(ctx, action+": client went away")
 		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound):
-		abortError(c, http.StatusNotFound, "not_found", err.Error())
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
 	case errors.As(err, &invalid):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, invalidSpecJSON{Error: "spec is invalid", Code: "invalid_spec", Issues: invalid.Issues})
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):
-		abortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		s.logger.ErrorContext(ctx, action, "error", err)
-		abortError(c, http.StatusInternalServerError, "internal", "internal error")
+		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
-}
-
-func abortError(c *gin.Context, status int, code, message string) {
-	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
-}
-
-func decodeBody(c *gin.Context, dst any, limit int64) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, limit))
-	dec.DisallowUnknownFields()
-	err := dec.Decode(dst)
-	if err == nil {
-		_, err = dec.Token()
-		if errors.Is(err, io.EOF) {
-			return true
-		}
-		if err == nil {
-			abortError(c, http.StatusBadRequest, "invalid_request", "request body must be a single JSON object")
-			return false
-		}
-	}
-	var tooLarge *http.MaxBytesError
-	if errors.As(err, &tooLarge) {
-		abortError(c, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
-		return false
-	}
-	abortError(c, http.StatusBadRequest, "invalid_request", "request body must be valid JSON with known fields")
-	return false
 }
 
 func requireSpec(c *gin.Context, raw json.RawMessage) bool {
 	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
-		abortError(c, http.StatusBadRequest, "invalid_request", "spec is required")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "spec is required")
 		return false
 	}
 	return true
 }
 
-func caller(c *gin.Context) auth.Principal {
-	p, _ := auth.FromContext(c.Request.Context())
-	return p
-}
-
-func uuidParam(c *gin.Context, name string) (pgtype.UUID, bool) {
-	id, err := db.ParseUUID(c.Param(name))
-	if err != nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
-		return pgtype.UUID{}, false
-	}
-	return id, true
-}
-
 func versionParam(c *gin.Context, name string) (int, bool) {
 	n, ok := parseVersion(c.Param(name))
 	if !ok {
-		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be a positive 32-bit integer")
-		return 0, false
-	}
-	return n, true
-}
-
-func limitParam(c *gin.Context, fallback, ceiling int) (int, bool) {
-	raw, present := c.GetQuery("limit")
-	if !present {
-		return fallback, true
-	}
-	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > ceiling || strconv.Itoa(n) != raw {
-		abortError(c, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to "+strconv.Itoa(ceiling))
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must be a positive 32-bit integer")
 		return 0, false
 	}
 	return n, true
@@ -314,7 +257,7 @@ func optionalIntQuery(c *gin.Context, name string, lowest int) (*int, bool) {
 	}
 	n, err := strconv.Atoi(raw)
 	if err != nil || n < lowest || n > maxInt32 || strconv.Itoa(n) != raw {
-		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be an integer of at least "+strconv.Itoa(lowest))
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", name+" must be an integer of at least "+strconv.Itoa(lowest))
 		return nil, false
 	}
 	return &n, true
@@ -334,11 +277,4 @@ func validVersion(n int) bool {
 
 func versionLocation(id string, number int) string {
 	return "/api/v1/dashboards/" + id + "/versions/" + strconv.Itoa(number)
-}
-
-func optionalString(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

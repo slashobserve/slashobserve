@@ -9,6 +9,7 @@ CREATE TABLE agent_requests (
   base_version INTEGER NOT NULL CHECK (base_version >= 1),
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'succeeded', 'failed')),
   attempts INTEGER NOT NULL DEFAULT 0,
+  check_failures INTEGER NOT NULL DEFAULT 0,
   lease_until TIMESTAMPTZ,
   result_version INTEGER,
   error TEXT CHECK (error IS NULL OR length(error) <= 500),
@@ -23,6 +24,7 @@ CREATE TABLE agent_requests (
 );
 CREATE INDEX agent_requests_claim_idx ON agent_requests (created_at) WHERE status IN ('queued', 'running');
 CREATE INDEX agent_requests_dashboard_idx ON agent_requests (dashboard_id, created_at DESC, id DESC);
+CREATE UNIQUE INDEX agent_requests_running_dashboard_idx ON agent_requests (dashboard_id) WHERE status = 'running';
 CREATE INDEX agent_requests_comment_idx ON agent_requests (comment_id, created_at DESC) WHERE comment_id IS NOT NULL;
 ALTER TABLE dashboard_versions ADD COLUMN agent_request_id UUID UNIQUE REFERENCES agent_requests (id) ON DELETE SET NULL;
 

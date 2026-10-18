@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -17,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -26,9 +26,8 @@ const (
 	CommentResolved = "resolved"
 	CommentAll      = "all"
 
-	maxCommentRunes  = revisions.MaxPromptRunes
-	maxPanelIDRunes  = 64
-	maxCommentCursor = 253402300799999999
+	maxCommentRunes = revisions.MaxPromptRunes
+	maxPanelIDRunes = 64
 )
 
 var (
@@ -174,13 +173,13 @@ func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, p
 		}
 		params.PanelID = pgtype.Text{String: panelID, Valid: true}
 	}
-	after, err := decodeCommentCursor(cursor)
-	if err != nil {
-		return nil, "", err
+	after, ok := httpapi.DecodeTimeCursor(cursor)
+	if !ok {
+		return nil, "", ErrInvalidCursor
 	}
 	if after != nil {
-		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.createdAt, Valid: true}
-		params.CursorID = after.id
+		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorID = after.ID
 	}
 	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
 	if err != nil {
@@ -193,7 +192,7 @@ func (cm *Comments) List(ctx context.Context, dashboardID pgtype.UUID, status, p
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
-		next = encodeCommentCursor(rows[limit-1])
+		next = httpapi.EncodeTimeCursor(rows[limit-1].CreatedAt.Time, rows[limit-1].ID.String())
 	}
 	items := make([]Comment, 0, len(rows))
 	if len(rows) == 0 {
@@ -375,36 +374,4 @@ func commentFromRow(row dbsqlc.DashboardComment, latestPanels map[string]struct{
 		comment.ResolvedBy = &by
 	}
 	return comment
-}
-
-type commentCursor struct {
-	createdAt time.Time
-	id        pgtype.UUID
-}
-
-func encodeCommentCursor(row dbsqlc.DashboardComment) string {
-	return encodeCursor(strconv.FormatInt(row.CreatedAt.Time.UnixMicro(), 10) + ":" + row.ID.String())
-}
-
-func decodeCommentCursor(cursor string) (*commentCursor, error) {
-	if cursor == "" {
-		return nil, nil
-	}
-	value, err := decodeCursorValue(cursor)
-	if err != nil {
-		return nil, err
-	}
-	micros, idText, ok := strings.Cut(value, ":")
-	if !ok {
-		return nil, ErrInvalidCursor
-	}
-	n, err := strconv.ParseInt(micros, 10, 64)
-	if err != nil || n < 0 || n > maxCommentCursor || strconv.FormatInt(n, 10) != micros {
-		return nil, ErrInvalidCursor
-	}
-	id, err := db.ParseUUID(idText)
-	if err != nil {
-		return nil, ErrInvalidCursor
-	}
-	return &commentCursor{createdAt: time.UnixMicro(n).UTC(), id: id}, nil
 }

@@ -281,7 +281,7 @@ func TestRunTimeoutFailsTheRequest(t *testing.T) {
 	}
 }
 
-func TestShutdownLeavesARunningRequestForTheNextProcess(t *testing.T) {
+func TestShutdownReleasesARunningRequestWithoutSpendingAnAttempt(t *testing.T) {
 	started := make(chan struct{})
 	svc, d := newService(t, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
 		close(started)
@@ -295,16 +295,128 @@ func TestShutdownLeavesARunningRequestForTheNextProcess(t *testing.T) {
 	stop()
 
 	left := get(t, svc, dash, rev.ID)
-	if left.Status != revisions.StatusRunning || left.Attempts != 1 || left.FinishedAt != nil {
+	if left.Status != revisions.StatusQueued || left.Attempts != 0 || left.FinishedAt != nil {
 		t.Fatalf("after shutdown = %+v", left)
 	}
 
-	d.Exec(t, "UPDATE agent_requests SET lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
 	next := revisions.NewService(d.DB, succeedWith(2), quietLogger())
 	startWorker(t, next, d, revisions.WorkerOptions{})
 	done := waitForStatus(t, next, dash, rev.ID, revisions.StatusSucceeded)
-	if done.Attempts != 2 {
-		t.Fatalf("the retry should be attempt 2, got %+v", done)
+	if done.Attempts != 1 {
+		t.Fatalf("the next process should run attempt 1, got %+v", done)
+	}
+}
+
+func saveVersionFor(t *testing.T, d *dbtest.Database, dash pgtype.UUID, requestID string) {
+	d.Exec(t, "UPDATE dashboard_versions SET agent_request_id = $2 WHERE dashboard_id = $1 AND version = 2", dash, mustUUID(t, requestID))
+}
+
+func TestShutdownAfterTheVersionWasSavedRecordsSuccess(t *testing.T) {
+	started := make(chan struct{})
+	var svc *revisions.Service
+	var d *dbtest.Database
+	var dash pgtype.UUID
+	svc, d = newService(t, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
+		saveVersionFor(t, d, dash, req.ID)
+		close(started)
+		<-ctx.Done()
+		return revisions.Result{}, ctx.Err()
+	}))
+	dash = seedDashboard(t, d, 2)
+	rev := submit(t, svc, dash, "go")
+	stop := startWorker(t, svc, d, revisions.WorkerOptions{})
+	<-started
+	stop()
+
+	done := get(t, svc, dash, rev.ID)
+	if done.Status != revisions.StatusSucceeded || done.ResultVersion == nil || *done.ResultVersion != 2 || done.Attempts != 1 {
+		t.Fatalf("after shutdown = %+v", done)
+	}
+}
+
+func TestFailedRunWithASavedVersionIsRecordedAsSuccess(t *testing.T) {
+	cases := map[string]struct {
+		opts   revisions.WorkerOptions
+		revise func(ctx context.Context) error
+	}{
+		"error": {revise: func(context.Context) error { return errors.New("the loop gave up after saving") }},
+		"timeout": {
+			opts:   revisions.WorkerOptions{RunTimeout: 100 * time.Millisecond},
+			revise: func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() },
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var d *dbtest.Database
+			var dash pgtype.UUID
+			svc, d := newService(t, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
+				saveVersionFor(t, d, dash, req.ID)
+				return revisions.Result{}, tc.revise(ctx)
+			}))
+			dash = seedDashboard(t, d, 2)
+			rev := submit(t, svc, dash, "go")
+			startWorker(t, svc, d, tc.opts)
+			done := waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+			if done.ResultVersion == nil || *done.ResultVersion != 2 || done.Error != "" || done.Attempts != 1 {
+				t.Fatalf("revision = %+v", done)
+			}
+		})
+	}
+}
+
+func TestFailedCheckAfterAFailedRunRecordsTheFailureWithoutAFreeRerun(t *testing.T) {
+	var calls atomic.Int32
+	var d *dbtest.Database
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		d.Exec(t, "ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id TO agent_request_id_broken")
+		return revisions.Result{}, errors.New("boom")
+	}))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+
+	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	if failed.Attempts != 1 || failed.Error != "boom" || failed.FinishedAt == nil || calls.Load() != 1 {
+		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
+	}
+}
+
+func TestPersistentFailureToCheckTheSavedVersionReleasesThenFailsTheRequest(t *testing.T) {
+	var calls atomic.Int32
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}))
+	d.Exec(t, `CREATE FUNCTION break_versions() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'dashboard_versions' AND column_name = 'agent_request_id') THEN
+    ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id TO agent_request_id_broken;
+  END IF;
+  RETURN NEW;
+END $$`)
+	d.Exec(t, "CREATE TRIGGER break_after_claim AFTER UPDATE ON agent_requests FOR EACH ROW WHEN (NEW.status = 'running' AND OLD.status <> 'running') EXECUTE FUNCTION break_versions()")
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	id := mustUUID(t, rev.ID)
+	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
+
+	for released := int32(1); released < 3; released++ {
+		var row dbsqlc.AgentRequest
+		waitFor(t, fmt.Sprintf("release number %d", released), func() bool {
+			var err error
+			row, err = d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+			return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == released
+		})
+		if row.Attempts != 0 || row.FinishedAt.Valid {
+			t.Fatalf("release %d left %+v", released, row)
+		}
+		d.Exec(t, "ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id_broken TO agent_request_id")
+	}
+
+	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	if failed.Error != "could not check the request's saved version" || failed.Attempts != 1 || calls.Load() != 0 {
+		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
 	}
 }
 
@@ -345,6 +457,48 @@ func TestSecondExpiredLeaseFailsWithoutAnotherRun(t *testing.T) {
 	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
 	if failed.Error != revisions.ExhaustedMessage || failed.Attempts != 2 || calls.Load() != 0 {
 		t.Fatalf("exhausted revision = %+v after %d calls", failed, calls.Load())
+	}
+}
+
+func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
+	var calls atomic.Int32
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 9}, nil
+	}))
+	dash := seedDashboard(t, d, 2)
+	rev := submit(t, svc, dash, "saved by attempt 2, then the process died")
+	saveVersionFor(t, d, dash, rev.ID)
+	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	done := waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+	if done.ResultVersion == nil || *done.ResultVersion != 2 || done.Error != "" || done.Attempts != 2 || done.FinishedAt == nil || calls.Load() != 0 {
+		t.Fatalf("revision = %+v after %d calls", done, calls.Load())
+	}
+}
+
+func TestExpiredRunningRequestIsRetriedBeforeANewerOneOfItsDashboard(t *testing.T) {
+	var mu sync.Mutex
+	var order []string
+	svc, d := newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		order = append(order, req.Prompt)
+		return revisions.Result{Version: 2}, nil
+	}))
+	dash := seedDashboard(t, d, 1)
+	older := submit(t, svc, dash, "older, still queued")
+	crashed := submit(t, svc, dash, "newer, crashed once")
+	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 1, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, crashed.ID))
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, crashed.ID, revisions.StatusSucceeded)
+	waitForStatus(t, svc, dash, older.ID, revisions.StatusSucceeded)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(order) != 2 || order[0] != "newer, crashed once" {
+		t.Fatalf("run order = %v", order)
 	}
 }
 

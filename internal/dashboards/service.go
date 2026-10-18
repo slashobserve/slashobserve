@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -165,9 +166,9 @@ func (s *Service) LatestVersion(ctx context.Context, id pgtype.UUID) (int, error
 }
 
 func (s *Service) List(ctx context.Context, limit int, cursor string) ([]Dashboard, string, error) {
-	after, err := decodeDashboardCursor(cursor)
-	if err != nil {
-		return nil, "", err
+	after, ok := httpapi.DecodeTimeCursor(cursor)
+	if !ok {
+		return nil, "", ErrInvalidCursor
 	}
 	items, err := s.store.list(ctx, after, limit+1)
 	if err != nil {
@@ -178,7 +179,7 @@ func (s *Service) List(ctx context.Context, limit int, cursor string) ([]Dashboa
 	}
 	items = items[:limit]
 	last := items[len(items)-1]
-	return items, encodeDashboardCursor(last), nil
+	return items, httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID), nil
 }
 
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {
@@ -251,9 +252,11 @@ func (s *Service) checkQueries(ctx context.Context, d *spec.Dashboard) error {
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
-		if dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID); err != nil || found {
+		dash, ver, found, err := s.store.versionOfRequest(ctx, id, requestID)
+		if err != nil || found {
 			return dash, ver, found, err
 		}
+		return Dashboard{}, Version{}, false, s.conflict(ctx, id)
 	}
 	dash, ver, err := s.store.latest(ctx, id)
 	if err != nil {
@@ -394,11 +397,6 @@ func authorOf(p auth.Principal) Author {
 	return Author{Kind: string(p.Kind), ID: p.ID, Name: p.Name, Email: p.Email}
 }
 
-type dashboardCursor struct {
-	updatedAt time.Time
-	id        pgtype.UUID
-}
-
 func encodeCursor(value string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(value))
 }
@@ -409,33 +407,6 @@ func decodeCursorValue(cursor string) (string, error) {
 		return "", ErrInvalidCursor
 	}
 	return string(raw), nil
-}
-
-func encodeDashboardCursor(d Dashboard) string {
-	return encodeCursor(strconv.FormatInt(d.UpdatedAt.UnixMicro(), 10) + ":" + d.ID)
-}
-
-func decodeDashboardCursor(cursor string) (*dashboardCursor, error) {
-	if cursor == "" {
-		return nil, nil
-	}
-	value, err := decodeCursorValue(cursor)
-	if err != nil {
-		return nil, err
-	}
-	micros, idText, ok := strings.Cut(value, ":")
-	if !ok {
-		return nil, ErrInvalidCursor
-	}
-	n, err := strconv.ParseInt(micros, 10, 64)
-	if err != nil {
-		return nil, ErrInvalidCursor
-	}
-	id, err := db.ParseUUID(idText)
-	if err != nil {
-		return nil, ErrInvalidCursor
-	}
-	return &dashboardCursor{updatedAt: time.UnixMicro(n).UTC(), id: id}, nil
 }
 
 func decodeVersionCursor(cursor string) (int, error) {

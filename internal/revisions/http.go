@@ -2,22 +2,17 @@ package revisions
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
 const (
@@ -75,42 +70,42 @@ func (s *Service) Register(api *gin.RouterGroup) {
 }
 
 func (s *Service) createRevision(c *gin.Context) {
-	dashboardID, ok := uuidParam(c, "id")
+	dashboardID, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
 	var req createRequest
-	if !decodeBody(c, &req) {
+	if !httpapi.DecodeBody(c, &req, maxRequestBytes) {
 		return
 	}
 	if req.Prompt == nil || req.BaseVersion == nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", "prompt and base_version are required")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "prompt and base_version are required")
 		return
 	}
 	prompt, ok := CleanPrompt(*req.Prompt)
 	if !ok {
-		abortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("prompt must be 1 to %d characters without control or bidirectional override characters", MaxPromptRunes))
 		return
 	}
 	if *req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32 {
-		abortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
 		return
 	}
 	if !s.Available() {
-		abortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
+		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
 		return
 	}
 	ctx := c.Request.Context()
 	latest, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		abortError(c, http.StatusNotFound, "not_found", "dashboard not found")
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 		return
 	case err != nil:
 		s.fail(c, "read latest dashboard version", err)
 		return
 	case *req.BaseVersion > int(latest):
-		abortError(c, http.StatusNotFound, "not_found", "dashboard version not found")
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard version not found")
 		return
 	}
 	rev, err := s.Submit(ctx, EnqueueParams{
@@ -118,7 +113,7 @@ func (s *Service) createRevision(c *gin.Context) {
 		Source:      SourcePrompt,
 		Prompt:      prompt,
 		BaseVersion: *req.BaseVersion,
-		By:          caller(c),
+		By:          httpapi.Caller(c),
 	})
 	if err != nil {
 		s.fail(c, "enqueue revision", err)
@@ -129,18 +124,18 @@ func (s *Service) createRevision(c *gin.Context) {
 }
 
 func (s *Service) listRevisions(c *gin.Context) {
-	dashboardID, ok := uuidParam(c, "id")
+	dashboardID, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
-	limit, ok := limitParam(c)
+	limit, ok := httpapi.LimitParam(c, defaultLimit, maxLimit)
 	if !ok {
 		return
 	}
 	ctx := c.Request.Context()
 	if _, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			abortError(c, http.StatusNotFound, "not_found", "dashboard not found")
+			httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 			return
 		}
 		s.fail(c, "read latest dashboard version", err)
@@ -162,11 +157,11 @@ func (s *Service) listRevisions(c *gin.Context) {
 }
 
 func (s *Service) getRevision(c *gin.Context) {
-	dashboardID, ok := uuidParam(c, "id")
+	dashboardID, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
 		return
 	}
-	id, ok := uuidParam(c, "revision_id")
+	id, ok := httpapi.UUIDParam(c, "revision_id")
 	if !ok {
 		return
 	}
@@ -185,71 +180,17 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		s.logger.DebugContext(ctx, action+": client went away")
 		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound):
-		abortError(c, http.StatusNotFound, "not_found", err.Error())
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
-		abortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
+		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.Is(err, ErrUnavailable):
-		abortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
+		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
 	case errors.Is(err, ErrInvalidCursor):
-		abortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		s.logger.ErrorContext(ctx, action, slog.Any("error", err))
-		abortError(c, http.StatusInternalServerError, "internal", "internal error")
+		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
-}
-
-func abortError(c *gin.Context, status int, code, message string) {
-	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
-}
-
-func decodeBody(c *gin.Context, dst any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBytes))
-	dec.DisallowUnknownFields()
-	err := dec.Decode(dst)
-	if err == nil {
-		_, err = dec.Token()
-		if errors.Is(err, io.EOF) {
-			return true
-		}
-		if err == nil {
-			abortError(c, http.StatusBadRequest, "invalid_request", "request body must be a single JSON object")
-			return false
-		}
-	}
-	var tooLarge *http.MaxBytesError
-	if errors.As(err, &tooLarge) {
-		abortError(c, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
-		return false
-	}
-	abortError(c, http.StatusBadRequest, "invalid_request", "request body must be valid JSON with known fields")
-	return false
-}
-
-func caller(c *gin.Context) auth.Principal {
-	p, _ := auth.FromContext(c.Request.Context())
-	return p
-}
-
-func uuidParam(c *gin.Context, name string) (pgtype.UUID, bool) {
-	id, err := db.ParseUUID(c.Param(name))
-	if err != nil {
-		abortError(c, http.StatusBadRequest, "invalid_request", name+" must be a UUID")
-		return pgtype.UUID{}, false
-	}
-	return id, true
-}
-
-func limitParam(c *gin.Context) (int, bool) {
-	raw, present := c.GetQuery("limit")
-	if !present {
-		return defaultLimit, true
-	}
-	n, err := strconv.Atoi(raw)
-	if err != nil || n < 1 || n > maxLimit || strconv.Itoa(n) != raw {
-		abortError(c, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to "+strconv.Itoa(maxLimit))
-		return 0, false
-	}
-	return n, true
 }
 
 func newRevisionJSON(r Revision) revisionJSON {
@@ -257,37 +198,26 @@ func newRevisionJSON(r Revision) revisionJSON {
 		ID:            r.ID,
 		DashboardID:   r.DashboardID,
 		Source:        r.Source,
-		CommentID:     optionalString(r.CommentID),
-		PanelID:       optionalString(r.PanelID),
+		CommentID:     httpapi.OptionalString(r.CommentID),
+		PanelID:       httpapi.OptionalString(r.PanelID),
 		Prompt:        r.Prompt,
 		BaseVersion:   r.BaseVersion,
 		Status:        r.Status,
 		Attempts:      r.Attempts,
 		ResultVersion: r.ResultVersion,
-		Error:         optionalString(r.Error),
+		Error:         httpapi.OptionalString(r.Error),
 		RequestedBy:   authorJSON{Kind: string(r.RequestedBy.Kind), ID: r.RequestedBy.ID, Name: r.RequestedBy.Name, Email: r.RequestedBy.Email},
-		CreatedAt:     formatTime(r.CreatedAt),
+		CreatedAt:     httpapi.FormatTime(r.CreatedAt),
 		StartedAt:     formatOptionalTime(r.StartedAt),
 		FinishedAt:    formatOptionalTime(r.FinishedAt),
 	}
 	return out
 }
 
-func optionalString(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
 func formatOptionalTime(t *time.Time) *string {
 	if t == nil {
 		return nil
 	}
-	s := formatTime(*t)
+	s := httpapi.FormatTime(*t)
 	return &s
-}
-
-func formatTime(t time.Time) string {
-	return t.UTC().Format(time.RFC3339Nano)
 }

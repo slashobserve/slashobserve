@@ -23,14 +23,13 @@ WHERE id = (
     AND r.attempts < 2
     AND NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running'
-        AND o.lease_until >= clock_timestamp() AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
     )
   ORDER BY r.created_at, r.id
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
 `
 
 func (q *Queries) ClaimAgentRequest(ctx context.Context) (AgentRequest, error) {
@@ -46,6 +45,7 @@ func (q *Queries) ClaimAgentRequest(ctx context.Context) (AgentRequest, error) {
 		&i.BaseVersion,
 		&i.Status,
 		&i.Attempts,
+		&i.CheckFailures,
 		&i.LeaseUntil,
 		&i.ResultVersion,
 		&i.Error,
@@ -80,7 +80,7 @@ INSERT INTO agent_requests (
   $1, $2, $3, $4, $5, $6,
   $7, $8, $9, $10
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
 `
 
 type EnqueueAgentRequestParams struct {
@@ -120,6 +120,7 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		&i.BaseVersion,
 		&i.Status,
 		&i.Attempts,
+		&i.CheckFailures,
 		&i.LeaseUntil,
 		&i.ResultVersion,
 		&i.Error,
@@ -135,10 +136,16 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 }
 
 const failExhaustedAgentRequests = `-- name: FailExhaustedAgentRequests :many
-UPDATE agent_requests
-SET status = 'failed', error = 'agent run did not finish', lease_until = NULL, finished_at = clock_timestamp()
-WHERE status = 'running' AND lease_until < clock_timestamp() AND attempts >= 2
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
+UPDATE agent_requests r
+SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
+  result_version = saved.version,
+  error = CASE WHEN saved.version IS NULL THEN 'agent run did not finish' END,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+FROM agent_requests e
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND saved.dashboard_id = e.dashboard_id
+WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= 2
+RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at
 `
 
 func (q *Queries) FailExhaustedAgentRequests(ctx context.Context) ([]AgentRequest, error) {
@@ -160,6 +167,7 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context) ([]AgentReques
 			&i.BaseVersion,
 			&i.Status,
 			&i.Attempts,
+			&i.CheckFailures,
 			&i.LeaseUntil,
 			&i.ResultVersion,
 			&i.Error,
@@ -189,7 +197,7 @@ SET status = $1::text,
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $4 AND status = 'running' AND attempts = $5
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
 `
 
 type FinishAgentRequestParams struct {
@@ -219,6 +227,7 @@ func (q *Queries) FinishAgentRequest(ctx context.Context, arg FinishAgentRequest
 		&i.BaseVersion,
 		&i.Status,
 		&i.Attempts,
+		&i.CheckFailures,
 		&i.LeaseUntil,
 		&i.ResultVersion,
 		&i.Error,
@@ -234,7 +243,7 @@ func (q *Queries) FinishAgentRequest(ctx context.Context, arg FinishAgentRequest
 }
 
 const getAgentRequest = `-- name: GetAgentRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at FROM agent_requests WHERE id = $1 AND dashboard_id = $2
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at FROM agent_requests WHERE id = $1 AND dashboard_id = $2
 `
 
 type GetAgentRequestParams struct {
@@ -255,6 +264,7 @@ func (q *Queries) GetAgentRequest(ctx context.Context, arg GetAgentRequestParams
 		&i.BaseVersion,
 		&i.Status,
 		&i.Attempts,
+		&i.CheckFailures,
 		&i.LeaseUntil,
 		&i.ResultVersion,
 		&i.Error,
@@ -319,7 +329,7 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 }
 
 const listAgentRequests = `-- name: ListAgentRequests :many
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at FROM agent_requests
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at FROM agent_requests
 WHERE dashboard_id = $1
   AND ($2::timestamptz IS NULL
     OR (created_at, id) < ($2::timestamptz, $3::uuid))
@@ -358,6 +368,7 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 			&i.BaseVersion,
 			&i.Status,
 			&i.Attempts,
+			&i.CheckFailures,
 			&i.LeaseUntil,
 			&i.ResultVersion,
 			&i.Error,
@@ -395,4 +406,46 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:dashboard:' || CAS
 func (q *Queries) LockAgentRequestsForDashboard(ctx context.Context, dashboardID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, lockAgentRequestsForDashboard, dashboardID)
 	return err
+}
+
+const releaseAgentRequest = `-- name: ReleaseAgentRequest :one
+UPDATE agent_requests
+SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
+  check_failures = check_failures + CASE WHEN $1::boolean THEN 1 ELSE 0 END
+WHERE id = $2 AND status = 'running' AND attempts = $3
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at
+`
+
+type ReleaseAgentRequestParams struct {
+	CheckFailed bool
+	ID          pgtype.UUID
+	Attempts    int32
+}
+
+func (q *Queries) ReleaseAgentRequest(ctx context.Context, arg ReleaseAgentRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, releaseAgentRequest, arg.CheckFailed, arg.ID, arg.Attempts)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
 }

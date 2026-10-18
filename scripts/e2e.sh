@@ -856,6 +856,34 @@ wait_revision() {
   done
 }
 
+expect_version_data() {
+  local dashboard="$1" version="$2" base out panels variables panel name value selections="" window now_ms tries
+  base="/dashboards/$dashboard/versions/$version"
+  out="$(api GET "$base")"
+  [[ "$out" == 200 ]] || fail "read $base ($out: $(cat "$TMP/api.body"))"
+  panels="$(grep -o '{"id":"[^"]*","type":"[a-z_]*","title"' "$TMP/api.body" | cut -d'"' -f4)"
+  variables="$(grep -o '{"name":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4 || true)"
+  [[ -n "$panels" ]] || fail "$base lists no panels ($(cat "$TMP/api.body"))"
+  now_ms=$(($(date +%s) * 1000))
+  window="from=$((now_ms - 930000))&to=$((now_ms - 30000))"
+  for name in $variables; do
+    out="$(api GET "$base/variables/$name/values?$window$selections")"
+    value="$(first_value)"
+    [[ "$out" == 200 && -n "$value" ]] || fail "values of variable $name in $base ($out: $(cat "$TMP/api.body"))"
+    selections+="&var-$name=$(urlencode "$value")"
+  done
+  for panel in $panels; do
+    tries=30
+    while :; do
+      now_ms=$(($(date +%s) * 1000))
+      window="from=$((now_ms - 900000))&to=$now_ms"
+      if [[ "$(api GET "$base/panels/$panel/data?$window$selections")" == 200 ]] && grep -q '"frames":\[{' "$TMP/api.body"; then break; fi
+      ((--tries > 0)) || fail "panel $panel of $base returned no data ($(cat "$TMP/api.body"))"
+      sleep 2
+    done
+  done
+}
+
 revisions_suite() {
   api_token
   local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
@@ -916,6 +944,10 @@ revisions_suite() {
   fi
   sse_close
   pass "a follow-up prompt queues a revision that saves version 3 with the new panel"
+
+  expect_version_data "$id" 2
+  expect_version_data "$id" 3
+  pass "every panel of the revised versions returns data through the query proxy"
 
   out="$(api GET "/dashboards/$id/revisions")"
   page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"

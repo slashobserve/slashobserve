@@ -2,25 +2,27 @@ package revisions
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
-const maxCursorMicros = 253402300799999999
+const (
+	uniqueViolationCode   = "23505"
+	runningDashboardIndex = "agent_requests_running_dashboard_idx"
+)
 
 type Service struct {
 	db      *db.DB
@@ -110,14 +112,14 @@ func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revisio
 }
 
 func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, cursor string) ([]Revision, string, error) {
-	after, err := decodeCursor(cursor)
-	if err != nil {
-		return nil, "", err
+	after, ok := httpapi.DecodeTimeCursor(cursor)
+	if !ok {
+		return nil, "", ErrInvalidCursor
 	}
 	params := dbsqlc.ListAgentRequestsParams{DashboardID: dashboardID, RowLimit: toInt32(limit + 1)}
 	if after != nil {
-		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.createdAt, Valid: true}
-		params.CursorID = after.id
+		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorID = after.ID
 	}
 	rows, err := s.db.Queries().ListAgentRequests(ctx, params)
 	if err != nil {
@@ -126,7 +128,7 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	next := ""
 	if len(rows) > limit {
 		rows = rows[:limit]
-		next = encodeCursor(rows[limit-1])
+		next = httpapi.EncodeTimeCursor(rows[limit-1].CreatedAt.Time, rows[limit-1].ID.String())
 	}
 	items := make([]Revision, len(rows))
 	for i, r := range rows {
@@ -161,6 +163,11 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		claimed, found = row, true
 		return notifyRevision(ctx, q, row)
 	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {
+		s.logger.WarnContext(ctx, "agent request claim hit the one-running-request-per-dashboard index; nothing claimed", slog.Any("error", err))
+		return dbsqlc.AgentRequest{}, false, nil
+	}
 	return claimed, found, err
 }
 
@@ -190,6 +197,22 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		return notifyRevision(ctx, q, row)
 	})
 	return finished, err
+}
+
+func (s *Service) release(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
+	released := false
+	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		row, err := q.ReleaseAgentRequest(ctx, dbsqlc.ReleaseAgentRequestParams{ID: claimed.ID, Attempts: claimed.Attempts, CheckFailed: checkFailed})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("release agent request: %w", err)
+		}
+		released = true
+		return notifyRevision(ctx, q, row)
+	})
+	return released, err
 }
 
 func (s *Service) existingVersion(ctx context.Context, claimed dbsqlc.AgentRequest) (int, bool, error) {
@@ -238,13 +261,8 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		Status:      Status(row.Status),
 		Attempts:    int(row.Attempts),
 		Error:       row.Error.String,
-		RequestedBy: auth.Principal{
-			Kind:  auth.PrincipalKind(row.RequestedByKind),
-			ID:    row.RequestedByID.String(),
-			Name:  row.RequestedByName,
-			Email: row.RequestedByEmail.String,
-		},
-		CreatedAt: row.CreatedAt.Time.UTC(),
+		RequestedBy: requesterOf(row),
+		CreatedAt:   row.CreatedAt.Time.UTC(),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()
@@ -261,42 +279,19 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	return rev
 }
 
+func requesterOf(row dbsqlc.AgentRequest) auth.Principal {
+	return auth.Principal{
+		Kind:  auth.PrincipalKind(row.RequestedByKind),
+		ID:    row.RequestedByID.String(),
+		Name:  row.RequestedByName,
+		Email: row.RequestedByEmail.String,
+	}
+}
+
 func optionalTime(t pgtype.Timestamptz) *time.Time {
 	if !t.Valid {
 		return nil
 	}
 	v := t.Time.UTC()
 	return &v
-}
-
-type cursor struct {
-	createdAt time.Time
-	id        pgtype.UUID
-}
-
-func encodeCursor(row dbsqlc.AgentRequest) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(row.CreatedAt.Time.UnixMicro(), 10) + ":" + row.ID.String()))
-}
-
-func decodeCursor(raw string) (*cursor, error) {
-	if raw == "" {
-		return nil, nil
-	}
-	decoded, err := base64.RawURLEncoding.DecodeString(raw)
-	if err != nil {
-		return nil, ErrInvalidCursor
-	}
-	micros, idText, ok := strings.Cut(string(decoded), ":")
-	if !ok {
-		return nil, ErrInvalidCursor
-	}
-	n, err := strconv.ParseInt(micros, 10, 64)
-	if err != nil || n < 0 || n > maxCursorMicros || strconv.FormatInt(n, 10) != micros {
-		return nil, ErrInvalidCursor
-	}
-	id, err := db.ParseUUID(idText)
-	if err != nil {
-		return nil, ErrInvalidCursor
-	}
-	return &cursor{createdAt: time.UnixMicro(n).UTC(), id: id}, nil
 }

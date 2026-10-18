@@ -11,7 +11,7 @@ dashboards-id-revisions:
     summary: Ask the agent to revise a dashboard with a follow-up prompt.
     description: >-
       The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard.
-      Watch the dashboard's event stream for `revision.updated`, followed by `version.created` when the revision succeeds, or poll the revision.
+      Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision.
       The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context.
       The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.

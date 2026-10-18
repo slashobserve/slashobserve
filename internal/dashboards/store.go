@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -192,7 +193,7 @@ func versionEventPayload(dashboardID pgtype.UUID, meta VersionMeta) ([]byte, err
 		RestoredFrom:  meta.RestoredFrom,
 		Summary:       meta.Summary,
 		Author:        &events.Author{Kind: meta.Author.Kind, ID: meta.Author.ID, Name: capEventAuthorName(meta.Author.Name)},
-		CreatedAt:     formatTime(meta.CreatedAt),
+		CreatedAt:     httpapi.FormatTime(meta.CreatedAt),
 	})
 }
 
@@ -245,11 +246,11 @@ func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]by
 	return raw, nil
 }
 
-func (st store) list(ctx context.Context, after *dashboardCursor, limit int) ([]Dashboard, error) {
+func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int) ([]Dashboard, error) {
 	params := dbsqlc.ListDashboardsParams{RowLimit: toInt32(limit)}
 	if after != nil {
-		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.updatedAt, Valid: true}
-		params.CursorID = after.id
+		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorID = after.ID
 	}
 	rows, err := st.db.Queries().ListDashboards(ctx, params)
 	if err != nil {

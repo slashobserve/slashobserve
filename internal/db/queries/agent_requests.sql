@@ -30,8 +30,7 @@ WHERE id = (
     AND r.attempts < 2
     AND NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running'
-        AND o.lease_until >= clock_timestamp() AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
     )
   ORDER BY r.created_at, r.id
   FOR UPDATE SKIP LOCKED
@@ -40,10 +39,16 @@ WHERE id = (
 RETURNING *;
 
 -- name: FailExhaustedAgentRequests :many
-UPDATE agent_requests
-SET status = 'failed', error = 'agent run did not finish', lease_until = NULL, finished_at = clock_timestamp()
-WHERE status = 'running' AND lease_until < clock_timestamp() AND attempts >= 2
-RETURNING *;
+UPDATE agent_requests r
+SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
+  result_version = saved.version,
+  error = CASE WHEN saved.version IS NULL THEN 'agent run did not finish' END,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+FROM agent_requests e
+LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND saved.dashboard_id = e.dashboard_id
+WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= 2
+RETURNING r.*;
 
 -- name: FinishAgentRequest :one
 UPDATE agent_requests
@@ -52,6 +57,13 @@ SET status = @status::text,
   error = sqlc.narg('error')::text,
   lease_until = NULL,
   finished_at = clock_timestamp()
+WHERE id = @id AND status = 'running' AND attempts = @attempts
+RETURNING *;
+
+-- name: ReleaseAgentRequest :one
+UPDATE agent_requests
+SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
+  check_failures = check_failures + CASE WHEN @check_failed::boolean THEN 1 ELSE 0 END
 WHERE id = @id AND status = 'running' AND attempts = @attempts
 RETURNING *;
 

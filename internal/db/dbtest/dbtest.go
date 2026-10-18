@@ -85,7 +85,6 @@ type Database struct {
 	name string
 }
 
-// New returns a migrated database that no other test shares.
 func New(t testing.TB) *Database {
 	t.Helper()
 	if skipped {
@@ -109,8 +108,6 @@ func New(t testing.TB) *Database {
 	return &Database{DB: d, name: name}
 }
 
-// Exec runs one statement through a separate connection, for arranging state the public API cannot
-// reach, such as expiring a lease.
 func (d *Database) Exec(t testing.TB, sql string, args ...any) {
 	t.Helper()
 	conn, err := pgx.Connect(context.Background(), urlFor(d.name))
