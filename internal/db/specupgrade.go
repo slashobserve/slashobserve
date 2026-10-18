@@ -13,7 +13,10 @@ import (
 
 const evolveSpecsVersion int64 = 10
 
-var specUpgradeBatch = 500
+var (
+	specUpgradeBatch       = 500
+	specUpgradeBatchBudget = 32 << 20
+)
 
 func evolveSpecsMigration() *goose.Migration {
 	return goose.NewGoMigration(evolveSpecsVersion,
@@ -40,7 +43,7 @@ func UpgradeStoredSpecs(ctx context.Context, tx *sql.Tx) error {
 				return err
 			}
 		}
-		if len(page) < specUpgradeBatch {
+		if len(page) == 0 {
 			return nil
 		}
 		last = &page[len(page)-1]
@@ -66,13 +69,17 @@ WHERE (dashboard_id, version) > ($2::uuid, $3) ORDER BY dashboard_id, version LI
 		return nil, fmt.Errorf("read stored specs: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var page []storedSpec
-	for rows.Next() {
+	var (
+		page      []storedSpec
+		pageBytes int
+	)
+	for pageBytes < specUpgradeBatchBudget && rows.Next() {
 		var row storedSpec
 		if err := rows.Scan(&row.dashboardID, &row.version, &row.text); err != nil {
 			return nil, fmt.Errorf("read stored specs: %w", err)
 		}
 		page = append(page, row)
+		pageBytes += len(row.text)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read stored specs: %w", err)

@@ -246,6 +246,40 @@ func TestUpgradeStoredSpecsReportsNoSpecValuesWhenTheUpgradedSpecIsInvalid(t *te
 	}
 }
 
+func TestUpgradeStoredSpecsBoundsPagesByBytes(t *testing.T) {
+	defer db.SetSpecUpgradeBatchBudget(1)()
+	d := dbtest.New(t)
+	seedDashboard(t, d, dashboardA, 3)
+	legacy := readUpgradeFile(t, "legacy/minimal.json")
+	want := decodeJSON(t, readUpgradeFile(t, "evolved/minimal.json"))
+	for version := 1; version <= 3; version++ {
+		seedVersion(t, d, dashboardA, version, legacy)
+	}
+	sqlDB := d.SQLDB(t)
+
+	tx, err := sqlDB.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	size, err := db.FirstSpecPageLen(context.Background(), tx)
+	_ = tx.Rollback()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != 1 {
+		t.Errorf("first page holds %d rows, want 1 because one spec exceeds the byte budget", size)
+	}
+
+	if err := runUpgrade(t, sqlDB); err != nil {
+		t.Fatal(err)
+	}
+	for version := 1; version <= 3; version++ {
+		if got := decodeJSON(t, storedSpec(t, sqlDB, dashboardA, version)); !reflect.DeepEqual(got, want) {
+			t.Errorf("version %d was not upgraded", version)
+		}
+	}
+}
+
 func appliedEvolveMigrations(t *testing.T, sqlDB *sql.DB) int {
 	t.Helper()
 	var n int
