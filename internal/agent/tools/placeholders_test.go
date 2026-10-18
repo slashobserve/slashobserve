@@ -184,6 +184,11 @@ func TestUpdateMovesPlaceholdersButNeverEditsOrAddsThem(t *testing.T) {
 		id := r.seed(t, statPanel("p_up", 0), rowPanel("r_a", 4, placeholderPanel("p_x", 0, 5, reason)))
 		requireSaved(t, r.update(t, id, specOf(statPanel("p_up", 0), rowPanel("r_a", 4), placeholderPanel("p_x", 6, 0, reason))), 2)
 	})
+	t.Run("replace with a real panel under the same id", func(t *testing.T) {
+		r := newPlaceholderRig(t)
+		id := original(r, t)
+		requireSaved(t, r.update(t, id, specOf(statPanel("p_up", 0), statPanel("p_x", 4))), 2)
+	})
 	t.Run("edit the reason", func(t *testing.T) {
 		r := newPlaceholderRig(t)
 		id := original(r, t)
