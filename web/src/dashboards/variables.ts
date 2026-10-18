@@ -3,6 +3,13 @@ import type { Variable } from "@/spec"
 
 import { ALL } from "./search"
 
+export class VariableLoadError extends Error {
+  constructor(label: string) {
+    super(`Could not load the values of ${label}`)
+    this.name = "VariableLoadError"
+  }
+}
+
 export type VariableOptions = Record<string, string[] | undefined>
 
 export function sortSelections(selections: Selections): Selections {
@@ -26,6 +33,60 @@ export function earlierSelections(
   return sortSelections(out)
 }
 
+export type ValuesData = { values: string[]; truncated: boolean }
+
+export type LoadedValues = { data: ValuesData; parentKey: string }
+
+export type VariableDisplay = {
+  status: "loading" | "refreshing" | "ready" | "error"
+  shown: ValuesData | undefined
+  selectable: string[] | undefined
+}
+
+export function parentKeyOf(selections: Selections): string {
+  return JSON.stringify(selections)
+}
+
+export function variableDisplay(
+  variable: Variable,
+  request: {
+    data: ValuesData | undefined
+    last: LoadedValues | undefined
+    parentKey: string
+    isError: boolean
+    isFetching: boolean
+  }
+): VariableDisplay {
+  if (variable.type === "custom") {
+    return {
+      status: "ready",
+      shown: { values: variable.options, truncated: false },
+      selectable: variable.options,
+    }
+  }
+  const { last } = request
+  const lastValues =
+    last?.parentKey === request.parentKey ? last.data.values : undefined
+  if (request.isError && !request.isFetching) {
+    return {
+      status: "error",
+      shown: request.data,
+      selectable: request.data?.values ?? lastValues,
+    }
+  }
+  if (request.data) {
+    return {
+      status: "ready",
+      shown: request.data,
+      selectable: request.data.values,
+    }
+  }
+  if (last && request.isFetching) {
+    return { status: "refreshing", shown: last.data, selectable: lastValues }
+  }
+  return { status: "loading", shown: undefined, selectable: undefined }
+}
+
 function fromUrl(variable: Variable, values: string[]): string[] {
   if (variable.includeAll && values.includes(ALL)) return [ALL]
   const concrete = values.filter((value) => value !== ALL)
@@ -37,9 +98,9 @@ export function resolveSelections(
   variables: Variable[],
   urlVars: Record<string, string[]>,
   options: VariableOptions
-): { selections: Selections; pending: boolean } {
+): { selections: Selections; pending: boolean; waiting: string[] } {
   const selections: Selections = {}
-  let pending = false
+  const waiting: string[] = []
   for (const variable of variables) {
     const explicit = fromUrl(variable, urlVars[variable.name] ?? [])
     if (explicit.length > 0) {
@@ -48,11 +109,11 @@ export function resolveSelections(
       selections[variable.name] = [ALL]
     } else {
       const available = options[variable.name]
-      if (available === undefined) pending = true
+      if (available === undefined) waiting.push(variable.name)
       else if (available.length > 0) selections[variable.name] = [available[0]]
     }
   }
-  return { selections, pending }
+  return { selections, pending: waiting.length > 0, waiting }
 }
 
 export function applyVariableChange(

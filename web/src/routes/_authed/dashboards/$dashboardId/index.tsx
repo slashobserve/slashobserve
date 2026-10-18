@@ -35,6 +35,7 @@ export const Route = createFileRoute("/_authed/dashboards/$dashboardId/")({
       context.queryClient.ensureQueryData(latest),
     ])
   },
+  remountDeps: ({ params }) => params,
   pendingComponent: DashboardPageSkeleton,
   errorComponent: ({ error }) => {
     if (

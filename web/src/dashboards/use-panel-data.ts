@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { isRetryable, unwrap } from "@/api/errors"
+import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, type Selections } from "@/api/keys"
 import type { Panel } from "@/spec"
 
@@ -28,6 +28,14 @@ export function maxDataPointsFor(
   if (panel.type !== "timeseries") return undefined
   const bucketed = Math.ceil(pixelWidth / 100) * 100
   return Math.min(Math.max(bucketed, 100), 1100)
+}
+
+export function panelRetry(count: number, error: unknown): boolean {
+  if (error instanceof ApiError) {
+    if (error.code === "query_timeout") return false
+    if (error.code === "datasource_unavailable") return count < 1
+  }
+  return count < 3 && isRetryable(error)
 }
 
 export function usePanelData({
@@ -70,10 +78,13 @@ export function usePanelData({
     },
     enabled,
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[3] === version ? previous : undefined,
+      previousQuery?.queryKey[1] === dashboardId &&
+      previousQuery.queryKey[3] === version
+        ? previous
+        : undefined,
     staleTime: 0,
     gcTime: 300_000,
     refetchInterval: refreshMs ?? false,
-    retry: (count, error) => count < 3 && isRetryable(error),
+    retry: panelRetry,
   })
 }

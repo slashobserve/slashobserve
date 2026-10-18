@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { keepPreviousData, useQueries } from "@tanstack/react-query"
+import { useQueries } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -10,7 +10,10 @@ import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
 import {
   earlierSelections,
+  parentKeyOf,
   resolveSelections,
+  variableDisplay,
+  type LoadedValues,
   type VariableOptions,
 } from "./variables"
 
@@ -18,7 +21,7 @@ export type VariableState = {
   variable: Variable
   options: string[] | undefined
   truncated: boolean
-  status: "loading" | "ready" | "error"
+  status: "loading" | "refreshing" | "ready" | "error"
   selected: string[]
   retry: () => void
 }
@@ -73,23 +76,51 @@ export function useVariables({
         },
         enabled: variable.type === "query",
         staleTime: 30_000,
-        placeholderData: keepPreviousData,
       }
     }),
   })
 
-  const options: VariableOptions = {}
+  const parentKeys = variables.map((_, index) =>
+    parentKeyOf(earlierSelections(variables, index, urlVars))
+  )
+  const [lastLoaded, setLastLoaded] = useState<Record<string, LoadedValues>>({})
+  const scopePrefix = `${dashboardId}:${version}:`
+  let nextLoaded = lastLoaded
+  if (Object.keys(nextLoaded).some((key) => !key.startsWith(scopePrefix))) {
+    nextLoaded = Object.fromEntries(
+      Object.entries(nextLoaded).filter(([key]) => key.startsWith(scopePrefix))
+    )
+  }
   variables.forEach((variable, index) => {
-    if (variable.type === "custom") {
-      options[variable.name] = variable.options
-    } else {
-      const result = results[index]
-      options[variable.name] =
-        result.data?.values ?? (result.isError ? [] : undefined)
+    const data = results[index].data
+    const key = `${scopePrefix}${variable.name}`
+    const loaded = nextLoaded[key]
+    if (
+      data &&
+      (loaded?.data !== data || loaded.parentKey !== parentKeys[index])
+    ) {
+      nextLoaded = {
+        ...nextLoaded,
+        [key]: { data, parentKey: parentKeys[index] },
+      }
     }
   })
+  if (nextLoaded !== lastLoaded) setLastLoaded(nextLoaded)
 
-  const resolved = resolveSelections(variables, urlVars, options)
+  const displays = variables.map((variable, index) =>
+    variableDisplay(variable, {
+      data: results[index].data,
+      last: lastLoaded[`${scopePrefix}${variable.name}`],
+      parentKey: parentKeys[index],
+      isError: results[index].isError,
+      isFetching: results[index].isFetching,
+    })
+  )
+  const selectable: VariableOptions = {}
+  variables.forEach((variable, index) => {
+    selectable[variable.name] = displays[index].selectable
+  })
+  const resolved = resolveSelections(variables, urlVars, selectable)
   const selectionKey = JSON.stringify(resolved.selections)
   const [stable, setStable] = useState({
     key: selectionKey,
@@ -100,24 +131,24 @@ export function useVariables({
   }
   const selections = stable.selections
 
-  const states: VariableState[] = variables.map((variable, index) => {
-    const result = results[index]
-    const custom = variable.type === "custom"
-    return {
-      variable,
-      options: options[variable.name],
-      truncated: !custom && (result.data?.truncated ?? false),
-      status: custom
-        ? "ready"
-        : result.isError
-          ? "error"
-          : result.data
-            ? "ready"
-            : "loading",
-      selected: selections[variable.name] ?? [],
-      retry: () => void result.refetch(),
-    }
-  })
+  const states: VariableState[] = variables.map((variable, index) => ({
+    variable,
+    options: displays[index].shown?.values,
+    truncated: displays[index].shown?.truncated ?? false,
+    status: displays[index].status,
+    selected: resolved.selections[variable.name] ?? [],
+    retry: () => void results[index].refetch(),
+  }))
 
-  return { states, selections, ready: !resolved.pending }
+  const blocking = states.find(
+    (state) =>
+      state.status === "error" && resolved.waiting.includes(state.variable.name)
+  )
+
+  return {
+    states,
+    selections,
+    ready: !resolved.pending,
+    blocking,
+  }
 }

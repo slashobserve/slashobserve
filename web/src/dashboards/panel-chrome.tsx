@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils"
 import type { Panel } from "@/spec"
 
+import { VariableLoadError } from "./variables"
+
 export type PanelState = "loading" | "ready" | "empty" | "error"
 
 export const panelHeaderHeight = 32
@@ -39,6 +41,7 @@ const errorTitles: Record<string, string> = {
 }
 
 export function errorTitle(error: unknown): string {
+  if (error instanceof VariableLoadError) return "Variable failed to load"
   if (error instanceof ApiError && Object.hasOwn(errorTitles, error.code)) {
     return errorTitles[error.code]
   }

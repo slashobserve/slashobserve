@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test"
+import type { APIRequestContext, Page } from "@playwright/test"
 
 import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
 import {
@@ -20,6 +20,11 @@ function localMinute(ms: number): string {
   const date = new Date(ms)
   const pad = (value: number) => String(value).padStart(2, "0")
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function localSecond(ms: number): string {
+  const date = new Date(ms)
+  return `${localMinute(ms)}:${String(date.getSeconds()).padStart(2, "0")}`
 }
 
 test("renders every panel with data", async ({ page, request }) => {
@@ -77,9 +82,14 @@ test("applies a custom absolute range", async ({ page, request }) => {
 
   const now = Date.now()
   await from.fill(localMinute(now - 30 * 60_000))
-  await to.fill(localMinute(now))
+  await to.fill(localSecond(now))
+  const isAbsolute = (url: URL) =>
+    /^\d{13}$/.test(url.searchParams.get("to") ?? "")
+  const rps = panelDataResponse(page, "rps", isAbsolute)
+  const errorRate = panelDataResponse(page, "error_rate", isAbsolute)
   await page.getByRole("button", { name: "Apply" }).click()
   await expect(page).toHaveURL(/from=\d{13}&to=\d{13}/)
+  await Promise.all([rps, errorRate])
   await expectPanelsReady(page)
 })
 
@@ -115,6 +125,124 @@ test("a variable filters the series and survives reload", async ({
   await page.getByRole("combobox", { name: "Pod" }).click()
   await page.getByRole("option", { name: "All", exact: true }).click()
   await expect(page).toHaveURL(/var-pod=%24__all/)
+})
+
+function dependentVariablesSpec() {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E dependent variables")
+  const datasource = { type: "prometheus", uid: "prom" }
+  spec.variables = [
+    {
+      name: "service",
+      label: "Service",
+      type: "query",
+      datasource,
+      query: "label_values(http_requests_total, service)",
+    },
+    {
+      name: "route",
+      label: "Route",
+      type: "query",
+      datasource,
+      query: 'label_values(http_requests_total{service="$service"}, route)',
+    },
+    {
+      name: "pod",
+      label: "Pod",
+      type: "query",
+      multi: true,
+      datasource,
+      query: 'label_values(http_requests_total{service="$service"}, pod)',
+    },
+  ]
+  spec.panels = [
+    {
+      ...spec.panels[0],
+      query:
+        'sum by (pod) (rate(http_requests_total{service="$service",route="$route",pod=~"$pod"}[$__rate_interval]))',
+    },
+  ]
+  return spec
+}
+
+async function holdVariableValues(page: Page) {
+  let release: () => void = () => undefined
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route("**/variables/*/values*", async (route) => {
+    await gate
+    await route.continue().catch(() => undefined)
+  })
+  return async () => {
+    release()
+    await page.unroute("**/variables/*/values*")
+  }
+}
+
+async function labelPositions(page: Page) {
+  const positions: number[] = []
+  for (const name of ["Service", "Route", "Pod"]) {
+    const box = await page
+      .locator("label", { hasText: new RegExp(`^${name}$`) })
+      .boundingBox()
+    positions.push(Math.round(box?.x ?? -1))
+  }
+  return positions
+}
+
+test("dependent variables stay in place while they reload", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createDashboard(request, dependentVariablesSpec())
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const route = page.getByRole("combobox", { name: "Route" })
+  const pod = page.getByRole("combobox", { name: "Pod" })
+  const idle = await labelPositions(page)
+  expect(new Set(idle).size).toBe(3)
+
+  let release = await holdVariableValues(page)
+  const reloaded = panelDataResponse(
+    page,
+    "rps",
+    (url) => url.searchParams.get("from") === "now-1h"
+  )
+  await page.getByRole("button", { name: /^Time range/ }).click()
+  await page.getByRole("button", { name: "Last 1 hour", exact: true }).click()
+  await expect(route).toBeDisabled()
+  await expect(pod).toBeDisabled()
+  await expect(route).toHaveAttribute("aria-busy", "true")
+  expect(await labelPositions(page)).toEqual(idle)
+  await reloaded
+  await release()
+  await expect(route).toBeEnabled()
+  await expect(pod).toBeEnabled()
+  expect(await labelPositions(page)).toEqual(idle)
+
+  release = await holdVariableValues(page)
+  await page.getByRole("combobox", { name: "Service" }).click()
+  const options = page.getByRole("option")
+  await expect(options.first()).toBeVisible()
+  const count = await options.count()
+  expect(count).toBeGreaterThan(1)
+  for (let index = 0; index < count; index++) {
+    const option = options.nth(index)
+    if ((await option.getAttribute("aria-selected")) !== "true") {
+      await option.click()
+      break
+    }
+  }
+  await expect(route).toBeDisabled()
+  await expect(pod).toBeDisabled()
+  await expect(route).toContainText("Loading...")
+  await expect(page.getByPlaceholder("Loading...")).toBeVisible()
+  await release()
+  await expect(route).toBeEnabled()
+  await expect(pod).toBeEnabled()
+  await expectPanelsReady(page)
 })
 
 test("auto-refresh fetches new points without reload", async ({
@@ -168,7 +296,7 @@ test("shows a panel error and recovers", async ({
   )
   await openDashboard(page, id)
   const rps = panel(page, "Checkout requests per second")
-  await expect(rps).toHaveAttribute("data-state", "error", { timeout: 30_000 })
+  await expect(rps).toHaveAttribute("data-state", "error", { timeout: 10_000 })
   await expect(rps.getByText("Query timed out", { exact: true })).toBeVisible()
 
   await page.unroute("**/panels/rps/data*")

@@ -11,6 +11,7 @@ export function panel(page: Page, title: string) {
 
 export async function expectPanelsReady(page: Page) {
   const panels = page.locator("article[data-panel-id]")
+  await panels.first().waitFor({ state: "attached" })
   const count = await panels.count()
   expect(count).toBeGreaterThan(0)
   for (let index = 0; index < count; index++) {

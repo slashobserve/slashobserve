@@ -63,40 +63,41 @@ export function DashboardGrid({
   }, [spec.panels, items])
 
   const stacked = width < singleColumnBelow
+  const columns = stacked ? 1 : gridColumns
+  const gridItems = useMemo(() => {
+    if (!stacked) return items
+    let y = 0
+    return ordered.map(({ panel, item }) => {
+      const stackedItem = { ...item, x: 0, y, w: 1, minW: 1 }
+      y += item.h
+      return { ...stackedItem, i: panel.id }
+    })
+  }, [stacked, items, ordered])
 
   return (
     <div ref={containerRef} className="w-full">
-      {mounted && stacked ? (
-        <div className="flex flex-col gap-2">
-          {ordered.map(({ panel, item }) => (
-            <div key={panel.id} style={{ height: pixelHeight(item.h) }}>
-              {renderPanel(panel, { width, height: pixelHeight(item.h) })}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {mounted && !stacked ? (
+      {mounted ? (
         <GridLayout
           width={width}
-          layout={items}
+          layout={gridItems}
           gridConfig={{
-            cols: gridColumns,
+            cols: columns,
             rowHeight: gridRowHeight,
             margin: [gridMargin, gridMargin],
             containerPadding: [0, 0],
           }}
           dragConfig={{
-            enabled: editable,
+            enabled: editable && !stacked,
             handle: ".panel-drag-handle",
             threshold: 3,
           }}
-          resizeConfig={{ enabled: editable, handles: ["se"] }}
-          onLayoutChange={onLayoutChange}
+          resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
+          onLayoutChange={stacked ? undefined : onLayoutChange}
         >
           {ordered.map(({ panel, item }) => (
             <div key={panel.id}>
               {renderPanel(panel, {
-                width: pixelWidth(width, item.w),
+                width: stacked ? width : pixelWidth(width, item.w),
                 height: pixelHeight(item.h),
               })}
             </div>

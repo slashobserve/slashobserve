@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useId, useState, type FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { ClockIcon, RefreshCwIcon } from "lucide-react"
 
@@ -33,6 +33,8 @@ type Props = {
 export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
   const queryClient = useQueryClient()
   const setSearch = useSetDashboardSearch()
+  const fromId = useId()
+  const toId = useId()
   const [open, setOpen] = useState(false)
   const [draftFrom, setDraftFrom] = useState("")
   const [draftTo, setDraftTo] = useState("")
@@ -107,9 +109,9 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
             </div>
             <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="time-range-from">From</Label>
+                <Label htmlFor={fromId}>From</Label>
                 <Input
-                  id="time-range-from"
+                  id={fromId}
                   value={draftFrom}
                   onChange={(event) => setDraftFrom(event.target.value)}
                   autoComplete="off"
@@ -117,9 +119,9 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="time-range-to">To</Label>
+                <Label htmlFor={toId}>To</Label>
                 <Input
-                  id="time-range-to"
+                  id={toId}
                   value={draftTo}
                   onChange={(event) => setDraftTo(event.target.value)}
                   autoComplete="off"

@@ -1,5 +1,5 @@
 import { useId } from "react"
-import { RotateCcwIcon } from "lucide-react"
+import { LoaderCircleIcon, RotateCcwIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -38,6 +38,7 @@ function optionLabel(value: string): string {
 
 export function VariableSelect({ state, onChange }: Props) {
   const { variable, status } = state
+  const refreshing = status === "refreshing"
   const label = variable.label ?? variable.name
   const id = useId()
   const anchor = useComboboxAnchor()
@@ -49,14 +50,24 @@ export function VariableSelect({ state, onChange }: Props) {
   let control
   if (status === "loading") {
     control = (
-      <Button variant="outline" disabled aria-label={label} id={id}>
+      <Button
+        variant="outline"
+        disabled
+        aria-label={`${label}, loading`}
+        id={id}
+      >
         Loading...
       </Button>
     )
   } else if (status === "error") {
     control = (
       <>
-        <Button variant="outline" disabled aria-label={label} id={id}>
+        <Button
+          variant="outline"
+          disabled
+          aria-label={`${label}, failed to load`}
+          id={id}
+        >
           Failed to load
         </Button>
         <Button
@@ -73,6 +84,7 @@ export function VariableSelect({ state, onChange }: Props) {
     control = (
       <Combobox
         multiple
+        disabled={refreshing}
         items={values}
         value={state.selected}
         itemToStringLabel={optionLabel}
@@ -86,17 +98,36 @@ export function VariableSelect({ state, onChange }: Props) {
           )
         }
       >
-        <ComboboxChips ref={anchor} className="w-64 max-w-full">
+        <ComboboxChips
+          ref={anchor}
+          className="relative w-64 max-w-full pr-7 has-data-[slot=combobox-chip]:pr-7"
+          aria-busy={refreshing || undefined}
+        >
           <ComboboxValue>
             {(selected: string[]) => (
               <>
                 {selected.map((value) => (
                   <ComboboxChip key={value}>{optionLabel(value)}</ComboboxChip>
                 ))}
-                <ComboboxChipsInput id={id} aria-label={label} />
+                <ComboboxChipsInput
+                  id={id}
+                  aria-label={label}
+                  placeholder={
+                    refreshing && state.selected.length === 0
+                      ? "Loading..."
+                      : undefined
+                  }
+                  aria-busy={refreshing || undefined}
+                />
               </>
             )}
           </ComboboxValue>
+          {refreshing ? (
+            <LoaderCircleIcon
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground motion-safe:animate-spin"
+            />
+          ) : null}
         </ComboboxChips>
         <ComboboxContent anchor={anchor}>
           <ComboboxEmpty>No values found</ComboboxEmpty>
@@ -121,10 +152,23 @@ export function VariableSelect({ state, onChange }: Props) {
         onValueChange={(next) => {
           if (next !== null) onChange([next])
         }}
-        disabled={values.length === 0}
+        disabled={refreshing || values.length === 0}
       >
-        <SelectTrigger id={id} aria-label={label} className="min-w-32">
-          <SelectValue placeholder="No values" />
+        <SelectTrigger
+          id={id}
+          aria-label={label}
+          aria-busy={refreshing || undefined}
+          className="min-w-32"
+          icon={
+            refreshing ? (
+              <LoaderCircleIcon
+                aria-hidden="true"
+                className="pointer-events-none size-4 text-muted-foreground motion-safe:animate-spin"
+              />
+            ) : undefined
+          }
+        >
+          <SelectValue placeholder={refreshing ? "Loading..." : "No values"} />
         </SelectTrigger>
         <SelectContent alignItemWithTrigger={false} align="start">
           {values.map((value) => (

@@ -178,25 +178,33 @@ function hexRule(prefix: string): Rule {
   }
 }
 
+const currencyFormats = new Map<string, Intl.NumberFormat>()
+
 function currencyRule(currency: string): Rule {
   return {
     kind: "custom",
     format: (value, decimals) => {
       const compact = Math.abs(value) >= 10_000
-      const options: Intl.NumberFormatOptions = {
-        style: "currency",
-        currency,
-        signDisplay: "negative",
+      const key = `${currency}:${compact}:${decimals ?? ""}`
+      let format = currencyFormats.get(key)
+      if (!format) {
+        const options: Intl.NumberFormatOptions = {
+          style: "currency",
+          currency,
+          signDisplay: "negative",
+        }
+        if (compact) {
+          options.notation = "compact"
+          options.minimumFractionDigits = 0
+          options.maximumFractionDigits = decimals ?? 2
+        } else if (decimals !== undefined) {
+          options.minimumFractionDigits = decimals
+          options.maximumFractionDigits = decimals
+        }
+        format = new Intl.NumberFormat("en", options)
+        currencyFormats.set(key, format)
       }
-      if (compact) {
-        options.notation = "compact"
-        options.minimumFractionDigits = 0
-        options.maximumFractionDigits = decimals ?? 2
-      } else if (decimals !== undefined) {
-        options.minimumFractionDigits = decimals
-        options.maximumFractionDigits = decimals
-      }
-      return new Intl.NumberFormat("en", options).format(value)
+      return format.format(value)
     },
   }
 }
@@ -311,7 +319,11 @@ const rules: Record<Unit, Rule> = {
   dateTimeAsSystem: dateRule(localDate),
   dateTimeFromNow: {
     kind: "custom",
-    format: (value) => formatRelative(new Date(value).toISOString()),
+    format: (value) => {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return "-"
+      return formatRelative(date.toISOString())
+    },
   },
   watt: scale(1000, ["W", "kW", "MW", "GW", "TW"]),
   kwatt: spaced("kW"),

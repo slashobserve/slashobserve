@@ -170,3 +170,10 @@
     @apply font-sans;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .react-grid-layout,
+  .react-grid-layout > .react-grid-item {
+    transition: none !important;
+  }
+}

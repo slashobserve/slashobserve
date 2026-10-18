@@ -29,9 +29,11 @@ function SelectTrigger({
   className,
   size = "default",
   children,
+  icon,
   ...props
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default"
+  icon?: React.ReactElement
 }) {
   return (
     <SelectPrimitive.Trigger
@@ -46,7 +48,9 @@ function SelectTrigger({
       {children}
       <SelectPrimitive.Icon
         render={
-          <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+          icon ?? (
+            <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+          )
         }
       />
     </SelectPrimitive.Trigger>

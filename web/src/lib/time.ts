@@ -16,7 +16,9 @@ export const quickRanges: { label: string; from: string; to: string }[] = [
 
 const timeExpression =
   /^(now([+-][1-9][0-9]*[smhdwMy])?(\/[smhdwMy])?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$/
-const epochMillis = /^[0-9]{1,15}$/
+const epochMillis = /^[0-9]{10,15}$/
+const relativeExpression =
+  /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/([smhdwMy]))?$/
 const localDateTime =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
 
@@ -69,11 +71,90 @@ export function describeRange(from: string, to: string): string {
     : `${formatTimeValue(from)} to ${formatTimeValue(to)}`
 }
 
-export function isAbsoluteOrdered(from: string, to: string): boolean {
-  if (epochMillis.test(from) && epochMillis.test(to)) {
-    return Number(from) < Number(to)
+const fixedUnitMs = {
+  s: 1000,
+  m: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+  w: 604_800_000,
+}
+
+function addMonthsClamped(time: Date, months: number): Date {
+  const first = new Date(
+    Date.UTC(time.getUTCFullYear(), time.getUTCMonth() + months, 1)
+  )
+  const lastDay = new Date(
+    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)
+  ).getUTCDate()
+  return new Date(
+    Date.UTC(
+      first.getUTCFullYear(),
+      first.getUTCMonth(),
+      Math.min(time.getUTCDate(), lastDay),
+      time.getUTCHours(),
+      time.getUTCMinutes(),
+      time.getUTCSeconds(),
+      time.getUTCMilliseconds()
+    )
+  )
+}
+
+function advance(time: Date, count: number, unit: string): Date {
+  if (unit === "M") return addMonthsClamped(time, count)
+  if (unit === "y") return addMonthsClamped(time, 12 * count)
+  return new Date(
+    time.getTime() + count * fixedUnitMs[unit as keyof typeof fixedUnitMs]
+  )
+}
+
+function startOf(time: Date, unit: string): Date {
+  const year = time.getUTCFullYear()
+  const month = time.getUTCMonth()
+  const day = time.getUTCDate()
+  switch (unit) {
+    case "s":
+    case "m":
+    case "h": {
+      const size = fixedUnitMs[unit]
+      return new Date(Math.floor(time.getTime() / size) * size)
+    }
+    case "d":
+      return new Date(Date.UTC(year, month, day))
+    case "w":
+      return new Date(Date.UTC(year, month, day - ((time.getUTCDay() + 6) % 7)))
+    case "M":
+      return new Date(Date.UTC(year, month, 1))
+    default:
+      return new Date(Date.UTC(year, 0, 1))
   }
-  return true
+}
+
+function resolveTime(value: string, now: number, roundUp: boolean): number {
+  const match = relativeExpression.exec(value)
+  if (!match) {
+    return epochMillis.test(value) ? Number(value) : Date.parse(value)
+  }
+  let time = new Date(now)
+  if (match[2]) {
+    const count = Number(match[2]) * (match[1] === "-" ? -1 : 1)
+    time = advance(time, count, match[3])
+  }
+  if (match[4]) {
+    const start = startOf(time, match[4])
+    time = roundUp ? new Date(advance(start, 1, match[4]).getTime() - 1) : start
+  }
+  return time.getTime()
+}
+
+export function isAbsoluteOrdered(
+  from: string,
+  to: string,
+  now = Date.now()
+): boolean {
+  const start = resolveTime(from, now, false)
+  const end = resolveTime(to, now, true)
+  if (Number.isNaN(start) || Number.isNaN(end)) return true
+  return start < end
 }
 
 const relativeUnits: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] =
@@ -113,9 +194,12 @@ export const refreshOptions = [
 export const refreshPattern = /^[1-9][0-9]{0,4}[smh]$/
 
 const refreshUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }
+const minRefreshMs = 5000
+const maxRefreshMs = 86_400_000
 
 export function refreshToMs(value: string | undefined): number | null {
   if (value === undefined || !refreshPattern.test(value)) return null
   const unit = value[value.length - 1] as keyof typeof refreshUnitMs
-  return Math.max(Number(value.slice(0, -1)) * refreshUnitMs[unit], 5000)
+  const ms = Number(value.slice(0, -1)) * refreshUnitMs[unit]
+  return Math.min(Math.max(ms, minRefreshMs), maxRefreshMs)
 }

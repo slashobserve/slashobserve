@@ -153,6 +153,9 @@ Directories are created when their phase starts; this is where things go.
 - The router uses plain `URLSearchParams` search serialization (`web/src/lib/search.ts`): search values are strings, numbers or string arrays, repeated keys become arrays, and each route coerces types in `validateSearch`.
 - Dashboards live at `/dashboards/$dashboardId`; the URL holds `from`, `to`, `refresh`, `version`, `panel`, `tab` and repeated `var-<name>` values, parsed only by `web/src/dashboards/search.ts` (`withVariables` adds `var-` params to API calls).
   Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
+  A selection that needs a variable's values list (no URL value and no All) is sent once those values have loaded for the current parent selections, never from a previous parent's list, and if the values request fails the dependent panels wait in an error state with the variable control's retry.
+  An empty values list leaves the selection to the server.
+  While a variable's values reload, its control keeps the last values visible but disabled with a spinner, and it shows no selected value unless the URL or All supplies one when the parents changed; the hook keeps the last loaded values itself because `useQueries` does not carry data across keys.
 - Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal; panels fetch once they scroll near the viewport.
 - Panel renderers implement `PanelRendererProps` in `web/src/panels/types.ts` and are registered only in `web/src/panels/index.tsx`; panel states are exposed as `data-state` on the panel `article` for tests.
 - Browser specs create their own dashboards through `web/e2e/api.ts` with `uniqueTitle`, from Specs in `web/e2e/data/`.

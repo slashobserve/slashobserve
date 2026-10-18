@@ -34,6 +34,8 @@ describe("isTimeValue", () => {
       "",
       "1e9",
       "now - 1h",
+      "2026",
+      "123456789",
     ]) {
       expect(isTimeValue(value)).toBe(false)
     }
@@ -85,11 +87,34 @@ describe("formatting", () => {
 })
 
 describe("isAbsoluteOrdered", () => {
-  it("checks only absolute pairs", () => {
-    expect(isAbsoluteOrdered("100", "200")).toBe(true)
-    expect(isAbsoluteOrdered("200", "100")).toBe(false)
-    expect(isAbsoluteOrdered("200", "200")).toBe(false)
-    expect(isAbsoluteOrdered("now-1h", "now")).toBe(true)
+  const now = Date.parse("2026-10-17T12:00:00Z")
+
+  it("orders epoch pairs", () => {
+    expect(isAbsoluteOrdered("1760000000000", "1760000001000", now)).toBe(true)
+    expect(isAbsoluteOrdered("1760000001000", "1760000000000", now)).toBe(false)
+    expect(isAbsoluteOrdered("1760000000000", "1760000000000", now)).toBe(false)
+  })
+
+  it("resolves relative expressions against now", () => {
+    expect(isAbsoluteOrdered("now-1h", "now", now)).toBe(true)
+    expect(isAbsoluteOrdered("now", "now-1h", now)).toBe(false)
+    expect(isAbsoluteOrdered("now", "now", now)).toBe(false)
+    expect(isAbsoluteOrdered("now+1h", "now", now)).toBe(false)
+    expect(isAbsoluteOrdered("now/d", "now", now)).toBe(true)
+    expect(isAbsoluteOrdered("now-1d/d", "now-1d/d", now)).toBe(true)
+    expect(isAbsoluteOrdered("now-1M", "now-1y", now)).toBe(false)
+    expect(isAbsoluteOrdered("now-2w/w", "now-1w/w", now)).toBe(true)
+  })
+
+  it("orders RFC 3339 values and mixed pairs", () => {
+    expect(
+      isAbsoluteOrdered("2026-10-17T09:00:00Z", "2026-10-17T10:00:00Z", now)
+    ).toBe(true)
+    expect(
+      isAbsoluteOrdered("2026-10-17T10:00:00Z", "2026-10-17T09:00:00Z", now)
+    ).toBe(false)
+    expect(isAbsoluteOrdered("2026-10-17T13:00:00Z", "now", now)).toBe(false)
+    expect(isAbsoluteOrdered("now-6h", "2026-10-17T11:00:00Z", now)).toBe(true)
   })
 })
 
@@ -99,6 +124,10 @@ describe("refreshToMs", () => {
     expect(refreshToMs("5s")).toBe(5000)
     expect(refreshToMs("1m")).toBe(60_000)
     expect(refreshToMs("1h")).toBe(3_600_000)
+    expect(refreshToMs("24h")).toBe(86_400_000)
+    expect(refreshToMs("25h")).toBe(86_400_000)
+    expect(refreshToMs("600h")).toBe(86_400_000)
+    expect(refreshToMs("99999h")).toBe(86_400_000)
     expect(refreshToMs("off")).toBeNull()
     expect(refreshToMs(undefined)).toBeNull()
     expect(refreshToMs("soon")).toBeNull()

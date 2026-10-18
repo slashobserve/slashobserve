@@ -34,6 +34,7 @@ import { useSeen } from "./use-seen"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionBanner } from "./version-banner"
+import { VariableLoadError } from "./variables"
 
 type PanelContainerProps = {
   dashboardId: string
@@ -45,6 +46,8 @@ type PanelContainerProps = {
   to: string | undefined
   selections: Selections
   selectionsReady: boolean
+  blockedBy: string | undefined
+  onRetryBlocked: () => void
   refreshMs: number | null
 }
 
@@ -58,6 +61,8 @@ const PanelContainer = memo(function PanelContainer({
   to,
   selections,
   selectionsReady,
+  blockedBy,
+  onRetryBlocked,
   refreshMs,
 }: PanelContainerProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -90,7 +95,14 @@ const PanelContainer = memo(function PanelContainer({
 
   let state: PanelState = "loading"
   if (query.data) state = hasData(query.data.frames) ? "ready" : "empty"
+  else if (blockedBy !== undefined) state = "error"
   else if (query.isError) state = "error"
+
+  const blockedError = useMemo(
+    () =>
+      blockedBy === undefined ? undefined : new VariableLoadError(blockedBy),
+    [blockedBy]
+  )
 
   const Renderer = panelRenderers[tableView ? "table" : panel.type]
 
@@ -99,10 +111,10 @@ const PanelContainer = memo(function PanelContainer({
       <PanelChrome
         panel={panel}
         state={state}
-        error={query.error}
+        error={query.data ? query.error : (blockedError ?? query.error)}
         refreshing={query.isFetching && query.data !== undefined}
         staleError={query.isError && query.data ? query.error : undefined}
-        onRetry={() => void query.refetch()}
+        onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         menu={
           <PanelMenu
             panel={panel}
@@ -144,7 +156,7 @@ function DashboardView({
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
 
-  const { states, selections, ready } = useVariables({
+  const { states, selections, ready, blocking } = useVariables({
     dashboardId,
     version,
     variables,
@@ -152,6 +164,15 @@ function DashboardView({
     to: search.to,
     urlVars: search.vars,
   })
+
+  const retryBlocking = useRef<(() => void) | undefined>(undefined)
+  useEffect(() => {
+    retryBlocking.current = blocking?.retry
+  })
+  const onRetryBlocked = useCallback(() => retryBlocking.current?.(), [])
+  const blockedBy = blocking
+    ? (blocking.variable.label ?? blocking.variable.name)
+    : undefined
 
   useEffect(() => {
     const previous = document.title
@@ -204,6 +225,8 @@ function DashboardView({
               to={search.to}
               selections={selections}
               selectionsReady={ready}
+              blockedBy={blockedBy}
+              onRetryBlocked={onRetryBlocked}
               refreshMs={refreshMs}
             />
           )}
@@ -213,23 +236,46 @@ function DashboardView({
   )
 }
 
+function PinnedDashboardPage({
+  dashboardId,
+  version,
+  latestVersion,
+}: {
+  dashboardId: string
+  version: number
+  latestVersion: number | undefined
+}) {
+  const pinned = useQuery(dashboardVersionQuery(dashboardId, version))
+  if (!pinned.data) return <DashboardPageSkeleton />
+  return (
+    <DashboardView
+      dashboardId={dashboardId}
+      envelope={pinned.data}
+      latestVersion={latestVersion ?? pinned.data.version.version}
+    />
+  )
+}
+
 export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   const search = useDashboardSearch()
   const queryClient = useQueryClient()
   const latest = useQuery(latestDashboardQuery(queryClient, dashboardId))
-  const pinned = useQuery({
-    ...dashboardVersionQuery(dashboardId, search.version ?? 0),
-    enabled: search.version !== undefined,
-  })
-  const envelope = search.version !== undefined ? pinned.data : latest.data
-  if (!envelope) return <DashboardPageSkeleton />
+  const latestVersion = latest.data?.dashboard.latest_version
+  if (search.version !== undefined) {
+    return (
+      <PinnedDashboardPage
+        dashboardId={dashboardId}
+        version={search.version}
+        latestVersion={latestVersion}
+      />
+    )
+  }
+  if (!latest.data) return <DashboardPageSkeleton />
   return (
     <DashboardView
       dashboardId={dashboardId}
-      envelope={envelope}
-      latestVersion={
-        latest.data?.dashboard.latest_version ?? envelope.version.version
-      }
+      envelope={latest.data}
+      latestVersion={latestVersion ?? latest.data.version.version}
     />
   )
 }

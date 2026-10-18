@@ -78,6 +78,8 @@ describe("formatValue", () => {
       /^\d{2}:\d{2}:\d{2}$/
     )
     expect(f(Date.now() - 3 * 3_600_000, "dateTimeFromNow")).toBe("3 hours ago")
+    expect(f(1e17, "dateTimeFromNow")).toBe("-")
+    expect(f(1e17, "dateTimeAsIso")).toBe("-")
   })
 
   it("formats booleans, hex, scientific and plain strings", () => {

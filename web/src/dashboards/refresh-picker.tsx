@@ -1,3 +1,5 @@
+import { TimerIcon } from "lucide-react"
+
 import {
   Select,
   SelectContent,
@@ -21,6 +23,7 @@ export function RefreshPicker({ value }: Props) {
   const options = items.some((item) => item.value === value)
     ? items
     : [...items, { value, label: value }]
+  const label = options.find((item) => item.value === value)?.label ?? value
   return (
     <Select
       items={options}
@@ -30,7 +33,11 @@ export function RefreshPicker({ value }: Props) {
         setSearch((state) => ({ ...state, refresh: next }), { replace: true })
       }}
     >
-      <SelectTrigger aria-label="Auto-refresh" className="min-w-24">
+      <SelectTrigger
+        aria-label={`Auto-refresh: ${label}`}
+        className="min-w-16 sm:min-w-24"
+      >
+        <TimerIcon className="text-muted-foreground sm:hidden" />
         <span className="hidden text-muted-foreground sm:inline">
           Auto-refresh
         </span>
