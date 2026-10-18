@@ -20,10 +20,28 @@ function palette(page: Page) {
   return page.getByRole("dialog", { name: "Search or jump to" })
 }
 
+function searchInput(page: Page) {
+  return palette(page).getByRole("combobox", {
+    name: "Search dashboards and pages",
+  })
+}
+
+async function expectReadyToType(page: Page) {
+  await expect(palette(page)).toBeVisible()
+  await expect(searchInput(page)).toBeFocused()
+}
+
 async function openFromButton(page: Page) {
   await page.goto("/")
   await trigger(page).click()
-  await expect(palette(page)).toBeVisible()
+  await expectReadyToType(page)
+}
+
+async function openFromShortcut(page: Page) {
+  await page.goto("/")
+  await expect(trigger(page)).toBeVisible()
+  await page.keyboard.press("ControlOrMeta+k")
+  await expectReadyToType(page)
 }
 
 async function expectEveryPage(page: Page) {
@@ -54,13 +72,11 @@ test("opens from the button and lists the pages", async ({ page }) => {
 })
 
 test("jumps to a page with the keyboard", async ({ page }) => {
-  await page.goto("/")
-  await page.keyboard.press("ControlOrMeta+k")
-  await expect(palette(page)).toBeVisible()
+  await openFromShortcut(page)
   await page.keyboard.type("api")
   await expect(
     palette(page).getByRole("option", { name: "API keys", exact: true })
-  ).toBeVisible()
+  ).toHaveAttribute("data-highlighted", "")
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/\/keys$/)
   await expect(palette(page)).toHaveCount(0)
@@ -72,11 +88,12 @@ test("opens a matching dashboard in a new tab", async ({ page, request }) => {
     ...loadSpec("overview"),
     title,
   })
-  await page.goto("/")
+  await openFromShortcut(page)
   const before = page.url()
-  await page.keyboard.press("ControlOrMeta+k")
   await page.keyboard.type(title)
-  await expect(palette(page).getByRole("option", { name: title })).toBeVisible()
+  await expect(searchInput(page)).toHaveValue(title)
+  const option = palette(page).getByRole("option", { name: title })
+  await expect(option).toHaveAttribute("data-highlighted", "")
   const [popup] = await Promise.all([
     page.context().waitForEvent("page"),
     page.keyboard.press("Enter"),
@@ -183,6 +200,7 @@ test.describe("on a phone", () => {
     await expect(palette(page)).toHaveCount(0)
 
     await trigger(page).click()
+    await expectReadyToType(page)
     await page.keyboard.type("sign")
     await expect(
       palette(page).getByRole("option", { name: "Sign out", exact: true })
