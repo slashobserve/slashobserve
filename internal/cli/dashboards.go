@@ -1,12 +1,11 @@
 package cli
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 
 	"github.com/spf13/cobra"
-
-	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const defaultPageSize = 50
@@ -33,7 +32,22 @@ type versionMeta struct {
 
 type versionBody struct {
 	versionMeta
-	Spec spec.Dashboard `json:"spec"`
+	Spec shownSpec `json:"spec"`
+}
+
+type shownSpec struct {
+	Panels []shownPanel `json:"panels"`
+}
+
+type shownPanel struct {
+	ID         string          `json:"id"`
+	Type       string          `json:"type"`
+	Title      string          `json:"title"`
+	Datasource json.RawMessage `json:"datasource"`
+	Queries    []struct {
+		Datasource json.RawMessage `json:"datasource"`
+	} `json:"queries"`
+	Panels []shownPanel `json:"panels"`
 }
 
 type pageOptions struct {
@@ -181,10 +195,9 @@ func (a *app) runShow(cmd *cobra.Command, args []string) error {
 		{"Author", text(shown.Version.Author.Name)},
 		{"Summary", text(shown.Version.Summary)},
 	})
-	entries := shown.Version.Spec.AllPanels()
-	rows := make([][]string, 0, len(entries))
-	for _, e := range entries {
-		rows = append(rows, []string{text(e.Panel.ID), text(string(e.Panel.Type)), text(panelDatasource(e.Panel)), text(e.Panel.Title)})
+	var rows [][]string
+	for _, p := range shown.Version.Spec.Panels {
+		rows = appendPanelRows(rows, p)
 	}
 	out.line("")
 	out.table([]string{"PANEL", "TYPE", "DATASOURCE", "TITLE"}, rows)
@@ -237,9 +250,33 @@ func (a *app) runVersions(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func panelDatasource(p *spec.Panel) string {
-	if len(p.Queries) > 0 {
-		return p.QueryDatasource(0)
+func appendPanelRows(rows [][]string, p shownPanel) [][]string {
+	rows = append(rows, []string{text(p.ID), text(p.Type), text(panelDatasource(p)), text(p.Title)})
+	for _, child := range p.Panels {
+		rows = appendPanelRows(rows, child)
 	}
-	return p.Datasource
+	return rows
+}
+
+func panelDatasource(p shownPanel) string {
+	if len(p.Queries) > 0 {
+		if uid := datasourceUID(p.Queries[0].Datasource); uid != "" {
+			return uid
+		}
+	}
+	return datasourceUID(p.Datasource)
+}
+
+func datasourceUID(raw json.RawMessage) string {
+	var uid string
+	if json.Unmarshal(raw, &uid) == nil {
+		return uid
+	}
+	var legacy struct {
+		UID string `json:"uid"`
+	}
+	if json.Unmarshal(raw, &legacy) == nil {
+		return legacy.UID
+	}
+	return ""
 }
