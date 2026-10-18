@@ -36,6 +36,20 @@ async function mockAgent(page: Page, body: Record<string, unknown>) {
   )
 }
 
+async function mockInstance(
+  page: Page,
+  change: Record<string, unknown>
+): Promise<void> {
+  await page.route(
+    (url) => url.pathname === "/api/v1/instance",
+    async (route) => {
+      const response = await route.fetch()
+      const body = (await response.json()) as Record<string, unknown>
+      await route.fulfill({ response, json: { ...body, ...change } })
+    }
+  )
+}
+
 function failedResourceLogged(consoleErrors: string[], status: string) {
   const logged = consoleErrors.filter((message) =>
     message.includes(`status of ${status}`)
@@ -134,4 +148,23 @@ test("keeps working when the server settings fail", async ({
   await expect(value(page, "This server", "MCP URL")).toHaveText(
     `${serverURL()}/mcp`
   )
+})
+
+test("shows the identity provider on the account button", async ({ page }) => {
+  const instance = await (await page.request.get("/api/v1/instance")).json()
+  const name = (instance as { oidc_provider_name: string }).oidc_provider_name
+  expect(name).not.toBe("")
+
+  await openSettings(page)
+  const account = page.getByRole("button", { name: /^Account: / })
+  await expect(account).toContainText(`Signed in with ${name}`)
+})
+
+test("hides the identity provider line when its name is unknown", async ({
+  page,
+}) => {
+  await mockInstance(page, { oidc_provider_name: "" })
+  await openSettings(page)
+  await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
+  await expect(page.getByText("Signed in with")).toHaveCount(0)
 })

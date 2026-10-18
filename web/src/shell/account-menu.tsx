@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { LogOutIcon } from "lucide-react"
 
+import { instanceQuery } from "@/api/instance"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +18,8 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const { signOut, pending } = useSignOut()
   const label = principal.email || principal.name
+  const instance = useQuery(instanceQuery())
+  const providerName = instance.data?.oidc_provider_name.trim()
 
   return (
     <DropdownMenu>
@@ -41,6 +45,11 @@ export function AccountMenu({ collapsed }: { collapsed: boolean }) {
         {collapsed ? null : (
           <span className="flex min-w-0 flex-col leading-[1.25]">
             <span className="truncate text-[13px]">{label}</span>
+            {providerName ? (
+              <span className="truncate text-xs text-muted-foreground">
+                Signed in with {providerName}
+              </span>
+            ) : null}
           </span>
         )}
       </DropdownMenuTrigger>
