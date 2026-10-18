@@ -76,6 +76,8 @@ type fakeDatasource struct {
 	rangeSteps    map[string]time.Duration
 	failText      map[string]error
 	panicText     map[string]bool
+	before        func(ctx context.Context, text string)
+	after         func(text string)
 }
 
 func (f *fakeDatasource) stepFor(text string) time.Duration {
@@ -119,6 +121,12 @@ func (f *fakeDatasource) VariableValues(ctx context.Context, _ datasource.Query,
 }
 
 func (f *fakeDatasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
+	if f.after != nil {
+		defer f.after(q.Text)
+	}
+	if f.before != nil {
+		f.before(ctx, q.Text)
+	}
 	f.mu.Lock()
 	f.rangeCalls++
 	f.rangeRange = r
@@ -600,6 +608,44 @@ func TestResponseLimitCountsEveryQueryOfThePanel(t *testing.T) {
 	hn.get(path, "")
 	if ranges, _, _, _ := hn.ds.counts(); ranges != 4 {
 		t.Fatalf("%d range queries, want 4 (a refused response is not cached)", ranges)
+	}
+}
+
+func TestSizeLimitOutranksAQueryErrorWhicheverFinishesFirst(t *testing.T) {
+	for _, invalidFirst := range []bool{true, false} {
+		t.Run(fmt.Sprintf("invalid query finishes first=%t", invalidFirst), func(t *testing.T) {
+			hn := newHarness(t)
+			invalidDone := make(chan struct{})
+			hn.ds.failText = map[string]error{"bad": datasource.Errorf(datasource.ErrInvalidQuery, "nope")}
+			hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+				return bigFrames(maxResponseBytes/2 + 1), nil
+			}
+			hn.ds.before = func(ctx context.Context, text string) {
+				wait := func(ch <-chan struct{}) {
+					select {
+					case <-ch:
+					case <-time.After(5 * time.Second):
+					}
+				}
+				switch {
+				case text == "bad" && !invalidFirst:
+					wait(ctx.Done())
+				case text != "bad" && invalidFirst:
+					wait(invalidDone)
+				}
+			}
+			hn.ds.after = func(text string) {
+				if text == "bad" {
+					close(invalidDone)
+				}
+			}
+			hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "bad"}, spec.Query{Query: "big1"}, spec.Query{Query: "big2"}))
+			rec := hn.get(hn.dataPath("p_multi", window), "")
+			expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+			if body := decodeError(t, rec); body.Error != "response too large" || body.Ref != "" {
+				t.Fatalf("body = %s, want response too large without a ref", rec.Body.String())
+			}
+		})
 	}
 }
 

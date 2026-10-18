@@ -927,3 +927,37 @@ func TestRunPanelAdmitSeesEachVisibleQueryAndCanRefuseOne(t *testing.T) {
 		t.Fatalf("admitted = %v, want only the visible queries 0 and 2", admitted)
 	}
 }
+
+func TestRunPanelAbortFromAdmitCancelsTheOthersAndOutranksQueryErrors(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = func(ctx context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		switch q.Text {
+		case "stuck":
+			<-ctx.Done()
+			return nil, ctx.Err()
+		case "bad":
+			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "nope")
+		}
+		return dataFrames(), nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries,
+		spec.Query{Query: "bad"},
+		spec.Query{Query: "stuck"},
+		spec.Query{Query: "big"},
+	)})
+	stop := errors.New("stop")
+	_, err := runner.RunPanel(t.Context(), Request{
+		Dashboard: d, PanelID: "p1", Range: testRange(),
+		Admit: func(index int, _ QueryResult) error {
+			if index == 2 {
+				return &AbortError{Err: stop}
+			}
+			return nil
+		},
+	})
+	var qe *QueryError
+	if !errors.Is(err, stop) || errors.As(err, &qe) {
+		t.Fatalf("err = %v, want the abort error alone, without a query ref", err)
+	}
+}

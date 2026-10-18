@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"slices"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -50,7 +51,7 @@ type Request struct {
 	MaxDataPoints int
 	Limits        datasource.Limits
 	IncludeHidden bool
-	Admit         func(index int, q QueryResult) error
+	Admit         func(index int, q QueryResult) error // an *AbortError stops the other queries and fails the request with its Err
 
 	skip []bool
 }
@@ -85,6 +86,11 @@ type QueryError struct {
 
 func (e *QueryError) Error() string { return e.Err.Error() }
 func (e *QueryError) Unwrap() error { return e.Err }
+
+type AbortError struct{ Err error }
+
+func (e *AbortError) Error() string { return e.Err.Error() }
+func (e *AbortError) Unwrap() error { return e.Err }
 
 type Runner struct {
 	reg    *datasource.Registry
@@ -212,24 +218,10 @@ func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]a
 		prepared[j] = pq
 	}
 
-	frames := make([][]datasource.Frame, len(panel.Queries))
-	var group errgroup.Group
-	group.SetLimit(queryParallelism)
-	for j, pq := range prepared {
-		if pq == nil {
-			continue
-		}
-		group.Go(func() error {
-			out, err := r.runQuery(ctx, req, panel, j, pq)
-			if err != nil {
-				errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
-				return nil
-			}
-			frames[j] = out
-			return nil
-		})
+	frames, abortErr := r.runPrepared(ctx, req, panel, prepared, errs)
+	if abortErr != nil {
+		return panel, Result{}, nil, abortErr
 	}
-	_ = group.Wait()
 
 	res = Result{Kind: PanelKind(panel), Range: req.Range}
 	if res.Kind == KindRange {
@@ -242,6 +234,43 @@ func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]a
 		res.Queries = append(res.Queries, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: frames[j]})
 	}
 	return panel, res, errs, nil
+}
+
+func (r *Runner) runPrepared(ctx context.Context, req Request, panel *spec.Panel, prepared []*preparedQuery, errs []error) (frames [][]datasource.Frame, abortErr error) {
+	frames = make([][]datasource.Frame, len(panel.Queries))
+	runCtx, stop := context.WithCancel(ctx)
+	defer stop()
+	var (
+		group   errgroup.Group
+		abortMu sync.Mutex
+	)
+	group.SetLimit(queryParallelism)
+	for j, pq := range prepared {
+		if pq == nil {
+			continue
+		}
+		group.Go(func() error {
+			out, err := r.runQuery(runCtx, req, panel, j, pq)
+			var abort *AbortError
+			if errors.As(err, &abort) {
+				abortMu.Lock()
+				if abortErr == nil {
+					abortErr = abort.Err
+				}
+				abortMu.Unlock()
+				stop()
+				return nil
+			}
+			if err != nil {
+				errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
+				return nil
+			}
+			frames[j] = out
+			return nil
+		})
+	}
+	_ = group.Wait()
+	return frames, abortErr
 }
 
 func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j int, pq *preparedQuery) ([]datasource.Frame, error) {

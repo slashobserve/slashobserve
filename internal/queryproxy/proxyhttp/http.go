@@ -197,10 +197,10 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		}
 		mu.Lock()
 		defer mu.Unlock()
-		if total += len(part); total > maxResponseBytes {
-			return errTooLarge
-		}
 		parts[index] = part
+		if total += len(part); total > maxResponseBytes {
+			return &queryproxy.AbortError{Err: errTooLarge}
+		}
 		return nil
 	}
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
