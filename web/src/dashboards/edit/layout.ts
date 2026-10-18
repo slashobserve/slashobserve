@@ -1,12 +1,18 @@
 import type { Layout, LayoutItem } from "react-grid-layout"
-import { cloneLayout, getCompactor } from "react-grid-layout/core"
+import {
+  cloneLayout,
+  getAllCollisions,
+  getCompactor,
+  moveElement,
+  sortLayoutItems,
+} from "react-grid-layout/core"
 
 import type { Dashboard } from "@/spec"
 
 const columns = 24
 const minWidth = 2
 const minHeight = 3
-const maxHeight = 50
+const maxHeight = 100
 const maxVerticalSteps = 100
 const compactor = getCompactor("vertical")
 
@@ -19,6 +25,7 @@ export function layoutFromSpec(spec: Dashboard): Layout {
     h: panel.gridPos.h,
     minW: minWidth,
     minH: minHeight,
+    maxH: maxHeight,
   }))
 }
 
@@ -87,13 +94,73 @@ export function resizeItem(
   dh: number
 ): Layout {
   return changeItem(layout, id, (item) => ({
-    w: clamp(item.w + dw, minWidth, columns - item.x),
-    h: clamp(item.h + dh, minHeight, maxHeight),
+    w:
+      dw === 0
+        ? item.w
+        : clamp(
+            item.w + dw,
+            Math.min(minWidth, item.w),
+            Math.max(columns - item.x, item.w)
+          ),
+    h:
+      dh === 0
+        ? item.h
+        : clamp(
+            item.h + dh,
+            Math.min(minHeight, item.h),
+            Math.max(maxHeight, item.h)
+          ),
   }))
 }
 
-function settle(layout: Layout): Layout {
+export function settle(layout: Layout): Layout {
   return compactor.compact(cloneLayout(layout), columns)
+}
+
+export function resizeItemPushing(
+  layout: Layout,
+  id: string,
+  dw: number,
+  dh: number
+): Layout {
+  const working = cloneLayout(resizeItem(layout, id, dw, dh))
+  const item = working.find((entry) => entry.i === id)
+  if (!item) return layout
+  item.moved = true
+  let result = working
+  const collisions = getAllCollisions(
+    sortLayoutItems(working, "vertical"),
+    item
+  )
+  for (const collision of collisions) {
+    if (collision.moved) continue
+    result = moveElement(
+      result,
+      collision,
+      undefined,
+      item.y + item.h,
+      false,
+      false,
+      "vertical",
+      columns
+    )
+  }
+  return settle(result)
+}
+
+export function moveItemHorizontally(
+  layout: Layout,
+  id: string,
+  direction: 1 | -1
+): Layout {
+  const working = cloneLayout(layout)
+  const item = working.find((entry) => entry.i === id)
+  if (!item) return layout
+  const x = clamp(item.x + direction, 0, columns - item.w)
+  if (x === item.x) return layout
+  return settle(
+    moveElement(working, item, x, item.y, true, false, "vertical", columns)
+  )
 }
 
 export function stepItemVertically(

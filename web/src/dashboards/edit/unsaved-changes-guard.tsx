@@ -15,12 +15,14 @@ import { isDirtyNow, useLayoutStore } from "./layout-store"
 
 type DiscardDialogProps = {
   open: boolean
+  finalFocus?: () => HTMLElement | null
   onKeep: () => void
   onDiscard: () => void
 }
 
 export function DiscardLayoutDialog({
   open,
+  finalFocus,
   onKeep,
   onDiscard,
 }: DiscardDialogProps) {
@@ -31,7 +33,7 @@ export function DiscardLayoutDialog({
         if (!next) onKeep()
       }}
     >
-      <AlertDialogContent>
+      <AlertDialogContent finalFocus={finalFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard unsaved layout changes?</AlertDialogTitle>
           <AlertDialogDescription>

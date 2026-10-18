@@ -181,7 +181,8 @@ Directories are created when their phase starts; this is where things go.
 - Version history lives at `/dashboards/$dashboardId/versions?from=&to=&back=`; the browser never computes diffs, it groups the server's `pkg/spec.Diff` changes with `groupChanges`, and restore sends `parent_version` = the latest version known when its dialog opened (only a 409 raises it).
   `back` carries the dashboard's search string through the page and is re-parsed with `validateDashboardSearch`, so only dashboard keys survive; "Back to dashboard" and a restore from the page return to it.
   The page holds its own `useDashboardEvents` stream, so versions saved elsewhere appear live.
-- Layout editing keeps the base Spec and the edited layout in the Zustand `useLayoutStore`; saving sends `applyLayout(baseSpec, layout)` with `parent_version = baseVersion`, and a 409 offers to reapply the layout onto the latest version.
+- Layout editing keeps the base Spec and the edited layout in the Zustand `useLayoutStore`; saving sends `applyLayout(baseSpec, layout)` with `parent_version = baseVersion`, and a 409 offers to reapply the layout onto the latest version, carrying over only the panels the user changed and settling the result.
+  Saving a Spec that has vertical gaps compacts it to the layout the user saw.
   The grid renders from the session's base Spec while editing, so a version that arrives over the event stream never moves panels.
   Every panel's move handle also moves (arrow keys) and resizes (Shift and arrow keys) it, and vertical moves step past the neighbouring panel because the grid compacts upward.
 

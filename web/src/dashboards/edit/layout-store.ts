@@ -1,47 +1,93 @@
 import { useLayoutEffect, useState, type RefObject } from "react"
-import type { Layout } from "react-grid-layout"
+import type { Layout, LayoutItem } from "react-grid-layout"
 import { create } from "zustand"
 
 import type { Dashboard } from "@/spec"
 
-import { layoutFromSpec, sameLayout } from "./layout"
+import { layoutFromSpec, sameLayout, settle } from "./layout"
 
 type LayoutSession = {
   dashboardId: string
   baseVersion: number
   baseSpec: Dashboard
+  baseline: Layout
   layout: Layout
-  movedPanelId: string | null
+  announcement: string
+  announcementCount: number
 }
 
 type LayoutState = {
   session: LayoutSession | null
   start: (dashboardId: string, baseVersion: number, baseSpec: Dashboard) => void
-  setLayout: (layout: Layout, movedPanelId?: string) => void
+  setLayout: (layout: Layout) => void
+  commitLayout: (layout: Layout, announcement: string) => void
   rebase: (baseVersion: number, baseSpec: Dashboard) => void
   end: () => void
 }
 
+function baselineOf(spec: Dashboard): Layout {
+  return settle(layoutFromSpec(spec))
+}
+
+function sameBox(a: LayoutItem, b: LayoutItem): boolean {
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
+}
+
+function mergeEdits(
+  oldBaseline: Layout,
+  edited: Layout,
+  newBase: Layout
+): Layout {
+  const before = new Map(oldBaseline.map((item) => [item.i, item]))
+  const changed = new Map(
+    edited
+      .filter((item) => {
+        const original = before.get(item.i)
+        return original !== undefined && !sameBox(original, item)
+      })
+      .map((item) => [item.i, item])
+  )
+  return settle(
+    newBase.map((item) => {
+      const kept = changed.get(item.i)
+      return kept
+        ? { ...item, x: kept.x, y: kept.y, w: kept.w, h: kept.h }
+        : item
+    })
+  )
+}
+
 export const useLayoutStore = create<LayoutState>()((set) => ({
   session: null,
-  start: (dashboardId, baseVersion, baseSpec) =>
+  start: (dashboardId, baseVersion, baseSpec) => {
+    const baseline = baselineOf(baseSpec)
     set({
       session: {
         dashboardId,
         baseVersion,
         baseSpec,
-        layout: layoutFromSpec(baseSpec),
-        movedPanelId: null,
+        baseline,
+        layout: baseline,
+        announcement: "",
+        announcementCount: 0,
       },
-    }),
-  setLayout: (layout, movedPanelId) =>
+    })
+  },
+  setLayout: (layout) =>
+    set((state) =>
+      state.session && !sameLayout(layout, state.session.layout)
+        ? { session: { ...state.session, layout, announcement: "" } }
+        : state
+    ),
+  commitLayout: (layout, announcement) =>
     set((state) =>
       state.session
         ? {
             session: {
               ...state.session,
               layout,
-              movedPanelId: movedPanelId ?? state.session.movedPanelId,
+              announcement,
+              announcementCount: state.session.announcementCount + 1,
             },
           }
         : state
@@ -49,23 +95,28 @@ export const useLayoutStore = create<LayoutState>()((set) => ({
   rebase: (baseVersion, baseSpec) =>
     set((state) => {
       if (!state.session) return state
-      const edited = new Map(state.session.layout.map((item) => [item.i, item]))
-      const layout = layoutFromSpec(baseSpec).map((item) => {
-        const kept = edited.get(item.i)
-        return kept
-          ? { ...item, x: kept.x, y: kept.y, w: kept.w, h: kept.h }
-          : item
-      })
-      return { session: { ...state.session, baseVersion, baseSpec, layout } }
+      const baseline = baselineOf(baseSpec)
+      const layout = mergeEdits(
+        state.session.baseline,
+        state.session.layout,
+        baseline
+      )
+      return {
+        session: {
+          ...state.session,
+          baseVersion,
+          baseSpec,
+          baseline,
+          layout,
+          announcement: "",
+        },
+      }
     }),
   end: () => set({ session: null }),
 }))
 
 function sessionIsDirty(session: LayoutSession | null): boolean {
-  return (
-    session !== null &&
-    !sameLayout(session.layout, layoutFromSpec(session.baseSpec))
-  )
+  return session !== null && !sameLayout(session.layout, session.baseline)
 }
 
 export function useIsDirty(): boolean {

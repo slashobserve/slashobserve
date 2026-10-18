@@ -177,3 +177,7 @@
     transition: none !important;
   }
 }
+
+.react-grid-layout > .react-grid-item > .react-resizable-handle::after {
+  display: none;
+}

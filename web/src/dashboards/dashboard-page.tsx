@@ -268,6 +268,7 @@ function DashboardView({
       ) : null}
       {editing ? (
         <NewerVersionNotice
+          dashboardId={dashboardId}
           baseVersion={session.baseVersion}
           latestVersion={latestVersion}
         />

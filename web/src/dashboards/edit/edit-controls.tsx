@@ -1,6 +1,8 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
+import { useIsMutating } from "@tanstack/react-query"
 import { LayoutGridIcon, XIcon } from "lucide-react"
 
+import { dashboardKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -40,38 +42,73 @@ export function EditControls({
   pinned,
   canEdit,
 }: Props) {
-  const editing = useLayoutStore(
+  const sessionOpen = useLayoutStore(
     (state) => state.session?.dashboardId === dashboardId
   )
+  const editing = sessionOpen && !pinned
   const start = useLayoutStore((state) => state.start)
   const end = useLayoutStore((state) => state.end)
   const dirty = useIsDirty()
   const [saveOpen, setSaveOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
 
-  if (!editing) {
-    if (!canEdit) return null
-    if (pinned) {
-      return (
-        <Tooltip>
-          <TooltipTrigger render={<span className="inline-flex" />}>
-            <Button
-              id={editLayoutButtonId}
-              variant="outline"
-              disabled
-              focusableWhenDisabled
-            >
-              <LayoutGridIcon data-icon="inline-start" />
-              Edit layout
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            Open the latest version to edit the layout
-          </TooltipContent>
-        </Tooltip>
-      )
+  function cancel() {
+    if (dirty) {
+      setDiscardOpen(true)
+      return
     }
-    return (
+    end()
+    focusEditLayoutButton()
+  }
+
+  let controls: ReactNode = null
+  if (editing) {
+    controls = (
+      <>
+        {dirty ? (
+          <Badge variant="secondary" className="max-sm:hidden">
+            Unsaved changes
+          </Badge>
+        ) : null}
+        <Button
+          variant="ghost"
+          className="max-sm:w-8 max-sm:px-0"
+          onClick={cancel}
+        >
+          <XIcon className="sm:hidden" />
+          <span className="max-sm:sr-only">Cancel</span>
+        </Button>
+        <Button disabled={!dirty} onClick={() => setSaveOpen(true)}>
+          Save layout
+        </Button>
+        <SaveLayoutDialog
+          dashboardId={dashboardId}
+          open={saveOpen}
+          onOpenChange={setSaveOpen}
+        />
+      </>
+    )
+  } else if (canEdit && pinned) {
+    controls = (
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>
+          <Button
+            id={editLayoutButtonId}
+            variant="outline"
+            disabled
+            focusableWhenDisabled
+          >
+            <LayoutGridIcon data-icon="inline-start" />
+            Edit layout
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          Open the latest version to edit the layout
+        </TooltipContent>
+      </Tooltip>
+    )
+  } else if (canEdit) {
+    controls = (
       <Button
         id={editLayoutButtonId}
         variant="outline"
@@ -86,41 +123,16 @@ export function EditControls({
     )
   }
 
-  function cancel() {
-    if (dirty) {
-      setDiscardOpen(true)
-      return
-    }
-    end()
-    focusEditLayoutButton()
-  }
-
   return (
     <>
-      {dirty ? (
-        <Badge variant="secondary" className="max-sm:hidden">
-          Unsaved changes
-        </Badge>
-      ) : null}
-      <Button variant="ghost" onClick={cancel}>
-        <XIcon className="sm:hidden" />
-        <span className="max-sm:sr-only">Cancel</span>
-      </Button>
-      <Button disabled={!dirty} onClick={() => setSaveOpen(true)}>
-        Save layout
-      </Button>
-      <SaveLayoutDialog
-        dashboardId={dashboardId}
-        open={saveOpen}
-        onOpenChange={setSaveOpen}
-      />
+      {controls}
       <DiscardLayoutDialog
         open={discardOpen}
+        finalFocus={() => document.getElementById(editLayoutButtonId)}
         onKeep={() => setDiscardOpen(false)}
         onDiscard={() => {
           setDiscardOpen(false)
           end()
-          focusEditLayoutButton()
         }}
       />
     </>
@@ -128,13 +140,18 @@ export function EditControls({
 }
 
 export function NewerVersionNotice({
+  dashboardId,
   baseVersion,
   latestVersion,
 }: {
+  dashboardId: string
   baseVersion: number
   latestVersion: number
 }) {
-  if (latestVersion <= baseVersion) return null
+  const saving = useIsMutating({
+    mutationKey: dashboardKeys.saves(dashboardId),
+  })
+  if (latestVersion <= baseVersion || saving > 0) return null
   return (
     <div className="px-4 pt-3">
       <Alert>

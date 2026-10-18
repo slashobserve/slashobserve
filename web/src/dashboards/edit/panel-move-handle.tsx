@@ -4,7 +4,12 @@ import { GripVerticalIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Panel } from "@/spec"
 
-import { moveItem, resizeItem, stepItemVertically } from "./layout"
+import {
+  moveItemHorizontally,
+  resizeItemPushing,
+  sameLayout,
+  stepItemVertically,
+} from "./layout"
 import { useLayoutStore } from "./layout-store"
 
 const arrows: Record<string, { dx: number; dy: number }> = {
@@ -25,17 +30,31 @@ export function PanelMoveHandle({
     const arrow = arrows[event.key]
     if (!arrow || event.altKey || event.ctrlKey || event.metaKey) return
     event.preventDefault()
-    const { session, setLayout } = useLayoutStore.getState()
+    const { session, commitLayout } = useLayoutStore.getState()
     if (!session) return
     let next
     if (event.shiftKey) {
-      next = resizeItem(session.layout, panel.id, arrow.dx, arrow.dy)
+      next = resizeItemPushing(session.layout, panel.id, arrow.dx, arrow.dy)
     } else if (arrow.dy !== 0) {
       next = stepItemVertically(session.layout, panel.id, arrow.dy < 0 ? -1 : 1)
     } else {
-      next = moveItem(session.layout, panel.id, arrow.dx, 0)
+      next = moveItemHorizontally(
+        session.layout,
+        panel.id,
+        arrow.dx < 0 ? -1 : 1
+      )
     }
-    setLayout(next, panel.id)
+    const item = next.find((entry) => entry.i === panel.id)
+    if (!item) return
+    if (sameLayout(next, session.layout)) {
+      const verb = event.shiftKey ? "resize" : "move"
+      commitLayout(session.layout, `${panel.title}: can't ${verb} further`)
+      return
+    }
+    commitLayout(
+      next,
+      `${panel.title}: column ${item.x + 1}, row ${item.y + 1}, ${item.w} by ${item.h}`
+    )
   }
 
   return (
@@ -76,15 +95,11 @@ export function PanelResizeGrip() {
 export function LayoutAnnouncer() {
   const message = useLayoutStore((state) => {
     const { session } = state
-    if (!session?.movedPanelId) return ""
-    const item = session.layout.find(
-      (entry) => entry.i === session.movedPanelId
-    )
-    const panel = session.baseSpec.panels.find(
-      (entry) => entry.id === session.movedPanelId
-    )
-    if (!item || !panel) return ""
-    return `${panel.title}: column ${item.x + 1}, row ${item.y + 1}, ${item.w} by ${item.h}`
+    if (!session?.announcement) return ""
+    // A live region only speaks when its text changes, so repeated identical messages alternate a trailing no-break space.
+    return session.announcementCount % 2 === 0
+      ? session.announcement
+      : `${session.announcement}\u00a0`
   })
   return (
     <div aria-live="polite" className="sr-only">

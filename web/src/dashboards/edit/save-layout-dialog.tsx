@@ -1,9 +1,10 @@
-import { useRef, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
+import { isTransient, issueLines } from "@/api/issues"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,8 +28,10 @@ import { useDashboardSearch, useSetDashboardSearch } from "../search"
 import { applyLayout } from "./layout"
 import { focusEditLayoutButton, useLayoutStore } from "./layout-store"
 
+const conflictDescriptionId = "layout-conflict-description"
 const defaultSummary = "Update layout"
 const maxSummaryLength = 500
+const transientText = "The panel queries could not be checked right now."
 
 type Problem =
   | { kind: "conflict"; latest: number }
@@ -58,13 +61,17 @@ function problemFrom(error: unknown): Problem {
       return { kind: "conflict", latest: error.latestVersion }
     }
     if (error.status === 422) {
+      if (error.issues.length > 0 && error.issues.every(isTransient)) {
+        return {
+          kind: "failed",
+          message: issueLines(error.issues, transientText).join(" "),
+        }
+      }
       return {
         kind: "invalid",
         heading: "The server rejected this layout:",
         lines:
-          error.issues.length > 0
-            ? error.issues.map((issue) => `${issue.path}: ${issue.message}`)
-            : [error.message],
+          error.issues.length > 0 ? issueLines(error.issues) : [error.message],
       }
     }
     return { kind: "failed", message: error.message }
@@ -82,6 +89,7 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
   const end = useLayoutStore((state) => state.end)
   const save = useAddVersion(dashboardId)
   const inputRef = useRef<HTMLInputElement>(null)
+  const reapplyRef = useRef<HTMLButtonElement>(null)
   const [summary, setSummary] = useState(defaultSummary)
   const [submitted, setSubmitted] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -89,6 +97,11 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
   const pending = save.isPending || reapplying
   const error = summaryError(summary)
   const showError = error !== null && (submitted || summary.length > 0)
+
+  const conflicted = problem?.kind === "conflict"
+  useEffect(() => {
+    if (conflicted) reapplyRef.current?.focus()
+  }, [conflicted])
 
   function changeOpen(next: boolean) {
     if (!next && pending) return
@@ -120,7 +133,11 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
       setProblem({
         kind: "invalid",
         heading: "This layout is not a valid Spec:",
-        lines: checked.issues.map((issue) => `${issue.path}: ${issue.message}`),
+        lines: [
+          ...new Set(
+            checked.issues.map((issue) => `${issue.path}: ${issue.message}`)
+          ),
+        ],
       })
       return
     }
@@ -172,12 +189,12 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent initialFocus={inputRef}>
+      <DialogContent className="sm:max-w-md" initialFocus={inputRef}>
         {problem?.kind === "conflict" ? (
           <>
             <DialogHeader>
               <DialogTitle>Save layout</DialogTitle>
-              <DialogDescription>
+              <DialogDescription id={conflictDescriptionId}>
                 Version {problem.latest} was saved while you were editing.
               </DialogDescription>
             </DialogHeader>
@@ -186,6 +203,8 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
                 Discard my changes
               </Button>
               <Button
+                ref={reapplyRef}
+                aria-describedby={conflictDescriptionId}
                 focusableWhenDisabled
                 disabled={pending}
                 aria-busy={pending}
