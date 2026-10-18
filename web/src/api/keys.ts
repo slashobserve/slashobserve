@@ -40,6 +40,8 @@ export const dashboardKeys = {
     ["dashboards", id, "diff", from, to] as const,
   comments: (id: string) => ["dashboards", id, "comments"] as const,
   revisions: (id: string) => ["dashboards", id, "revisions"] as const,
+  revision: (id: string, revisionId: string) =>
+    ["dashboards", id, "revision", revisionId] as const,
   saves: (id: string) => ["dashboards", id, "saves"] as const,
 }
 

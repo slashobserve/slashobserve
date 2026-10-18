@@ -31,6 +31,12 @@ function sourceText(revision: Revision, panels: PanelRef[]): string {
   return title === null ? "Comment" : `Comment on ${title}`
 }
 
+export function useHasRevisionList(dashboardId: string): boolean {
+  const available = useAgentAvailable()
+  const { data } = useRevisions(dashboardId)
+  return available || (data?.length ?? 0) > 0
+}
+
 export function RevisionList({
   dashboardId,
   panels,
@@ -38,7 +44,7 @@ export function RevisionList({
   dashboardId: string
   panels: PanelRef[]
 }) {
-  const available = useAgentAvailable()
+  const visible = useHasRevisionList(dashboardId)
   const { data } = useRevisions(dashboardId)
   const revisions = useMemo(() => (data ?? []).slice(0, shown), [data])
   const waiting = useMemo(
@@ -46,7 +52,7 @@ export function RevisionList({
     [data]
   )
 
-  if (!available && revisions.length === 0) return null
+  if (!visible) return null
 
   return (
     <Popover>

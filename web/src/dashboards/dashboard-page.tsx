@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FollowUpBar } from "@/revisions/follow-up-bar"
+import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
 import { refreshToMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
@@ -324,13 +325,12 @@ function DashboardView({
         />
       ) : null}
       <VariablesBar states={states} />
-      {search.version === undefined && !editing ? (
-        <FollowUpBar
-          dashboardId={dashboardId}
-          version={version}
-          panels={spec.panels}
-        />
-      ) : null}
+      <FollowUpBar
+        dashboardId={dashboardId}
+        version={version}
+        panels={spec.panels}
+        canAsk={search.version === undefined && !editing}
+      />
       <LayoutAnnouncer />
       <div ref={gridBox} className="flex-1 p-4">
         <DashboardGrid
@@ -406,6 +406,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
     pinnedVersion: search.version,
     toastVersions: !editing,
   })
+  useRevisionAppliedToast(dashboardId, !editing)
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
   if (search.version !== undefined) {

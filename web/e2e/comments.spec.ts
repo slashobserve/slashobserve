@@ -25,6 +25,10 @@ function sheet(page: Page) {
   return page.getByRole("dialog")
 }
 
+function announcer(page: Page) {
+  return sheet(page).locator('p.sr-only[role="status"]')
+}
+
 function rpsPanel(page: Page) {
   return page.locator('article[data-panel-id="rps"]')
 }
@@ -91,7 +95,7 @@ test("resolves and reopens a comment", async ({ page, request }) => {
   await expect(
     sheet(page).getByText("No open comments on this panel.")
   ).toBeVisible()
-  await expect(sheet(page).getByRole("status")).toHaveText("Comment resolved.")
+  await expect(announcer(page)).toHaveText("Comment resolved.")
   await expect(sheet(page).locator(":focus")).toContainText(
     "No open comments on this panel."
   )
@@ -624,7 +628,7 @@ test("announces a status change once it is saved and again when it repeats", asy
   await openFromMenu(page)
   await sheet(page).getByRole("tab", { name: /^All/ }).click()
 
-  const status = sheet(page).getByRole("status")
+  const status = announcer(page)
   const text = () => status.evaluate((node) => node.textContent)
   const items = sheet(page)
     .getByRole("tabpanel", { name: /^All/ })
@@ -681,7 +685,7 @@ test("stays silent and says so in a toast when a status change fails", async ({
 
   await expect(page.getByText("Could not update the comment")).toBeVisible()
   await expect(sheet(page).getByRole("article")).toHaveCount(1)
-  await expect(sheet(page).getByRole("status")).toHaveText("")
+  await expect(announcer(page)).toHaveText("")
   dropExpectedErrors(consoleErrors, "500")
 })
 

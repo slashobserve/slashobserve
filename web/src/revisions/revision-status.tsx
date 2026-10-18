@@ -13,11 +13,12 @@ import { useLatestVersion, type RevisionProgress } from "./queries"
 type Props = {
   revision: RevisionProgress
   dashboardId: string
+  live?: boolean
 }
 
 const iconClass = "size-4 shrink-0"
 
-export function RevisionStatus({ revision, dashboardId }: Props) {
+export function RevisionStatus({ revision, dashboardId, live = false }: Props) {
   const search = useDashboardSearch()
   const latestVersion = useLatestVersion(dashboardId)
   const { status } = revision
@@ -97,7 +98,7 @@ export function RevisionStatus({ revision, dashboardId }: Props) {
 
   return (
     <div
-      role="status"
+      role={live ? "status" : undefined}
       data-revision-status={status}
       className="flex min-w-0 flex-col gap-0.5 text-sm"
     >

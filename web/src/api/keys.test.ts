@@ -13,6 +13,15 @@ describe("dashboardKeys", () => {
     expect(isPrefix(versions, history)).toBe(false)
   })
 
+  test("a single revision is not under the revisions list subtree", () => {
+    expect(
+      isPrefix(
+        dashboardKeys.revisions("d1"),
+        dashboardKeys.revision("d1", "r1")
+      )
+    ).toBe(false)
+  })
+
   test("version, panel and variable keys share the version prefix", () => {
     const params = { selections: {} }
     const version = dashboardKeys.version("d1", 3)
@@ -34,6 +43,7 @@ describe("dashboardKeys", () => {
       dashboardKeys.diff("d1", 1, 2),
       dashboardKeys.comments("d1"),
       dashboardKeys.revisions("d1"),
+      dashboardKeys.revision("d1", "r1"),
     ]
     for (const key of keys) {
       expect(isPrefix(dashboardKeys.all, key)).toBe(true)

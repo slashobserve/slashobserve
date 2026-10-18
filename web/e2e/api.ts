@@ -115,7 +115,8 @@ export async function createComment(
   id: string,
   version: number,
   panelId: string,
-  body: string
+  body: string,
+  requestRevision = false
 ): Promise<string> {
   const response = await request.post(`/api/v1/dashboards/${id}/comments`, {
     headers: mutationHeaders,
@@ -123,7 +124,7 @@ export async function createComment(
       version,
       panel_id: panelId,
       body,
-      request_revision: false,
+      request_revision: requestRevision,
     },
   })
   const created = (await expectStatus(response, 201, "create comment")) as {

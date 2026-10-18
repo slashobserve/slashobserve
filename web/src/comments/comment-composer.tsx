@@ -16,11 +16,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { liveRegionText } from "@/lib/live-region"
 import { cn } from "@/lib/utils"
 import {
   isTooManyRevisions,
   markAgentUnavailable,
-  tooManyRevisionsText,
+  tooManyRevisionsCommentText,
 } from "@/revisions/queries"
 
 import { useCreateComment, type Comment } from "./queries"
@@ -54,7 +55,7 @@ function failureText(
   latestVersion: number
 ): string {
   if (isTooManyRevisions(error)) {
-    return `${tooManyRevisionsText} Your comment was not saved; try again when one finishes.`
+    return tooManyRevisionsCommentText
   }
   if (error instanceof ApiError) {
     if (error.status === 422 && error.code === "unknown_panel") {
@@ -102,7 +103,7 @@ export function CommentComposer({
   const create = useCreateComment(dashboardId)
   const [body, setBody] = useState("")
   const [failure, setFailure] = useState<string | null>(null)
-  const [note, setNote] = useState<string | null>(null)
+  const [note, setNote] = useState({ text: "", count: 0 })
 
   const trimmed = body.trim()
   const length = [...trimmed].length
@@ -117,10 +118,16 @@ export function CommentComposer({
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
+  function clearNote() {
+    setNote((current) =>
+      current.text === "" ? current : { text: "", count: current.count }
+    )
+  }
+
   function submit() {
     if (!canSubmit) return
     setFailure(null)
-    setNote(null)
+    clearNote()
     create.mutate(
       { version, panelId, body: trimmed, requestRevision },
       {
@@ -129,7 +136,10 @@ export function CommentComposer({
           textarea.current?.focus()
           if (requestRevision && comment.revision === null) {
             markAgentUnavailable(queryClient)
-            setNote(noAgentText)
+            setNote((current) => ({
+              text: noAgentText,
+              count: current.count + 1,
+            }))
           }
           onCreated?.(comment)
         },
@@ -189,7 +199,7 @@ export function CommentComposer({
         onChange={(event) => {
           setBody(event.target.value)
           if (failure) setFailure(null)
-          if (note) setNote(null)
+          clearNote()
         }}
         onKeyDown={onKeyDown}
       />
@@ -199,11 +209,12 @@ export function CommentComposer({
         </Alert>
       ) : null}
       {extraFields}
-      {note ? (
-        <p role="status" className="text-sm text-pretty text-muted-foreground">
-          {note}
-        </p>
-      ) : null}
+      <p
+        role="status"
+        className="text-sm text-pretty text-muted-foreground empty:-mt-2"
+      >
+        {liveRegionText(note.text, note.count)}
+      </p>
       <div className="flex items-center justify-between gap-3">
         {showCounter ? (
           <p

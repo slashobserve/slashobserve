@@ -123,8 +123,12 @@ export function PanelInspector({
 }: Props) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
-  const { requestRevision, composerExtraFields, renderRevision } =
-    useCommentRevision(dashboardId)
+  const {
+    requestRevision,
+    composerExtraFields,
+    renderRevision,
+    onCommentCreated,
+  } = useCommentRevision(dashboardId, version, latestVersion)
   const [confirmClose, setConfirmClose] = useState(false)
   const unsavedQuery = useRef(false)
   const [queryDirty, setQueryDirty] = useState(false)
@@ -295,6 +299,7 @@ export function PanelInspector({
               requestRevision={requestRevision}
               composerExtraFields={composerExtraFields}
               renderRevision={renderRevision}
+              onCommentCreated={onCommentCreated}
               onDirtyChange={onCommentDirty}
             />
           ),

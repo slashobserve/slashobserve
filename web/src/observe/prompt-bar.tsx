@@ -1,10 +1,11 @@
 import { useNavigate } from "@tanstack/react-router"
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import type { FormEvent, KeyboardEvent } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useCoarsePointer } from "@/lib/coarse-pointer"
 import {
   agentOffMessage,
   describeSubmitError,
@@ -23,22 +24,6 @@ function isEditable(target: EventTarget | null): boolean {
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement
-  )
-}
-
-const coarsePointer = "(pointer: coarse)"
-
-function subscribeCoarsePointer(onChange: () => void) {
-  const media = window.matchMedia(coarsePointer)
-  media.addEventListener("change", onChange)
-  return () => media.removeEventListener("change", onChange)
-}
-
-export function useCoarsePointer(): boolean {
-  return useSyncExternalStore(
-    subscribeCoarsePointer,
-    () => window.matchMedia(coarsePointer).matches,
-    () => false
   )
 }
 

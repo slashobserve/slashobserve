@@ -4,9 +4,11 @@ import { join } from "node:path"
 import type { Page } from "@playwright/test"
 
 import {
+  addVersion,
   createComment,
   createDashboard,
   getDashboard,
+  requestRevision,
   uniqueTitle,
   type Spec,
 } from "./api"
@@ -41,6 +43,9 @@ const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 const rpsTitle = "Requests per second"
 const askLabel = "Ask the agent to revise this panel"
+const noAgentNote =
+  "No agent is configured on this server, so your comment was saved without a revision request."
+const revisionsButton = /^Revisions/
 
 async function createRevisionDashboard(page: Page) {
   const spec = loadEnvelopeSpec()
@@ -51,6 +56,10 @@ async function createRevisionDashboard(page: Page) {
 
 function sheet(page: Page) {
   return page.getByRole("dialog")
+}
+
+function commentChip(page: Page) {
+  return sheet(page).getByRole("article").locator("[data-revision-status]")
 }
 
 function followUp(page: Page) {
@@ -110,10 +119,11 @@ test.describe("with the replay agent", () => {
 
     const item = sheet(page).getByRole("article")
     await expect(item).toContainText(commentPrompt)
-    await expect(item.getByRole("status")).toContainText(
+    await expect(item.getByRole("status")).toHaveCount(0)
+    await expect(commentChip(page)).toContainText(
       /Queued for the agent|Agent is working|Created version 2/
     )
-    await expect(item.getByRole("status")).toContainText("Created version 2", {
+    await expect(commentChip(page)).toContainText("Created version 2", {
       timeout: agentTimeout,
     })
     await expect(page.getByText("v2", { exact: true })).toBeVisible()
@@ -155,6 +165,46 @@ test.describe("with the replay agent", () => {
     expect(shape(restored.spec.panels)).toEqual(shape(spec.panels))
   })
 
+  test("announces a comment-triggered revision with a toast after the panel closes", async ({
+    page,
+  }) => {
+    const { id } = await createRevisionDashboard(page)
+    await openDashboard(page, id)
+    await expectPanelsReady(page)
+
+    await openRpsComments(page)
+    const box = sheet(page).getByRole("textbox", {
+      name: `Comment on ${rpsTitle}`,
+    })
+    await box.fill(commentPrompt)
+    await box.press("Control+Enter")
+    await expect(sheet(page).getByRole("article")).toContainText(commentPrompt)
+    await page.keyboard.press("Escape")
+    await expect(sheet(page)).toHaveCount(0)
+
+    await expect(page.getByText("Revision applied as version 2")).toBeVisible({
+      timeout: agentTimeout,
+    })
+  })
+
+  test("follows a comment's revision that is missing from the newest page", async ({
+    page,
+  }) => {
+    const { id } = await createRevisionDashboard(page)
+    await createComment(page.request, id, 1, "rps", commentPrompt, true)
+    await page.route(revisionsApi, (route) => {
+      if (route.request().method() !== "GET") return route.fallback()
+      return route.fulfill({ json: { revisions: [], next_cursor: null } })
+    })
+    await openDashboard(page, id)
+    await expectPanelsReady(page)
+
+    await openRpsComments(page)
+    await expect(commentChip(page)).toContainText("Created version 2", {
+      timeout: agentTimeout,
+    })
+  })
+
   test("a follow-up prompt produces a new version", async ({ page }) => {
     const { id } = await createRevisionDashboard(page)
     await openDashboard(page, id)
@@ -177,7 +227,7 @@ test.describe("with the replay agent", () => {
     await expectPanelsReady(page)
     await expect(page.getByText("v2", { exact: true })).toBeVisible()
 
-    await page.getByRole("button", { name: /^Revisions/ }).click()
+    await page.getByRole("button", { name: revisionsButton }).click()
     const list = page.getByRole("dialog", { name: "Revisions" })
     await expect(list).toContainText("Prompt")
     await expect(list).toContainText(followUpPrompt)
@@ -293,7 +343,7 @@ test("rate-limits per dashboard from the follow-up bar", async ({
   await field.press("Enter")
 
   await expect(page.getByRole("alert")).toHaveText(
-    "This dashboard already has 5 revisions waiting."
+    "This dashboard already has 5 revisions waiting. Try again when one finishes."
   )
   await expect(field).toHaveValue(followUpPrompt)
   await expect(field).toBeFocused()
@@ -349,7 +399,7 @@ test("posts a comment without a revision request when the box is unchecked", asy
 
   const item = sheet(page).getByRole("article")
   await expect(item).toContainText("Just a note for the team")
-  await expect(item.getByRole("status")).toHaveCount(0)
+  await expect(commentChip(page)).toHaveCount(0)
   const revisions = await page.request.get(`/api/v1/dashboards/${id}/revisions`)
   expect(await revisions.json()).toMatchObject({ revisions: [] })
 })
@@ -396,7 +446,9 @@ test("shows no revision controls when no agent is configured", async ({
   await expectPanelsReady(page)
 
   await expect(followUp(page)).toHaveCount(0)
-  await expect(page.getByRole("button", { name: /^Revisions/ })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: revisionsButton })).toHaveCount(
+    0
+  )
   await openRpsComments(page)
   await expect(sheet(page).getByRole("checkbox")).toHaveCount(0)
 })
@@ -425,8 +477,162 @@ test("does not offer the follow-up bar on a pinned version", async ({
   await expect(followUp(page)).toHaveCount(0)
 })
 
+async function seedRevision(page: Page, id: string) {
+  const seeded = await requestRevision(page.request, id, followUpPrompt, 1)
+  expect(seeded.status).toBe(202)
+}
+
+async function expectRevisionListed(page: Page) {
+  await page.getByRole("button", { name: revisionsButton }).click()
+  await expect(page.getByRole("dialog", { name: "Revisions" })).toContainText(
+    followUpPrompt
+  )
+}
+
+test("lists past revisions on a pinned version", async ({ page }) => {
+  const { id } = await createRevisionDashboard(page)
+  await seedRevision(page, id)
+  await openDashboard(page, id, "?version=1")
+  await expectPanelsReady(page)
+
+  await expect(followUp(page)).toHaveCount(0)
+  await expectRevisionListed(page)
+})
+
+test("lists past revisions while the layout is being edited", async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  const { id } = await createRevisionDashboard(page)
+  await seedRevision(page, id)
+  await expect
+    .poll(async () => (await getDashboard(page.request, id)).latestVersion, {
+      timeout: agentTimeout,
+    })
+    .toBe(2)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await expect(followUp(page)).toBeVisible()
+
+  await page.getByRole("button", { name: "Edit layout" }).click()
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+  await expect(followUp(page)).toHaveCount(0)
+  await expectRevisionListed(page)
+})
+
+test("lists past revisions when the agent is unavailable", async ({ page }) => {
+  const { id } = await createRevisionDashboard(page)
+  await seedRevision(page, id)
+  await page.route("**/api/v1/agent", (route) =>
+    route.fulfill({
+      json: { available: false, provider: null, model: null },
+    })
+  )
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  await expect(followUp(page)).toHaveCount(0)
+  await expectRevisionListed(page)
+})
+
+test("remembers the revision checkbox across reloads", async ({ page }) => {
+  const { id } = await createRevisionDashboard(page)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openRpsComments(page)
+  const checkbox = sheet(page).getByRole("checkbox", { name: askLabel })
+  await expect(checkbox).toBeChecked()
+  await checkbox.click()
+  await expect(checkbox).not.toBeChecked()
+
+  await page.reload()
+  await expect(sheet(page)).toBeVisible()
+  await expect(checkbox).not.toBeChecked()
+  await checkbox.click()
+  await expect(checkbox).toBeChecked()
+
+  await page.reload()
+  await expect(sheet(page)).toBeVisible()
+  await expect(checkbox).toBeChecked()
+})
+
+test("turns the revision checkbox off on an older version and still posts the comment", async ({
+  page,
+}) => {
+  const { id, spec } = await createRevisionDashboard(page)
+  await addVersion(page.request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await openDashboard(page, id, "?version=1")
+  await expectPanelsReady(page)
+  await openRpsComments(page)
+
+  const checkbox = sheet(page).getByRole("checkbox", { name: askLabel })
+  await expect(checkbox).toBeDisabled()
+  await expect(checkbox).not.toBeChecked()
+  await expect(sheet(page)).toContainText(
+    "Only the latest version (v2) can be revised."
+  )
+  const box = sheet(page).getByRole("textbox", {
+    name: `Comment on ${rpsTitle}`,
+  })
+  await box.fill("A note on an older version")
+  await box.press("Control+Enter")
+
+  await expect(sheet(page).getByRole("article")).toContainText(
+    "A note on an older version"
+  )
+  await expect(commentChip(page)).toHaveCount(0)
+  const revisions = await page.request.get(`/api/v1/dashboards/${id}/revisions`)
+  expect(await revisions.json()).toMatchObject({ revisions: [] })
+})
+
+test("announces a comment saved without a revision request in the composer", async ({
+  page,
+}) => {
+  const { id } = await createRevisionDashboard(page)
+  await page.route(/\/api\/v1\/dashboards\/[^/]+\/comments$/, (route) => {
+    const request = route.request()
+    if (request.method() !== "POST") return route.fallback()
+    const data = request.postDataJSON() as Record<string, unknown>
+    return route.fallback({
+      postData: JSON.stringify({ ...data, request_revision: false }),
+    })
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openRpsComments(page)
+
+  const box = sheet(page).getByRole("textbox", {
+    name: `Comment on ${rpsTitle}`,
+  })
+  await box.fill("Saved without a request")
+  await box.press("Control+Enter")
+
+  await expect(
+    sheet(page).getByRole("status").filter({ hasText: noAgentNote })
+  ).toBeVisible()
+  await expect(sheet(page).getByRole("checkbox")).toHaveCount(0)
+  await expect(followUp(page)).toHaveCount(0)
+})
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } })
+
+  async function expectInsideViewport(page: Page) {
+    const revisions = await page
+      .getByRole("button", { name: revisionsButton })
+      .boundingBox()
+    expect((revisions?.x ?? 0) + (revisions?.width ?? 0)).toBeCloseTo(374, 0)
+    const history = await page
+      .getByRole("link", { name: "History" })
+      .boundingBox()
+    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeCloseTo(374, 0)
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
+  }
 
   test("keeps the follow-up bar and toolbar inside the viewport", async ({
     page,
@@ -447,21 +653,21 @@ test.describe("on a phone", () => {
     expect((field?.x ?? 0) + (field?.width ?? 0)).toBeCloseTo(374, 0)
     expect(send?.x).toBeCloseTo(16, 0)
     expect((send?.x ?? 0) + (send?.width ?? 0)).toBeCloseTo(374, 0)
+    await expectInsideViewport(page)
+  })
 
-    const revisions = await page
-      .getByRole("button", { name: /^Revisions/ })
-      .boundingBox()
-    expect((revisions?.x ?? 0) + (revisions?.width ?? 0)).toBeCloseTo(374, 0)
+  test("keeps History and the revision list inside the viewport on a pinned version", async ({
+    page,
+  }) => {
+    const { id } = await createRevisionDashboard(page)
+    await createComment(page.request, id, 1, "rps", "Open comment")
+    await openDashboard(page, id, "?version=1")
+    await expectPanelsReady(page)
+    await expect(
+      page.getByRole("button", { name: "Comments, 1 open" })
+    ).toBeVisible()
 
-    const history = await page
-      .getByRole("link", { name: "History" })
-      .boundingBox()
-    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeCloseTo(374, 0)
-    const overflow = await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth -
-        document.documentElement.clientWidth
-    )
-    expect(overflow).toBeLessThanOrEqual(0)
+    await expect(followUp(page)).toHaveCount(0)
+    await expectInsideViewport(page)
   })
 })

@@ -1,53 +1,124 @@
-import { useCallback, useId, useState, type ReactNode } from "react"
+import { useCallback, useId, type ReactNode } from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import type { Comment } from "@/comments/queries"
 
-import { useAgentAvailable, useRevisionById } from "./queries"
+import { useCommentRevisionPreference } from "./comment-preference"
+import { useFollowUpStore } from "./follow-up-store"
+import { useAgentAvailable, useRevisionLookup } from "./queries"
 import { RevisionStatus } from "./revision-status"
 
 function RevisionCheckbox({
   checked,
+  disabled,
+  reason,
   onCheckedChange,
 }: {
   checked: boolean
+  disabled: boolean
+  reason: string | null
   onCheckedChange: (checked: boolean) => void
 }) {
   const id = useId()
+  const reasonId = useId()
   return (
-    <Label htmlFor={id} className="w-fit cursor-pointer leading-snug">
-      <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
-      Ask the agent to revise this panel
-    </Label>
+    <div className="flex flex-col gap-1">
+      <Label
+        htmlFor={id}
+        className={cn(
+          "w-fit leading-snug",
+          disabled ? "text-muted-foreground" : "cursor-pointer"
+        )}
+      >
+        <Checkbox
+          id={id}
+          checked={checked}
+          disabled={disabled}
+          aria-describedby={reason === null ? undefined : reasonId}
+          onCheckedChange={onCheckedChange}
+        />
+        Ask the agent to revise this panel
+      </Label>
+      {reason === null ? null : (
+        <p
+          id={reasonId}
+          className="pl-6 text-xs text-pretty text-muted-foreground"
+        >
+          {reason}
+        </p>
+      )}
+    </div>
   )
 }
 
-export function useCommentRevision(dashboardId: string): {
+function CommentRevisionStatus({
+  comment,
+  dashboardId,
+}: {
+  comment: Comment
+  dashboardId: string
+}) {
+  const revision = comment.revision
+  const revisions = useRevisionLookup(
+    dashboardId,
+    revision === null ? [] : [revision.id]
+  )
+  if (revision === null) return null
+  return (
+    <RevisionStatus
+      revision={revisions.get(revision.id) ?? revision}
+      dashboardId={dashboardId}
+    />
+  )
+}
+
+export function useCommentRevision(
+  dashboardId: string,
+  version: number,
+  latestVersion: number
+): {
   requestRevision: boolean
   composerExtraFields: ReactNode
   renderRevision: (comment: Comment) => ReactNode
+  onCommentCreated: (comment: Comment) => void
 } {
   const available = useAgentAvailable()
-  const [asked, setAsked] = useState(true)
-  const byId = useRevisionById(dashboardId)
+  const asked = useCommentRevisionPreference((state) => state.asked)
+  const setAsked = useCommentRevisionPreference((state) => state.setAsked)
+  const watch = useFollowUpStore((state) => state.watch)
+  const onOldVersion = version < latestVersion
 
   const renderRevision = useCallback(
     (comment: Comment) =>
       comment.revision === null ? null : (
-        <RevisionStatus
-          revision={byId.get(comment.revision.id) ?? comment.revision}
-          dashboardId={dashboardId}
-        />
+        <CommentRevisionStatus comment={comment} dashboardId={dashboardId} />
       ),
-    [byId, dashboardId]
+    [dashboardId]
+  )
+  const onCommentCreated = useCallback(
+    (comment: Comment) => {
+      if (comment.revision !== null) watch(dashboardId, comment.revision.id)
+    },
+    [dashboardId, watch]
   )
 
   return {
-    requestRevision: available && asked,
+    requestRevision: available && asked && !onOldVersion,
     composerExtraFields: available ? (
-      <RevisionCheckbox checked={asked} onCheckedChange={setAsked} />
+      <RevisionCheckbox
+        checked={asked && !onOldVersion}
+        disabled={onOldVersion}
+        reason={
+          onOldVersion
+            ? `Only the latest version (v${latestVersion}) can be revised. Your comment is still posted.`
+            : null
+        }
+        onCheckedChange={setAsked}
+      />
     ) : null,
     renderRevision,
+    onCommentCreated,
   }
 }

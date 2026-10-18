@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import {
   queryOptions,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -22,7 +23,9 @@ export type RevisionProgress = Pick<Revision, "id" | "status"> &
 export const maxQueuedRevisions = 5
 export const maxPromptLength = 4000
 
-export const tooManyRevisionsText = `This dashboard already has ${maxQueuedRevisions} revisions waiting.`
+const waitingText = `This dashboard already has ${maxQueuedRevisions} revisions waiting.`
+export const tooManyRevisionsText = `${waitingText} Try again when one finishes.`
+export const tooManyRevisionsCommentText = `${waitingText} Your comment was not saved; try again when one finishes.`
 
 const pageSize = 50
 const safetyPollMs = 5000
@@ -49,6 +52,26 @@ export function revisionsQuery(id: string) {
   })
 }
 
+export function revisionQuery(id: string, revisionId: string) {
+  return queryOptions({
+    queryKey: dashboardKeys.revision(id, revisionId),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/dashboards/{id}/revisions/{revision_id}", {
+          params: { path: { id, revision_id: revisionId } },
+          signal,
+        })
+        .then(unwrap)
+        .then((body) => body.revision),
+    staleTime: (query) =>
+      query.state.data && !isActive(query.state.data.status) ? Infinity : 0,
+    refetchInterval: (query) =>
+      query.state.data && isActive(query.state.data.status)
+        ? safetyPollMs
+        : false,
+  })
+}
+
 export function useRevisions(id: string) {
   return useQuery(revisionsQuery(id))
 }
@@ -58,6 +81,33 @@ export function useRevisionById(id: string): Map<string, Revision> {
   return useMemo(
     () => new Map((data ?? []).map((revision) => [revision.id, revision])),
     [data]
+  )
+}
+
+export function useRevisionLookup(
+  id: string,
+  revisionIds: readonly string[]
+): ReadonlyMap<string, Revision> {
+  const list = useRevisions(id)
+  const listed = useRevisionById(id)
+  const missing = list.isSuccess
+    ? revisionIds.filter((revisionId) => !listed.has(revisionId))
+    : []
+  const fetched = useQueries({
+    queries: missing.map((revisionId) => revisionQuery(id, revisionId)),
+    combine: (results) =>
+      results.flatMap((result) => (result.data ? [result.data] : [])),
+  })
+  return useMemo(
+    () =>
+      new Map([
+        ...fetched.map((revision): [string, Revision] => [
+          revision.id,
+          revision,
+        ]),
+        ...listed,
+      ]),
+    [fetched, listed]
   )
 }
 

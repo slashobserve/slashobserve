@@ -206,10 +206,14 @@ Directories are created when their phase starts; this is where things go.
   `CommentsTab` forwards `requestRevision`, `composerExtraFields` and `renderRevision` (and `DashboardComments` forwards `renderRevision`), so a parent owns the revision checkbox state and renders each comment's revision status.
   Comment paging stops after a failed page until the next successful refetch, the flattened list is deduplicated by id, and status announcements follow a saved change through `liveRegionText`.
 - The API keys page (`/settings/keys`, reached from the header) keeps a new key only in the create dialog's component state: the create-key mutation uses `gcTime: 0`, the response is never written to the query cache, and snippets reference `OBSERVE_TOKEN` instead of the key (Claude Code through `.mcp.json` `${OBSERVE_TOKEN}` expansion, OpenCode through `{env:OBSERVE_TOKEN}` with `oauth: false`).
-- Revision requests come from comments (`request_revision`, on by default through the checkbox `PanelInspector` owns) and from the follow-up bar (`POST /dashboards/{id}/revisions`, on the latest version only).
-  Their live status is read from `dashboardKeys.revisions` (invalidated by `revision.updated`, polled every 5 seconds only while one is queued or running), never from the status embedded in a comment, and `RevisionStatus` links to `/observe/$requestId` for step-by-step progress.
-  Agent availability comes from `GET /api/v1/agent` (`observeKeys.agent()`), and a 503 `agent_unavailable` or a comment saved with no `revision` writes "unavailable" into that query, which hides the follow-up bar and the checkbox until the query refetches.
-  A follow-up draft and the revision it started live in `useFollowUpStore`, so they survive History, pinned versions and live updates.
+- Revision requests come from comments (`request_revision`, on by default through the checkbox `useCommentRevision` builds, whose last choice persists in `localStorage`) and from the follow-up bar (`POST /dashboards/{id}/revisions`, on the latest version only).
+  On a pinned older version the checkbox is disabled with a visible reason, because a comment revision would start from that old version, and the comment itself still posts.
+  Their live status is read from `dashboardKeys.revisions` (invalidated by `revision.updated`, polled every 5 seconds only while one is queued or running), never from the status embedded in a comment; a revision missing from that newest-50 page is fetched by id (`dashboardKeys.revision`), and `RevisionStatus` links to `/observe/$requestId` for step-by-step progress.
+  Only the follow-up bar's tracked chip is a live region (`RevisionStatus live`).
+  Agent availability comes from `GET /api/v1/agent` (`observeKeys.agent()`), and a 503 `agent_unavailable` or a comment saved with no `revision` writes "unavailable" into that query, which hides the follow-up form and the checkbox until the query refetches.
+  `FollowUpBar` always renders its header row with the revision list (pinned versions, layout editing and an unavailable agent included), and only the form needs the latest version outside layout editing.
+  A follow-up draft, the revision it started and every revision requested from a comment live in `useFollowUpStore`, so they survive History, pinned versions and live updates, and `useRevisionAppliedToast` (called by `DashboardPage`) shows "Revision applied as version N" for each of them.
+  The cap of 5 queued or running revisions is `maxQueuedRevisions` in `web/src/revisions/queries.ts`, which builds the copy the composer and the follow-up bar show.
 
 ## Dependencies
 

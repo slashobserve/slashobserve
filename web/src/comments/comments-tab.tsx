@@ -192,6 +192,7 @@ type Props = {
   requestRevision?: boolean
   composerExtraFields?: ReactNode
   renderRevision?: (comment: Comment) => ReactNode
+  onCommentCreated?: (comment: Comment) => void
   onDirtyChange: (dirty: boolean) => void
 }
 
@@ -204,6 +205,7 @@ export function CommentsTab({
   requestRevision,
   composerExtraFields,
   renderRevision,
+  onCommentCreated,
   onDirtyChange,
 }: Props) {
   const { comments, isPending, isError, refetch } = useComments(dashboardId)
@@ -312,6 +314,7 @@ export function CommentsTab({
             announce("Comment posted.")
             setFilter((current) => (current === "resolved" ? "open" : current))
             setRevealed(comment.id)
+            onCommentCreated?.(comment)
           }}
         />
       </div>

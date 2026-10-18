@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
+import { isVersionApplied, versionToastId } from "@/revisions/applied-toast"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
 import {
@@ -123,7 +124,8 @@ export function useDashboardEvents(
       if (saving > 0 || !latest.current.toastVersions) return
       const description = describeVersion(event) || undefined
       const pinned = latest.current.pinnedVersion
-      const id = `version-${dashboardId}-${event.version}`
+      const id = versionToastId(dashboardId, event.version)
+      if (isVersionApplied(id)) return
       if (pinned === undefined) {
         toastIds.add(id)
         toast(`Updated to version ${event.version}`, { id, description })
