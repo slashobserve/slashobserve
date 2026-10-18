@@ -163,6 +163,21 @@ test("signs yourself out everywhere", async ({ page }) => {
     }
     await route.fulfill({ json: { authenticated: false } })
   })
+  const usersAfterSignOut: string[] = []
+  await page.route(
+    (url) => url.pathname === "/api/v1/users",
+    async (route) => {
+      if (!signedOut || route.request().method() !== "GET") {
+        await route.fallback()
+        return
+      }
+      usersAfterSignOut.push(route.request().url())
+      await route.fulfill({
+        status: 401,
+        json: { error: "unauthorized", code: "unauthorized" },
+      })
+    }
+  )
   const sent = await mockSignOut(page, id, async (route) => {
     signedOut = true
     await route.fulfill({ status: 204 })
@@ -181,6 +196,7 @@ test("signs yourself out everywhere", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/login/)
   expect(sent).toEqual(["DELETE"])
+  expect(usersAfterSignOut).toEqual([])
 })
 
 test("reports a failure", async ({ page, consoleErrors }) => {

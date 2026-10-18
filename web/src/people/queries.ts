@@ -13,14 +13,10 @@ export type User =
   paths["/users"]["get"]["responses"][200]["content"]["application/json"]["users"][number]
 
 const pageSize = 100
-
-export function lastActiveAt(user: User): string | null {
-  return user.last_seen_at ?? user.last_login_at ?? null
-}
+const maxPages = 100
 
 function activityTime(user: User): number {
-  const iso = lastActiveAt(user)
-  const time = iso === null ? Number.NaN : Date.parse(iso)
+  const time = Date.parse(user.last_seen_at)
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
 }
 
@@ -33,14 +29,17 @@ function newestFirst(a: User, b: User): number {
 
 async function fetchAllUsers(signal: AbortSignal): Promise<User[]> {
   const users: User[] = []
+  const seen = new Set<string>()
   let cursor: string | undefined
-  do {
+  for (let pages = 0; pages < maxPages; pages++) {
     const page = await api
       .GET("/users", { params: { query: { limit: pageSize, cursor } }, signal })
       .then(unwrap)
     users.push(...page.users)
     cursor = page.next_cursor ?? undefined
-  } while (cursor !== undefined)
+    if (cursor === undefined || seen.has(cursor)) break
+    seen.add(cursor)
+  }
   return users.sort(newestFirst)
 }
 
@@ -49,17 +48,20 @@ export function usersQuery() {
     queryKey: userKeys.list(),
     queryFn: ({ signal }) => fetchAllUsers(signal),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   })
 }
 
-export function useSignOutEverywhere() {
+export function useSignOutEverywhere(signedInUserId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
       api
         .DELETE("/users/{id}/sessions", { params: { path: { id } } })
         .then(unwrap),
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: userKeys.list() }),
+    onSettled: (_data, _error, id) =>
+      id === signedInUserId
+        ? undefined
+        : queryClient.invalidateQueries({ queryKey: userKeys.list() }),
   })
 }

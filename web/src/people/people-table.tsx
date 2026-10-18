@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { initials } from "@/shell/initials"
 
-import { lastActiveAt, usersQuery } from "./queries"
+import { usersQuery } from "./queries"
 import { isOnline } from "./sign-in-policy"
 import { SignOutEverywhereButton } from "./sign-out-everywhere-button"
 
@@ -93,7 +93,7 @@ export function PeopleTable() {
                 <StatusLabel tone="ok">Online now</StatusLabel>
               ) : (
                 <span className="text-muted-foreground">
-                  <RelativeTime iso={lastActiveAt(user)} fallback="Never" />
+                  <RelativeTime iso={user.last_seen_at} />
                 </span>
               )}
             </Cell>

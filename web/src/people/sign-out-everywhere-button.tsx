@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -17,19 +17,15 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { invalidateSession } from "@/lib/auth"
-import { sentence } from "@/observe/queries"
+import { loadProblemText } from "@/service-accounts/queries"
 
 import { useSignOutEverywhere, type User } from "./queries"
 
 function problemText(error: unknown): string {
-  if (error instanceof NetworkError) {
-    return "Could not reach the server. Check your connection and try again."
+  if (error instanceof ApiError && error.status === 404) {
+    return "This person no longer exists."
   }
-  if (error instanceof ApiError) {
-    if (error.status === 404) return "This person no longer exists."
-    return sentence(error.message)
-  }
-  return "Something went wrong. Try again."
+  return loadProblemText(error)
 }
 
 export function SignOutEverywhereButton({ user }: { user: User }) {
@@ -37,7 +33,8 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
-  const signOut = useSignOutEverywhere()
+  const trigger = useRef<HTMLButtonElement>(null)
+  const signOut = useSignOutEverywhere(principal.id)
   const isMe = principal.id === user.id
 
   function changeOpen(next: boolean) {
@@ -78,6 +75,7 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
   return (
     <>
       <Button
+        ref={trigger}
         variant="outline"
         size="sm"
         className="font-normal"
@@ -87,7 +85,7 @@ export function SignOutEverywhereButton({ user }: { user: User }) {
         Sign out everywhere
       </Button>
       <AlertDialog open={open} onOpenChange={changeOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent finalFocus={trigger}>
           <AlertDialogHeader>
             <AlertDialogTitle className="wrap-anywhere">
               Sign out {user.name} everywhere?

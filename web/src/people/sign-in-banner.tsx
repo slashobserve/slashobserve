@@ -20,13 +20,17 @@ export function SignInBanner() {
   const provider = providerLabel(query.data.oidc_provider_name)
   const allowAll = isAllowAll(query.data)
   const domains = domainList(query.data.allowed_email_domains)
-  if (!allowAll && domains.length === 0) return null
+  const neutral = !allowAll && domains.length === 0
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2.5 rounded-card border px-3.5 py-3 text-[13px]">
-      <StatusLabel tone={allowAll ? "warning" : "ok"}>{null}</StatusLabel>
+      {neutral ? null : (
+        <StatusLabel tone={allowAll ? "warning" : "ok"}>{null}</StatusLabel>
+      )}
       <span className="min-w-60 flex-1">
-        {allowAll ? (
+        {neutral ? (
+          <>Sign-in rules come from this server&apos;s settings.</>
+        ) : allowAll ? (
           <>Anyone with a verified email can sign in through {provider}.</>
         ) : (
           <>
