@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
+import { CommandPalette } from "./command-palette"
 import { Sidebar } from "./sidebar"
 import { PanelHostContext } from "./side-panel"
 import { TopRow } from "./top-row"
@@ -23,6 +24,7 @@ export function AppShell() {
             </main>
             <div ref={setPanelHost} className="contents" />
           </div>
+          <CommandPalette />
         </div>
       </ActionsHostContext>
     </PanelHostContext>
