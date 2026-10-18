@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useDocumentTitle } from "@/lib/document-title"
 import { useTheme, type ThemePreference } from "@/lib/theme"
 import { useAgentInfo } from "@/observe/queries"
+import { domainList } from "@/people/sign-in-policy"
 import { loadProblemText } from "@/service-accounts/queries"
 import {
   domainsText,
@@ -168,7 +169,11 @@ function SignInCard() {
       </SettingsRow>
       <SettingsRow
         label="Allowed email domains"
-        mono={instance !== undefined && !instance.any_email_domain}
+        mono={
+          instance !== undefined &&
+          !instance.any_email_domain &&
+          domainList(instance.allowed_email_domains).length > 0
+        }
       >
         {instance ? domainsText(instance) : <Pending />}
       </SettingsRow>

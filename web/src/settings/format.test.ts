@@ -42,8 +42,23 @@ describe("sessionLength", () => {
     expect(sessionLength(43200)).toBe("12 hours")
   })
 
-  test("falls back to minutes", () => {
+  test("counts whole minutes", () => {
     expect(sessionLength(300)).toBe("5 minutes")
+    expect(sessionLength(60)).toBe("1 minute")
+    expect(sessionLength(5400)).toBe("90 minutes")
+  })
+
+  test("keeps the seconds that do not make a whole minute", () => {
+    expect(sessionLength(330)).toBe("5 minutes 30 seconds")
+    expect(sessionLength(620)).toBe("10 minutes 20 seconds")
+    expect(sessionLength(61)).toBe("1 minute 1 second")
+    expect(sessionLength(45)).toBe("45 seconds")
+  })
+
+  test("keeps the hours in a length with stray seconds", () => {
+    expect(sessionLength(3690)).toBe("1 hour 1 minute 30 seconds")
+    expect(sessionLength(7201)).toBe("2 hours 1 second")
+    expect(sessionLength(90061)).toBe("1 day 1 hour 1 minute 1 second")
   })
 })
 
@@ -61,5 +76,23 @@ describe("domainsText", () => {
         any_email_domain: false,
       })
     ).toBe("a.com, b.com")
+  })
+
+  test("de-duplicates and ignores blank domains", () => {
+    expect(
+      domainsText({
+        allowed_email_domains: ["a.com", " a.com ", ""],
+        any_email_domain: false,
+      })
+    ).toBe("a.com")
+  })
+
+  test("says when no domain is set", () => {
+    expect(
+      domainsText({ allowed_email_domains: [], any_email_domain: false })
+    ).toBe("Not set")
+    expect(
+      domainsText({ allowed_email_domains: [" "], any_email_domain: false })
+    ).toBe("Not set")
   })
 })

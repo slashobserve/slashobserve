@@ -28,12 +28,23 @@ function plural(count: number, unit: string): string {
 export function sessionLength(seconds: number): string {
   if (seconds % 86400 === 0) return plural(seconds / 86400, "day")
   if (seconds % 3600 === 0) return plural(seconds / 3600, "hour")
-  return plural(Math.round(seconds / 60), "minute")
+  if (seconds % 60 === 0) return plural(seconds / 60, "minute")
+  const parts = [
+    { count: Math.floor(seconds / 86400), unit: "day" },
+    { count: Math.floor((seconds % 86400) / 3600), unit: "hour" },
+    { count: Math.floor((seconds % 3600) / 60), unit: "minute" },
+    { count: seconds % 60, unit: "second" },
+  ]
+  return parts
+    .filter((part) => part.count > 0)
+    .map((part) => plural(part.count, part.unit))
+    .join(" ")
 }
 
 export function domainsText(
   instance: Pick<Instance, "allowed_email_domains" | "any_email_domain">
 ): string {
   if (instance.any_email_domain) return "Any domain"
-  return domainList(instance.allowed_email_domains).join(", ")
+  const domains = domainList(instance.allowed_email_domains)
+  return domains.length === 0 ? "Not set" : domains.join(", ")
 }
