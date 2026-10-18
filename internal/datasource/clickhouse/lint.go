@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strconv"
 	"time"
@@ -35,7 +34,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 	defer cancel()
 	if err := d.readOnly(ctx); err != nil {
 		mapped := mapError(ctx, err, timeout)
-		if isTransient(mapped) {
+		if datasource.IsTransient(mapped) {
 			return nil, mapped
 		}
 		return append(diagnostics, couldNotLint(mapped)), nil
@@ -88,14 +87,10 @@ func syntaxDiagnostic(ctx context.Context, err error, exp macros.Expansion, text
 
 func lintFailure(ctx context.Context, diagnostics []datasource.Diagnostic, err error, timeout time.Duration) ([]datasource.Diagnostic, error) {
 	mapped := mapError(ctx, err, timeout)
-	if isTransient(mapped) {
+	if datasource.IsTransient(mapped) {
 		return nil, mapped
 	}
 	return append(diagnostics, errorDiagnostic(messageOf(mapped), 0, 0)), nil
-}
-
-func isTransient(err error) bool {
-	return errors.Is(err, datasource.ErrUnavailable) || errors.Is(err, datasource.ErrTimeout) || errors.Is(err, context.Canceled)
 }
 
 func couldNotLint(err error) datasource.Diagnostic {

@@ -22,7 +22,7 @@ const (
 	descGetDashboard    = "Read a saved dashboard's ObserveSpec at its latest version, or at a given version. Use it before revising a dashboard."
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
-	descLintQuery       = "Check a PromQL or ClickHouse SQL query for syntax and policy problems without running it. Use it on a draft query before running or saving it."
+	descLintQuery       = "Check a PromQL or ClickHouse SQL query for syntax and policy problems without running it. Use it on a draft query before running or saving it. When the datasource cannot be reached it returns an error such as datasource_unavailable instead of diagnostics, which says nothing about the query."
 	descListDashboards  = "List saved dashboards, most recently updated first, with their latest version and URL. Use it to find a dashboard to open or revise."
 	descListDatasources = "List the configured datasources with their uid, type and health. Call it first to learn which datasource uid to pass to the other tools."
 	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. Use it to learn real services, routes or pods before filtering on them."

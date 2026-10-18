@@ -32,6 +32,10 @@ func (e *UpstreamError) Error() string {
 
 func (e *UpstreamError) Unwrap() error { return e.Kind }
 
+func IsTransient(err error) bool {
+	return errors.Is(err, ErrUnavailable) || errors.Is(err, ErrTimeout) || errors.Is(err, context.Canceled)
+}
+
 func Errorf(kind error, format string, args ...any) error {
 	if kind == nil {
 		kind = ErrUnavailable

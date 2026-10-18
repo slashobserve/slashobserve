@@ -31,6 +31,7 @@ const (
 	CodeInternal           spec.IssueCode = "internal"
 	CodePanelNotFound      spec.IssueCode = "panel_not_found"
 	CodeInvalidRequest     spec.IssueCode = "invalid_request"
+	CodeQueryTooLong       spec.IssueCode = "query_too_long"
 	CodeUnknownDatasource  spec.IssueCode = "unknown_datasource"
 	CodeDatasourceMismatch spec.IssueCode = "datasource_type_mismatch"
 	CodeQueryEmpty         spec.IssueCode = "query_empty"

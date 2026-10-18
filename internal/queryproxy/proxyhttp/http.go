@@ -283,8 +283,8 @@ func (h *Handler) lint(c *gin.Context) {
 		return
 	}
 	var req lintRequest
-	if msg := decodeLint(c, &req); msg != "" {
-		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), msg)
+	if status, code, msg := decodeLint(c, &req); status != 0 {
+		abortError(c, status, code, msg)
 		return
 	}
 	releaseUpstream, ok := h.acquireUpstream(c)
@@ -337,25 +337,29 @@ func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text s
 	return inst.Datasource.Lint(ctx, text)
 }
 
-func decodeLint(c *gin.Context, req *lintRequest) string {
+func decodeLint(c *gin.Context, req *lintRequest) (status int, code, message string) {
+	invalid := string(queryproxy.CodeInvalidRequest)
 	dec := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, maxLintBodyBytes))
 	dec.DisallowUnknownFields()
 	err := dec.Decode(req)
 	if err == nil {
 		if _, err = dec.Token(); !errors.Is(err, io.EOF) {
-			return "request body must be a single JSON object"
+			return http.StatusBadRequest, invalid, "request body must be a single JSON object"
 		}
 	} else {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			return "request body is too large"
+			return http.StatusRequestEntityTooLarge, "too_large", "request body is too large"
 		}
-		return "request body must be valid JSON with known fields"
+		return http.StatusBadRequest, invalid, "request body must be valid JSON with known fields"
 	}
-	if req.Query == nil || len(*req.Query) == 0 || len(*req.Query) > maxLintQueryBytes {
-		return "query must be from 1 byte to 64 KiB"
+	if req.Query != nil && len(*req.Query) > maxLintQueryBytes {
+		return http.StatusBadRequest, string(queryproxy.CodeQueryTooLong), "query must be at most 64 KiB"
 	}
-	return ""
+	if req.Query == nil || len(*req.Query) == 0 {
+		return http.StatusBadRequest, invalid, "query must be from 1 byte to 64 KiB"
+	}
+	return 0, "", ""
 }
 
 func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error) {

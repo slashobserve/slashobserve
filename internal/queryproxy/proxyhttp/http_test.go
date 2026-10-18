@@ -793,10 +793,18 @@ func TestLintReturnsDiagnosticsAndValidatesTheBody(t *testing.T) {
 		`{"query":"up","extra":1}`,
 		`{"query":"up"} {}`,
 		`not json`,
-		`{"query":"` + strings.Repeat("a", maxLintQueryBytes+1) + `"}`,
 	} {
 		expectError(t, hn.lint("prom", body), http.StatusBadRequest, "invalid_request")
 	}
+}
+
+func TestLintNamesAQueryOrBodyOverTheLimitsWithAnExactCode(t *testing.T) {
+	hn := newHarness(t)
+	if rec := hn.lint("prom", `{"query":"`+strings.Repeat("a", maxLintQueryBytes)+`"}`); rec.Code != http.StatusOK {
+		t.Fatalf("a query of exactly the limit: status %d body %s", rec.Code, rec.Body.String())
+	}
+	expectError(t, hn.lint("prom", `{"query":"`+strings.Repeat("a", maxLintQueryBytes+1)+`"}`), http.StatusBadRequest, "query_too_long")
+	expectError(t, hn.lint("prom", `{"query":"`+strings.Repeat("a", maxLintBodyBytes)+`"}`), http.StatusRequestEntityTooLarge, "too_large")
 }
 
 func TestLintMapsDatasourceFailuresToGatewayErrors(t *testing.T) {

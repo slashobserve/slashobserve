@@ -220,7 +220,7 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 		"end":     {unixSeconds(now)},
 	})
 	if err != nil {
-		if isTransient(err) {
+		if datasource.IsTransient(err) {
 			return nil, err
 		}
 		return []datasource.Diagnostic{{
@@ -240,10 +240,6 @@ func (d *Datasource) existenceDiagnostics(ctx context.Context, refs []metricRef)
 		}
 	}
 	return out, nil
-}
-
-func isTransient(err error) bool {
-	return errors.Is(err, datasource.ErrUnavailable) || errors.Is(err, datasource.ErrTimeout) || errors.Is(err, context.Canceled)
 }
 
 func metricMatcher(name string) string {

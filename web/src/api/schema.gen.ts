@@ -411,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Parse a query for a datasource and return diagnostics, without executing it or returning data.
-         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429. When the datasource cannot be reached the call answers 502 or 504 instead of a diagnostic.
+         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429. When the datasource cannot be reached the call answers 502 or 504 instead of a diagnostic. A query over 64 KiB is refused with 400 `query_too_long`, and a body over 512 KiB with 413 `too_large`.
          */
         post: operations["lintDatasourceQuery"];
         delete?: never;
@@ -1857,6 +1857,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            413: components["responses"]["TooLarge"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
