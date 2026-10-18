@@ -18,6 +18,7 @@ export type SpecValidation =
 
 type AjvError = {
   instancePath: string
+  schemaPath: string
   keyword: string
   message?: string
   params: Record<string, unknown>
@@ -123,16 +124,43 @@ function panelErrors(value: unknown, errors: AjvError[]): AjvError[] {
 const exclusiveMembers = [
   {
     path: /\/overrides\/\d+\/match$/,
+    keys: ["query", "series", "seriesRegex", "field", "fieldType"],
     message:
       "match must have exactly one of query, series, seriesRegex, field, fieldType",
   },
   {
     path: /\/mappings\/\d+$/,
+    keys: ["value", "range", "regex", "special"],
     message: "mapping must have exactly one of value, range, regex, special",
   },
 ]
 
 const shapeKeywords = new Set(["required", "additionalProperties", "oneOf"])
+
+const branchShape = /\/oneOf\/(\d+)\/(?:required|additionalProperties)$/
+
+function branchOf(error: AjvError): number | undefined {
+  const match = branchShape.exec(error.schemaPath)
+  return match ? Number(match[1]) : undefined
+}
+
+function presentBranch(
+  errors: AjvError[],
+  path: string,
+  keyCount: number
+): number | undefined {
+  const missing = new Set(
+    errors
+      .filter(
+        (error) => error.instancePath === path && error.keyword === "required"
+      )
+      .map(branchOf)
+  )
+  const present = Array.from({ length: keyCount }, (_, i) => i).filter(
+    (i) => !missing.has(i)
+  )
+  return present.length === 1 ? present[0] : undefined
+}
 
 function collapseExclusiveMembers(errors: AjvError[]): {
   errors: AjvError[]
@@ -144,6 +172,18 @@ function collapseExclusiveMembers(errors: AjvError[]): {
     const rule = exclusiveMembers.find((r) => r.path.test(error.instancePath))
     if (error.keyword !== "oneOf" || !rule) continue
     const path = error.instancePath
+    const present = presentBranch(rest, path, rule.keys.length)
+    if (present !== undefined) {
+      rest = rest.filter((other) => {
+        const branch = branchOf(other)
+        return (
+          other.instancePath !== path ||
+          branch === undefined ||
+          branch === present
+        )
+      })
+      continue
+    }
     const onlyShape = rest.every(
       (other) =>
         !isWithin(other.instancePath, path) ||

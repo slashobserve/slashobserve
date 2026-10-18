@@ -299,6 +299,10 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	}
 	causes := ve.Causes
 	if _, ok := ve.ErrorKind.(*kind.OneOf); ok && len(causes) > 0 {
+		if branch, ok := presentExclusiveBranch(ve); ok {
+			c.collect(branch)
+			return
+		}
 		if message, ok := exclusiveMembersMessage(ve); ok {
 			c.issues = append(c.issues, Issue{Path: pointer(ve.InstanceLocation...), Code: CodeSchema, Message: message})
 			return
@@ -339,13 +343,51 @@ func (c *issueCollector) collect(ve *jsonschema.ValidationError) {
 	}
 }
 
-var exclusiveMembersMessages = map[string]string{
-	schemaID + "#/$defs/match":   "match must have exactly one of query, series, seriesRegex, field, fieldType",
-	schemaID + "#/$defs/mapping": "mapping must have exactly one of value, range, regex, special",
+type exclusiveMembers struct {
+	message string
+	keys    []string
+}
+
+var exclusiveMembersByRule = map[string]exclusiveMembers{
+	schemaID + "#/$defs/match": {
+		message: "match must have exactly one of query, series, seriesRegex, field, fieldType",
+		keys:    []string{"query", "series", "seriesRegex", "field", "fieldType"},
+	},
+	schemaID + "#/$defs/mapping": {
+		message: "mapping must have exactly one of value, range, regex, special",
+		keys:    []string{"value", "range", "regex", "special"},
+	},
+}
+
+func presentExclusiveBranch(ve *jsonschema.ValidationError) (*jsonschema.ValidationError, bool) {
+	rule, ok := exclusiveMembersByRule[ve.SchemaURL]
+	if !ok || len(ve.Causes) != len(rule.keys) {
+		return nil, false
+	}
+	var present *jsonschema.ValidationError
+	for i, cause := range ve.Causes {
+		if missesKey(ve.InstanceLocation, cause, rule.keys[i]) {
+			continue
+		}
+		if present != nil {
+			return nil, false
+		}
+		present = cause
+	}
+	return present, present != nil
+}
+
+func missesKey(loc []string, ve *jsonschema.ValidationError, key string) bool {
+	if r, ok := ve.ErrorKind.(*kind.Required); ok {
+		return slices.Equal(ve.InstanceLocation, loc) && slices.Contains(r.Missing, key)
+	}
+	return slices.ContainsFunc(ve.Causes, func(cause *jsonschema.ValidationError) bool {
+		return missesKey(loc, cause, key)
+	})
 }
 
 func exclusiveMembersMessage(ve *jsonschema.ValidationError) (string, bool) {
-	message, ok := exclusiveMembersMessages[ve.SchemaURL]
+	rule, ok := exclusiveMembersByRule[ve.SchemaURL]
 	if !ok {
 		return "", false
 	}
@@ -354,7 +396,7 @@ func exclusiveMembersMessage(ve *jsonschema.ValidationError) (string, bool) {
 			return "", false
 		}
 	}
-	return message, true
+	return rule.message, true
 }
 
 func shapeErrorsOnly(loc []string, ve *jsonschema.ValidationError) bool {
