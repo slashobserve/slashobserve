@@ -4,8 +4,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { initials } from "@/shell/initials"
 
@@ -29,23 +28,12 @@ export function PeopleTable() {
 
   if (query.data === undefined) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Could not load people</AlertTitle>
-        <AlertDescription>
-          <p>{loadProblemText(query.error)}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-foreground"
-            disabled={query.isFetching}
-            focusableWhenDisabled
-            aria-busy={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <LoadProblem
+        title="Could not load people"
+        detail={loadProblemText(query.error)}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
     )
   }
 

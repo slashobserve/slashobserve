@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { LoadProblem } from "@/components/load-problem"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -186,23 +186,12 @@ export function ServiceAccountSection({ account, onCreateKey }: Props) {
           </TableBody>
         </Table>
       ) : query.data === undefined ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not load keys for {account.name}</AlertTitle>
-          <AlertDescription>
-            <p>{loadProblemText(query.error)}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-foreground"
-              disabled={query.isFetching}
-              focusableWhenDisabled
-              aria-busy={query.isFetching}
-              onClick={() => void query.refetch()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <LoadProblem
+          title={`Could not load keys for ${account.name}`}
+          detail={loadProblemText(query.error)}
+          retrying={query.isFetching}
+          onRetry={() => void query.refetch()}
+        />
       ) : (
         <>
           {active.length === 0 ? (

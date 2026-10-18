@@ -1,8 +1,7 @@
-import { useId, type ReactNode } from "react"
+import { useId, type ComponentProps, type ReactNode } from "react"
 
 import { CopyButton } from "@/components/copy-button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { LoadProblem } from "@/components/load-problem"
 import { cn } from "@/lib/utils"
 
 export function SettingsCard({
@@ -70,36 +69,10 @@ export function SettingsRow({
   )
 }
 
-export function SettingsProblem({
-  title,
-  detail,
-  retrying,
-  onRetry,
-}: {
-  title: string
-  detail: string
-  retrying: boolean
-  onRetry: () => void
-}) {
+export function SettingsProblem(props: ComponentProps<typeof LoadProblem>) {
   return (
     <div className="p-4">
-      <Alert variant="destructive">
-        <AlertTitle>{title}</AlertTitle>
-        <AlertDescription>
-          <p>{detail}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-foreground"
-            disabled={retrying}
-            focusableWhenDisabled
-            aria-busy={retrying}
-            onClick={onRetry}
-          >
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <LoadProblem {...props} />
     </div>
   )
 }

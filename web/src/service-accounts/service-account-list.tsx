@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -34,23 +34,12 @@ export function ServiceAccountList({ labelledBy, onCreateKey }: Props) {
 
   if (query.data === undefined) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Could not load service accounts</AlertTitle>
-        <AlertDescription>
-          <p>{loadProblemText(query.error)}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-foreground"
-            disabled={query.isFetching}
-            focusableWhenDisabled
-            aria-busy={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            Retry
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <LoadProblem
+        title="Could not load service accounts"
+        detail={loadProblemText(query.error)}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
     )
   }
 
