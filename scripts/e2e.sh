@@ -1708,7 +1708,8 @@ proxy_suite() {
     sleep 2
   done
   if [[ "$out" != 200 ]] || ! grep -q '"kind":"range"' "$TMP/api.body" || ! grep -q '"step_ms":15000' "$TMP/api.body" \
-    || ! grep -q '"cached":false' "$TMP/api.body" || ! grep -Eq '"type":"time","values":\[[0-9]{13}' "$TMP/api.body"; then
+    || ! grep -q '"cached":false' "$TMP/api.body" || ! grep -Eq '"type":"time","values":\[[0-9]{13}' "$TMP/api.body" \
+    || ! grep -q '"ref":"A"' "$TMP/api.body"; then
     fail "panel data for a range panel ($out: $(cat "$TMP/api.body"))"
   fi
   first_executed="$(grep -o '"executed_at":"[^"]*"' "$TMP/api.body")"
@@ -1719,6 +1720,13 @@ proxy_suite() {
     fail "the repeated panel data request is served from the cache ($out: $(cat "$TMP/api.body"))"
   fi
   pass "a repeated panel data request is cached and keeps its original execution time"
+
+  out="$(proxy_call GET "$base/panels/p_multi/data?$window")"
+  if [[ "$out" != 200 ]] || ! grep -q '"ref":"A"' "$TMP/api.body" || ! grep -q '"ref":"B"' "$TMP/api.body" \
+    || grep -q '"ref":"C"' "$TMP/api.body" || ! grep -q '"queries":\[{"ref":"A","kind":"range"' "$TMP/api.body"; then
+    fail "a multi-query panel returns frames tagged by query ref ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a multi-query panel returns frames tagged by query ref and skips its hidden query"
 
   # Instant panels floor their range to 5 s, so an end off that grid lets the variable list a service whose only rows lie past the panel's end.
   for _ in $(seq 1 45); do
@@ -1755,6 +1763,10 @@ proxy_suite() {
 
   expect_proxy_error "$base/panels/p_series/data?var-n=50" 422 limit_exceeded "series limit"
   pass "a query over the series limit is refused"
+
+  expect_proxy_error "$base/panels/p_multi_tight/data?var-n=50" 422 limit_exceeded "series limit"
+  grep -q '"ref":"B"' "$TMP/api.body" || fail "the failing query is named in the error ($(cat "$TMP/api.body"))"
+  pass "a failing query fails its panel request and names its ref"
 
   expect_proxy_error "$base/panels/p_points/data?from=now-1h&max_data_points=2000" 422 limit_exceeded "points limit"
   pass "a query over the point limit is refused"

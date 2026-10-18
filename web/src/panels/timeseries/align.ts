@@ -16,7 +16,7 @@ function asNumber(value: unknown): number | null {
 
 export function alignFrames(
   frames: WireFrame[],
-  legend?: string
+  legendOf: (frame: WireFrame) => string | undefined
 ): AlignedFrames {
   const timestamps = new Set<number>()
   const pending: {
@@ -39,7 +39,7 @@ export function alignFrames(
     for (const field of numbers) {
       pending.push({
         key: uniqueKey(seen, seriesKey(frame, field.name)),
-        label: seriesLabel(frame, field, legend, numbers.length),
+        label: seriesLabel(frame, field, legendOf(frame), numbers.length),
         times: time.values,
         values: field.values,
       })

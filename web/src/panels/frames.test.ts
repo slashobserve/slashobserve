@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
+import type { DataPanel } from "@/spec"
 
 import {
   firstNumberSeries,
   hasData,
   lastNumber,
+  legendFor,
+  seriesKey,
   seriesLabel,
   toTable,
 } from "./frames"
@@ -16,8 +19,10 @@ const time: WireFrame["fields"][number] = {
   values: [1, 2, 3],
 }
 
+const noLegend = () => undefined
+
 function frame(partial: Partial<WireFrame> & Pick<WireFrame, "fields">) {
-  return partial as WireFrame
+  return { ref: "A", ...partial } as WireFrame
 }
 
 describe("seriesLabel", () => {
@@ -130,22 +135,24 @@ describe("firstNumberSeries", () => {
     const a = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
     const b = frame({ labels: { pod: "b" }, fields: [time, value([2])] })
     const keys = (frames: WireFrame[]) =>
-      firstNumberSeries(frames, "{{pod}}").map((s) => [s.label, s.key])
+      firstNumberSeries(frames, () => "{{pod}}").map((s) => [s.label, s.key])
     expect(keys([a, b])).toEqual([
-      ["a", "{pod=a}#value"],
-      ["b", "{pod=b}#value"],
+      ["a", "A:{pod=a}#value"],
+      ["b", "A:{pod=b}#value"],
     ])
     expect(keys([b, a])).toEqual([
-      ["b", "{pod=b}#value"],
-      ["a", "{pod=a}#value"],
+      ["b", "A:{pod=b}#value"],
+      ["a", "A:{pod=a}#value"],
     ])
   })
 
   it("numbers keys only for identical frames", () => {
     const same = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
     expect(
-      firstNumberSeries([same, same, same]).map((series) => series.key)
-    ).toEqual(["{pod=a}#value", "{pod=a}#value#1", "{pod=a}#value#2"])
+      firstNumberSeries([same, same, same], noLegend).map(
+        (series) => series.key
+      )
+    ).toEqual(["A:{pod=a}#value", "A:{pod=a}#value#1", "A:{pod=a}#value#2"])
   })
 
   it("reads the last number of the first number field and skips frames without one", () => {
@@ -153,8 +160,75 @@ describe("firstNumberSeries", () => {
       fields: [time, { name: "msg", type: "string", values: ["x"] }],
     })
     const f = frame({ fields: [time, value([1, 2, 3])] })
-    expect(firstNumberSeries([text, f]).map((series) => series.value)).toEqual([
-      3,
+    expect(
+      firstNumberSeries([text, f], noLegend).map((series) => series.value)
+    ).toEqual([3])
+  })
+
+  it("keeps the same series of two queries apart and labels each with its own legend", () => {
+    const a = frame({
+      ref: "A",
+      labels: { pod: "x" },
+      fields: [time, value([1])],
+    })
+    const b = frame({
+      ref: "B",
+      labels: { pod: "x" },
+      fields: [time, value([2])],
+    })
+    const legends: Record<string, string> = {
+      A: "cpu {{pod}}",
+      B: "mem {{pod}}",
+    }
+    expect(
+      firstNumberSeries([a, b], (f) => legends[f.ref]).map((s) => [
+        s.label,
+        s.key,
+      ])
+    ).toEqual([
+      ["cpu x", "A:{pod=x}#value"],
+      ["mem x", "B:{pod=x}#value"],
     ])
+  })
+})
+
+describe("seriesKey", () => {
+  it("starts with the frame's query ref", () => {
+    const f = frame({
+      ref: "errors",
+      name: "up",
+      labels: { b: "2", a: "1" },
+      fields: [],
+    })
+    expect(seriesKey(f, "value")).toBe("errors:up{a=1,b=2}#value")
+  })
+})
+
+describe("legendFor", () => {
+  const panel = {
+    id: "p",
+    type: "timeseries",
+    gridPos: { x: 0, y: 0, w: 6, h: 4 },
+    queries: [
+      { query: "a", legend: "first" },
+      { ref: "errors", query: "b", legend: "second" },
+      { query: "c" },
+    ],
+  } as unknown as DataPanel
+
+  it("matches a default ref by position", () => {
+    expect(legendFor(panel, frame({ ref: "A", fields: [] }))).toBe("first")
+    expect(legendFor(panel, frame({ ref: "C", fields: [] }))).toBeUndefined()
+  })
+
+  it("matches an explicit ref", () => {
+    expect(legendFor(panel, frame({ ref: "errors", fields: [] }))).toBe(
+      "second"
+    )
+  })
+
+  it("has no legend for an unknown ref", () => {
+    expect(legendFor(panel, frame({ ref: "Z", fields: [] }))).toBeUndefined()
+    expect(legendFor(panel, frame({ ref: "B", fields: [] }))).toBeUndefined()
   })
 })

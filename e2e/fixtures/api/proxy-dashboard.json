@@ -103,6 +103,36 @@
             "query": "SELECT count() AS n FROM otel_logs WHERE ServiceName IN (${services}) AND $__timeFilter(Timestamp)"
           }
         ]
+      },
+      {
+        "id": "p_multi",
+        "type": "timeseries",
+        "title": "Several queries",
+        "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+        "datasource": "prom",
+        "queries": [
+          { "query": "count(up)", "legend": "all" },
+          {
+            "ref": "B",
+            "query": "count(up{job=~\"$job\"})",
+            "legend": "job"
+          },
+          { "query": "vector(1)", "hide": true }
+        ]
+      },
+      {
+        "id": "p_multi_tight",
+        "type": "table",
+        "title": "Several queries, one over the series cap",
+        "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+        "datasource": "prom_tight",
+        "queries": [
+          { "query": "count(up)" },
+          {
+            "ref": "B",
+            "query": "topk($n, count by (__name__) ({__name__=~\"prometheus_.+\"}))"
+          }
+        ]
       }
     ]
   }

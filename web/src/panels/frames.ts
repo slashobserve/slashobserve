@@ -1,4 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
+import { queryRef, type DataPanel } from "@/spec"
 
 export type WireField = WireFrame["fields"][number]
 export type ColumnType = WireField["type"]
@@ -40,12 +41,21 @@ export function seriesLabel(
   return numberFieldCount > 1 ? `${label} ${field.name}` : label
 }
 
+export function legendFor(
+  panel: DataPanel,
+  frame: WireFrame
+): string | undefined {
+  return panel.queries.find(
+    (query, index) => queryRef(query, index) === frame.ref
+  )?.legend
+}
+
 export function seriesKey(frame: WireFrame, fieldName: string): string {
   const labels = Object.entries(frame.labels ?? {})
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`)
     .join(",")
-  return `${frame.name ?? ""}{${labels}}#${fieldName}`
+  return `${frame.ref}:${frame.name ?? ""}{${labels}}#${fieldName}`
 }
 
 export function uniqueKey(seen: Map<string, number>, base: string): string {
@@ -79,7 +89,7 @@ export type NumberSeries = {
 
 export function firstNumberSeries(
   frames: WireFrame[],
-  legend?: string
+  legendOf: (frame: WireFrame) => string | undefined
 ): NumberSeries[] {
   const seen = new Map<string, number>()
   return frames.flatMap((frame) => {
@@ -88,7 +98,7 @@ export function firstNumberSeries(
     return [
       {
         key: uniqueKey(seen, seriesKey(frame, numbers[0].name)),
-        label: seriesLabel(frame, numbers[0], legend, numbers.length),
+        label: seriesLabel(frame, numbers[0], legendOf(frame), numbers.length),
         value: lastNumber(numbers[0]),
       },
     ]

@@ -38,7 +38,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		return nil, context.Canceled
 	}
 
-	issues, badVariables, badPanels := r.checkDatasources(d)
+	issues, badVariables, badQueries := r.checkDatasources(d)
 
 	from, to, err := spec.ResolveTimeRange(d.Time, now)
 	if err != nil {
@@ -65,15 +65,21 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	var group errgroup.Group
 	group.SetLimit(checkPanelParallelism)
 	for i, e := range entries {
-		if badPanels[e.Pointer] {
-			continue
+		skip := slices.Clone(badQueries[e.Pointer])
+		for j, q := range e.Panel.Queries {
+			if skip[j] {
+				continue
+			}
+			if name := failedReference(q.Query, failed); name != "" {
+				skip[j] = true
+				panelIssues[i] = append(panelIssues[i], issue(queryPath(e.Pointer, j), CodeVariableUnresolved, "variable %q could not be resolved", name))
+			}
 		}
-		if name := failedReference(e.Panel.Queries[0].Query, failed); name != "" {
-			panelIssues[i] = []spec.Issue{issue(queryPath(e.Pointer), CodeVariableUnresolved, "variable %q could not be resolved", name)}
+		if !slices.Contains(skip, false) {
 			continue
 		}
 		group.Go(func() error {
-			panelIssues[i] = r.checkPanel(budget, d, e, rng, selections, maps.Clone(lists))
+			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, maps.Clone(lists), skip)...)
 			return nil
 		})
 	}
@@ -92,9 +98,9 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	return issues, nil
 }
 
-func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badPanels map[string]bool) {
+func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {
 	badVariables = make([]bool, len(d.Variables))
-	badPanels = map[string]bool{}
+	badQueries = map[string][]bool{}
 	for i, v := range d.Variables {
 		if v.Type != spec.QueryVariable || v.Datasource == "" {
 			continue
@@ -104,16 +110,26 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		issues = append(issues, found...)
 	}
 	for _, e := range d.DataPanels() {
-		first := e.Panel.Queries[0]
-		base := e.Pointer + "/datasource"
-		if first.Datasource != "" {
-			base = e.Pointer + "/queries/0/datasource"
+		bad := make([]bool, len(e.Panel.Queries))
+		panelDatasourceReported := false
+		for j, q := range e.Panel.Queries {
+			base := e.Pointer + "/datasource"
+			if q.Datasource != "" {
+				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
+			}
+			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query)
+			bad[j] = len(found) > 0
+			if q.Datasource == "" && len(found) == 1 && found[0].Path == base {
+				if panelDatasourceReported {
+					continue
+				}
+				panelDatasourceReported = true
+			}
+			issues = append(issues, found...)
 		}
-		found := r.checkRef(base, e.Panel.QueryDatasource(0), queryPath(e.Pointer), first.Query)
-		badPanels[e.Pointer] = len(found) > 0
-		issues = append(issues, found...)
+		badQueries[e.Pointer] = bad
 	}
-	return issues, badVariables, badPanels
+	return issues, badVariables, badQueries
 }
 
 func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
@@ -179,24 +195,40 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 	return selections, failed, issues
 }
 
-func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) []spec.Issue {
-	path := queryPath(e.Pointer)
+func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList, skip []bool) []spec.Issue {
 	ctx, cancel := context.WithTimeout(ctx, checkPanelBudget)
 	defer cancel()
-	res, err := r.runPanel(ctx, Request{
+	maxDataPoints := checkMaxDataPoints
+	if e.Panel.MaxDataPoints > 0 {
+		maxDataPoints = min(maxDataPoints, e.Panel.MaxDataPoints)
+	}
+	_, res, errs, err := r.runQueries(ctx, Request{
 		Dashboard:     d,
 		PanelID:       e.Panel.ID,
 		Range:         rng,
 		Selections:    selections,
-		MaxDataPoints: checkMaxDataPoints,
+		MaxDataPoints: maxDataPoints,
 		Limits:        datasource.Limits{Timeout: checkPanelBudget},
+		IncludeHidden: true,
+		skip:          skip,
 	}, lists, false)
 	if err != nil {
 		_, code, message := Classify(err)
-		return []spec.Issue{issue(path, spec.IssueCode(code), "%s", message)}
+		return []spec.Issue{issue(queryPath(e.Pointer, 0), spec.IssueCode(code), "%s", message)}
 	}
-	if framesEmpty(res.Frames) {
-		return []spec.Issue{issue(path, CodeQueryEmpty, "%s", emptyPanelMessage)}
+	var issues []spec.Issue
+	for j, qerr := range errs {
+		if qerr == nil {
+			continue
+		}
+		_, code, message := Classify(qerr)
+		issues = append(issues, issue(queryPath(e.Pointer, j), spec.IssueCode(code), "%s", message))
+	}
+	if len(issues) > 0 {
+		return issues
+	}
+	if len(res.Queries) > 0 && !slices.ContainsFunc(res.Queries, func(q QueryResult) bool { return !framesEmpty(q.Frames) }) {
+		return []spec.Issue{issue(e.Pointer+"/queries", CodeQueryEmpty, "%s", emptyPanelMessage)}
 	}
 	return nil
 }
@@ -239,8 +271,8 @@ func itemPath(collection string, i int) string {
 	return "/" + collection + "/" + strconv.Itoa(i)
 }
 
-func queryPath(pointer string) string {
-	return pointer + "/queries/0/query"
+func queryPath(pointer string, i int) string {
+	return pointer + "/queries/" + strconv.Itoa(i) + "/query"
 }
 
 func issue(path string, code spec.IssueCode, format string, args ...any) spec.Issue {

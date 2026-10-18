@@ -2,7 +2,7 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { firstNumberSeries } from "./frames"
+import { firstNumberSeries, legendFor } from "./frames"
 import { thresholdFor, thresholdIcons } from "./thresholds"
 import type { PanelRenderer } from "./types"
 
@@ -12,16 +12,17 @@ export const BargaugePanel: PanelRenderer = ({
   width,
   height,
 }) => {
-  const legend = panel.queries[0]?.legend
   const rows = useMemo(
     () =>
-      firstNumberSeries(frames, legend).sort((a, b) => {
-        if (a.value === null || b.value === null) {
-          return a.value === b.value ? 0 : a.value === null ? 1 : -1
+      firstNumberSeries(frames, (frame) => legendFor(panel, frame)).sort(
+        (a, b) => {
+          if (a.value === null || b.value === null) {
+            return a.value === b.value ? 0 : a.value === null ? 1 : -1
+          }
+          return b.value - a.value
         }
-        return b.value - a.value
-      }),
-    [frames, legend]
+      ),
+    [frames, panel]
   )
 
   const min = panel.min ?? 0

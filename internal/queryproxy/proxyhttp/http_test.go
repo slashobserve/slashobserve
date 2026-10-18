@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -72,6 +73,14 @@ type fakeDatasource struct {
 	lintCalls     int
 	variableRange datasource.TimeRange
 	rangeRange    datasource.TimeRange
+	rangeSteps    map[string]time.Duration
+	failText      map[string]error
+}
+
+func (f *fakeDatasource) stepFor(text string) time.Duration {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.rangeSteps[text]
 }
 
 func (f *fakeDatasource) counts() (ranges, instants, variables, lints int) {
@@ -108,11 +117,19 @@ func (f *fakeDatasource) VariableValues(ctx context.Context, _ datasource.Query,
 	return []string{"api", "web"}, nil
 }
 
-func (f *fakeDatasource) QueryRange(ctx context.Context, _ datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
+func (f *fakeDatasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
 	f.mu.Lock()
 	f.rangeCalls++
 	f.rangeRange = r
+	if f.rangeSteps == nil {
+		f.rangeSteps = map[string]time.Duration{}
+	}
+	f.rangeSteps[q.Text] = step
+	failure := f.failText[q.Text]
 	f.mu.Unlock()
+	if failure != nil {
+		return nil, failure
+	}
 	if f.onRange != nil {
 		return f.onRange(ctx, r, step)
 	}
@@ -246,6 +263,7 @@ func (hn *harness) heldSlots() int {
 type errorBody struct {
 	Error string `json:"error"`
 	Code  string `json:"code"`
+	Ref   string `json:"ref"`
 }
 
 func decodeError(t *testing.T, rec *httptest.ResponseRecorder) errorBody {
@@ -401,7 +419,7 @@ func TestRangePanelDataIsAlignedAndCachedWithItsOriginalExecutionTime(t *testing
 	if err != nil || to.UnixMilli()%22000 != 0 {
 		t.Fatalf("meta.to = %q (%v) is not aligned to the step", first.Meta.To, err)
 	}
-	if want := `[{"name":"up","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1760000000000]},{"name":"Value","type":"number","values":[1]}]}]`; string(first.Frames) != want {
+	if want := `[{"ref":"A","name":"up","labels":{"pod":"a"},"fields":[{"name":"Time","type":"time","values":[1760000000000]},{"name":"Value","type":"number","values":[1]}]}]`; string(first.Frames) != want {
 		t.Fatalf("frames = %s", first.Frames)
 	}
 
@@ -987,5 +1005,130 @@ func TestOneClientHangingUpDoesNotFailAnIdenticalRequest(t *testing.T) {
 	close(release)
 	if body := decodeData(t, <-follower); len(body.Frames) == 0 {
 		t.Fatal("the follower got no frames")
+	}
+}
+
+func (hn *harness) addPanels(panels ...spec.Panel) {
+	d := hn.specs.known[specKey{id: hn.id, version: 1}]
+	d.Panels = append(d.Panels, panels...)
+}
+
+func multiQueryPanel(id string, queries ...spec.Query) spec.Panel {
+	return spec.Panel{ID: id, Type: spec.Timeseries, Title: id, Datasource: "prom", Queries: queries}
+}
+
+func frameRefs(t *testing.T, body dataResponse) []string {
+	t.Helper()
+	var frames []wireFrame
+	if err := json.Unmarshal(body.Frames, &frames); err != nil {
+		t.Fatalf("frames: %v", err)
+	}
+	refs := make([]string, len(frames))
+	for i, f := range frames {
+		refs[i] = f.Ref
+	}
+	return refs
+}
+
+func TestMultiQueryPanelReturnsFramesTaggedByQueryRefInPanelOrder(t *testing.T) {
+	hn := newHarness(t)
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
+	body := decodeData(t, hn.get(hn.dataPath("p_multi", window), ""))
+	if got := frameRefs(t, body); !slices.Equal(got, []string{"A", "B"}) {
+		t.Fatalf("frame refs = %v, want [A B]", got)
+	}
+	wantMeta := []queryMeta{{Ref: "A", Kind: queryproxy.KindRange, StepMS: 22000}, {Ref: "B", Kind: queryproxy.KindRange, StepMS: 22000}}
+	if !slices.Equal(body.Meta.Queries, wantMeta) {
+		t.Fatalf("meta.queries = %+v, want %+v", body.Meta.Queries, wantMeta)
+	}
+}
+
+func TestMultiQueryPanelUsesAnExplicitRef(t *testing.T) {
+	hn := newHarness(t)
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Ref: "errors", Query: "first"}, spec.Query{Query: "second"}))
+	body := decodeData(t, hn.get(hn.dataPath("p_multi", window), ""))
+	if got := frameRefs(t, body); !slices.Equal(got, []string{"errors", "B"}) {
+		t.Fatalf("frame refs = %v, want [errors B]", got)
+	}
+}
+
+func TestHiddenQueryNeverRunsAndIsAbsentFromTheResponse(t *testing.T) {
+	hn := newHarness(t)
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "shown"}, spec.Query{Query: "hidden", Hide: true}, spec.Query{Query: "last"}))
+	body := decodeData(t, hn.get(hn.dataPath("p_multi", window), ""))
+	if got := frameRefs(t, body); !slices.Equal(got, []string{"A", "C"}) {
+		t.Fatalf("frame refs = %v, want [A C]", got)
+	}
+	if len(body.Meta.Queries) != 2 || body.Meta.Queries[1].Ref != "C" {
+		t.Fatalf("meta.queries = %+v, want A and C", body.Meta.Queries)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 2 {
+		t.Fatalf("%d range queries, want 2: the hidden query must not run", ranges)
+	}
+}
+
+func TestAllHiddenPanelReturnsNoFramesAndNoQueries(t *testing.T) {
+	hn := newHarness(t)
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "hidden", Hide: true}))
+	rec := hn.get(hn.dataPath("p_multi", window), "")
+	body := decodeData(t, rec)
+	if string(body.Frames) != "[]" || body.Meta.Queries == nil || len(body.Meta.Queries) != 0 {
+		t.Fatalf("body = %s, want empty frames and queries", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"queries":[]`) || !strings.Contains(rec.Body.String(), `"frames":[]`) {
+		t.Fatalf("body = %s, want \"frames\":[] and \"queries\":[]", rec.Body.String())
+	}
+	if body.Meta.Kind != queryproxy.KindInstant {
+		t.Fatalf("kind = %q, want instant", body.Meta.Kind)
+	}
+}
+
+func TestFailingQueryFailsThePanelRequestAndNamesItsRef(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.failText = map[string]error{"second": datasource.Errorf(datasource.ErrLimitExceeded, "too many series")}
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
+	rec := hn.get(hn.dataPath("p_multi", window), "")
+	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if ref := decodeError(t, rec).Ref; ref != "B" {
+		t.Fatalf("ref = %q, want B (body %s)", ref, rec.Body.String())
+	}
+}
+
+func TestOtherErrorsCarryNoRef(t *testing.T) {
+	hn := newHarness(t)
+	rec := hn.get(hn.dataPath("p_missing", window), "")
+	expectError(t, rec, http.StatusNotFound, "panel_not_found")
+	if strings.Contains(rec.Body.String(), `"ref"`) {
+		t.Fatalf("body = %s, want no ref", rec.Body.String())
+	}
+}
+
+func TestPanelMaxDataPointsCapsTheRequest(t *testing.T) {
+	hn := newHarness(t)
+	capped := multiQueryPanel("p_capped", spec.Query{Query: "capped"})
+	capped.MaxDataPoints = 50
+	hn.addPanels(capped, multiQueryPanel("p_plain", spec.Query{Query: "plain"}))
+	cappedBody := decodeData(t, hn.get(hn.dataPath("p_capped", window+"&max_data_points=1000"), ""))
+	plainBody := decodeData(t, hn.get(hn.dataPath("p_plain", window+"&max_data_points=1000"), ""))
+	if plainBody.Meta.StepMS != 22000 {
+		t.Fatalf("uncapped step_ms = %d, want 22000", plainBody.Meta.StepMS)
+	}
+	if cappedBody.Meta.StepMS != 433000 || hn.ds.stepFor("capped") != 433*time.Second {
+		t.Fatalf("capped step_ms = %d, upstream step = %v, want 433s (50 points)", cappedBody.Meta.StepMS, hn.ds.stepFor("capped"))
+	}
+}
+
+func TestQueryIntervalRaisesThatQueryStepOnly(t *testing.T) {
+	hn := newHarness(t)
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "plain"}, spec.Query{Query: "slow", Interval: "5m"}))
+	body := decodeData(t, hn.get(hn.dataPath("p_multi", window), ""))
+	if body.Meta.StepMS != 22000 || len(body.Meta.Queries) != 2 {
+		t.Fatalf("meta = %+v", body.Meta)
+	}
+	if body.Meta.Queries[0].StepMS != 22000 || body.Meta.Queries[1].StepMS != 300000 {
+		t.Fatalf("meta.queries = %+v, want 22000 and 300000", body.Meta.Queries)
+	}
+	if hn.ds.stepFor("slow") != 5*time.Minute || hn.ds.stepFor("plain") != 22*time.Second {
+		t.Fatalf("upstream steps slow=%v plain=%v", hn.ds.stepFor("slow"), hn.ds.stepFor("plain"))
 	}
 }

@@ -101,9 +101,9 @@ components:
             `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have)
             and `threshold_value_missing` (a threshold other than the first omits its value).
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
-            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/0/query`, with `/panels/{i}/panels/{j}` for a row child),
+            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal`
-            (paths `/panels/{i}/queries/0/query` or `/panels/{i}/datasource` and `/panels/{i}/queries/0/datasource`).
+            (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`).
         message:
           type: string
     ValidationError:
@@ -582,8 +582,12 @@ components:
     Frame:
       type: object
       additionalProperties: false
-      required: [fields]
+      required: [ref, fields]
       properties:
+        ref:
+          type: string
+          description: >-
+            The ref of the panel query that produced this frame: its written ref, or A, B, C... by position.
         name:
           type: string
         labels:
@@ -594,14 +598,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Field"
+    QueryMeta:
+      type: object
+      additionalProperties: false
+      required: [ref, kind, step_ms]
+      properties:
+        ref:
+          type: string
+        kind:
+          type: string
+          enum: [range, instant]
+        step_ms:
+          type: integer
+          minimum: 0
+          description: The query's resolution; 0 for an instant query.
     DataMeta:
       type: object
       additionalProperties: false
-      required: [kind, from, to, step_ms, cached, executed_at]
+      required: [kind, from, to, step_ms, queries, cached, executed_at]
       properties:
         kind:
           type: string
           enum: [range, instant]
+          description: range when any visible query runs as a range query, which also decides how from and to are aligned.
         from:
           type: string
           format: date-time
@@ -613,7 +632,12 @@ components:
         step_ms:
           type: integer
           minimum: 0
-          description: The query resolution; 0 for an instant panel.
+          description: The panel's resolution; 0 for an instant panel.
+        queries:
+          type: array
+          description: Every query that ran, in panel order; hidden queries do not run.
+          items:
+            $ref: "#/components/schemas/QueryMeta"
         cached:
           type: boolean
           description: True when the response was served from the proxy's response cache instead of running the query.
@@ -621,6 +645,18 @@ components:
           type: string
           format: date-time
           description: When the query ran upstream, which for a cached response is earlier than the request.
+    PanelDataError:
+      type: object
+      additionalProperties: false
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        ref:
+          type: string
+          description: The query that failed, when one query's run failed.
     PanelData:
       type: object
       additionalProperties: false

@@ -127,7 +127,7 @@ func TestSummarizeFrameShapes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := summarize(queryproxy.Result{Frames: tt.frames, Kind: tt.kind, Step: 15 * time.Second})
+			got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: tt.frames}}, Kind: tt.kind, Step: 15 * time.Second})
 			if got.Empty != tt.wantEmpty {
 				t.Fatalf("empty = %v, want %v", got.Empty, tt.wantEmpty)
 			}
@@ -160,7 +160,7 @@ func TestSummarizeFrameShapes(t *testing.T) {
 func TestSummarizeSeriesStats(t *testing.T) {
 	frame := timeNumberFrame(map[string]string{"route": "/checkout"}, 3, 1, 2)
 	frame.Fields[1].Values = append(frame.Fields[1].Values, nil)
-	got := summarize(queryproxy.Result{Frames: []datasource.Frame{frame}, Kind: queryproxy.KindRange, Step: 18 * time.Second})
+	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}, Kind: queryproxy.KindRange, Step: 18 * time.Second})
 	if len(got.Series) != 1 {
 		t.Fatalf("series = %d", len(got.Series))
 	}
@@ -178,7 +178,7 @@ func TestSummarizeCapsSeries(t *testing.T) {
 	for range maxSeriesOut + 5 {
 		frames = append(frames, timeNumberFrame(map[string]string{"pod": "p"}, 1))
 	}
-	got := summarize(queryproxy.Result{Frames: frames, Kind: queryproxy.KindRange})
+	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}, Kind: queryproxy.KindRange})
 	if len(got.Series) != maxSeriesOut || !got.Truncated {
 		t.Fatalf("series = %d truncated = %v", len(got.Series), got.Truncated)
 	}

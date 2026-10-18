@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,21 +19,78 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func TestKindFor(t *testing.T) {
+func TestQueryKind(t *testing.T) {
 	tests := []struct {
 		panelType spec.PanelType
+		instant   bool
 		want      Kind
 	}{
-		{spec.Timeseries, KindRange},
-		{spec.Stat, KindInstant},
-		{spec.Table, KindInstant},
-		{spec.BarGauge, KindInstant},
-		{spec.PanelType("unknown"), KindInstant},
+		{spec.Timeseries, false, KindRange},
+		{spec.Heatmap, false, KindRange},
+		{spec.StateTimeline, false, KindRange},
+		{spec.Histogram, false, KindRange},
+		{spec.Stat, false, KindInstant},
+		{spec.Gauge, false, KindInstant},
+		{spec.Table, false, KindInstant},
+		{spec.BarGauge, false, KindInstant},
+		{spec.PieChart, false, KindInstant},
+		{spec.Logs, false, KindInstant},
+		{spec.PanelType("unknown"), false, KindInstant},
+		{spec.Timeseries, true, KindInstant},
+		{spec.Heatmap, true, KindInstant},
 	}
 	for _, tt := range tests {
-		t.Run(string(tt.panelType), func(t *testing.T) {
-			if got := KindFor(tt.panelType); got != tt.want {
-				t.Fatalf("KindFor(%q) = %q, want %q", tt.panelType, got, tt.want)
+		t.Run(fmt.Sprintf("%s instant=%v", tt.panelType, tt.instant), func(t *testing.T) {
+			p := &spec.Panel{Type: tt.panelType}
+			if got := QueryKind(p, spec.Query{Instant: tt.instant}); got != tt.want {
+				t.Fatalf("QueryKind = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPanelKind(t *testing.T) {
+	tests := []struct {
+		name  string
+		panel spec.Panel
+		want  Kind
+	}{
+		{"range query", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a"}}}, KindRange},
+		{"instant only", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Instant: true}}}, KindInstant},
+		{"one range among instants", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Instant: true}, {Query: "b"}}}, KindRange},
+		{"hidden range ignored", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Instant: true}, {Query: "b", Hide: true}}}, KindInstant},
+		{"all hidden", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Hide: true}}}, KindInstant},
+		{"table", spec.Panel{Type: spec.Table, Queries: []spec.Query{{Query: "a"}}}, KindInstant},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := PanelKind(&tt.panel); got != tt.want {
+				t.Fatalf("PanelKind = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQueryStep(t *testing.T) {
+	base := 22 * time.Second
+	tests := []struct {
+		name          string
+		panelInterval string
+		queryInterval string
+		want          time.Duration
+	}{
+		{"no interval", "", "", base},
+		{"panel interval below base", "5s", "", base},
+		{"panel interval above base", "1m", "", time.Minute},
+		{"query interval wins over panel", "1m", "5m", 5 * time.Minute},
+		{"query interval below base ignores panel", "1h", "5s", base},
+		{"invalid interval", "", "soon", base},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &spec.Panel{Interval: tt.panelInterval}
+			if got := QueryStep(base, p, spec.Query{Interval: tt.queryInterval}); got != tt.want {
+				t.Fatalf("QueryStep = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -111,7 +169,7 @@ func TestRunPanelDispatch(t *testing.T) {
 			if res.Kind != tt.wantKind || res.Step != tt.wantStep || res.Range != testRange() {
 				t.Fatalf("result kind=%q step=%v range=%v, want kind=%q step=%v", res.Kind, res.Step, res.Range, tt.wantKind, tt.wantStep)
 			}
-			if len(res.Frames) == 0 {
+			if len(res.Frames()) == 0 {
 				t.Fatal("no frames returned")
 			}
 			calls := fake.recorded()
@@ -199,7 +257,7 @@ func TestRunPanelPropagatesUpstreamError(t *testing.T) {
 	if !errors.Is(err, datasource.ErrUnavailable) {
 		t.Fatalf("err = %v, want ErrUnavailable", err)
 	}
-	if res.Frames != nil || res.Kind != "" {
+	if res.Queries != nil || res.Kind != "" {
 		t.Fatalf("result on error = %+v, want zero", res)
 	}
 }
@@ -549,5 +607,196 @@ func TestUpstreamLogsVariableLookupSubject(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "subject=variable:job") {
 		t.Fatalf("log = %q", logs.String())
+	}
+}
+
+func multiPanel(typ spec.PanelType, queries ...spec.Query) spec.Panel {
+	return spec.Panel{ID: "p1", Type: typ, Title: "p1", Datasource: "prom", Queries: queries}
+}
+
+func TestRunPanelRunsEveryVisibleQuery(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		return []datasource.Frame{{Name: q.Text, Fields: dataFrames()[0].Fields}}, nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries,
+		spec.Query{Query: "a"},
+		spec.Query{Ref: "Z", Query: "b"},
+		spec.Query{Query: "hidden", Hide: true},
+		spec.Query{Query: "c"},
+	)})
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), MaxDataPoints: 200})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	var refs, names []string
+	for _, q := range res.Queries {
+		refs = append(refs, q.Ref)
+	}
+	for _, f := range res.Frames() {
+		names = append(names, f.Name)
+	}
+	if !slices.Equal(refs, []string{"A", "Z", "D"}) || !slices.Equal(names, []string{"a", "b", "c"}) {
+		t.Fatalf("refs = %v, frames = %v; want refs [A Z D] in panel order and frames [a b c]", refs, names)
+	}
+	if fake.callCount() != 3 {
+		t.Fatalf("upstream calls = %d, want 3 (the hidden query never runs)", fake.callCount())
+	}
+	if res.Kind != KindRange || res.Step != 108*time.Second {
+		t.Fatalf("kind = %q, step = %v", res.Kind, res.Step)
+	}
+}
+
+func TestRunPanelIncludeHiddenRunsHiddenQueriesWithoutReportingThem(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "a"}, spec.Query{Query: "h", Hide: true})})
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), IncludeHidden: true})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if fake.callCount() != 2 || len(res.Queries) != 1 || res.Queries[0].Ref != "A" {
+		t.Fatalf("calls = %d, queries = %+v; want 2 calls and only query A reported", fake.callCount(), res.Queries)
+	}
+}
+
+func TestRunPanelAllHiddenReturnsNoQueries(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "a", Hide: true})})
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if len(res.Queries) != 0 || res.Kind != KindInstant || res.Step != 0 || fake.callCount() != 0 {
+		t.Fatalf("result = %+v, calls = %d; want no queries, instant, step 0, no calls", res, fake.callCount())
+	}
+}
+
+func TestRunPanelPerQueryKindAndStep(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Timeseries,
+		spec.Query{Query: "plain"},
+		spec.Query{Query: "slow", Interval: "5m"},
+		spec.Query{Query: "point", Instant: true},
+	)
+	p.Interval = "1m"
+	res, err := runner.RunPanel(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}), PanelID: "p1", Range: testRange(), MaxDataPoints: 200})
+	if err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	want := []struct {
+		kind Kind
+		step time.Duration
+	}{{KindRange, 108 * time.Second}, {KindRange, 5 * time.Minute}, {KindInstant, 0}}
+	for i, q := range res.Queries {
+		if q.Kind != want[i].kind || q.Step != want[i].step {
+			t.Fatalf("query %d kind=%q step=%v, want kind=%q step=%v", i, q.Kind, q.Step, want[i].kind, want[i].step)
+		}
+	}
+	steps := map[string]time.Duration{}
+	for _, c := range fake.callsTo("range") {
+		steps[c.query.Text] = c.step
+	}
+	if steps["plain"] != 108*time.Second || steps["slow"] != 5*time.Minute || len(fake.callsTo("instant")) != 1 {
+		t.Fatalf("range steps = %v, instant calls = %d", steps, len(fake.callsTo("instant")))
+	}
+}
+
+func TestRunPanelReportsLowestIndexFailureAfterAllQueriesFinish(t *testing.T) {
+	fake := newFake("prometheus")
+	release := make(chan struct{})
+	fake.onRange = func(ctx context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		switch q.Text {
+		case "late":
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "late failure")
+		case "early":
+			close(release)
+			return nil, datasource.Errorf(datasource.ErrLimitExceeded, "early failure")
+		}
+		return dataFrames(), nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "late"}, spec.Query{Query: "ok"}, spec.Query{Query: "early"})})
+	_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	var qe *QueryError
+	if !errors.As(err, &qe) || qe.Index != 0 || qe.Ref != "A" || !errors.Is(err, datasource.ErrInvalidQuery) {
+		t.Fatalf("err = %v (%+v), want the lowest-index failure, query A", err, qe)
+	}
+	if fake.callCount() != 3 {
+		t.Fatalf("upstream calls = %d, want 3: every query runs to completion", fake.callCount())
+	}
+}
+
+func TestRunPanelQueryErrorNamesTheQueryRef(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		if q.Text == "bad" {
+			return nil, datasource.Errorf(datasource.ErrLimitExceeded, "too many series")
+		}
+		return dataFrames(), nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "ok"}, spec.Query{Ref: "errs", Query: "bad"})})
+	_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	var qe *QueryError
+	if !errors.As(err, &qe) || qe.Ref != "errs" || qe.Index != 1 {
+		t.Fatalf("err = %v, want a QueryError for ref errs at index 1", err)
+	}
+	if status, code, _ := Classify(err); status != 422 || code != string(CodeLimitExceeded) {
+		t.Fatalf("Classify = %d %s", status, code)
+	}
+}
+
+func TestRunPanelQueryDatasourceOverride(t *testing.T) {
+	main, other := newFake("prometheus"), newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": main, "other": other})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "a"}, spec.Query{Query: "b", Datasource: "other"})})
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if main.callCount() != 1 || other.callCount() != 1 {
+		t.Fatalf("calls main=%d other=%d, want 1 each", main.callCount(), other.callCount())
+	}
+	missing := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, spec.Query{Query: "a"}, spec.Query{Ref: "B", Query: "b", Datasource: "gone"})})
+	_, err := runner.RunPanel(t.Context(), Request{Dashboard: missing, PanelID: "p1", Range: testRange()})
+	var qe *QueryError
+	if !errors.Is(err, ErrUnknownDatasource) || !errors.As(err, &qe) || qe.Ref != "B" {
+		t.Fatalf("err = %v, want ErrUnknownDatasource for query B", err)
+	}
+}
+
+func TestRunPanelQueriesRunConcurrentlyUpToFour(t *testing.T) {
+	fake := newFake("prometheus")
+	var running, peak atomic.Int32
+	fake.onRange = func(ctx context.Context, _ datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		n := running.Add(1)
+		defer running.Add(-1)
+		for {
+			old := peak.Load()
+			if n <= old || peak.CompareAndSwap(old, n) {
+				break
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+		return dataFrames(), nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	queries := make([]spec.Query, 10)
+	for i := range queries {
+		queries[i] = spec.Query{Query: fmt.Sprintf("q%d", i)}
+	}
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries, queries...)})
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if got := peak.Load(); got < 2 || got > 4 {
+		t.Fatalf("peak concurrent queries = %d, want between 2 and 4", got)
 	}
 }

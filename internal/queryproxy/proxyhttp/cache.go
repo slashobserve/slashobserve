@@ -36,12 +36,19 @@ type specKey struct {
 	version int
 }
 
+type queryMeta struct {
+	Ref    string          `json:"ref"`
+	Kind   queryproxy.Kind `json:"kind"`
+	StepMS int64           `json:"step_ms"`
+}
+
 type dataEntry struct {
-	frames json.RawMessage
-	kind   queryproxy.Kind
-	from   time.Time
-	to     time.Time
-	step   time.Duration
+	frames  json.RawMessage
+	queries []queryMeta
+	kind    queryproxy.Kind
+	from    time.Time
+	to      time.Time
+	step    time.Duration
 
 	executedAt time.Time
 }
