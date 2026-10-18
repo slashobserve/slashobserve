@@ -1,12 +1,16 @@
+import { useParams } from "@tanstack/react-router"
+
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { RestoreVersionButton } from "@/history/restore-version-button"
 
-import { useSetDashboardSearch } from "./search"
+import { dashboardRouteId, useSetDashboardSearch } from "./search"
 
 type Props = { version: number; latestVersion: number }
 
 export function VersionBanner({ version, latestVersion }: Props) {
   const setSearch = useSetDashboardSearch()
+  const { dashboardId } = useParams({ from: dashboardRouteId })
   if (version >= latestVersion) return null
   return (
     <div className="px-4 pt-3">
@@ -25,6 +29,12 @@ export function VersionBanner({ version, latestVersion }: Props) {
           >
             Back to latest
           </Button>
+          <RestoreVersionButton
+            variant="banner"
+            dashboardId={dashboardId}
+            version={version}
+            latestVersion={latestVersion}
+          />
         </AlertAction>
       </Alert>
     </div>

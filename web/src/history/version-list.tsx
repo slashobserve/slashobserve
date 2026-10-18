@@ -15,6 +15,7 @@ import {
 import { formatDateTime, formatRelative } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
+import { RestoreVersionButton } from "./restore-version-button"
 import { useVersionHistory, type VersionMeta } from "./use-version-history"
 
 type Props = {
@@ -85,6 +86,13 @@ function VersionRow({
           >
             Compare
           </Button>
+          {latest ? null : (
+            <RestoreVersionButton
+              dashboardId={dashboardId}
+              version={meta.version}
+              latestVersion={latestVersion}
+            />
+          )}
         </div>
       </TableCell>
     </TableRow>
