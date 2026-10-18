@@ -70,7 +70,3 @@ export const userKeys = {
 export const instanceKeys = {
   info: () => ["instance"] as const,
 }
-
-export const datasourceKeys = {
-  list: () => ["datasources"] as const,
-}
