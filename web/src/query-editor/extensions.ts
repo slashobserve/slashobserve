@@ -23,7 +23,7 @@ const theme = EditorView.theme({
   },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontFamily: "var(--font-mono)",
     lineHeight: "1.5",
   },
   ".cm-content": { caretColor: "var(--foreground)" },
@@ -48,7 +48,7 @@ const theme = EditorView.theme({
     overflow: "hidden",
   },
   ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontFamily: "var(--font-mono)",
     maxHeight: "8rem",
     maxWidth: "min(24rem, 90vw)",
   },
@@ -70,7 +70,7 @@ const theme = EditorView.theme({
   ".cm-diagnosticSource": { display: "none" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
     {
-      backgroundColor: "color-mix(in oklch, var(--ring) 35%, transparent)",
+      backgroundColor: "color-mix(in oklch, var(--brand) 25%, transparent)",
     },
 })
 

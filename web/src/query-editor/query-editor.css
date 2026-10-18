@@ -1,19 +1,19 @@
 .cm-editor .tok-keyword,
 .cm-editor .tok-operatorKeyword {
-  color: #256abf;
+  color: var(--syntax-keyword);
 }
 
 .cm-editor .tok-function,
 .cm-editor .tok-variableName.tok-function {
-  color: #6250d6;
+  color: var(--syntax-function);
 }
 
 .cm-editor .tok-string {
-  color: #006300;
+  color: var(--syntax-string);
 }
 
 .cm-editor .tok-number {
-  color: #a14514;
+  color: var(--syntax-number);
 }
 
 .cm-editor .tok-comment {
@@ -22,30 +22,7 @@
 
 .cm-editor .tok-labelName,
 .cm-editor .tok-propertyName {
-  color: #1c5cab;
-}
-
-.dark .cm-editor .tok-keyword,
-.dark .cm-editor .tok-operatorKeyword {
-  color: #86b6ef;
-}
-
-.dark .cm-editor .tok-function,
-.dark .cm-editor .tok-variableName.tok-function {
-  color: #9085e9;
-}
-
-.dark .cm-editor .tok-string {
-  color: #0ca30c;
-}
-
-.dark .cm-editor .tok-number {
-  color: #ec835a;
-}
-
-.dark .cm-editor .tok-labelName,
-.dark .cm-editor .tok-propertyName {
-  color: #9ec5f4;
+  color: var(--foreground);
 }
 
 .cm-editor .cm-lintRange-error {

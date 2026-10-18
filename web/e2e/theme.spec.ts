@@ -41,6 +41,45 @@ test("switches and remembers light and dark", async ({ page }) => {
   await expect(page.getByRole("menuitemradio")).toHaveCount(0)
 })
 
+test("uses the M1 tokens in both themes", async ({ page }) => {
+  const readTokens = () =>
+    page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement)
+      const body = getComputedStyle(document.body)
+      return {
+        background: body.backgroundColor,
+        color: body.color,
+        brand: root.getPropertyValue("--brand").trim(),
+        series1: root.getPropertyValue("--series-1").trim(),
+      }
+    })
+
+  await page.emulateMedia({ colorScheme: "light" })
+  await page.goto("/")
+  expect(
+    await page.evaluate(
+      async () =>
+        (await document.fonts.load('12px "Geist Mono Variable"')).length
+    )
+  ).toBeGreaterThan(0)
+  expect(await readTokens()).toEqual({
+    background: "rgb(255, 255, 255)",
+    color: "rgb(10, 10, 10)",
+    brand: "#2a78d6",
+    series1: "#2a78d6",
+  })
+
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.reload()
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+  expect(await readTokens()).toEqual({
+    background: "rgb(17, 17, 19)",
+    color: "rgb(250, 250, 250)",
+    brand: "#5598e7",
+    series1: "#3987e5",
+  })
+})
+
 test("keeps plain search parameters", async ({ page }) => {
   await page.goto("/?from=now-1h&var-pod=a&var-pod=b")
   await expect(
