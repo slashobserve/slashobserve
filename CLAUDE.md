@@ -151,6 +151,11 @@ Directories are created when their phase starts; this is where things go.
 - Server data goes through TanStack Query with keys from `web/src/api/keys.ts` only; the typed client is `api` from `web/src/api/client.ts` (openapi-fetch over `web/src/api/schema.gen.ts`), and responses are unwrapped with `unwrap`, which throws `ApiError`.
 - Zustand holds UI-only state (theme, unsaved layout edits); never copy server data into a store.
 - The router uses plain `URLSearchParams` search serialization (`web/src/lib/search.ts`): search values are strings, numbers or string arrays, repeated keys become arrays, and each route coerces types in `validateSearch`.
+- Dashboards live at `/dashboards/$dashboardId`; the URL holds `from`, `to`, `refresh`, `version`, `panel`, `tab` and repeated `var-<name>` values, parsed only by `web/src/dashboards/search.ts` (`withVariables` adds `var-` params to API calls).
+  Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
+- Panel data requests go through `panelRequestLimiter` (6 concurrent) because the proxy allows 8 in-flight requests per principal; panels fetch once they scroll near the viewport.
+- Panel renderers implement `PanelRendererProps` in `web/src/panels/types.ts` and are registered only in `web/src/panels/index.tsx`; panel states are exposed as `data-state` on the panel `article` for tests.
+- Browser specs create their own dashboards through `web/e2e/api.ts` with `uniqueTitle`, from Specs in `web/e2e/data/`.
 - Theme preference lives in `localStorage` key `slashobserve-theme` and is applied before first paint by `web/public/theme-init.js`; chart colors use the `--series-1..8` and `--threshold-*` tokens in `web/src/index.css`, never ad-hoc hex values.
 - Visual defaults to avoid: cream or off-white page backgrounds, italic accent words in headings, numbered `01/02` section labels, monospace for UI labels (monospace is only for query text, JSON values and ids), pill-shaped buttons, gradients, heavy drop shadows, colored left-border callouts, uppercase eyebrow labels, emoji, and chart animations.
 

@@ -1,0 +1,61 @@
+{
+  "specVersion": "0",
+  "title": "E2E overview",
+  "timeRange": { "from": "now-15m", "to": "now" },
+  "variables": [
+    {
+      "name": "pod",
+      "label": "Pod",
+      "type": "query",
+      "multi": true,
+      "includeAll": true,
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "query": "label_values(http_requests_total{service=\"checkout\"}, pod)"
+    }
+  ],
+  "panels": [
+    {
+      "id": "rps",
+      "type": "timeseries",
+      "title": "Checkout requests per second",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[$__rate_interval]))",
+      "legend": "{{pod}}",
+      "unit": "reqps"
+    },
+    {
+      "id": "error_rate",
+      "type": "stat",
+      "title": "Checkout error rate",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "query": "(sum(rate(http_requests_total{service=\"checkout\",status=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\"}[1m]))",
+      "unit": "percentunit",
+      "decimals": 2,
+      "thresholds": [
+        { "value": 0.01, "color": "warning" },
+        { "value": 0.05, "color": "critical" }
+      ]
+    },
+    {
+      "id": "rps_by_pod",
+      "type": "bargauge",
+      "title": "Requests by pod",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\",pod=~\"$pod\"}[1m]))",
+      "legend": "{{pod}}",
+      "unit": "reqps",
+      "min": 0
+    },
+    {
+      "id": "logs",
+      "type": "table",
+      "title": "Log rows by service",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "datasource": { "type": "clickhouse", "uid": "ch" },
+      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+    }
+  ]
+}
