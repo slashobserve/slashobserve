@@ -1,0 +1,152 @@
+{
+  "specVersion": "0",
+  "title": "Shop overview",
+  "description": "Golden signals for the demo shop across Prometheus and ClickHouse",
+  "tags": [
+    "shop",
+    "overview"
+  ],
+  "refresh": "1m",
+  "variables": [
+    {
+      "name": "service",
+      "label": "Service",
+      "type": "custom",
+      "multi": true,
+      "includeAll": true,
+      "options": [
+        "checkout",
+        "cart",
+        "catalog"
+      ]
+    },
+    {
+      "name": "route",
+      "label": "Route",
+      "type": "query",
+      "datasource": "prom",
+      "query": "label_values(http_requests_total{service=~\"${service:regex}\"}, route)"
+    }
+  ],
+  "panels": [
+    {
+      "id": "error_rate",
+      "type": "stat",
+      "title": "Error rate",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "percentunit",
+      "decimals": 2,
+      "thresholds": [
+        {
+          "value": 0.01,
+          "color": "warning"
+        },
+        {
+          "value": 0.05,
+          "color": "critical"
+        }
+      ],
+      "queries": [
+        {
+          "query": "sum(increase(http_requests_total{service=~\"$service\",status=~\"5..\"}[$__range])) / sum(increase(http_requests_total{service=~\"$service\"}[$__range]))"
+        }
+      ]
+    },
+    {
+      "id": "cpu_by_pod",
+      "type": "bargauge",
+      "title": "CPU by pod",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "unit": "percentunit",
+      "min": 0,
+      "max": 1,
+      "thresholds": [
+        {
+          "value": 0.7,
+          "color": "warning"
+        },
+        {
+          "value": 0.9,
+          "color": "#d44a3a"
+        }
+      ],
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{service=~\"$service\"}[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": "rps_by_route",
+      "type": "timeseries",
+      "title": "Requests per second by route",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "unit": "reqps",
+      "queries": [
+        {
+          "query": "sum by (route) (rate(http_requests_total{service=~\"$service\",route=~\"${route}\"}[$__interval]))",
+          "legend": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": "log_volume",
+      "type": "timeseries",
+      "title": "Log volume by severity",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 4
+      },
+      "datasource": "ch",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "SELECT $__timeGroup(Timestamp) AS time, SeverityText AS severity, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:sqlstring}) GROUP BY time, severity ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": "slow_spans",
+      "type": "table",
+      "title": "Slowest spans",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": "ch",
+      "unit": "ms",
+      "queries": [
+        {
+          "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:sqlstring}) GROUP BY span ORDER BY p99_ms DESC LIMIT 20"
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now+1d"
+  }
+}
