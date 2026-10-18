@@ -293,7 +293,7 @@ function RequestNotFound({ removed }: { removed: boolean }) {
           ? "This request no longer exists."
           : "This request does not exist."}
       </p>
-      <Link to="/" className={buttonVariants({ variant: "outline" })}>
+      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
         Back to dashboards
       </Link>
     </main>

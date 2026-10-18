@@ -25,7 +25,20 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
     rules: {
       "react-refresh/only-export-components": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.name='buttonVariants']:not(CallExpression[callee.name='cn'] > CallExpression)",
+          message:
+            "Wrap buttonVariants() in cn() so variant classes override base classes.",
+        },
+      ],
     },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: { "no-restricted-syntax": "off" },
   },
   {
     files: [

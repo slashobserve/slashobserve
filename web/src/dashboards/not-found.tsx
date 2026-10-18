@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import { buttonVariants } from "@/components/ui/button"
+import { cn } from "cn"
 
 export function DashboardNotFound() {
   return (
@@ -9,7 +10,7 @@ export function DashboardNotFound() {
       <p className="text-sm text-muted-foreground">
         It may have been removed, or the link is wrong.
       </p>
-      <Link to="/" className={buttonVariants({ variant: "outline" })}>
+      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
         Back to dashboards
       </Link>
     </main>

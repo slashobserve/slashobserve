@@ -10,6 +10,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { cn } from "cn"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -45,7 +46,7 @@ function NotFound() {
       <p className="text-sm text-muted-foreground">
         There is nothing at this address.
       </p>
-      <Link to="/" className={buttonVariants({ variant: "outline" })}>
+      <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
         Back to home
       </Link>
     </main>
