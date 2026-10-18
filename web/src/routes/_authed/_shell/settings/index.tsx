@@ -47,7 +47,7 @@ function Pending() {
 function SettingsPage() {
   useDocumentTitle("Settings - SlashObserve")
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <PageHeader
         title="Settings"
         description="Read from the server environment. Change them in SLASHOBSERVE_* settings and restart."
@@ -56,7 +56,7 @@ function SettingsPage() {
       <ServerCard />
       <SignInCard />
       <AppearanceCard />
-    </div>
+    </>
   )
 }
 

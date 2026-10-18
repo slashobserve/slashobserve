@@ -106,6 +106,24 @@ test("keeps the row height when the server settings load", async ({ page }) => {
   ).toBeLessThanOrEqual(0.5)
 })
 
+test("aligns the cards with the heading and caps them at 860px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1800, height: 900 })
+  await openSettings(page)
+
+  const heading = await page
+    .getByRole("heading", { level: 1, name: "Settings" })
+    .boundingBox()
+  expect(heading).not.toBeNull()
+  for (const name of ["Agent", "This server", "Sign-in", "Appearance"]) {
+    const box = await card(page, name).boundingBox()
+    expect(box).not.toBeNull()
+    expect(Math.abs((box?.x ?? 0) - (heading?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(box?.width).toBeLessThanOrEqual(860)
+  }
+})
+
 test("copies the MCP URL", async ({ page }) => {
   await openSettings(page)
   await page.getByRole("button", { name: "Copy MCP URL" }).click()

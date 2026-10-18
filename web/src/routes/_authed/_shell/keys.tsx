@@ -34,7 +34,7 @@ function KeysPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="flex max-w-xl flex-col gap-1">
           <h1 id={headingId} className="text-2xl font-semibold">
@@ -66,6 +66,6 @@ function KeysPage() {
         }
         onOpenChange={(open) => setDialog((state) => ({ ...state, open }))}
       />
-    </div>
+    </>
   )
 }

@@ -17,7 +17,7 @@ function DashboardsPage() {
   const headingId = useId()
   useDocumentTitle("Dashboards - SlashObserve")
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <PageHeader
         headingId={headingId}
         title="Dashboards"
@@ -29,6 +29,6 @@ function DashboardsPage() {
         }
       />
       <DashboardList labelledBy={headingId} />
-    </div>
+    </>
   )
 }

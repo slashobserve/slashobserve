@@ -13,13 +13,13 @@ export const Route = createFileRoute("/_authed/_shell/people")({
 function PeoplePage() {
   useDocumentTitle("People - SlashObserve")
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <PageHeader
         title="People"
         description="Everyone who has signed in. Access comes from your identity provider, not from invites."
       />
       <SignInBanner />
       <PeopleTable />
-    </div>
+    </>
   )
 }
