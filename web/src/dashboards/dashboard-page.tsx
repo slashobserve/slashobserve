@@ -17,6 +17,7 @@ import { useComments } from "@/comments/queries"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FollowUpBar } from "@/revisions/follow-up-bar"
 import { refreshToMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
@@ -323,6 +324,13 @@ function DashboardView({
         />
       ) : null}
       <VariablesBar states={states} />
+      {search.version === undefined && !editing ? (
+        <FollowUpBar
+          dashboardId={dashboardId}
+          version={version}
+          panels={spec.panels}
+        />
+      ) : null}
       <LayoutAnnouncer />
       <div ref={gridBox} className="flex-1 p-4">
         <DashboardGrid
