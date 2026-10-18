@@ -994,13 +994,26 @@ expect_proxy_error() {
   fi
 }
 
+urlencode() {
+  local text="$1" i char out=""
+  local LC_ALL=C
+  for ((i = 0; i < ${#text}; i++)); do
+    char="${text:i:1}"
+    case "$char" in
+      [a-zA-Z0-9.~_-]) out+="$char" ;;
+      *) out+="$(printf '%%%02X' $(($(printf '%d' "'$char") & 255)))" ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
 first_value() {
   grep -o '"values":\["[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4 || true
 }
 
 proxy_suite() {
   api_token
-  local out id base window stable first_executed service job leak rows_one rows_all now_ms
+  local out id base window stable values_window first_executed service job leak rows_one rows_all now_ms
   : >"$TMP/proxy-bodies.txt"
 
   out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
@@ -1039,7 +1052,7 @@ proxy_suite() {
   if [[ "$out" != 200 || -z "$service" ]] || ! grep -q '"truncated":false' "$TMP/api.body"; then
     fail "values of the service variable ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(proxy_call GET "$base/panels/p_logs/data?$stable&var-service=$service")"
+  out="$(proxy_call GET "$base/panels/p_logs/data?$stable&var-service=$(urlencode "$service")")"
   if [[ "$out" != 200 ]] || ! grep -Eq '"name":"n","type":"number","values":\[[1-9][0-9]*' "$TMP/api.body"; then
     fail "panel data for an explicit service ($out: $(cat "$TMP/api.body"))"
   fi
@@ -1069,16 +1082,22 @@ proxy_suite() {
   expect_proxy_error "$base/panels/p_sleep/data?var-delay=2" 504 query_timeout "query timeout"
   pass "a query over the timeout is cut off with 504"
 
-  out="$(proxy_call GET "$base/variables/job/values")"
+  now_ms=$(($(date +%s) * 1000))
+  values_window="from=$((now_ms - 900000))&to=$now_ms"
+  out="$(proxy_call GET "$base/variables/job/values?$values_window")"
   job="$(first_value)"
   if [[ "$out" != 200 || -z "$job" ]]; then
     fail "values of the job variable ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=.*")"
+  out="$(proxy_call GET "$base/variables/job/values?$values_window")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"$job\"" "$TMP/api.body" || ! grep -q '"cached":true' "$TMP/api.body"; then
+    fail "the job variable values are listed and cached ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=$(urlencode ".*")")"
   if [[ "$out" != 200 ]] || ! grep -q '"frames":\[\]' "$TMP/api.body"; then
     fail "a regex value in a Prometheus variable matches nothing ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=$job")"
+  out="$(proxy_call GET "$base/panels/p_up/data?$window&var-job=$(urlencode "$job")")"
   if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
     fail "a real job returns frames ($out: $(cat "$TMP/api.body"))"
   fi
@@ -1090,10 +1109,6 @@ proxy_suite() {
   fi
   pass "ClickHouse variable values are escaped, so an injection attempt matches nothing"
 
-  out="$(proxy_call GET "$base/variables/job/values")"
-  if [[ "$out" != 200 ]] || ! grep -q "\"$job\"" "$TMP/api.body" || ! grep -q '"cached":true' "$TMP/api.body"; then
-    fail "the job variable values are listed and cached ($out: $(cat "$TMP/api.body"))"
-  fi
   out="$(proxy_call GET "$base/variables/n/values")"
   if [[ "$out" != 200 ]] || ! grep -q '"values":\["1","50"\]' "$TMP/api.body" || ! grep -q '"cached":false' "$TMP/api.body"; then
     fail "the custom variable lists its options ($out: $(cat "$TMP/api.body"))"

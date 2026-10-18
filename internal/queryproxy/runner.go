@@ -76,6 +76,13 @@ func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOpti
 	return r
 }
 
+func (r *Runner) AcquireUpstream(ctx context.Context) (release func(), err error) {
+	if err := r.sem.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	return func() { r.sem.Release(1) }, nil
+}
+
 func KindFor(t spec.PanelType) Kind {
 	if t == spec.Timeseries {
 		return KindRange

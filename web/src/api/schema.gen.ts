@@ -363,7 +363,7 @@ export interface paths {
         };
         /**
          * Run the saved query of one panel in one dashboard version and return its frames.
-         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec`, and any other unknown parameter with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `timeRange`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
+         * @description The query is fixed by the saved version, so the request names a panel and never carries query text; the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400. Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`, and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below. A variable that is not given gets its default, and a request for an undeclared variable is a 400. `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds, default to the version's `timeRange`, and may span at most 400 days. A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds; the aligned range comes back in `meta`. Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
          */
         get: operations["getPanelData"];
         put?: never;
@@ -387,7 +387,7 @@ export interface paths {
         };
         /**
          * List the values of one variable in one dashboard version.
-         * @description A custom variable returns its options without an upstream call. A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters (not listed below, see the panel data operation); an earlier variable without a selection gets its default, and a selection for the listed variable or a later one is a 400. `from` and `to` behave as for panel data. The same query-text refusal and in-flight limit apply.
+         * @description A custom variable returns its options without an upstream call. A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters (not listed below, see the panel data operation); an earlier variable without a selection gets its default, and a selection for the listed variable or a later one is a 400. `from` and `to` behave as for panel data, and the range is aligned like the default range of a range panel. The same query-text refusal and in-flight limit apply.
          */
         get: operations["getVariableValues"];
         put?: never;
@@ -411,7 +411,7 @@ export interface paths {
         put?: never;
         /**
          * Parse a query for a datasource and return diagnostics, without executing it or returning data.
-         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds and counts against the same in-flight limit as panel data.
+         * @description Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`. The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429.
          */
         post: operations["lintDatasourceQuery"];
         delete?: never;
@@ -631,6 +631,7 @@ export interface components {
             to: string;
             /** @description The query resolution; 0 for an instant panel. */
             step_ms: number;
+            /** @description True when the response was served from the proxy's response cache instead of running the query. */
             cached: boolean;
             /**
              * Format: date-time
@@ -645,6 +646,7 @@ export interface components {
         VariableValues: {
             values: string[];
             truncated: boolean;
+            /** @description True when the list was served from the proxy's response cache instead of running the query. */
             cached: boolean;
         };
         Diagnostic: {

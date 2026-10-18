@@ -2,8 +2,10 @@ package proxyhttp
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +30,11 @@ const (
 	instantResolution    = 5 * time.Second
 )
 
-var forbiddenParams = []string{"query", "expr", "sql", "q"}
+var (
+	forbiddenParams = []string{"query", "expr", "sql", "q"}
+
+	errQueryNotInSpec = errors.New("query text is not accepted")
+)
 
 type params struct {
 	from, to      string
@@ -43,6 +49,30 @@ func hasForbiddenParam(q url.Values) bool {
 		}
 	}
 	return false
+}
+
+func hasForbiddenRawKey(raw string) bool {
+	for pair := range strings.SplitSeq(raw, "&") {
+		key, _, _ := strings.Cut(pair, "=")
+		if decoded, err := url.QueryUnescape(key); err == nil {
+			key = decoded
+		}
+		if slices.Contains(forbiddenParams, key) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseQuery(raw string) (url.Values, error) {
+	q, err := url.ParseQuery(raw)
+	if hasForbiddenParam(q) || hasForbiddenRawKey(raw) {
+		return nil, errQueryNotInSpec
+	}
+	if err != nil {
+		return nil, invalidf("the query string is malformed")
+	}
+	return q, nil
 }
 
 func invalidf(format string, args ...any) error {
@@ -150,11 +180,8 @@ func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) al
 		to = from.Add(step)
 	}
 	points := int(to.Sub(from) / step)
-	switch {
-	case points < minMaxDataPoints && step > time.Second:
+	if points < minMaxDataPoints && step > time.Second {
 		from, points = to.Add(-minMaxDataPoints*step), minMaxDataPoints
-	case points > maxMaxDataPoints:
-		from, points = from.Add(time.Duration(points-maxMaxDataPoints)*step), maxMaxDataPoints
 	}
 	return alignment{rng: datasource.TimeRange{From: from, To: to}, step: step, maxDataPoints: points}
 }

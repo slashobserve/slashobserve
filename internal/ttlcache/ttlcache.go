@@ -9,6 +9,7 @@ import (
 type Cache[K comparable, V any] struct {
 	ttl     time.Duration
 	maxCost int64
+	now     func() time.Time
 
 	mu    sync.Mutex
 	order *list.List
@@ -25,7 +26,7 @@ type entry[K comparable, V any] struct {
 
 // A zero ttl keeps entries until the cost bound evicts them, and an entry costing more than maxCost is never stored.
 func New[K comparable, V any](ttl time.Duration, maxCost int64) *Cache[K, V] {
-	return &Cache[K, V]{ttl: ttl, maxCost: maxCost, order: list.New(), items: map[K]*list.Element{}}
+	return &Cache[K, V]{ttl: ttl, maxCost: maxCost, order: list.New(), items: map[K]*list.Element{}, now: time.Now}
 }
 
 func (c *Cache[K, V]) Get(key K) (value V, stored time.Time, ok bool) {
@@ -36,7 +37,7 @@ func (c *Cache[K, V]) Get(key K) (value V, stored time.Time, ok bool) {
 		return value, stored, false
 	}
 	e := el.Value.(*entry[K, V])
-	if c.ttl > 0 && time.Since(e.stored) >= c.ttl {
+	if c.ttl > 0 && c.now().Sub(e.stored) >= c.ttl {
 		c.remove(el)
 		return value, stored, false
 	}
@@ -47,7 +48,7 @@ func (c *Cache[K, V]) Get(key K) (value V, stored time.Time, ok bool) {
 func (c *Cache[K, V]) Put(key K, value V, cost int64) (stored time.Time) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	stored = time.Now()
+	stored = c.now()
 	if el, found := c.items[key]; found {
 		c.remove(el)
 	}

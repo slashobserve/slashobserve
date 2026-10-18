@@ -23,7 +23,7 @@ dashboards-id-versions-version-panels-panel-id-data:
     summary: Run the saved query of one panel in one dashboard version and return its frames.
     description: >-
       The query is fixed by the saved version, so the request names a panel and never carries query text;
-      the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec`, and any other unknown parameter with 400.
+      the parameters `query`, `expr`, `sql` and `q` are refused with 403 `query_not_in_spec` even when their value is malformed, and any other unknown parameter or a malformed query string with 400.
       Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`,
       and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below.
       A variable that is not given gets its default, and a request for an undeclared variable is a 400.
@@ -119,7 +119,7 @@ dashboards-id-versions-version-variables-name-values:
       A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters
       (not listed below, see the panel data operation); an earlier variable without a selection gets its default,
       and a selection for the listed variable or a later one is a 400.
-      `from` and `to` behave as for panel data.
+      `from` and `to` behave as for panel data, and the range is aligned like the default range of a range panel.
       The same query-text refusal and in-flight limit apply.
     parameters:
       - name: from
@@ -175,7 +175,7 @@ datasources-uid-lint:
     summary: Parse a query for a datasource and return diagnostics, without executing it or returning data.
     description: >-
       Prometheus queries are parsed and checked for metric names that do not exist; ClickHouse queries are checked with `EXPLAIN SYNTAX`.
-      The call times out after 5 seconds and counts against the same in-flight limit as panel data.
+      The call times out after 5 seconds, counts against the same in-flight limit as panel data, and takes one of the server's shared upstream slots, waiting at most 5 seconds for one before answering 429.
     requestBody:
       required: true
       content:

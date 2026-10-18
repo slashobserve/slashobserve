@@ -520,6 +520,7 @@ components:
           description: The query resolution; 0 for an instant panel.
         cached:
           type: boolean
+          description: True when the response was served from the proxy's response cache instead of running the query.
         executed_at:
           type: string
           format: date-time
@@ -548,6 +549,7 @@ components:
           type: boolean
         cached:
           type: boolean
+          description: True when the list was served from the proxy's response cache instead of running the query.
     Diagnostic:
       type: object
       additionalProperties: false

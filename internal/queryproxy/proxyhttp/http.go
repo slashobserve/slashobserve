@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"slices"
 	"strconv"
@@ -49,6 +50,8 @@ type Handler struct {
 	logger   *slog.Logger
 	caches   *caches
 	slots    *slots
+
+	lintTimeout time.Duration
 }
 
 func NewHandler(runner *queryproxy.Runner, specs SpecSource, registry *datasource.Registry, logger *slog.Logger) *Handler {
@@ -62,6 +65,8 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, registry *datasourc
 		logger:   logger,
 		caches:   newCaches(),
 		slots:    &slots{held: map[string]int{}},
+
+		lintTimeout: lintTimeout,
 	}
 }
 
@@ -101,9 +106,8 @@ type lintResponse struct {
 
 func (h *Handler) data(c *gin.Context) {
 	ctx := c.Request.Context()
-	query := c.Request.URL.Query()
-	if hasForbiddenParam(query) {
-		forbidQuery(c)
+	query, ok := h.readQuery(c)
+	if !ok {
 		return
 	}
 	release, ok := h.acquire(c)
@@ -214,9 +218,8 @@ func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
 
 func (h *Handler) values(c *gin.Context) {
 	ctx := c.Request.Context()
-	query := c.Request.URL.Query()
-	if hasForbiddenParam(query) {
-		forbidQuery(c)
+	query, ok := h.readQuery(c)
+	if !ok {
 		return
 	}
 	release, ok := h.acquire(c)
@@ -245,6 +248,7 @@ func (h *Handler) values(c *gin.Context) {
 		return
 	}
 	name := c.Param("name")
+	rng = align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
 	key := valuesKey(id, version, name, rng.From, rng.To, p.selections)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		c.JSON(http.StatusOK, valuesResponse{Values: entry.values, Truncated: entry.truncated, Cached: true})
@@ -259,8 +263,9 @@ func (h *Handler) values(c *gin.Context) {
 		values = []string{}
 	}
 	if i := slices.IndexFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name }); i >= 0 && d.Variables[i].Type == spec.QueryVariable {
-		entry := valuesEntry{values: values, truncated: truncated}
-		h.caches.values.Put(key, entry, entry.cost())
+		if entry := (valuesEntry{values: values, truncated: truncated}); entry.cost() <= valuesMaxEntry {
+			h.caches.values.Put(key, entry, entry.cost())
+		}
 	}
 	c.JSON(http.StatusOK, valuesResponse{Values: values, Truncated: truncated})
 }
@@ -281,7 +286,12 @@ func (h *Handler) lint(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), msg)
 		return
 	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), lintTimeout)
+	releaseUpstream, ok := h.acquireUpstream(c)
+	if !ok {
+		return
+	}
+	defer releaseUpstream()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), h.lintTimeout)
 	defer cancel()
 	diagnostics, err := h.safeLint(ctx, inst, *req.Query)
 	if err != nil {
@@ -296,6 +306,21 @@ func (h *Handler) lint(c *gin.Context) {
 		diagnostics = []datasource.Diagnostic{}
 	}
 	c.JSON(http.StatusOK, lintResponse{Diagnostics: diagnostics})
+}
+
+func (h *Handler) acquireUpstream(c *gin.Context) (release func(), ok bool) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), h.lintTimeout)
+	defer cancel()
+	release, err := h.runner.AcquireUpstream(ctx)
+	switch {
+	case err == nil:
+		return release, true
+	case c.Request.Context().Err() == nil:
+		tooManyRequests(c)
+	default:
+		h.fail(c, c.Request.Context().Err())
+	}
+	return nil, false
 }
 
 func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text string) (diagnostics []datasource.Diagnostic, err error) {
@@ -368,14 +393,31 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	abortError(c, status, code, message)
 }
 
+func (h *Handler) readQuery(c *gin.Context) (url.Values, bool) {
+	query, err := parseQuery(c.Request.URL.RawQuery)
+	switch {
+	case err == nil:
+		return query, true
+	case errors.Is(err, errQueryNotInSpec):
+		forbidQuery(c)
+	default:
+		h.fail(c, err)
+	}
+	return nil, false
+}
+
 func (h *Handler) acquire(c *gin.Context) (release func(), ok bool) {
 	principal, _ := auth.FromContext(c.Request.Context())
 	release, ok = h.slots.acquire(principal.ID)
 	if !ok {
-		c.Header("Retry-After", "1")
-		abortError(c, http.StatusTooManyRequests, "too_many_requests", "too many in-flight query requests")
+		tooManyRequests(c)
 	}
 	return release, ok
+}
+
+func tooManyRequests(c *gin.Context) {
+	c.Header("Retry-After", "1")
+	abortError(c, http.StatusTooManyRequests, "too_many_requests", "too many in-flight query requests")
 }
 
 func forbidQuery(c *gin.Context) {

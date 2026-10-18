@@ -39,6 +39,9 @@ func marshalFrames(frames []datasource.Frame) ([]byte, error) {
 func wireValues(field datasource.Field) ([]any, error) {
 	values := make([]any, len(field.Values))
 	for i, v := range field.Values {
+		if _, isTime := v.(time.Time); field.Type == datasource.FieldTime && v != nil && !isTime {
+			return nil, fmt.Errorf("time field %q holds a %T value", field.Name, v)
+		}
 		switch x := v.(type) {
 		case time.Time:
 			if field.Type != datasource.FieldTime {
@@ -52,9 +55,6 @@ func wireValues(field datasource.Field) ([]any, error) {
 		case nil:
 			values[i] = nil
 		default:
-			if field.Type == datasource.FieldTime {
-				return nil, fmt.Errorf("time field %q holds a %T value", field.Name, v)
-			}
 			values[i] = v
 		}
 	}

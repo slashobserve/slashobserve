@@ -19,6 +19,8 @@ const (
 	resultTTL          = 10 * time.Second
 	resultMaxCost      = 64 << 20
 	resultMaxEntry     = 4 << 20
+	valuesMaxCost      = 8 << 20
+	valuesMaxEntry     = 1 << 20
 	maxResponseBytes   = 32 << 20
 	specCacheEntries   = 256
 	runTimeout         = time.Minute
@@ -61,7 +63,7 @@ func newCaches() *caches {
 		specs:       ttlcache.New[specKey, *spec.Dashboard](0, specCacheEntries),
 		data:        ttlcache.New[cacheKey, dataEntry](resultTTL, resultMaxCost),
 		dataFlights: ttlcache.NewGroup[dataEntry](runTimeout),
-		values:      ttlcache.New[cacheKey, valuesEntry](resultTTL, resultMaxCost),
+		values:      ttlcache.New[cacheKey, valuesEntry](resultTTL, valuesMaxCost),
 	}
 }
 

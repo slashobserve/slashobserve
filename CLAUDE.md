@@ -101,6 +101,9 @@ Directories are created when their phase starts; this is where things go.
   Variable selections are repeated `var-<name>` parameters, `$__all` selects All, custom variables accept only their options, and All expands to the full value list.
   Variable value lists are served by `GET .../variables/{name}/values`, and `POST /api/v1/datasources/{uid}/lint` parses a query without running it.
   The proxy's runner is built with `queryproxy.WithValueCache()`, which caches query-variable value lookups for 10 s and coalesces concurrent identical ones; the runner that validates saves stays uncached, and both share the 32-call semaphore.
+  A malformed query string is a 400, and a forbidden parameter name is a 403 even when its value is malformed.
+  Coalesced calls run on a shared context that is canceled when the last waiting caller leaves, and lint takes the process-wide upstream slot like any other datasource call.
+  The proxy caches stay near 88 MiB: panel data 64 MiB, variable value lists 8 MiB (1 MiB per entry), and the runner's value lookups 16 MiB.
   Never log query text or variable values.
 - Datasources: adapters live in `internal/datasource/{prometheus,clickhouse}` behind `datasource.Datasource`, and `internal/datasource/provision` builds the registry from `config.Datasources`.
   Variable values reach queries only through `internal/datasource/macros`.
