@@ -460,15 +460,22 @@ test("the history link keeps a pinned version and drops it after a restore", asy
   request,
 }) => {
   const { id } = await createHistory(request)
-  await openDashboard(page, id, "?version=2&from=now-1h&panel=rps&tab=query")
+  await openDashboard(page, id, "?version=2&from=now-1h")
 
   await page.getByRole("link", { name: "History" }).click()
+  await page.getByRole("link", { name: "Back to dashboard" }).click()
+  await expect(page).toHaveURL(
+    new RegExp(`/dashboards/${id}\\?from=now-1h&version=2$`)
+  )
+
+  const back = encodeURIComponent("from=now-1h&version=2&panel=rps&tab=query")
+  await openHistory(page, id, `?back=${back}`)
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
     new RegExp(`/dashboards/${id}\\?from=now-1h&version=2&panel=rps&tab=query$`)
   )
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openHistory(page, id, `?back=${back}`)
   await page.getByRole("button", { name: "Restore version 1" }).click()
   await dialog(page)
     .getByRole("button", { name: "Restore", exact: true })
