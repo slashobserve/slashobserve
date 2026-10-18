@@ -37,9 +37,7 @@ async function whoami(token: string) {
 }
 
 function newAccountButton(page: Page) {
-  return page
-    .locator("main > header")
-    .getByRole("button", { name: "New service account" })
+  return page.getByRole("button", { name: "New service account" }).first()
 }
 
 function accountSection(page: Page, name: string) {
@@ -51,7 +49,7 @@ function createKeyButton(page: Page, name: string) {
 }
 
 async function openKeysPage(page: Page) {
-  await page.goto("/settings/keys")
+  await page.goto("/keys")
   await expect(
     page.getByRole("heading", { level: 1, name: "API keys" })
   ).toBeVisible()
@@ -93,11 +91,13 @@ function offlineFailuresLogged(consoleErrors: string[]) {
   }
 }
 
-test("opens API keys from the header", async ({ page }) => {
+test("opens API keys from the sidebar", async ({ page }) => {
   await page.goto("/")
-  const link = page.getByRole("banner").getByRole("link", { name: "API keys" })
+  const link = page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "API keys" })
   await link.click()
-  await expect(page).toHaveURL(/\/settings\/keys$/)
+  await expect(page).toHaveURL(/\/keys$/)
   await expect(
     page.getByRole("heading", { level: 1, name: "API keys" })
   ).toBeVisible()
@@ -550,25 +550,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         )
       expect(await noOverflow()).toBe(true)
 
-      const link = page.getByRole("banner").getByRole("link", {
-        name: "API keys",
-      })
-      await expect(link).toBeVisible()
-      const linkBox = await box(link)
-      expect(linkBox.width).toBeCloseTo(32, 0)
-      expect(linkBox.height).toBeCloseTo(32, 0)
-      const clipped = await page
-        .getByRole("banner")
-        .evaluate(
-          (element) =>
-            [...element.querySelectorAll("*")].filter(
-              (item) =>
-                item instanceof HTMLElement &&
-                item.offsetWidth > 1 &&
-                item.scrollWidth > item.clientWidth
-            ).length
-        )
-      expect(clipped).toBe(0)
+      await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden()
 
       const section = accountSection(page, keyed.name)
       const revoke = section.getByRole("button", { name: /^Revoke key / })

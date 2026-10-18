@@ -343,7 +343,7 @@ The project does not vouch for any particular local model, and dashboard quality
 
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
-1. Sign in to the web app and choose **API keys** in the header, or open `<public url>/settings/keys`.
+1. Sign in to the web app and choose **API keys** in the sidebar, or open `<public url>/keys` (the old `/settings/keys` address redirects).
 2. Choose **New service account**, give it a name (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), then give the first key a name and an expiry.
    The expiry choices are 30 days, 90 days (the default), 1 year or no expiry.
 3. Copy the key.

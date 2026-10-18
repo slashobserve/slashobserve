@@ -23,7 +23,7 @@ func (a *app) loginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Save a service-account key and the server it belongs to",
-		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate a key on the server's API keys page (<server>/settings/keys).",
+		Long:  "login checks a service-account key against the server and saves both to the CLI config file.\nCreate a key on the server's API keys page (<server>/keys).",
 		Args:  noArgs,
 		RunE:  a.runLogin,
 	}

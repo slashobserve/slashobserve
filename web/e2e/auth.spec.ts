@@ -3,8 +3,12 @@ import { expect, test } from "./fixtures"
 
 test("shows the signed-in user", async ({ page }) => {
   await page.goto("/")
-  await expect(page.getByText("admin@example.com")).toBeVisible()
-  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible()
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main" })
+      .getByText("admin@example.com")
+  ).toBeVisible()
+  await expect(page.getByRole("button", { name: /^Account: / })).toBeVisible()
   await expect(
     page.getByRole("heading", { level: 1, name: "Dashboards" })
   ).toBeVisible()
@@ -85,7 +89,8 @@ test.describe("signed out", () => {
   test("signs in through Dex and signs out", async ({ page }) => {
     await signInThroughDex(page)
 
-    await page.getByRole("button", { name: "Sign out" }).click()
+    await page.getByRole("button", { name: /^Account: / }).click()
+    await page.getByRole("menuitem", { name: "Sign out" }).click()
     await expect(page).toHaveURL("/login")
 
     await page.goto("/")
