@@ -1,0 +1,8 @@
+id: slowest-routes-p95
+prompt: top 5 slowest routes by p95
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [http_request_duration_seconds]
+  units: [s, ms]

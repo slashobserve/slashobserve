@@ -1,0 +1,9 @@
+id: payments-5xx-ratio-3h
+prompt: 5xx ratio for payments over the last 3h
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total]
+  units: [percentunit, percent]
+  time_range_from: [now-3h, now-180m]

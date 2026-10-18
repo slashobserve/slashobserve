@@ -1,0 +1,10 @@
+id: request-rate-vs-yesterday
+prompt: compare request rate today vs same time yesterday
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total]
+  units: [reqps, rps, ops, short]
+  query_contains_any:
+    - [offset 1d, offset 24h, offset 1440m]

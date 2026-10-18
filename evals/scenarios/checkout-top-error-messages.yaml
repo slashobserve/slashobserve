@@ -1,0 +1,9 @@
+id: checkout-top-error-messages
+prompt: top 10 log messages for checkout errors
+category: clickhouse
+done_when: true
+expect:
+  datasources: [clickhouse]
+  tables: [otel_logs]
+  query_contains_any:
+    - [limit 10, topk(10)]

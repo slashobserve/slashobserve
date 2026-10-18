@@ -1,0 +1,8 @@
+id: disk-inode-pressure
+prompt: disk usage and inode pressure per node
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [node_filesystem]
+  min_panels: 2

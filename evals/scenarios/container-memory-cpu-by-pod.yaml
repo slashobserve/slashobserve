@@ -1,0 +1,9 @@
+id: container-memory-cpu-by-pod
+prompt: container memory and CPU by pod
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [container_memory, container_cpu]
+  units: [bytes, percentunit, short]
+  min_panels: 2

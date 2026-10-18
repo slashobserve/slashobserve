@@ -1,0 +1,9 @@
+id: node-health-all-hosts
+prompt: node health for all hosts
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [node_]
+  units: [percentunit, percent, bytes, short]
+  min_panels: 2

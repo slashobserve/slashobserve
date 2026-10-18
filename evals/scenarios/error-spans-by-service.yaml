@@ -1,0 +1,7 @@
+id: error-spans-by-service
+prompt: error spans by service
+category: clickhouse
+done_when: false
+expect:
+  datasources: [clickhouse]
+  tables: [otel_traces]

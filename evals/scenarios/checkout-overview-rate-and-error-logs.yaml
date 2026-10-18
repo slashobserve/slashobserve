@@ -1,0 +1,9 @@
+id: checkout-overview-rate-and-error-logs
+prompt: checkout overview with request rate and error logs
+category: mixed
+done_when: false
+expect:
+  datasources: [prometheus, clickhouse]
+  metrics: [http_requests_total]
+  tables: [otel_logs]
+  min_panels: 2

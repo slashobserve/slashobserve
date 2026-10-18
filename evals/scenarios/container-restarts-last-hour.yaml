@@ -1,0 +1,7 @@
+id: container-restarts-last-hour
+prompt: container restarts in the last hour
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [container_start_time_seconds]

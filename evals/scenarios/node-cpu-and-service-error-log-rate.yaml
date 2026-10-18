@@ -1,0 +1,9 @@
+id: node-cpu-and-service-error-log-rate
+prompt: "node CPU with the services' error log rate"
+category: mixed
+done_when: false
+expect:
+  datasources: [prometheus, clickhouse]
+  metrics: [node_cpu_seconds_total]
+  tables: [otel_logs]
+  min_panels: 2

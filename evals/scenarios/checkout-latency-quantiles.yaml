@@ -1,0 +1,14 @@
+id: checkout-latency-quantiles
+prompt: checkout p50, p95 and p99 latency, last 6h
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [http_request_duration_seconds]
+  units: [s, ms]
+  time_range_from: [now-6h, now-360m]
+  query_contains_any:
+    - [histogram_quantile]
+    - ["0.5", "0.50"]
+    - ["0.95", "0.950"]
+    - ["0.99", "0.990"]

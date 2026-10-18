@@ -1,0 +1,7 @@
+id: log-volume-by-severity
+prompt: log volume by severity over time
+category: clickhouse
+done_when: false
+expect:
+  datasources: [clickhouse]
+  tables: [otel_logs]

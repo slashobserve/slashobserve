@@ -1,0 +1,9 @@
+id: network-traffic-per-node
+prompt: network receive and transmit per node
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [node_network_receive_bytes_total, node_network_transmit_bytes_total]
+  units: [Bps, binBps, bps, binbps, KBs, MBs, MiBs]
+  min_panels: 1

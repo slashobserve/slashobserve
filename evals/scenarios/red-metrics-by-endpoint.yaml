@@ -1,0 +1,10 @@
+id: red-metrics-by-endpoint
+prompt: demo shop RED metrics by endpoint
+category: prometheus
+done_when: true
+tags: [replay-smoke]
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total, http_request_duration_seconds]
+  units: [reqps, rps, ops, short, s, ms]
+  min_panels: 2

@@ -1,0 +1,9 @@
+id: service-health-rate-and-log-errors
+prompt: service health with request rate per service and log errors per service
+category: mixed
+done_when: false
+expect:
+  datasources: [prometheus, clickhouse]
+  metrics: [http_requests_total]
+  tables: [otel_logs]
+  min_panels: 2

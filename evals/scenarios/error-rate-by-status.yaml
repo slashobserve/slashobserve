@@ -1,0 +1,12 @@
+id: error-rate-by-status
+prompt: error rate by status code with a 1% threshold
+category: prometheus
+done_when: true
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total]
+  units: [percentunit, percent]
+  thresholds: true
+  threshold_at:
+    percentunit: 0.01
+    percent: 1

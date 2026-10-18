@@ -1,0 +1,9 @@
+id: slowest-checkout-traces-30m
+prompt: slowest traces for checkout in the last 30 minutes
+category: clickhouse
+done_when: false
+expect:
+  datasources: [clickhouse]
+  tables: [otel_traces]
+  units: [ns, µs, ms, s]
+  time_range_from: [now-30m]

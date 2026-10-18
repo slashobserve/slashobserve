@@ -1,0 +1,8 @@
+id: p95-span-duration-by-name
+prompt: p95 span duration by span name
+category: clickhouse
+done_when: false
+expect:
+  datasources: [clickhouse]
+  tables: [otel_traces]
+  units: [ns, µs, ms, s]

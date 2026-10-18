@@ -1,0 +1,9 @@
+id: payments-latency-and-error-spans
+prompt: payments latency and error spans
+category: mixed
+done_when: false
+expect:
+  datasources: [prometheus, clickhouse]
+  metrics: [http_request_duration_seconds]
+  tables: [otel_traces]
+  min_panels: 2

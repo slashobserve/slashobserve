@@ -1,0 +1,7 @@
+id: checkout-warning-error-logs
+prompt: warning and error logs for checkout as a table
+category: clickhouse
+done_when: false
+expect:
+  datasources: [clickhouse]
+  tables: [otel_logs]

@@ -1,0 +1,7 @@
+id: error-log-count-by-service
+prompt: error log count by service
+category: clickhouse
+done_when: true
+expect:
+  datasources: [clickhouse]
+  tables: [otel_logs]

@@ -1,0 +1,8 @@
+id: checkout-request-rate-by-route
+prompt: checkout request rate by route
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [http_requests_total]
+  units: [reqps, rps, ops, short]

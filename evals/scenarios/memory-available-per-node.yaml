@@ -1,0 +1,8 @@
+id: memory-available-per-node
+prompt: memory available per node
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [node_memory_MemAvailable_bytes]
+  units: [bytes, decbytes, kbytes, mbytes, gbytes, percentunit, percent]

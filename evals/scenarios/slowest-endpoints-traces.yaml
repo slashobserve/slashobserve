@@ -1,0 +1,9 @@
+id: slowest-endpoints-traces
+prompt: slowest endpoints from traces, last hour
+category: clickhouse
+done_when: true
+expect:
+  datasources: [clickhouse]
+  tables: [otel_traces]
+  units: [ns, µs, ms, s]
+  time_range_from: [now-1h, now-60m]

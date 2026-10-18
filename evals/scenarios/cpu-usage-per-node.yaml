@@ -1,0 +1,8 @@
+id: cpu-usage-per-node
+prompt: CPU usage per node
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [node_cpu_seconds_total]
+  units: [percentunit, percent]

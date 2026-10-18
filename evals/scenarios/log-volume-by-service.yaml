@@ -1,0 +1,8 @@
+id: log-volume-by-service
+prompt: log volume by service
+category: clickhouse
+done_when: false
+tags: [replay-smoke]
+expect:
+  datasources: [clickhouse]
+  tables: [otel_logs]

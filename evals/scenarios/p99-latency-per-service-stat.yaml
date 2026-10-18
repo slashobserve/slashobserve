@@ -1,0 +1,8 @@
+id: p99-latency-per-service-stat
+prompt: p99 latency per service as a stat
+category: prometheus
+done_when: false
+expect:
+  datasources: [prometheus]
+  metrics: [http_request_duration_seconds]
+  units: [s, ms]
