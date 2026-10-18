@@ -1,6 +1,6 @@
 import type { WireFrame } from "@/dashboards/queries"
 
-import { seriesLabel } from "../frames"
+import { seriesKey, seriesLabel, uniqueKey } from "../frames"
 
 export type AlignedSeries = {
   key: string
@@ -9,14 +9,6 @@ export type AlignedSeries = {
 }
 
 export type AlignedFrames = { xs: number[]; series: AlignedSeries[] }
-
-function seriesKey(frame: WireFrame, fieldName: string): string {
-  const labels = Object.entries(frame.labels ?? {})
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([key, value]) => `${key}=${value}`)
-    .join(",")
-  return `${frame.name ?? ""}{${labels}}#${fieldName}`
-}
 
 function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
@@ -45,11 +37,8 @@ export function alignFrames(
     }
     const numbers = frame.fields.filter((field) => field.type === "number")
     for (const field of numbers) {
-      const base = seriesKey(frame, field.name)
-      const count = seen.get(base) ?? 0
-      seen.set(base, count + 1)
       pending.push({
-        key: count === 0 ? base : `${base}#${count}`,
+        key: uniqueKey(seen, seriesKey(frame, field.name)),
         label: seriesLabel(frame, field, legend, numbers.length),
         times: time.values,
         values: field.values,

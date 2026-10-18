@@ -2,7 +2,7 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { lastNumber, seriesLabel } from "./frames"
+import { firstNumberSeries } from "./frames"
 import { thresholdFor, thresholdIcons } from "./thresholds"
 import type { PanelRenderer } from "./types"
 
@@ -10,17 +10,7 @@ const charWidth = 0.62
 
 export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
   const tiles = useMemo(
-    () =>
-      frames.flatMap((frame) => {
-        const numbers = frame.fields.filter((field) => field.type === "number")
-        if (numbers.length === 0) return []
-        return [
-          {
-            label: seriesLabel(frame, numbers[0], panel.legend, numbers.length),
-            value: lastNumber(numbers[0]),
-          },
-        ]
-      }),
+    () => firstNumberSeries(frames, panel.legend),
     [frames, panel.legend]
   )
 
@@ -40,19 +30,19 @@ export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
         gridAutoRows: "minmax(72px, 1fr)",
       }}
     >
-      {tiles.map((tile, index) => {
+      {tiles.map((tile) => {
         const formatted = formatValue(tile.value, panel.unit, decimals)
         const state = thresholdFor(
           tile.value,
           panel.thresholds,
           panel.unit,
-          panel.decimals
+          decimals
         )
         const Icon = state.level === "base" ? null : thresholdIcons[state.level]
         const name = tiles.length > 1 && tile.label ? tile.label : panel.title
         return (
           <div
-            key={`${tile.label}:${index}`}
+            key={tile.key}
             role="group"
             aria-label={`${name}: ${formatted}${state.level !== "base" ? `, ${state.label}` : ""}`}
             data-threshold={state.level}

@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import { formatValue } from "@/lib/units"
+import { formatValue, ownDecimals } from "@/lib/units"
 import type { Threshold, Unit } from "@/spec"
 
 export type ThresholdLevel =
@@ -48,6 +48,17 @@ export function thresholdColor(color: string): string {
   return isSemantic(color) ? `var(--threshold-${color})` : color
 }
 
+function labelDecimals(
+  value: number,
+  unit?: Unit,
+  decimals?: number
+): number | undefined {
+  const own = ownDecimals(value, unit)
+  if (own === undefined) return decimals
+  if (decimals === undefined) return own
+  return Math.max(decimals, own)
+}
+
 function stateOf(
   threshold: Threshold,
   unit?: Unit,
@@ -64,7 +75,7 @@ function stateOf(
   return {
     level: "custom",
     color: threshold.color,
-    label: `Above ${formatValue(threshold.value, unit, decimals)}`,
+    label: `At or above ${formatValue(threshold.value, unit, labelDecimals(threshold.value, unit, decimals))}`,
     threshold,
   }
 }

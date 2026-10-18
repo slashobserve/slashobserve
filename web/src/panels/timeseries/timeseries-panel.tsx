@@ -5,7 +5,12 @@ import "uplot/dist/uPlot.min.css"
 import type { PanelDataMeta } from "@/dashboards/queries"
 import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
-import { commonDecimals, formatAxisValue, formatValue } from "@/lib/units"
+import {
+  axisDecimals,
+  commonDecimals,
+  formatAxisValue,
+  formatValue,
+} from "@/lib/units"
 import type { Panel } from "@/spec"
 
 import {
@@ -14,7 +19,6 @@ import {
   resolveColor,
   styleForSlot,
   type SeriesStyle,
-  type SlotMap,
 } from "../colors"
 import { TablePanel } from "../table-panel"
 import { thresholdColor } from "../thresholds"
@@ -22,6 +26,8 @@ import type { PanelRenderer, PanelRendererProps } from "../types"
 import { alignFrames, type AlignedFrames } from "./align"
 import { Legend } from "./legend"
 import { thresholdsPlugin, tooltipPlugin } from "./plugins"
+import { isolatedPoints } from "./points"
+import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
 import "./timeseries.css"
 
 const legendShare = 0.4
@@ -42,6 +48,7 @@ type Latest = {
 type PlotConfig = {
   panel: Pick<Panel, "unit" | "decimals" | "min" | "max" | "thresholds">
   syncKey: string
+  host: HTMLElement
   latest: { current: Latest }
 }
 
@@ -55,7 +62,7 @@ function autoRange(min: number | null, max: number | null): [number, number] {
     if (max <= 0) return [0, 1]
     return [0, max + max * 0.05]
   }
-  const pad = (max - min) * 0.05
+  const pad = max === min ? Math.abs(min) * 0.05 : (max - min) * 0.05
   return [min - pad, max + pad]
 }
 
@@ -94,7 +101,7 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
   })
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { panel, syncKey, latest } = config
+  const { panel, syncKey, host, latest } = config
   const { aligned, styles, hidden, width, chartHeight } = latest.current
   const colors = readChartColors()
   const font = `${axisFontSize}px ${colors.font}`
@@ -102,6 +109,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
 
   const plugins: uPlot.Plugin[] = [
     tooltipPlugin(
+      host,
       () =>
         aligned.series.map((series, index) => ({
           label: series.label,
@@ -161,7 +169,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         grid: { stroke: colors.grid, width: 1 },
         ticks: { show: false },
         values: (_u, splits) => {
-          const decimals = commonDecimals(splits, panel.unit, panel.decimals)
+          const decimals = axisDecimals(splits, panel.unit, panel.decimals)
           return splits.map((value) =>
             formatAxisValue(value, panel.unit, decimals)
           )
@@ -178,23 +186,21 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     ],
     series: [
       {},
-      ...aligned.series.map((series, index) => {
-        const points = series.values.filter((value) => value !== null).length
-        return {
-          label: series.label,
-          show: !hidden.has(series.key),
+      ...aligned.series.map((series, index) => ({
+        label: series.label,
+        show: !hidden.has(series.key),
+        stroke: lineColors[index],
+        dash: styles[index].dash,
+        width: 2,
+        spanGaps: false,
+        points: {
+          show: false,
+          filter: isolatedPoints,
+          size: 8,
+          fill: lineColors[index],
           stroke: lineColors[index],
-          dash: styles[index].dash,
-          width: 2,
-          spanGaps: false,
-          points: {
-            show: points === 1,
-            size: 8,
-            fill: lineColors[index],
-            stroke: lineColors[index],
-          },
-        }
-      }),
+        },
+      })),
     ],
     cursor: {
       sync: {
@@ -236,20 +242,33 @@ function TimeseriesChart({
   aligned,
 }: PanelRendererProps & { aligned: AlignedFrames }) {
   const { resolved: theme } = useTheme()
+  const hostRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
   const appliedRef = useRef<AlignedFrames | null>(null)
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set())
   const [legendHeight, setLegendHeight] = useState(0)
-  const [slots, setSlots] = useState<SlotMap>(new Map())
 
-  const keys = aligned.series.map((series) => series.key)
-  const nextSlots = assignSlots(slots, keys)
-  if (nextSlots !== slots) setSlots(nextSlots)
-  const styles = keys.map((key) => styleForSlot(nextSlots.get(key) ?? 0))
+  const stateKey = `${syncKey}:${panel.id}`
+  const stored = useSeriesStore((store) => store.panels[stateKey])
+  const commitKeys = useSeriesStore((store) => store.commit)
+  const toggleKey = useSeriesStore((store) => store.toggle)
+  const { slots, hidden: storedHidden } = stored ?? emptySeriesState
+
+  const keys = useMemo(
+    () => aligned.series.map((series) => series.key),
+    [aligned.series]
+  )
+  const styles = useMemo(() => {
+    const assigned = assignSlots(slots, keys)
+    return keys.map((key) => styleForSlot(assigned.get(key) ?? 0))
+  }, [slots, keys])
 
   const showLegend = aligned.series.length > 1
+  const hidden = useMemo(
+    () => visibleSeries(storedHidden, keys, showLegend),
+    [storedHidden, keys, showLegend]
+  )
   const chartHeight = Math.max(0, height - (showLegend ? legendHeight : 0))
   const ready = width > 0 && chartHeight > 0
   const signature = aligned.series
@@ -279,6 +298,10 @@ function TimeseriesChart({
   })
 
   useLayoutEffect(() => {
+    commitKeys(stateKey, keys)
+  }, [commitKeys, stateKey, keys])
+
+  useLayoutEffect(() => {
     const element = legendRef.current
     if (!element) return
     const observer = new ResizeObserver(() =>
@@ -290,7 +313,8 @@ function TimeseriesChart({
 
   useLayoutEffect(() => {
     const container = containerRef.current
-    if (!container || !ready) return
+    const host = hostRef.current
+    if (!container || !host || !ready) return
     const plot = createPlot(container, {
       panel: {
         unit: panel.unit,
@@ -300,6 +324,7 @@ function TimeseriesChart({
         thresholds: panel.thresholds,
       },
       syncKey,
+      host,
       latest,
     })
     plotRef.current = plot
@@ -348,16 +373,17 @@ function TimeseriesChart({
     })
   }, [hidden, aligned])
 
-  const toggle = useCallback((key: string) => {
-    setHidden((current) => {
-      const next = new Set(current)
-      if (!next.delete(key)) next.add(key)
-      return next
-    })
-  }, [])
+  const toggle = useCallback(
+    (key: string) => toggleKey(stateKey, key),
+    [toggleKey, stateKey]
+  )
 
   return (
-    <div className="flex flex-col" style={{ width, height }}>
+    <div
+      ref={hostRef}
+      className="relative flex flex-col"
+      style={{ width, height }}
+    >
       <div
         ref={containerRef}
         role="img"
@@ -374,7 +400,7 @@ function TimeseriesChart({
             style: styles[index],
           }))}
           hidden={hidden}
-          maxHeight={Math.floor(height * legendShare)}
+          available={height * legendShare}
           onToggle={toggle}
         />
       ) : null}

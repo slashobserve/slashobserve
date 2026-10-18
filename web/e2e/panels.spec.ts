@@ -1,4 +1,4 @@
-import type { APIRequestContext, Locator } from "@playwright/test"
+import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createDashboard, loadSpec, uniqueTitle } from "./api"
 import {
@@ -26,6 +26,45 @@ function swatchColor(article: Locator, name: string) {
   return legendButton(article, name)
     .locator('[data-slot="legend-swatch"]')
     .evaluate((element) => getComputedStyle(element).color)
+}
+
+async function choosePod(page: Page, option: string, selected: string) {
+  await page.getByRole("combobox", { name: "Pod" }).click()
+  const response = panelDataResponse(
+    page,
+    "rps",
+    (url) => url.searchParams.getAll("var-pod").join(",") === selected
+  )
+  await page.getByRole("option", { name: option, exact: true }).click()
+  await response
+  await page.keyboard.press("Escape")
+}
+
+function seriesPixels(canvas: Locator, token: string) {
+  return canvas.evaluate((element, name) => {
+    const swatch = document.createElement("canvas").getContext("2d")!
+    swatch.fillStyle = getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      .trim()
+    swatch.fillRect(0, 0, 1, 1)
+    const [red, green, blue] = swatch.getImageData(0, 0, 1, 1).data
+    const source = element as HTMLCanvasElement
+    const { data } = source
+      .getContext("2d")!
+      .getImageData(0, 0, source.width, source.height)
+    let count = 0
+    for (let offset = 0; offset < data.length; offset += 4) {
+      if (
+        data[offset + 3] === 255 &&
+        Math.abs(data[offset] - red) < 24 &&
+        Math.abs(data[offset + 1] - green) < 24 &&
+        Math.abs(data[offset + 2] - blue) < 24
+      ) {
+        count++
+      }
+    }
+    return count
+  }, token)
 }
 
 test("draws every panel type with data", async ({ page, request }) => {
@@ -71,6 +110,50 @@ test("shows a crosshair tooltip and toggles series", async ({
   await expect(button).toHaveAttribute("aria-pressed", "false")
   await button.click()
   await expect(button).toHaveAttribute("aria-pressed", "true")
+})
+
+test("keeps the tooltip inside a short panel with many series", async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E many series")
+  spec.variables = []
+  spec.panels = [
+    {
+      id: "many",
+      type: "timeseries",
+      title: "Requests by service, route and pod",
+      gridPos: { x: 0, y: 0, w: 12, h: 4 },
+      datasource: { type: "prometheus", uid: "prom" },
+      query:
+        "sum by (service, route, pod) (rate(http_requests_total[$__rate_interval]))",
+      legend: "{{service}} {{route}} {{pod}}",
+      unit: "reqps",
+    },
+  ]
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const many = panel(page, "Requests by service, route and pod")
+  await many.locator(".u-over").hover()
+  const tooltip = many.locator('[data-slot="chart-tooltip"]')
+  await expect(tooltip).toBeVisible()
+  const more = tooltip.locator(".ts-tooltip-more")
+  await expect(more).toHaveText(/^[1-9]\d* more$/)
+  const hidden = Number((await more.textContent())!.split(" ")[0])
+  expect(await tooltip.locator(".ts-tooltip-row").count()).toBe(9 - hidden)
+
+  const article = await many.boundingBox()
+  const box = await tooltip.boundingBox()
+  expect(article).not.toBeNull()
+  expect(box).not.toBeNull()
+  expect(box!.y).toBeGreaterThanOrEqual(article!.y)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(article!.y + article!.height)
+  expect(box!.x).toBeGreaterThanOrEqual(article!.x)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(article!.x + article!.width)
 })
 
 test("zooms by dragging", async ({ page, request }) => {
@@ -150,29 +233,83 @@ test("keeps series colors when a variable filters series", async ({
   const first = await swatchColor(rps, "checkout-1")
   expect(first).not.toBe(await swatchColor(rps, "checkout-0"))
 
-  await page.getByRole("combobox", { name: "Pod" }).click()
-  const filtered = panelDataResponse(
-    page,
-    "rps",
-    (url) => url.searchParams.getAll("var-pod").join(",") === "checkout-1"
-  )
-  await page.getByRole("option", { name: "checkout-1" }).click()
-  await filtered
-  await page.keyboard.press("Escape")
+  await choosePod(page, "checkout-1", "checkout-1")
   await expect(rps.getByRole("group", { name: "Series" })).toHaveCount(0)
   await expect(rps.locator("canvas")).toHaveCount(1)
 
-  await page.getByRole("combobox", { name: "Pod" }).click()
-  const all = panelDataResponse(
-    page,
-    "rps",
-    (url) => url.searchParams.getAll("var-pod").join(",") === "$__all"
-  )
-  await page.getByRole("option", { name: "All", exact: true }).click()
-  await all
-  await page.keyboard.press("Escape")
+  await choosePod(page, "All", "$__all")
 
   await expect(legendButton(rps, "checkout-0")).toBeVisible()
   expect(await swatchColor(rps, "checkout-1")).toBe(first)
   expect(await swatchColor(rps, "checkout-0")).not.toBe(first)
+})
+
+test("keeps a hidden series hidden across the table view", async ({
+  page,
+  request,
+}) => {
+  const id = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const rps = panel(page, rpsTitle)
+  const button = legendButton(rps, "checkout-1")
+  const color = await swatchColor(rps, "checkout-1")
+  await button.click()
+  await expect(button).toHaveAttribute("aria-pressed", "false")
+
+  const menu = rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
+  await menu.click()
+  await page.getByRole("menuitem", { name: "Show table view" }).click()
+  await expect(rps.locator("canvas")).toHaveCount(0)
+  await menu.click()
+  await page.getByRole("menuitem", { name: "Show chart" }).click()
+
+  await expect(rps.locator("canvas")).toHaveCount(1)
+  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+    "aria-pressed",
+    "false"
+  )
+  expect(await swatchColor(rps, "checkout-1")).toBe(color)
+})
+
+test("draws the only remaining series even if it was hidden", async ({
+  page,
+  request,
+}) => {
+  const id = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const rps = panel(page, rpsTitle)
+  await legendButton(rps, "checkout-1").click()
+  await choosePod(page, "checkout-1", "checkout-1")
+  await expect(rps.getByRole("group", { name: "Series" })).toHaveCount(0)
+
+  await expect
+    .poll(() => seriesPixels(rps.locator("canvas"), "--series-2"))
+    .toBeGreaterThan(50)
+})
+
+test("shows a series again after it left and came back", async ({
+  page,
+  request,
+}) => {
+  const id = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const rps = panel(page, rpsTitle)
+  await legendButton(rps, "checkout-1").click()
+  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+    "aria-pressed",
+    "false"
+  )
+  await choosePod(page, "checkout-0", "checkout-0")
+  await choosePod(page, "All", "$__all")
+
+  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  )
 })

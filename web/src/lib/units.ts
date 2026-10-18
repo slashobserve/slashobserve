@@ -380,6 +380,8 @@ export function formatValue(
   return placed.wrap(formatNumber(placed.amount, decimals))
 }
 
+const significantFigures = 4
+
 export function commonDecimals(
   values: readonly (number | null | undefined)[],
   unit?: Unit,
@@ -389,14 +391,60 @@ export function commonDecimals(
   const rule = rules[unit ?? "none"]
   if (rule.kind === "custom") return undefined
   let widest: number | undefined
+  let largest = 0
   for (const value of values) {
     if (typeof value !== "number" || !Number.isFinite(value)) continue
-    const text = formatNumber(place(value, rule).amount)
+    const amount = place(value, rule).amount
+    const text = formatNumber(amount)
     const dot = text.indexOf(".")
     const digits = dot < 0 ? 0 : text.length - dot - 1
     widest = Math.max(widest ?? 0, digits)
+    largest = Math.max(largest, Math.abs(amount))
   }
-  return widest
+  if (widest === undefined || largest === 0) return widest
+  return Math.min(
+    widest,
+    Math.max(0, significantFigures - 1 - Math.floor(Math.log10(largest)))
+  )
+}
+
+const maxOwnDecimals = 8
+const noiseDigits = 12
+
+export function ownDecimals(value: number, unit?: Unit): number | undefined {
+  const rule = rules[unit ?? "none"]
+  if (rule.kind === "custom" || !Number.isFinite(value)) return undefined
+  const amount = place(value, rule).amount
+  if (!Number.isFinite(amount)) return undefined
+  const clean = Number(amount.toPrecision(noiseDigits))
+  for (let digits = 0; digits < maxOwnDecimals; digits++) {
+    if (Number(clean.toFixed(digits)) === clean) return digits
+  }
+  return maxOwnDecimals
+}
+
+const maxAxisDecimals = 8
+
+export function axisDecimals(
+  splits: readonly (number | null | undefined)[],
+  unit?: Unit,
+  decimals?: number
+): number | undefined {
+  const base = commonDecimals(splits, unit, decimals)
+  if (decimals !== undefined || base === undefined) return base
+  const finite = splits.filter(
+    (split): split is number =>
+      typeof split === "number" && Number.isFinite(split)
+  )
+  for (let digits = base; digits < maxAxisDecimals; digits++) {
+    const labels = finite.map((split) => formatValue(split, unit, digits))
+    if (
+      labels.every((label, index) => index === 0 || label !== labels[index - 1])
+    ) {
+      return digits
+    }
+  }
+  return maxAxisDecimals
 }
 
 export const formatAxisValue = formatValue

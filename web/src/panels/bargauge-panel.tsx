@@ -2,7 +2,7 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { lastNumber, seriesLabel } from "./frames"
+import { firstNumberSeries } from "./frames"
 import { thresholdFor, thresholdIcons } from "./thresholds"
 import type { PanelRenderer } from "./types"
 
@@ -12,24 +12,16 @@ export const BargaugePanel: PanelRenderer = ({
   width,
   height,
 }) => {
-  const rows = useMemo(() => {
-    const items = frames.flatMap((frame) => {
-      const numbers = frame.fields.filter((field) => field.type === "number")
-      if (numbers.length === 0) return []
-      return [
-        {
-          label: seriesLabel(frame, numbers[0], panel.legend, numbers.length),
-          value: lastNumber(numbers[0]),
-        },
-      ]
-    })
-    return items.sort((a, b) => {
-      if (a.value === null || b.value === null) {
-        return a.value === b.value ? 0 : a.value === null ? 1 : -1
-      }
-      return b.value - a.value
-    })
-  }, [frames, panel.legend])
+  const rows = useMemo(
+    () =>
+      firstNumberSeries(frames, panel.legend).sort((a, b) => {
+        if (a.value === null || b.value === null) {
+          return a.value === b.value ? 0 : a.value === null ? 1 : -1
+        }
+        return b.value - a.value
+      }),
+    [frames, panel.legend]
+  )
 
   const min = panel.min ?? 0
   let max = panel.max ?? Math.max(...rows.map((row) => row.value ?? min))
@@ -45,7 +37,7 @@ export const BargaugePanel: PanelRenderer = ({
   )
   const valueWidth = Math.max(...formatted.map((text) => text.length), 1)
   const states = rows.map((row) =>
-    thresholdFor(row.value, panel.thresholds, panel.unit, panel.decimals)
+    thresholdFor(row.value, panel.thresholds, panel.unit, decimals)
   )
   const stateWidth = Math.max(...states.map((state) => state.label.length), 0)
   const labelWidth = Math.max(...rows.map((row) => row.label.length), 1)
@@ -74,7 +66,7 @@ export const BargaugePanel: PanelRenderer = ({
         const text = formatted[index]
         return (
           <div
-            key={`${row.label}:${index}`}
+            key={row.key}
             role="meter"
             aria-label={row.label}
             aria-valuenow={row.value ?? undefined}

@@ -11,7 +11,6 @@ function cssVar(name: string): string {
 export function readChartColors() {
   return {
     grid: cssVar("--chart-grid"),
-    axis: cssVar("--chart-axis"),
     muted: cssVar("--muted-foreground"),
     font: getComputedStyle(document.documentElement).fontFamily,
   }

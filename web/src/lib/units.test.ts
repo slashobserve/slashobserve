@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { commonDecimals, formatAxisValue, formatValue as f } from "./units"
+import {
+  axisDecimals,
+  commonDecimals,
+  formatAxisValue,
+  formatValue as f,
+} from "./units"
 
 describe("formatValue", () => {
   it("formats the reference examples", () => {
@@ -112,6 +117,39 @@ describe("formatValue", () => {
   })
 })
 
+describe("axisDecimals", () => {
+  const labels = (splits: number[], unit?: Parameters<typeof f>[1]) =>
+    splits.map((split) => f(split, unit, axisDecimals(splits, unit)))
+
+  it("keeps neighbouring splits distinguishable at large magnitude", () => {
+    const gb = [15.425, 15.43, 15.435].map((value) => value * 1e9)
+    expect(labels(gb, "decbytes")).toEqual([
+      "15.425 GB",
+      "15.430 GB",
+      "15.435 GB",
+    ])
+    expect(labels([1000, 1000.2, 1000.4, 1000.6])).toEqual([
+      "1,000.0",
+      "1,000.2",
+      "1,000.4",
+      "1,000.6",
+    ])
+  })
+
+  it("does not widen splits that are already distinct", () => {
+    expect(labels([0, 500, 1000, 1500])).toEqual(["0", "500", "1,000", "1,500"])
+    expect(labels([0, 0.5, 1], "reqps")).toEqual([
+      "0.0 req/s",
+      "0.5 req/s",
+      "1.0 req/s",
+    ])
+  })
+
+  it("keeps explicit decimals", () => {
+    expect(axisDecimals([1000, 1000.2], undefined, 0)).toBe(0)
+  })
+})
+
 describe("commonDecimals", () => {
   const column = (values: (number | null)[], unit?: Parameters<typeof f>[1]) =>
     values.map((value) => f(value, unit, commonDecimals(values, unit)))
@@ -141,6 +179,15 @@ describe("commonDecimals", () => {
     ])
     expect(commonDecimals([null, Number.NaN])).toBeUndefined()
     expect(commonDecimals([])).toBeUndefined()
+  })
+
+  it("rounds small values next to large ones to about four significant figures of the largest", () => {
+    expect(column([0.0017, 1234])).toEqual(["0", "1,234"])
+    expect(column([0.0017, 12.5])).toEqual(["0.00", "12.50"])
+    expect(column([0.0017, 0.5])).toEqual(["0.0017", "0.5000"])
+    expect(column([0.002, 3], "reqps")).toEqual(["0.002 req/s", "3.000 req/s"])
+    expect(column([0, 0])).toEqual(["0", "0"])
+    expect(column([0.0017, 1234], "percentunit")).toEqual(["0%", "123,400%"])
   })
 
   it("keeps explicit decimals and leaves non-numeric units alone", () => {

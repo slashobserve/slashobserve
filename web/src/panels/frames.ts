@@ -40,6 +40,20 @@ export function seriesLabel(
   return numberFieldCount > 1 ? `${label} ${field.name}` : label
 }
 
+export function seriesKey(frame: WireFrame, fieldName: string): string {
+  const labels = Object.entries(frame.labels ?? {})
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => `${key}=${value}`)
+    .join(",")
+  return `${frame.name ?? ""}{${labels}}#${fieldName}`
+}
+
+export function uniqueKey(seen: Map<string, number>, base: string): string {
+  const count = seen.get(base) ?? 0
+  seen.set(base, count + 1)
+  return count === 0 ? base : `${base}#${count}`
+}
+
 export function lastNumber(field: WireField): number | null {
   for (let i = field.values.length - 1; i >= 0; i--) {
     const value = field.values[i]
@@ -55,6 +69,30 @@ function lastValue(field: WireField): unknown {
     if (value !== null && value !== undefined) return value
   }
   return null
+}
+
+export type NumberSeries = {
+  key: string
+  label: string
+  value: number | null
+}
+
+export function firstNumberSeries(
+  frames: WireFrame[],
+  legend?: string
+): NumberSeries[] {
+  const seen = new Map<string, number>()
+  return frames.flatMap((frame) => {
+    const numbers = frame.fields.filter((field) => field.type === "number")
+    if (numbers.length === 0) return []
+    return [
+      {
+        key: uniqueKey(seen, seriesKey(frame, numbers[0].name)),
+        label: seriesLabel(frame, numbers[0], legend, numbers.length),
+        value: lastNumber(numbers[0]),
+      },
+    ]
+  })
 }
 
 export function hasData(frames: WireFrame[]): boolean {

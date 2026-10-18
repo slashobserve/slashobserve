@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 
-import { hasData, lastNumber, seriesLabel, toTable } from "./frames"
+import {
+  firstNumberSeries,
+  hasData,
+  lastNumber,
+  seriesLabel,
+  toTable,
+} from "./frames"
 
 const time: WireFrame["fields"][number] = {
   name: "time",
@@ -112,6 +118,43 @@ describe("toTable", () => {
     expect(table.rows).toEqual([
       { "label:pod": "a", "label:zone": null, "field:value": 2 },
       { "label:pod": "b", "label:zone": "x", "field:value": 7 },
+    ])
+  })
+})
+
+describe("firstNumberSeries", () => {
+  const value = (values: number[]) =>
+    ({ name: "value", type: "number", values }) as const
+
+  it("keys each series by frame identity, not by position", () => {
+    const a = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
+    const b = frame({ labels: { pod: "b" }, fields: [time, value([2])] })
+    const keys = (frames: WireFrame[]) =>
+      firstNumberSeries(frames, "{{pod}}").map((s) => [s.label, s.key])
+    expect(keys([a, b])).toEqual([
+      ["a", "{pod=a}#value"],
+      ["b", "{pod=b}#value"],
+    ])
+    expect(keys([b, a])).toEqual([
+      ["b", "{pod=b}#value"],
+      ["a", "{pod=a}#value"],
+    ])
+  })
+
+  it("numbers keys only for identical frames", () => {
+    const same = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
+    expect(
+      firstNumberSeries([same, same, same]).map((series) => series.key)
+    ).toEqual(["{pod=a}#value", "{pod=a}#value#1", "{pod=a}#value#2"])
+  })
+
+  it("reads the last number of the first number field and skips frames without one", () => {
+    const text = frame({
+      fields: [time, { name: "msg", type: "string", values: ["x"] }],
+    })
+    const f = frame({ fields: [time, value([1, 2, 3])] })
+    expect(firstNumberSeries([text, f]).map((series) => series.value)).toEqual([
+      3,
     ])
   })
 })
