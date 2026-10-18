@@ -1,7 +1,7 @@
 BEGIN {
     step = 30
     start = now - 26 * 3600
-    stop = now - 300
+    stop = now
 
     n = 0
     series[++n] = "frontend-0|frontend|/api/products|200|10.0"
