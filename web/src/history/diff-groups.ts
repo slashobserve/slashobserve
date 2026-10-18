@@ -36,6 +36,25 @@ function pointerTokens(path: string): string[] {
   return path.split("/").slice(1).map(unescapePointer)
 }
 
+function innermostPanel(
+  tokens: string[]
+): { id: string; rest: string[] } | undefined {
+  let i = 0
+  let id: string | undefined
+  while (tokens[i] === "panels" && tokens[i + 1] !== undefined) {
+    id = tokens[i + 1]
+    i += 2
+  }
+  return id === undefined ? undefined : { id, rest: tokens.slice(i) }
+}
+
+function panelField(op: DiffChange["op"], rest: string[]): string {
+  if (op === "reorder" && rest.length === 1 && rest[0] === "panels") {
+    return "panel order"
+  }
+  return rest.join(".")
+}
+
 export function groupChanges(
   changes: DiffChange[],
   titles: TitleMaps
@@ -54,6 +73,7 @@ export function groupChanges(
     const payload = { from: change.from, to: change.to }
     const tokens = pointerTokens(path)
     const [head, name, ...rest] = tokens
+    const panel = innermostPanel(tokens)
 
     if (path === "") {
       dashboard.changes.push({ op, field: "whole dashboard", ...payload })
@@ -65,20 +85,26 @@ export function groupChanges(
       head === "variables"
     ) {
       dashboard.changes.push({ op, field: "variable order", ...payload })
-    } else if (head === "panels" && name !== undefined) {
-      let group = panels.get(name)
+    } else if (panel !== undefined) {
+      let group = panels.get(panel.id)
       if (!group) {
         const title =
-          ownTitle(titles.to, name) ?? ownTitle(titles.from, name) ?? name
+          ownTitle(titles.to, panel.id) ??
+          ownTitle(titles.from, panel.id) ??
+          panel.id
         group = {
-          key: `panel:${name}`,
+          key: `panel:${panel.id}`,
           kind: "panel",
           label: `Panel "${title}"`,
           changes: [],
         }
-        panels.set(name, group)
+        panels.set(panel.id, group)
       }
-      group.changes.push({ op, field: rest.join("."), ...payload })
+      group.changes.push({
+        op,
+        field: panelField(op, panel.rest),
+        ...payload,
+      })
     } else if (head === "variables" && name !== undefined) {
       let group = variables.get(name)
       if (!group) {

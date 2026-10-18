@@ -1,6 +1,12 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
-import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
+import {
+  addVersion,
+  createDashboard,
+  loadSpec,
+  uniqueTitle,
+  type Spec,
+} from "./api"
 import { openDashboard } from "./dashboards"
 import { expect, test } from "./fixtures"
 
@@ -118,22 +124,35 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   const panelGroup = page.getByRole("region", {
     name: 'Panel "Checkout requests per second"',
   })
-  await expect(panelGroup.getByText("Changed")).toBeVisible()
-  await expect(panelGroup.getByText("queries", { exact: true })).toBeVisible()
-  const before = panelGroup.getByRole("group", { name: "Before", exact: true })
-  const after = panelGroup.getByRole("group", { name: "After", exact: true })
-  await expect(before).toContainText("sum by (pod)")
-  await expect(before).toContainText("legend: {{pod}}")
-  await expect(before.getByText("Query A", { exact: true })).toBeVisible()
+  const changes = panelGroup.getByRole("listitem")
+
+  const edited = changes.filter({ hasText: "queries.A.query" })
+  await expect(edited.getByText("Changed")).toBeVisible()
+  const before = edited.getByRole("group", { name: "Before", exact: true })
+  const after = edited.getByRole("group", { name: "After", exact: true })
+  await expect(before.getByRole("group", { name: "Query A" })).toContainText(
+    "sum by (pod)"
+  )
   await expect(before).not.toContainText('"query":')
-  await expect(after).toContainText(simplifiedQuery)
-  await expect(after.getByText("Query A", { exact: true })).toBeVisible()
-  await expect(after.getByText("Query B", { exact: true })).toBeVisible()
-  await expect(after.getByText("legend: per pod")).toBeVisible()
-  await expect(after.getByRole("group", { name: "Query B" })).toContainText(
-    byPodQuery
+  await expect(after.getByRole("group", { name: "Query A" })).toContainText(
+    simplifiedQuery
   )
   await expect(after).not.toContainText('"query":')
+
+  const legend = changes.filter({ hasText: "queries.A.legend" })
+  await expect(legend.getByText("Removed")).toBeVisible()
+  await expect(
+    legend.getByRole("group", { name: "Before", exact: true })
+  ).toContainText("{{pod}}")
+
+  const added = changes.filter({ hasText: "queries.B" })
+  await expect(added.getByText("Added")).toBeVisible()
+  const addedAfter = added.getByRole("group", { name: "After", exact: true })
+  await expect(
+    addedAfter.getByRole("group", { name: "Query B" })
+  ).toContainText(byPodQuery)
+  await expect(addedAfter.getByText("legend: per pod")).toBeVisible()
+  await expect(addedAfter).not.toContainText('"query":')
 
   await page.getByRole("combobox", { name: "From" }).click()
   await page.getByRole("option", { name: "v1", exact: true }).click()
@@ -153,6 +172,55 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   await expect(settings.getByRole("group", { name: "After" })).toHaveText(
     new RegExp(`${renamed.title}$`)
   )
+})
+
+test("shows a changed second query as its own line", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E query diff")
+  const withQueries = (second: string): Spec => ({
+    ...spec,
+    panels: spec.panels.map((panel) =>
+      panel.id === "rps"
+        ? {
+            ...panel,
+            queries: [
+              { query: simplifiedQuery },
+              { query: second, legend: "per route" },
+            ],
+          }
+        : panel
+    ),
+  })
+  const byRouteQuery =
+    'sum by (route) (rate(http_requests_total{service="checkout"}[$__rate_interval]))'
+  const { id } = await createDashboard(request, withQueries(byPodQuery))
+  await addVersion(request, id, withQueries(byRouteQuery), 1, "Group by route")
+  await openHistory(page, id)
+
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Changes from v1 to v2" })
+  ).toBeVisible()
+  const panelGroup = page.getByRole("region", {
+    name: 'Panel "Checkout requests per second"',
+  })
+  const changes = panelGroup.getByRole("listitem")
+  await expect(changes).toHaveCount(1)
+  await expect(changes.first().getByText("queries.B.query")).toBeVisible()
+  await expect(
+    changes
+      .first()
+      .getByRole("group", { name: "Before", exact: true })
+      .getByRole("group", { name: "Query B" })
+  ).toContainText(byPodQuery)
+  await expect(
+    changes
+      .first()
+      .getByRole("group", { name: "After", exact: true })
+      .getByRole("group", { name: "Query B" })
+  ).toContainText(byRouteQuery)
 })
 
 test("compares a version with its parent", async ({ page, request }) => {

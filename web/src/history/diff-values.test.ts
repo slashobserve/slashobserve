@@ -103,6 +103,41 @@ describe("formatValue for queries", () => {
   })
 })
 
+describe("formatValue for one query", () => {
+  const format = (field: string, value: unknown) =>
+    formatValue(field, value, titles, false, false)
+
+  test("a changed query text is labelled by its ref", () => {
+    expect(format("queries.B.query", "rate(x[5m])")).toEqual([
+      { label: "Query B", text: "rate(x[5m])", options: "" },
+    ])
+  })
+
+  test("an added or removed query shows its text and options", () => {
+    expect(
+      format("queries.C", { query: "down", legend: "per pod", instant: true })
+    ).toEqual([
+      {
+        label: "Query C",
+        text: "down",
+        options: "legend: per pod, instant",
+      },
+    ])
+  })
+
+  test.each([
+    ["a non-string query text", "queries.B.query", 1],
+    ["a malformed query entry", "queries.B", { legend: "x" }],
+    ["another query field", "queries.B.legend", "per pod"],
+  ])("falls back to plain text for %s", (_, field, value) => {
+    const [block] = format(field, value)
+    expect(block.label).toBeUndefined()
+    expect(block.text).toBe(
+      typeof value === "string" ? value : JSON.stringify(value, null, 2)
+    )
+  })
+})
+
 describe("shouldLabelQueries", () => {
   test("is true when either side has several queries or an explicit ref", () => {
     const one = [{ query: "a" }]

@@ -256,3 +256,222 @@ func TestDiffEscapesKeysInPointerPaths(t *testing.T) {
 		})
 	}
 }
+
+const nestedFixture = `{
+  "specVersion": "0",
+  "title": "Nested",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {"id": "p", "type": "timeseries", "title": "P", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}, "datasource": "prom",
+     "queries": [{"query": "up"}, {"ref": "B", "query": "rate(x[5m])", "legend": "{{pod}}"}],
+     "overrides": [{"match": {"query": "B"}, "unit": "s"}],
+     "transform": [{"type": "organize", "exclude": ["a"]}, {"type": "sortBy", "field": "Value"}]},
+    {"id": "r", "type": "row", "title": "R", "collapsed": false, "gridPos": {"x": 0, "y": 8, "w": 24, "h": 1},
+     "panels": [
+       {"id": "c", "type": "stat", "title": "C", "gridPos": {"x": 0, "y": 9, "w": 6, "h": 4}, "datasource": "ch",
+        "queries": [{"query": "SELECT 1"}]},
+       {"id": "d", "type": "stat", "title": "D", "gridPos": {"x": 6, "y": 9, "w": 6, "h": 4}, "datasource": "ch",
+        "queries": [{"query": "SELECT 2"}]}
+     ]}
+  ]
+}`
+
+func nestedBase(t *testing.T) *spec.Dashboard {
+	t.Helper()
+	d, err := spec.Parse([]byte(nestedFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func nestedMutated(t *testing.T, mutate func(d *spec.Dashboard)) *spec.Dashboard {
+	t.Helper()
+	d := nestedBase(t)
+	mutate(d)
+	data, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := spec.Parse(data)
+	if err != nil {
+		t.Fatalf("mutated dashboard is invalid: %v", err)
+	}
+	return out
+}
+
+func nestedPanel(d *spec.Dashboard) *spec.Panel { return &d.Panels[0] }
+func nestedRow(d *spec.Dashboard) *spec.Panel   { return &d.Panels[1] }
+func nestedChild(d *spec.Dashboard) *spec.Panel { return &d.Panels[1].Panels[0] }
+func rawJSON(s string) json.RawMessage          { return json.RawMessage(s) }
+
+func TestDiffQueryEditedByRef(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Queries[1].Query = "rate(x[1m])" })
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/p/queries/B/query", From: rawJSON(`"rate(x[5m])"`), To: rawJSON(`"rate(x[1m])"`)},
+	})
+}
+
+func TestDiffQueryAdded(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		nestedPanel(d).Queries = append(nestedPanel(d).Queries, spec.Query{Query: "down"})
+	})
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpAdd, Path: "/panels/p/queries/C", To: rawJSON(`{"query":"down"}`)},
+	})
+}
+
+func TestDiffQueryRemoved(t *testing.T) {
+	from := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Overrides[0].Match.Query = "A" })
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Overrides[0].Match.Query = "A"
+		p.Queries = p.Queries[:1]
+	})
+	assertChanges(t, spec.Diff(from, to), []spec.Change{
+		{Op: spec.OpRemove, Path: "/panels/p/queries/B", From: rawJSON(`{"legend":"{{pod}}","query":"rate(x[5m])","ref":"B"}`)},
+	})
+}
+
+func TestDiffQueriesReorderedByExplicitRefs(t *testing.T) {
+	from := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Queries[0].Ref = "A" })
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Queries[0].Ref = "A"
+		p.Queries[0], p.Queries[1] = p.Queries[1], p.Queries[0]
+	})
+	assertChanges(t, spec.Diff(from, to), []spec.Change{
+		{Op: spec.OpReorder, Path: "/panels/p/queries", From: rawJSON(`["A","B"]`), To: rawJSON(`["B","A"]`)},
+	})
+}
+
+func TestDiffImplicitRefsFollowPosition(t *testing.T) {
+	from := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Queries[1].Ref = "" })
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Queries[1].Ref = ""
+		p.Queries[0], p.Queries[1] = p.Queries[1], p.Queries[0]
+	})
+	assertChanges(t, spec.Diff(from, to), []spec.Change{
+		{Op: spec.OpAdd, Path: "/panels/p/queries/A/legend", To: rawJSON(`"{{pod}}"`)},
+		{Op: spec.OpReplace, Path: "/panels/p/queries/A/query", From: rawJSON(`"up"`), To: rawJSON(`"rate(x[5m])"`)},
+		{Op: spec.OpRemove, Path: "/panels/p/queries/B/legend", From: rawJSON(`"{{pod}}"`)},
+		{Op: spec.OpReplace, Path: "/panels/p/queries/B/query", From: rawJSON(`"rate(x[5m])"`), To: rawJSON(`"up"`)},
+	})
+}
+
+func TestDiffExplicitRefWritten(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Queries[0].Ref = "A" })
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpAdd, Path: "/panels/p/queries/A/ref", To: rawJSON(`"A"`)},
+	})
+}
+
+func TestDiffOverrideByMatch(t *testing.T) {
+	changed := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Overrides[0].Unit = "ms" })
+	assertChanges(t, spec.Diff(nestedBase(t), changed), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/p/overrides/query:B/unit", From: rawJSON(`"s"`), To: rawJSON(`"ms"`)},
+	})
+
+	added := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Overrides = append(p.Overrides, spec.Override{
+			Match:      spec.Match{Series: "a/b"},
+			FieldProps: spec.FieldProps{Color: "critical"},
+		})
+	})
+	assertChanges(t, spec.Diff(nestedBase(t), added), []spec.Change{
+		{Op: spec.OpAdd, Path: "/panels/p/overrides/series:a~1b", To: rawJSON(`{"color":"critical","match":{"series":"a/b"}}`)},
+	})
+}
+
+func TestDiffOverridesWithDuplicateMatchReplaceWhole(t *testing.T) {
+	base := nestedBase(t)
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Overrides = append(p.Overrides, spec.Override{
+			Match:      spec.Match{Query: "B"},
+			FieldProps: spec.FieldProps{Color: "critical"},
+		})
+	})
+	assertChanges(t, spec.Diff(base, to), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/p/overrides", From: canonicalJSON(t, nestedPanel(base).Overrides), To: canonicalJSON(t, nestedPanel(to).Overrides)},
+	})
+}
+
+func TestDiffOverridesAddedToPanelWithout(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		nestedChild(d).Overrides = []spec.Override{{Match: spec.Match{Query: "A"}, FieldProps: spec.FieldProps{Unit: "s"}}}
+	})
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpAdd, Path: "/panels/r/panels/c/overrides/query:A", To: rawJSON(`{"match":{"query":"A"},"unit":"s"}`)},
+	})
+}
+
+func TestDiffTransformByPosition(t *testing.T) {
+	changed := nestedMutated(t, func(d *spec.Dashboard) { nestedPanel(d).Transform[1].Field = "Time" })
+	assertChanges(t, spec.Diff(nestedBase(t), changed), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/p/transform/1/field", From: rawJSON(`"Value"`), To: rawJSON(`"Time"`)},
+	})
+
+	base := nestedBase(t)
+	appended := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Transform = append(p.Transform, spec.Transform{Type: "limit", Count: 5})
+	})
+	assertChanges(t, spec.Diff(base, appended), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/p/transform", From: canonicalJSON(t, nestedPanel(base).Transform), To: canonicalJSON(t, nestedPanel(appended).Transform)},
+	})
+}
+
+func TestDiffRowChild(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) { nestedChild(d).Title = "Renamed" })
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpReplace, Path: "/panels/r/panels/c/title", From: rawJSON(`"C"`), To: rawJSON(`"Renamed"`)},
+	})
+}
+
+func TestDiffPanelMovedIntoRow(t *testing.T) {
+	base := nestedBase(t)
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		moved := d.Panels[0]
+		d.Panels = d.Panels[1:]
+		d.Panels[0].Panels = append(d.Panels[0].Panels, moved)
+	})
+	assertChanges(t, spec.Diff(base, to), []spec.Change{
+		{Op: spec.OpRemove, Path: "/panels/p", From: canonicalJSON(t, base.Panels[0])},
+		{Op: spec.OpAdd, Path: "/panels/r/panels/p", To: canonicalJSON(t, base.Panels[0])},
+	})
+}
+
+func TestDiffRowChildrenReordered(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		row := nestedRow(d)
+		row.Panels[0], row.Panels[1] = row.Panels[1], row.Panels[0]
+	})
+	assertChanges(t, spec.Diff(nestedBase(t), to), []spec.Change{
+		{Op: spec.OpReorder, Path: "/panels/r/panels", From: rawJSON(`["c","d"]`), To: rawJSON(`["d","c"]`)},
+	})
+}
+
+func TestDiffNestedDeterministic(t *testing.T) {
+	to := nestedMutated(t, func(d *spec.Dashboard) {
+		p := nestedPanel(d)
+		p.Queries[1].Query = "rate(x[1m])"
+		p.Queries = append(p.Queries, spec.Query{Query: "down"})
+		p.Overrides[0].Unit = "ms"
+		p.Transform[1].Field = "Time"
+		row := nestedRow(d)
+		row.Panels[0], row.Panels[1] = row.Panels[1], row.Panels[0]
+		row.Panels[1].Title = "Renamed"
+	})
+	first := marshalJSON(t, spec.Diff(nestedBase(t), to))
+	if first == "[]" {
+		t.Fatal("expected changes")
+	}
+	for range 20 {
+		if got := marshalJSON(t, spec.Diff(nestedBase(t), to)); got != first {
+			t.Fatalf("non-deterministic output\n got: %s\nwant: %s", got, first)
+		}
+	}
+}

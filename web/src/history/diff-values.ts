@@ -30,6 +30,26 @@ function queryEntries(field: string, value: unknown): PanelQuery[] | null {
   return null
 }
 
+const queryFieldPattern = /^queries\.([A-Za-z][A-Za-z0-9_]*)(?:\.(.+))?$/
+
+function queryTarget(field: string): { ref: string; key?: string } | null {
+  const match = queryFieldPattern.exec(field)
+  return match === null ? null : { ref: match[1], key: match[2] }
+}
+
+function queryChangeBlocks(field: string, value: unknown): ValueBlock[] | null {
+  const target = queryTarget(field)
+  if (target === null) return null
+  const label = `Query ${target.ref}`
+  if (target.key === undefined && isQueryEntry(value)) {
+    return [{ label, text: value.query, options: queryOptions(value) }]
+  }
+  if (target.key === "query" && typeof value === "string") {
+    return [{ label, text: value, options: "" }]
+  }
+  return null
+}
+
 function scalar(value: unknown): string {
   return typeof value === "string" ? value : (JSON.stringify(value) ?? "")
 }
@@ -105,7 +125,9 @@ export function formatValue(
   }
   const entries = queryEntries(field, value)
   if (entries !== null) return queryBlocks(entries, labelQueries)
-  return [{ text: plainText(value), options: "" }]
+  return (
+    queryChangeBlocks(field, value) ?? [{ text: plainText(value), options: "" }]
+  )
 }
 
 export function limitBlocks(
