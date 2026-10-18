@@ -269,6 +269,7 @@ function DashboardView({
     <Button
       key="comments"
       variant="outline"
+      data-comments-trigger=""
       disabled={editing}
       aria-label={openTotal > 0 ? `Comments, ${openTotal} open` : "Comments"}
       onClick={() =>

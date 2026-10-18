@@ -26,16 +26,28 @@ type Props = {
   panelId: string
   panelTitle: string
   version: number
+  latestVersion: number
+  panelRemoved?: boolean
   requestRevision?: boolean
   extraFields?: ReactNode
   onCreated?: (comment: Comment) => void
   onDirtyChange?: (dirty: boolean) => void
 }
 
-function failureText(error: unknown, version: number): string {
+function removedText(version: number): string {
+  return `This panel is not in the latest version (version ${version}), so it cannot take new comments.`
+}
+
+function failureText(
+  error: unknown,
+  version: number,
+  latestVersion: number
+): string {
   if (error instanceof ApiError) {
     if (error.status === 422 && error.code === "unknown_panel") {
-      return `This panel is not in version ${version}. Open the latest version to comment.`
+      return version < latestVersion
+        ? `This panel is not in version ${version}. Open the latest version to comment.`
+        : removedText(latestVersion)
     }
     if (
       error.status >= 500 ||
@@ -61,6 +73,8 @@ export function CommentComposer({
   panelId,
   panelTitle,
   version,
+  latestVersion,
+  panelRemoved = false,
   requestRevision = false,
   extraFields,
   onCreated,
@@ -69,6 +83,7 @@ export function CommentComposer({
   const textId = useId()
   const counterId = useId()
   const errorId = useId()
+  const noticeId = useId()
   const textarea = useRef<HTMLTextAreaElement>(null)
   const create = useCreateComment(dashboardId)
   const [body, setBody] = useState("")
@@ -80,7 +95,7 @@ export function CommentComposer({
   const over = remaining < 0
   const dirty = trimmed !== ""
   const pending = create.isPending
-  const canSubmit = dirty && !over && !pending
+  const canSubmit = dirty && !over && !pending && !panelRemoved
 
   useEffect(() => {
     onDirtyChange?.(dirty)
@@ -98,7 +113,8 @@ export function CommentComposer({
           textarea.current?.focus()
           onCreated?.(comment)
         },
-        onError: (error) => setFailure(failureText(error, version)),
+        onError: (error) =>
+          setFailure(failureText(error, version, latestVersion)),
       }
     )
   }
@@ -121,12 +137,23 @@ export function CommentComposer({
 
   const showCounter = remaining < counterThreshold
   const describedBy =
-    [showCounter ? counterId : null, failure ? errorId : null]
+    [
+      panelRemoved ? noticeId : null,
+      showCounter ? counterId : null,
+      failure ? errorId : null,
+    ]
       .filter(Boolean)
       .join(" ") || undefined
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2">
+      {panelRemoved ? (
+        <Alert id={noticeId}>
+          <AlertDescription className="text-pretty">
+            {removedText(latestVersion)}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Label htmlFor={textId} className="wrap-anywhere">
         Comment on {panelTitle}
       </Label>

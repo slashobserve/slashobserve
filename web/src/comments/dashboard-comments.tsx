@@ -1,8 +1,6 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMemo, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
-import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 
 import {
   CommentFilterTabs,
@@ -14,15 +12,24 @@ import {
   type CommentFilter,
 } from "./comments-tab"
 import { CommentItem } from "./comment-item"
+import { useLatestPanels, type PanelRef } from "./latest-panels"
 import { useComments, type Comment } from "./queries"
-
-type PanelRef = { id: string; title: string }
 
 type Props = {
   dashboardId: string
+  panels: PanelRef[]
   version: number
   latestVersion: number
   onOpenPanel: (panelId: string) => void
+  renderRevision?: (comment: Comment) => ReactNode
+}
+
+type Group = {
+  id: string
+  title: string
+  present: boolean
+  inLatest: boolean
+  comments: Comment[]
 }
 
 const emptyText: Record<CommentFilter, string> = {
@@ -31,36 +38,19 @@ const emptyText: Record<CommentFilter, string> = {
   all: "No comments yet.",
 }
 
-function useLatestPanels(dashboardId: string): PanelRef[] | undefined {
-  const queryClient = useQueryClient()
-  const select = useCallback(
-    (envelope: { version: { spec: unknown } }): PanelRef[] =>
-      asDashboardSpec(envelope.version.spec).panels.map((panel) => ({
-        id: panel.id,
-        title: panel.title,
-      })),
-    []
-  )
-  const query = useQuery({
-    ...latestDashboardQuery(queryClient, dashboardId),
-    staleTime: Infinity,
-    select,
-  })
-  return query.data
-}
-
 function groupByPanel(
   comments: Comment[],
+  shown: PanelRef[],
   latest: PanelRef[] | undefined
-): { id: string; title: string; present: boolean; comments: Comment[] }[] {
+): Group[] {
   const byPanel = new Map<string, Comment[]>()
   for (const comment of comments) {
     const list = byPanel.get(comment.panel_id)
     if (list) list.push(comment)
     else byPanel.set(comment.panel_id, [comment])
   }
-  const groups = []
-  for (const panel of latest ?? []) {
+  const groups: Group[] = []
+  for (const panel of shown) {
     const list = byPanel.get(panel.id)
     if (!list) continue
     byPanel.delete(panel.id)
@@ -68,14 +58,17 @@ function groupByPanel(
       id: panel.id,
       title: panel.title,
       present: true,
+      inLatest: true,
       comments: list,
     })
   }
   for (const [id, list] of byPanel) {
+    const current = latest?.find((panel) => panel.id === id)
     groups.push({
       id,
-      title: latest ? `${id} (removed)` : id,
+      title: current ? current.title : latest ? `${id} (removed)` : id,
       present: false,
+      inLatest: current !== undefined,
       comments: list,
     })
   }
@@ -84,9 +77,11 @@ function groupByPanel(
 
 export function DashboardComments({
   dashboardId,
+  panels,
   version,
   latestVersion,
   onOpenPanel,
+  renderRevision,
 }: Props) {
   const { comments, isPending, isError, refetch } = useComments(dashboardId)
   const latest = useLatestPanels(dashboardId)
@@ -97,15 +92,16 @@ export function DashboardComments({
     () => comments.filter((comment) => matchesFilter(comment, filter)),
     [comments, filter]
   )
-  const groups = useMemo(() => groupByPanel(visible, latest), [visible, latest])
+  const groups = useMemo(
+    () => groupByPanel(visible, panels, latest),
+    [visible, panels, latest]
+  )
   const ordered = useMemo(
     () => groups.flatMap((group) => group.comments),
     [groups]
   )
-  const { listRef, announcement, onStatusChange } = useCommentFeedback(
-    ordered,
-    filter
-  )
+  const { listRef, announcement, onStatusChange, onStatusSaved } =
+    useCommentFeedback(ordered, filter)
 
   let list: ReactNode
   if (isPending) list = <CommentsSkeleton />
@@ -142,6 +138,10 @@ export function DashboardComments({
                 >
                   Open panel
                 </Button>
+              ) : group.inLatest ? (
+                <span className="text-xs text-muted-foreground">
+                  Not in version {version}
+                </span>
               ) : null}
             </div>
             <ul className="flex flex-col gap-3">
@@ -152,7 +152,9 @@ export function DashboardComments({
                     comment={comment}
                     shownVersion={version}
                     latestVersion={latestVersion}
+                    revisionSlot={renderRevision?.(comment)}
                     onStatusChange={onStatusChange}
+                    onStatusSaved={onStatusSaved}
                   />
                 </li>
               ))}

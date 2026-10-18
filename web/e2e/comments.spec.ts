@@ -10,6 +10,7 @@ import {
 import { expectPanelsReady, openDashboard } from "./dashboards"
 import { expect, test } from "./fixtures"
 
+const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"
 const logsTitle = "Log rows by service"
 
@@ -345,9 +346,14 @@ test("asks once when a query and a comment are both unsaved", async ({
 test("keeps a comment draft when its panel leaves in a newer version", async ({
   page,
   request,
-  consoleErrors,
 }) => {
   const { id, spec } = await createOverview(request)
+  const removedNotice =
+    "This panel is not in the latest version (version 2), so it cannot take new comments."
+  let posts = 0
+  page.on("request", (item) => {
+    if (item.method() === "POST" && item.url().includes("/comments")) posts++
+  })
   await openDashboard(page, id)
   await expectPanelsReady(page)
   await waitForLive(page)
@@ -368,16 +374,15 @@ test("keeps a comment draft when its panel leaves in a newer version", async ({
   await expect(sheet(page)).toBeVisible()
   await expect(box).toHaveValue("Is this still right?")
 
+  await expect(sheet(page).getByRole("alert")).toHaveText(removedNotice)
+  const submit = sheet(page).getByRole("button", {
+    name: "Comment",
+    exact: true,
+  })
+  await expect(submit).toBeDisabled()
   await box.press("Control+Enter")
-  await expect(sheet(page).getByRole("alert")).toHaveText(
-    "This panel is not in version 2. Open the latest version to comment."
-  )
   await expect(box).toHaveValue("Is this still right?")
-  const logged = consoleErrors.filter((message) =>
-    message.includes("status of 422")
-  )
-  expect(logged).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
+  expect(posts).toBe(0)
 })
 
 test("keeps a new comment clear of the composer", async ({ page, request }) => {
@@ -410,4 +415,419 @@ test("keeps a new comment clear of the composer", async ({ page, request }) => {
       return item.y + item.height <= field.y
     })
     .toBe(true)
+})
+
+function commentsList(id: string) {
+  return `**/api/v1/dashboards/${id}/comments?*`
+}
+
+const internalError = JSON.stringify({ error: "boom", code: "internal" })
+
+function dropExpectedErrors(consoleErrors: string[], status: string) {
+  for (let index = consoleErrors.length - 1; index >= 0; index--) {
+    if (consoleErrors[index].includes(`status of ${status}`)) {
+      consoleErrors.splice(index, 1)
+    }
+  }
+}
+
+test("stops paging when a later page keeps failing", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await createComment(request, id, 1, "rps", "On the first page")
+  let failed = 0
+  await page.route(commentsList(id), async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.has("cursor")) {
+      failed++
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: internalError,
+      })
+      return
+    }
+    const response = await route.fetch()
+    const body = (await response.json()) as Record<string, unknown>
+    await route.fulfill({ response, json: { ...body, next_cursor: "page-2" } })
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  let previous = -1
+  await expect
+    .poll(
+      () => {
+        const steady = failed > 0 && failed === previous
+        previous = failed
+        return steady
+      },
+      { intervals: [1000], timeout: 15_000 }
+    )
+    .toBe(true)
+  expect(failed).toBeLessThanOrEqual(2)
+  dropExpectedErrors(consoleErrors, "500")
+})
+
+test("shows a comment once when the next page repeats it", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await createComment(request, id, 1, "rps", "Appears on two pages")
+  await page.route(commentsList(id), async (route) => {
+    const url = new URL(route.request().url())
+    const paged = url.searchParams.has("cursor")
+    url.searchParams.delete("cursor")
+    const response = await route.fetch({ url: url.toString() })
+    const body = (await response.json()) as Record<string, unknown>
+    await route.fulfill({
+      response,
+      json: { ...body, next_cursor: paged ? null : "page-2" },
+    })
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+
+  await expect(sheet(page).getByRole("article")).toHaveCount(1)
+})
+
+test("asks before Back drops a comment draft across a version change", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await sheet(page).getByRole("button", { name: "Open latest version" }).click()
+  await expect(page).not.toHaveURL(/version=/)
+  await sheet(page).getByRole("tab", { name: "Comments" }).click()
+  await expect(page).toHaveURL(/tab=comments/)
+  await composer(page).fill("Written on the latest version")
+
+  await page.goBack()
+  const dialog = page.getByRole("alertdialog", {
+    name: "Discard your comment?",
+  })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Keep editing" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page).not.toHaveURL(/version=/)
+  await expect(composer(page)).toHaveValue("Written on the latest version")
+
+  await page.goBack()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole("button", { name: "Discard" }).click()
+  await expect(page).toHaveURL(/version=1/)
+})
+
+test("returns focus to the toolbar button when the dashboard-wide list closes", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+  await page.keyboard.press("Escape")
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
+  ).toBeFocused()
+
+  const toolbarButton = page.getByRole("button", { name: /^Comments/ })
+  await toolbarButton.click()
+  await expect(sheet(page)).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(toolbarButton).toBeFocused()
+})
+
+test("ignores a second status change while the first is saving", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await createComment(request, id, 1, "rps", "Looks high")
+  let patches = 0
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  let reached!: () => void
+  const firstPatch = new Promise<void>((resolve) => (reached = resolve))
+  await page.route(`**/api/v1/dashboards/${id}/comments/*`, async (route) => {
+    if (route.request().method() !== "PATCH") {
+      await route.fallback()
+      return
+    }
+    if (route.request().url().endsWith("/barrier")) {
+      await route.fulfill({ status: 200, json: {} })
+      return
+    }
+    patches++
+    reached()
+    await held
+    await route.continue()
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+  await sheet(page).getByRole("tab", { name: /^All/ }).click()
+
+  const item = sheet(page)
+    .getByRole("tabpanel", { name: /^All/ })
+    .getByRole("article")
+  await item.getByRole("button", { name: /^Resolve comment by/ }).click()
+  await firstPatch
+  const reopen = item.getByRole("button", { name: /^Reopen comment by/ })
+  await expect(reopen).toHaveAttribute("aria-disabled", "true")
+  await reopen.focus()
+  await page.keyboard.press("Enter")
+  await page.evaluate(
+    (url) => fetch(url, { method: "PATCH" }),
+    `/api/v1/dashboards/${id}/comments/barrier`
+  )
+  await expect(reopen).toBeFocused()
+  expect(patches).toBe(1)
+
+  release()
+  await expect(reopen).not.toHaveAttribute("aria-disabled", "true")
+  expect(patches).toBe(1)
+})
+
+test("announces a status change once it is saved and again when it repeats", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await createComment(request, id, 1, "rps", "First")
+  await createComment(request, id, 1, "rps", "Second")
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  let reached!: () => void
+  const firstPatch = new Promise<void>((resolve) => (reached = resolve))
+  await page.route(`**/api/v1/dashboards/${id}/comments/*`, async (route) => {
+    if (route.request().method() !== "PATCH") {
+      await route.fallback()
+      return
+    }
+    reached()
+    await held
+    await route.continue()
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+  await sheet(page).getByRole("tab", { name: /^All/ }).click()
+
+  const status = sheet(page).getByRole("status")
+  const text = () => status.evaluate((node) => node.textContent)
+  const items = sheet(page)
+    .getByRole("tabpanel", { name: /^All/ })
+    .getByRole("article")
+  await items
+    .first()
+    .getByRole("button", { name: /^Resolve comment by/ })
+    .click()
+  await firstPatch
+  expect(await text()).toBe("")
+
+  release()
+  await expect
+    .poll(async () => (await text())?.trim())
+    .toBe("Comment resolved.")
+  const first = await text()
+  await items
+    .last()
+    .getByRole("button", { name: /^Resolve comment by/ })
+    .click()
+  await expect
+    .poll(async () => {
+      const next = await text()
+      return next !== first && next?.trim() === "Comment resolved."
+    })
+    .toBe(true)
+})
+
+test("stays silent and says so in a toast when a status change fails", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await createComment(request, id, 1, "rps", "Looks high")
+  await page.route(`**/api/v1/dashboards/${id}/comments/*`, async (route) => {
+    if (route.request().method() !== "PATCH") {
+      await route.fallback()
+      return
+    }
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: internalError,
+    })
+  })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+
+  await sheet(page)
+    .getByRole("button", { name: /^Resolve comment by/ })
+    .click()
+
+  await expect(page.getByText("Could not update the comment")).toBeVisible()
+  await expect(sheet(page).getByRole("article")).toHaveCount(1)
+  await expect(sheet(page).getByRole("status")).toHaveText("")
+  dropExpectedErrors(consoleErrors, "500")
+})
+
+test("keeps a new comment clear of a taller composer", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  for (let index = 0; index < 6; index++) {
+    await createComment(
+      request,
+      id,
+      1,
+      "rps",
+      `Earlier comment ${index + 1}\nwith a second line\nand a third line`
+    )
+  }
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+  await expect(sheet(page).getByRole("article")).toHaveCount(6)
+
+  let failNext = true
+  await page.route(`**/api/v1/dashboards/${id}/comments`, async (route) => {
+    if (route.request().method() === "POST" && failNext) {
+      failNext = false
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: internalError,
+      })
+      return
+    }
+    await route.fallback()
+  })
+  const box = composer(page)
+  const lines = Array.from({ length: 8 }, (_, index) => `Line ${index + 1}`)
+  await box.fill(lines.join("\n"))
+  await box.press("Control+Enter")
+  await expect(sheet(page).getByRole("alert")).toBeVisible()
+  const composerBox = box.locator(
+    "xpath=ancestor::div[contains(@class, 'sticky')][1]"
+  )
+  const earlier = sheet(page).getByRole("article").last()
+  await expect
+    .poll(async () => {
+      const height = (await composerBox.boundingBox())?.height ?? Infinity
+      const margin = await earlier.evaluate((node) =>
+        parseFloat(getComputedStyle(node).scrollMarginBottom)
+      )
+      return margin >= height
+    })
+    .toBe(true)
+  await box.press("Control+Enter")
+
+  const newest = sheet(page).getByRole("article").last()
+  await expect(newest).toContainText("Line 8")
+  await expect
+    .poll(async () => {
+      const item = await newest.boundingBox()
+      const field = await sheet(page)
+        .getByRole("button", { name: "Comment", exact: true })
+        .boundingBox()
+      if (!item || !field) return false
+      return item.y + item.height <= field.y
+    })
+    .toBe(true)
+  dropExpectedErrors(consoleErrors, "500")
+})
+
+test("offers to open a panel that the pinned version still has", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await createComment(request, id, 1, "error_rate", "Why is this flat?")
+  const extra = {
+    ...spec.panels[0],
+    id: "extra",
+    title: "Extra panel",
+    gridPos: { x: 0, y: 32, w: 12, h: 8 },
+  }
+  await addVersion(
+    request,
+    id,
+    {
+      ...spec,
+      panels: [
+        ...spec.panels.filter((item) => item.id !== "error_rate"),
+        extra,
+      ],
+    },
+    1,
+    "Swap a panel"
+  )
+  await createComment(request, id, 2, "extra", "New panel note")
+  await openDashboard(page, id, "?version=1")
+  await expectPanelsReady(page)
+
+  await page.getByRole("button", { name: /^Comments/ }).click()
+
+  await expect(
+    sheet(page).getByRole("heading", { level: 3, name: "Checkout error rate" })
+  ).toBeVisible()
+  await expect(
+    sheet(page).getByRole("heading", { level: 3, name: "Extra panel" })
+  ).toBeVisible()
+  await expect(
+    sheet(page).getByRole("button", { name: /^Open panel/ })
+  ).toHaveCount(1)
+  await sheet(page)
+    .getByRole("button", { name: "Open panel Checkout error rate" })
+    .click()
+  await expect(page).toHaveURL(/version=1&panel=error_rate&tab=comments/)
+  await expect(composer(page, "Checkout error rate")).toBeVisible()
+})
+
+test("keeps a comment draft when a saved query closes the query tab", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page)
+  await composer(page).fill("Not sent yet")
+  await sheet(page).getByRole("tab", { name: "Query" }).click()
+  const content = sheet(page).locator(".cm-content")
+  await expect(content).toContainText("http_requests_total")
+  const edited = 'sum(rate(http_requests_total{service="checkout"}[1m]))'
+  await content.click()
+  await page.keyboard.press(selectAll)
+  await page.keyboard.insertText(edited)
+  await expect(content).toHaveText(edited)
+  await sheet(page).getByRole("button", { name: "Save as new version" }).click()
+
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expect(sheet(page)).toBeVisible()
+  await expect(page).toHaveURL(/panel=rps&tab=comments/)
+  await expect(page.getByRole("alertdialog")).toHaveCount(0)
+  await expect(composer(page)).toHaveValue("Not sent yet")
+
+  await sheet(page).getByRole("tab", { name: "Query" }).click()
+  await expect(content).toHaveText(edited)
+  await expect(
+    sheet(page).getByRole("button", { name: "Save as new version" })
+  ).toBeDisabled()
 })

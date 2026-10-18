@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { liveRegionText } from "@/lib/live-region"
 import type { Panel } from "@/spec"
 
 import { CommentComposer } from "./comment-composer"
@@ -111,10 +112,11 @@ export function useCommentFeedback(
   listRef: RefObject<HTMLDivElement | null>
   announcement: string
   announce: (text: string) => void
-  onStatusChange: (comment: Comment, status: CommentStatus) => void
+  onStatusChange: (comment: Comment) => void
+  onStatusSaved: (status: CommentStatus) => void
 } {
   const listRef = useRef<HTMLDivElement>(null)
-  const [announcement, setAnnouncement] = useState("")
+  const [announced, setAnnounced] = useState({ text: "", count: 0 })
   const pending = useRef<{
     leaving: string
     target: string | null
@@ -122,10 +124,7 @@ export function useCommentFeedback(
   } | null>(null)
 
   const onStatusChange = useCallback(
-    (comment: Comment, status: CommentStatus) => {
-      setAnnouncement(
-        status === "resolved" ? "Comment resolved." : "Comment reopened."
-      )
+    (comment: Comment) => {
       if (filter === "all") return
       const index = visible.findIndex((item) => item.id === comment.id)
       const neighbour = visible[index + 1] ?? visible[index - 1]
@@ -158,7 +157,24 @@ export function useCommentFeedback(
     ;(target ?? list).focus()
   }, [visible])
 
-  return { listRef, announcement, announce: setAnnouncement, onStatusChange }
+  const announce = useCallback((text: string) => {
+    setAnnounced((current) => ({ text, count: current.count + 1 }))
+  }, [])
+  const onStatusSaved = useCallback(
+    (status: CommentStatus) =>
+      announce(
+        status === "resolved" ? "Comment resolved." : "Comment reopened."
+      ),
+    [announce]
+  )
+
+  return {
+    listRef,
+    announcement: liveRegionText(announced.text, announced.count),
+    announce,
+    onStatusChange,
+    onStatusSaved,
+  }
 }
 
 const emptyText: Record<CommentFilter, string> = {
@@ -172,6 +188,10 @@ type Props = {
   panel: Panel
   version: number
   latestVersion: number
+  panelRemoved?: boolean
+  requestRevision?: boolean
+  composerExtraFields?: ReactNode
+  renderRevision?: (comment: Comment) => ReactNode
   onDirtyChange: (dirty: boolean) => void
 }
 
@@ -180,6 +200,10 @@ export function CommentsTab({
   panel,
   version,
   latestVersion,
+  panelRemoved,
+  requestRevision,
+  composerExtraFields,
+  renderRevision,
   onDirtyChange,
 }: Props) {
   const { comments, isPending, isError, refetch } = useComments(dashboardId)
@@ -195,8 +219,24 @@ export function CommentsTab({
     () => own.filter((comment) => matchesFilter(comment, filter)),
     [own, filter]
   )
-  const { listRef, announcement, announce, onStatusChange } =
+  const { listRef, announcement, announce, onStatusChange, onStatusSaved } =
     useCommentFeedback(visible, filter)
+  const root = useRef<HTMLDivElement>(null)
+  const composerBox = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = root.current
+    const box = composerBox.current
+    if (!container || !box) return
+    const observer = new ResizeObserver(([entry]) => {
+      container.style.setProperty(
+        "--comment-composer-height",
+        `${entry.borderBoxSize[0].blockSize}px`
+      )
+    })
+    observer.observe(box, { box: "border-box" })
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (revealed === null) return
@@ -228,7 +268,9 @@ export function CommentsTab({
               comment={comment}
               shownVersion={version}
               latestVersion={latestVersion}
+              revisionSlot={renderRevision?.(comment)}
               onStatusChange={onStatusChange}
+              onStatusSaved={onStatusSaved}
             />
           </li>
         ))}
@@ -237,7 +279,7 @@ export function CommentsTab({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div ref={root} className="flex flex-1 flex-col gap-4">
       <div className="flex flex-1 flex-col">
         <CommentFilterTabs
           value={filter}
@@ -252,12 +294,19 @@ export function CommentsTab({
       <p role="status" className="sr-only">
         {announcement}
       </p>
-      <div className="sticky -bottom-4 -mx-4 -mb-4 border-t bg-background px-4 py-3">
+      <div
+        ref={composerBox}
+        className="sticky -bottom-4 -mx-4 -mb-4 border-t bg-background px-4 py-3"
+      >
         <CommentComposer
           dashboardId={dashboardId}
           panelId={panel.id}
           panelTitle={panel.title}
           version={version}
+          latestVersion={latestVersion}
+          panelRemoved={panelRemoved}
+          requestRevision={requestRevision}
+          extraFields={composerExtraFields}
           onDirtyChange={onDirtyChange}
           onCreated={(comment) => {
             announce("Comment posted.")

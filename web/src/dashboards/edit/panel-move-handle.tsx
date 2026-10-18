@@ -2,6 +2,7 @@ import { useId, type KeyboardEvent } from "react"
 import { GripVerticalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { liveRegionText } from "@/lib/live-region"
 import type { Panel } from "@/spec"
 
 import {
@@ -93,14 +94,12 @@ export function PanelResizeGrip() {
 }
 
 export function LayoutAnnouncer() {
-  const message = useLayoutStore((state) => {
-    const { session } = state
-    if (!session?.announcement) return ""
-    // A live region only speaks when its text changes, so repeated identical messages alternate a trailing no-break space.
-    return session.announcementCount % 2 === 0
-      ? session.announcement
-      : `${session.announcement}\u00a0`
-  })
+  const message = useLayoutStore((state) =>
+    liveRegionText(
+      state.session?.announcement ?? "",
+      state.session?.announcementCount ?? 0
+    )
+  )
   return (
     <div aria-live="polite" className="sr-only">
       {message}

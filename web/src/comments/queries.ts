@@ -42,16 +42,29 @@ export function commentsQuery(id: string) {
 
 export function useComments(id: string) {
   const query = useInfiniteQuery(commentsQuery(id))
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
+  const {
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = query
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) {
       void fetchNextPage({ cancelRefetch: false })
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
-  const comments = useMemo(
-    () => query.data?.pages.flatMap((page) => page.comments) ?? [],
-    [query.data]
-  )
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage])
+  const comments = useMemo(() => {
+    const seen = new Set<string>()
+    const unique: Comment[] = []
+    for (const page of query.data?.pages ?? []) {
+      for (const comment of page.comments) {
+        if (seen.has(comment.id)) continue
+        seen.add(comment.id)
+        unique.push(comment)
+      }
+    }
+    return unique
+  }, [query.data])
   return {
     comments,
     isPending: query.isPending,
@@ -127,7 +140,10 @@ export function useCreateComment(id: string) {
   })
 }
 
-export function useSetCommentStatus(id: string) {
+export function useSetCommentStatus(
+  id: string,
+  onSaved?: (status: CommentStatus) => void
+) {
   const queryClient = useQueryClient()
   const key = dashboardKeys.comments(id)
   return useMutation({
@@ -156,6 +172,7 @@ export function useSetCommentStatus(id: string) {
       )
       return { previous }
     },
+    onSuccess: (_comment, input) => onSaved?.(input.status),
     onError: (_error, input, context) => {
       const previous = context?.previous
       if (previous) {

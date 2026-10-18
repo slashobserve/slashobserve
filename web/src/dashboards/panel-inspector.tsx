@@ -32,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CommentsTab } from "@/comments/comments-tab"
 import { DashboardComments } from "@/comments/dashboard-comments"
+import { useLatestPanels } from "@/comments/latest-panels"
 import type { Dashboard, Panel } from "@/spec"
 
 import {
@@ -49,19 +50,24 @@ function panelTrigger(panelId: string | undefined) {
   )
 }
 
-type Leaving = { query: boolean; comment: boolean }
+function commentsTrigger() {
+  return document.querySelector<HTMLElement>("[data-comments-trigger]")
+}
 
-function whatLeaves(
+function leavesDraft(
   current: { pathname: string; search: unknown },
   next: { pathname: string; search: unknown }
-): Leaving {
-  if (current.pathname !== next.pathname) return { query: true, comment: true }
+): boolean {
+  if (current.pathname !== next.pathname) return true
   const before = validateDashboardSearch(
     current.search as Record<string, unknown>
   )
   const after = validateDashboardSearch(next.search as Record<string, unknown>)
-  const closes = before.panel !== after.panel || after.tab === undefined
-  return { query: closes || before.version !== after.version, comment: closes }
+  return (
+    before.panel !== after.panel ||
+    after.tab === undefined ||
+    before.version !== after.version
+  )
 }
 
 function discardCopy(query: boolean, comment: boolean) {
@@ -119,6 +125,7 @@ export function PanelInspector({
   const [confirmClose, setConfirmClose] = useState(false)
   const unsavedQuery = useRef(false)
   const [queryDirty, setQueryDirty] = useState(false)
+  const [saves, setSaves] = useState(0)
   const onQueryDirty = useCallback((dirty: boolean) => {
     unsavedQuery.current = dirty
     setQueryDirty(dirty)
@@ -131,10 +138,9 @@ export function PanelInspector({
   }, [])
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) => {
-      const leaving = whatLeaves(current, next)
       return (
-        (unsavedQuery.current && leaving.query) ||
-        (unsavedComment.current && leaving.comment)
+        (unsavedQuery.current || unsavedComment.current) &&
+        leavesDraft(current, next)
       )
     },
     enableBeforeUnload: () => unsavedQuery.current || unsavedComment.current,
@@ -182,6 +188,14 @@ export function PanelInspector({
   const kept = draftKept && retained?.id === panelId ? retained : undefined
   const panel = open ? (current ?? kept) : retained
 
+  const latestPanels = useLatestPanels(dashboardId)
+  const panelRemoved =
+    panel !== undefined &&
+    !spec.panels.some((item) => item.id === panel.id) &&
+    (version === latestVersion ||
+      (latestPanels !== undefined &&
+        !latestPanels.some((item) => item.id === panel.id)))
+
   const stale = pinned && version !== latestVersion
   const [readOnly, setReadOnly] = useState(stale)
   if (readOnly !== stale && !(stale && queryDirty)) setReadOnly(stale)
@@ -200,6 +214,17 @@ export function PanelInspector({
     },
     [setSearch]
   )
+
+  const querySaved = useCallback(() => {
+    if (unsavedComment.current) {
+      unsavedQuery.current = false
+      setQueryDirty(false)
+      setSaves((count) => count + 1)
+      setSearch((state) => ({ ...state, tab: "comments" }), { replace: true })
+      return
+    }
+    close({ dropVersion: true })
+  }, [close, setSearch])
 
   const requestClose = useCallback(() => {
     if (unsavedQuery.current || unsavedComment.current) {
@@ -222,9 +247,8 @@ export function PanelInspector({
   const discard = useCallback(() => {
     discarding.current = true
     if (blocker.status === "blocked") {
-      const leaving = whatLeaves(blocker.current, blocker.next)
-      if (leaving.query) unsavedQuery.current = false
-      if (leaving.comment) unsavedComment.current = false
+      unsavedQuery.current = false
+      unsavedComment.current = false
       setConfirmClose(false)
       blocker.proceed()
       return
@@ -240,7 +264,7 @@ export function PanelInspector({
           content: (
             <Suspense fallback={<QuerySkeleton />}>
               <QueryTab
-                key={panel.id}
+                key={`${panel.id}:${saves}`}
                 dashboardId={dashboardId}
                 spec={spec}
                 panel={panel}
@@ -248,7 +272,7 @@ export function PanelInspector({
                 latestVersion={latestVersion}
                 readOnly={readOnly}
                 onDirtyChange={onQueryDirty}
-                onSaved={() => close({ dropVersion: true })}
+                onSaved={querySaved}
                 onOpenLatest={openLatest}
               />
             </Suspense>
@@ -264,6 +288,7 @@ export function PanelInspector({
               panel={panel}
               version={version}
               latestVersion={latestVersion}
+              panelRemoved={panelRemoved}
               onDirtyChange={onCommentDirty}
             />
           ),
@@ -272,14 +297,7 @@ export function PanelInspector({
     : []
   const active = views.find((view) => view.id === search.tab) ?? views[0]
 
-  const leaving =
-    blocker.status === "blocked" && !confirmClose
-      ? whatLeaves(blocker.current, blocker.next)
-      : { query: true, comment: true }
-  const copy = discardCopy(
-    queryDirty && leaving.query,
-    commentDirty && leaving.comment
-  )
+  const copy = discardCopy(queryDirty, commentDirty)
 
   const openPanelComments = useCallback(
     (id: string) =>
@@ -306,7 +324,11 @@ export function PanelInspector({
           side="right"
           initialFocus={titleRef}
           className="data-[side=right]:w-[min(720px,100vw)] data-[side=right]:sm:max-w-none"
-          finalFocus={() => panelTrigger(retained?.id) ?? true}
+          finalFocus={() =>
+            (scope === "panel"
+              ? panelTrigger(retained?.id)
+              : commentsTrigger()) ?? true
+          }
         >
           {scope === "dashboard" ? (
             <>
@@ -325,6 +347,7 @@ export function PanelInspector({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
                 <DashboardComments
                   dashboardId={dashboardId}
+                  panels={spec.panels}
                   version={version}
                   latestVersion={latestVersion}
                   onOpenPanel={openPanelComments}
@@ -407,7 +430,11 @@ export function PanelInspector({
           >
             <AlertDialogContent
               finalFocus={() =>
-                discarding.current ? (panelTrigger(retained?.id) ?? true) : true
+                discarding.current
+                  ? ((scope === "panel"
+                      ? panelTrigger(retained?.id)
+                      : commentsTrigger()) ?? true)
+                  : true
               }
             >
               <AlertDialogHeader>

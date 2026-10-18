@@ -19,7 +19,8 @@ type Props = {
   shownVersion: number
   latestVersion: number
   revisionSlot?: ReactNode
-  onStatusChange?: (comment: Comment, status: CommentStatus) => void
+  onStatusChange?: (comment: Comment) => void
+  onStatusSaved?: (status: CommentStatus) => void
 }
 
 export function CommentItem({
@@ -29,10 +30,11 @@ export function CommentItem({
   latestVersion,
   revisionSlot,
   onStatusChange,
+  onStatusSaved,
 }: Props) {
   const headingId = useId()
   const search = useDashboardSearch()
-  const setStatus = useSetCommentStatus(dashboardId)
+  const setStatus = useSetCommentStatus(dashboardId, onStatusSaved)
   const resolved = comment.status === "resolved"
   const next: CommentStatus = resolved ? "open" : "resolved"
   const action = resolved ? "Reopen" : "Resolve"
@@ -43,7 +45,7 @@ export function CommentItem({
       aria-labelledby={headingId}
       data-comment-id={comment.id}
       tabIndex={-1}
-      className="flex scroll-mb-48 flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex scroll-mb-[calc(var(--comment-composer-height,0px)+0.5rem)] flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <div
         id={headingId}
@@ -92,8 +94,10 @@ export function CommentItem({
           variant="ghost"
           size="sm"
           aria-label={`${action} comment by ${comment.author.name}, ${when}`}
+          aria-disabled={setStatus.isPending || undefined}
           onClick={() => {
-            onStatusChange?.(comment, next)
+            if (setStatus.isPending) return
+            onStatusChange?.(comment)
             setStatus.mutate({ commentId: comment.id, status: next })
           }}
         >

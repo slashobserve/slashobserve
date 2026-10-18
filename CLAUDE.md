@@ -192,6 +192,8 @@ Directories are created when their phase starts; this is where things go.
 - Comments load once per dashboard (`dashboardKeys.comments`), per-panel lists and counts are derived, resolve and reopen are optimistic with rollback, bodies render as plain text only, and live updates come from `useDashboardEvents` invalidations.
   The Comments tab and the dashboard-wide `tab=comments` view live in the panel inspector, which follows the query editor's layout-session rule (unavailable while a layout is being edited) and guards a comment draft and a query draft with one discard prompt.
   The composer posts `request_revision: false` unless its `requestRevision` prop is set.
+  `CommentsTab` forwards `requestRevision`, `composerExtraFields` and `renderRevision` (and `DashboardComments` forwards `renderRevision`), so a parent owns the revision checkbox state and renders each comment's revision status.
+  Comment paging stops after a failed page until the next successful refetch, the flattened list is deduplicated by id, and status announcements follow a saved change through `liveRegionText`.
 
 ## Dependencies
 
