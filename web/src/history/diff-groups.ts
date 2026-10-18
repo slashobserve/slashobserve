@@ -48,11 +48,57 @@ function innermostPanel(
   return id === undefined ? undefined : { id, rest: tokens.slice(i) }
 }
 
+const reorderLabels: Record<string, string> = {
+  panels: "panel order",
+  queries: "query order",
+  overrides: "override order",
+}
+
+function overrideField(rest: string[]): string | undefined {
+  const separator = rest[1]?.indexOf(":") ?? -1
+  if (rest[0] !== "overrides" || separator < 0) return undefined
+  const kind = rest[1].slice(0, separator)
+  const value = JSON.stringify(rest[1].slice(separator + 1))
+  const field = rest.slice(2).join(".")
+  return `override ${kind} ${value}${field === "" ? "" : ` > ${field}`}`
+}
+
 function panelField(op: DiffChange["op"], rest: string[]): string {
-  if (op === "reorder" && rest.length === 1 && rest[0] === "panels") {
-    return "panel order"
+  if (
+    op === "reorder" &&
+    rest.length === 1 &&
+    Object.hasOwn(reorderLabels, rest[0])
+  ) {
+    return reorderLabels[rest[0]]
   }
-  return rest.join(".")
+  return overrideField(rest) ?? rest.join(".")
+}
+
+function collectTitles(panels: unknown, titles: Record<string, string>) {
+  if (!Array.isArray(panels)) return
+  for (const panel of panels) {
+    if (typeof panel !== "object" || panel === null) continue
+    const {
+      id,
+      title,
+      panels: children,
+    } = panel as {
+      id?: unknown
+      title?: unknown
+      panels?: unknown
+    }
+    if (typeof id === "string") {
+      titles[id] = typeof title === "string" ? title : id
+    }
+    collectTitles(children, titles)
+  }
+}
+
+export function panelTitles(spec: unknown): Record<string, string> {
+  const titles: Record<string, string> = {}
+  if (typeof spec !== "object" || spec === null) return titles
+  collectTitles((spec as { panels?: unknown }).panels, titles)
+  return titles
 }
 
 export function groupChanges(

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 
 import {
   groupChanges,
+  panelTitles,
   type DiffGroup,
   type GroupedChange,
   type TitleMaps,
@@ -59,31 +60,6 @@ const opLabels: Record<
   remove: { label: "Removed", icon: MinusIcon },
   replace: { label: "Changed", icon: PenLineIcon },
   reorder: { label: "Reordered", icon: ArrowUpDownIcon },
-}
-
-function collectTitles(panels: unknown, titles: Record<string, string>) {
-  if (!Array.isArray(panels)) return
-  for (const panel of panels) {
-    if (typeof panel !== "object" || panel === null) continue
-    const {
-      id,
-      title,
-      panels: children,
-    } = panel as {
-      id?: unknown
-      title?: unknown
-      panels?: unknown
-    }
-    if (typeof id === "string" && typeof title === "string") titles[id] = title
-    collectTitles(children, titles)
-  }
-}
-
-function panelTitles(spec: unknown): Record<string, string> {
-  const titles: Record<string, string> = {}
-  if (typeof spec !== "object" || spec === null) return titles
-  collectTitles((spec as { panels?: unknown }).panels, titles)
-  return titles
 }
 
 function useVersionTitles(dashboardId: string, from: number, to: number) {

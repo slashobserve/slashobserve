@@ -94,16 +94,27 @@ function queryBlocks(entries: PanelQuery[], label: boolean): ValueBlock[] {
   }))
 }
 
-function reorderText(value: unknown[], titles: TitleMaps): string {
+function reorderLabel(field: string, key: string, titles: TitleMaps): string {
+  if (field === "panel order") {
+    return (
+      (Object.hasOwn(titles.to, key) ? titles.to[key] : undefined) ??
+      (Object.hasOwn(titles.from, key) ? titles.from[key] : undefined) ??
+      key
+    )
+  }
+  return field === "query order" ? `Query ${key}` : key
+}
+
+function reorderText(
+  field: string,
+  value: unknown[],
+  titles: TitleMaps
+): string {
   return value
-    .map((item, index) => {
-      const id = String(item)
-      const title =
-        (Object.hasOwn(titles.to, id) ? titles.to[id] : undefined) ??
-        (Object.hasOwn(titles.from, id) ? titles.from[id] : undefined) ??
-        id
-      return `${index + 1}. ${title}`
-    })
+    .map(
+      (item, index) =>
+        `${index + 1}. ${reorderLabel(field, String(item), titles)}`
+    )
     .join("\n")
 }
 
@@ -121,7 +132,7 @@ export function formatValue(
   labelQueries: boolean
 ): ValueBlock[] {
   if (reorder && Array.isArray(value)) {
-    return [{ text: reorderText(value, titles), options: "" }]
+    return [{ text: reorderText(field, value, titles), options: "" }]
   }
   const entries = queryEntries(field, value)
   if (entries !== null) return queryBlocks(entries, labelQueries)

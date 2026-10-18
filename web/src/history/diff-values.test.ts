@@ -167,7 +167,7 @@ describe("shouldLabelQueries", () => {
 describe("formatValue for reorders", () => {
   test("numbers the new titles, falling back to old titles and ids", () => {
     const blocks = formatValue(
-      "panels",
+      "panel order",
       ["a", "b", "c"],
       { from: { b: "Old B", c: "Old C" }, to: { a: "New A", c: "New C" } },
       true,
@@ -179,13 +179,38 @@ describe("formatValue for reorders", () => {
   })
 
   test("does not read inherited keys as titles", () => {
-    const [block] = formatValue("panels", ["constructor"], titles, true, false)
+    const [block] = formatValue(
+      "panel order",
+      ["constructor"],
+      titles,
+      true,
+      false
+    )
     expect(block.text).toBe("1. constructor")
   })
 
   test("a non-array reorder value is plain text", () => {
-    expect(formatValue("panels", "x", titles, true, false)[0].text).toBe("x")
+    expect(formatValue("panel order", "x", titles, true, false)[0].text).toBe(
+      "x"
+    )
   })
+
+  test("numbers query refs even when a panel id is the same", () => {
+    const overlapping = { from: { A: "Panel A" }, to: { B: "Panel B" } }
+    expect(
+      formatValue("query order", ["B", "A"], overlapping, true, false)
+    ).toEqual([{ text: "1. Query B\n2. Query A", options: "" }])
+  })
+
+  test.each(["variable order", "override order"])(
+    "numbers the raw keys for %s even when a panel id is the same",
+    (field) => {
+      const overlapping = { from: { pod: "Panel" }, to: { "query:B": "Panel" } }
+      expect(
+        formatValue(field, ["query:B", "pod"], overlapping, true, false)
+      ).toEqual([{ text: "1. query:B\n2. pod", options: "" }])
+    }
+  )
 })
 
 describe("limitBlocks", () => {
