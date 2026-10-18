@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { Panel } from "@/spec"
 
+import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error"
@@ -82,15 +83,18 @@ export function PanelChrome({
       aria-busy={state === "loading"}
       data-panel-id={panel.id}
       data-state={state}
-      className="flex size-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground"
+      className="relative flex size-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground"
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-1 pr-1 pl-3",
-          dragHandle && "panel-drag-handle cursor-grab active:cursor-grabbing"
+          "flex shrink-0 items-center gap-1 pr-1",
+          dragHandle
+            ? "panel-drag-handle cursor-grab pl-1 active:cursor-grabbing"
+            : "pl-3"
         )}
         style={{ height: panelHeaderHeight }}
       >
+        {dragHandle ? <PanelMoveHandle panel={panel} /> : null}
         <h2
           id={titleId}
           title={panel.title}
@@ -167,6 +171,7 @@ export function PanelChrome({
         ) : null}
         {state === "ready" ? children : null}
       </div>
+      {dragHandle ? <PanelResizeGrip /> : null}
     </article>
   )
 }

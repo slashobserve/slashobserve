@@ -22,6 +22,10 @@ import type { Panel } from "@/spec"
 
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardToolbar } from "./dashboard-toolbar"
+import { EditControls, NewerVersionNotice } from "./edit/edit-controls"
+import { useGridEditable, useLayoutStore } from "./edit/layout-store"
+import { LayoutAnnouncer } from "./edit/panel-move-handle"
+import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
 import { LiveIndicator } from "./live/live-indicator"
 import {
   useDashboardEvents,
@@ -62,6 +66,7 @@ type PanelContainerProps = {
   blockedBy: string | undefined
   onRetryBlocked: () => void
   refreshMs: number | null
+  editable: boolean
 }
 
 const PanelContainer = memo(function PanelContainer({
@@ -77,6 +82,7 @@ const PanelContainer = memo(function PanelContainer({
   blockedBy,
   onRetryBlocked,
   refreshMs,
+  editable,
 }: PanelContainerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
@@ -128,6 +134,7 @@ const PanelContainer = memo(function PanelContainer({
         refreshing={query.isFetching && query.data !== undefined}
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
+        dragHandle={editable}
         menu={
           <PanelMenu
             panel={panel}
@@ -164,11 +171,21 @@ function DashboardView({
   liveStatus: LiveStatus
 }) {
   const search = useDashboardSearch()
-  const version = envelope.version.version
-  const spec = useMemo(
+  const envelopeVersion = envelope.version.version
+  const envelopeSpec = useMemo(
     () => asDashboardSpec(envelope.version.spec),
     [envelope.version.spec]
   )
+  const session = useLayoutStore((state) => state.session)
+  const setLayout = useLayoutStore((state) => state.setLayout)
+  const gridBox = useRef<HTMLDivElement>(null)
+  const canEdit = useGridEditable(gridBox)
+  const editing =
+    session !== null &&
+    session.dashboardId === dashboardId &&
+    search.version === undefined
+  const version = editing ? session.baseVersion : envelopeVersion
+  const spec = editing ? session.baseSpec : envelopeSpec
   const variables = useMemo(() => spec.variables ?? [], [spec])
 
   const { states, selections, ready, blocking } = useVariables({
@@ -228,6 +245,14 @@ function DashboardView({
       <HistoryIcon data-icon="inline-start" />
       History
     </Link>,
+    <EditControls
+      key="edit-layout"
+      dashboardId={dashboardId}
+      version={envelopeVersion}
+      spec={envelopeSpec}
+      pinned={search.version !== undefined}
+      canEdit={canEdit}
+    />,
   ]
 
   return (
@@ -241,10 +266,20 @@ function DashboardView({
       {search.version !== undefined ? (
         <VersionBanner version={version} latestVersion={latestVersion} />
       ) : null}
+      {editing ? (
+        <NewerVersionNotice
+          baseVersion={session.baseVersion}
+          latestVersion={latestVersion}
+        />
+      ) : null}
       <VariablesBar states={states} />
-      <div className="flex-1 p-4">
+      <LayoutAnnouncer />
+      <div ref={gridBox} className="flex-1 p-4">
         <DashboardGrid
           spec={spec}
+          editable={editing && canEdit}
+          layout={editing ? session.layout : undefined}
+          onLayoutChange={editing ? setLayout : undefined}
           renderPanel={(panel, size) => (
             <PanelContainer
               dashboardId={dashboardId}
@@ -259,6 +294,7 @@ function DashboardView({
               blockedBy={blockedBy}
               onRetryBlocked={onRetryBlocked}
               refreshMs={refreshMs}
+              editable={editing && canEdit}
             />
           )}
         />
@@ -295,11 +331,17 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   const queryClient = useQueryClient()
   const latest = useQuery(latestDashboardQuery(queryClient, dashboardId))
   const latestVersion = latest.data?.dashboard.latest_version
+  const editing = useLayoutStore(
+    (state) => state.session?.dashboardId === dashboardId
+  )
   const { status: liveStatus } = useDashboardEvents(dashboardId, {
     pinnedVersion: search.version,
+    toastVersions: !editing,
   })
+  useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
+  let content: ReactNode
   if (search.version !== undefined) {
-    return (
+    content = (
       <PinnedDashboardPage
         dashboardId={dashboardId}
         version={search.version}
@@ -307,15 +349,23 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
         liveStatus={liveStatus}
       />
     )
+  } else if (!latest.data) {
+    content = <DashboardPageSkeleton />
+  } else {
+    content = (
+      <DashboardView
+        dashboardId={dashboardId}
+        envelope={latest.data}
+        latestVersion={latestVersion ?? latest.data.version.version}
+        liveStatus={liveStatus}
+      />
+    )
   }
-  if (!latest.data) return <DashboardPageSkeleton />
   return (
-    <DashboardView
-      dashboardId={dashboardId}
-      envelope={latest.data}
-      latestVersion={latestVersion ?? latest.data.version.version}
-      liveStatus={liveStatus}
-    />
+    <>
+      <UnsavedChangesGuard />
+      {content}
+    </>
   )
 }
 
