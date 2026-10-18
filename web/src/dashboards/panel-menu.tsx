@@ -15,11 +15,22 @@ type Props = {
   panel: Panel
   tableView: boolean
   onToggleTableView: () => void
+  queryEditable: boolean
 }
 
-type MenuItem = { id: string; label: string; onSelect: () => void }
+type MenuItem = {
+  id: string
+  label: string
+  onSelect: () => void
+  disabled?: boolean
+}
 
-export function PanelMenu({ panel, tableView, onToggleTableView }: Props) {
+export function PanelMenu({
+  panel,
+  tableView,
+  onToggleTableView,
+  queryEditable,
+}: Props) {
   const setSearch = useSetDashboardSearch()
   const items: MenuItem[] = []
   if (panel.type !== "table") {
@@ -31,7 +42,8 @@ export function PanelMenu({ panel, tableView, onToggleTableView }: Props) {
   }
   items.push({
     id: "edit-query",
-    label: "Edit query",
+    label: queryEditable ? "Edit query" : "Edit query (finish layout first)",
+    disabled: !queryEditable,
     onSelect: () =>
       setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
   })
@@ -49,9 +61,13 @@ export function PanelMenu({ panel, tableView, onToggleTableView }: Props) {
       >
         <EllipsisVerticalIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-max">
         {items.map((item) => (
-          <DropdownMenuItem key={item.id} onClick={item.onSelect}>
+          <DropdownMenuItem
+            key={item.id}
+            disabled={item.disabled}
+            onClick={item.onSelect}
+          >
             {item.label}
           </DropdownMenuItem>
         ))}

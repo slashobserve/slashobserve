@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner"
 
 import { ApiError, type ApiIssue } from "@/api/errors"
+import { isTransient, issueLines } from "@/api/issues"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,9 @@ import type { LintResult } from "./server-lint"
 const maxQueryLength = 20000
 const maxTitleLength = 200
 const maxSummaryLength = 500
+const transientText = "The query could not be checked right now."
+const unknownDatasourceText =
+  "A datasource this query uses is not configured anymore."
 
 type Props = {
   dashboardId: string
@@ -56,15 +60,16 @@ type Problem =
   | { kind: "conflict"; latest: number }
   | { kind: "gone" }
   | { kind: "rejected"; issues: ApiIssue[]; index: number }
+  | { kind: "transient" }
   | { kind: "schema"; issues: SpecIssue[] }
   | { kind: "failed"; message: string }
 
-function isTyping() {
+function focusIsFree() {
   const active = document.activeElement
   return (
-    active instanceof HTMLInputElement ||
-    active instanceof HTMLTextAreaElement ||
-    (active instanceof HTMLElement && active.closest(".cm-editor") !== null)
+    !active ||
+    active === document.body ||
+    active.closest('[data-slot="sheet-content"]') === null
   )
 }
 
@@ -97,37 +102,86 @@ function IssueList({ lines }: { lines: string[] }) {
   )
 }
 
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="shrink-0 text-foreground"
+      onClick={onRetry}
+    >
+      Try again
+    </Button>
+  )
+}
+
 function ProblemAlert({
   problem,
   panelId,
+  onRetry,
 }: {
   problem: Problem
   panelId: string
+  onRetry: () => void
 }) {
+  if (problem.kind === "transient") {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-pretty">
+          <span className="min-w-[min(100%,16rem)] flex-1">
+            {transientText}
+          </span>
+          <RetryButton onRetry={onRetry} />
+        </AlertDescription>
+      </Alert>
+    )
+  }
   if (problem.kind === "rejected") {
     const prefix = `/panels/${problem.index}/`
     const own = problem.issues.filter((issue) => issue.path.startsWith(prefix))
     const others = problem.issues.filter(
       (issue) => !issue.path.startsWith(prefix)
     )
+    const ownReal = own.filter((issue) => !isTransient(issue))
+    const ownLines =
+      ownReal.length > 0
+        ? issueLines(ownReal, transientText, unknownDatasourceText)
+        : []
+    const otherReal = others.filter((issue) => !isTransient(issue))
+    const otherLines =
+      otherReal.length > 0
+        ? issueLines(
+            otherReal.map((issue) => ({
+              ...issue,
+              message: `${issue.path}: ${issue.message}`,
+            })),
+            transientText,
+            unknownDatasourceText
+          )
+        : []
+    const retryable = problem.issues.some(isTransient)
     return (
       <Alert variant="destructive">
-        <AlertDescription className="flex flex-col gap-2">
-          {own.length > 0 ? (
-            <div>
-              <p className="font-medium">This query was rejected:</p>
-              <IssueList lines={own.map((issue) => issue.message)} />
-            </div>
-          ) : null}
-          {others.length > 0 ? (
-            <div>
-              <p className="font-medium">Other problems in this dashboard:</p>
-              <IssueList
-                lines={others.map((issue) => `${issue.path}: ${issue.message}`)}
-              />
-            </div>
-          ) : null}
-          {problem.issues.length === 0 ? <p>This query was rejected.</p> : null}
+        <AlertDescription className="flex flex-wrap items-start justify-between gap-3 text-pretty [&_p:not(:last-child)]:mb-0">
+          <div className="flex min-w-[min(100%,16rem)] flex-1 flex-col gap-2">
+            {ownLines.length > 0 ? (
+              <div>
+                <p className="font-medium">This query was rejected:</p>
+                <IssueList lines={ownLines} />
+              </div>
+            ) : null}
+            {otherLines.length > 0 ? (
+              <div>
+                <p className="font-medium">Other problems in this dashboard:</p>
+                <IssueList lines={otherLines} />
+              </div>
+            ) : null}
+            {retryable ? <p>{transientText}</p> : null}
+            {problem.issues.length === 0 ? (
+              <p>This query was rejected.</p>
+            ) : null}
+          </div>
+          {retryable ? <RetryButton onRetry={onRetry} /> : null}
         </AlertDescription>
       </Alert>
     )
@@ -135,7 +189,7 @@ function ProblemAlert({
   if (problem.kind === "schema") {
     return (
       <Alert variant="destructive">
-        <AlertDescription>
+        <AlertDescription className="[&_p:not(:last-child)]:mb-0">
           <p className="font-medium">
             The panel {panelId} would not be a valid Spec:
           </p>
@@ -234,6 +288,7 @@ export default function QueryTab({
   const save = useAddVersion(dashboardId)
   const editor = useRef<CodeEditorHandle>(null)
   const notice = useRef<HTMLDivElement>(null)
+  const lastTarget = useRef<{ source: Dashboard; parent: number } | null>(null)
 
   const [base, setBase] = useState<Base>(() => ({
     version,
@@ -276,11 +331,17 @@ export default function QueryTab({
         latestVersion > base.version ? latestVersion : 0,
         problem?.kind === "conflict" ? problem.latest : 0
       )
+  const conflicted = problem?.kind === "conflict"
   const hadNewer = useRef(false)
   useEffect(() => {
-    if (newer > 0 && !hadNewer.current && !isTyping()) notice.current?.focus()
+    if (conflicted) notice.current?.focus()
+  }, [conflicted])
+  useEffect(() => {
+    if (newer > 0 && !hadNewer.current && !conflicted && focusIsFree()) {
+      notice.current?.focus()
+    }
     hadNewer.current = newer > 0
-  }, [newer])
+  }, [newer, conflicted])
   const tooLong = [...draft].length > maxQueryLength
   const canSave =
     dirty &&
@@ -291,6 +352,7 @@ export default function QueryTab({
     title.trim() !== ""
 
   function submit(source: Dashboard, parent: number) {
+    lastTarget.current = { source, parent }
     const built = withDraft(source, panel.id, base, draft, title.trim())
     if (!built) {
       setProblem({ kind: "gone" })
@@ -320,6 +382,10 @@ export default function QueryTab({
               return
             }
             if (error.status === 422) {
+              if (error.issues.length > 0 && error.issues.every(isTransient)) {
+                setProblem({ kind: "transient" })
+                return
+              }
               setProblem({
                 kind: "rejected",
                 issues: error.issues,
@@ -431,7 +497,18 @@ export default function QueryTab({
             </Alert>
           ) : null}
           {problem ? (
-            <ProblemAlert problem={problem} panelId={panel.id} />
+            <ProblemAlert
+              problem={problem}
+              panelId={panel.id}
+              onRetry={() => {
+                if (newer > 0) {
+                  void applyToLatest()
+                  return
+                }
+                const target = lastTarget.current
+                if (target) submit(target.source, target.parent)
+              }}
+            />
           ) : null}
           <div className="flex flex-col gap-2">
             <Label htmlFor={summaryId}>Summary</Label>

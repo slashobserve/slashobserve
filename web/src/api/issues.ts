@@ -13,9 +13,16 @@ export function isTransient(issue: ApiIssue): boolean {
 const defaultTransientText =
   "This version could not be checked right now. Try again later."
 
-function issueText(issue: ApiIssue, transientText: string): string {
+const defaultUnknownDatasourceText =
+  "A datasource this version uses is not configured anymore."
+
+function issueText(
+  issue: ApiIssue,
+  transientText: string,
+  unknownDatasourceText: string
+): string {
   if (issue.code === "unknown_datasource") {
-    return "A datasource this version uses is not configured anymore."
+    return unknownDatasourceText
   }
   if (isTransient(issue)) {
     return transientText
@@ -25,8 +32,15 @@ function issueText(issue: ApiIssue, transientText: string): string {
 
 export function issueLines(
   issues: ApiIssue[],
-  transientText = defaultTransientText
+  transientText = defaultTransientText,
+  unknownDatasourceText = defaultUnknownDatasourceText
 ): string[] {
   if (issues.length === 0) return ["The saved Spec is no longer valid."]
-  return [...new Set(issues.map((issue) => issueText(issue, transientText)))]
+  return [
+    ...new Set(
+      issues.map((issue) =>
+        issueText(issue, transientText, unknownDatasourceText)
+      )
+    ),
+  ]
 }

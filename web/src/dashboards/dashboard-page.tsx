@@ -68,6 +68,7 @@ type PanelContainerProps = {
   onRetryBlocked: () => void
   refreshMs: number | null
   editable: boolean
+  layoutSession: boolean
 }
 
 const PanelContainer = memo(function PanelContainer({
@@ -84,6 +85,7 @@ const PanelContainer = memo(function PanelContainer({
   onRetryBlocked,
   refreshMs,
   editable,
+  layoutSession,
 }: PanelContainerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
@@ -141,6 +143,7 @@ const PanelContainer = memo(function PanelContainer({
             panel={panel}
             tableView={tableView}
             onToggleTableView={() => setTableView((current) => !current)}
+            queryEditable={!layoutSession}
           />
         }
       >
@@ -297,6 +300,7 @@ function DashboardView({
               onRetryBlocked={onRetryBlocked}
               refreshMs={refreshMs}
               editable={editing && canEdit}
+              layoutSession={editing}
             />
           )}
         />
@@ -307,6 +311,7 @@ function DashboardView({
         version={version}
         latestVersion={latestVersion}
         pinned={search.version !== undefined}
+        suspended={editing}
       />
     </main>
   )

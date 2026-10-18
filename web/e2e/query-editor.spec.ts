@@ -8,7 +8,7 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { openDashboard, panel } from "./dashboards"
+import { expectPanelsReady, openDashboard, panel } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
@@ -497,6 +497,367 @@ test("explains that a query is too long to lint", async ({
     sheet(page).getByText("Lint is unavailable right now.")
   ).toHaveCount(0)
   expectLoggedOnce(consoleErrors, 400)
+})
+
+function mockSaveResponse(
+  page: Page,
+  issues: Array<{ path: string; code: string; message: string }>
+) {
+  return page.route(/\/versions$/, (route) => {
+    if (route.request().method() !== "POST") return route.fallback()
+    return route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "spec is invalid",
+        code: "invalid_spec",
+        issues,
+      }),
+    })
+  })
+}
+
+test("offers Try again when the server cannot check the query right now", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  await mockSaveResponse(page, [
+    {
+      path: "/panels/0/query",
+      code: "datasource_unavailable",
+      message: "prometheus returned 502",
+    },
+    {
+      path: "/panels/3/query",
+      code: "query_timeout",
+      message: "query timed out",
+    },
+  ])
+  await sheet(page).getByRole("button", { name: "Save as new version" }).click()
+
+  await expect(
+    sheet(page).getByText("The query could not be checked right now.")
+  ).toHaveCount(1)
+  await expect(sheet(page).getByText("This query was rejected:")).toHaveCount(0)
+  await expect(
+    sheet(page).getByText("Other problems in this dashboard:")
+  ).toHaveCount(0)
+  await expect(sheet(page).getByText("prometheus returned 502")).toHaveCount(0)
+  expectLoggedOnce(consoleErrors, 422)
+
+  await page.unroute(/\/versions$/)
+  await sheet(page).getByRole("button", { name: "Try again" }).click()
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  const rps = (await getDashboard(request, id)).spec.panels.find(
+    (item) => item.id === "rps"
+  )
+  expect(rps?.query).toBe(savedQuery)
+})
+
+test("lists each rejected query issue once and the transient line once", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  const own = {
+    path: "/panels/0/query",
+    code: "query_invalid",
+    message: "parse error at char 3",
+  }
+  const other = {
+    path: "/panels/1/query",
+    code: "query_invalid",
+    message: "unknown metric",
+  }
+  const timedOut = (path: string) => ({
+    path,
+    code: "query_timeout",
+    message: "query timed out",
+  })
+  await mockSaveResponse(page, [
+    own,
+    own,
+    timedOut("/panels/0/query"),
+    other,
+    other,
+    timedOut("/panels/2/query"),
+    {
+      path: "/panels/3/query",
+      code: "unknown_datasource",
+      message: 'datasource "gone" is not configured',
+    },
+  ])
+  await sheet(page).getByRole("button", { name: "Save as new version" }).click()
+
+  await expect(sheet(page).getByText("This query was rejected:")).toBeVisible()
+  await expect(
+    sheet(page)
+      .getByRole("alert")
+      .filter({ hasText: "This query was rejected:" })
+      .getByRole("listitem")
+  ).toHaveText([
+    "parse error at char 3",
+    "/panels/1/query: unknown metric",
+    "A datasource this query uses is not configured anymore.",
+  ])
+  await expect(
+    sheet(page).getByText("The query could not be checked right now.")
+  ).toHaveCount(1)
+  await expect(
+    sheet(page)
+      .getByRole("alert")
+      .filter({ hasText: "This query was rejected:" })
+      .getByRole("listitem")
+      .filter({ hasText: "could not be checked" })
+  ).toHaveCount(0)
+  await expect(sheet(page).getByText("query timed out")).toHaveCount(0)
+  await expect(
+    sheet(page).getByRole("button", { name: "Try again" })
+  ).toBeVisible()
+  expectLoggedOnce(consoleErrors, 422)
+})
+
+test("applies to the newer version when Try again follows a transient error", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  await mockSaveResponse(page, [
+    {
+      path: "/panels/0/query",
+      code: "datasource_unavailable",
+      message: "prometheus returned 502",
+    },
+  ])
+  await sheet(page).getByRole("button", { name: "Save as new version" }).click()
+  await expect(
+    sheet(page).getByText("The query could not be checked right now.")
+  ).toBeVisible()
+  expectLoggedOnce(consoleErrors, 422)
+  await page.unroute(/\/versions$/)
+
+  await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
+  await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
+  await sheet(page).getByRole("button", { name: "Try again" }).click()
+
+  await expect(page.getByText("Saved version 3")).toBeVisible()
+  const rps = (await getDashboard(request, id)).spec.panels.find(
+    (item) => item.id === "rps"
+  )
+  expect(rps?.query).toBe(savedQuery)
+  expect(rps?.title).toBe("Renamed in v2")
+})
+
+test("leaves focus where it is when a newer version arrives inside the sheet", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+  const summary = sheet(page).getByRole("textbox", { name: "Summary" })
+  await summary.focus()
+
+  await addVersion(request, id, { ...spec, title: `${spec.title} renamed` }, 1)
+  await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
+  await expect(summary).toBeFocused()
+})
+
+test("asks before Back drops a draft made after opening the latest version", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await expect(
+    sheet(page).getByText("Open the latest version to edit this query.")
+  ).toBeVisible()
+  await sheet(page).getByRole("button", { name: "Open latest version" }).click()
+  await expect(page).not.toHaveURL(/version=/)
+  await expect(sheet(page).locator(".cm-content")).toHaveAttribute(
+    "contenteditable",
+    "true"
+  )
+  await replaceQuery(page, savedQuery)
+
+  await page.goBack()
+  await expect(discardDialog(page)).toBeVisible()
+  await page.getByRole("button", { name: "Keep editing" }).click()
+  await expect(discardDialog(page)).toHaveCount(0)
+  await expect(page).not.toHaveURL(/version=/)
+  await expect(page).toHaveURL(/panel=rps&tab=query/)
+  await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
+
+  await page.goBack()
+  await expect(discardDialog(page)).toBeVisible()
+  await page.getByRole("button", { name: "Discard" }).click()
+  await expect(page).toHaveURL(/version=1/)
+  await expect(
+    sheet(page).getByText("Open the latest version to edit this query.")
+  ).toBeVisible()
+  await expect(sheet(page).locator(".cm-content")).not.toHaveText(savedQuery)
+})
+
+test("does not put a focus ring on the tab when a read-only panel opens", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+
+  await expect(
+    sheet(page).getByText("Open the latest version to edit this query.")
+  ).toBeVisible()
+  await expect(sheet(page).locator(".cm-content")).not.toBeFocused()
+  await expect(
+    sheet(page).getByRole("tab", { name: "Query" })
+  ).not.toBeFocused()
+  await expect(
+    sheet(page).getByRole("heading", { name: rpsTitle })
+  ).toBeFocused()
+})
+
+function moveHandle(page: Page, title: string) {
+  return page.getByRole("button", { name: `Move or resize ${title}` })
+}
+
+async function startLayoutEditing(page: Page) {
+  await page.getByRole("button", { name: "Edit layout" }).click()
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+}
+
+async function nudgeErrorRate(page: Page) {
+  await moveHandle(page, "Checkout error rate").focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(page.getByText("Unsaved changes")).toBeVisible()
+}
+
+test("keeps Edit query disabled while the layout is being edited", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await startLayoutEditing(page)
+
+  await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
+  await expect(
+    page.getByRole("menuitem", {
+      name: "Edit query (finish layout first)",
+    })
+  ).toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Escape")
+  await expect(sheet(page)).toHaveCount(0)
+})
+
+test("ignores a panel link reached with Back during a layout session", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await openFromMenu(page, rpsTitle)
+  await expect(sheet(page).locator(".cm-editor")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(sheet(page)).toHaveCount(0)
+
+  await startLayoutEditing(page)
+  await nudgeErrorRate(page)
+  await page.goBack()
+
+  await expect(page).not.toHaveURL(/panel=|tab=/)
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(page.getByRole("alertdialog")).toHaveCount(0)
+  await expect(page.getByText("Unsaved changes")).toBeVisible()
+})
+
+test("asks once when leaving the dashboard with an unsaved layout", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await startLayoutEditing(page)
+  await nudgeErrorRate(page)
+
+  await page.getByRole("link", { name: "History" }).click()
+  await expect(page.getByRole("alertdialog")).toHaveCount(1)
+  await expect(
+    page.getByRole("alertdialog", { name: "Discard unsaved layout changes?" })
+  ).toBeVisible()
+  await page.getByRole("button", { name: "Keep editing" }).click()
+  await expect(page.getByRole("alertdialog")).toHaveCount(0)
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}(\\?|$)`))
+})
+
+test("saves a query and then a layout on top of it", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+  await sheet(page).getByRole("button", { name: "Save as new version" }).click()
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expect(sheet(page)).toHaveCount(0)
+  await expectPanelsReady(page)
+
+  await startLayoutEditing(page)
+  await nudgeErrorRate(page)
+  await page.getByRole("button", { name: "Save layout" }).click()
+  await page
+    .getByRole("dialog", { name: "Save layout" })
+    .getByRole("button", { name: "Save", exact: true })
+    .click()
+  await expect(page.getByText("Saved version 3")).toBeVisible()
+
+  const saved = await getDashboard(request, id)
+  expect(saved.latestVersion).toBe(3)
+  const rps = saved.spec.panels.find((item) => item.id === "rps")
+  expect(rps?.query).toBe(savedQuery)
+  const errorRate = saved.spec.panels.find((item) => item.id === "error_rate")
+  expect(errorRate?.gridPos).toMatchObject({ x: 13 })
+})
+
+test("explains that a request body over the limit is too long to lint", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+
+  await sheet(page).locator(".cm-content").click()
+  await page.keyboard.press(selectAll)
+  await page.keyboard.insertText("a".repeat(600_000))
+  await expect(
+    sheet(page).getByText("This query is too long to lint.")
+  ).toBeVisible({ timeout: 15_000 })
+  expectLoggedOnce(consoleErrors, 413)
 })
 
 test.describe("with a touch screen", () => {

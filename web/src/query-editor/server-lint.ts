@@ -19,7 +19,6 @@ export type LintResult =
 
 const unavailableMessage = "Lint is unavailable right now."
 const tooLongMessage = "This query is too long to lint."
-const tooLongPattern = /64 KiB|too large/
 
 function visibleRange(
   length: number,
@@ -33,8 +32,7 @@ function visibleRange(
 function failureMessage(error: unknown) {
   if (
     error instanceof ApiError &&
-    error.status === 400 &&
-    tooLongPattern.test(error.message)
+    (error.code === "query_too_long" || error.status === 413)
   ) {
     return tooLongMessage
   }

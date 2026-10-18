@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useCallback,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -55,7 +56,11 @@ function leavesQueryEditor(
     current.search as Record<string, unknown>
   )
   const after = validateDashboardSearch(next.search as Record<string, unknown>)
-  return before.panel !== after.panel || after.tab === undefined
+  return (
+    before.panel !== after.panel ||
+    before.version !== after.version ||
+    after.tab === undefined
+  )
 }
 
 type InspectorTab = "query" | "comments"
@@ -68,6 +73,7 @@ type Props = {
   version: number
   latestVersion: number
   pinned: boolean
+  suspended: boolean
 }
 
 function QuerySkeleton() {
@@ -85,6 +91,7 @@ export function PanelInspector({
   version,
   latestVersion,
   pinned,
+  suspended,
 }: Props) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
@@ -105,7 +112,17 @@ export function PanelInspector({
   const discarding = useRef(false)
 
   const panelId = search.panel
-  const open = panelId !== undefined && search.tab !== undefined
+  const requested = panelId !== undefined && search.tab !== undefined
+  const open = requested && !suspended
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    if (suspended && requested) {
+      setSearch((state) => ({ ...state, panel: undefined, tab: undefined }), {
+        replace: true,
+      })
+    }
+  }, [suspended, requested, setSearch])
   const current = open
     ? spec.panels.find((item) => item.id === panelId)
     : undefined
@@ -204,13 +221,20 @@ export function PanelInspector({
       >
         <SheetContent
           side="right"
+          initialFocus={titleRef}
           className="data-[side=right]:w-[min(720px,100vw)] data-[side=right]:sm:max-w-none"
           finalFocus={() => panelTrigger(retained?.id) ?? true}
         >
           {panel && active ? (
             <>
               <SheetHeader className="pr-12">
-                <SheetTitle className="wrap-anywhere">{panel.title}</SheetTitle>
+                <SheetTitle
+                  ref={titleRef}
+                  tabIndex={-1}
+                  className="wrap-anywhere outline-none"
+                >
+                  {panel.title}
+                </SheetTitle>
                 <SheetDescription render={<div />}>
                   <Badge variant="outline">
                     {panel.datasource.type} / {panel.datasource.uid}
@@ -250,7 +274,13 @@ export function PanelInspector({
           ) : (
             <>
               <SheetHeader className="pr-12">
-                <SheetTitle>Panel not found</SheetTitle>
+                <SheetTitle
+                  ref={titleRef}
+                  tabIndex={-1}
+                  className="outline-none"
+                >
+                  Panel not found
+                </SheetTitle>
                 <SheetDescription>
                   This panel is not in version {version}.
                 </SheetDescription>
