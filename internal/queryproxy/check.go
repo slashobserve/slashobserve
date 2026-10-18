@@ -227,10 +227,19 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 	if len(issues) > 0 {
 		return issues
 	}
-	if len(res.Queries) > 0 && !slices.ContainsFunc(res.Queries, func(q QueryResult) bool { return !framesEmpty(q.Frames) }) {
+	if len(res.Queries) > 0 && !skippedVisible(e.Panel, skip) && !slices.ContainsFunc(res.Queries, func(q QueryResult) bool { return !framesEmpty(q.Frames) }) {
 		return []spec.Issue{issue(e.Pointer+"/queries", CodeQueryEmpty, "%s", emptyPanelMessage)}
 	}
 	return nil
+}
+
+func skippedVisible(p *spec.Panel, skip []bool) bool {
+	for j, q := range p.Queries {
+		if !q.Hide && j < len(skip) && skip[j] {
+			return true
+		}
+	}
+	return false
 }
 
 func framesEmpty(frames []datasource.Frame) bool {

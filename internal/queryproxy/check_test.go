@@ -833,6 +833,36 @@ func TestCheckSpecMultiQueryPanels(t *testing.T) {
 			want:   []wantIssue{{"/panels/0/datasource", CodeUnknownDatasource, ""}},
 		},
 		{
+			name:      "a skipped visible query keeps an empty panel from being reported empty",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "x", Datasource: "missing"})},
+			setup:     byText(nil, "none"),
+			want:      []wantIssue{{"/panels/0/queries/1/datasource", CodeUnknownDatasource, ""}},
+			wantCalls: 1,
+		},
+		{
+			name:      "a visible query with an unresolved variable keeps an empty panel from being reported empty",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "up$v"})},
+			variables: []spec.Variable{queryVariable("v", "prom", "x")},
+			setup: func(f *fakeDatasource) {
+				byText(nil, "none")(f)
+				f.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+					return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+				}
+			},
+			want: []wantIssue{
+				{"/panels/0/queries/1/query", CodeVariableUnresolved, ""},
+				{"/variables/0", CodeVariableFailed, ""},
+			},
+			wantCalls: 2,
+		},
+		{
+			name:      "a skipped hidden query does not stop an empty panel from being reported",
+			panels:    []spec.Panel{multi(spec.Query{Query: "none"}, spec.Query{Query: "x", Datasource: "missing", Hide: true})},
+			setup:     byText(nil, "none"),
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}, {"/panels/0/queries/1/datasource", CodeUnknownDatasource, ""}},
+			wantCalls: 1,
+		},
+		{
 			name:      "unknown macro in the second query",
 			panels:    []spec.Panel{multi(spec.Query{Query: "ok"}, spec.Query{Query: "$__timeFilter(x)"})},
 			want:      []wantIssue{{"/panels/0/queries/1/query", spec.CodeUnknownMacro, ""}},
