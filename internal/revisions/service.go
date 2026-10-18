@@ -264,7 +264,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 	if o.usage != nil {
 		var err error
 		if usage, err = json.Marshal(o.usage); err != nil {
-			s.logger.WarnContext(ctx, "marshal agent run usage", slog.String("revision_id", claimed.ID.String()), slog.Any("error", err))
+			s.logger.WarnContext(ctx, "marshal agent run usage", slog.String("agent_request_id", claimed.ID.String()), slog.Any("error", err))
 			usage = nil
 		}
 	}

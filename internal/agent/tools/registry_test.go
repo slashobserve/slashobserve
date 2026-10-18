@@ -188,6 +188,9 @@ func TestCallRecoversPanics(t *testing.T) {
 	if err == nil || res.Content != nil || res.IsError {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
+	if FailureCode(err) != FailurePanicked {
+		t.Fatalf("failure code = %q", FailureCode(err))
+	}
 	logged := logs.String()
 	if !strings.Contains(logged, nameLintQuery) {
 		t.Fatalf("log lacks the tool name: %s", logged)
@@ -223,8 +226,8 @@ func TestCallResultCaps(t *testing.T) {
 		t.Fatalf("result under the cap rejected: %v", err)
 	}
 	r.entries[nameListMetrics] = entry{handle: big(maxContentBytes)}
-	if res, err := call(t, r, nameListMetrics, `{}`); err == nil || res.Content != nil {
-		t.Fatalf("oversized result accepted: err = %v", err)
+	if res, err := call(t, r, nameListMetrics, `{}`); err == nil || res.Content != nil || FailureCode(err) != FailureResultTooLarge {
+		t.Fatalf("oversized result accepted or misclassified: err = %v", err)
 	}
 
 	if MaxModelSpecBytes != 128<<10 {

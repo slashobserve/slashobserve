@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -611,12 +613,20 @@ func TestToolCallWorksWithTheLatestProtocolVersionAndBearerPrincipal(t *testing.
 }
 
 func callDirect(ctx context.Context, f *fixture, call func(context.Context, string, json.RawMessage) (tools.Result, error)) *mcplib.CallToolResult {
+	return callDirectWith(ctx, f, call, mcplib.CallToolRequest{})
+}
+
+func callDirectWith(ctx context.Context, f *fixture, call func(context.Context, string, json.RawMessage) (tools.Result, error), req mcplib.CallToolRequest) *mcplib.CallToolResult {
 	h := f.handler.(*handler)
 	h.call = call
 	ctx = auth.WithPrincipal(ctx, auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci"})
-	res, _ := h.callTool("get_spec_guide")(ctx, mcplib.CallToolRequest{})
+	res, _ := h.callTool("get_spec_guide")(ctx, req)
 	return res
 }
+
+type unencodable struct{}
+
+func (unencodable) MarshalJSON() ([]byte, error) { return nil, errors.New("secret-detail") }
 
 func resultText(t *testing.T, res *mcplib.CallToolResult) string {
 	t.Helper()
@@ -635,33 +645,97 @@ func TestClientCancellationIsLoggedAtInfo(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	res := callDirect(ctx, f, func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
-		return tools.Result{}, ctx.Err()
+		return tools.Result{}, fmt.Errorf("upstream said secret-detail: %w", ctx.Err())
 	})
 	if got := resultText(t, res); got != internalErrorMsg {
 		t.Errorf("result text %q", got)
 	}
 	logs := f.logs.String()
-	for _, want := range []string{"level=INFO", "canceled by client", "tool=get_spec_guide", "principal_kind=service_account", "principal_id=sa-1"} {
+	for _, want := range []string{"level=INFO", "canceled by client", "tool=get_spec_guide", "principal_kind=service_account", "principal_id=sa-1", "error_code=canceled", "error_type=*errors.errorString"} {
 		if !strings.Contains(logs, want) {
 			t.Errorf("log lacks %q: %s", want, logs)
 		}
+	}
+	if strings.Contains(logs, "secret-detail") || strings.Contains(logs, " error=") {
+		t.Errorf("error text reached the log: %s", logs)
 	}
 	if strings.Contains(logs, "level=ERROR") {
 		t.Errorf("cancellation was logged as an error: %s", logs)
 	}
 }
 
-func TestInternalToolFailureIsLoggedAtError(t *testing.T) {
-	f := newFixture(t)
-	res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
-		return tools.Result{}, errors.New("upstream exploded with secret-detail")
-	})
-	if got := resultText(t, res); got != internalErrorMsg {
-		t.Errorf("result text %q", got)
+func TestInternalToolFailureIsLoggedByCodeAndTypeOnly(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want []string
+	}{
+		{"plain error", errors.New("upstream exploded with secret-detail"), []string{"error_code=tool_failed", "error_type=*errors.errorString"}},
+		{
+			"postgres error",
+			fmt.Errorf("tool create_dashboard: %w", &pgconn.PgError{Code: "23505", Message: "duplicate key secret-detail", Detail: "Key (x)=(secret-detail)"}),
+			[]string{"error_code=tool_failed", "error_type=*pgconn.PgError", "sqlstate=23505"},
+		},
+		{"oversize result", fmt.Errorf("tool x: %w: secret-detail", tools.ErrResultTooLarge), []string{"error_code=result_too_large"}},
+		{"panic", fmt.Errorf("tool x: %w: secret-detail", tools.ErrPanicked), []string{"error_code=tool_panicked"}},
 	}
-	logs := f.logs.String()
-	if !strings.Contains(logs, "level=ERROR") || !strings.Contains(logs, "secret-detail") {
-		t.Errorf("failure was not logged at error: %s", logs)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+				return tools.Result{}, tc.err
+			})
+			if got := resultText(t, res); got != internalErrorMsg {
+				t.Errorf("result text %q", got)
+			}
+			logs := f.logs.String()
+			want := append([]string{"level=ERROR", "mcp tool call failed", "tool=get_spec_guide", "principal_kind=service_account", "principal_id=sa-1"}, tc.want...)
+			for _, w := range want {
+				if !strings.Contains(logs, w) {
+					t.Errorf("log lacks %q: %s", w, logs)
+				}
+			}
+			if strings.Contains(logs, "secret-detail") || strings.Contains(logs, "duplicate key") || strings.Contains(logs, " error=") {
+				t.Errorf("error text reached the log: %s", logs)
+			}
+		})
+	}
+}
+
+func TestEncodingFailuresAreLoggedByCodeAndTypeOnly(t *testing.T) {
+	t.Run("arguments", func(t *testing.T) {
+		f := newFixture(t)
+		req := mcplib.CallToolRequest{}
+		req.Params.Arguments = unencodable{}
+		res := callDirectWith(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+			return tools.Result{}, nil
+		}, req)
+		if got := resultText(t, res); got != internalErrorMsg {
+			t.Errorf("result text %q", got)
+		}
+		assertSafeFailureLog(t, f.logs.String(), "mcp tool arguments not encodable", "invalid_arguments")
+	})
+	t.Run("result", func(t *testing.T) {
+		f := newFixture(t)
+		res := callDirect(context.Background(), f, func(context.Context, string, json.RawMessage) (tools.Result, error) {
+			return tools.Result{Content: unencodable{}}, nil
+		})
+		if got := resultText(t, res); got != internalErrorMsg {
+			t.Errorf("result text %q", got)
+		}
+		assertSafeFailureLog(t, f.logs.String(), "mcp tool result not encodable", "result_not_encodable")
+	})
+}
+
+func assertSafeFailureLog(t *testing.T, logs, msg, code string) {
+	t.Helper()
+	for _, w := range []string{"level=ERROR", msg, "tool=get_spec_guide", "principal_id=sa-1", "error_code=" + code, "error_type="} {
+		if !strings.Contains(logs, w) {
+			t.Errorf("log lacks %q: %s", w, logs)
+		}
+	}
+	if strings.Contains(logs, "secret-detail") || strings.Contains(logs, " error=") {
+		t.Errorf("error text reached the log: %s", logs)
 	}
 }
 

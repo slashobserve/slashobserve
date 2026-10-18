@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -36,6 +37,7 @@ var (
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
 	ErrTooLarge        = errors.New("the dashboard is too large for the agent to revise")
+	errModelCall       = errors.New("model call failed")
 )
 
 var panelIDPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
@@ -123,7 +125,7 @@ func (a *Agent) Run(ctx context.Context, t Task) (Outcome, error) {
 	start := time.Now()
 	out := Outcome{Provider: a.provider.Name(), Model: a.provider.Model()}
 	err := a.run(ctx, t, &out)
-	a.logFinish(ctx, modeOf(t), out, time.Since(start), err)
+	a.logFinish(ctx, modeOf(t), t.RequestID, out, time.Since(start), err)
 	return out, err
 }
 
@@ -170,7 +172,7 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	for restarts := 0; ; restarts++ {
 		var current *revision
 		if mode == tools.ModeRevise {
-			if current, err = a.loadLatest(ctx, dashboardUUID); err != nil {
+			if current, err = a.loadLatest(ctx, dashboardUUID, t.RequestID); err != nil {
 				return err
 			}
 			out.DashboardID = current.dashboardID
@@ -188,7 +190,7 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	}
 }
 
-func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID) (*revision, error) {
+func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string) (*revision, error) {
 	dash, ver, err := a.dashboards.Get(ctx, id)
 	switch {
 	case errors.Is(err, dashboards.ErrNotFound):
@@ -197,10 +199,13 @@ func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID) (*revision, erro
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		a.logger.ErrorContext(ctx, "agent could not load the dashboard", slog.String("error", err.Error()))
-		return nil, &safeError{message: "could not load the dashboard", err: err}
+		a.logger.ErrorContext(ctx, "agent could not load the dashboard", append([]any{
+			slog.String("error_code", codeLoadFailed),
+			slog.String("agent_request_id", requestID),
+		}, logattrs.Safe(err)...)...)
+		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: err}
 	case ver.Spec == nil:
-		return nil, &safeError{message: "could not load the dashboard", err: errors.New("latest version has no spec")}
+		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: errors.New("latest version has no spec")}
 	}
 	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec}, nil
 }
@@ -216,6 +221,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		run.ParentVersion = current.number
 	}
 	ctx = tools.WithRun(ctx, run)
+	ctx = llm.WithAgentRequestID(ctx, t.RequestID)
 	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
 	defer func() { out.RepairRounds += state.repairs }()
 
@@ -264,14 +270,14 @@ func contextError(err error) error {
 	if errors.Is(err, ErrTooLarge) {
 		return err
 	}
-	return &safeError{message: "could not build the request context", err: err}
+	return &safeError{message: "could not build the request context", code: codeContextFailed, err: err}
 }
 
 func providerError(ctx context.Context, err error) error {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return ctxErr
 	}
-	return fmt.Errorf("model call failed: %w", err)
+	return fmt.Errorf("%w: %w", errModelCall, err)
 }
 
 func repairExhausted(codes []string) error {
@@ -281,8 +287,9 @@ func repairExhausted(codes []string) error {
 	return fmt.Errorf("%w (last issues: %s)", ErrRepairExhausted, strings.Join(codes, ", "))
 }
 
-func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, out Outcome, took time.Duration, err error) {
+func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string, out Outcome, took time.Duration, err error) {
 	attrs := []any{
+		slog.String("agent_request_id", requestID),
 		slog.String("mode", string(mode)),
 		slog.Int("version", out.Version),
 		slog.Int("model_calls", out.Usage.Calls),
@@ -299,7 +306,42 @@ func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, out Outcome, too
 		attrs = append(attrs, slog.String("dashboard_id", out.DashboardID))
 	}
 	if err != nil {
-		attrs = append(attrs, slog.String("error", err.Error()))
+		attrs = append(attrs, slog.String("error_code", errorKind(err)))
+		var safe *safeError
+		if errors.As(err, &safe) || errors.Is(err, errModelCall) {
+			attrs = append(attrs, logattrs.Safe(err)...)
+		}
 	}
 	a.logger.InfoContext(ctx, "agent run finished", attrs...)
+}
+
+func errorKind(err error) string {
+	var safe *safeError
+	switch {
+	case errors.As(err, &safe):
+		return safe.code
+	case errors.Is(err, errModelCall):
+		return "model_failed"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "deadline_exceeded"
+	case errors.Is(err, ErrNoSave):
+		return "no_save"
+	case errors.Is(err, ErrRepairExhausted):
+		return "repair_exhausted"
+	case errors.Is(err, ErrTurnLimit):
+		return "turn_limit"
+	case errors.Is(err, ErrRefused):
+		return "refused"
+	case errors.Is(err, ErrConflict):
+		return "conflict"
+	case errors.Is(err, ErrInvalidTask):
+		return "invalid_task"
+	case errors.Is(err, ErrTooLarge):
+		return "too_large"
+	case errors.Is(err, dashboards.ErrNotFound):
+		return "not_found"
+	}
+	return codeInternal
 }

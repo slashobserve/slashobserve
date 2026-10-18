@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm"
@@ -68,7 +67,7 @@ func storedError(err error) error {
 		return errors.New(messageDashboardGone)
 	case errors.As(err, &safe):
 		return errors.New(safe.message)
-	case strings.HasPrefix(err.Error(), messageModelCall):
+	case errors.Is(err, errModelCall):
 		return errors.New(messageModelCall)
 	}
 	return errors.New(messageRunFailed)

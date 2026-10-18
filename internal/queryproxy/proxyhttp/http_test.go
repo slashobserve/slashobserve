@@ -1,11 +1,11 @@
 package proxyhttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -168,11 +169,13 @@ type harness struct {
 	specs  *fakeSpecs
 	runner *queryproxy.Runner
 	id     pgtype.UUID
+	logs   *bytes.Buffer
 }
 
 func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 	t.Helper()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logs := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logs, nil))
 	ds := &fakeDatasource{}
 	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: ds})
 	if err != nil {
@@ -193,7 +196,7 @@ func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{ID: principal}))
 	})
 	h.Register(api)
-	return &harness{t: t, h: h, router: router, ds: ds, specs: specs, runner: runner, id: id}
+	return &harness{t: t, h: h, router: router, ds: ds, specs: specs, runner: runner, id: id, logs: logs}
 }
 
 func (hn *harness) dashboardPath(suffix string) string {
@@ -638,6 +641,58 @@ func TestErrorBodiesCarryNoAddressesOrSecrets(t *testing.T) {
 				if strings.Contains(rec.Body.String(), secret) {
 					t.Fatalf("body %s leaks %q", rec.Body.String(), secret)
 				}
+			}
+		})
+	}
+}
+
+func TestInternalFailureLogsCarryOnlyTheCodeAndType(t *testing.T) {
+	tests := []struct {
+		name  string
+		msg   string
+		setup func(hn *harness)
+		extra string
+	}{
+		{
+			name: "frame conversion",
+			msg:  "convert panel frames",
+			setup: func(hn *harness) {
+				hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+					return []datasource.Frame{{Fields: []datasource.Field{{Name: "UNIQUE-COLUMN", Type: datasource.FieldTime, Values: []any{"UNIQUE-VALUE"}}}}}, nil
+				}
+			},
+		},
+		{
+			name: "version load",
+			msg:  "load dashboard version",
+			setup: func(hn *harness) {
+				hn.specs.err = fmt.Errorf("load: %w", &pgconn.PgError{Code: "08006", Message: "UNIQUE-MESSAGE postgres://user:hunter2@db:5432", Detail: "UNIQUE-DETAIL"})
+			},
+			extra: "sqlstate=08006",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hn := newHarness(t)
+			tc.setup(hn)
+			expectError(t, hn.get(hn.dataPath("p_ts", window+"&var-job=api"), ""), http.StatusInternalServerError, "internal")
+			logs := hn.logs.String()
+			for _, leak := range []string{"UNIQUE-COLUMN", "UNIQUE-VALUE", "UNIQUE-MESSAGE", "UNIQUE-DETAIL", "hunter2", "holds a"} {
+				if strings.Contains(logs, leak) {
+					t.Fatalf("log leaks %q: %s", leak, logs)
+				}
+			}
+			want := []string{"level=ERROR", "msg=\"" + tc.msg + "\"", "error_code=internal", "error_type="}
+			if tc.extra != "" {
+				want = append(want, tc.extra)
+			}
+			for _, w := range want {
+				if !strings.Contains(logs, w) {
+					t.Fatalf("log lacks %q: %s", w, logs)
+				}
+			}
+			if strings.Contains(logs, " error=") {
+				t.Fatalf("log carries the error text: %s", logs)
 			}
 		})
 	}

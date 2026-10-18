@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -189,7 +190,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 	}
 	frames, err := marshalFrames(res.Frames)
 	if err != nil {
-		h.logger.ErrorContext(ctx, "convert panel frames", slog.String("panel_id", panelID), slog.String("error", err.Error()))
+		h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", panelID)}, failureAttrs(err)...)...)
 		return dataEntry{}, errInternal
 	}
 	if len(frames) > maxResponseBytes {
@@ -370,9 +371,14 @@ func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (*
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return nil, err
 	default:
-		h.logger.ErrorContext(ctx, "load dashboard version", slog.String("error", err.Error()))
+		h.logger.ErrorContext(ctx, "load dashboard version", failureAttrs(err)...)
 		return nil, errInternal
 	}
+}
+
+func failureAttrs(err error) []any {
+	_, code, _ := queryproxy.Classify(err)
+	return append([]any{slog.String("error_code", code)}, logattrs.Safe(err)...)
 }
 
 func (h *Handler) fail(c *gin.Context, err error) {

@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -142,7 +143,7 @@ func (r *Runner) runPanel(ctx context.Context, req Request, lists map[string]all
 	if kind == KindRange {
 		res.Step = StepFor(req.Range, req.MaxDataPoints)
 	}
-	res.Frames, err = upstream(ctx, r, panel.ID, inst.UID, func(ctx context.Context) ([]datasource.Frame, error) {
+	res.Frames, err = upstream(ctx, r, panel.ID, inst, func(ctx context.Context) ([]datasource.Frame, error) {
 		if kind == KindRange {
 			return inst.Datasource.QueryRange(ctx, q, req.Range, res.Step)
 		}
@@ -185,7 +186,7 @@ func findPanel(d *spec.Dashboard, id string) (spec.Panel, bool) {
 	return spec.Panel{}, false
 }
 
-func upstream[T any](ctx context.Context, r *Runner, subject, uid string, call func(context.Context) (T, error)) (out T, err error) {
+func upstream[T any](ctx context.Context, r *Runner, subject string, inst datasource.Instance, call func(context.Context) (T, error)) (out T, err error) {
 	if err := r.sem.Acquire(ctx, 1); err != nil {
 		return out, err
 	}
@@ -194,7 +195,7 @@ func upstream[T any](ctx context.Context, r *Runner, subject, uid string, call f
 		if p := recover(); p != nil {
 			r.logger.ErrorContext(ctx, "datasource call panicked",
 				slog.String("subject", subject),
-				slog.String("datasource", uid),
+				slog.String("datasource", inst.UID),
 				slog.String("panic_type", fmt.Sprintf("%T", p)),
 				slog.String("stack", string(debug.Stack())))
 			var zero T
@@ -203,12 +204,13 @@ func upstream[T any](ctx context.Context, r *Runner, subject, uid string, call f
 	}()
 	out, err = call(ctx)
 	if err != nil {
-		if status, _, _ := Classify(err); status == http.StatusInternalServerError {
-			r.logger.ErrorContext(ctx, "datasource call failed",
+		if status, code, _ := Classify(err); status == http.StatusInternalServerError {
+			r.logger.ErrorContext(ctx, "datasource call failed", append([]any{
 				slog.String("subject", subject),
-				slog.String("datasource", uid),
-				slog.String("error_type", fmt.Sprintf("%T", err)),
-				slog.String("error", err.Error()))
+				slog.String("datasource", inst.UID),
+				slog.String("datasource_type", inst.Datasource.Type()),
+				slog.String("error_code", code),
+			}, logattrs.Safe(err)...)...)
 		}
 	}
 	return out, err

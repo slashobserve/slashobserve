@@ -33,6 +33,28 @@ const (
 	MaxModelSpecBytes = 128 << 10
 )
 
+var (
+	ErrResultTooLarge = errors.New("result too large")
+	ErrPanicked       = errors.New("panicked")
+)
+
+const (
+	FailureToolFailed     = "tool_failed"
+	FailureResultTooLarge = "result_too_large"
+	FailurePanicked       = "tool_panicked"
+)
+
+// FailureCode names why Call returned an error, without any of the error's text.
+func FailureCode(err error) string {
+	switch {
+	case errors.Is(err, ErrResultTooLarge):
+		return FailureResultTooLarge
+	case errors.Is(err, ErrPanicked):
+		return FailurePanicked
+	}
+	return FailureToolFailed
+}
+
 var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes}
 
 type Tool struct {
@@ -141,7 +163,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 				slog.String("tool", name),
 				slog.String("panic_type", fmt.Sprintf("%T", p)),
 				slog.String("stack", string(debug.Stack())))
-			res, err = Result{}, fmt.Errorf("tool %s panicked", name)
+			res, err = Result{}, fmt.Errorf("tool %s: %w", name, ErrPanicked)
 		}
 	}()
 	res, err = e.handle(ctx, input)
@@ -158,7 +180,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	}
 	if len(body) > limit {
 		r.deps.Logger.ErrorContext(ctx, "agent tool result too large", slog.String("tool", name), slog.Int("bytes", len(body)))
-		return Result{}, fmt.Errorf("tool %s: result is %d bytes, over the %d byte limit", name, len(body), limit)
+		return Result{}, fmt.Errorf("tool %s: %w: %d bytes, over the %d byte limit", name, ErrResultTooLarge, len(body), limit)
 	}
 	if eb, ok := res.Content.(errorBody); ok && res.IsError && res.Step == "" {
 		res.Step = errorStep(name, eb.Code)

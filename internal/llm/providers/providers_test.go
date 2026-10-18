@@ -723,11 +723,12 @@ func TestUpstreamErrorBodyNeverLeaks(t *testing.T) {
 				_, _ = io.WriteString(w, f.errorBody("invalid key "+sentinel+" for "+systemText))
 			})
 			p, logs := newProvider(t, f, up, options{})
-			session, err := p.Start(context.Background(), request(queryTool()))
+			ctx := llm.WithAgentRequestID(context.Background(), "agent-req-1")
+			session, err := p.Start(ctx, request(queryTool()))
 			if err != nil {
 				t.Fatalf("Start: %v", err)
 			}
-			_, err = session.Next(context.Background(), nil)
+			_, err = session.Next(ctx, nil)
 			if !errors.Is(err, llm.ErrProvider) {
 				t.Fatalf("err = %v, want ErrProvider", err)
 			}
@@ -740,7 +741,7 @@ func TestUpstreamErrorBodyNeverLeaks(t *testing.T) {
 					t.Fatalf("%q leaked\nerror: %v\nlog: %s", secret, err, logged)
 				}
 			}
-			for _, want := range []string{"status=401", "request_id=req_0123abc", "error_type=" + errorType(f)} {
+			for _, want := range []string{"status=401", "request_id=req_0123abc", "agent_request_id=agent-req-1", "provider_error_type=" + errorType(f)} {
 				if !strings.Contains(logged, want) {
 					t.Fatalf("log lacks %q: %s", want, logged)
 				}
@@ -767,15 +768,16 @@ func TestRequestTimeoutAndCancellation(t *testing.T) {
 		t.Run(f.name+"/our timeout", func(t *testing.T) {
 			up := newUpstream(t, block)
 			p, logs := newProvider(t, f, up, options{timeout: 200 * time.Millisecond})
-			session, _ := p.Start(context.Background(), request())
-			_, err := session.Next(context.Background(), nil)
+			ctx := llm.WithAgentRequestID(context.Background(), "agent-req-2")
+			session, _ := p.Start(ctx, request())
+			_, err := session.Next(ctx, nil)
 			if !errors.Is(err, llm.ErrProvider) || !strings.Contains(err.Error(), "timed out") {
 				t.Fatalf("err = %v, want an ErrProvider timeout", err)
 			}
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				t.Fatalf("our own timeout must not look like a caller context error: %v", err)
 			}
-			if !strings.Contains(logs.String(), "timed out") {
+			if !strings.Contains(logs.String(), "timed out") || !strings.Contains(logs.String(), "agent_request_id=agent-req-2") {
 				t.Fatalf("log = %s", logs.String())
 			}
 		})

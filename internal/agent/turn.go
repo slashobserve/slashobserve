@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/llm"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -38,8 +39,17 @@ const (
 	messageTurnLimit = "turn limit reached; only a save can run"
 )
 
+const (
+	codeToolFailed      = tools.FailureToolFailed
+	codeMalformedResult = "malformed_result"
+	codeLoadFailed      = "load_failed"
+	codeContextFailed   = "context_failed"
+	codeInternal        = "internal"
+)
+
 type safeError struct {
 	message string
+	code    string
 	err     error
 }
 
@@ -216,12 +226,22 @@ func (s *runState) report(slot callSlot) {
 	s.progress(step)
 }
 
+func agentRequestAttr(ctx context.Context) slog.Attr {
+	run, _ := tools.RunFrom(ctx)
+	return slog.String("agent_request_id", run.RequestID)
+}
+
 func (s *runState) internal(ctx context.Context, slot callSlot) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	s.logger.ErrorContext(ctx, "agent tool failed", slog.String("tool", slot.name), slog.String("error", slot.err.Error()))
-	return &safeError{message: "the " + slot.name + " tool failed with an internal error", err: slot.err}
+	code := tools.FailureCode(slot.err)
+	s.logger.ErrorContext(ctx, "agent tool failed", append([]any{
+		slog.String("tool", slot.name),
+		slog.String("error_code", code),
+		agentRequestAttr(ctx),
+	}, logattrs.Safe(slot.err)...)...)
+	return &safeError{message: "the " + slot.name + " tool failed with an internal error", code: code, err: slot.err}
 }
 
 type saveBody struct {
@@ -279,9 +299,11 @@ func (b saveBody) issueCodes() []string {
 }
 
 func (s *runState) malformed(ctx context.Context, slot callSlot) error {
-	s.logger.ErrorContext(ctx, "agent save result is malformed", slog.String("tool", slot.name))
+	s.logger.ErrorContext(ctx, "agent save result is malformed",
+		slog.String("tool", slot.name), slog.String("error_code", codeMalformedResult), agentRequestAttr(ctx))
 	return &safeError{
 		message: "the " + slot.name + " tool returned an unreadable result",
+		code:    codeMalformedResult,
 		err:     errors.New("save result is malformed"),
 	}
 }

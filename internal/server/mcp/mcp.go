@@ -20,6 +20,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -110,25 +111,21 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 		}
 		input, err := rawInput(req.GetRawArguments())
 		if err != nil {
-			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", slog.String("tool", name), slog.Any("error", err))
+			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(name, principal, "invalid_arguments", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		res, err := h.call(ctx, name, input)
 		if err != nil {
 			if ctx.Err() != nil {
-				h.logger.InfoContext(ctx, "mcp tool call canceled by client",
-					slog.String("tool", name),
-					slog.String("principal_kind", string(principal.Kind)),
-					slog.String("principal_id", principal.ID),
-					slog.Any("error", err))
+				h.logger.InfoContext(ctx, "mcp tool call canceled by client", h.failureAttrs(name, principal, "canceled", err)...)
 				return mcplib.NewToolResultError(internalErrorMsg), nil
 			}
-			h.logger.ErrorContext(ctx, "mcp tool call failed", slog.String("tool", name), slog.Any("error", err))
+			h.logger.ErrorContext(ctx, "mcp tool call failed", h.failureAttrs(name, principal, tools.FailureCode(err), err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		body, err := json.Marshal(res.Content)
 		if err != nil {
-			h.logger.ErrorContext(ctx, "mcp tool result not encodable", slog.String("tool", name), slog.Any("error", err))
+			h.logger.ErrorContext(ctx, "mcp tool result not encodable", h.failureAttrs(name, principal, "result_not_encodable", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
 		h.logger.InfoContext(ctx, "mcp tool call",
@@ -141,6 +138,16 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 		out.IsError = res.IsError
 		return out, nil
 	}
+}
+
+// Error text can echo tool input, query text or credentials, so a failure is logged by its code and type only.
+func (h *handler) failureAttrs(tool string, principal auth.Principal, code string, err error) []any {
+	return append([]any{
+		slog.String("tool", tool),
+		slog.String("principal_kind", string(principal.Kind)),
+		slog.String("principal_id", principal.ID),
+		slog.String("error_code", code),
+	}, logattrs.Safe(err)...)
 }
 
 func rawInput(args any) (json.RawMessage, error) {

@@ -154,7 +154,7 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 	}
 	switch {
 	case ctx.Err() != nil:
-		w.logger.InfoContext(ctx, "agent request interrupted; releasing it", slog.String("revision_id", claimed.ID.String()))
+		w.logger.InfoContext(ctx, "agent request interrupted; releasing it", slog.String("agent_request_id", claimed.ID.String()))
 		w.release(ctx, claimed, false)
 		return false
 	case timedOut:
@@ -171,7 +171,7 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, b
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
 	switch {
 	case err != nil:
-		w.logger.ErrorContext(ctx, "check agent request result", slog.String("revision_id", claimed.ID.String()), slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "check agent request result", slog.String("agent_request_id", claimed.ID.String()), slog.Any("error", err))
 		if !beforeRun {
 			return false, true
 		}
@@ -191,7 +191,7 @@ func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, b
 func (w *Worker) revise(ctx context.Context, req Request) (result Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			w.logger.ErrorContext(ctx, "agent run panicked", slog.String("revision_id", req.ID), slog.String("panic_type", fmt.Sprintf("%T", p)))
+			w.logger.ErrorContext(ctx, "agent run panicked", slog.String("agent_request_id", req.ID), slog.String("panic_type", fmt.Sprintf("%T", p)))
 			result, err = Result{}, errors.New(crashedMessage)
 		}
 	}()
@@ -233,7 +233,7 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 }
 
 func logAttrs(claimed dbsqlc.AgentRequest) []any {
-	attrs := []any{slog.String("revision_id", claimed.ID.String())}
+	attrs := []any{slog.String("agent_request_id", claimed.ID.String())}
 	if claimed.DashboardID.Valid {
 		attrs = append(attrs, slog.String("dashboard_id", claimed.DashboardID.String()))
 	}

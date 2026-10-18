@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -475,6 +478,7 @@ func TestUpstreamLogsInternalErrorsOnceWithoutSecrets(t *testing.T) {
 		wantLog bool
 	}{
 		{"unclassified error", errors.New("dial tcp 10.0.0.5:9090: password=" + secret), true},
+		{"postgres error", fmt.Errorf("query: %w", &pgconn.PgError{Code: "57014", Message: "canceling statement for password=" + secret, Detail: "secret_query"}), true},
 		{"classified error", datasource.Errorf(datasource.ErrUnavailable, "connection refused"), false},
 		{"invalid query", datasource.Errorf(datasource.ErrInvalidQuery, "bad syntax"), false},
 	}
@@ -493,14 +497,25 @@ func TestUpstreamLogsInternalErrorsOnceWithoutSecrets(t *testing.T) {
 				t.Fatalf("log count = %d, want logged=%v: %q", got, tt.wantLog, logs.String())
 			}
 			if tt.wantLog {
-				for _, want := range []string{"subject=p1", "datasource=prom", "error_type=*errors.errorString"} {
+				wantType := "error_type=*errors.errorString"
+				wantExtra := "error_code=internal"
+				if strings.HasPrefix(tt.name, "postgres") {
+					wantType = "error_type=*pgconn.PgError"
+					wantExtra = "sqlstate=57014"
+				}
+				for _, want := range []string{"subject=p1", "datasource=prom", "datasource_type=prometheus", "error_code=internal", wantType, wantExtra} {
 					if !strings.Contains(logs.String(), want) {
 						t.Fatalf("log missing %q: %q", want, logs.String())
 					}
 				}
+				if strings.Contains(logs.String(), " error=") {
+					t.Fatalf("error text logged: %q", logs.String())
+				}
 			}
-			if strings.Contains(logs.String(), "secret_query") {
-				t.Fatalf("query text logged: %q", logs.String())
+			for _, leak := range []string{"secret_query", secret, "10.0.0.5", "canceling statement"} {
+				if strings.Contains(logs.String(), leak) {
+					t.Fatalf("log leaks %q: %q", leak, logs.String())
+				}
 			}
 			if _, _, message := Classify(err); strings.Contains(message, secret) {
 				t.Fatalf("message leaked detail: %q", message)

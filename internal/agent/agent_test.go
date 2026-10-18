@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent"
@@ -305,6 +306,18 @@ func newRig(t *testing.T, sessions ...*scriptedSession) *rig {
 	return r
 }
 
+func (r *rig) logEntry(msg string) map[string]any {
+	r.t.Helper()
+	for line := range strings.SplitSeq(r.logs.String(), "\n") {
+		var entry map[string]any
+		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == msg {
+			return entry
+		}
+	}
+	r.t.Fatalf("no %q log line in %s", msg, r.logs.String())
+	return nil
+}
+
 func session(turns ...scriptedTurn) *scriptedSession { return &scriptedSession{script: turns} }
 
 func (r *rig) task() agent.Task {
@@ -334,14 +347,7 @@ func (r *rig) recordedSteps() []agent.Step {
 
 func (r *rig) finishLog() map[string]any {
 	r.t.Helper()
-	for line := range strings.SplitSeq(r.logs.String(), "\n") {
-		var entry map[string]any
-		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "agent run finished" {
-			return entry
-		}
-	}
-	r.t.Fatalf("no finish line in logs: %s", r.logs.String())
-	return nil
+	return r.logEntry("agent run finished")
 }
 
 func phases(steps []agent.Step) []string {
@@ -413,7 +419,7 @@ func TestCreateHappyPath(t *testing.T) {
 		fin["repair_rounds"] != float64(0) || fin["provider"] != "fake" || fin["model"] != "fake-model" || fin["input_tokens"] != float64(300) {
 		t.Fatalf("finish line = %v", fin)
 	}
-	if _, ok := fin["error"]; ok {
+	if _, ok := fin["error_code"]; ok {
 		t.Fatal("successful run logged an error")
 	}
 }
@@ -525,7 +531,7 @@ func TestRepairBudgetIsThreeRounds(t *testing.T) {
 		t.Fatalf("phases = %s", got)
 	}
 	fin := r.finishLog()
-	if fin["error"] == nil || fin["repair_rounds"] != float64(3) {
+	if fin["error_code"] != "repair_exhausted" || fin["error"] != nil || fin["repair_rounds"] != float64(3) {
 		t.Fatalf("finish line = %v", fin)
 	}
 }
@@ -815,7 +821,7 @@ func TestRefusalFailsTheRunAndKeepsUsage(t *testing.T) {
 	if out.Usage.Calls != 1 || out.Usage.InputTokens != 100 || out.Provider != "fake" || out.Model != "fake-model" {
 		t.Fatalf("outcome = %+v", out)
 	}
-	if fin := r.finishLog(); !strings.Contains(fmt.Sprint(fin["error"]), "declined") {
+	if fin := r.finishLog(); fin["error_code"] != "refused" || fin["error"] != nil {
 		t.Fatalf("finish line = %v", fin)
 	}
 }
@@ -1005,7 +1011,7 @@ func TestDeadlineExpiryIsReturnedAsTheContextError(t *testing.T) {
 }
 
 func TestInternalToolErrorAbortsWithASafeMessage(t *testing.T) {
-	cause := errors.New("pq: password authentication failed for user app at db.internal:5432")
+	cause := errors.New("pq: password authentication failed for user app at db.internal:5432 running SELECT UNIQUE-QUERY")
 	r := newRig(t, session(
 		toolTurn(call("c1", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`)),
 		toolTurn(call("never", "create_dashboard", `{}`)),
@@ -1013,8 +1019,10 @@ func TestInternalToolErrorAbortsWithASafeMessage(t *testing.T) {
 	r.tools.on("create_dashboard", func(context.Context, json.RawMessage) (tools.Result, error) {
 		return tools.Result{}, cause
 	})
+	task := r.task()
+	task.RequestID = "req-7"
 
-	out, err := r.agent.Run(context.Background(), r.task())
+	out, err := r.agent.Run(context.Background(), task)
 	if !errors.Is(err, cause) {
 		t.Fatalf("err = %v", err)
 	}
@@ -1028,9 +1036,97 @@ func TestInternalToolErrorAbortsWithASafeMessage(t *testing.T) {
 	if len(steps) != 1 || steps[0].Status != "error" || steps[0].Message != "internal error" || steps[0].Phase != "save" {
 		t.Fatalf("steps = %+v", steps)
 	}
-	if strings.Contains(r.logs.String(), "UNIQUE-INPUT") {
-		t.Fatal("tool input reached the log")
+	logs := r.logs.String()
+	for _, leak := range []string{"UNIQUE-INPUT", "UNIQUE-QUERY", "password", "db.internal"} {
+		if strings.Contains(logs, leak) {
+			t.Fatalf("log leaks %q: %s", leak, logs)
+		}
 	}
+	failed := r.logEntry("agent tool failed")
+	if failed["tool"] != "create_dashboard" || failed["error_code"] != "tool_failed" || failed["agent_request_id"] != "req-7" ||
+		failed["error_type"] != "*errors.errorString" || failed["error"] != nil || failed["request_id"] != nil {
+		t.Fatalf("tool failure log = %v", failed)
+	}
+}
+
+func TestToolFailureLogCarriesTheErrorCodeButNeverTheQueryText(t *testing.T) {
+	tests := []struct {
+		name     string
+		tool     string
+		err      error
+		code     string
+		typ      string
+		sqlstate string
+	}{
+		{
+			name: "postgres error from a dashboard tool",
+			tool: "create_dashboard",
+			err: fmt.Errorf("tool create_dashboard: %w", &pgconn.PgError{
+				Code:    "23505",
+				Message: "duplicate key value violates unique constraint for UNIQUE-QUERY",
+				Detail:  "Key (spec)=(UNIQUE-QUERY) already exists",
+			}),
+			code:     "tool_failed",
+			typ:      "*pgconn.PgError",
+			sqlstate: "23505",
+		},
+		{
+			name: "oversize result",
+			tool: "run_query",
+			err:  fmt.Errorf("tool run_query: %w: 20000 bytes for UNIQUE-QUERY", tools.ErrResultTooLarge),
+			code: "result_too_large",
+			typ:  "*errors.errorString",
+		},
+		{
+			name: "panic",
+			tool: "run_query",
+			err:  fmt.Errorf("tool run_query: %w: UNIQUE-QUERY", tools.ErrPanicked),
+			code: "tool_panicked",
+			typ:  "*errors.errorString",
+		},
+		{
+			name: "error that only wraps a context error",
+			tool: "run_query",
+			err:  fmt.Errorf("tool run_query: UNIQUE-QUERY: %w", context.DeadlineExceeded),
+			code: "tool_failed",
+			typ:  "context.deadlineExceededError",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t, session(toolTurn(call("c1", tc.tool, `{"query":"UNIQUE-QUERY"}`))))
+			r.tools.on(tc.tool, func(context.Context, json.RawMessage) (tools.Result, error) {
+				return tools.Result{}, tc.err
+			})
+			task := r.task()
+			task.RequestID = "req-9"
+
+			if _, err := r.agent.Run(context.Background(), task); !errors.Is(err, tc.err) {
+				t.Fatalf("err = %v", err)
+			}
+			logs := r.logs.String()
+			for _, leak := range []string{"UNIQUE-QUERY", "duplicate key", "already exists", "20000 bytes"} {
+				if strings.Contains(logs, leak) {
+					t.Fatalf("log leaks %q: %s", leak, logs)
+				}
+			}
+			failed := r.logEntry("agent tool failed")
+			if failed["tool"] != tc.tool || failed["error_code"] != tc.code || failed["agent_request_id"] != "req-9" ||
+				failed["error_type"] != tc.typ || failed["sqlstate"] != nilIfEmpty(tc.sqlstate) || failed["error"] != nil {
+				t.Fatalf("tool failure log = %v", failed)
+			}
+			if finish := r.finishLog(); finish["error_code"] != tc.code || finish["agent_request_id"] != "req-9" {
+				t.Fatalf("finish line = %v", finish)
+			}
+		})
+	}
+}
+
+func nilIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func TestInternalErrorInAReadAbortsBeforeTheSave(t *testing.T) {
@@ -1184,6 +1280,14 @@ func TestReviseLoadFailures(t *testing.T) {
 		if !errors.Is(err, cause) || strings.Contains(err.Error(), "10.0.0.5") {
 			t.Fatalf("err = %v", err)
 		}
+		if strings.Contains(r.logs.String(), "10.0.0.5") {
+			t.Fatalf("log leaks the driver error: %s", r.logs.String())
+		}
+		failed := r.logEntry("agent could not load the dashboard")
+		if failed["error_code"] != "load_failed" || failed["agent_request_id"] != "req-1" || failed["error_type"] != "*errors.errorString" ||
+			failed["error"] != nil || failed["request_id"] != nil {
+			t.Fatalf("load failure log = %v", failed)
+		}
 	})
 }
 
@@ -1207,6 +1311,248 @@ func TestLogsCarryNeitherPromptNorToolData(t *testing.T) {
 		if strings.Contains(logs, secret) {
 			t.Fatalf("log leaks %s: %s", secret, logs)
 		}
+	}
+}
+
+func TestRunFinishedLogNeverCarriesToolOrModelText(t *testing.T) {
+	leaks := []string{"UNIQUE-PROMPT", "UNIQUE-INPUT", "UNIQUE-TOOL", "UNIQUE-MODEL", "SECRET", "10.0.0.5"}
+	type scenario struct {
+		name string
+		code string
+		typ  string
+		rig  func(t *testing.T) *rig
+		task func(r *rig) agent.Task
+		ctx  func() (context.Context, context.CancelFunc)
+	}
+	toolErr := func(err error) func(t *testing.T) *rig {
+		return func(t *testing.T) *rig {
+			r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`))))
+			r.tools.on("create_dashboard", func(context.Context, json.RawMessage) (tools.Result, error) {
+				return tools.Result{}, err
+			})
+			return r
+		}
+	}
+	oneTurn := func(turn scriptedTurn) func(t *testing.T) *rig {
+		return func(t *testing.T) *rig { return newRig(t, session(turn)) }
+	}
+	reviseTask := func(r *rig) agent.Task { return r.reviseTask() }
+	tests := []scenario{
+		{
+			name: "internal tool error",
+			code: "tool_failed",
+			typ:  "*errors.errorString",
+			rig:  toolErr(fmt.Errorf("%w: SELECT UNIQUE-TOOL at 10.0.0.5", datasource.ErrUnavailable)),
+		},
+		{
+			name: "tool error that only wraps a deadline",
+			code: "tool_failed",
+			typ:  "context.deadlineExceededError",
+			rig:  toolErr(fmt.Errorf("tool create_dashboard: UNIQUE-TOOL: %w", context.DeadlineExceeded)),
+		},
+		{
+			name: "tool error that only wraps a cancellation",
+			code: "tool_failed",
+			typ:  "*errors.errorString",
+			rig:  toolErr(fmt.Errorf("tool create_dashboard: UNIQUE-TOOL: %w", context.Canceled)),
+		},
+		{
+			name: "oversize tool result",
+			code: "result_too_large",
+			typ:  "*errors.errorString",
+			rig:  toolErr(fmt.Errorf("tool create_dashboard: %w: UNIQUE-TOOL", tools.ErrResultTooLarge)),
+		},
+		{
+			name: "tool panic",
+			code: "tool_panicked",
+			typ:  "*errors.errorString",
+			rig:  toolErr(fmt.Errorf("tool create_dashboard: %w: UNIQUE-TOOL", tools.ErrPanicked)),
+		},
+		{
+			name: "unreadable save result",
+			code: "malformed_result",
+			typ:  "*errors.errorString",
+			rig: func(t *testing.T) *rig {
+				r := newRig(t, session(toolTurn(call("c1", "create_dashboard", `{"spec":"UNIQUE-INPUT"}`))))
+				r.tools.onSave("create_dashboard", tools.Result{Content: "UNIQUE-TOOL not an object"})
+				return r
+			},
+		},
+		{
+			name: "rejected saves exhaust the repair budget",
+			code: "repair_exhausted",
+			typ:  "",
+			rig: func(t *testing.T) *rig {
+				turns := make([]scriptedTurn, 4)
+				for i := range turns {
+					turns[i] = toolTurn(call(fmt.Sprint("c", i), "create_dashboard", `{"spec":"UNIQUE-INPUT"}`))
+				}
+				r := newRig(t, session(turns...))
+				r.tools.onSave("create_dashboard", invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("a_code"), invalidSpecResult("a_code"))
+				return r
+			},
+		},
+		{
+			name: "model ends without saving",
+			code: "no_save",
+			typ:  "",
+			rig:  oneTurn(scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopEndTurn, Usage: usage()}}),
+		},
+		{
+			name: "model refuses",
+			code: "refused",
+			typ:  "",
+			rig:  oneTurn(scriptedTurn{turn: llm.Turn{Text: "UNIQUE-MODEL words", Stop: llm.StopRefusal, Usage: usage()}}),
+		},
+		{
+			name: "model call fails",
+			code: "model_failed",
+			typ:  "*errors.errorString",
+			rig:  oneTurn(scriptedTurn{err: llm.ErrProvider}),
+		},
+		{
+			name: "model call fails with unsanitized provider text",
+			code: "model_failed",
+			typ:  "*errors.errorString",
+			rig:  oneTurn(scriptedTurn{err: errors.New("provider echoed UNIQUE-MODEL words and UNIQUE-PROMPT")}),
+		},
+		{
+			name: "turn limit",
+			code: "turn_limit",
+			typ:  "",
+			rig: func(t *testing.T) *rig {
+				turns := make([]scriptedTurn, 25)
+				for i := range turns {
+					turns[i] = toolTurn(call(fmt.Sprint("c", i), "get_spec_guide", `{"q":"UNIQUE-INPUT"}`))
+				}
+				return newRig(t, session(turns...))
+			},
+		},
+		{
+			name: "conflict",
+			code: "conflict",
+			typ:  "",
+			rig: func(t *testing.T) *rig {
+				r := newRig(t,
+					session(toolTurn(call("c1", "update_dashboard", `{"spec":"UNIQUE-INPUT"}`))),
+					session(toolTurn(call("c2", "update_dashboard", `{"spec":"UNIQUE-INPUT"}`))),
+				)
+				r.tools.onSave("update_dashboard", conflictResult(4), conflictResult(5))
+				return r
+			},
+			task: reviseTask,
+		},
+		{
+			name: "invalid task",
+			code: "invalid_task",
+			typ:  "",
+			rig:  func(t *testing.T) *rig { return newRig(t, session()) },
+			task: func(r *rig) agent.Task {
+				task := r.task()
+				task.PanelID = "p_1"
+				return task
+			},
+		},
+		{
+			name: "dashboard too large",
+			code: "too_large",
+			typ:  "",
+			rig: func(t *testing.T) *rig {
+				r := newRig(t, session())
+				big := *r.dash.spec
+				big.Title = strings.Repeat("x", 200<<10)
+				r.dash.spec = &big
+				return r
+			},
+			task: reviseTask,
+		},
+		{
+			name: "dashboard not found",
+			code: "not_found",
+			typ:  "",
+			rig: func(t *testing.T) *rig {
+				r := newRig(t, session())
+				r.dash.err = dashboards.ErrNotFound
+				return r
+			},
+			task: reviseTask,
+		},
+		{
+			name: "dashboard load fails",
+			code: "load_failed",
+			typ:  "*errors.errorString",
+			rig: func(t *testing.T) *rig {
+				r := newRig(t, session())
+				r.dash.err = errors.New("connection refused to 10.0.0.5:5432")
+				return r
+			},
+			task: reviseTask,
+		},
+		{
+			name: "canceled",
+			code: "canceled",
+			typ:  "",
+			rig:  func(t *testing.T) *rig { return newRig(t, session()) },
+			ctx: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx, cancel
+			},
+		},
+		{
+			name: "deadline exceeded",
+			code: "deadline_exceeded",
+			typ:  "",
+			rig:  func(t *testing.T) *rig { return newRig(t, session()) },
+			ctx: func() (context.Context, context.CancelFunc) {
+				return context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := tc.rig(t)
+			task := r.task()
+			if tc.task != nil {
+				task = tc.task(r)
+			}
+			task.Prompt = "UNIQUE-PROMPT show me everything"
+			if task.RequestID == "" {
+				task.RequestID = "req-fin"
+			}
+			ctx, cancel := context.Background(), context.CancelFunc(func() {})
+			if tc.ctx != nil {
+				ctx, cancel = tc.ctx()
+			}
+			defer cancel()
+
+			_, runErr := r.agent.Run(ctx, task)
+			if runErr == nil {
+				t.Fatal("expected a failure")
+			}
+			if tc.code == "model_failed" && !strings.HasPrefix(runErr.Error(), "model call failed: ") {
+				t.Fatalf("the returned error changed: %q", runErr)
+			}
+			entry := r.finishLog()
+			if entry["error_code"] != tc.code || entry["agent_request_id"] != task.RequestID || entry["error"] != nil {
+				t.Fatalf("finish line = %v, want error_code %q, agent_request_id %q and no error text", entry, tc.code, task.RequestID)
+			}
+			if tc.typ == "" && (entry["error_type"] != nil || entry["sqlstate"] != nil) {
+				t.Fatalf("a sentinel-only outcome logged error attributes: %v", entry)
+			}
+			if tc.typ != "" && entry["error_type"] != tc.typ {
+				t.Fatalf("finish line error_type = %v, want %q", entry["error_type"], tc.typ)
+			}
+			finish, err := json.Marshal(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, leak := range leaks {
+				if strings.Contains(string(finish), leak) {
+					t.Fatalf("finish line leaks %q: %s", leak, finish)
+				}
+			}
+		})
 	}
 }
 

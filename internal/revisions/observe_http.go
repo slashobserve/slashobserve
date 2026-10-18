@@ -193,14 +193,14 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequ
 	}
 	if err := json.Unmarshal(row.Steps, &out.Steps); err != nil || out.Steps == nil {
 		if err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request steps", slog.String("revision_id", out.ID), slog.Any("error", err))
+			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request steps", slog.String("agent_request_id", out.ID), slog.Any("error", err))
 		}
 		out.Steps = []Step{}
 	}
 	if len(row.RunUsage) > 0 {
 		var usage Usage
 		if err := json.Unmarshal(row.RunUsage, &usage); err != nil {
-			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request usage", slog.String("revision_id", out.ID), slog.Any("error", err))
+			h.service.logger.ErrorContext(c.Request.Context(), "decode agent request usage", slog.String("agent_request_id", out.ID), slog.Any("error", err))
 		} else {
 			out.Usage = &usage
 		}

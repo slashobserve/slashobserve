@@ -108,6 +108,11 @@ func get(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, id string)
 
 func startWorker(t *testing.T, svc *revisions.Service, d *dbtest.Database, opts revisions.WorkerOptions) (stop func()) {
 	t.Helper()
+	return startWorkerLogged(t, svc, d, opts, quietLogger())
+}
+
+func startWorkerLogged(t *testing.T, svc *revisions.Service, d *dbtest.Database, opts revisions.WorkerOptions, logger *slog.Logger) (stop func()) {
+	t.Helper()
 	if opts.Poll == 0 {
 		opts.Poll = 20 * time.Millisecond
 	}
@@ -115,7 +120,7 @@ func startWorker(t *testing.T, svc *revisions.Service, d *dbtest.Database, opts 
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		revisions.NewWorker(svc, d.Listen, quietLogger(), opts).Run(ctx)
+		revisions.NewWorker(svc, d.Listen, logger, opts).Run(ctx)
 	}()
 	var once sync.Once
 	stop = func() {
@@ -265,6 +270,54 @@ func TestPanicInTheReviserFailsOnlyThatRequest(t *testing.T) {
 		t.Fatalf("error = %q", failed.Error)
 	}
 	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
+}
+
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func TestWorkerLogsCarryTheRequestIdAsAgentRequestIdAndNoRunText(t *testing.T) {
+	logs := &lockedBuffer{}
+	logger := slog.New(slog.NewTextHandler(logs, nil))
+	d := dbtest.New(t)
+	svc := revisions.NewService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		if req.Prompt == "boom" {
+			panic("secret prompt text")
+		}
+		return revisions.Result{Version: 2}, nil
+	}), logger)
+	dash := seedDashboard(t, d, 1)
+	boom := submit(t, svc, dash, "boom")
+	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
+	waitForStatus(t, svc, dash, boom.ID, revisions.StatusFailed)
+	fine := submit(t, svc, dash, "fine")
+	waitForStatus(t, svc, dash, fine.ID, revisions.StatusSucceeded)
+
+	got := logs.String()
+	for _, want := range []string{
+		"msg=\"agent run panicked\" agent_request_id=" + boom.ID,
+		"msg=\"agent request succeeded\" agent_request_id=" + fine.ID,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("log lacks %q: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "revision_id=") || strings.Contains(got, "secret prompt text") {
+		t.Errorf("log carries the old key or run text: %s", got)
+	}
 }
 
 func TestRunTimeoutFailsTheRequest(t *testing.T) {

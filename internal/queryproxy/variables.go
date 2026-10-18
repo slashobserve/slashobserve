@@ -117,7 +117,7 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 	}
 	q := datasource.Query{Text: v.Query, Variables: vars}
 	fetch := func(ctx context.Context) ([]string, error) {
-		return upstream(ctx, r, "variable:"+v.Name, inst.UID, func(ctx context.Context) ([]string, error) {
+		return upstream(ctx, r, "variable:"+v.Name, inst, func(ctx context.Context) ([]string, error) {
 			return inst.Datasource.VariableValues(ctx, q, rng)
 		})
 	}
