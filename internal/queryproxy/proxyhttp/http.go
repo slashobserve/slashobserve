@@ -183,24 +183,38 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		cached.executedAt = stored
 		return cached, nil
 	}
+	found, _ := d.FindDataPanel(panelID)
+	parts := make([][]byte, len(found.Panel.Queries))
+	var (
+		mu    sync.Mutex
+		total int
+	)
+	admit := func(index int, q queryproxy.QueryResult) error {
+		part, err := marshalFrames([]queryproxy.QueryResult{q})
+		if err != nil {
+			h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", panelID)}, failureAttrs(err)...)...)
+			return errInternal
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if total += len(part); total > maxResponseBytes {
+			return errTooLarge
+		}
+		parts[index] = part
+		return nil
+	}
 	res, err := h.runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     d,
 		PanelID:       panelID,
 		Range:         al.rng,
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
+		Admit:         admit,
 	})
 	if err != nil {
 		return dataEntry{}, err
 	}
-	frames, err := marshalFrames(res.Queries)
-	if err != nil {
-		h.logger.ErrorContext(ctx, "convert panel frames", append([]any{slog.String("panel_id", panelID)}, failureAttrs(err)...)...)
-		return dataEntry{}, errInternal
-	}
-	if len(frames) > maxResponseBytes {
-		return dataEntry{}, errTooLarge
-	}
+	frames := joinFrames(parts)
 	queries := make([]queryMeta, len(res.Queries))
 	for i, q := range res.Queries {
 		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds()}

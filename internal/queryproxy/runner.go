@@ -50,6 +50,7 @@ type Request struct {
 	MaxDataPoints int
 	Limits        datasource.Limits
 	IncludeHidden bool
+	Admit         func(index int, q QueryResult) error
 
 	skip []bool
 }
@@ -219,7 +220,7 @@ func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]a
 			continue
 		}
 		group.Go(func() error {
-			out, err := upstream(ctx, r, panel.ID, pq.inst, pq.call)
+			out, err := r.runQuery(ctx, req, panel, j, pq)
 			if err != nil {
 				errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
 				return nil
@@ -241,6 +242,19 @@ func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]a
 		res.Queries = append(res.Queries, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: frames[j]})
 	}
 	return panel, res, errs, nil
+}
+
+func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j int, pq *preparedQuery) ([]datasource.Frame, error) {
+	out, err := upstream(ctx, r, panel.ID, pq.inst, pq.call)
+	if err != nil {
+		return nil, err
+	}
+	if req.Admit != nil && !panel.Queries[j].Hide {
+		if err := req.Admit(j, QueryResult{Ref: panel.QueryRef(j), Kind: pq.kind, Step: pq.step, Frames: out}); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func checkRequest(req Request, requireAll bool) (*spec.Panel, error) {

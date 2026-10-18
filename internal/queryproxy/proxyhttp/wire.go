@@ -40,6 +40,21 @@ func marshalFrames(queries []queryproxy.QueryResult) ([]byte, error) {
 	return json.Marshal(out)
 }
 
+func joinFrames(parts [][]byte) []byte {
+	out := []byte{'['}
+	for _, part := range parts {
+		if len(part) <= len("[]") {
+			continue
+		}
+		inner := part[1 : len(part)-1]
+		if len(out) > 1 {
+			out = append(out, ',')
+		}
+		out = append(out, inner...)
+	}
+	return append(out, ']')
+}
+
 func wireValues(field datasource.Field) ([]any, error) {
 	values := make([]any, len(field.Values))
 	for i, v := range field.Values {

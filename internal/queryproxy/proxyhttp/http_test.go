@@ -585,6 +585,24 @@ func TestOversizedResponseIsRefusedAndNeverCached(t *testing.T) {
 	}
 }
 
+func TestResponseLimitCountsEveryQueryOfThePanel(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return bigFrames(maxResponseBytes/2 + 1), nil
+	}
+	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
+	path := hn.dataPath("p_multi", window)
+	rec := hn.get(path, "")
+	expectError(t, rec, http.StatusUnprocessableEntity, "limit_exceeded")
+	if msg := decodeError(t, rec).Error; msg != "response too large" {
+		t.Fatalf("message = %q", msg)
+	}
+	hn.get(path, "")
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 4 {
+		t.Fatalf("%d range queries, want 4 (a refused response is not cached)", ranges)
+	}
+}
+
 func TestEntryOverTheCacheCapIsServedButNotCached(t *testing.T) {
 	hn := newHarness(t)
 	hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {

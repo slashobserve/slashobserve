@@ -895,3 +895,35 @@ func TestRunPanelStopsAtThePanelDeadlineAndNamesTheLowestUnfinishedQuery(t *test
 		t.Fatalf("Classify = %d %s, want 504 query_timeout", status, code)
 	}
 }
+
+func TestRunPanelAdmitSeesEachVisibleQueryAndCanRefuseOne(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries,
+		spec.Query{Query: "a"},
+		spec.Query{Query: "hidden", Hide: true},
+		spec.Query{Ref: "big", Query: "b"},
+	)})
+	refused := errors.New("too big")
+	var mu sync.Mutex
+	admitted := map[int]string{}
+	_, err := runner.RunPanel(t.Context(), Request{
+		Dashboard: d, PanelID: "p1", Range: testRange(), IncludeHidden: true,
+		Admit: func(index int, q QueryResult) error {
+			mu.Lock()
+			defer mu.Unlock()
+			admitted[index] = q.Ref
+			if q.Ref == "big" {
+				return refused
+			}
+			return nil
+		},
+	})
+	var qe *QueryError
+	if !errors.As(err, &qe) || qe.Index != 2 || qe.Ref != "big" || !errors.Is(err, refused) {
+		t.Fatalf("err = %v (%+v), want the refusal as a QueryError for big", err, qe)
+	}
+	if len(admitted) != 2 || admitted[0] != "A" || admitted[2] != "big" {
+		t.Fatalf("admitted = %v, want only the visible queries 0 and 2", admitted)
+	}
+}
