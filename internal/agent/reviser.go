@@ -53,22 +53,42 @@ func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.
 	return result, nil
 }
 
+type fixedContextError struct {
+	message  string
+	sentinel error
+}
+
+func (e *fixedContextError) Error() string { return e.message }
+func (e *fixedContextError) Unwrap() error { return e.sentinel }
+
 // The returned error is stored on the request and shown to users, so its text is limited to the agent's own
 // fixed messages; provider and tool error text never passes through.
 func storedError(err error) error {
+	message := storedMessage(err)
+	for _, sentinel := range []error{context.Canceled, context.DeadlineExceeded} {
+		if errors.Is(err, sentinel) {
+			return &fixedContextError{message: message, sentinel: sentinel}
+		}
+	}
+	return errors.New(message)
+}
+
+func storedMessage(err error) string {
 	var safe *safeError
 	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return err
 	case errors.Is(err, ErrNoSave), errors.Is(err, ErrRepairExhausted), errors.Is(err, ErrTurnLimit), errors.Is(err, ErrRefused),
 		errors.Is(err, ErrConflict), errors.Is(err, ErrInvalidTask), errors.Is(err, ErrTooLarge), errors.Is(err, llm.ErrNoFixture):
-		return errors.New(err.Error())
+		return err.Error()
 	case errors.Is(err, dashboards.ErrNotFound):
-		return errors.New(messageDashboardGone)
+		return messageDashboardGone
 	case errors.As(err, &safe):
-		return errors.New(safe.message)
+		return safe.message
 	case errors.Is(err, errModelCall):
-		return errors.New(messageModelCall)
+		return messageModelCall
+	case errors.Is(err, context.Canceled):
+		return context.Canceled.Error()
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded.Error()
 	}
-	return errors.New(messageRunFailed)
+	return messageRunFailed
 }

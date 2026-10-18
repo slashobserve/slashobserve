@@ -101,6 +101,25 @@ func TestReviserStoresOnlyTheAgentsOwnMessages(t *testing.T) {
 	}
 }
 
+func TestReviserStoresNoProviderTextWhenTheProviderTimesOut(t *testing.T) {
+	endpoint := `Post "https://llm.internal.example/v1/messages?key=sk-live-123": `
+	for name, sentinel := range map[string]error{
+		"deadline": context.DeadlineExceeded,
+		"canceled": context.Canceled,
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRig(t, session(scriptedTurn{err: fmt.Errorf("%s%w", endpoint, sentinel)}))
+			_, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), revisionRequest())
+			if err == nil || err.Error() != "model call failed" {
+				t.Fatalf("err = %v, want the fixed model call message", err)
+			}
+			if !errors.Is(err, sentinel) {
+				t.Fatalf("err = %v lost %v", err, sentinel)
+			}
+		})
+	}
+}
+
 func TestReviserPassesCancellationThrough(t *testing.T) {
 	r := newRig(t, session(toolTurn(call("c1", "get_spec_guide", `{}`))))
 	ctx, cancel := context.WithCancel(context.Background())
