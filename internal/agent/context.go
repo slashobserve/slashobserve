@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -25,11 +26,19 @@ func buildSystem() string {
 	b.WriteString("\n\n# Authoring guide\n")
 	b.WriteString(strings.TrimRight(prompts.SpecGuide(), "\n"))
 	b.WriteString("\n\n# ObserveSpec v0 JSON Schema\n")
-	writeJSONBlock(&b, spec.Schema())
+	writeJSONBlock(&b, compactSchema())
 	b.WriteString("\n\n# Example Spec (format only)\n")
 	writeJSONBlock(&b, examples.CheckoutServiceHealth)
 	b.WriteString("\n")
 	return b.String()
+}
+
+func compactSchema() []byte {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, spec.Schema()); err != nil {
+		panic("agent: embedded schema does not compact: " + err.Error())
+	}
+	return compact.Bytes()
 }
 
 func writeJSONBlock(b *strings.Builder, body []byte) {

@@ -284,6 +284,17 @@ func TestListSchemas(t *testing.T) {
 		checkSchema(t, tool)
 	}
 
+	descriptions := map[string]string{}
+	for _, tool := range first {
+		descriptions[tool.Name] = tool.Description
+	}
+	if !strings.HasSuffix(descriptions[nameCreateDashboard], " Never include a placeholder panel.") {
+		t.Errorf("create_dashboard description = %q", descriptions[nameCreateDashboard])
+	}
+	if !strings.HasSuffix(descriptions[nameUpdateDashboard], " Placeholder panels may be moved or removed, never added or edited.") {
+		t.Errorf("update_dashboard description = %q", descriptions[nameUpdateDashboard])
+	}
+
 	list := New(Deps{}).List()
 	list[0].InputSchema[0] = 'X'
 	if again := New(Deps{}).List(); again[0].InputSchema[0] != '{' {

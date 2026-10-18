@@ -277,6 +277,11 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
+	if parsed, err := spec.Parse(in.Spec); err == nil {
+		if issues := placeholderIssues(parsed, nil); len(issues) > 0 {
+			return placeholderFailure(issues), nil
+		}
+	}
 	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if err != nil {
 		return saveFailure(err)
@@ -307,11 +312,44 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if err != nil {
 		return Result{}, err
 	}
+	if res, ok, err := r.guardPlaceholders(ctx, in.Spec, target); err != nil {
+		return Result{}, err
+	} else if !ok {
+		return res, nil
+	}
 	dash, ver, replayed, err := r.deps.Dashboards.AddRequestVersion(ctx, principal, target.id, target.parent, in.Spec, summaryOr(in.Summary, defaultUpdateSummary), requestID)
 	if err != nil {
 		return saveFailure(err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), r.savedOut(dash, ver, &replayed)), nil
+}
+
+func (r *Registry) guardPlaceholders(ctx context.Context, raw json.RawMessage, target saveTarget) (Result, bool, error) {
+	parsed, err := spec.Parse(raw)
+	if err != nil || !hasPlaceholder(parsed) {
+		return Result{}, true, nil
+	}
+	_, parentVersion, err := r.deps.Dashboards.GetVersion(ctx, target.id, target.parent)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return Result{}, true, nil
+	}
+	if err != nil {
+		return Result{}, false, err
+	}
+	parent := parentVersion.Spec
+	if parent == nil {
+		parent = &spec.Dashboard{}
+	}
+	if issues := placeholderIssues(parsed, parent); len(issues) > 0 {
+		return placeholderFailure(issues), false, nil
+	}
+	return Result{}, true, nil
+}
+
+func placeholderFailure(issues []spec.Issue) Result {
+	step := "Save rejected: " + plural(len(issues), "issue", "issues") + issueCodes(issues)
+	kept, truncated := fit(slices.Clone(issues), listBudget)
+	return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: kept, Truncated: truncated})
 }
 
 func requestIDOf(run Run, scoped bool) (pgtype.UUID, error) {
