@@ -96,11 +96,7 @@ function queryBlocks(entries: PanelQuery[], label: boolean): ValueBlock[] {
 
 function reorderLabel(field: string, key: string, titles: TitleMaps): string {
   if (field === "panel order") {
-    return (
-      (Object.hasOwn(titles.to, key) ? titles.to[key] : undefined) ??
-      (Object.hasOwn(titles.from, key) ? titles.from[key] : undefined) ??
-      key
-    )
+    return titles.to.get(key) ?? titles.from.get(key) ?? key
   }
   return field === "query order" ? `Query ${key}` : key
 }

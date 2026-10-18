@@ -3,8 +3,12 @@ import { describe, expect, test } from "vitest"
 import { groupChanges, panelTitles, type DiffChange } from "./diff-groups"
 
 const titles = {
-  from: { p: "Old P" },
-  to: { p: "P", r: "Row", c: "Child" },
+  from: new Map([["p", "Old P"]]),
+  to: new Map([
+    ["p", "P"],
+    ["r", "Row"],
+    ["c", "Child"],
+  ]),
 }
 
 function group(changes: DiffChange[]) {
@@ -136,7 +140,7 @@ describe("groupChanges", () => {
         { op: "replace", path: "/panels/t/content", from: "a", to: "b" },
         { op: "replace", path: "/panels/s/title", from: "a", to: "b" },
       ],
-      { from: {}, to: present }
+      { from: new Map(), to: present }
     ).map((g) => g.label)
     expect(labels).toEqual(['Panel "t"', 'Panel "S"', 'Panel "gone"'])
   })
@@ -148,7 +152,7 @@ describe("groupChanges", () => {
           { op: "remove", path: "/panels/p/description" },
           { op: "remove", path: "/panels/gone/description" },
         ],
-        { from: { p: "Old P" }, to: {} }
+        { from: new Map([["p", "Old P"]]), to: new Map() }
       ).map((g) => g.label)
     ).toEqual(['Panel "Old P"', 'Panel "gone"'])
   })
@@ -173,17 +177,15 @@ describe("groupChanges", () => {
 
 describe("panelTitles", () => {
   test("records every panel id in document order, children included", () => {
-    expect(
-      Object.entries(
-        panelTitles({
-          panels: [
-            { id: "a", title: "A" },
-            { id: "r", panels: [{ id: "c" }] },
-            { id: "t", type: "text" },
-          ],
-        })
-      )
-    ).toEqual([
+    expect([
+      ...panelTitles({
+        panels: [
+          { id: "a", title: "A" },
+          { id: "r", panels: [{ id: "c" }] },
+          { id: "t", type: "text" },
+        ],
+      }),
+    ]).toEqual([
       ["a", "A"],
       ["r", "r"],
       ["c", "c"],
@@ -191,7 +193,29 @@ describe("panelTitles", () => {
     ])
   })
 
+  test("keeps document order for integer-like ids", () => {
+    expect([
+      ...panelTitles({
+        panels: [{ id: "b" }, { id: "10" }, { id: "2" }],
+      }).keys(),
+    ]).toEqual(["b", "10", "2"])
+  })
+
+  test("orders grouped panels by document order for integer-like ids", () => {
+    const to = panelTitles({ panels: [{ id: "b" }, { id: "10" }, { id: "2" }] })
+    expect(
+      groupChanges(
+        [
+          { op: "remove", path: "/panels/2/description" },
+          { op: "remove", path: "/panels/10/description" },
+          { op: "remove", path: "/panels/b/description" },
+        ],
+        { from: new Map(), to }
+      ).map((g) => g.key)
+    ).toEqual(["panel:b", "panel:10", "panel:2"])
+  })
+
   test("ignores a non-dashboard value", () => {
-    expect(panelTitles(null)).toEqual({})
+    expect(panelTitles(null).size).toBe(0)
   })
 })

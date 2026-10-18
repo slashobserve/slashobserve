@@ -20,16 +20,12 @@ export type DiffGroup = {
 }
 
 export type TitleMaps = {
-  from: Record<string, string>
-  to: Record<string, string>
+  from: Map<string, string>
+  to: Map<string, string>
 }
 
 export function unescapePointer(token: string): string {
   return token.replaceAll("~1", "/").replaceAll("~0", "~")
-}
-
-function ownTitle(map: Record<string, string>, id: string): string | undefined {
-  return Object.hasOwn(map, id) ? map[id] : undefined
 }
 
 function pointerTokens(path: string): string[] {
@@ -74,7 +70,7 @@ function panelField(op: DiffChange["op"], rest: string[]): string {
   return overrideField(rest) ?? rest.join(".")
 }
 
-function collectTitles(panels: unknown, titles: Record<string, string>) {
+function collectTitles(panels: unknown, titles: Map<string, string>) {
   if (!Array.isArray(panels)) return
   for (const panel of panels) {
     if (typeof panel !== "object" || panel === null) continue
@@ -88,14 +84,14 @@ function collectTitles(panels: unknown, titles: Record<string, string>) {
       panels?: unknown
     }
     if (typeof id === "string") {
-      titles[id] = typeof title === "string" ? title : id
+      titles.set(id, typeof title === "string" ? title : id)
     }
     collectTitles(children, titles)
   }
 }
 
-export function panelTitles(spec: unknown): Record<string, string> {
-  const titles: Record<string, string> = {}
+export function panelTitles(spec: unknown): Map<string, string> {
+  const titles = new Map<string, string>()
   if (typeof spec !== "object" || spec === null) return titles
   collectTitles((spec as { panels?: unknown }).panels, titles)
   return titles
@@ -135,9 +131,7 @@ export function groupChanges(
       let group = panels.get(panel.id)
       if (!group) {
         const title =
-          ownTitle(titles.to, panel.id) ??
-          ownTitle(titles.from, panel.id) ??
-          panel.id
+          titles.to.get(panel.id) ?? titles.from.get(panel.id) ?? panel.id
         group = {
           key: `panel:${panel.id}`,
           kind: "panel",
@@ -168,9 +162,9 @@ export function groupChanges(
     }
   }
 
-  const inToOrder = Object.keys(titles.to).flatMap((id) => panels.get(id) ?? [])
+  const inToOrder = [...titles.to.keys()].flatMap((id) => panels.get(id) ?? [])
   const removed = [...panels.entries()]
-    .filter(([id]) => !Object.hasOwn(titles.to, id))
+    .filter(([id]) => !titles.to.has(id))
     .map(([, group]) => group)
 
   return [

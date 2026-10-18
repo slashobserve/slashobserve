@@ -7,7 +7,10 @@ import {
   type ValueBlock,
 } from "./diff-values"
 
-const titles = { from: {}, to: {} }
+const titles = {
+  from: new Map<string, string>(),
+  to: new Map<string, string>(),
+}
 
 function format(
   value: unknown,
@@ -169,7 +172,16 @@ describe("formatValue for reorders", () => {
     const blocks = formatValue(
       "panel order",
       ["a", "b", "c"],
-      { from: { b: "Old B", c: "Old C" }, to: { a: "New A", c: "New C" } },
+      {
+        from: new Map([
+          ["b", "Old B"],
+          ["c", "Old C"],
+        ]),
+        to: new Map([
+          ["a", "New A"],
+          ["c", "New C"],
+        ]),
+      },
       true,
       false
     )
@@ -196,7 +208,10 @@ describe("formatValue for reorders", () => {
   })
 
   test("numbers query refs even when a panel id is the same", () => {
-    const overlapping = { from: { A: "Panel A" }, to: { B: "Panel B" } }
+    const overlapping = {
+      from: new Map([["A", "Panel A"]]),
+      to: new Map([["B", "Panel B"]]),
+    }
     expect(
       formatValue("query order", ["B", "A"], overlapping, true, false)
     ).toEqual([{ text: "1. Query B\n2. Query A", options: "" }])
@@ -205,7 +220,10 @@ describe("formatValue for reorders", () => {
   test.each(["variable order", "override order"])(
     "numbers the raw keys for %s even when a panel id is the same",
     (field) => {
-      const overlapping = { from: { pod: "Panel" }, to: { "query:B": "Panel" } }
+      const overlapping = {
+        from: new Map([["pod", "Panel"]]),
+        to: new Map([["query:B", "Panel"]]),
+      }
       expect(
         formatValue(field, ["query:B", "pod"], overlapping, true, false)
       ).toEqual([{ text: "1. query:B\n2. pod", options: "" }])
