@@ -2,9 +2,13 @@ import type { Instance } from "@/api/instance"
 
 const onlineWindowMs = 2 * 60_000
 
-export function providerLabel(name: string | undefined): string {
+export function providerDisplayName(name: string | undefined): string | null {
   const trimmed = name?.trim() ?? ""
-  return trimmed === "" ? "your identity provider" : trimmed
+  return trimmed === "" ? null : trimmed
+}
+
+export function providerLabel(name: string | undefined): string {
+  return providerDisplayName(name) ?? "your identity provider"
 }
 
 export function domainList(domains: string[]): string[] {

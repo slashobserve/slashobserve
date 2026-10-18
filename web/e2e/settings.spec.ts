@@ -158,6 +158,7 @@ test("shows the identity provider on the account button", async ({ page }) => {
   await openSettings(page)
   const account = page.getByRole("button", { name: /^Account: / })
   await expect(account).toContainText(`Signed in with ${name}`)
+  await expect(account).toHaveAccessibleDescription(`Signed in with ${name}`)
 })
 
 test("hides the identity provider line when its name is unknown", async ({
