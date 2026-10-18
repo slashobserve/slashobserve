@@ -21,3 +21,24 @@ test("serves deep links through the SPA fallback", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Dashboards" })
   ).toBeVisible()
 })
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test("keeps the header free of clipped text", async ({ page }) => {
+    await page.goto("/")
+    const header = page.getByRole("banner")
+    await expect(header.getByRole("button", { name: "Sign out" })).toBeVisible()
+    await expect(header.getByText("admin@example.com")).toHaveCount(1)
+    const clipped = await header.evaluate(
+      (element) =>
+        [...element.querySelectorAll("*")].filter(
+          (item) =>
+            item instanceof HTMLElement &&
+            item.offsetWidth > 1 &&
+            item.scrollWidth > item.clientWidth
+        ).length
+    )
+    expect(clipped).toBe(0)
+  })
+})

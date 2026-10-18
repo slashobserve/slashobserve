@@ -50,7 +50,9 @@ function AuthedLayout() {
         </Link>
         <div className="flex min-w-0 items-center gap-3 text-sm">
           <ThemeToggle />
-          <span className="truncate">{principal.email || principal.name}</span>
+          <span className="truncate max-sm:sr-only">
+            {principal.email || principal.name}
+          </span>
           {failed ? (
             <p role="alert" className="text-destructive">
               Sign out failed. Try again.
