@@ -28,7 +28,7 @@ dashboards-id-versions-version-panels-panel-id-data:
       and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below.
       A variable that is not given gets its default, and a request for an undeclared variable is a 400.
       `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds,
-      default to the version's `timeRange`, and may span at most 400 days.
+      default to the version's `time`, and may span at most 400 days.
       A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds;
       the aligned range comes back in `meta`.
       Successful results are cached in the server for 10 seconds, and each caller may have at most 8 query requests in flight.
@@ -78,7 +78,7 @@ dashboards-id-versions-version-panels-panel-id-data:
       "422":
         description: >-
           The query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
-          `unknown_datasource`, `datasource_type_mismatch` or `variable_empty`.
+          `unknown_datasource` or `variable_empty`.
         content:
           application/json:
             schema:
