@@ -205,7 +205,11 @@ function DashboardView({
     <RefreshPicker key="refresh" value={refreshValue} />,
   ]
   const actions: ReactNode[] = [
-    <LiveIndicator key="live" status={liveStatus} />,
+    <LiveIndicator
+      key="live"
+      status={liveStatus}
+      pinned={search.version !== undefined}
+    />,
   ]
 
   return (

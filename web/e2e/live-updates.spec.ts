@@ -115,6 +115,32 @@ test("offers the latest when viewing an old version", async ({
   )
 })
 
+test("does not toast the author's own save", async ({ page, request }) => {
+  const { id } = await createLive(request)
+  await openDashboard(page, id)
+  const editLayout = page.getByRole("button", { name: "Edit layout" })
+  test.skip((await editLayout.count()) === 0, "needs the layout editor")
+  await expect(indicator(page, "Live")).toBeVisible()
+
+  await editLayout.click()
+  await page
+    .getByRole("button", { name: "Move or resize Checkout error rate" })
+    .focus()
+  await page.keyboard.press("ArrowRight")
+  await page.getByRole("button", { name: "Save layout" }).click()
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Save", exact: true })
+    .click()
+
+  const toasts = page.locator("[data-sonner-toast]")
+  await expect(toasts.filter({ hasText: "Saved version 2" })).toBeVisible()
+  await expect(badge(page, 2)).toBeVisible()
+  await page.waitForTimeout(1_500)
+  await expect(toasts).toHaveCount(1)
+  await expect(page.getByText("Updated to version 2")).toHaveCount(0)
+})
+
 test("refetches after the stream drops and reconnects", async ({
   page,
   request,
@@ -164,10 +190,10 @@ test("reconnects after the stream is rejected", async ({
   const { id, spec } = await createLive(request)
   let rejected = 0
   await page.route("**/api/v1/dashboards/*/events", async (route) => {
-    if (rejected < 2) {
+    if (rejected < 3) {
       rejected++
       await route.fulfill({
-        status: rejected === 1 ? 429 : 503,
+        status: rejected === 2 ? 503 : 429,
         contentType: "application/json",
         body: JSON.stringify({ error: "busy", code: "too_many_streams" }),
       })
@@ -177,9 +203,11 @@ test("reconnects after the stream is rejected", async ({
   })
 
   await openDashboard(page, id)
-  await expect(indicator(page, "Reconnecting")).toBeVisible()
-  await expect(indicator(page, "Live")).toBeVisible({ timeout: 20_000 })
-  expect(rejected).toBe(2)
+  await expect(indicator(page, "Reconnecting")).toBeVisible({
+    timeout: 10_000,
+  })
+  await expect(indicator(page, "Live")).toBeVisible({ timeout: 30_000 })
+  expect(rejected).toBe(3)
 
   const renamed = `${spec.title} v2`
   await addVersion(request, id, { ...spec, title: renamed }, 1)
@@ -218,5 +246,38 @@ test("goes to sign-in when the stream is rejected after the session ended", asyn
 
   await openDashboard(page, id)
   await expect(page).toHaveURL(/\/login/, { timeout: 10_000 })
+  consoleErrors.length = 0
+})
+
+test("shows not found when the stream keeps failing because the dashboard is gone", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createLive(request)
+  let served = 0
+  await page.route(`**/api/v1/dashboards/${id}`, async (route) => {
+    if (route.request().method() !== "GET" || served++ === 0) {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "not found", code: "not_found" }),
+    })
+  })
+  await page.route("**/api/v1/dashboards/*/events", async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "not found", code: "not_found" }),
+    })
+  })
+
+  await page.goto(`/dashboards/${id}`)
+  await expect(
+    page.getByRole("heading", { name: "Dashboard not found" })
+  ).toBeVisible({ timeout: 20_000 })
   consoleErrors.length = 0
 })

@@ -110,7 +110,7 @@ export function withVariables<Q extends object>(
   return out as Q
 }
 
-const dashboardRouteId = "/_authed/dashboards/$dashboardId/"
+export const dashboardRouteId = "/_authed/dashboards/$dashboardId/"
 const dashboardRoutePath = "/dashboards/$dashboardId/"
 
 export function useDashboardSearch(): DashboardSearch {

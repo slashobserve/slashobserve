@@ -59,7 +59,8 @@ export function dashboardVersionQuery(id: string, version: number) {
 
 function useStoreSavedVersion(id: string) {
   const queryClient = useQueryClient()
-  return (body: DashboardEnvelope) => {
+  return async (body: DashboardEnvelope) => {
+    await queryClient.cancelQueries({ queryKey: dashboardKeys.latest(id) })
     queryClient.setQueryData(dashboardKeys.latest(id), body)
     queryClient.setQueryData(
       dashboardKeys.version(id, body.version.version),
@@ -73,6 +74,7 @@ function useStoreSavedVersion(id: string) {
 export function useAddVersion(id: string) {
   const store = useStoreSavedVersion(id)
   return useMutation({
+    mutationKey: dashboardKeys.saves(id),
     mutationFn: (input: {
       spec: Dashboard
       summary: string
@@ -95,6 +97,7 @@ export function useAddVersion(id: string) {
 export function useRestoreVersion(id: string) {
   const store = useStoreSavedVersion(id)
   return useMutation({
+    mutationKey: dashboardKeys.saves(id),
     mutationFn: (input: {
       version: number
       parent_version: number

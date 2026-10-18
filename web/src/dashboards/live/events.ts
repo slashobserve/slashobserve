@@ -5,23 +5,12 @@ export type DashboardEvent =
       type: "version.created"
       dashboardId: string
       version: number
-      restoredFrom: number | null
       summary: string
       authorName: string
     }
   | {
-      type: "comment.created" | "comment.updated"
+      type: "comment.created" | "comment.updated" | "revision.updated"
       dashboardId: string
-      commentId: string
-      panelId: string
-      status: string
-    }
-  | {
-      type: "revision.updated"
-      dashboardId: string
-      revisionId: string
-      status: string
-      version?: number
     }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -68,32 +57,14 @@ export function parseEvent(
         type: "version.created",
         dashboardId,
         version,
-        restoredFrom: versionNumber(raw.restored_from) ?? null,
         summary: typeof raw.summary === "string" ? raw.summary : "",
         authorName: typeof author.name === "string" ? author.name : "",
       }
     }
     case "comment.created":
-    case "comment.updated": {
-      const commentId = text(raw.comment_id)
-      const panelId = text(raw.panel_id)
-      const status = text(raw.status)
-      if (!commentId || !panelId || !status) return null
-      return { type: eventName, dashboardId, commentId, panelId, status }
-    }
-    case "revision.updated": {
-      const revisionId = text(raw.revision_id)
-      const status = text(raw.status)
-      if (!revisionId || !status) return null
-      const version = versionNumber(raw.version)
-      return {
-        type: "revision.updated",
-        dashboardId,
-        revisionId,
-        status,
-        ...(version === undefined ? {} : { version }),
-      }
-    }
+    case "comment.updated":
+    case "revision.updated":
+      return { type: eventName, dashboardId }
     default:
       return null
   }

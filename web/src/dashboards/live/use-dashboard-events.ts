@@ -3,12 +3,22 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { ApiError } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
 
-import type { DashboardEnvelope } from "../queries"
-import { useSetDashboardSearch } from "../search"
+import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
+import {
+  dashboardRouteId,
+  searchFromState,
+  validateDashboardSearch,
+} from "../search"
 import { parseEvent, type DashboardEvent } from "./events"
+import {
+  backoffDelay,
+  reconnectingGraceMs,
+  shouldCheckDashboard,
+} from "./reconnect"
 
 export type LiveStatus = "connecting" | "live" | "reconnecting"
 
@@ -22,14 +32,6 @@ const eventNames = [
 ] as const
 
 const hiddenGraceMs = 5 * 60_000
-const minBackoffMs = 1_000
-const maxBackoffMs = 30_000
-const jitterShare = 0.2
-
-function backoffDelay(attempt: number): number {
-  const base = Math.min(minBackoffMs * 2 ** attempt, maxBackoffMs)
-  return base * (1 + Math.random() * jitterShare)
-}
 
 function cachedLatestVersion(
   queryClient: QueryClient,
@@ -53,15 +55,14 @@ export function useDashboardEvents(
 ): { status: LiveStatus } {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const setSearch = useSetDashboardSearch()
   const [reported, setReported] = useState<{
     dashboardId: string
     status: LiveStatus
   }>({ dashboardId, status: "connecting" })
 
-  const latest = useRef({ pinnedVersion, router, setSearch })
+  const latest = useRef({ pinnedVersion, router })
   useEffect(() => {
-    latest.current = { pinnedVersion, router, setSearch }
+    latest.current = { pinnedVersion, router }
   })
 
   useEffect(() => {
@@ -73,8 +74,23 @@ export function useDashboardEvents(
     let attempt = 0
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let hiddenTimer: ReturnType<typeof setTimeout> | undefined
+    let reconnectingTimer: ReturnType<typeof setTimeout> | undefined
+    let current: LiveStatus = "connecting"
+    const toastIds = new Set<string>()
 
-    const report = (status: LiveStatus) => setReported({ dashboardId, status })
+    const report = (status: LiveStatus) => {
+      clearTimeout(reconnectingTimer)
+      reconnectingTimer = undefined
+      current = status
+      setReported({ dashboardId, status })
+    }
+    const reportReconnecting = () => {
+      if (current === "reconnecting" || reconnectingTimer !== undefined) return
+      reconnectingTimer = setTimeout(
+        () => report("reconnecting"),
+        reconnectingGraceMs
+      )
+    }
     const invalidate = (...keys: (readonly unknown[])[]) => {
       for (const queryKey of keys) {
         void queryClient.invalidateQueries({ queryKey })
@@ -98,25 +114,47 @@ export function useDashboardEvents(
         dashboardKeys.history(dashboardId),
         dashboardKeys.list()
       )
+      const saving = queryClient.isMutating({
+        mutationKey: dashboardKeys.saves(dashboardId),
+      })
+      if (saving > 0) return
       const description = describeVersion(event) || undefined
       const pinned = latest.current.pinnedVersion
       const id = `version-${dashboardId}-${event.version}`
       if (pinned === undefined) {
+        toastIds.add(id)
         toast(`Updated to version ${event.version}`, { id, description })
         return
       }
       if (event.version <= pinned) return
+      toastIds.add(id)
       toast(`Version ${event.version} is available`, {
         id,
         description,
         action: {
           label: "View latest",
-          onClick: () =>
-            latest.current.setSearch((state) => ({
-              ...state,
-              version: undefined,
-            })),
+          onClick: viewLatest,
         },
+      })
+    }
+
+    function viewLatest() {
+      const router = latest.current.router
+      const here = router.state.matches.some(
+        (match) =>
+          match.routeId === dashboardRouteId &&
+          match.params.dashboardId === dashboardId
+      )
+      void router.navigate({
+        to: "/dashboards/$dashboardId",
+        params: { dashboardId },
+        search: (previous: Record<string, unknown>) =>
+          here
+            ? searchFromState({
+                ...validateDashboardSearch(previous),
+                version: undefined,
+              })
+            : {},
       })
     }
 
@@ -158,8 +196,26 @@ export function useDashboardEvents(
       }
     }
 
+    async function checkDashboard() {
+      try {
+        await queryClient.fetchQuery({
+          ...latestDashboardQuery(queryClient, dashboardId),
+          staleTime: 0,
+          retry: false,
+        })
+      } catch (error) {
+        if (disposed) return
+        if (!(error instanceof ApiError) || error.status !== 404) return
+        queryClient.removeQueries({
+          queryKey: dashboardKeys.latest(dashboardId),
+          exact: true,
+        })
+        void latest.current.router.invalidate()
+      }
+    }
+
     async function recover() {
-      report("reconnecting")
+      reportReconnecting()
       const authenticated = await refreshSession().then(
         ({ session }) => session.authenticated,
         () => true
@@ -171,6 +227,7 @@ export function useDashboardEvents(
       }
       const delay = backoffDelay(attempt)
       attempt++
+      if (shouldCheckDashboard(attempt)) void checkDashboard()
       retryTimer = setTimeout(() => {
         retryTimer = undefined
         open()
@@ -191,7 +248,7 @@ export function useDashboardEvents(
       stream.onerror = () => {
         if (source !== stream) return
         if (stream.readyState === EventSource.CONNECTING) {
-          report("reconnecting")
+          reportReconnecting()
           return
         }
         stream.close()
@@ -206,6 +263,7 @@ export function useDashboardEvents(
       retryTimer = undefined
       source?.close()
       source = undefined
+      report("connecting")
     }
 
     function onVisibilityChange() {
@@ -235,8 +293,10 @@ export function useDashboardEvents(
       document.removeEventListener("visibilitychange", onVisibilityChange)
       clearTimeout(retryTimer)
       clearTimeout(hiddenTimer)
+      clearTimeout(reconnectingTimer)
       source?.close()
       source = undefined
+      for (const id of toastIds) toast.dismiss(id)
     }
   }, [dashboardId, queryClient])
 
