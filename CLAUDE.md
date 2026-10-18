@@ -193,7 +193,7 @@ Directories are created when their phase starts; this is where things go.
 
 ## End-to-end tests
 
-- Two suites, both required to merge: `scripts/e2e.sh`, curl-driven checks against the compose stack (API and MCP today; CLI as it lands), and Playwright in `web/e2e` (Chromium, one worker, retries only in CI).
+- Two suites, both required to merge: `scripts/e2e.sh`, curl-driven checks against the compose stack (API, MCP and CLI), and Playwright in `web/e2e` (Chromium, one worker, retries only in CI).
 - Playwright specs import `test` and `expect` from `web/e2e/fixtures.ts`, which fails any test whose page logs a console error.
 - The Playwright `setup` project (`web/e2e/auth.setup.ts`) signs in through Dex once and saves `web/e2e/.auth/user.json`.
   Every `chromium` spec reuses that session, and a spec that signs out must opt out with an empty `storageState` and sign in itself.

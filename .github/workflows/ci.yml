@@ -92,6 +92,12 @@ jobs:
           cache-from: type=gha,scope=demo-shop
           cache-to: type=gha,mode=max,scope=demo-shop
 
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
       - name: API smoke suite
         run: scripts/e2e.sh
 

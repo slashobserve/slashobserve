@@ -628,6 +628,7 @@ suite() {
   observe_suite
   mcp_suite
   proxy_suite
+  cli_suite
   check_api_contract
 }
 
@@ -1751,6 +1752,176 @@ proxy_suite() {
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/proxy-bodies.txt" || true)"
   [[ -z "$leak" ]] || fail "query proxy responses expose connection details ($leak)"
   pass "query proxy responses expose no connection details"
+}
+
+cli_run() {
+  CLI_CODE=0
+  env -u OBSERVE_SERVER -u OBSERVE_TOKEN XDG_CONFIG_HOME="$TMP/xdg" "$TMP/observe" "$@" <"${CLI_STDIN:-/dev/null}" >"$TMP/cli.out" 2>"$TMP/cli.err" || CLI_CODE=$?
+}
+
+cli_expect() {
+  local what="$1" code="$2" pattern="$3" stream="${4:-err}"
+  [[ "$CLI_CODE" == "$code" ]] || fail "$what should exit $code, got $CLI_CODE (stdout: $(cat "$TMP/cli.out"); stderr: $(cat "$TMP/cli.err"))"
+  grep -qF -- "$pattern" "$TMP/cli.$stream" || fail "$what lacks $pattern on std$stream (stdout: $(cat "$TMP/cli.out"); stderr: $(cat "$TMP/cli.err"))"
+}
+
+strip_final_newline() {
+  perl -0pe 's/\n\z//' "$1"
+}
+
+cli_saved_key_stays_home() {
+  local sink_pid sink_port="" tries
+  : >"$TMP/sink.log"
+  python3 - "$TMP/sink.port" "$TMP/sink.log" <<'PY' &
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+port_file, log_file = sys.argv[1], sys.argv[2]
+
+
+class Sink(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        with open(log_file, "a") as log:
+            log.write("%s %s\n" % (self.path, self.headers.get("Authorization", "")))
+        body = b'{"error":"unauthorized","code":"unauthorized"}'
+        self.send_response(401)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+server = HTTPServer(("127.0.0.1", 0), Sink)
+with open(port_file, "w") as handle:
+    handle.write(str(server.server_address[1]))
+server.serve_forever()
+PY
+  sink_pid=$!
+  for tries in $(seq 1 50); do
+    sink_port="$(cat "$TMP/sink.port" 2>/dev/null || true)"
+    [[ -n "$sink_port" ]] && break
+    sleep 0.1
+  done
+  if [[ -z "$sink_port" ]]; then
+    kill "$sink_pid" 2>/dev/null || true
+    fail "the key sink did not start"
+  fi
+
+  cli_run --server "http://127.0.0.1:$sink_port" dashboards list
+  cli_expect "observe with the saved key and another server" 1 "the saved key belongs to"
+  if [[ -s "$TMP/sink.log" ]]; then
+    kill "$sink_pid" 2>/dev/null || true
+    fail "observe contacted another server with the saved key ($(cat "$TMP/sink.log"))"
+  fi
+
+  cli_run --server "http://127.0.0.1:$sink_port" --token sok_probe dashboards list
+  kill "$sink_pid" 2>/dev/null || true
+  wait "$sink_pid" 2>/dev/null || true
+  grep -qF "Bearer sok_probe" "$TMP/sink.log" || fail "an explicit --token should reach the other server (sink saw: $(cat "$TMP/sink.log"))"
+  if grep -qF "$API_TOKEN" "$TMP/sink.log"; then
+    fail "the saved key reached another server"
+  fi
+}
+
+cli_suite() {
+  api_token
+  local config="$TMP/xdg/slashobserve/cli.json" url did title perms request_id
+
+  (cd "$ROOT" && go build -o "$TMP/observe" ./cmd/observe) || fail "build the observe CLI"
+
+  printf '%s\n' "$API_TOKEN" >"$TMP/cli.key"
+  CLI_STDIN="$TMP/cli.key" cli_run login --server "$BASE_URL" --with-token
+  cli_expect "observe login" 0 "Signed in" out
+  perms="$(stat -c %a "$config" 2>/dev/null || stat -f %Lp "$config")"
+  [[ "$perms" == 600 ]] || fail "the CLI config file mode is $perms, expected 600"
+  perms="$(stat -c %a "$(dirname "$config")" 2>/dev/null || stat -f %Lp "$(dirname "$config")")"
+  [[ "$perms" == 700 ]] || fail "the CLI config directory mode is $perms, expected 700"
+  if grep -qF "$API_TOKEN" "$TMP/cli.out" "$TMP/cli.err"; then
+    fail "observe login printed the key"
+  fi
+  pass "observe login validates the key, saves it with mode 600 and does not print it"
+
+  cli_run "log volume by service" --timeout 120s
+  url="$(cat "$TMP/cli.out")"
+  if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+    fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
+  fi
+  grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
+  did="${url##*/}"
+  pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
+
+  cli_run dashboards list --json
+  [[ "$CLI_CODE" == 0 ]] || fail "observe dashboards list --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  python3 -m json.tool <"$TMP/cli.out" >/dev/null || fail "observe dashboards list --json is not JSON"
+  grep -qF "$did" "$TMP/cli.out" || fail "observe dashboards list --json lacks the new dashboard $did"
+  pass "observe dashboards list --json parses and lists the new dashboard"
+
+  cli_run dashboards show "$did" --json
+  [[ "$CLI_CODE" == 0 ]] || fail "observe dashboards show --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did" >"$TMP/cli.api"
+  diff <(strip_final_newline "$TMP/cli.out") <(strip_final_newline "$TMP/cli.api") >/dev/null \
+    || fail "observe dashboards show --json differs from the API response"
+  pass "observe dashboards show --json matches the API response byte for byte"
+
+  title="$(grep -o '"title":"[^"]*"' "$TMP/cli.api" | head -1 | cut -d'"' -f4)"
+  [[ -n "$title" ]] || fail "the dashboard has no title"
+  cli_run dashboards show "$did"
+  cli_expect "observe dashboards show" 0 "$title" out
+  cli_run dashboards versions "$did"
+  if [[ "$CLI_CODE" != 0 ]] || ! grep -Eq '^1[[:space:]]' "$TMP/cli.out"; then
+    fail "observe dashboards versions should list version 1 ($CLI_CODE: $(cat "$TMP/cli.out"))"
+  fi
+  pass "observe dashboards show prints the title and versions lists version 1"
+
+  cli_run --no-wait "log volume by service"
+  request_id="$(cat "$TMP/cli.out")"
+  if [[ "$CLI_CODE" != 0 || ! "$request_id" =~ ^[0-9a-f-]{36}$ ]]; then
+    fail "observe --no-wait should print the request id ($CLI_CODE: $request_id; $(cat "$TMP/cli.err"))"
+  fi
+  cli_run status "$request_id" --wait --timeout 120s
+  url="$(cat "$TMP/cli.out")"
+  if [[ "$CLI_CODE" != 0 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
+    fail "observe status --wait should print the dashboard address ($CLI_CODE: $url; $(cat "$TMP/cli.err"))"
+  fi
+  cli_run status "$request_id"
+  cli_expect "observe status" 0 "succeeded" out
+  pass "observe --no-wait prints a request id that status --wait and status resolve"
+
+  cli_run "e2e: a slow run that never saves" --timeout 120s
+  cli_expect "a run that never saves" 1 "without saving"
+  pass "observe reports a failed agent request and exits 1"
+
+  cli_run
+  [[ "$CLI_CODE" == 2 ]] || fail "observe with no arguments should exit 2, got $CLI_CODE"
+  cli_run --bogus
+  [[ "$CLI_CODE" == 2 ]] || fail "observe with an unknown flag should exit 2, got $CLI_CODE"
+  cli_run login --token sok_ignored
+  cli_expect "observe login --token" 2 "--with-token"
+  pass "observe usage errors exit 2"
+
+  cli_run --server http://example.com dashboards list
+  cli_expect "observe over plain http to another host" 1 "https"
+  pass "observe refuses plain http except to loopback addresses"
+
+  cli_saved_key_stays_home
+  pass "observe sends the saved key only to the server it was saved for"
+
+  cli_run logout
+  cli_expect "observe logout" 0 "Signed out" out
+  if ! grep -q '"server"' "$config" || grep -q '"token"' "$config"; then
+    fail "observe logout should keep the server and remove the key ($(cat "$config"))"
+  fi
+  cli_run dashboards list
+  cli_expect "observe after logout" 1 "observe login"
+  pass "observe logout removes the key and later commands ask to sign in"
+
+  CLI_CODE=0
+  env -u OBSERVE_SERVER XDG_CONFIG_HOME="$TMP/xdg" OBSERVE_TOKEN=sok_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+    "$TMP/observe" --server "$BASE_URL" dashboards list </dev/null >"$TMP/cli.out" 2>"$TMP/cli.err" || CLI_CODE=$?
+  cli_expect "observe with an invalid key" 1 "not signed in, or the key is invalid; run observe login"
+  pass "observe reports an invalid key from the environment"
 }
 
 stack_suite() {
