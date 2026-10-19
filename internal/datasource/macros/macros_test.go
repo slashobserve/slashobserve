@@ -405,6 +405,26 @@ func TestClickHouseGlobalMacrosInCode(t *testing.T) {
 	})
 }
 
+func TestClickHouseDateFormatCannotOpenAComment(t *testing.T) {
+	env := macros.Env{Range: testRange, Interval: 30 * time.Second}
+	for _, query := range []string{
+		"SELECT ${__from:date:YYYY--MM} FROM t WHERE x = 1",
+		"SELECT 1 WHERE d = ${__to:date:YYYY--MM-DD} AND y = 2",
+		"SELECT ${__from:date:YYYY--MM}\nFROM t",
+	} {
+		got, err := macros.Expand(macros.ClickHouse, query, env)
+		if err == nil {
+			t.Fatalf("Expand(%q) = %q, want error", query, got.Text)
+		}
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "crosses a string, comment or identifier boundary") {
+			t.Fatalf("Expand(%q) error = %v, want a boundary error", query, err)
+		}
+	}
+	runExpandCases(t, []expandCase{
+		{name: "a single dash date keeps the rest of the query", d: macros.ClickHouse, query: "SELECT ${__from:date:YYYY-MM} FROM t WHERE x = 1", env: env, want: "SELECT 2026-01 FROM t WHERE x = 1"},
+	})
+}
+
 func TestMacrosAndVariablesTogether(t *testing.T) {
 	from, to := testRange.From.UnixMilli(), testRange.To.UnixMilli()
 	e := envWith(val("svc", "it's"))
