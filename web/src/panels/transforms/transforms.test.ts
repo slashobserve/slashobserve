@@ -204,6 +204,45 @@ describe("query format table", () => {
     })
   })
 
+  it("keeps every output column name unique when labels use reserved names", () => {
+    const [out] = prepareFrames(tablePanel, [
+      frame([time([5]), num("Value", [1])], {
+        name: "up",
+        labels: { Time: "t", Value: "v" },
+      }),
+    ])
+    expect(out.fields.map((f) => [f.name, f.type])).toEqual([
+      ["Time", "time"],
+      ["Time#1", "string"],
+      ["Value#1", "string"],
+      ["__name__", "string"],
+      ["Value", "number"],
+    ])
+    expect(columns(out)).toEqual({
+      Time: [5],
+      "Time#1": ["t"],
+      "Value#1": ["v"],
+      __name__: ["up"],
+      Value: [1],
+    })
+  })
+
+  it("names a later time field called Time apart from the time column", () => {
+    const [out] = prepareFrames(tablePanel, [
+      frame([time([5]), time([9], "Time"), num("Value", [1])], {
+        labels: { pod: "a" },
+      }),
+    ])
+    expect(out.fields.map((f) => [f.name, f.type])).toEqual([
+      ["Time", "time"],
+      ["pod", "string"],
+      ["Time#1", "time"],
+      ["Value", "number"],
+    ])
+    expect(columns(out).Time).toEqual([5])
+    expect(columns(out)["Time#1"]).toEqual([9])
+  })
+
   it("leaves other formats and other queries unchanged", () => {
     const a = frame([time([1, 2]), num("Value", [1, 2])], {
       labels: { pod: "a" },

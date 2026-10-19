@@ -27,8 +27,10 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
   const counts = frames.map(rowCount)
   const times = frames.map(firstTime)
   const fields: PreparedField[] = []
+  const used = new Map<string, number>()
 
   if (times.some((time) => time !== undefined)) {
+    uniqueKey(used, "Time")
     const values: unknown[] = []
     frames.forEach((_frame, index) => {
       const time = times[index]
@@ -37,22 +39,6 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
       }
     })
     fields.push({ name: "Time", type: "time", values })
-  }
-
-  const keys = new Set(
-    frames.flatMap((frame) => Object.keys(frame.labels ?? {}))
-  )
-  if (frames.some((frame) => frame.name !== undefined)) keys.add(nameKey)
-  for (const key of [...keys].sort()) {
-    const values: unknown[] = []
-    frames.forEach((frame, index) => {
-      const value =
-        key === nameKey
-          ? (frame.name ?? frame.labels?.[nameKey] ?? null)
-          : (frame.labels?.[key] ?? null)
-      for (let row = 0; row < counts[index]; row++) values.push(value)
-    })
-    fields.push({ name: key, type: "string", values })
   }
 
   const byName = frames.map((frame) => {
@@ -70,6 +56,10 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
       if (!types.has(name)) types.set(name, field.type)
     }
   }
+  const columnNames = new Map(
+    [...types.keys()].map((name) => [name, uniqueKey(used, name)])
+  )
+  const valueFields: PreparedField[] = []
   for (const [name, type] of types) {
     const values: unknown[] = []
     byName.forEach((named, index) => {
@@ -78,8 +68,26 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
         values.push(source ? (source.values[row] ?? null) : null)
       }
     })
-    fields.push({ name, type, values })
+    valueFields.push({ name: columnNames.get(name) ?? name, type, values })
   }
+
+  const keys = new Set(
+    frames.flatMap((frame) => Object.keys(frame.labels ?? {}))
+  )
+  if (frames.some((frame) => frame.name !== undefined)) keys.add(nameKey)
+  for (const key of [...keys].sort()) {
+    const values: unknown[] = []
+    frames.forEach((frame, index) => {
+      const value =
+        key === nameKey
+          ? (frame.name ?? frame.labels?.[nameKey] ?? null)
+          : (frame.labels?.[key] ?? null)
+      for (let row = 0; row < counts[index]; row++) values.push(value)
+    })
+    fields.push({ name: uniqueKey(used, key), type: "string", values })
+  }
+
+  fields.push(...valueFields)
 
   return { ref: frames[0].ref, fields }
 }
