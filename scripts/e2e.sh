@@ -1982,7 +1982,7 @@ first_value() {
 
 proxy_suite() {
   api_token
-  local out id base window stable values_window first_executed service job leak rows_one rows_all logs_one logs_all now_ms to_ms
+  local out id base window stable values_window first_executed service job job_count others leak rows_one rows_all logs_one logs_all now_ms to_ms
   : >"$TMP/proxy-bodies.txt"
 
   out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
@@ -2189,6 +2189,51 @@ proxy_suite() {
 
   expect_proxy_error "$base/variables/job/values?var-n=1" 400 invalid_request "selection for a later variable"
   pass "a selection for a variable declared after the listed one is rejected"
+
+  out="$(proxy_call GET "$base/variables/const/values")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"values":["shop"]' "$TMP/api.body"; then
+    fail "values of the constant variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/variables/iv/values")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"values":["$__auto","1m","5m"]' "$TMP/api.body"; then
+    fail "values of the interval variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/variables/dsv/values")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"values":["ch","ch_tight"]' "$TMP/api.body"; then
+    fail "values of the datasource variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/variables/tb/values")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"values":[]' "$TMP/api.body"; then
+    fail "values of the textbox variable ($out: $(cat "$TMP/api.body"))"
+  fi
+  expect_proxy_error "$base/variables/chf/values" 400 invalid_request "values of the adhoc variable"
+  pass "values for constant, interval, datasource, textbox and adhoc variables"
+
+  out="$(proxy_call GET "$base/panels/p_vars/data?$stable")"
+  if [[ "$out" != 200 ]] || ! grep -q 'shop' "$TMP/api.body" || ! grep -q 'hello' "$TMP/api.body" \
+    || ! grep -q '1m' "$TMP/api.body" || ! grep -q '"ch"' "$TMP/api.body"; then
+    fail "the new variable types take their defaults ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_vars/data?$stable&var-iv=%24__auto")"
+  [[ "$out" == 200 ]] || fail "the interval variable accepts auto ($out: $(cat "$TMP/api.body"))"
+  out="$(proxy_call GET "$base/panels/p_vars/data?$stable&var-chf=ServiceName%7C%3D%7C$(urlencode "$service")")"
+  if [[ "$out" != 200 ]] || ! grep -Eq '"name":"n","type":"number","values":\[[1-9][0-9]*' "$TMP/api.body"; then
+    fail "an adhoc filter on a ClickHouse query ($out: $(cat "$TMP/api.body"))"
+  fi
+  expect_proxy_error "$base/panels/p_vars/data?$stable&var-chf=Bad%20Key%7C%3D%7Cx" 400 invalid_request "an adhoc filter with an invalid key"
+  expect_proxy_error "$base/panels/p_vars/data?$stable&var-const=other" 400 invalid_request "a constant with another value"
+  pass "new variable types resolve on the server"
+
+  out="$(proxy_call GET "$base/panels/p_adhoc/data?$stable")"
+  [[ "$out" == 200 ]] || fail "the unfiltered adhoc panel ($out: $(cat "$TMP/api.body"))"
+  job_count="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | wc -l | tr -d ' ')"
+  [[ "$job_count" -gt 1 ]] || fail "the unfiltered adhoc panel returns more than one job ($job_count: $(cat "$TMP/api.body"))"
+  out="$(proxy_call GET "$base/panels/p_adhoc/data?$stable&var-pf=job%7C%3D%7Cprometheus")"
+  others="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | { grep -v '^"job":"prometheus"$' || true; })"
+  if [[ "$out" != 200 ]] || ! grep -q '"job":"prometheus"' "$TMP/api.body" || [[ -n "$others" ]]; then
+    fail "an adhoc filter narrows a Prometheus query ($out: $others: $(cat "$TMP/api.body"))"
+  fi
+  pass "an adhoc filter narrows every Prometheus query on its datasource"
 
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/proxy-bodies.txt" || true)"
   [[ -z "$leak" ]] || fail "query proxy responses expose connection details ($leak)"
