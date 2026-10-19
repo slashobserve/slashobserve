@@ -123,7 +123,21 @@ func checkLength(field, value string, limit int) (Result, bool) {
 	return Result{}, true
 }
 
-type listInput struct {
+type listMetricsInput struct {
+	Datasource string `json:"datasource"`
+	Search     string `json:"search"`
+	Limit      *int   `json:"limit"`
+}
+
+type listLabelsInput struct {
+	Datasource string `json:"datasource"`
+	Metric     string `json:"metric"`
+	Table      string `json:"table"`
+	Search     string `json:"search"`
+	Limit      *int   `json:"limit"`
+}
+
+type listLabelValuesInput struct {
 	Datasource string `json:"datasource"`
 	Label      string `json:"label"`
 	Metric     string `json:"metric"`
@@ -132,27 +146,18 @@ type listInput struct {
 	Limit      *int   `json:"limit"`
 }
 
-func (r *Registry) listNames(ctx context.Context, input json.RawMessage, kind datasource.DiscoverKind, noun string) (queryproxy.Names, Result, bool, error) {
-	var in listInput
-	if res, ok := decodeInput(input, &in); !ok {
-		return queryproxy.Names{}, res, false, nil
+func namesLimit(p *int) int {
+	if p == nil {
+		return 0
 	}
-	if in.Datasource == "" {
+	return cmp.Or(*p, -1)
+}
+
+func (r *Registry) listNames(ctx context.Context, req queryproxy.NamesRequest, noun string) (queryproxy.Names, Result, bool, error) {
+	if req.Datasource == "" {
 		return queryproxy.Names{}, invalid("datasource is required; call list_datasources"), false, nil
 	}
-	limit := 0
-	if in.Limit != nil {
-		limit = cmp.Or(*in.Limit, -1)
-	}
-	names, err := r.deps.Runner.Names(ctx, queryproxy.NamesRequest{
-		Datasource: in.Datasource,
-		Kind:       kind,
-		Search:     in.Search,
-		Metric:     in.Metric,
-		Label:      in.Label,
-		Table:      in.Table,
-		Limit:      limit,
-	})
+	names, err := r.deps.Runner.Names(ctx, req)
 	switch {
 	case err == nil:
 		return names, Result{}, true, nil
@@ -161,9 +166,9 @@ func (r *Registry) listNames(ctx context.Context, input json.RawMessage, kind da
 		return queryproxy.Names{}, invalid("%s", message), false, nil
 	case errors.Is(err, queryproxy.ErrUnknownDatasource):
 		code := string(queryproxy.CodeUnknownDatasource)
-		return queryproxy.Names{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(in.Datasource, maxStepNameBytes))), false, nil
+		return queryproxy.Names{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(req.Datasource, maxStepNameBytes))), false, nil
 	}
-	res, err := datasourceFailure("Listing "+noun+" on "+in.Datasource, err)
+	res, err := datasourceFailure("Listing "+noun+" on "+req.Datasource, err)
 	return queryproxy.Names{}, res, false, err
 }
 
@@ -174,7 +179,16 @@ type metricsOut struct {
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
-	names, res, ok, err := r.listNames(ctx, input, datasource.DiscoverMetrics, "metrics")
+	var in listMetricsInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverMetrics,
+		Search:     in.Search,
+		Limit:      namesLimit(in.Limit),
+	}, "metrics")
 	if !ok || err != nil {
 		return res, err
 	}
@@ -189,7 +203,18 @@ type labelsOut struct {
 }
 
 func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Result, error) {
-	names, res, ok, err := r.listNames(ctx, input, datasource.DiscoverLabels, "labels")
+	var in listLabelsInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverLabels,
+		Search:     in.Search,
+		Metric:     in.Metric,
+		Table:      in.Table,
+		Limit:      namesLimit(in.Limit),
+	}, "labels")
 	if !ok || err != nil {
 		return res, err
 	}
@@ -205,7 +230,19 @@ type labelValuesOut struct {
 }
 
 func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (Result, error) {
-	names, res, ok, err := r.listNames(ctx, input, datasource.DiscoverLabelValues, "label values")
+	var in listLabelValuesInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverLabelValues,
+		Search:     in.Search,
+		Metric:     in.Metric,
+		Label:      in.Label,
+		Table:      in.Table,
+		Limit:      namesLimit(in.Limit),
+	}, "label values")
 	if !ok || err != nil {
 		return res, err
 	}
