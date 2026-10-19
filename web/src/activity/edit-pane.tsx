@@ -111,7 +111,10 @@ export function EditPane({
     setDirty(next)
   }, [])
   const [confirm, setConfirm] = useState<Leave | null>(null)
-  const focusAfter = useRef<"default" | "trigger" | "none">("default")
+  const focusAfter = useRef<"default" | "trigger" | "editor" | "none">(
+    "default"
+  )
+  const root = useRef<HTMLDivElement>(null)
   const returnFocus = useRef(false)
   const afterLeave = useRef<(() => void) | null>(null)
 
@@ -178,7 +181,7 @@ export function EditPane({
   )
 
   function keepEditing() {
-    focusAfter.current = "default"
+    focusAfter.current = afterLeave.current ? "editor" : "default"
     afterLeave.current = null
     setConfirm(null)
     if (blocker.status === "blocked") blocker.reset()
@@ -232,7 +235,11 @@ export function EditPane({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
+    <div
+      ref={root}
+      className="flex min-h-0 flex-1 flex-col"
+      onKeyDown={onKeyDown}
+    >
       <CardHeader
         headingId={headingId}
         headingRef={headingRef}
@@ -256,10 +263,20 @@ export function EditPane({
       >
         <AlertDialogContent
           finalFocus={() => {
-            if (focusAfter.current === "none") return false
-            return focusAfter.current === "trigger"
-              ? (panelTrigger(panelId) ?? true)
-              : true
+            switch (focusAfter.current) {
+              case "none":
+                return false
+              case "trigger":
+                return panelTrigger(panelId) ?? true
+              case "editor":
+                return (
+                  root.current?.querySelector<HTMLElement>(".cm-content") ??
+                  root.current?.querySelector<HTMLElement>("h2") ??
+                  true
+                )
+              default:
+                return true
+            }
           }}
         >
           <AlertDialogHeader>
