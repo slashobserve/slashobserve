@@ -14,7 +14,7 @@ function Home() {
   useDocumentTitle("Observe - SlashObserve")
   const headingId = useId()
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <header className="mb-6 flex flex-col gap-1">
         <h1 id={headingId} className="text-2xl font-semibold">
           Dashboards
@@ -25,6 +25,6 @@ function Home() {
       </header>
       <PromptBar />
       <DashboardList labelledBy={headingId} />
-    </div>
+    </>
   )
 }

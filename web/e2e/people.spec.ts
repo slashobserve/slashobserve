@@ -1,6 +1,6 @@
 import type { Route } from "@playwright/test"
 
-import { expect, test, type Page } from "./fixtures"
+import { expect, failedResourceLogged, test, type Page } from "./fixtures"
 
 type Person = {
   id: string
@@ -86,14 +86,6 @@ async function openPeople(page: Page) {
 
 function row(page: Page, email: string) {
   return page.locator("tbody tr", { hasText: email })
-}
-
-function failedResourceLogged(consoleErrors: string[], status: string) {
-  const logged = consoleErrors.filter((message) =>
-    message.includes(`status of ${status}`)
-  )
-  expect(logged).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
 }
 
 async function noDocumentOverflow(page: Page) {

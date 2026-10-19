@@ -2,8 +2,7 @@ import { useId } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { instanceQuery } from "@/api/instance"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -31,24 +30,13 @@ export function ConnectClients() {
       </div>
       {query.isPending ? (
         <Skeleton className="h-24 w-full" />
-      ) : query.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not load the server address</AlertTitle>
-          <AlertDescription>
-            <p>{loadProblemText(query.error)}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-foreground"
-              disabled={query.isFetching}
-              focusableWhenDisabled
-              aria-busy={query.isFetching}
-              onClick={() => void query.refetch()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+      ) : query.data === undefined ? (
+        <LoadProblem
+          title="Could not load the server address"
+          detail={loadProblemText(query.error)}
+          retrying={query.isFetching}
+          onRetry={() => void query.refetch()}
+        />
       ) : (
         <Snippets
           publicUrl={query.data.public_url}

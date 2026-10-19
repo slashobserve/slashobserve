@@ -11,11 +11,11 @@ export const Route = createFileRoute("/_authed/_shell/datasources")({
 function DatasourcesPage() {
   useDocumentTitle("Datasources - SlashObserve")
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <>
       <PageHeader
         title="Datasources"
         description="Defined in the datasources file on the server. Edit that file and restart to add or change one."
       />
-    </div>
+    </>
   )
 }
