@@ -300,6 +300,33 @@ func TestExclusiveMemberIssues(t *testing.T) {
 	}
 }
 
+func TestReferenceFormatMessages(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	formats := "csv, doublequote, pipe, raw, regex, singlequote, sqlstring"
+	cases := []struct {
+		name    string
+		query   string
+		message string
+	}{
+		{"dashboard", `${__dashboard:bogus}`, `unknown format "bogus" for $__dashboard; use one of ` + formats},
+		{"user field", `${__user.email:bogus}`, `unknown format "bogus" for $__user.email; use one of ` + formats},
+		{"no format", `${__range_s:csv}`, `macro $__range_s does not take a format`},
+		{"variable", `${env:bogus}`, `unknown format "bogus" in reference to variable "env"; use one of ` + formats},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data := strings.Replace(minimal, `$__timeFilter(Timestamp)`, c.query, 1)
+			if c.name == "variable" {
+				data = strings.Replace(data, `"panels"`, `"variables": [{"name": "env", "type": "custom", "options": ["a"]}], "panels"`, 1)
+			}
+			issues := parseIssues(t, []byte(data))
+			if len(issues) != 1 || issues[0].Code != spec.CodeInvalidReference || issues[0].Message != c.message {
+				t.Fatalf("got %+v, want one invalid_reference issue: %s", issues, c.message)
+			}
+		})
+	}
+}
+
 func TestExclusiveMemberValueIssues(t *testing.T) {
 	minimal := string(readExample(t, "minimal.json"))
 	cases := []struct {

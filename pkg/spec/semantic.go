@@ -568,7 +568,7 @@ func checkMacroFormat(macro Macro, ref Reference) *Issue {
 	switch macro.Formats {
 	case VariableFormatsAllowed:
 		if !slices.Contains(VariableFormats(), ref.Format) {
-			return unknownFormatIssue(ref)
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("unknown format %q for $%s; use one of %s", ref.Format, ref.Name, strings.Join(VariableFormats(), ", "))}
 		}
 	case TimeFormatsAllowed:
 		if !ValidTimeMacroFormat(ref.Format) {
