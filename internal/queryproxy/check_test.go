@@ -1080,6 +1080,21 @@ func TestCheckSpecChecksTheAllListOfAGuardOnlyVariableWithoutFailingItsPanels(t 
 	}
 }
 
+func TestCheckSpecReportsAnEmptyAllListOfAGuardOnlyVariableOnce(t *testing.T) {
+	fake := newFake("clickhouse")
+	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) { return nil, nil }
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+	d := dashboardOf(
+		[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x > 1, $svc)")},
+		includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"),
+	)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertIssues(t, issues, []wantIssue{{"/variables/0", CodeVariableEmpty, ""}})
+}
+
 func TestCheckSpecExpandsTheConditionOfAConditionalAllSelectingAll(t *testing.T) {
 	tests := []struct {
 		name  string
