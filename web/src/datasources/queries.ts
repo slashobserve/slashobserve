@@ -12,15 +12,12 @@ export function datasourcesQuery() {
     queryKey: datasourceKeys.list(),
     queryFn: ({ signal }) => api.GET("/datasources", { signal }).then(unwrap),
     select: (data) => data.datasources,
-    refetchInterval: 30_000,
-    refetchIntervalInBackground: false,
   })
 }
 
 export function useDatasources() {
   return useQuery({
     ...datasourcesQuery(),
-    refetchInterval: false,
     staleTime: 60_000,
   })
 }

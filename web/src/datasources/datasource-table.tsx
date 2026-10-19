@@ -25,7 +25,11 @@ function Header() {
 }
 
 export function DatasourceTable() {
-  const datasources = useQuery(datasourcesQuery())
+  const datasources = useQuery({
+    ...datasourcesQuery(),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  })
 
   if (datasources.status === "pending") {
     return (
@@ -44,7 +48,7 @@ export function DatasourceTable() {
     )
   }
 
-  if (datasources.status === "error") {
+  if (datasources.data === undefined) {
     return (
       <LoadProblem
         title="Could not load datasources"
