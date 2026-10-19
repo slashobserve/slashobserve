@@ -662,6 +662,11 @@ func TestNinthConcurrentRequestIsRefusedWithRetryAfter(t *testing.T) {
 	}
 	expectError(t, hn.get(hn.valuesPath("job", window), "alice"), http.StatusTooManyRequests, "too_many_requests")
 	expectError(t, hn.lintAs("alice", "prom", `{"query":"up"}`), http.StatusTooManyRequests, "too_many_requests")
+	rec = hn.previewAs(auth.KindUser, "prom", nil)
+	expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")
+	if got := rec.Header().Get("Retry-After"); got != "1" {
+		t.Fatalf("preview Retry-After = %q, want 1", got)
+	}
 
 	close(release)
 	wg.Wait()
@@ -1203,6 +1208,38 @@ func frameRefs(t *testing.T, body dataResponse) []string {
 		refs[i] = f.Ref
 	}
 	return refs
+}
+
+func TestPreviewRunsWithTheDraftLimitsAndIsNeverCached(t *testing.T) {
+	hn := newPreviewHarness(t)
+	first := decodeData(t, hn.previewAs(auth.KindUser, "prom", nil))
+	if first.Meta.Cached {
+		t.Fatal("the first preview reports cached")
+	}
+	if got := hn.ds.lastQuery().Limits; got != queryproxy.DraftLimits {
+		t.Fatalf("limits = %+v, want %+v", got, queryproxy.DraftLimits)
+	}
+	second := decodeData(t, hn.previewAs(auth.KindUser, "prom", nil))
+	if second.Meta.Cached {
+		t.Fatal("the second preview reports cached")
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 2 {
+		t.Fatalf("%d upstream range queries for 2 identical previews, want 2", ranges)
+	}
+}
+
+func TestPreviewIsRefusedForNonUsersWithoutTakingASlot(t *testing.T) {
+	hn := newPreviewHarness(t)
+	holdPrincipalSlots(t, hn, "alice")
+	for _, kind := range []auth.PrincipalKind{auth.KindServiceAccount, ""} {
+		expectError(t, hn.previewAs(kind, "prom", nil), http.StatusForbidden, "user_session_required")
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+		t.Fatalf("%d upstream range queries for refused previews", ranges)
+	}
+	if held := hn.heldSlots(); held != maxInFlightPerPrincipal {
+		t.Fatalf("%d slots held, want only the %d the test holds", held, maxInFlightPerPrincipal)
+	}
 }
 
 func TestPreviewRejectsMalformedIdentifiersAndVariableNames(t *testing.T) {

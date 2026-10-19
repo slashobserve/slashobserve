@@ -2282,12 +2282,13 @@ proxy_suite() {
 
   preview_body "$id" preview-edited.json
   out="$(preview_as_user prom)"
-  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/preview.body" || ! grep -q '"cached":false' "$TMP/preview.body"; then
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/preview.body"; then
     fail "the draft preview runs an edited panel ($out: $(cat "$TMP/preview.body"))"
   fi
+  executed_at="$(grep -o '"executed_at":"[^"]*"' "$TMP/preview.body" || true)"
   out="$(preview_as_user prom)"
-  if [[ "$out" != 200 ]] || ! grep -q '"cached":false' "$TMP/preview.body"; then
-    fail "the repeated draft preview is not cached ($out: $(cat "$TMP/preview.body"))"
+  if [[ "$out" != 200 ]] || [[ -z "$executed_at" ]] || grep -qF "$executed_at" "$TMP/preview.body"; then
+    fail "the repeated draft preview ran again ($out: $executed_at: $(cat "$TMP/preview.body"))"
   fi
 
   preview_body "$id" preview-two-queries.json
