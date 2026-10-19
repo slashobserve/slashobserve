@@ -24,6 +24,7 @@ func TestApplyVariableRegex(t *testing.T) {
 		{"duplicates keep the first", "/^(\\w+)-\\d+$/", []string{"web-1", "web-2", "api-1"}, []string{"web", "api"}},
 		{"case insensitive flag", "/WEB/i", []string{"web", "api"}, []string{"web"}},
 		{"unanchored slash pattern", "/eb/", []string{"web", "api"}, []string{"web"}},
+		{"the sticky flag is accepted and ignored", "/web/y", []string{"web", "api"}, []string{"web"}},
 		{"global flag takes every match", "/(\\d+)/g", []string{"a1b22", "c3"}, []string{"1", "22", "3"}},
 		{"no global flag takes the first match", "/(\\d+)/", []string{"a1b22", "c3"}, []string{"1", "3"}},
 		{"multiline flag anchors lines", "/^b$/m", []string{"a\nb\nc", "bc"}, []string{"a\nb\nc"}},

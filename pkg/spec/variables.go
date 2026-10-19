@@ -37,6 +37,7 @@ func CompileVariableRegex(s string) (*VariableRegex, error) {
 				}
 			case 'g':
 				global = true
+			case 'y':
 			default:
 				return nil, fmt.Errorf("%q is not a valid regular expression: unsupported flag %q", s, flag)
 			}
