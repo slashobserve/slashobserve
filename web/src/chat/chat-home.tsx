@@ -18,7 +18,7 @@ export function ChatHome() {
   const examples = examplePrompts(
     (datasources.data ?? []).filter((d) => d.healthy).map((d) => d.type)
   )
-  const agentOff = agent.data?.available === false
+  const agentReady = !agent.isPending && agent.data?.available !== false
 
   function open(request: ObserveRequest) {
     return navigate({
@@ -40,7 +40,7 @@ export function ChatHome() {
           onSent={open}
         />
       </div>
-      {agentOff || examples.length === 0 ? null : (
+      {!agentReady || examples.length === 0 ? null : (
         <div
           role="group"
           aria-label="Example prompts"

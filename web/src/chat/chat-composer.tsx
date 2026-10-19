@@ -85,13 +85,14 @@ export function ChatComposer({
   const hintId = useId()
 
   const agentOff = agent.data?.available === false
-  const busy = submitting || creating
+  const agentPending = agent.isPending
+  const busy = submitting || creating || agentPending
   const model = agent.data?.model ?? null
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
 
   useEffect(() => {
     if (autoFocus) field.current?.focus()
-  }, [autoFocus, agentOff])
+  }, [autoFocus, agentOff, agentPending])
 
   useEffect(() => {
     function focusOnSlash(event: globalThis.KeyboardEvent) {
@@ -211,6 +212,7 @@ export function ChatComposer({
           value={prompt}
           rows={rows}
           placeholder={placeholder}
+          disabled={agentPending}
           readOnly={busy}
           aria-invalid={notice?.invalid === true}
           aria-describedby={describedBy}
