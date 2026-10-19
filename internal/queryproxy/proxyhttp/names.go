@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -102,12 +103,13 @@ func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesReques
 	if err != nil {
 		return req, "the query string is malformed"
 	}
-	for name, values := range query {
+	for _, name := range slices.Sorted(maps.Keys(query)) {
+		values := query[name]
 		if !slices.Contains(allowed, name) {
-			return req, fmt.Sprintf("unknown parameter %q", name)
+			return req, "unknown query parameter"
 		}
 		if len(values) != 1 {
-			return req, fmt.Sprintf("%s may be given at most once", name)
+			return req, fmt.Sprintf("%s must be given once", name)
 		}
 		switch name {
 		case "search":
