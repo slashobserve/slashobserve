@@ -1,8 +1,15 @@
 import { useCallback, useMemo } from "react"
+import type { HistoryState } from "@tanstack/history"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { isTimeValue, refreshOptions, refreshPattern } from "@/lib/time"
+
+declare module "@tanstack/history" {
+  interface HistoryState {
+    focusVersionButtonAt?: number
+  }
+}
 
 export type DashboardSearch = {
   from?: string
@@ -149,12 +156,13 @@ export function useSetDashboardSearch() {
   return useCallback(
     (
       update: (state: DashboardSearch) => DashboardSearch,
-      options?: { replace?: boolean }
+      options?: { replace?: boolean; state?: HistoryState }
     ) => {
       void navigate({
         search: (prev: DashboardSearchParams) =>
           searchFromState(update(validateDashboardSearch(prev))),
         replace: options?.replace ?? false,
+        state: options?.state,
       })
     },
     [navigate]

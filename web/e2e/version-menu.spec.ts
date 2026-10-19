@@ -95,6 +95,29 @@ for (const scheme of themes) {
       await expectPanelsReady(page)
     })
 
+    test("keeps the focus when the checked version is picked again", async ({
+      page,
+      request,
+    }) => {
+      const { id, spec } = await createVersions(request)
+      await openDashboard(page, id)
+      await expect(versionButton(page)).toHaveText("Live · v3")
+
+      await versionButton(page).click()
+      const menu = versionMenu(page)
+      await menu.getByRole("menuitemradio", { name: /^v3\b/ }).click()
+      await expect(menu).toBeHidden()
+      await expect(versionButton(page)).toBeFocused()
+      await expect(page).not.toHaveURL(/version=/)
+
+      const activity = page.getByRole("button", { name: /^Show activity/ })
+      await activity.focus()
+      await expect(activity).toBeFocused()
+      await addVersion(request, id, spec, 3, "Fourth save")
+      await expect(versionButton(page)).toHaveText("Live · v4")
+      await expect(activity).toBeFocused()
+    })
+
     test("compares versions", async ({ page, request }) => {
       const { id } = await createVersions(request)
       await openDashboard(page, id, "?from=now-6h")

@@ -306,6 +306,7 @@ function DashboardView({
               dashboardId={dashboardId}
               version={version}
               latest={latestVersion}
+              pinned={pinned}
               status={liveStatus}
               back={backFromSearch(search)}
             />

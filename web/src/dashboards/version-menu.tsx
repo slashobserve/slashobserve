@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react"
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation, useRouter } from "@tanstack/react-router"
 import { ArrowRightIcon, ChevronDownIcon } from "lucide-react"
 
 import {
@@ -26,13 +26,11 @@ import {
 
 const listedVersions = 5
 
-// Pinning or unpinning swaps the page component, so this menu remounts and its trigger loses the focus Base UI would return to it.
-let restoreFocusOnMount = false
-
 type Props = {
   dashboardId: string
   version: number
   latest: number
+  pinned: boolean
   status: LiveStatus
   back: string | undefined
 }
@@ -86,20 +84,33 @@ export function VersionMenu({
   dashboardId,
   version,
   latest,
+  pinned,
   status,
   back,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  const router = useRouter()
   const history = useVersionHistory(dashboardId)
   const button = useRef<HTMLButtonElement>(null)
   const headingId = useId()
   const state = { version, latest, status }
 
+  // Pinning or unpinning swaps the page component, so this menu remounts and its trigger loses the focus Base UI would return to it.
+  // The pick carries the version it pins (0 for Live) in its history entry, and the menu that shows that version focuses the button and clears the entry.
+  const shown = pinned ? version : 0
+  const focusAt = useLocation({
+    select: (location) => location.state.focusVersionButtonAt,
+  })
   useEffect(() => {
-    if (!restoreFocusOnMount) return
-    restoreFocusOnMount = false
+    if (focusAt !== shown) return
     button.current?.focus()
-  }, [version])
+    const { publicHref, state: historyState } = router.state.location
+    router.history.replace(
+      publicHref,
+      { ...historyState, focusVersionButtonAt: undefined },
+      { ignoreBlocker: true }
+    )
+  }, [focusAt, shown, router])
 
   return (
     <>
@@ -141,12 +152,11 @@ export function VersionMenu({
           <DropdownMenuRadioGroup
             value={String(version)}
             onValueChange={(value) => {
-              const next = Number(value)
-              restoreFocusOnMount = true
-              setSearch((state) => ({
-                ...state,
-                version: next === latest ? undefined : next,
-              }))
+              const next = Number(value) === latest ? 0 : Number(value)
+              if (next === shown) return
+              setSearch((state) => ({ ...state, version: next || undefined }), {
+                state: { focusVersionButtonAt: next },
+              })
             }}
           >
             <VersionRows history={history} latest={latest} />
