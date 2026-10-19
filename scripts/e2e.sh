@@ -1989,7 +1989,7 @@ first_value() {
 
 proxy_suite() {
   api_token
-  local out id base window stable values_window first_executed service job job_count others leak rows_one rows_all logs_one logs_all now_ms to_ms
+  local out id base window stable values_window first_executed service job job_count others leak rows_one rows_all logs_one logs_all now_ms to_ms adhoc
   : >"$TMP/proxy-bodies.txt"
 
   out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
@@ -2233,11 +2233,19 @@ proxy_suite() {
   expect_proxy_error "$base/panels/p_vars/data?$stable&var-const=other" 400 invalid_request "a constant with another value"
   pass "new variable types resolve on the server"
 
-  out="$(proxy_call GET "$base/panels/p_adhoc/data?$stable")"
+  # Prometheus scrapes its own job at a staggered offset after boot, so $stable can end before that job has a sample; wait for a window that has one.
+  for _ in $(seq 1 45); do
+    to_ms=$((($(date +%s) * 1000 - 30000) / 5000 * 5000))
+    adhoc="from=$((to_ms - 900000))&to=$to_ms"
+    out="$(proxy_call GET "$base/panels/p_adhoc/data?$adhoc")"
+    job_count="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | wc -l | tr -d ' ')"
+    if [[ "$out" == 200 && "$job_count" -gt 1 ]] && grep -q '"job":"prometheus"' "$TMP/api.body"; then break; fi
+    sleep 2
+  done
   [[ "$out" == 200 ]] || fail "the unfiltered adhoc panel ($out: $(cat "$TMP/api.body"))"
-  job_count="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | wc -l | tr -d ' ')"
   [[ "$job_count" -gt 1 ]] || fail "the unfiltered adhoc panel returns more than one job ($job_count: $(cat "$TMP/api.body"))"
-  out="$(proxy_call GET "$base/panels/p_adhoc/data?$stable&var-pf=job%7C%3D%7Cprometheus")"
+  grep -q '"job":"prometheus"' "$TMP/api.body" || fail "the unfiltered adhoc panel returns the prometheus job ($(cat "$TMP/api.body"))"
+  out="$(proxy_call GET "$base/panels/p_adhoc/data?$adhoc&var-pf=job%7C%3D%7Cprometheus")"
   others="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | { grep -v '^"job":"prometheus"$' || true; })"
   if [[ "$out" != 200 ]] || ! grep -q '"job":"prometheus"' "$TMP/api.body" || [[ -n "$others" ]]; then
     fail "an adhoc filter narrows a Prometheus query ($out: $others: $(cat "$TMP/api.body"))"
