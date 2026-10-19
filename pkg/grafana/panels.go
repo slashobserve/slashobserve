@@ -28,6 +28,9 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 }
 
 func (c *converter) unsupportedReason(n *panelNode) string {
+	if own := n.ds.own; len(n.ds.targets) == 0 && own.kind == refSource && !own.supported() {
+		return own.label() + " is not supported yet."
+	}
 	if len(n.ds.targets) > 0 {
 		unsupported := true
 		for _, ref := range n.ds.targets {

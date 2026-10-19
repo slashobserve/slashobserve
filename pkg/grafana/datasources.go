@@ -43,6 +43,7 @@ type sourceDS struct {
 	panels     int
 	samples    []map[string]any
 	variable   bool
+	fromUID    bool
 	kind       string
 	match      string
 	matchedBy  string
@@ -56,6 +57,12 @@ type registry struct {
 	byKey  map[string]*sourceDS
 	inputs map[string]dsInput
 	dsVars map[string]string
+}
+
+var specialSources = map[string]struct{ key, typ string }{
+	"grafana":    {"-- Grafana --", "grafana"},
+	"dashboard":  {"-- Dashboard --", "dashboard"},
+	"expression": {"__expr__", "__expr__"},
 }
 
 var variableForm = regexp.MustCompile(`^(?:\$\{([A-Za-z0-9_]+)(?::[^}]*)?\}|\$([A-Za-z0-9_]+)|\[\[([A-Za-z0-9_]+)(?::[^\]]*)?\]\])$`)
@@ -110,7 +117,31 @@ func newRegistry(src *source) *registry {
 		}
 		s.kind = kindOf(s.typ)
 	}
+	r.inferVariableOnlyDefault()
 	return r
+}
+
+func (r *registry) inferVariableOnlyDefault() {
+	s := r.byKey[defaultSource]
+	if s == nil || s.panels > 0 || s.typ != "" {
+		return
+	}
+	var typ string
+	for _, other := range r.list {
+		switch {
+		case other.kind == "":
+		case typ == "":
+			typ = other.typ
+		case kindOf(typ) != other.kind:
+			return
+		}
+	}
+	s.typ, s.kind = typ, kindOf(typ)
+}
+
+func (r *registry) special(name string) dsRef {
+	info := specialSources[name]
+	return dsRef{kind: refSpecial, special: name, src: r.get(info.key, "", info.typ)}
 }
 
 func templatingList(dash map[string]any) []any {
@@ -187,9 +218,9 @@ func (r *registry) classify(v any) dsRef {
 			case "":
 				return dsRef{}
 			case "grafana":
-				return dsRef{kind: refSpecial, special: "grafana"}
+				return r.special("grafana")
 			case "__expr__":
-				return dsRef{kind: refSpecial, special: "expression"}
+				return r.special("expression")
 			case "mixed":
 				return dsRef{kind: refMixed}
 			case "datasource":
@@ -209,11 +240,11 @@ func (r *registry) classifyParts(id, typ string, legacyName bool) dsRef {
 	case "-- Mixed --":
 		return dsRef{kind: refMixed}
 	case "-- Dashboard --":
-		return dsRef{kind: refSpecial, special: "dashboard"}
+		return r.special("dashboard")
 	case "-- Grafana --", "grafana":
-		return dsRef{kind: refSpecial, special: "grafana"}
+		return r.special("grafana")
 	case "__expr__":
-		return dsRef{kind: refSpecial, special: "expression"}
+		return r.special("expression")
 	}
 	if m := variableForm.FindStringSubmatch(id); m != nil {
 		name := m[1] + m[2] + m[3]
@@ -229,7 +260,9 @@ func (r *registry) classifyParts(id, typ string, legacyName bool) dsRef {
 	if legacyName {
 		return dsRef{kind: refSource, src: r.get(id, id, "")}
 	}
-	return dsRef{kind: refSource, src: r.get(id, "", typ)}
+	src := r.get(id, "", typ)
+	src.fromUID = src.fromUID || id != defaultSource
+	return dsRef{kind: refSource, src: src}
 }
 
 func (r *registry) variableRef(v any) dsRef {
@@ -246,7 +279,7 @@ func (r *registry) scanPanel(n *panelNode) {
 	targets, _ := asArray(n.raw["targets"])
 	counted := map[*sourceDS]bool{}
 	count := func(ref dsRef, target map[string]any) {
-		if ref.kind != refSource {
+		if ref.src == nil {
 			return
 		}
 		if !counted[ref.src] {
@@ -333,7 +366,7 @@ func (r *registry) resolve(opts Options) error {
 }
 
 func (s *sourceDS) autoMatch(ours []Datasource) {
-	if !strings.HasPrefix(s.key, "${") && slices.Contains(s.candidates, s.key) {
+	if s.fromUID && slices.Contains(s.candidates, s.key) {
 		s.match, s.matchedBy = s.key, "uid"
 		return
 	}
