@@ -247,23 +247,28 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 	root := r.createComment(t, dash, NewComment{Version: 1, PanelID: new("rps"), Body: "root"})
 	reply := r.createComment(t, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "reply"})
 	nested := r.createComment(t, dash, NewComment{ParentID: mustParse(t, reply.ID), Body: "nested"})
-	setStatus := func(id string, status string, version *int) (Comment, error) {
-		comment, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
-		return comment, err
+	setStatus := func(id string, status string, version *int) (Comment, bool, error) {
+		return r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
 	}
 
-	resolved, err := setStatus(reply.ID, CommentResolved, new(2))
+	resolved, changed, err := setStatus(reply.ID, CommentResolved, new(2))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("the first resolve should report changed")
 	}
 	if resolved.ID != root.ID || resolved.ParentID != "" || resolved.Status != CommentResolved || resolved.ResolvedByVersion == nil || *resolved.ResolvedByVersion != 2 ||
 		resolved.ResolvedAt == nil || resolved.ResolvedBy == nil {
 		t.Fatalf("resolved = %+v", resolved)
 	}
 
-	again, err := setStatus(nested.ID, CommentResolved, new(1))
+	again, changed, err := setStatus(nested.ID, CommentResolved, new(1))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if changed {
+		t.Fatal("a repeat resolve should not report changed")
 	}
 	if again.ID != root.ID || *again.ResolvedByVersion != 2 || !again.UpdatedAt.Equal(resolved.UpdatedAt) || !again.ResolvedAt.Equal(*resolved.ResolvedAt) {
 		t.Fatalf("a repeat call changed the thread: %+v, was %+v", again, resolved)
@@ -291,15 +296,22 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 		t.Fatalf("open list = %+v, err %v", open, err)
 	}
 
-	reopened, err := setStatus(reply.ID, CommentOpen, nil)
+	reopened, changed, err := setStatus(reply.ID, CommentOpen, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !changed {
+		t.Fatal("reopening a resolved thread should report changed")
 	}
 	if reopened.ID != root.ID || reopened.Status != CommentOpen || reopened.ResolvedByVersion != nil || reopened.ResolvedAt != nil || reopened.ResolvedBy != nil {
 		t.Fatalf("reopened = %+v", reopened)
 	}
 	if open, _, err := r.comments.List(t.Context(), dash, CommentOpen, "", 10, ""); err != nil || len(open) != 3 {
 		t.Fatalf("open list = %+v, err %v", open, err)
+	}
+
+	if _, changed, err := setStatus(root.ID, CommentOpen, nil); err != nil || changed {
+		t.Fatalf("reopening an open thread: changed = %v, err = %v, want unchanged", changed, err)
 	}
 }
 
