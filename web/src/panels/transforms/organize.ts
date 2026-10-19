@@ -1,7 +1,9 @@
-import type { WireFrame } from "@/dashboards/queries"
-
-import type { WireField } from "../frames"
-import { matchesName, withFields } from "./names"
+import {
+  matchesName,
+  withFields,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 export type OrganizeOptions = {
   exclude?: string[]
@@ -9,11 +11,11 @@ export type OrganizeOptions = {
   order?: string[]
 }
 
-type Kept = { original: WireField; renamed: WireField }
+type Kept = { original: PreparedField; renamed: PreparedField }
 
 function renameOf(
-  frame: WireFrame,
-  field: WireField,
+  frame: PreparedFrame,
+  field: PreparedField,
   rename: Record<string, string>
 ): string | undefined {
   for (const [from, to] of Object.entries(rename)) {
@@ -23,14 +25,17 @@ function renameOf(
 }
 
 function organizeFrame(
-  frame: WireFrame,
+  frame: PreparedFrame,
   { exclude = [], rename = {}, order = [] }: OrganizeOptions
-): WireFrame {
+): PreparedFrame {
   const kept: Kept[] = frame.fields
     .filter((field) => !exclude.some((name) => matchesName(frame, field, name)))
     .map((field) => {
       const name = renameOf(frame, field, rename)
-      return { original: field, renamed: name ? { ...field, name } : field }
+      return {
+        original: field,
+        renamed: name ? { ...field, name, seriesName: name } : field,
+      }
     })
   const placed = new Set<Kept>()
   const first: Kept[] = []
@@ -54,8 +59,8 @@ function organizeFrame(
 }
 
 export function organize(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   options: OrganizeOptions
-): WireFrame[] {
+): PreparedFrame[] {
   return frames.map((frame) => organizeFrame(frame, options))
 }

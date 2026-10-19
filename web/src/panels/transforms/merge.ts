@@ -1,94 +1,125 @@
-import type { WireFrame } from "@/dashboards/queries"
+import { flattenFrames } from "./format"
+import {
+  copyFrame,
+  rowCount,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
-import type { ColumnType, WireField } from "../frames"
-import { cell, rowCount } from "./names"
+type Column = { name: string; type: PreparedField["type"] }
 
-type Column = { id: string; name: string; type: ColumnType; key: boolean }
-type Source = Column & { at: (row: number) => unknown }
+export function merge(frames: PreparedFrame[]): PreparedFrame[] {
+  const flat = frames
+    .filter((frame) => frame.fields.length > 0)
+    .map((frame) => flattenFrames([frame]))
+  if (flat.length < 2) return frames.map(copyFrame)
 
-function sourcesOf(frame: WireFrame): Source[] {
-  const sources: Source[] = []
-  for (const key of Object.keys(frame.labels ?? {}).sort()) {
-    const value = frame.labels?.[key] ?? null
-    sources.push({
-      id: `k:${key}`,
-      name: key,
-      type: "string",
-      key: true,
-      at: () => value,
-    })
-  }
-  for (const field of frame.fields) {
-    const key = field.type === "time" || field.type === "string"
-    sources.push({
-      id: `${key ? "k" : "v"}:${field.name}`,
-      name: field.name,
-      type: field.type,
-      key,
-      at: (row) => cell(field, row),
-    })
-  }
-  return sources
-}
-
-function columnRank(column: Column): number {
-  if (column.type === "time" && column.key) return 0
-  return column.key ? 1 : 2
-}
-
-export function merge(frames: WireFrame[]): WireFrame[] {
-  if (frames.length === 0) return []
-  const columns = new Map<string, Column>()
-  const rows: Map<string, unknown>[] = []
-  const rowsByKey = new Map<string, Map<string, unknown>[]>()
-
-  for (const frame of frames) {
-    const sources = sourcesOf(frame)
-    for (const source of sources) {
-      if (!columns.has(source.id)) {
-        columns.set(source.id, {
-          id: source.id,
-          name: source.name,
-          type: source.type,
-          key: source.key,
+  const columns = new Map<string, Column & { index: number }>()
+  for (const frame of flat) {
+    for (const field of frame.fields) {
+      if (!columns.has(field.name)) {
+        columns.set(field.name, {
+          name: field.name,
+          type: field.type,
+          index: columns.size,
         })
       }
     }
-    const seen = new Map<string, number>()
-    for (let i = 0; i < rowCount(frame); i++) {
-      const keyParts = sources
-        .filter((source) => source.key)
-        .map((source) => [source.id, source.at(i)] as const)
-        .filter(([, value]) => value !== null)
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      const key = JSON.stringify(keyParts)
-      const occurrence = seen.get(key) ?? 0
-      seen.set(key, occurrence + 1)
-      const sameKey = rowsByKey.get(key) ?? []
-      rowsByKey.set(key, sameKey)
-      let row = sameKey[occurrence]
-      if (!row) {
-        row = new Map()
-        sameKey.push(row)
-        rows.push(row)
+  }
+  const keyColumns = [...columns.values()]
+    .filter((column) =>
+      flat.every((frame) => frame.fields.some((f) => f.name === column.name))
+    )
+    .map((column) => column.index)
+  if (keyColumns.length === 0) return frames.map(copyFrame)
+
+  const out: unknown[][] = [...columns.values()].map(() => [])
+  const rowByKey = new Map<number, number>()
+
+  // Ids stay below capacity, so id * capacity + part is exact and unique.
+  const capacity = flat.reduce((sum, frame) => sum + rowCount(frame), 1)
+  const last = keyColumns.length - 1
+  const parts = keyColumns.map(() => new Map<unknown, number>())
+  const folds = keyColumns.map(() => new Map<number, number>())
+  const unseen = {}
+  const lastValue: unknown[] = keyColumns.map(() => unseen)
+  const lastPart: number[] = keyColumns.map(() => 0)
+
+  for (const frame of flat) {
+    const values = [...columns.keys()].map(
+      (name) => frame.fields.find((field) => field.name === name)?.values
+    )
+    const present: number[] = []
+    values.forEach((column, index) => {
+      if (column) present.push(index)
+    })
+    const keyValues = keyColumns.map((column) => values[column] ?? [])
+    const rows = rowCount(frame)
+    for (let row = 0; row < rows; row++) {
+      let key = 0
+      for (let k = 0; k <= last; k++) {
+        const value = keyValues[k][row] ?? null
+        let part = lastPart[k]
+        if (value !== lastValue[k]) {
+          const found = parts[k].get(value)
+          if (found === undefined) {
+            part = parts[k].size
+            parts[k].set(value, part)
+          } else {
+            part = found
+          }
+          lastValue[k] = value
+          lastPart[k] = part
+        }
+        if (k === 0) {
+          key = part
+          continue
+        }
+        const pair = key * capacity + part
+        if (k === last) {
+          key = pair
+          continue
+        }
+        let folded = folds[k].get(pair)
+        if (folded === undefined) {
+          folded = folds[k].size
+          folds[k].set(pair, folded)
+        }
+        key = folded
       }
-      for (const source of sources) {
-        const value = source.at(i)
-        if (row.get(source.id) == null) row.set(source.id, value)
+
+      const existing = rowByKey.get(key)
+      let compatible = existing !== undefined
+      if (existing !== undefined) {
+        for (const column of present) {
+          const current = out[column][existing]
+          if (current !== null && current !== (values[column]?.[row] ?? null)) {
+            compatible = false
+            break
+          }
+        }
+      }
+      if (existing !== undefined && compatible) {
+        for (const column of present) {
+          out[column][existing] = values[column]?.[row] ?? null
+        }
+        continue
+      }
+      rowByKey.set(key, out[0].length)
+      for (let column = 0; column < out.length; column++) {
+        out[column].push(values[column]?.[row] ?? null)
       }
     }
   }
 
-  const ordered = [...columns.values()]
-    .map((column, index) => ({ column, index }))
-    .sort(
-      (a, b) => columnRank(a.column) - columnRank(b.column) || a.index - b.index
-    )
-    .map(({ column }) => column)
-  const fields: WireField[] = ordered.map((column) => ({
-    name: column.name,
-    type: column.type,
-    values: rows.map((row) => row.get(column.id) ?? null),
-  }))
-  return [{ ref: frames[0].ref, fields }]
+  return [
+    {
+      ref: frames[0].ref,
+      fields: [...columns.values()].map((column) => ({
+        name: column.name,
+        type: column.type,
+        values: out[column.index],
+      })),
+    },
+  ]
 }

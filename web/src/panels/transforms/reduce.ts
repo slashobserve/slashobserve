@@ -1,23 +1,31 @@
-import type { WireFrame } from "@/dashboards/queries"
 import type { Reducer } from "@/spec"
 
-import type { WireField } from "../frames"
 import { reduceField, reducerLabels } from "../reducers"
-import { copyFrame, displayName, lastPresent, withFields } from "./names"
+import {
+  copyFrame,
+  lastPresent,
+  seriesName,
+  withFields,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 export type ReduceOptions = {
   reducers: Reducer[]
   mode?: "seriesToRows" | "reduceFields"
 }
 
-function reduceToRows(frames: WireFrame[], reducers: Reducer[]): WireFrame[] {
+function reduceToRows(
+  frames: PreparedFrame[],
+  reducers: Reducer[]
+): PreparedFrame[] {
   if (frames.length === 0) return []
   const names: string[] = []
   const columns: (number | null)[][] = reducers.map(() => [])
   for (const frame of frames) {
     for (const field of frame.fields) {
       if (field.type !== "number") continue
-      names.push(displayName(frame, field))
+      names.push(seriesName(frame, field))
       reducers.forEach((reducer, index) => {
         columns[index].push(reduceField(field, reducer))
       })
@@ -28,7 +36,7 @@ function reduceToRows(frames: WireFrame[], reducers: Reducer[]): WireFrame[] {
       ref: frames[0].ref,
       fields: [
         { name: "Field", type: "string", values: names },
-        ...reducers.map((reducer, index): WireField => ({
+        ...reducers.map((reducer, index): PreparedField => ({
           name: reducerLabels[reducer],
           type: "number",
           values: columns[index],
@@ -39,22 +47,27 @@ function reduceToRows(frames: WireFrame[], reducers: Reducer[]): WireFrame[] {
 }
 
 function reduceEachFrame(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   reducers: Reducer[]
-): WireFrame[] {
+): PreparedFrame[] {
   return frames.map((frame) => {
-    const fields: WireField[] = []
+    const fields: PreparedField[] = []
     for (const field of frame.fields) {
       if (field.type === "number") {
         for (const reducer of reducers) {
-          fields.push({
-            name:
-              reducers.length === 1
-                ? field.name
-                : `${field.name} ${reducerLabels[reducer]}`,
+          const label = reducerLabels[reducer]
+          const reduced: PreparedField = {
+            name: reducers.length === 1 ? field.name : `${field.name} ${label}`,
             type: "number",
             values: [reduceField(field, reducer)],
-          })
+          }
+          if (field.seriesName) {
+            reduced.seriesName =
+              reducers.length === 1
+                ? field.seriesName
+                : `${field.seriesName} ${label}`
+          }
+          fields.push(reduced)
         }
       } else if (field.type === "string") {
         fields.push({
@@ -69,9 +82,9 @@ function reduceEachFrame(
 }
 
 export function reduceFrames(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   { reducers, mode = "seriesToRows" }: ReduceOptions
-): WireFrame[] {
+): PreparedFrame[] {
   if (reducers.length === 0) return frames.map(copyFrame)
   return mode === "reduceFields"
     ? reduceEachFrame(frames, reducers)

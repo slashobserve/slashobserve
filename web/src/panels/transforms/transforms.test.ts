@@ -4,7 +4,12 @@ import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
 import type { WireField } from "../frames"
-import { applyTransforms, prepareFrames } from "."
+import {
+  applyTransforms,
+  prepareFrames,
+  seriesName,
+  type PreparedFrame,
+} from "."
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
@@ -38,7 +43,12 @@ function frame(
 }
 
 function panel(
-  queries: { ref?: string; format?: string }[],
+  queries: {
+    ref?: string
+    format?: string
+    legend?: string
+    hide?: boolean
+  }[],
   transform?: Transform[]
 ): DataPanel {
   return deepFreeze({
@@ -52,81 +62,162 @@ function panel(
   }) as unknown as DataPanel
 }
 
-function run(frames: WireFrame[], ...transforms: Transform[]): WireFrame[] {
+function run(frames: WireFrame[], ...transforms: Transform[]): PreparedFrame[] {
   return applyTransforms(frames, transforms)
 }
 
-function columns(out: WireFrame): Record<string, unknown[]> {
+function columns(out: PreparedFrame): Record<string, unknown[]> {
   return Object.fromEntries(out.fields.map((f) => [f.name, f.values]))
 }
 
 describe("query format table", () => {
-  const first = frame([time([1, 2]), num("Value", [1, 2])], {
-    labels: { pod: "a" },
-  })
-  const second = frame([time([1, 3]), num("Value", [5, null])], {
-    labels: { pod: "b" },
+  const tablePanel = panel([{ format: "table" }])
+
+  it("passes a raw table through unchanged", () => {
+    const raw = frame([
+      str("service", ["api", "web", "db"]),
+      time([1, 2, 3], "last_seen"),
+      num("c", [10, 20, 30]),
+    ])
+    const out = prepareFrames(tablePanel, [raw])
+    expect(out).toEqual([raw])
+    expect(out[0]).not.toBe(raw)
   })
 
-  it("turns the series of a query into one row per series", () => {
-    const [table, ...rest] = prepareFrames(panel([{ format: "table" }]), [
-      first,
-      second,
+  it("turns instant series into one row each", () => {
+    const series = (instance: string, value: number) =>
+      frame([time([5]), num("Value", [value])], {
+        name: "up",
+        labels: { instance, job: "node" },
+      })
+    const [out, ...rest] = prepareFrames(tablePanel, [
+      series("a:1", 1),
+      series("b:1", 0),
     ])
     expect(rest).toEqual([])
-    expect(table.ref).toBe("A")
-    expect(table.fields.map((f) => [f.name, f.type])).toEqual([
+    expect(out.ref).toBe("A")
+    expect(out.fields.map((f) => [f.name, f.type])).toEqual([
       ["Time", "time"],
-      ["pod", "string"],
+      ["__name__", "string"],
+      ["instance", "string"],
+      ["job", "string"],
       ["Value", "number"],
     ])
-    expect(columns(table)).toEqual({
-      Time: [2, 3],
-      pod: ["a", "b"],
-      Value: [2, 5],
+    expect(columns(out)).toEqual({
+      Time: [5, 5],
+      __name__: ["up", "up"],
+      instance: ["a:1", "b:1"],
+      job: ["node", "node"],
+      Value: [1, 0],
     })
   })
 
-  it("names values per query when the panel has several", () => {
-    const b = frame([time([4]), num("Value", [9])], { ref: "B" })
-    const out = prepareFrames(
-      panel([{ format: "table" }, { ref: "B", format: "table" }]),
-      [first, second, b]
-    )
-    expect(out).toHaveLength(2)
-    expect(out[0].fields.map((f) => f.name)).toEqual([
-      "Time",
-      "pod",
-      "Value #A",
+  it("keeps every sample of range series in frame then sample order", () => {
+    const [out] = prepareFrames(tablePanel, [
+      frame([time([1, 2, 3]), num("Value", [1, 2, 3])], {
+        labels: { pod: "a" },
+      }),
+      frame([time([1, 2, 3]), num("Value", [4, null, 6])], {
+        labels: { pod: "b" },
+      }),
     ])
-    expect(out[1].ref).toBe("B")
-    expect(columns(out[1])).toEqual({ Time: [4], "Value #B": [9] })
+    expect(columns(out)).toEqual({
+      Time: [1, 2, 3, 1, 2, 3],
+      pod: ["a", "a", "a", "b", "b", "b"],
+      Value: [1, 2, 3, 4, null, 6],
+    })
+  })
+
+  it("names values per query only when several table queries returned data", () => {
+    const a = frame([time([1]), num("Value", [1])], { ref: "A" })
+    const b = frame([time([4]), num("Value", [9])], { ref: "B" })
+    const both = prepareFrames(
+      panel([{ format: "table" }, { ref: "B", format: "table" }]),
+      [a, b]
+    )
+    expect(both.map((f) => f.ref)).toEqual(["A", "B"])
+    expect(both[0].fields.map((f) => f.name)).toEqual(["Time", "Value #A"])
+    expect(columns(both[1])).toEqual({ Time: [4], "Value #B": [9] })
+
+    const noData = panel([
+      { format: "table" },
+      { ref: "B", format: "table" },
+      { ref: "C", format: "table", hide: true },
+    ])
+    expect(prepareFrames(noData, [a])[0].fields.map((f) => f.name)).toEqual([
+      "Time",
+      "Value",
+    ])
+  })
+
+  it("adds no __name__ without a frame name and unions label keys", () => {
+    const [plain] = prepareFrames(tablePanel, [
+      frame([num("Value", [1])], { labels: { pod: "a" } }),
+    ])
+    expect(plain.fields.map((f) => f.name)).toEqual(["pod", "Value"])
+
+    const [mixed] = prepareFrames(tablePanel, [
+      frame([num("Value", [1])], { labels: { pod: "a" } }),
+      frame([num("Value", [2])], { labels: { zone: "z" } }),
+    ])
+    expect(columns(mixed)).toEqual({
+      pod: ["a", null],
+      zone: [null, "z"],
+      Value: [1, 2],
+    })
+  })
+
+  it("flattens pivoted frames and keeps every row", () => {
+    const [out] = prepareFrames(tablePanel, [
+      frame([time([1, 2]), num("c", [1, 2]), num("p95", [3, 4])], {
+        labels: { service: "api" },
+      }),
+      frame([time([1, 2]), num("c", [5, 6]), num("p95", [7, 8])], {
+        labels: { service: "web" },
+      }),
+    ])
+    expect(out.fields.map((f) => f.name)).toEqual([
+      "Time",
+      "service",
+      "c",
+      "p95",
+    ])
+    expect(columns(out).c).toEqual([1, 2, 5, 6])
+    expect(columns(out).service).toEqual(["api", "api", "web", "web"])
   })
 
   it("leaves other formats and other queries unchanged", () => {
+    const a = frame([time([1, 2]), num("Value", [1, 2])], {
+      labels: { pod: "a" },
+    })
     const b = frame([time([4]), num("Value", [9])], { ref: "B" })
     const out = prepareFrames(
       panel([{ format: "table" }, { format: "timeseries" }]),
-      [first, b]
+      [a, b]
     )
     expect(out).toHaveLength(2)
     expect(out[1]).toEqual(b)
     expect(out[1]).not.toBe(b)
-    expect(prepareFrames(panel([{ format: "heatmap" }]), [first])).toEqual([
-      first,
-    ])
-    expect(prepareFrames(panel([{}]), [first])).toEqual([first])
+    expect(prepareFrames(panel([{ format: "heatmap" }]), [a])).toEqual([a])
+    expect(prepareFrames(panel([{}]), [a])).toEqual([a])
   })
 
-  it("keeps a frame that is already a table", () => {
-    const rows = frame([str("host", ["a", "b", "c"]), num("n", [1, 2, 3])])
-    expect(prepareFrames(panel([{ format: "table" }]), [rows])).toEqual([rows])
-  })
+  it("stamps a legend on timeseries queries but never on table queries", () => {
+    const series = frame([time([1]), num("Value", [1])], {
+      labels: { pod: "checkout-0" },
+    })
+    const [stamped] = prepareFrames(
+      panel([{ format: "timeseries", legend: "{{pod}} pod" }]),
+      [series]
+    )
+    expect(stamped.fields[1].seriesName).toBe("checkout-0 pod")
+    expect(seriesName(stamped, stamped.fields[1])).toBe("checkout-0 pod")
 
-  it("omits Time when no series has one", () => {
-    const labeled = frame([num("Value", [1, 2])], { labels: { pod: "a" } })
-    const [table] = prepareFrames(panel([{ format: "table" }]), [labeled])
-    expect(table.fields.map((f) => f.name)).toEqual(["pod", "Value"])
+    const [flat] = prepareFrames(
+      panel([{ format: "table", legend: "{{pod}} pod" }]),
+      [series]
+    )
+    expect(flat.fields.every((f) => f.seriesName === undefined)).toBe(true)
   })
 })
 
@@ -170,6 +261,81 @@ describe("merge", () => {
       pod: ["a", "a"],
       Value: [1, 2],
     })
+  })
+
+  it("keeps both values of same-labelled series that share a Value name", () => {
+    const [out] = run(
+      [
+        frame([time([1, 2]), num("Value", [1, 2])], {
+          ref: "A",
+          labels: { job: "api" },
+        }),
+        frame([time([1, 2]), num("Value", [7, 8])], {
+          ref: "B",
+          labels: { job: "api" },
+        }),
+      ],
+      { type: "merge" }
+    )
+    expect(columns(out)).toEqual({
+      Time: [1, 2, 1, 2],
+      job: ["api", "api", "api", "api"],
+      Value: [1, 2, 7, 8],
+    })
+  })
+
+  it("merges table-format frames with equal time and labels into one row", () => {
+    const [out, ...rest] = run(
+      [
+        frame([
+          time([1, 2]),
+          str("job", ["api", "api"]),
+          num("Value #A", [1, 2]),
+        ]),
+        frame(
+          [time([1, 2]), str("job", ["api", "api"]), num("Value #B", [7, 8])],
+          { ref: "B" }
+        ),
+      ],
+      { type: "merge" }
+    )
+    expect(rest).toEqual([])
+    expect(out.ref).toBe("A")
+    expect(columns(out)).toEqual({
+      Time: [1, 2],
+      job: ["api", "api"],
+      "Value #A": [1, 2],
+      "Value #B": [7, 8],
+    })
+  })
+
+  it("appends a new row when a shared non-key cell conflicts", () => {
+    const [out] = run(
+      [
+        frame([time([1]), str("job", ["api"]), num("v", [5])]),
+        frame([time([1]), str("job", ["api"]), num("v", [6])]),
+        frame([time([1]), str("job", ["api"]), num("w", [9])]),
+      ],
+      { type: "merge" }
+    )
+    expect(columns(out)).toEqual({
+      Time: [1, 1],
+      job: ["api", "api"],
+      v: [5, 6],
+      w: [null, 9],
+    })
+  })
+
+  it("returns the input when no field name is common to every frame", () => {
+    const x = frame([time([1]), num("a", [1])])
+    const y = frame([str("b", ["x"]), num("c", [2])])
+    expect(run([x, y], { type: "merge" })).toEqual([x, y])
+  })
+
+  it("returns the input when fewer than two frames have fields", () => {
+    const one = frame([time([1]), num("a", [1])], { labels: { pod: "a" } })
+    const empty = frame([])
+    expect(run([one, empty], { type: "merge" })).toEqual([one, empty])
   })
 
   it("is a no-op on no frames", () => {
@@ -266,6 +432,53 @@ describe("organize", () => {
   })
 })
 
+describe("series names", () => {
+  it("never repeats the field name for an unlabelled, unnamed frame", () => {
+    const wide = frame([num("a", [1]), num("b", [2])])
+    expect(wide.fields.map((f) => seriesName(wide, f))).toEqual(["a", "b"])
+  })
+
+  it("lets organize, sortBy and filterFieldsByName use the legend name", () => {
+    const legendPanel = panel([{ legend: "{{pod}}" }])
+    const frames = prepareFrames(legendPanel, [
+      frame([time([1, 2]), num("Value", [5, 1])], {
+        labels: { pod: "checkout-0" },
+      }),
+      frame([time([1, 2]), num("Value", [3, 9])], {
+        labels: { pod: "checkout-1" },
+      }),
+    ])
+    const [renamed] = applyTransforms(frames, [
+      { type: "organize", rename: { "checkout-0": "Checkout" } },
+    ])
+    expect(renamed.fields.map((f) => f.name)).toEqual(["Time", "Checkout"])
+    expect(seriesName(renamed, renamed.fields[1])).toBe("Checkout")
+
+    const [sorted] = applyTransforms(frames, [
+      { type: "sortBy", field: "checkout-0" },
+    ])
+    expect(columns(sorted).Value).toEqual([1, 5])
+
+    const kept = applyTransforms(frames, [
+      { type: "filterFieldsByName", include: ["checkout-1"] },
+    ])
+    expect(kept).toHaveLength(1)
+    expect(kept[0].fields.map((f) => f.name)).toEqual(["Value"])
+  })
+
+  it("shows an organize rename on a labelled series through its series name", () => {
+    const labeled = frame([time([1]), num("Value", [1])], {
+      name: "cpu",
+      labels: { pod: "a" },
+    })
+    const [out] = run([labeled], {
+      type: "organize",
+      rename: { Value: "CPU" },
+    })
+    expect(seriesName(out, out.fields[1])).toBe("CPU")
+  })
+})
+
 describe("reduce", () => {
   const a = frame([time([1, 2, 3]), num("Value", [1, 2, 3])], {
     name: "cpu",
@@ -287,6 +500,22 @@ describe("reduce", () => {
       Max: [3, 20],
       Mean: [2, 15],
     })
+  })
+
+  it("names rows by series name and carries stamps through reduceFields", () => {
+    const stamped = prepareFrames(panel([{ legend: "{{pod}}" }]), [a, b])
+    const [rows] = applyTransforms(stamped, [
+      { type: "reduce", reducers: ["max"] },
+    ])
+    expect(columns(rows).Field).toEqual(["a", "b"])
+    const [one] = applyTransforms(stamped, [
+      { type: "reduce", mode: "reduceFields", reducers: ["max"] },
+    ])
+    expect(one.fields[0].seriesName).toBe("a")
+    const [two] = applyTransforms(stamped, [
+      { type: "reduce", mode: "reduceFields", reducers: ["min", "max"] },
+    ])
+    expect(two.fields.map((f) => f.seriesName)).toEqual(["a Min", "a Max"])
   })
 
   it("keeps labels and string fields with reduceFields", () => {
@@ -366,6 +595,78 @@ describe("joinByField", () => {
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "Value", "Value#1"])
   })
 
+  it("joins differently named time fields on each frame's own first time field", () => {
+    const left = frame([time([1, 2]), num("x", [1, 2])])
+    const right = frame([time([1, 2], "ts"), num("y", [7, 8])])
+    const out = run([left, right], { type: "joinByField" })
+    expect(out).toHaveLength(1)
+    expect(columns(out[0])).toEqual({ Time: [1, 2], x: [1, 2], y: [7, 8] })
+  })
+
+  it("joins on a number field common to every frame when the first has no time", () => {
+    const left = frame([num("id", [1, 2]), num("x", [10, 20])])
+    const right = frame([num("id", [2, 3]), num("y", [200, 300])])
+    const out = run([left, right], { type: "joinByField" })
+    expect(columns(out[0])).toEqual({
+      id: [1, 2, 3],
+      x: [10, 20, null],
+      y: [null, 200, 300],
+    })
+  })
+
+  it("keeps a null key row after keyed rows in outer mode and drops it in inner mode", () => {
+    const left = frame([num("k", [2, null, 1]), num("x", [20, 99, 10])])
+    const right = frame([num("k", [1, 2]), num("y", [100, 200])])
+    const [outer] = run([left, right], { type: "joinByField", field: "k" })
+    expect(columns(outer)).toEqual({
+      k: [1, 2, null],
+      x: [10, 20, 99],
+      y: [100, 200, null],
+    })
+    const [inner] = run([left, right], {
+      type: "joinByField",
+      field: "k",
+      mode: "inner",
+    })
+    expect(columns(inner)).toEqual({ k: [1, 2], x: [10, 20], y: [100, 200] })
+  })
+
+  it("keeps the name and labels of a single member, sorts it and moves the key first", () => {
+    const only = frame([num("v", [3, 1, 2]), time([30, 10, 20])], {
+      name: "cpu",
+      labels: { pod: "a" },
+    })
+    const other = frame([str("s", ["x"])])
+    const out = run([only, other], { type: "joinByField" })
+    expect(out).toHaveLength(2)
+    expect(out[0].name).toBe("cpu")
+    expect(out[0].labels).toEqual({ pod: "a" })
+    expect(out[0].fields.map((f) => f.name)).toEqual(["Time", "v"])
+    expect(columns(out[0])).toEqual({ Time: [10, 20, 30], v: [1, 2, 3] })
+    expect(out[1]).toEqual(other)
+  })
+
+  it("names colliding labelled fields by series name and stamps every field", () => {
+    const x = frame([time([1]), num("Value", [1])], {
+      name: "cpu",
+      labels: { pod: "a" },
+    })
+    const y = frame([time([1]), num("Value", [2])], {
+      name: "cpu",
+      labels: { pod: "b" },
+    })
+    const [out] = run([x, y], { type: "joinByField" })
+    expect(out.fields.map((f) => f.name)).toEqual([
+      "Time",
+      'cpu{pod="a"}',
+      'cpu{pod="b"}',
+    ])
+    expect(out.fields.slice(1).map((f) => f.seriesName)).toEqual([
+      'cpu{pod="a"}',
+      'cpu{pod="b"}',
+    ])
+  })
+
   it("is a no-op when no frame has the field", () => {
     const out = run([cpu], { type: "joinByField", field: "missing" })
     expect(out).toEqual([cpu])
@@ -391,7 +692,7 @@ describe("filterFieldsByName", () => {
   it("keeps the fields matching includeRegex", () => {
     const [out] = run([input], {
       type: "filterFieldsByName",
-      includeRegex: "^(Err|ho)",
+      includeRegex: "(Err.*|host)",
     })
     expect(out.fields.map((f) => f.name)).toEqual(["Errors", "host"])
   })
@@ -400,17 +701,35 @@ describe("filterFieldsByName", () => {
     const [out] = run([input], {
       type: "filterFieldsByName",
       include: ["Time"],
-      includeRegex: "^Err",
+      includeRegex: "Err.*",
     })
     expect(out.fields.map((f) => f.name)).toEqual(["Time", "Errors"])
   })
 
-  it("keeps every field for an invalid pattern", () => {
+  it("anchors a plain pattern and honours /re/flags", () => {
+    const names = frame([num("cpu", [1]), num("cpu_usage", [2])])
+    const kept = (includeRegex: string) =>
+      run([names], {
+        type: "filterFieldsByName",
+        includeRegex,
+      })[0]?.fields.map((f) => f.name)
+    expect(kept("cpu")).toEqual(["cpu"])
+    expect(kept("/cpu/")).toEqual(["cpu", "cpu_usage"])
+    expect(kept("/CPU/i")).toEqual(["cpu", "cpu_usage"])
+    expect(kept("/^CPU$/i")).toEqual(["cpu"])
+    expect(kept("/cpu/g")).toEqual(["cpu", "cpu_usage"])
+  })
+
+  it("matches nothing for an invalid pattern", () => {
+    expect(
+      run([input], { type: "filterFieldsByName", includeRegex: "(" })
+    ).toEqual([])
     const [out] = run([input], {
       type: "filterFieldsByName",
+      include: ["Value"],
       includeRegex: "(",
     })
-    expect(out.fields).toHaveLength(4)
+    expect(out.fields.map((f) => f.name)).toEqual(["Value"])
   })
 
   it("drops frames left without fields", () => {
@@ -496,6 +815,53 @@ describe("calculateField", () => {
     expect(out.fields.at(-1)?.values).toEqual([12, 9, 12])
   })
 
+  it("joins frames that share a time field name before computing", () => {
+    const stamped = prepareFrames(
+      panel([
+        { ref: "A", legend: "errors" },
+        { ref: "B", legend: "total" },
+      ]),
+      [
+        frame([time([1, 2]), num("Value", [1, 3])], { ref: "A" }),
+        frame([time([1, 2]), num("Value", [10, 12])], { ref: "B" }),
+      ]
+    )
+    const out = applyTransforms(stamped, [
+      { type: "calculateField", alias: "ratio", expr: "errors / total" },
+    ])
+    expect(out).toHaveLength(1)
+    expect(columns(out[0])).toEqual({
+      Time: [1, 2],
+      errors: [1, 3],
+      total: [10, 12],
+      ratio: [0.1, 0.25],
+    })
+  })
+
+  it("computes per frame when the time fields have different names", () => {
+    const left = frame([time([1], "Time"), num("a", [1])])
+    const right = frame([time([1], "ts"), num("a", [2])])
+    const out = run([left, right], {
+      type: "calculateField",
+      alias: "d",
+      expr: "a * 2",
+    })
+    expect(out).toHaveLength(2)
+    expect(out.map((f) => f.fields.at(-1)?.values)).toEqual([[2], [4]])
+  })
+
+  it("computes per frame when the right operand is a fixed number", () => {
+    const left = frame([time([1]), num("a", [1])])
+    const right = frame([time([1]), num("a", [2])])
+    const out = run([left, right], {
+      type: "calculateField",
+      alias: "d",
+      expr: "a * 100",
+    })
+    expect(out).toHaveLength(2)
+    expect(out.map((f) => f.fields.at(-1)?.values)).toEqual([[100], [200]])
+  })
+
   it("is a no-op without operands or options", () => {
     const missing = run([input], {
       type: "calculateField",
@@ -534,6 +900,14 @@ describe("sortBy", () => {
   it("sorts strings with localeCompare", () => {
     const [out] = run([input], { type: "sortBy", field: "host" })
     expect(columns(out).host).toEqual(["a", "b", "c", "d"])
+  })
+
+  it("sorts strings with collation rather than code points", () => {
+    const names = frame([str("host", ["Zebra", "apple", null, "Mango"])])
+    const [asc] = run([names], { type: "sortBy", field: "host" })
+    expect(columns(asc).host).toEqual(["apple", "Mango", "Zebra", null])
+    const [desc] = run([names], { type: "sortBy", field: "host", desc: true })
+    expect(columns(desc).host).toEqual(["Zebra", "Mango", "apple", null])
   })
 
   it("sorts by time numerically", () => {

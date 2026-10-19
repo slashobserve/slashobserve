@@ -1,33 +1,45 @@
-import type { WireFrame } from "@/dashboards/queries"
+import { compileNamePattern } from "@/spec"
 
-import { displayName, matchesName, withFields } from "./names"
+import {
+  copyFrame,
+  seriesName,
+  withFields,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 export type FilterOptions = { include?: string[]; includeRegex?: string }
 
-function compile(pattern: string): RegExp | "invalid" {
-  try {
-    return new RegExp(pattern)
-  } catch {
-    return "invalid"
-  }
-}
-
 export function filterFieldsByName(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   { include, includeRegex }: FilterOptions
-): WireFrame[] {
-  const regex = includeRegex === undefined ? undefined : compile(includeRegex)
-  const keepAll =
-    (include === undefined && regex === undefined) || regex === "invalid"
+): PreparedFrame[] {
+  if (include === undefined && includeRegex === undefined) {
+    return frames.map(copyFrame)
+  }
+  const names = new Set(include)
+  const pattern =
+    includeRegex === undefined ? null : compileNamePattern(includeRegex)
+  const tested = new Map<string, boolean>()
+  const matches = (text: string): boolean => {
+    let result = tested.get(text)
+    if (result === undefined) {
+      result = pattern?.test(text) ?? false
+      tested.set(text, result)
+    }
+    return result
+  }
   return frames.flatMap((frame) => {
-    const fields = frame.fields.filter((field) => {
-      if (keepAll) return true
-      if (include?.some((name) => matchesName(frame, field, name))) return true
+    const keep = (field: PreparedField): boolean => {
+      const series = seriesName(frame, field)
       return (
-        regex !== undefined &&
-        (regex.test(field.name) || regex.test(displayName(frame, field)))
+        names.has(field.name) ||
+        names.has(series) ||
+        matches(field.name) ||
+        matches(series)
       )
-    })
-    return fields.length > 0 || keepAll ? [withFields(frame, fields)] : []
+    }
+    const fields = frame.fields.filter(keep)
+    return fields.length > 0 ? [withFields(frame, fields)] : []
   })
 }

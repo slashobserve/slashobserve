@@ -1,22 +1,20 @@
-import type { WireFrame } from "@/dashboards/queries"
-
-import type { WireField } from "../frames"
-import { cell, copyFrame, isNumber, matchesName, rowCount } from "./names"
+import {
+  cell,
+  compareValues,
+  copyFrame,
+  matchesName,
+  rowCount,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 export type SortOptions = { field: string; desc?: boolean }
 
-function compare(a: unknown, b: unknown): number {
-  if (isNumber(a) && isNumber(b)) return a - b
-  if (typeof a === "boolean" && typeof b === "boolean") {
-    return Number(a) - Number(b)
-  }
-  const text = (value: unknown) =>
-    typeof value === "string" ? value : JSON.stringify(value)
-  return text(a).localeCompare(text(b))
-}
-
-function sortFrame(frame: WireFrame, { field, desc }: SortOptions): WireFrame {
-  const key: WireField | undefined = frame.fields.find((candidate) =>
+function sortFrame(
+  frame: PreparedFrame,
+  { field, desc }: SortOptions
+): PreparedFrame {
+  const key: PreparedField | undefined = frame.fields.find((candidate) =>
     matchesName(frame, candidate, field)
   )
   if (!key) return copyFrame(frame)
@@ -27,7 +25,7 @@ function sortFrame(frame: WireFrame, { field, desc }: SortOptions): WireFrame {
     if (left === null || right === null) {
       return left === right ? 0 : left === null ? 1 : -1
     }
-    return desc ? compare(right, left) : compare(left, right)
+    return desc ? compareValues(right, left) : compareValues(left, right)
   })
   return {
     ...frame,
@@ -38,6 +36,9 @@ function sortFrame(frame: WireFrame, { field, desc }: SortOptions): WireFrame {
   }
 }
 
-export function sortBy(frames: WireFrame[], options: SortOptions): WireFrame[] {
+export function sortBy(
+  frames: PreparedFrame[],
+  options: SortOptions
+): PreparedFrame[] {
   return frames.map((frame) => sortFrame(frame, options))
 }

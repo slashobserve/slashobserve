@@ -1,15 +1,15 @@
-import type { WireFrame } from "@/dashboards/queries"
 import type { Reducer } from "@/spec"
 
-import type { WireField } from "../frames"
-import { reduce } from "../reducers"
+import { isNumber, reduce } from "../reducers"
+import { joinByField } from "./join"
 import {
   cell,
   copyFrame,
-  isNumber,
   matchesName,
   rowCount,
   withFields,
+  type PreparedField,
+  type PreparedFrame,
 } from "./names"
 
 export type CalculateOptions = {
@@ -18,12 +18,12 @@ export type CalculateOptions = {
   reduceRow?: Reducer
 }
 
-type Operand = { constant: number } | { field: WireField }
+type Operand = { constant: number } | { field: PreparedField }
 type Operator = "+" | "-" | "*" | "/"
 
 const numberLiteral = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i
 
-function operandOf(frame: WireFrame, text: string): Operand | undefined {
+function operandOf(frame: PreparedFrame, text: string): Operand | undefined {
   if (numberLiteral.test(text)) return { constant: Number(text) }
   const field = frame.fields.find(
     (candidate) =>
@@ -82,14 +82,18 @@ function valueOf(operand: Operand, row: number): unknown {
   return "constant" in operand ? operand.constant : cell(operand.field, row)
 }
 
-function fromExpression(frame: WireFrame, expr: string): unknown[] | undefined {
+function fromExpression(
+  frame: PreparedFrame,
+  expr: string
+): unknown[] | undefined {
   const trimmed = expr.trim()
   for (const { left, op, right } of candidateSplits(trimmed)) {
     const a = operandOf(frame, left)
     const b = operandOf(frame, right)
     if (!a || !b) continue
     const values: unknown[] = []
-    for (let i = 0; i < rowCount(frame); i++) {
+    const count = rowCount(frame)
+    for (let i = 0; i < count; i++) {
       values.push(apply(op, valueOf(a, i), valueOf(b, i)))
     }
     return values
@@ -97,11 +101,15 @@ function fromExpression(frame: WireFrame, expr: string): unknown[] | undefined {
   return undefined
 }
 
-function fromRows(frame: WireFrame, reducer: Reducer): unknown[] | undefined {
+function fromRows(
+  frame: PreparedFrame,
+  reducer: Reducer
+): unknown[] | undefined {
   const numbers = frame.fields.filter((field) => field.type === "number")
   if (numbers.length === 0) return undefined
   const values: unknown[] = []
-  for (let i = 0; i < rowCount(frame); i++) {
+  const count = rowCount(frame)
+  for (let i = 0; i < count; i++) {
     values.push(
       reduce(
         numbers.map((field) => cell(field, i)),
@@ -112,11 +120,36 @@ function fromRows(frame: WireFrame, reducer: Reducer): unknown[] | undefined {
   return values
 }
 
+function firstTimeName(frame: PreparedFrame): string | undefined {
+  return frame.fields.find((field) => field.type === "time")?.name
+}
+
+function rightIsFixed(frames: PreparedFrame[], expr: string): boolean {
+  for (const { left, right } of candidateSplits(expr.trim())) {
+    const resolves = (text: string) =>
+      frames.some((frame) => operandOf(frame, text) !== undefined)
+    if (resolves(left) && resolves(right)) return numberLiteral.test(right)
+  }
+  return false
+}
+
+function joinsFirst(frames: PreparedFrame[], expr: string): boolean {
+  if (frames.length < 2) return false
+  const names = frames.map(firstTimeName)
+  if (names.some((name) => name === undefined)) return false
+  if (names.some((name) => name !== names[0])) return false
+  return !rightIsFixed(frames, expr)
+}
+
 export function calculateField(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   { alias, expr, reduceRow }: CalculateOptions
-): WireFrame[] {
-  return frames.map((frame) => {
+): PreparedFrame[] {
+  const input =
+    expr !== undefined && joinsFirst(frames, expr)
+      ? joinByField(frames, {})
+      : frames
+  return input.map((frame) => {
     const values =
       expr !== undefined
         ? fromExpression(frame, expr)

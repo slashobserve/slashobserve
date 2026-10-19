@@ -5,17 +5,26 @@ import { calculateField } from "./calculate"
 import { filterFieldsByName } from "./filter"
 import { applyQueryFormats } from "./format"
 import { joinByField } from "./join"
+import { stampLegends } from "./legend"
 import { limit } from "./limit"
 import { merge } from "./merge"
 import { organize } from "./organize"
 import { reduceFrames } from "./reduce"
 import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
+import type { PreparedFrame } from "./names"
+
+export {
+  matchesName,
+  seriesName,
+  type PreparedField,
+  type PreparedFrame,
+} from "./names"
 
 function applyTransform(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   transform: Transform
-): WireFrame[] {
+): PreparedFrame[] {
   switch (transform.type) {
     case "merge":
       return merge(frames)
@@ -39,15 +48,18 @@ function applyTransform(
 }
 
 export function applyTransforms(
-  frames: WireFrame[],
+  frames: PreparedFrame[],
   transforms: readonly Transform[] | undefined
-): WireFrame[] {
+): PreparedFrame[] {
   return (transforms ?? []).reduce(applyTransform, frames)
 }
 
 export function prepareFrames(
   panel: DataPanel,
   frames: WireFrame[]
-): WireFrame[] {
-  return applyTransforms(applyQueryFormats(panel, frames), panel.transform)
+): PreparedFrame[] {
+  return applyTransforms(
+    applyQueryFormats(panel, stampLegends(panel, frames)),
+    panel.transform
+  )
 }

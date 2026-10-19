@@ -10,6 +10,7 @@ import { dataPanelTypes } from "./panels"
 
 export type * from "./observespec.gen"
 export * from "./panels"
+export * from "./patterns"
 
 export type SpecIssue = { path: string; message: string }
 

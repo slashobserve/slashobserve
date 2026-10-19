@@ -1,21 +1,27 @@
-import type { WireFrame } from "@/dashboards/queries"
-
-import { cell, copyFrame, displayName, isNumber, rowCount } from "./names"
+import { isNumber } from "../reducers"
+import {
+  cell,
+  copyFrame,
+  rowCount,
+  seriesName,
+  type PreparedFrame,
+} from "./names"
 
 type Series = {
-  frame: WireFrame
+  frame: PreparedFrame
   time: number | null
   metric: string
   value: unknown
 }
 
-function asSeries(frame: WireFrame): Series[] | null {
+function asSeries(frame: PreparedFrame): Series[] | null {
   const times = frame.fields.filter((field) => field.type === "time")
   const numbers = frame.fields.filter((field) => field.type === "number")
   if (times.length === 0 || numbers.length !== 1) return null
-  const metric = displayName(frame, numbers[0])
+  const metric = seriesName(frame, numbers[0])
   const rows: Series[] = []
-  for (let i = 0; i < rowCount(frame); i++) {
+  const count = rowCount(frame)
+  for (let i = 0; i < count; i++) {
     const time = cell(times[0], i)
     rows.push({
       frame,
@@ -27,10 +33,10 @@ function asSeries(frame: WireFrame): Series[] | null {
   return rows
 }
 
-export function seriesToRows(frames: WireFrame[]): WireFrame[] {
+export function seriesToRows(frames: PreparedFrame[]): PreparedFrame[] {
   const rows: Series[] = []
-  const rest: WireFrame[] = []
-  let first: WireFrame | undefined
+  const rest: PreparedFrame[] = []
+  let first: PreparedFrame | undefined
   for (const frame of frames) {
     const series = asSeries(frame)
     if (series === null) {
@@ -47,7 +53,7 @@ export function seriesToRows(frames: WireFrame[]): WireFrame[] {
     }
     return b.time - a.time
   })
-  const table: WireFrame = {
+  const table: PreparedFrame = {
     ref: first.ref,
     fields: [
       { name: "Time", type: "time", values: rows.map((row) => row.time) },
