@@ -106,7 +106,7 @@ export function VariableSelect({ state, onChange }: Props) {
       >
         <ComboboxChips
           ref={anchor}
-          className="min-h-[26px] max-w-full flex-nowrap gap-1.5 rounded-none border-0 py-0.5 pr-[9px] pl-[9px] focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:px-[9px]"
+          className="min-h-[26px] max-w-full min-w-0 flex-wrap gap-1.5 rounded-none border-0 py-0.5 pr-[9px] pl-[9px] focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:px-[9px]"
           aria-busy={refreshing || undefined}
         >
           <ComboboxValue>
@@ -132,13 +132,13 @@ export function VariableSelect({ state, onChange }: Props) {
           {refreshing ? (
             <LoaderCircleIcon
               aria-hidden="true"
-              className="pointer-events-none size-3 shrink-0 text-muted-foreground motion-safe:animate-spin"
+              className="pointer-events-none ml-auto size-3 shrink-0 self-center text-muted-foreground motion-safe:animate-spin"
             />
           ) : (
             <ComboboxPrimitive.Trigger
               aria-label={`Show ${label} values`}
               tabIndex={-1}
-              className="grid shrink-0 place-items-center outline-none"
+              className="ml-auto grid shrink-0 place-items-center self-center outline-none"
             >
               <ChevronDownIcon
                 aria-hidden="true"

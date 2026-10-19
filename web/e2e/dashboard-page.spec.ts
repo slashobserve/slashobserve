@@ -137,6 +137,39 @@ test("fits a phone", async ({ page, request }) => {
   expect(await noDocumentOverflow(page)).toBe(true)
 })
 
+test("keeps a multi-value variable inside the box on a phone", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openDashboard(
+    page,
+    id,
+    "?var-pod=checkout-0&var-pod=checkout-1&var-pod=checkout-2"
+  )
+
+  const input = page.getByRole("combobox", { name: "Pod" })
+  await expect(input).toBeVisible()
+  const control = page
+    .locator('[data-slot="combobox-chips"]')
+    .filter({ has: input })
+    .locator("xpath=..")
+  await expect(
+    page
+      .locator('[data-slot="combobox-chip"]')
+      .filter({ hasText: "checkout-2" })
+  ).toBeVisible()
+  const box = await control.boundingBox()
+  const chevron = await page
+    .locator('[aria-label="Show Pod values"]')
+    .boundingBox()
+  expect((chevron?.x ?? 0) + (chevron?.width ?? 0)).toBeLessThanOrEqual(
+    (box?.x ?? 0) + (box?.width ?? 0)
+  )
+  expect(await noDocumentOverflow(page)).toBe(true)
+})
+
 test.describe("signed out", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
