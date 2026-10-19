@@ -8,7 +8,12 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const errorRateTitle = "Checkout error rate"
@@ -30,6 +35,11 @@ function gridPos(spec: { panels: Array<Record<string, unknown>> }, id: string) {
 
 function moveHandle(page: Page, title: string) {
   return page.getByRole("button", { name: `Move or resize ${title}` })
+}
+
+async function openLatest(page: Page) {
+  await versionButton(page).click()
+  await page.getByRole("menuitemradio", { name: /Latest/ }).click()
 }
 
 function liveRegion(page: Page) {
@@ -151,7 +161,7 @@ test("drags and resizes a panel and saves a new version", async ({
   await saveLayout(page, "Move panels")
   await expect(page.getByText("Saved version 2")).toBeVisible()
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
-  await expect(page.getByText("v2", { exact: true })).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/v2$/)
 
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(2)
@@ -391,6 +401,30 @@ test("is unavailable on a pinned old version", async ({ page, request }) => {
   ).toHaveAttribute("aria-disabled", "true")
 })
 
+test("locks the version menu while editing", async ({ page, request }) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await startEditing(page)
+
+  await versionButton(page).click()
+  const menu = page.getByRole("menu", { name: "Versions" })
+  await expect(
+    menu.getByText("Save or cancel your layout changes to switch versions.")
+  ).toBeVisible()
+  const rows = menu.getByRole("menuitemradio")
+  await expect(rows).toHaveCount(2)
+  await expect(rows.nth(0)).toHaveAttribute("aria-disabled", "true")
+  await expect(rows.nth(1)).toHaveAttribute("aria-disabled", "true")
+
+  const url = page.url()
+  await rows.nth(1).click({ force: true })
+  await expect(page).toHaveURL(url)
+  await expect(versionButton(page)).toHaveText(/^(Live|Connecting) · v2$/)
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+})
+
 test("does not block time range changes while editing", async ({
   page,
   request,
@@ -477,7 +511,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id, "?version=1")
-  await page.getByRole("button", { name: "Back to latest" }).click()
+  await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expectPanelsReady(page)
   await startEditing(page)
@@ -488,7 +522,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
 
   await page.goBack()
   await expect(page).toHaveURL(/version=1/)
-  await expect(page.getByText("You are viewing version 1.")).toBeVisible()
+  await expect(versionButton(page)).toHaveText("v1 of 2")
   await editLayoutButton(page).click()
   const edit = page.getByRole("menuitem", {
     name: "Edit layout (open the latest version first)",
@@ -502,7 +536,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   await expect(page.getByText("Unsaved changes")).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Back to latest" }).click()
+  await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
   await expect(page.getByText("Unsaved changes")).toBeVisible()

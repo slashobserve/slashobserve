@@ -12,7 +12,13 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  openVersionsFromMenu,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const repoRoot = join(import.meta.dirname, "..", "..")
@@ -46,6 +52,7 @@ const askLabel = "Ask the agent to revise this panel"
 const noAgentNote =
   "No agent is configured on this server, so your comment was saved without a revision request."
 const revisionsButton = /^Revisions/
+
 const noOpenComments = "No open comments on this panel."
 
 async function createRevisionDashboard(page: Page) {
@@ -138,7 +145,7 @@ test.describe("with the replay agent", () => {
 
     await expect(box).toHaveValue("")
     await expectCommentResolvedByRevision(page, commentPrompt)
-    await expect(page.getByText("v2", { exact: true })).toBeVisible()
+    await expect(versionButton(page)).toHaveText(/v2$/)
     expect(
       await page.evaluate(
         () =>
@@ -150,7 +157,7 @@ test.describe("with the replay agent", () => {
 
     await page.keyboard.press("Escape")
     await expect(sheet(page)).toHaveCount(0)
-    await page.getByRole("link", { name: "History" }).click()
+    await openVersionsFromMenu(page)
     const rows = page.getByRole("table", { name: "Versions" }).getByRole("row")
     await expect(rows).toHaveCount(3)
     await expect(rows.nth(1)).toContainText("v2")
@@ -166,11 +173,7 @@ test.describe("with the replay agent", () => {
     const dialog = page.getByRole("alertdialog")
     await dialog.getByRole("button", { name: "Restore", exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
-    await expect(
-      page
-        .getByRole("navigation", { name: "Breadcrumb" })
-        .getByText("v3", { exact: true })
-    ).toBeVisible()
+    await expect(versionButton(page)).toHaveText(/v3$/)
 
     const restored = await getDashboard(page.request, id)
     expect(restored.latestVersion).toBe(3)
@@ -239,7 +242,7 @@ test.describe("with the replay agent", () => {
     await expect(field).toBeFocused()
     await expect(panel(page, "p99 latency")).toBeVisible()
     await expectPanelsReady(page)
-    await expect(page.getByText("v2", { exact: true })).toBeVisible()
+    await expect(versionButton(page)).toHaveText(/v2$/)
 
     await page.getByRole("button", { name: revisionsButton }).click()
     const list = page.getByRole("dialog", { name: "Revisions" })
@@ -467,15 +470,17 @@ test("shows no revision controls when no agent is configured", async ({
   await expect(sheet(page).getByRole("checkbox")).toHaveCount(0)
 })
 
-test("keeps a follow-up draft through History and back", async ({ page }) => {
+test("keeps a follow-up draft through the Versions page and back", async ({
+  page,
+}) => {
   const { id } = await createRevisionDashboard(page)
   await openDashboard(page, id)
   await expectPanelsReady(page)
   await followUp(page).fill("Add a panel for error rate")
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   await expect(
-    page.getByRole("heading", { level: 1, name: "Version history" })
+    page.getByRole("heading", { level: 1, name: /: history$/ })
   ).toBeVisible()
   await page.goBack()
 
@@ -637,11 +642,9 @@ test.describe("on a phone", () => {
       .getByRole("button", { name: revisionsButton })
       .boundingBox()
     expect((revisions?.x ?? 0) + (revisions?.width ?? 0)).toBeCloseTo(374, 0)
-    const history = await page
-      .getByRole("link", { name: "History" })
-      .boundingBox()
-    expect(history?.x ?? 0).toBeGreaterThanOrEqual(16)
-    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeLessThanOrEqual(374)
+    const version = await versionButton(page).boundingBox()
+    expect(version?.x ?? 0).toBeGreaterThanOrEqual(16)
+    expect((version?.x ?? 0) + (version?.width ?? 0)).toBeLessThanOrEqual(374)
     const overflow = await page.evaluate(
       () =>
         document.documentElement.scrollWidth -
@@ -672,7 +675,7 @@ test.describe("on a phone", () => {
     await expectInsideViewport(page)
   })
 
-  test("keeps History and the revision list inside the viewport on a pinned version", async ({
+  test("keeps the version button and the revision list inside the viewport on a pinned version", async ({
     page,
   }) => {
     const { id } = await createRevisionDashboard(page)

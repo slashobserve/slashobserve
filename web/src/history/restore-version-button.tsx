@@ -24,7 +24,6 @@ type Props = {
   dashboardId: string
   version: number
   latestVersion: number
-  variant?: "row" | "banner"
   onRestored: () => void
 }
 
@@ -51,7 +50,6 @@ export function RestoreVersionButton({
   dashboardId,
   version,
   latestVersion,
-  variant = "row",
   onRestored,
 }: Props) {
   const [open, setOpen] = useState(false)
@@ -110,17 +108,15 @@ export function RestoreVersionButton({
     )
   }
 
-  const banner = variant === "banner"
-
   return (
     <>
       <Button
         variant="outline"
         size="sm"
-        aria-label={banner ? undefined : `Restore version ${version}`}
+        aria-label={`Restore version ${version}`}
         onClick={openDialog}
       >
-        {banner ? "Restore this version" : "Restore"}
+        Restore
       </Button>
       <AlertDialog open={open} onOpenChange={changeOpen}>
         <AlertDialogContent>

@@ -8,7 +8,12 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
@@ -155,7 +160,7 @@ test("saves an edited query as a new version", async ({ page, request }) => {
   await expect(page.getByText("Saved version 2")).toBeVisible()
   await expect(sheet(page)).toHaveCount(0)
   await expect(page).not.toHaveURL(/panel=/)
-  await expect(page.getByText("v2", { exact: true })).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/v2$/)
 
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(2)
@@ -812,7 +817,8 @@ test("asks once when leaving the dashboard with an unsaved layout", async ({
   await startLayoutEditing(page)
   await nudgeErrorRate(page)
 
-  await page.getByRole("link", { name: "History" }).click()
+  await versionButton(page).click()
+  await page.getByRole("menuitem", { name: "Compare versions" }).click()
   await expect(page.getByRole("alertdialog")).toHaveCount(1)
   await expect(
     page.getByRole("alertdialog", { name: "Discard unsaved layout changes?" })

@@ -7,7 +7,11 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { openDashboard } from "./dashboards"
+import {
+  openDashboard,
+  openVersionsFromMenu,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const simplifiedQuery =
@@ -41,7 +45,7 @@ async function createHistory(request: APIRequestContext) {
 async function openHistory(page: Page, id: string, search = "") {
   await page.goto(`/dashboards/${id}/versions${search}`)
   await expect(
-    page.getByRole("heading", { level: 1, name: "Version history" })
+    page.getByRole("heading", { level: 1, name: /: history$/ })
   ).toBeVisible()
   await expect(page.getByRole("table", { name: "Versions" })).toBeVisible()
 }
@@ -86,7 +90,7 @@ test("lists versions newest first", async ({ page, request }) => {
   }
 
   await openDashboard(page, id)
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions$`))
   await expect(page).toHaveTitle(
     `History - ${spec.title} renamed - SlashObserve`
@@ -280,13 +284,9 @@ test("restores v1 from history", async ({ page, request }) => {
   await expect(page.getByText("Restored version 1 as version 4")).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
-  await expect(
-    page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByText("v4", { exact: true })
-  ).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/v4$/)
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   const row = page
     .getByRole("table", { name: "Versions" })
     .getByRole("row")
@@ -314,15 +314,21 @@ test("cancelling the restore dialog changes nothing", async ({
   ).toHaveCount(4)
 })
 
-test("restores from the version banner", async ({ page, request }) => {
+test("restores a pinned version from the Versions page", async ({
+  page,
+  request,
+}) => {
   const { id, spec } = await createHistory(request)
   await openDashboard(
     page,
     id,
     "?version=1&from=now-6h&refresh=30s&var-pod=checkout-1"
   )
+  await expect(versionButton(page)).toHaveText("v1 of 3")
 
-  await page.getByRole("button", { name: "Restore this version" }).click()
+  await openVersionsFromMenu(page)
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions\\?back=`))
+  await page.getByRole("button", { name: "Restore version 1" }).click()
   await dialog(page)
     .getByRole("button", { name: "Restore", exact: true })
     .click()
@@ -333,14 +339,7 @@ test("restores from the version banner", async ({ page, request }) => {
   await expect(page).toHaveURL(/refresh=30s/)
   await expect(page).toHaveURL(/var-pod=checkout-1/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
-  await expect(
-    page
-      .getByRole("navigation", { name: "Breadcrumb" })
-      .getByText("v4", { exact: true })
-  ).toBeVisible()
-  await expect(
-    page.getByRole("button", { name: "Restore this version" })
-  ).toHaveCount(0)
+  await expect(versionButton(page)).toHaveText(/v4$/)
 })
 
 test("handles a conflict during restore", async ({
@@ -525,7 +524,7 @@ test("keeps the dashboard view through history and back", async ({
   const { id, spec } = await createHistory(request)
   await openDashboard(page, id, "?from=now-6h&refresh=30s&var-pod=checkout-1")
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   await expect(page).toHaveURL(new RegExp(`/dashboards/${id}/versions\\?back=`))
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
@@ -534,7 +533,7 @@ test("keeps the dashboard view through history and back", async ({
     )
   )
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   await page.getByRole("button", { name: "Restore version 1" }).click()
   await dialog(page)
     .getByRole("button", { name: "Restore", exact: true })
@@ -548,14 +547,14 @@ test("keeps the dashboard view through history and back", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
 })
 
-test("the history link keeps a pinned version and drops it after a restore", async ({
+test("Compare versions keeps a pinned version and drops it after a restore", async ({
   page,
   request,
 }) => {
   const { id } = await createHistory(request)
   await openDashboard(page, id, "?version=2&from=now-1h")
 
-  await page.getByRole("link", { name: "History" }).click()
+  await openVersionsFromMenu(page)
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
     new RegExp(`/dashboards/${id}\\?from=now-1h&version=2$`)
@@ -702,21 +701,25 @@ test("sizes the version menu to its trigger and aligns the text", async ({
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test("lines the History link up with the Live status", async ({
+  test("keeps the version button and Compare versions inside the viewport", async ({
     page,
     request,
   }) => {
     const { id } = await createHistory(request)
     await openDashboard(page, id)
+    await expect(versionButton(page)).toHaveText(/v3$/)
 
-    const live = await page.getByRole("status").boundingBox()
-    const history = await page
-      .getByRole("link", { name: "History" })
-      .boundingBox()
-    const centerY = (box: typeof live) => (box?.y ?? 0) + (box?.height ?? 0) / 2
-    expect(centerY(history)).toBeCloseTo(centerY(live), 0)
-    expect(history?.x).toBeCloseTo((live?.x ?? 0) + (live?.width ?? 0) + 6, 0)
-    expect(live?.x).toBeCloseTo(16, 0)
+    const button = await versionButton(page).boundingBox()
+    expect(button?.x ?? 0).toBeGreaterThanOrEqual(0)
+    expect((button?.x ?? 0) + (button?.width ?? 0)).toBeLessThanOrEqual(390)
+
+    await versionButton(page).click()
+    const compare = page.getByRole("menuitem", { name: "Compare versions" })
+    await expect(compare).toBeVisible()
+    const box = await compare.boundingBox()
+    expect(box?.x ?? 0).toBeGreaterThanOrEqual(0)
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(844)
   })
 
   test("aligns the View link with the row text", async ({ page, request }) => {

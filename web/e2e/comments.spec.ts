@@ -7,7 +7,7 @@ import {
   loadSpec,
   uniqueTitle,
 } from "./api"
-import { expectPanelsReady, openDashboard } from "./dashboards"
+import { expectPanelsReady, openDashboard, versionButton } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
@@ -44,9 +44,7 @@ async function openFromMenu(page: Page, title = rpsTitle) {
 }
 
 async function waitForLive(page: Page) {
-  await expect(
-    page.getByRole("status").filter({ hasText: /^Live$/ })
-  ).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/^Live · v\d+$/)
 }
 
 test("comments on a panel", async ({ page, request }) => {
