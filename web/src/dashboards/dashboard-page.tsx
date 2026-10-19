@@ -23,7 +23,6 @@ import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
 import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { panelRenderers } from "@/panels"
@@ -486,7 +485,6 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
     pinnedVersion: search.version,
     toastVersions: !editing,
   })
-  useRevisionAppliedToast(dashboardId, !editing)
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
   if (search.version !== undefined) {

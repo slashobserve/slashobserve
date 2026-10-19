@@ -110,7 +110,7 @@ for (const scheme of themes) {
       await expect(versionButton(page)).toBeFocused()
       await expect(page).not.toHaveURL(/version=/)
 
-      const activity = page.getByRole("button", { name: /^Show activity/ })
+      const activity = page.getByRole("button", { name: /^Activity/ })
       await activity.focus()
       await expect(activity).toBeFocused()
       await addVersion(request, id, spec, 3, "Fourth save")

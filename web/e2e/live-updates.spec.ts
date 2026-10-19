@@ -136,7 +136,7 @@ test("does not toast the author's own save", async ({ page, request }) => {
   await page.keyboard.press("ArrowRight")
   await page.getByRole("button", { name: "Save layout" }).click()
   await page
-    .getByRole("dialog")
+    .getByRole("dialog", { name: "Save layout" })
     .getByRole("button", { name: "Save", exact: true })
     .click()
 

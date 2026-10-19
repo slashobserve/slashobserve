@@ -252,21 +252,16 @@ Directories are created when their phase starts; this is where things go.
   It shows one timeline of comment threads, agent requests, running requests and versions (`buildTimeline`), with a composer that separates "Add comment" from "Send to agent".
   The query editor keeps an unsaved draft when a newer version arrives live and saves with the `parent_version` it was opened on, so a newer version turns the save button into "Apply my query to version N".
 - Comments load once per dashboard (`dashboardKeys.comments`), per-panel lists and counts are derived, resolve and reopen are optimistic with rollback, bodies render as plain text only, and live updates come from `useDashboardEvents` invalidations.
-  The Comments tab and the dashboard-wide `tab=comments` view live in the panel inspector, which follows the query editor's layout-session rule (unavailable while a layout is being edited) and guards a comment draft and a query draft with one discard prompt.
-  The composer posts `request_revision: false` unless its `requestRevision` prop is set.
-  `CommentsTab` forwards `requestRevision`, `composerExtraFields` and `renderRevision` (and `DashboardComments` forwards `renderRevision`), so a parent owns the revision checkbox state and renders each comment's revision status.
-  Comment paging stops after a failed page until the next successful refetch, the flattened list is deduplicated by id, and status announcements follow a saved change through `liveRegionText`.
+  Comment paging stops after a failed page until the next successful refetch, and the flattened list is deduplicated by id.
 - The API keys page (`/keys`, in the sidebar) lists every key of every service account in one table (name and account, prefix, created by, last used, expiry as icon plus word, Revoke for active keys) and creates keys in the Create key `SidePanel`, never a dialog.
   A new key lives only in that panel's component state: the create-key mutation uses `gcTime: 0`, the response is never written to the query cache or storage, and closing the panel drops it.
   Snippets reference `OBSERVE_TOKEN` instead of the key: Claude Code through `claude mcp add --scope project` with a single-quoted `${OBSERVE_TOKEN}` header (expanded from `.mcp.json`) plus a `grep -qF ... || echo ... >> CLAUDE.md` line, so a repeated run appends once, whose note tells it to read open comments with `list_comments`, fix them with `update_dashboard`, then reply to each with `reply_to_comment` and resolve it with `resolve_comment`, passing the version that fixed it; OpenCode through `{env:OBSERVE_TOKEN}` with `oauth: false`; the CLI through `OBSERVE_SERVER` and `OBSERVE_TOKEN`.
-- Revision requests come from comments (`request_revision`, on by default through the checkbox `useCommentRevision` builds, whose last choice persists in `localStorage`) and from the follow-up bar (`POST /dashboards/{id}/revisions`, on the latest version only).
-  On a pinned older version the checkbox is disabled with a visible reason, because a comment revision would start from that old version, and the comment itself still posts.
-  Their live status is read from `dashboardKeys.revisions` (invalidated by `revision.updated`, polled every 5 seconds only while one is queued or running), never from the status embedded in a comment; a revision missing from that newest-50 page is fetched by id (`dashboardKeys.revision`), and `RevisionStatus` links to `/observe/$requestId` for step-by-step progress.
-  Only the follow-up bar's tracked chip is a live region (`RevisionStatus live`).
-  Agent availability comes from `GET /api/v1/agent` (`observeKeys.agent()`), and a 503 `agent_unavailable` or a comment saved with no `revision` writes "unavailable" into that query, which hides the follow-up form and the checkbox until the query refetches.
-  `FollowUpBar` always renders its header row with the revision list (pinned versions, layout editing and an unavailable agent included), and only the form needs the latest version outside layout editing.
-  A follow-up draft, the revision it started and every revision requested from a comment live in `useFollowUpStore`, so they survive History, pinned versions and live updates, and `useRevisionAppliedToast` (called by `DashboardPage`) shows "Revision applied as version N" for each of them.
-  The cap of 5 queued or running revisions is `maxQueuedRevisions` in `web/src/revisions/queries.ts`, which builds the copy the composer and the follow-up bar show.
+- Agent requests come from the composer's "Send to agent" and from a thread's reply form (`POST /dashboards/{id}/revisions` with `panel_id` or `comment_id`, on the latest version only).
+  Their live status is read from `dashboardKeys.revisions` (invalidated by `revision.updated`, polled every 5 seconds only while one is queued or running), never from the status embedded in a comment.
+  Agent availability comes from `GET /api/v1/agent` (`observeKeys.agent()`), and a 503 `agent_unavailable` writes "unavailable" into that query, which hides "Send to agent" until the query refetches.
+  The cap of 5 queued or running revisions is `maxQueuedRevisions` in `web/src/revisions/queries.ts`, which `sendToAgentState` turns into the composer's reason.
+  Agent work on a dashboard shows only in the activity timeline; a comment never sends a request by itself ("Add comment" and "Send to agent" are separate), and a thread sent to the agent is resolved by the server with the saved version.
+  A version the agent saves raises the same live "Updated to version N" toast as any other save.
 
 ## Dependencies
 
