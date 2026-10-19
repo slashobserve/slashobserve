@@ -199,7 +199,7 @@ func StepFor(r datasource.TimeRange, maxDataPoints int) time.Duration {
 func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.panelDeadline)
 	defer cancel()
-	_, res, errs, err := r.runQueries(ctx, req, map[string]allList{}, true)
+	_, res, errs, err := r.runQueries(ctx, req, newVarState(), true)
 	if err != nil {
 		return Result{}, err
 	}
@@ -209,7 +209,7 @@ func (r *Runner) RunPanel(ctx context.Context, req Request) (Result, error) {
 	return res, nil
 }
 
-func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]allList, requireAll bool) (panel *spec.Panel, res Result, errs []error, err error) {
+func (r *Runner) runQueries(ctx context.Context, req Request, st *varState, requireAll bool) (panel *spec.Panel, res Result, errs []error, err error) {
 	panel, err = checkRequest(req, requireAll)
 	if err != nil {
 		return nil, Result{}, nil, err
@@ -222,7 +222,7 @@ func (r *Runner) runQueries(ctx context.Context, req Request, lists map[string]a
 		if skipped(req, j, q) {
 			continue
 		}
-		pq, err := r.prepare(ctx, req, lists, panel, j, baseStep)
+		pq, err := r.prepare(ctx, req, st, panel, j, baseStep)
 		if err != nil {
 			errs[j] = &QueryError{Ref: panel.QueryRef(j), Index: j, Err: err}
 			continue
@@ -332,19 +332,19 @@ func skipped(req Request, j int, q spec.Query) bool {
 	return (q.Hide && !req.IncludeHidden) || (j < len(req.skip) && req.skip[j])
 }
 
-func (r *Runner) prepare(ctx context.Context, req Request, lists map[string]allList, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
+func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
 	q := panel.Queries[j]
 	inst, err := r.instance(panel.QueryDatasource(j))
 	if err != nil {
 		return nil, err
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, req.User, lists)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, req.User, st)
 	if err != nil {
 		return nil, err
 	}
 	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
 	if inst.Datasource.Type() == string(spec.Prometheus) {
-		if dq.Filters, err = r.implicitFilters(req.Dashboard, req.Selections, inst.UID); err != nil {
+		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID); err != nil {
 			return nil, err
 		}
 	}

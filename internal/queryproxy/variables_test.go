@@ -1218,3 +1218,32 @@ func TestAdhocFiltersDoNotApplyToVariableQueries(t *testing.T) {
 		t.Fatalf("variable calls = %+v, want one without filters", calls)
 	}
 }
+
+func TestAdhocFiltersAndDatasourceRegexesAreParsedOncePerRequest(t *testing.T) {
+	runner := newTypesRunner(t)
+	st := newVarState()
+	adhoc := adhocVariable("f", "prom")
+	sel := Selection{Values: []string{"job|=|api", "job|!=|web"}}
+	first, err := runner.adhocFilters(st, adhoc, sel)
+	if err != nil || len(first) != 2 {
+		t.Fatalf("adhocFilters = %+v, %v", first, err)
+	}
+	second, err := runner.adhocFilters(st, adhoc, sel)
+	if err != nil || &first[0] != &second[0] {
+		t.Fatalf("a second lookup parsed the filters again: %v", err)
+	}
+	other, err := runner.adhocFilters(st, adhoc, Selection{Values: []string{"job|=|db"}})
+	if err != nil || len(other) != 1 || other[0].Value != "db" {
+		t.Fatalf("a different selection must not reuse the cached filters: %+v, %v", other, err)
+	}
+
+	ds := datasourceVariable("ds", spec.Prometheus)
+	ds.Regex = "/^prom/"
+	a, err := st.parsed.regex(ds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := st.parsed.regex(ds); a != b {
+		t.Fatal("a second lookup compiled the datasource regex again")
+	}
+}
