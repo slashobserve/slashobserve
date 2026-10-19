@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -22,18 +24,21 @@ type datasourcesResponse struct {
 
 func registerDatasourceRoutes(api *gin.RouterGroup, registry *datasource.Registry, usage DatasourceUsage, logger *slog.Logger) {
 	api.GET("/datasources", func(c *gin.Context) {
-		statuses := []datasource.Status{}
-		if registry != nil {
-			statuses = registry.Health(c.Request.Context())
-		}
+		ctx := c.Request.Context()
 		var counts map[string]int
 		if usage != nil {
 			var err error
-			if counts, err = usage.DatasourceUsage(c.Request.Context()); err != nil {
-				logger.ErrorContext(c.Request.Context(), "count dashboards per datasource", logattrs.Failure("datasource_usage_failed", err)...)
+			if counts, err = usage.DatasourceUsage(ctx); err != nil {
+				if !errors.Is(err, context.Canceled) {
+					logger.ErrorContext(ctx, "count dashboards per datasource", logattrs.Failure("datasource_usage_failed", err)...)
+				}
 				httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 				return
 			}
+		}
+		statuses := []datasource.Status{}
+		if registry != nil {
+			statuses = registry.Health(ctx)
 		}
 		out := make([]datasourceJSON, len(statuses))
 		for i, s := range statuses {
