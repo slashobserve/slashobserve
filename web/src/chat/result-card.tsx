@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react"
 import { useNow } from "@/components/relative-time"
 import { StatusIcon } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { asDashboardSpec, dashboardVersionQuery } from "@/dashboards/queries"
+import {
+  asDashboardSpec,
+  dashboardVersionQuery,
+  type DashboardEnvelope,
+} from "@/dashboards/queries"
 import { panelDatasourceUids } from "@/dashboards/panel-datasources"
 import { formatShortRelative } from "@/lib/time"
 import { joinNames, lowerFirst } from "@/observe/conversation"
@@ -86,43 +90,16 @@ type Props = {
   eager: boolean
 }
 
-export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
+type BodyProps = {
+  data: DashboardEnvelope | undefined
+  dashboardId: string
+  version: number
+  finishedAt: string | null
+}
+
+function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
   const now = useNow()
-  const card = useRef<HTMLDivElement>(null)
-  const [nearViewport, setNearViewport] = useState(false)
-  const fetchVersion = eager || nearViewport
-  const query = useQuery({
-    ...dashboardVersionQuery(dashboardId, version),
-    enabled: fetchVersion,
-  })
-
-  useEffect(() => {
-    const element = card.current
-    if (
-      fetchVersion ||
-      element === null ||
-      typeof IntersectionObserver === "undefined"
-    ) {
-      return
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setNearViewport(true)
-        }
-      },
-      { rootMargin: nearViewportMargin }
-    )
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [fetchVersion])
-
-  if (query.isLoading) {
-    return <Skeleton className="h-[172px] rounded-card" />
-  }
-
-  const spec =
-    query.data === undefined ? null : asDashboardSpec(query.data.version.spec)
+  const spec = data === undefined ? null : asDashboardSpec(data.version.spec)
   const panels =
     spec === null
       ? []
@@ -140,10 +117,7 @@ export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
   const shown = thumbnails(panels)
 
   return (
-    <div
-      ref={card}
-      className="flex flex-col overflow-hidden rounded-card border bg-background"
-    >
+    <div className="flex flex-col overflow-hidden rounded-card border bg-background">
       {shown.length > 0 ? (
         <div
           aria-hidden="true"
@@ -179,6 +153,52 @@ export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
           )}
         </span>
       </div>
+    </div>
+  )
+}
+
+export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
+  const card = useRef<HTMLDivElement>(null)
+  const [nearViewport, setNearViewport] = useState(false)
+  const fetchVersion = eager || nearViewport
+  const query = useQuery({
+    ...dashboardVersionQuery(dashboardId, version),
+    enabled: fetchVersion,
+  })
+
+  useEffect(() => {
+    const element = card.current
+    if (
+      fetchVersion ||
+      element === null ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setNearViewport(true)
+        }
+      },
+      { rootMargin: nearViewportMargin }
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [fetchVersion])
+
+  return (
+    <div ref={card}>
+      {query.data === undefined && !query.isError ? (
+        <Skeleton className="h-[172px] rounded-card" />
+      ) : (
+        <CardBody
+          data={query.data}
+          dashboardId={dashboardId}
+          version={version}
+          finishedAt={finishedAt}
+        />
+      )}
     </div>
   )
 }
