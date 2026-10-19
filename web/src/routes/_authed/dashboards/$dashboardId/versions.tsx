@@ -111,8 +111,8 @@ function HistoryRoute() {
 
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b px-6 py-2.5">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <header className="flex items-start justify-between gap-x-6 border-b px-6 py-2.5">
+        <div className="flex min-h-[30px] min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId }}
@@ -129,7 +129,9 @@ function HistoryRoute() {
             {title ? `${title}: history` : "History"}
           </h1>
         </div>
-        <ThemeSwitch />
+        <div className="ml-auto flex flex-none items-center">
+          <ThemeSwitch />
+        </div>
       </header>
       <main className="mx-auto w-full max-w-5xl p-6">
         <VersionList
