@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -23,6 +22,7 @@ type Reference struct {
 	Args    string
 	HasArgs bool
 	Nested  []Reference
+	Guard   string
 	Start   int
 	End     int
 }
@@ -163,7 +163,11 @@ func scanErrorf(offset int, format string, args ...any) *ScanError {
 
 func ScanQuery(query string) ([]Reference, error) {
 	budget := maxScanWork
-	return scanQuery(query, &budget, false)
+	refs, err := scanQuery(query, &budget, false)
+	if err != nil {
+		return nil, err
+	}
+	return refs, nil
 }
 
 func FlattenReferences(refs []Reference) []Reference {
@@ -175,7 +179,7 @@ func FlattenReferences(refs []Reference) []Reference {
 	return out
 }
 
-func scanQuery(query string, budget *int, inArgs bool) ([]Reference, error) {
+func scanQuery(query string, budget *int, inArgs bool) ([]Reference, *ScanError) {
 	var refs []Reference
 	for i := 0; i < len(query); {
 		if query[i] != '$' {
@@ -194,7 +198,7 @@ func scanQuery(query string, budget *int, inArgs bool) ([]Reference, error) {
 	return refs, nil
 }
 
-func scanReference(query string, start int, budget *int, inArgs bool) (*Reference, int, error) {
+func scanReference(query string, start int, budget *int, inArgs bool) (*Reference, int, *ScanError) {
 	rest := query[start+1:]
 	if strings.HasPrefix(rest, "{") {
 		return scanBraced(query, start)
@@ -221,25 +225,24 @@ func scanReference(query string, start int, budget *int, inArgs bool) (*Referenc
 		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable && !inArgs {
 			nested, err := scanQuery(args, budget, true)
 			if err != nil {
-				var inner *ScanError
-				if errors.As(err, &inner) {
-					return nil, 0, &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, inner.Prefix), Offset: inner.Offset + open + 1}
-				}
-				return nil, 0, fmt.Errorf("in the arguments of $%s: %w", ref.Name, err)
+				return nil, 0, &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, err.Prefix), Offset: err.Offset + open + 1}
 			}
 			for i := range nested {
 				nested[i].Start += open + 1
 				nested[i].End += open + 1
 			}
 			ref.Nested = nested
+			if parsed, err := macro.ParseArguments(*ref); err == nil {
+				ref.Guard = parsed.Values[1]
+			}
 		}
 	}
 	return ref, ref.End, nil
 }
 
 type MacroArguments struct {
-	Values          []string
-	ConditionOffset int
+	Values         []string
+	ConditionStart int
 }
 
 func (m Macro) ParseArguments(ref Reference) (MacroArguments, error) {
@@ -278,28 +281,35 @@ func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
 	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(parts[1]) {
 		return MacroArguments{}, fmt.Errorf("the second argument of $%s must be one variable reference such as $pod", m.Name)
 	}
-	argsAt := ref.Start + 1 + len(ref.Name) + 1
+	argsStart := ref.Start + 1 + len(ref.Name) + 1
 	conditionAt := len(ref.Args) - len(strings.TrimLeftFunc(ref.Args, unicode.IsSpace))
 	conditionEnd := conditionAt + len(parts[0])
+	opaque := opaqueCursor{s: ref.Args, end: -1}
 	for _, nested := range ref.Nested {
-		at := nested.Start - argsAt
-		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !insideOpaque(ref.Args, at) {
+		at := nested.Start - argsStart
+		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !opaque.contains(at) {
 			return MacroArguments{}, fmt.Errorf("$%s cannot be nested", m.Name)
 		}
 	}
-	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionOffset: conditionAt}, nil
+	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionStart: argsStart + conditionAt}, nil
 }
 
-func insideOpaque(s string, offset int) bool {
-	for i := 0; i <= offset && i < len(s); i++ {
-		if end, skipped := skipOpaque(s, i); skipped {
-			if offset <= end {
-				return true
-			}
-			i = end
+type opaqueCursor struct {
+	s   string
+	i   int
+	end int
+}
+
+func (c *opaqueCursor) contains(offset int) bool {
+	for c.i <= offset && c.i < len(c.s) {
+		end, skipped := skipOpaque(c.s, c.i)
+		if !skipped {
+			c.i++
+			continue
 		}
+		c.end, c.i = end, end+1
 	}
-	return false
+	return offset <= c.end
 }
 
 func SplitMacroArgs(args string) []string {
@@ -329,7 +339,7 @@ func SplitMacroArgs(args string) []string {
 	return append(parts, strings.TrimSpace(args[from:]))
 }
 
-func scanBraced(query string, start int) (*Reference, int, error) {
+func scanBraced(query string, start int) (*Reference, int, *ScanError) {
 	closing := strings.IndexByte(query[start:], '}')
 	if closing < 0 {
 		return nil, 0, scanErrorf(start, "unterminated \"${\" at offset ")

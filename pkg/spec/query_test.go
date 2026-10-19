@@ -112,7 +112,7 @@ func TestScanQuery(t *testing.T) {
 			{Kind: spec.VariableRef, Name: "y", Format: "csv", Start: 7, End: 15},
 		}},
 		{"conditional all holds its references", `x $__conditionalAll(pod IN (${pod:singlequote}), $pod) y`, []spec.Reference{
-			{Kind: spec.MacroRef, Name: "__conditionalAll", Args: `pod IN (${pod:singlequote}), $pod`, HasArgs: true, Start: 2, End: 54, Nested: []spec.Reference{
+			{Kind: spec.MacroRef, Name: "__conditionalAll", Args: `pod IN (${pod:singlequote}), $pod`, HasArgs: true, Guard: "pod", Start: 2, End: 54, Nested: []spec.Reference{
 				{Kind: spec.VariableRef, Name: "pod", Format: "singlequote", Start: 28, End: 46},
 				{Kind: spec.VariableRef, Name: "pod", Start: 49, End: 53},
 			}},
@@ -236,6 +236,36 @@ func TestScanQueryPathologicalInput(t *testing.T) {
 	}
 }
 
+func TestConditionalAllNestedMentionsInACommentScaleLinearly(t *testing.T) {
+	const (
+		small = 50_000
+		large = 16 * small
+		runs  = 3
+	)
+	const unit = "$__conditionalAll(b, $x) "
+	measure := func(size int) time.Duration {
+		query := "$__conditionalAll(a = 1 /* " + strings.Repeat(unit, size/len(unit)) + "*/, $v)"
+		best := time.Duration(math.MaxInt64)
+		for range runs {
+			start := time.Now()
+			refs, err := spec.ScanQuery(query)
+			if err != nil || len(refs) != 1 {
+				t.Fatalf("ScanQuery: %d refs, err %v", len(refs), err)
+			}
+			macro, _ := spec.LookupMacro("__conditionalAll")
+			if _, err := macro.ParseArguments(refs[0]); err != nil {
+				t.Fatalf("ParseArguments: %v", err)
+			}
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	smallTime, largeTime := measure(small), measure(large)
+	if ratio := float64(largeTime) / float64(max(smallTime, time.Microsecond)); ratio > 40 {
+		t.Errorf("%d bytes took %s and %d bytes took %s (%.1fx for 16x input, want at most 40x)", small, smallTime, large, largeTime, ratio)
+	}
+}
+
 func TestScanQueryManyClosedMacros(t *testing.T) {
 	query := strings.Repeat("$__timeFilter(ts) ", 1000)
 	refs, err := spec.ScanQuery(query)
@@ -322,7 +352,7 @@ func conditionalAllRef(t *testing.T, args string) (spec.Macro, spec.Reference) {
 func TestParseConditionalAllArguments(t *testing.T) {
 	macro, ref := conditionalAllRef(t, " pod IN (${pod:singlequote}) , ${pod} ")
 	good, err := macro.ParseArguments(ref)
-	if err != nil || !slices.Equal(good.Values, []string{"pod IN (${pod:singlequote})", "pod"}) || good.ConditionOffset != 1 {
+	if err != nil || !slices.Equal(good.Values, []string{"pod IN (${pod:singlequote})", "pod"}) || good.ConditionStart != len("$__conditionalAll(")+1 {
 		t.Fatalf("got %+v, %v", good, err)
 	}
 	for _, c := range []struct{ name, args, message string }{

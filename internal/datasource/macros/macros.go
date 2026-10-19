@@ -192,7 +192,7 @@ func ExpandForLint(d Dialect, query string) (Expansion, error) {
 		if ref.Kind != spec.VariableRef || slices.ContainsFunc(vars, func(v datasource.Variable) bool { return v.Name == ref.Name }) {
 			continue
 		}
-		vars = append(vars, datasource.Variable{Name: ref.Name, Values: []string{"x"}})
+		vars = append(vars, datasource.Variable{Name: ref.Name, Values: []string{allPlaceholder}})
 	}
 	now := time.Now()
 	return Expand(d, query, Env{
@@ -327,7 +327,7 @@ func expandConditionalAll(d Dialect, dsType spec.DatasourceType, ref spec.Refere
 	}
 	exp, err := expandText(d, dsType, condition, probe)
 	if err != nil {
-		return "", shiftOffset(err, ref.Start+1+len(ref.Name)+1+args.ConditionOffset)
+		return "", shiftOffset(err, args.ConditionStart)
 	}
 	out := "(" + exp.Text + ")"
 	if !wrapsExactly(out) {
