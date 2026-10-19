@@ -503,14 +503,16 @@ func (r *Runner) checkSingleSelection(v spec.Variable, sel Selection) error {
 		return fmt.Errorf("%w: variable %q takes exactly one value", ErrInvalidRequest, v.Name)
 	}
 	value := sel.Values[0]
+	if v.Type == spec.ConstantVariable {
+		if value != v.Value {
+			return fmt.Errorf("%w: variable %q is a constant and accepts only its own value", ErrInvalidRequest, v.Name)
+		}
+		return nil
+	}
 	if err := checkValue(v.Name, value); err != nil {
 		return err
 	}
 	switch v.Type {
-	case spec.ConstantVariable:
-		if value != v.Value {
-			return fmt.Errorf("%w: variable %q is a constant and accepts only its own value", ErrInvalidRequest, v.Name)
-		}
 	case spec.IntervalVariable:
 		if !slices.Contains(v.Options, value) && (value != spec.SelectAuto || !v.Auto) {
 			return fmt.Errorf("%w: variable %q has a value that is not one of its options", ErrInvalidRequest, v.Name)

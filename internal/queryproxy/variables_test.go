@@ -913,6 +913,7 @@ func TestNewVariableTypeSelections(t *testing.T) {
 		ok       bool
 	}{
 		{"constant its value", constantVariable("c", "shop"), one("shop"), true},
+		{"constant longer than a selection value may be", constantVariable("c", strings.Repeat("a", 1500)), one(strings.Repeat("a", 1500)), true},
 		{"constant another value", constantVariable("c", "shop"), one("other"), false},
 		{"constant All", allConstant, Selection{All: true}, false},
 		{"constant two values", constantVariable("c", "shop"), one("shop", "shop"), false},
