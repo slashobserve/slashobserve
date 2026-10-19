@@ -588,6 +588,22 @@ describe("joinByField", () => {
     })
   })
 
+  it("keeps joined names unique when a real field already carries the suffix", () => {
+    const x = frame([time([1]), num("Value", [1])])
+    const y = frame([time([1]), num("Value", [2])])
+    const z = frame([time([1]), num("Value#1", [3])])
+    const [out] = run([z, x, y], { type: "joinByField" })
+    const names = out.fields.map((f) => f.name)
+    expect(new Set(names).size).toBe(names.length)
+    expect(names).toEqual(["Time", "Value#1", "Value", "Value#2"])
+    expect(columns(out)).toEqual({
+      Time: [1],
+      "Value#1": [3],
+      Value: [1],
+      "Value#2": [2],
+    })
+  })
+
   it("keeps distinct names for fields that share a display name", () => {
     const x = frame([time([1]), num("Value", [1])])
     const y = frame([time([1]), num("Value", [2])])

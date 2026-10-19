@@ -11,6 +11,7 @@ import {
   seriesKey,
   seriesLabel,
   toTable,
+  uniqueKey,
 } from "./frames"
 
 const time: WireFrame["fields"][number] = {
@@ -311,6 +312,28 @@ describe("seriesKey", () => {
       fields: [],
     })
     expect(seriesKey(f, "value")).toBe("errors:up{a=1,b=2}#value")
+  })
+})
+
+describe("uniqueKey", () => {
+  const take = (names: string[]) => {
+    const seen = new Map<string, number>()
+    return names.map((name) => uniqueKey(seen, name))
+  }
+
+  it("suffixes repeated names in order", () => {
+    expect(take(["x", "x", "x"])).toEqual(["x", "x#1", "x#2"])
+  })
+
+  it("skips a suffixed name a real field already took", () => {
+    expect(take(["x#1", "x", "x"])).toEqual(["x#1", "x", "x#2"])
+    expect(take(["x", "x#1", "x"])).toEqual(["x", "x#1", "x#2"])
+    expect(take(["x", "x", "x#1"])).toEqual(["x", "x#1", "x#1#1"])
+  })
+
+  it("never returns the same name twice", () => {
+    const names = take(["x", "x#1", "x", "x#1", "x", "x#2", "x"])
+    expect(new Set(names).size).toBe(names.length)
   })
 })
 
