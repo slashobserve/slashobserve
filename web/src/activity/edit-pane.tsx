@@ -21,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   useSetDashboardSearch,
@@ -181,11 +180,7 @@ export function EditPane({
 
   let body: ReactNode
   if (panel === undefined) {
-    body = (
-      <Button variant="outline" onClick={() => leave("back")}>
-        Back to activity
-      </Button>
-    )
+    body = null
   } else if (!isDataPanel(panel)) {
     body = (
       <p className="text-[13px] text-muted-foreground">
