@@ -31,7 +31,7 @@ async function noHorizontalOverflow(page: Page) {
 }
 
 const pages = [
-  ["/", "Observe", "Dashboards"],
+  ["/", "Observe", "What do you want to see?"],
   ["/dashboards", "Dashboards", "Dashboards"],
   ["/datasources", "Datasources", "Datasources"],
   ["/keys", "API keys", "API keys"],
@@ -199,7 +199,7 @@ test("keeps the dashboard outside the shell", async ({ page, request }) => {
 
 test("shows focus in brand blue", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
-  await page.goto("/")
+  await page.goto("/settings")
   const datasources = sidebar(page).getByRole("link", { name: "Datasources" })
   await tabUntilFocused(page, datasources, 15)
   await expect

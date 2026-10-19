@@ -26,9 +26,7 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   })
 
   await page.goto("/")
-  const promptBar = page.getByRole("textbox", {
-    name: "Describe the dashboard you want",
-  })
+  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
   await promptBar.press("Enter")
 
@@ -50,7 +48,10 @@ test("creates a dashboard from a prompt", async ({ page }) => {
   await page.goBack()
   await expect(page).toHaveURL(/\/$/)
   await expect(
-    page.locator(`a[href="/dashboards/${dashboardId}"]`)
+    page
+      .getByRole("region", { name: "Recent chats" })
+      .getByRole("button", { name: new RegExp(redPrompt) })
+      .first()
   ).toBeVisible()
 })
 
@@ -89,11 +90,9 @@ test("records the repair step and reopens finished requests", async ({
 
 test("explains a failed request", async ({ page }) => {
   await page.goto("/")
-  const promptBar = page.getByRole("textbox", {
-    name: "Describe the dashboard you want",
-  })
+  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(neverSavesPrompt)
-  await page.getByRole("button", { name: "Observe" }).click()
+  await page.getByRole("button", { name: "Send" }).click()
 
   await expect(page).toHaveURL(requestPath)
   const alert = page.getByRole("alert")
@@ -186,12 +185,11 @@ test("links a failed comment revision back to its dashboard", async ({
   ).toHaveAttribute("href", `/dashboards/${dashboardId}`)
 })
 
-test("slash focuses the prompt bar", async ({ page }) => {
+test("slash focuses the chat composer", async ({ page }) => {
   await page.goto("/")
-  const promptBar = page.getByRole("textbox", {
-    name: "Describe the dashboard you want",
-  })
-  await expect(promptBar).toBeVisible()
+  const promptBar = page.getByRole("textbox", { name: "Message the agent" })
+  await expect(promptBar).toBeFocused()
+  await page.getByRole("heading", { level: 1 }).click()
   await expect(promptBar).not.toBeFocused()
   await page.keyboard.press("/")
   await expect(promptBar).toBeFocused()
@@ -212,9 +210,7 @@ test.describe("touch device", () => {
     })
 
     await page.goto("/")
-    const promptBar = page.getByRole("textbox", {
-      name: "Describe the dashboard you want",
-    })
+    const promptBar = page.getByRole("textbox", { name: "Message the agent" })
     await expect(promptBar).toHaveAttribute("enterkeyhint", "enter")
     await expect(promptBar).not.toHaveAttribute("aria-describedby")
     await expect(page.getByText("Enter sends")).toHaveCount(0)
@@ -224,7 +220,7 @@ test.describe("touch device", () => {
     await expect(promptBar).toHaveValue(`${redPrompt}\n`)
     await expect(page).toHaveURL(/\/$/)
 
-    await page.getByRole("button", { name: "Observe" }).click()
+    await page.getByRole("button", { name: "Send" }).click()
     await expect(page).toHaveURL(requestPath)
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(redPrompt)
     openGate()
