@@ -44,6 +44,9 @@ func (r *Runner) CheckPanels(ctx context.Context, d *spec.Dashboard, now time.Ti
 			only[e.Pointer] = true
 		}
 	}
+	if len(only) == 0 {
+		return nil, nil
+	}
 	return r.checkSpec(ctx, d, now, user, only)
 }
 
