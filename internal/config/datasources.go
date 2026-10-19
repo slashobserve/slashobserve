@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/ast"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
@@ -61,7 +62,7 @@ type datasourcesFile struct {
 type fileDatasource struct {
 	UID         yamlString      `yaml:"uid"`
 	Type        string          `yaml:"type"`
-	Name        string          `yaml:"name"`
+	Name        yamlString      `yaml:"name"`
 	GrafanaUIDs []yamlString    `yaml:"grafanaUids"`
 	Prometheus  *filePrometheus `yaml:"prometheus"`
 	ClickHouse  *fileClickHouse `yaml:"clickhouse"`
@@ -73,16 +74,16 @@ type yamlString struct {
 	problem string
 }
 
-func (s *yamlString) UnmarshalYAML(unmarshal func(any) error) error {
-	var raw any
-	if err := unmarshal(&raw); err != nil {
-		return err
-	}
-	switch v := raw.(type) {
-	case nil:
-	case string:
-		s.value = v
-	case map[string]any, map[any]any, []any:
+func (s *yamlString) UnmarshalYAML(node ast.Node) error {
+	switch n := node.(type) {
+	case *ast.TagNode:
+		s.problem = "must not use a YAML tag; quote the value instead"
+	case *ast.NullNode:
+	case *ast.StringNode:
+		s.value = n.Value
+	case *ast.LiteralNode:
+		s.value = n.Value.Value
+	case *ast.MappingNode, *ast.MappingValueNode, *ast.SequenceNode:
 		s.problem = "must be a string"
 	default:
 		s.problem = "must be a string (quote it)"
@@ -178,11 +179,11 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 		for _, alias := range aliases {
 			aliasPath := fmt.Sprintf("%s.grafanaUids[%d]", entryPath, alias.index)
 			owner, listed := aliasOwners[alias.value]
-			_, isUID := uids.first[alias.value]
+			uidOwner, isUID := uids.first[alias.value]
 			switch {
 			case alias.value == raw.UID.value:
 			case isUID:
-				errs = append(errs, fmt.Errorf("%s: %q is the uid of datasource %q", aliasPath, alias.value, alias.value))
+				errs = append(errs, fmt.Errorf("%s: %q is the uid of datasources[%d]", aliasPath, alias.value, uidOwner))
 				continue
 			case listed:
 				errs = append(errs, fmt.Errorf("%s: %q is already listed by datasource %s", aliasPath, alias.value, uids.label(owner)))
@@ -250,12 +251,16 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
 
-	ds := Datasource{UID: raw.UID.value, Type: raw.Type, Name: raw.Name}
+	ds := Datasource{UID: raw.UID.value, Type: raw.Type, Name: raw.Name.value}
 	switch {
 	case raw.UID.problem != "":
 		fail("uid", "%s", raw.UID.problem)
 	case !datasource.ValidUID(raw.UID.value):
 		fail("uid", "must match %s", datasource.UIDPattern)
+	}
+
+	if raw.Name.problem != "" {
+		fail("name", "%s", raw.Name.problem)
 	}
 
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)

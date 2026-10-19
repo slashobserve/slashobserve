@@ -143,12 +143,17 @@ func TestLoadDatasourcesStructure(t *testing.T) {
 		{"alias owned by another datasource", validPrometheus + secondPrometheus("second", "[a]") + secondPrometheus("third", "[a]"), `datasources[2].grafanaUids[0]: "a" is already listed by datasource "second"`},
 		{"alias owned by a datasource with an invalid uid", "datasources:\n" + secondPrometheus("-bad", "[a]") + secondPrometheus("second", "[a]"), `datasources[1].grafanaUids[0]: "a" is already listed by datasource datasources[0]`},
 		{"alias owned by a datasource with a duplicated uid", validPrometheus + secondPrometheus("prom", "[a]") + secondPrometheus("third", "[a]"), `datasources[2].grafanaUids[0]: "a" is already listed by datasource datasources[1]`},
-		{"alias equal to another datasource uid", validPrometheus + secondPrometheus("second", "[prom]"), `datasources[1].grafanaUids[0]: "prom" is the uid of datasource "prom"`},
-		{"alias equal to a later datasource uid", "datasources:\n" + secondPrometheus("first", "[second]") + secondPrometheus("second", "[]"), `datasources[0].grafanaUids[0]: "second" is the uid of datasource "second"`},
+		{"alias equal to another datasource uid", validPrometheus + secondPrometheus("second", "[prom]"), `datasources[1].grafanaUids[0]: "prom" is the uid of datasources[0]`},
+		{"alias equal to a later datasource uid", "datasources:\n" + secondPrometheus("first", "[second]") + secondPrometheus("second", "[]"), `datasources[0].grafanaUids[0]: "second" is the uid of datasources[1]`},
 		{"numeric alias", promWithAliases("[0123]"), "datasources[0].grafanaUids[0]: must be a string (quote it)"},
 		{"boolean alias", promWithAliases("[true]"), "datasources[0].grafanaUids[0]: must be a string (quote it)"},
 		{"nested alias", promWithAliases("[[a]]"), "datasources[0].grafanaUids[0]: must be a string"},
 		{"numeric uid", strings.Replace(validPrometheus, "uid: prom", "uid: 0123", 1), "datasources[0].uid: must be a string (quote it)"},
+		{"tagged uid", strings.Replace(validPrometheus, "uid: prom", "uid: !!str 0123", 1), "datasources[0].uid: must not use a YAML tag; quote the value instead"},
+		{"tagged quoted uid", strings.Replace(validPrometheus, "uid: prom", `uid: !!str "0123"`, 1), "datasources[0].uid: must not use a YAML tag; quote the value instead"},
+		{"tagged alias", promWithAliases("[!!str 0123]"), "datasources[0].grafanaUids[0]: must not use a YAML tag; quote the value instead"},
+		{"numeric name", strings.Replace(validPrometheus, "name: Prometheus", "name: 0123", 1), "datasources[0].name: must be a string (quote it)"},
+		{"tagged name", strings.Replace(validPrometheus, "name: Prometheus", "name: !!str 0123", 1), "datasources[0].name: must not use a YAML tag; quote the value instead"},
 		{"boolean uid", strings.Replace(validPrometheus, "uid: prom", "uid: true", 1), "datasources[0].uid: must be a string (quote it)"},
 	}
 	for _, tt := range tests {
@@ -215,6 +220,16 @@ func TestQuotedNumbersAreKeptVerbatim(t *testing.T) {
 	}
 	if want := []string{"0123", "00012", "0x1F", "1_000", "1.50"}; !slices.Equal(got[0].GrafanaUIDs, want) {
 		t.Fatalf("grafanaUids = %q, want %q", got[0].GrafanaUIDs, want)
+	}
+}
+
+func TestQuotedNameIsKeptVerbatim(t *testing.T) {
+	got, err := load(t, strings.Replace(validPrometheus, "name: Prometheus", `name: "0123"`, 1), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Name != "0123" {
+		t.Fatalf("name = %q", got[0].Name)
 	}
 }
 
