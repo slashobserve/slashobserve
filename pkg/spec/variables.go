@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf16"
+	"unicode/utf8"
 )
 
 const (
@@ -143,7 +143,30 @@ func SortVariableValues(values []string, order string) []string {
 }
 
 func compareUTF16(a, b string) int {
-	return slices.Compare(utf16.Encode([]rune(a)), utf16.Encode([]rune(b)))
+	for a != "" && b != "" {
+		ra, na := utf8.DecodeRuneInString(a)
+		rb, nb := utf8.DecodeRuneInString(b)
+		a, b = a[na:], b[nb:]
+		if ra == rb {
+			continue
+		}
+		if ua, ub := highUnit(ra), highUnit(rb); ua != ub {
+			return cmp.Compare(ua, ub)
+		}
+		return cmp.Compare(lowSurrogate(ra), lowSurrogate(rb))
+	}
+	return cmp.Compare(len(a), len(b))
+}
+
+func highUnit(r rune) rune {
+	if r < 0x10000 {
+		return r
+	}
+	return 0xD800 + (r-0x10000)>>10
+}
+
+func lowSurrogate(r rune) rune {
+	return 0xDC00 + (r-0x10000)&0x3FF
 }
 
 func leadingNumber(s string) (float64, bool) {
