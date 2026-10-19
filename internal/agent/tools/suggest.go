@@ -13,8 +13,6 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxSuggestedPanelBytes = maxSuggestResult - 1<<10
-
 type suggestedOut struct {
 	Suggested bool            `json:"suggested"`
 	PanelID   string          `json:"panel_id"`
@@ -41,8 +39,8 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	if err != nil {
 		return Result{}, err
 	}
-	if len(raw) > maxSuggestedPanelBytes {
-		return toolError(codeTooLarge, fmt.Sprintf("the panel is %d bytes, over the %d byte limit", len(raw), maxSuggestedPanelBytes)), nil
+	if len(raw) > spec.MaxSuggestedPanelBytes {
+		return toolError(codeTooLarge, fmt.Sprintf("the panel is %d bytes, over the %d byte limit", len(raw), spec.MaxSuggestedPanelBytes)), nil
 	}
 	candidate, err := spec.WithPanel(run.Base, run.PanelID, raw)
 	if err != nil {

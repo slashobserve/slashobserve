@@ -15,6 +15,8 @@ const (
 	GridColumns = 24
 	MaxBytes    = 1 << 20
 	MaxPanels   = 200
+
+	MaxSuggestedPanelBytes = 63 << 10
 )
 
 type DatasourceType string

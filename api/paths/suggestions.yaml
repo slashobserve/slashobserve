@@ -15,7 +15,7 @@ dashboards-id-suggestions:
       Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`.
       `version` is the version the proposal is judged inside, and `panel_id` must be a data or text panel of that version.
       The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused.
-      `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data or text panel, must not contain the NUL character and may be at most 64 KiB.
+      `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data or text panel, must not contain the NUL character and may be at most 63 KiB as compact JSON once placed (a request body over 96 KiB is refused).
       The proposed panel is validated inside the base version with the user's draft, and its queries run with the save rules before the suggestion succeeds.
       A caller may have 2 suggestions queued or running and the instance 10.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.

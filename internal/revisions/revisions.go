@@ -66,7 +66,7 @@ var (
 	ErrCommentNotFound  = errors.New("comment not found")
 
 	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
-	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes", MaxDraftBytes)
+	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes as compact JSON", spec.MaxSuggestedPanelBytes)
 	ErrDraftInvalid       = errors.New("the draft panel is not valid")
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")

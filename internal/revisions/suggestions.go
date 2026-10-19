@@ -121,12 +121,20 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 	case err != nil:
 		return fmt.Errorf("place draft panel: %w", err)
 	}
-	if !draftKeepsPanel(candidate, entry) {
+	placed, ok := placedPanel(candidate, entry)
+	if !ok {
 		return &DraftError{Issues: []spec.Issue{{
 			Path:    entry.Pointer,
 			Code:    codeInvalidDraft,
 			Message: fmt.Sprintf("the draft must keep id %q and stay a data or text panel", entry.Panel.ID),
 		}}}
+	}
+	raw, err := json.Marshal(placed)
+	if err != nil {
+		return fmt.Errorf("marshal draft panel: %w", err)
+	}
+	if len(raw) > spec.MaxSuggestedPanelBytes {
+		return ErrDraftTooLarge
 	}
 	canonical, err := json.Marshal(candidate)
 	if err != nil {
@@ -138,13 +146,13 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 	return nil
 }
 
-func draftKeepsPanel(candidate *spec.Dashboard, entry spec.PanelEntry) bool {
+func placedPanel(candidate *spec.Dashboard, entry spec.PanelEntry) (*spec.Panel, bool) {
 	for _, e := range candidate.AllPanels() {
 		if e.Pointer == entry.Pointer {
-			return e.Panel.ID == entry.Panel.ID && suggestible(e.Panel.Type)
+			return e.Panel, e.Panel.ID == entry.Panel.ID && suggestible(e.Panel.Type)
 		}
 	}
-	return false
+	return nil, false
 }
 
 func suggestible(t spec.PanelType) bool {

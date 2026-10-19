@@ -17,7 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxSuggestionBodyBytes = spec.MaxBytes + 64<<10
+const maxSuggestionBodyBytes = MaxDraftBytes + 32<<10
 
 type suggestionRequest struct {
 	Version *int            `json:"version"`
