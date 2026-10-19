@@ -215,7 +215,7 @@ Fields common to every entry:
 
 The `uid`, `name` and `grafanaUids` values must not carry a YAML tag such as `!!str`; quote the value instead.
 
-The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
+The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by a Grafana datasource uid that equals one of your datasource uids (so a dashboard exported from a Grafana that already uses your uids needs no `grafanaUids`), then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
 
 Prometheus fields:
 
