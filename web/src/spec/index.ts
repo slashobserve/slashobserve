@@ -9,6 +9,7 @@ import type { Dashboard } from "./observespec.gen"
 import { dataPanelTypes } from "./panels"
 
 export type * from "./observespec.gen"
+export * from "./defaults"
 export * from "./panels"
 export * from "./patterns"
 
