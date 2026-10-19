@@ -14,7 +14,7 @@ import { HistoryIcon, MessageSquareIcon } from "lucide-react"
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { panelRefs } from "@/comments/latest-panels"
-import { useComments } from "@/comments/queries"
+import { isPanelThread, useComments } from "@/comments/queries"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -201,8 +201,7 @@ function DashboardView({
   const openByPanel = useMemo(() => {
     const counts = new Map<string, number>()
     for (const comment of comments) {
-      if (comment.status !== "open") continue
-      if (comment.parent_id !== null || comment.panel_id === null) continue
+      if (comment.status !== "open" || !isPanelThread(comment)) continue
       counts.set(comment.panel_id, (counts.get(comment.panel_id) ?? 0) + 1)
     }
     return counts
@@ -210,7 +209,7 @@ function DashboardView({
   const openTotal = useMemo(
     () =>
       comments.reduce(
-        (n, c) => n + (c.status === "open" && c.parent_id === null ? 1 : 0),
+        (n, c) => n + (c.status === "open" && isPanelThread(c) ? 1 : 0),
         0
       ),
     [comments]

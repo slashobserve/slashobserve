@@ -13,7 +13,7 @@ import {
 } from "./comments-tab"
 import { CommentItem } from "./comment-item"
 import { useLatestPanels, type PanelRef } from "./latest-panels"
-import { useComments, type Comment } from "./queries"
+import { isPanelThread, useComments, type Comment } from "./queries"
 
 type Props = {
   dashboardId: string
@@ -88,10 +88,11 @@ export function DashboardComments({
   const latest = useLatestPanels(dashboardId)
   const [filter, setFilter] = useState<CommentFilter>("open")
 
-  const counts = useMemo(() => countByFilter(comments), [comments])
+  const threads = useMemo(() => comments.filter(isPanelThread), [comments])
+  const counts = useMemo(() => countByFilter(threads), [threads])
   const visible = useMemo(
-    () => comments.filter((comment) => matchesFilter(comment, filter)),
-    [comments, filter]
+    () => threads.filter((comment) => matchesFilter(comment, filter)),
+    [threads, filter]
   )
   const groups = useMemo(
     () => groupByPanel(visible, panels, latest),

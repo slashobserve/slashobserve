@@ -17,7 +17,12 @@ import { panelTitle, type Panel } from "@/spec"
 
 import { CommentComposer } from "./comment-composer"
 import { CommentItem } from "./comment-item"
-import { useComments, type Comment, type CommentStatus } from "./queries"
+import {
+  isPanelThread,
+  useComments,
+  type Comment,
+  type CommentStatus,
+} from "./queries"
 
 export type CommentFilter = CommentStatus | "all"
 
@@ -213,7 +218,10 @@ export function CommentsTab({
   const [revealed, setRevealed] = useState<string | null>(null)
 
   const own = useMemo(
-    () => comments.filter((comment) => comment.panel_id === panel.id),
+    () =>
+      comments.filter(
+        (comment) => isPanelThread(comment) && comment.panel_id === panel.id
+      ),
     [comments, panel.id]
   )
   const counts = useMemo(() => countByFilter(own), [own])

@@ -16,6 +16,28 @@ import type { components } from "@/api/schema.gen"
 export type Comment = components["schemas"]["Comment"]
 export type CommentStatus = Comment["status"]
 
+export type PanelThread = Comment & { parent_id: null; panel_id: string }
+
+export function isPanelThread(comment: Comment): comment is PanelThread {
+  return comment.parent_id === null && comment.panel_id !== null
+}
+
+export function withStatus(
+  comment: Comment,
+  status: CommentStatus,
+  now: string
+): Comment {
+  if (comment.parent_id !== null) return { ...comment, status }
+  const resolved = status === "resolved"
+  return {
+    ...comment,
+    status,
+    resolved_at: resolved ? now : null,
+    resolved_by: resolved ? comment.resolved_by : null,
+    resolved_by_version: resolved ? comment.resolved_by_version : null,
+  }
+}
+
 type CommentsPage = { comments: Comment[]; next_cursor: string | null }
 type CommentsData = InfiniteData<CommentsPage, string | undefined>
 
@@ -162,13 +184,9 @@ export function useSetCommentStatus(
         ?.pages.flatMap((page) => page.comments)
         .find((comment) => comment.id === input.commentId)
       queryClient.setQueryData<CommentsData>(key, (data) =>
-        mapComment(data, input.commentId, (comment) => ({
-          ...comment,
-          status: input.status,
-          resolved_at:
-            input.status === "resolved" ? new Date().toISOString() : null,
-          resolved_by: input.status === "resolved" ? comment.resolved_by : null,
-        }))
+        mapComment(data, input.commentId, (comment) =>
+          withStatus(comment, input.status, new Date().toISOString())
+        )
       )
       return { previous }
     },
