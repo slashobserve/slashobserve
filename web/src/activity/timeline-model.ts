@@ -43,35 +43,59 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   version: 3,
 }
 
+function timeOf(iso: string): number {
+  const time = Date.parse(iso)
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
+}
+
+function compareNumbers(a: number, b: number): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-function compareEntries(a: TimelineEntry, b: TimelineEntry): number {
-  const byTime = Date.parse(a.at) - Date.parse(b.at)
-  if (byTime !== 0) return byTime
+function compareTies(a: TimelineEntry, b: TimelineEntry): number {
   const byKind = kindOrder[a.kind] - kindOrder[b.kind]
   if (byKind !== 0) return byKind
+  if (a.kind === "version" && b.kind === "version") {
+    const byNumber = a.version.version - b.version.version
+    if (byNumber !== 0) return byNumber
+  }
   return compareText(a.key, b.key)
+}
+
+function sortEntries(entries: readonly TimelineEntry[]): TimelineEntry[] {
+  return entries
+    .map((entry) => ({ entry, time: timeOf(entry.at) }))
+    .sort(
+      (a, b) => compareNumbers(a.time, b.time) || compareTies(a.entry, b.entry)
+    )
+    .map(({ entry }) => entry)
 }
 
 function newestRequest(requests: readonly Revision[]): Revision | null {
   let newest: Revision | null = null
+  let newestTime = Number.NEGATIVE_INFINITY
   for (const request of requests) {
+    const time = timeOf(request.created_at)
     if (
       newest === null ||
-      Date.parse(request.created_at) > Date.parse(newest.created_at) ||
-      (request.created_at === newest.created_at && request.id > newest.id)
+      time > newestTime ||
+      (time === newestTime && request.id > newest.id)
     ) {
       newest = request
+      newestTime = time
     }
   }
   return newest
 }
 
 function runningAt(request: Revision): string {
-  const start = Date.parse(request.started_at ?? request.created_at)
-  return new Date(start + 1).toISOString()
+  const raw = request.started_at ?? request.created_at
+  const start = Date.parse(raw)
+  return Number.isNaN(start) ? raw : new Date(start + 1).toISOString()
 }
 
 export function buildTimeline(input: {
@@ -89,7 +113,8 @@ export function buildTimeline(input: {
     else list.push(request)
   }
 
-  for (const thread of groupThreads(input.comments)) {
+  const threads = groupThreads(input.comments)
+  for (const thread of threads) {
     entries.push({
       kind: "thread",
       key: `thread:${thread.root.id}`,
@@ -100,8 +125,11 @@ export function buildTimeline(input: {
     })
   }
 
+  const threadIds = new Set(threads.map((thread) => thread.root.id))
   for (const request of input.requests) {
-    if (request.source !== "observe" && request.comment_id === null) {
+    const hasThread =
+      request.comment_id !== null && threadIds.has(request.comment_id)
+    if (request.source !== "observe" && !hasThread) {
       entries.push({
         kind: "request",
         key: `request:${request.id}`,
@@ -131,7 +159,7 @@ export function buildTimeline(input: {
     })
   }
 
-  return entries.sort(compareEntries)
+  return sortEntries(entries)
 }
 
 function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
@@ -141,7 +169,7 @@ function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
     case "open":
       return entry.kind === "thread" && entry.thread.root.status === "open"
     case "changes":
-      return entry.kind !== "thread"
+      return entry.kind !== "thread" || entry.request !== null
   }
 }
 

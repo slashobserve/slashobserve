@@ -141,12 +141,21 @@ describe("buildTimeline", () => {
     expect(entry?.kind === "thread" && entry.request?.id).toBe("new")
   })
 
-  it("leaves a thread without a request detached", () => {
-    const [entry] = buildTimeline({
+  it("shows a request whose thread is not loaded as a request entry", () => {
+    const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1" })],
-      requests: [request({ id: "r1", source: "comment", comment_id: "other" })],
+      comments: [comment({ id: "c1", created_at: at(1) })],
+      requests: [
+        request({
+          id: "r1",
+          source: "comment",
+          comment_id: "other",
+          created_at: at(2),
+        }),
+      ],
     })
+    expect(keys(entries)).toEqual(["thread:c1", "request:r1"])
+    const [entry] = entries
     expect(entry?.kind === "thread" && entry.request).toBeNull()
   })
 
@@ -243,6 +252,61 @@ describe("buildTimeline", () => {
     ])
   })
 
+  it("orders versions that share a time by number, not by text", () => {
+    const entries = buildTimeline({
+      ...none,
+      versions: [version(10, at(1)), version(2, at(1)), version(9, at(1))],
+    })
+    expect(keys(entries)).toEqual(["version:2", "version:9", "version:10"])
+  })
+
+  it("sorts unparseable dates first and never throws", () => {
+    const entries = buildTimeline({
+      ...none,
+      requests: [
+        request({
+          id: "bad",
+          status: "running",
+          created_at: "not a date",
+          started_at: null,
+        }),
+        request({ id: "ok", created_at: at(1) }),
+      ],
+      versions: [version(1, "")],
+    })
+    expect(keys(entries)).toEqual([
+      "request:bad",
+      "running:bad",
+      "version:1",
+      "request:ok",
+    ])
+    expect(entries.find((entry) => entry.key === "running:bad")?.at).toBe(
+      "not a date"
+    )
+  })
+
+  it("picks the thread request by a parsed date, not by text", () => {
+    const [entry] = buildTimeline({
+      ...none,
+      comments: [comment({ id: "c1" })],
+      requests: [
+        request({
+          id: "later",
+          source: "comment",
+          comment_id: "c1",
+          created_at: "2026-01-01T01:00:00+01:00",
+        }),
+        request({
+          id: "earlier",
+          source: "comment",
+          comment_id: "c1",
+          created_at: "2026-01-01T00:30:00Z",
+        }),
+      ],
+    })
+    expect(entry?.kind === "thread" && entry.request?.id).toBe("earlier")
+  })
+
   it("carries the panel of each entry", () => {
     const entries = buildTimeline({
       comments: [comment({ id: "c1", panel_id: "p1" })],
@@ -295,6 +359,36 @@ describe("filterTimeline", () => {
       "request:r-p2",
       "running:r-p2",
       "version:1",
+    ])
+  })
+
+  it("keeps a thread that has an agent request, whatever its status, as a change", () => {
+    const withRequests = buildTimeline({
+      ...none,
+      comments: [
+        comment({ id: "asked", created_at: at(1) }),
+        comment({ id: "failed", created_at: at(2) }),
+        comment({ id: "plain", created_at: at(3) }),
+      ],
+      requests: [
+        request({
+          id: "r1",
+          source: "comment",
+          comment_id: "asked",
+          created_at: at(4),
+        }),
+        request({
+          id: "r2",
+          source: "comment",
+          comment_id: "failed",
+          status: "failed",
+          created_at: at(5),
+        }),
+      ],
+    })
+    expect(keys(filterTimeline(withRequests, "changes", null))).toEqual([
+      "thread:asked",
+      "thread:failed",
     ])
   })
 
