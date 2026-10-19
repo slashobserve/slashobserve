@@ -1382,3 +1382,18 @@ func TestChainedDatasourceVariableRegexesAreCheckedOncePerSelection(t *testing.T
 		t.Fatalf("Defaults and RunPanel took %v", elapsed)
 	}
 }
+
+func TestVariableRegexMatchesAnEarlierValueWithSlashesLiterally(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("/prom/", "x", "/x/z", "prom")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("svc", "prom", "label_values(job)")
+	v.Regex = "$env"
+	d := dashboardOf(nil, customVariable("env", "/prom/", "/x/z"), v)
+	for pick, want := range map[string][]string{"/prom/": {"/prom/"}, "/x/z": {"/x/z"}} {
+		got, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": {Values: []string{pick}}}, datasource.QueryUser{})
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Errorf("env=%q: VariableValues = %q, %v, want %q", pick, got, err, want)
+		}
+	}
+}
