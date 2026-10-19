@@ -195,7 +195,7 @@ func TestListCountsOnlyOpenRootThreads(t *testing.T) {
 	r.createComment(t, busy, NewComment{ParentID: mustParse(t, open.ID), Body: "second reply"})
 	resolved := r.createComment(t, busy, NewComment{Version: 1, PanelID: &panel, Body: "resolved root"})
 	r.createComment(t, busy, NewComment{ParentID: mustParse(t, resolved.ID), Body: "reply to the resolved root"})
-	if _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, resolved.ID), CommentResolved, nil); err != nil {
+	if _, _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, resolved.ID), CommentResolved, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,7 +211,7 @@ func TestListCountsOnlyOpenRootThreads(t *testing.T) {
 		t.Errorf("open comment counts = %v, want 1 for the busy dashboard and 0 for the quiet one", counts)
 	}
 
-	if _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, open.ID), CommentResolved, nil); err != nil {
+	if _, _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, open.ID), CommentResolved, nil); err != nil {
 		t.Fatal(err)
 	}
 	page, err = r.service.List(t.Context(), ListParams{Limit: 50})
