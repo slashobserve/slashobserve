@@ -160,14 +160,20 @@ const labels = new Map(
   )
 )
 
+function customLabel(kind: "suffix" | "prefix", text: string): string {
+  return `Custom ${kind} ${JSON.stringify(text)}`
+}
+
 export function unitLabel(unit: string | undefined): string {
+  if (!unit || unit === "none") return "None"
   const parsed = parseUnit(unit)
-  switch (parsed.kind) {
-    case "suffix":
-      return `Custom suffix "${parsed.text}"`
-    case "prefix":
-      return `Custom prefix "${parsed.text}"`
-    case "id":
-      return labels.get(parsed.id) ?? "None"
+  if (parsed.kind !== "id") return customLabel(parsed.kind, parsed.text)
+  const known = labels.get(parsed.id)
+  if (known && parsed.id !== "none") return known
+  for (const kind of ["suffix", "prefix"] as const) {
+    if (unit.startsWith(`${kind}:`)) {
+      return customLabel(kind, unit.slice(kind.length + 1))
+    }
   }
+  return `Unknown unit ${JSON.stringify(unit)}`
 }

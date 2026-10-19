@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import schemaText from "../../../spec/schema/observespec.v0.json?raw"
 
 import { unitGroups, unitLabel } from "./unit-catalog"
-import { formatValue } from "./units"
+import { parseUnit } from "./units"
 
 const schema = JSON.parse(schemaText) as {
   $defs: { unit: { anyOf: [{ enum: string[] }] } }
@@ -20,9 +20,9 @@ describe("unit catalog", () => {
     expect([...catalogIds].sort()).toEqual([...schemaIds].sort())
   })
 
-  it("formats every listed unit", () => {
+  it("parses every schema id to itself, so each has a formatting rule", () => {
     for (const id of schemaIds) {
-      expect(formatValue(1.5, id), id).not.toBe("")
+      expect(parseUnit(id), id).toEqual({ kind: "id", id })
     }
   })
 
@@ -32,5 +32,22 @@ describe("unit catalog", () => {
     expect(unitLabel(undefined)).toBe("None")
     expect(unitLabel("suffix:req")).toBe('Custom suffix "req"')
     expect(unitLabel("prefix:$")).toBe('Custom prefix "$"')
+    expect(unitLabel("")).toBe("None")
+  })
+
+  it("labels unrecognised ids as unknown instead of none", () => {
+    expect(unitLabel("bogus")).toBe('Unknown unit "bogus"')
+    expect(unitLabel("constructor")).toBe('Unknown unit "constructor"')
+  })
+
+  it("labels blank custom text by its kind", () => {
+    expect(unitLabel("suffix: ")).toBe('Custom suffix " "')
+    expect(unitLabel("suffix:")).toBe('Custom suffix ""')
+    expect(unitLabel("prefix:")).toBe('Custom prefix ""')
+  })
+
+  it("quotes custom text so embedded quotes stay unambiguous", () => {
+    expect(unitLabel('suffix:a"b')).toBe('Custom suffix "a\\"b"')
+    expect(unitLabel('prefix:a"b')).toBe('Custom prefix "a\\"b"')
   })
 })
