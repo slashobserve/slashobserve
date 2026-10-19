@@ -1,0 +1,19 @@
+{
+  "fieldProps": {"thresholdMode": "absolute", "style": "line", "fill": 0, "lineStyle": "solid", "stack": "none", "axis": "left", "hidden": false},
+  "query": {"instant": false, "hide": false, "format": "timeseries"},
+  "variable": {"refresh": "load", "multi": false, "includeAll": false},
+  "row": {"collapsed": false},
+  "link": {"newTab": false},
+  "display": {
+    "timeseries": {"legend": "bottom", "legendValues": [], "tooltip": "single"},
+    "stat": {"reduce": "lastNotNull", "colorMode": "value", "graph": true, "orientation": "auto"},
+    "gauge": {"reduce": "lastNotNull", "thresholdMarkers": true},
+    "bargauge": {"reduce": "lastNotNull", "orientation": "auto"},
+    "table": {"header": true, "footer": []},
+    "piechart": {"reduce": "lastNotNull", "pieType": "pie", "legend": "right"},
+    "heatmap": {"calculate": false, "yScale": "linear"},
+    "histogram": {},
+    "state-timeline": {"mergeValues": true, "showValues": "auto"},
+    "logs": {"wrap": false, "showTime": false, "order": "newest"}
+  }
+}
