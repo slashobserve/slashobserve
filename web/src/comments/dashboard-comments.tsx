@@ -13,7 +13,12 @@ import {
 } from "./comments-tab"
 import { CommentItem } from "./comment-item"
 import { useLatestPanels, type PanelRef } from "./latest-panels"
-import { isPanelThread, useComments, type Comment } from "./queries"
+import {
+  isPanelThread,
+  useComments,
+  type Comment,
+  type PanelThread,
+} from "./queries"
 
 type Props = {
   dashboardId: string
@@ -39,13 +44,12 @@ const emptyText: Record<CommentFilter, string> = {
 }
 
 function groupByPanel(
-  comments: Comment[],
+  comments: PanelThread[],
   shown: PanelRef[],
   latest: PanelRef[] | undefined
 ): Group[] {
-  const byPanel = new Map<string, Comment[]>()
+  const byPanel = new Map<string, PanelThread[]>()
   for (const comment of comments) {
-    if (comment.panel_id === null) continue
     const list = byPanel.get(comment.panel_id)
     if (list) list.push(comment)
     else byPanel.set(comment.panel_id, [comment])
