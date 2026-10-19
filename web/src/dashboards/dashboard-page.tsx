@@ -69,9 +69,12 @@ import { controlVariables, VariableLoadError } from "./variables"
 
 function pageClass(stacked: boolean) {
   return cn(
-    "flex flex-wrap bg-background text-foreground",
-    stacked ? "min-h-svh" : "h-svh narrow:h-auto narrow:min-h-svh"
+    "flex bg-background text-foreground",
+    stacked
+      ? "min-h-svh flex-wrap"
+      : "h-svh flex-nowrap narrow:h-auto narrow:min-h-svh"
   )
+
 }
 
 type PanelContainerProps = {

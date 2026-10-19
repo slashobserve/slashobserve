@@ -164,6 +164,38 @@ test("keeps panel editing reachable", async ({ page, request }) => {
   expect(backBox?.width).toBeLessThan(420)
 })
 
+test("keeps the composer inside the window", async ({ page, request }) => {
+  const { id } = await createPageDashboard(request)
+  for (let index = 1; index <= 20; index++) {
+    await createComment(
+      request,
+      id,
+      1,
+      "rps",
+      `Scroll comment ${index}: the card body scrolls, the composer stays put.`
+    )
+  }
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity.getByText(/^Scroll comment 20:/)).toBeVisible()
+  await expect(activity.getByText(/^Scroll comment 1:/)).not.toBeInViewport()
+  const composer = activity.getByRole("textbox", {
+    name: "Comment or request",
+  })
+  const box = await composer.boundingBox()
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(800)
+  const cardBox = await activity.boundingBox()
+  expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThanOrEqual(800)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight
+    )
+  ).toBe(true)
+})
+
 test("resizes the activity card from the keyboard and remembers its width", async ({
   page,
   request,
