@@ -68,6 +68,7 @@ var (
 	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
 	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes as compact JSON", spec.MaxSuggestedPanelBytes)
 	ErrDraftInvalid       = errors.New("the draft panel is not valid")
+	ErrNotSuggestible     = notSuggestibleError{}
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
@@ -88,6 +89,14 @@ type DraftError struct {
 func (e *DraftError) Error() string { return ErrDraftInvalid.Error() }
 
 func (e *DraftError) Unwrap() error { return ErrDraftInvalid }
+
+type notSuggestibleError struct{}
+
+func (notSuggestibleError) Error() string {
+	return "the panel is not a data or text panel of that version"
+}
+
+func (notSuggestibleError) Unwrap() error { return ErrUnknownPanel }
 
 type Option func(*Service)
 

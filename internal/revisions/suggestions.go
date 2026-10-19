@@ -90,7 +90,7 @@ func (s *Service) checkSuggestion(ctx context.Context, dashboardID pgtype.UUID, 
 	}
 	entry, ok := base.FindPanel(panelID)
 	if !ok || !suggestible(entry.Panel.Type) {
-		return ErrUnknownPanel
+		return ErrNotSuggestible
 	}
 	if len(draft) == 0 {
 		return nil
