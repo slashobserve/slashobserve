@@ -27,9 +27,10 @@ var uidPattern = regexp.MustCompile(UIDPattern)
 func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
 type Instance struct {
-	UID        string
-	Name       string
-	Datasource Datasource
+	UID         string
+	Name        string
+	GrafanaUIDs []string
+	Datasource  Datasource
 }
 
 type Status struct {

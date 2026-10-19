@@ -3,12 +3,14 @@ datasources:
   - uid: prom
     type: prometheus
     name: Prometheus
+    grafanaUids: [prometheus]
     prometheus:
       url: http://prometheus:9090
       scrapeInterval: 15s
   - uid: ch
     type: clickhouse
     name: ClickHouse
+    grafanaUids: [clickhouse]
     clickhouse:
       addr: clickhouse:9000
       database: otel

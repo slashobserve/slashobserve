@@ -205,12 +205,15 @@ A Prometheus behind a bearer token references the token by variable name, and th
 
 Fields common to every entry:
 
-| Field    | Notes                                                                                                                            |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `uid`    | Required, unique. Up to 40 letters, digits, `_` or `-`, starting with a letter or digit. Dashboards refer to a datasource by it. |
-| `type`   | Required: `prometheus` or `clickhouse`. Give only the block that matches (`prometheus:` or `clickhouse:`).                       |
-| `name`   | A display name.                                                                                                                  |
-| `limits` | Optional: `timeout` (a Go duration), `maxSeries`, `maxPoints` and `maxRows` (whole numbers, not negative). See below.            |
+| Field         | Notes                                                                                                                                                                                                          |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `uid`         | Required, unique. Up to 40 letters, digits, `_` or `-`, starting with a letter or digit. Dashboards refer to a datasource by it.                                                                               |
+| `type`        | Required: `prometheus` or `clickhouse`. Give only the block that matches (`prometheus:` or `clickhouse:`).                                                                                                     |
+| `name`        | A display name.                                                                                                                                                                                                |
+| `limits`      | Optional: `timeout` (a Go duration), `maxSeries`, `maxPoints` and `maxRows` (whole numbers, not negative). See below.                                                                                          |
+| `grafanaUids` | Optional: up to 20 Grafana datasource uids or names this datasource stands for when importing Grafana dashboards, each 1 to 100 bytes and listed by one datasource only. Matching is exact and case-sensitive. |
+
+The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
 
 Prometheus fields:
 

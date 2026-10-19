@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/goccy/go-yaml"
 
@@ -24,10 +25,14 @@ const (
 
 	typePrometheus = "prometheus"
 	typeClickHouse = "clickhouse"
+
+	maxGrafanaUIDs     = 20
+	maxGrafanaUIDBytes = 100
 )
 
 type Datasource struct {
 	UID, Type, Name string
+	GrafanaUIDs     []string
 	Prometheus      *PrometheusDatasource
 	ClickHouse      *ClickHouseDatasource
 	Limits          datasource.Limits
@@ -54,12 +59,13 @@ type datasourcesFile struct {
 }
 
 type fileDatasource struct {
-	UID        string          `yaml:"uid"`
-	Type       string          `yaml:"type"`
-	Name       string          `yaml:"name"`
-	Prometheus *filePrometheus `yaml:"prometheus"`
-	ClickHouse *fileClickHouse `yaml:"clickhouse"`
-	Limits     fileLimits      `yaml:"limits"`
+	UID         string          `yaml:"uid"`
+	Type        string          `yaml:"type"`
+	Name        string          `yaml:"name"`
+	GrafanaUIDs []string        `yaml:"grafanaUids"`
+	Prometheus  *filePrometheus `yaml:"prometheus"`
+	ClickHouse  *fileClickHouse `yaml:"clickhouse"`
+	Limits      fileLimits      `yaml:"limits"`
 }
 
 type filePrometheus struct {
@@ -137,6 +143,11 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 
 	var errs []error
 	seen := map[string]bool{}
+	type aliasOwner struct {
+		uid   string
+		index int
+	}
+	aliasOwners := map[string]aliasOwner{}
 	out := make([]Datasource, 0, len(*doc.Datasources))
 	for i, raw := range *doc.Datasources {
 		entryPath := fmt.Sprintf("datasources[%d]", i)
@@ -147,6 +158,19 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 				errs = append(errs, fmt.Errorf("%s.uid: duplicate %q", entryPath, raw.UID))
 			}
 			seen[raw.UID] = true
+		}
+		for j, alias := range raw.GrafanaUIDs {
+			alias = strings.TrimSpace(alias)
+			if grafanaUIDProblem(alias) != "" {
+				continue
+			}
+			owner, taken := aliasOwners[alias]
+			switch {
+			case !taken:
+				aliasOwners[alias] = aliasOwner{uid: raw.UID, index: i}
+			case owner.index != i:
+				errs = append(errs, fmt.Errorf("%s.grafanaUids[%d]: %q is already listed by datasource %q", entryPath, j, alias, owner.uid))
+			}
 		}
 		out = append(out, ds)
 	}
@@ -185,6 +209,8 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		fail("uid", "must match %s", datasource.UIDPattern)
 	}
 
+	ds.GrafanaUIDs = convertGrafanaUIDs(path, raw.GrafanaUIDs, &errs)
+
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
 	errs = append(errs, limitErrs...)
 	ds.Limits = limits
@@ -216,6 +242,40 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		fail("type", "must be %s or %s, got %q", typePrometheus, typeClickHouse, raw.Type)
 	}
 	return ds, errs
+}
+
+func convertGrafanaUIDs(path string, raw []string, errs *[]error) []string {
+	if len(raw) > maxGrafanaUIDs {
+		*errs = append(*errs, fmt.Errorf("%s.grafanaUids: at most %d entries", path, maxGrafanaUIDs))
+	}
+	var out []string
+	seen := map[string]bool{}
+	for j, alias := range raw {
+		alias = strings.TrimSpace(alias)
+		if problem := grafanaUIDProblem(alias); problem != "" {
+			*errs = append(*errs, fmt.Errorf("%s.grafanaUids[%d]: %s", path, j, problem))
+			continue
+		}
+		if seen[alias] {
+			*errs = append(*errs, fmt.Errorf("%s.grafanaUids[%d]: duplicate %q", path, j, alias))
+			continue
+		}
+		seen[alias] = true
+		out = append(out, alias)
+	}
+	return out
+}
+
+func grafanaUIDProblem(alias string) string {
+	switch {
+	case alias == "":
+		return "must not be empty"
+	case len(alias) > maxGrafanaUIDBytes:
+		return fmt.Sprintf("must be at most %d bytes", maxGrafanaUIDBytes)
+	case strings.ContainsFunc(alias, unicode.IsControl):
+		return "must not contain control characters"
+	}
+	return ""
 }
 
 func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
