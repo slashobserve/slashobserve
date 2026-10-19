@@ -1,14 +1,13 @@
 import { slashPath } from "@/components/brand/mark"
 import { cn } from "@/lib/utils"
 
-type Props = {
-  size?: number
-  variant?: "slash" | "tile"
-  className?: string
-}
+type Props =
+  | { variant?: "slash"; size?: number; className?: string }
+  | { variant: "tile"; className?: string }
 
-export function AgentMark({ size = 12, variant = "slash", className }: Props) {
-  if (variant === "tile") {
+export function AgentMark(props: Props) {
+  if (props.variant === "tile") {
+    const { className } = props
     return (
       <span
         aria-hidden="true"
@@ -28,6 +27,7 @@ export function AgentMark({ size = 12, variant = "slash", className }: Props) {
       </span>
     )
   }
+  const { size = 12, className } = props
   return (
     <svg
       width={size}
