@@ -230,10 +230,11 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 
 func cacheScope(ctx context.Context, d *spec.Dashboard) (user datasource.QueryUser, scope string) {
 	principal, _ := auth.FromContext(ctx)
+	user = queryproxy.UserFor(principal)
 	if queryproxy.DashboardUsesUser(d) {
-		scope = principal.ID
+		scope = principalScope(principal.Kind, user)
 	}
-	return queryproxy.UserFor(principal), scope
+	return user, scope
 }
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {

@@ -65,6 +65,7 @@ type fakeDatasource struct {
 	onRange    func(ctx context.Context, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onInstant  func(ctx context.Context, r datasource.TimeRange) ([]datasource.Frame, error)
 	onVariable func(ctx context.Context, r datasource.TimeRange) ([]string, error)
+	valuesFor  func(q datasource.Query) []string
 	onLint     func(ctx context.Context, query string) ([]datasource.Diagnostic, error)
 
 	mu            sync.Mutex
@@ -123,6 +124,9 @@ func (f *fakeDatasource) VariableValues(ctx context.Context, q datasource.Query,
 	f.variableCalls++
 	f.variableRange = r
 	f.mu.Unlock()
+	if f.valuesFor != nil {
+		return f.valuesFor(q), nil
+	}
 	if f.onVariable != nil {
 		return f.onVariable(ctx, r)
 	}
@@ -236,7 +240,11 @@ func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 		if principal == "" {
 			principal = "alice"
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{ID: principal, Email: principal + "@example.com", Name: principal}))
+		email := c.GetHeader("X-Email")
+		if email == "" {
+			email = principal + "@example.com"
+		}
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{ID: principal, Email: email, Name: principal}))
 	})
 	h.Register(api)
 	return &harness{t: t, h: h, router: router, ds: ds, specs: specs, runner: runner, id: id, logs: logs}
@@ -1299,5 +1307,98 @@ func TestVariableValuesAreCachedPerPrincipalWhenAQueryReferencesTheUser(t *testi
 	}
 	if _, _, variables, _ := hn.ds.counts(); variables != 2 {
 		t.Fatalf("%d variable lookups, want one per principal", variables)
+	}
+}
+
+func (hn *harness) getWithEmail(path, principal, email string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Header.Set("X-Email", email)
+	return hn.serve(req, principal)
+}
+
+func TestPanelDataIsNotSharedWhenThePrincipalsEmailChanges(t *testing.T) {
+	hn := newHarness(t)
+	hn.withUserVersions()
+	path := hn.versionPath(userPanelVersion, "/panels/p_user/data?"+window+"&var-job=api")
+
+	if first := decodeData(t, hn.getWithEmail(path, "alice", "alice@old.example")); first.Meta.Cached {
+		t.Fatal("the first request claims to be cached")
+	}
+	if repeat := decodeData(t, hn.getWithEmail(path, "alice", "alice@old.example")); !repeat.Meta.Cached {
+		t.Fatal("an unchanged principal was not served from the cache")
+	}
+	if changed := decodeData(t, hn.getWithEmail(path, "alice", "alice@new.example")); changed.Meta.Cached {
+		t.Fatal("a principal with a new email was served data built for the old email")
+	}
+	if query := hn.ds.lastQuery(); query.User.ID != "alice" || query.User.Email != "alice@new.example" || query.User.Login != "alice@new.example" {
+		t.Fatalf("the datasource saw user %+v", query.User)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 2 {
+		t.Fatalf("%d range queries, want 2", ranges)
+	}
+}
+
+func TestVariableValuesAreNotSharedWhenThePrincipalsEmailChanges(t *testing.T) {
+	hn := newHarness(t)
+	hn.withUserVersions()
+	path := hn.versionPath(userVariableVersion, "/variables/job/values?"+window)
+
+	if first := decodeValues(t, hn.getWithEmail(path, "alice", "alice@old.example")); first.Cached {
+		t.Fatal("the first request claims to be cached")
+	}
+	if changed := decodeValues(t, hn.getWithEmail(path, "alice", "alice@new.example")); changed.Cached {
+		t.Fatal("a principal with a new email was served values built for the old email")
+	}
+	if _, _, variables, _ := hn.ds.counts(); variables != 2 {
+		t.Fatalf("%d variable lookups, want 2", variables)
+	}
+}
+
+const userEmailVariableVersion = 4
+
+func (hn *harness) withUserEmailVariableOnly() {
+	d := testDashboard()
+	d.Variables[0].Query = `label_values(up{who="${__user.email}"}, job)`
+	hn.specs.known[specKey{id: hn.id, version: userEmailVariableVersion}] = d
+	hn.ds.valuesFor = func(q datasource.Query) []string { return []string{"job-of-" + q.User.Email} }
+}
+
+func TestAVariableQueryThatReferencesTheUserKeepsPrincipalsApartForValuesAndPanelData(t *testing.T) {
+	hn := newHarness(t)
+	hn.withUserEmailVariableOnly()
+	valuesPath := hn.versionPath(userEmailVariableVersion, "/variables/job/values?"+window)
+	dataPath := hn.versionPath(userEmailVariableVersion, "/panels/p_ts/data?"+window)
+
+	alice := decodeValues(t, hn.get(valuesPath, "alice"))
+	bob := decodeValues(t, hn.get(valuesPath, "bob"))
+	if !slices.Equal(alice.Values, []string{"job-of-alice@example.com"}) || !slices.Equal(bob.Values, []string{"job-of-bob@example.com"}) {
+		t.Fatalf("values alice=%v bob=%v, want each principal's own list", alice.Values, bob.Values)
+	}
+	if alice.Cached || bob.Cached {
+		t.Fatal("a principal was served another principal's cached values")
+	}
+
+	jobOf := func(q datasource.Query) []string {
+		for _, v := range q.Variables {
+			if v.Name == "job" {
+				return v.Values
+			}
+		}
+		return nil
+	}
+	if first := decodeData(t, hn.get(dataPath, "alice")); first.Meta.Cached {
+		t.Fatal("the first panel request claims to be cached")
+	}
+	if got := jobOf(hn.ds.lastQuery()); !slices.Equal(got, []string{"job-of-alice@example.com"}) {
+		t.Fatalf("alice's panel query ran with job=%v", got)
+	}
+	if second := decodeData(t, hn.get(dataPath, "bob")); second.Meta.Cached {
+		t.Fatal("bob was served the panel data built from alice's variable values")
+	}
+	if got := jobOf(hn.ds.lastQuery()); !slices.Equal(got, []string{"job-of-bob@example.com"}) {
+		t.Fatalf("bob's panel query ran with job=%v", got)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 2 {
+		t.Fatalf("%d range queries, want one per principal", ranges)
 	}
 }

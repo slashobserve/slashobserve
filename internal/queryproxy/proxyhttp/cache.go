@@ -10,6 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/ttlcache"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -113,6 +115,17 @@ func (k *keyBuilder) selections(selections map[string]queryproxy.Selection) {
 }
 
 func (k *keyBuilder) sum() cacheKey { return sha256.Sum256(k.buf) }
+
+func principalScope(kind auth.PrincipalKind, user datasource.QueryUser) string {
+	var k keyBuilder
+	k.text(string(kind))
+	k.text(user.ID)
+	k.text(user.Login)
+	k.text(user.Email)
+	k.text(user.Name)
+	sum := k.sum()
+	return string(sum[:])
+}
 
 func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, al alignment, selections map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
