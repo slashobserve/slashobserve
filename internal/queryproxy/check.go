@@ -174,8 +174,14 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		}
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
 		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
-		if err == nil && sel.All && !guardOnly[v.Name] {
-			_, err = r.allValues(vctx, d, i, rng, selections, user, lists)
+		if err == nil && sel.All {
+			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
+				if guardOnly[v.Name] {
+					issues = append(issues, variableIssue(path, listErr))
+				} else {
+					err = listErr
+				}
+			}
 		}
 		if err == nil {
 			err = checkSelection(v, sel)
@@ -183,16 +189,20 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		cancel()
 		if err != nil {
 			failed[v.Name] = true
-			_, code, message := Classify(err)
-			if !errors.Is(err, ErrVariableEmpty) {
-				code = string(CodeVariableFailed)
-			}
-			issues = append(issues, issue(path, spec.IssueCode(code), "%s", message))
+			issues = append(issues, variableIssue(path, err))
 			continue
 		}
 		selections[v.Name] = sel
 	}
 	return selections, failed, issues
+}
+
+func variableIssue(path string, err error) spec.Issue {
+	_, code, message := Classify(err)
+	if !errors.Is(err, ErrVariableEmpty) {
+		code = string(CodeVariableFailed)
+	}
+	return issue(path, spec.IssueCode(code), "%s", message)
 }
 
 func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList, skip []bool) []spec.Issue {

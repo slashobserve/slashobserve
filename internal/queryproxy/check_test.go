@@ -1032,14 +1032,18 @@ func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
 	})
 }
 
-func TestCheckSpecSkipsTheAllListOfAGuardOnlyVariable(t *testing.T) {
+func TestCheckSpecChecksTheAllListOfAGuardOnlyVariableWithoutFailingItsPanels(t *testing.T) {
 	tests := []struct {
 		name   string
 		panels []string
 		want   []wantIssue
 	}{
-		{"only a guard", []string{"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)"}, nil},
-		{"guard and its own condition", []string{"SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)"}, nil},
+		{"only a guard", []string{"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)"}, []wantIssue{
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+		{"guard and its own condition", []string{"SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)"}, []wantIssue{
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
 		{"guard in one panel and listed in another", []string{
 			"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)",
 			"SELECT ${svc:singlequote}",
