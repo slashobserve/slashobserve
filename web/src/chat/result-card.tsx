@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
 
 import { useNow } from "@/components/relative-time"
 import { StatusIcon } from "@/components/status-label"
@@ -12,6 +13,7 @@ import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
 import { OpenDashboardLink } from "./turn-failure"
 
 const thumbnailColumns = 4
+const nearViewportMargin = "600px"
 
 const sparklineColors = [
   "stroke-series-1",
@@ -77,13 +79,45 @@ function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
   )
 }
 
-type Props = { dashboardId: string; version: number; finishedAt: string | null }
+type Props = {
+  dashboardId: string
+  version: number
+  finishedAt: string | null
+  eager: boolean
+}
 
-export function ResultCard({ dashboardId, version, finishedAt }: Props) {
+export function ResultCard({ dashboardId, version, finishedAt, eager }: Props) {
   const now = useNow()
-  const query = useQuery(dashboardVersionQuery(dashboardId, version))
+  const card = useRef<HTMLDivElement>(null)
+  const [nearViewport, setNearViewport] = useState(false)
+  const fetchVersion = eager || nearViewport
+  const query = useQuery({
+    ...dashboardVersionQuery(dashboardId, version),
+    enabled: fetchVersion,
+  })
 
-  if (query.isPending) {
+  useEffect(() => {
+    const element = card.current
+    if (
+      fetchVersion ||
+      element === null ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setNearViewport(true)
+        }
+      },
+      { rootMargin: nearViewportMargin }
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [fetchVersion])
+
+  if (query.isLoading) {
     return <Skeleton className="h-[172px] rounded-card" />
   }
 
@@ -106,7 +140,10 @@ export function ResultCard({ dashboardId, version, finishedAt }: Props) {
   const shown = thumbnails(panels)
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-card border bg-background">
+    <div
+      ref={card}
+      className="flex flex-col overflow-hidden rounded-card border bg-background"
+    >
       {shown.length > 0 ? (
         <div
           aria-hidden="true"

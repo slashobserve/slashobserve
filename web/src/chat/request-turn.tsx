@@ -181,6 +181,7 @@ export function RequestTurn({
               dashboardId={request.dashboard_id}
               version={request.result_version}
               finishedAt={request.finished_at}
+              eager={loadSteps}
             />
           ) : null}
           {request.status === "succeeded" &&
