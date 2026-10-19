@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import defaultsText from "../../../spec/schema/defaults.json?raw"
 import {
   displayWithDefaults,
@@ -133,5 +133,62 @@ describe("spec defaults", () => {
     const first = displayWithDefaults("timeseries", {})
     ;(first.legendValues as string[]).push("max")
     expect(displayWithDefaults("timeseries", {}).legendValues).toEqual([])
+  })
+
+  it("displayWithDefaults lets a cleared option fall back to its default", () => {
+    expect(
+      displayWithDefaults("timeseries", { legend: undefined, tooltip: "all" })
+    ).toEqual({ legend: "bottom", legendValues: [], tooltip: "all" })
+  })
+
+  it("an unknown panel type has no defaults and never throws", () => {
+    const unknownType = "nope" as DataPanel["type"]
+    expect(displayWithDefaults(unknownType, { legend: "right" })).toEqual({
+      legend: "right",
+    })
+    expect(displayWithDefaults(unknownType, undefined)).toEqual({})
+    expect(isDefaultDisplayValue(unknownType, "legend", "bottom")).toBe(false)
+    const inherited = "constructor" as DataPanel["type"]
+    expect(displayWithDefaults(inherited, undefined)).toEqual({})
+    expect(isDefaultDisplayValue(inherited, "name", "Object")).toBe(false)
+  })
+
+  it("copies and compares object defaults deeply", async () => {
+    vi.resetModules()
+    vi.doMock("./defaults.gen", () => ({
+      specDefaults: {
+        fieldProps: {},
+        query: {},
+        variable: {},
+        row: {},
+        link: {},
+        display: { timeseries: { range: { min: 0, tags: [{ id: 1 }] } } },
+      },
+    }))
+    const mod = await import("./defaults")
+    vi.doUnmock("./defaults.gen")
+    vi.resetModules()
+
+    const first = mod.displayWithDefaults("timeseries", {}) as {
+      range: { min: number; tags: { id: number }[] }
+    }
+    first.range.min = 5
+    first.range.tags[0].id = 9
+    expect(mod.displayWithDefaults("timeseries", {})).toEqual({
+      range: { min: 0, tags: [{ id: 1 }] },
+    })
+
+    const same = { tags: [{ id: 1 }], min: 0 }
+    expect(mod.isDefaultDisplayValue("timeseries", "range", same)).toBe(true)
+    expect(
+      mod.isDefaultDisplayValue("timeseries", "range", {
+        min: 0,
+        tags: [{ id: 2 }],
+      })
+    ).toBe(false)
+    expect(
+      mod.isDefaultDisplayValue("timeseries", "range", { min: 0, tags: [] })
+    ).toBe(false)
+    expect(mod.isDefaultDisplayValue("timeseries", "range", [])).toBe(false)
   })
 })

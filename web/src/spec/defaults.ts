@@ -1,7 +1,5 @@
 import { specDefaults } from "./defaults.gen"
-import type { DataPanel } from "./observespec.gen"
-
-type DataPanelType = DataPanel["type"]
+import type { DataPanelType } from "./panels"
 
 export type DisplayOf<T extends DataPanelType> = {
   [K in T]: Record<string, unknown>
@@ -13,28 +11,39 @@ export const variableDefaults = specDefaults.variable
 export const rowDefaults = specDefaults.row
 export const linkDefaults = specDefaults.link
 
-function copyValue(value: unknown): unknown {
-  return Array.isArray(value) ? value.map(copyValue) : value
+const displayTable: Record<
+  string,
+  Record<string, unknown>
+> = specDefaults.display
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function defaultDisplay(type: DataPanelType): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(specDefaults.display[type]).map(([key, value]) => [
-      key,
-      copyValue(value),
-    ])
-  )
+function copyValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(copyValue)
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, copyValue(item)])
+    )
+  }
+  return value
+}
+
+function displayDefaultsFor(type: string): Record<string, unknown> {
+  return Object.hasOwn(displayTable, type) ? displayTable[type] : {}
 }
 
 export function displayWithDefaults(
   type: DataPanelType,
   display: unknown
 ): Record<string, unknown> {
-  const given =
-    typeof display === "object" && display !== null && !Array.isArray(display)
-      ? display
-      : {}
-  return { ...defaultDisplay(type), ...given }
+  const merged = copyValue(displayDefaultsFor(type)) as Record<string, unknown>
+  if (!isPlainObject(display)) return merged
+  for (const [key, value] of Object.entries(display)) {
+    if (value !== undefined) merged[key] = value
+  }
+  return merged
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -46,6 +55,14 @@ function sameValue(a: unknown, b: unknown): boolean {
       a.every((item, i) => sameValue(item, b[i]))
     )
   }
+  if (isPlainObject(a) || isPlainObject(b)) {
+    if (!isPlainObject(a) || !isPlainObject(b)) return false
+    const keys = Object.keys(a)
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every((key) => Object.hasOwn(b, key) && sameValue(a[key], b[key]))
+    )
+  }
   return a === b
 }
 
@@ -54,6 +71,6 @@ export function isDefaultDisplayValue(
   key: string,
   value: unknown
 ): boolean {
-  const defaults: Record<string, unknown> = specDefaults.display[type]
+  const defaults = displayDefaultsFor(type)
   return Object.hasOwn(defaults, key) && sameValue(defaults[key], value)
 }
