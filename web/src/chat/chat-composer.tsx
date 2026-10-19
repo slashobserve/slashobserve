@@ -18,6 +18,8 @@ import { NoAgentNote } from "./no-agent-note"
 
 const maxPromptLength = 4000
 
+const openFailedMessage = "Request created, but it could not be opened."
+
 type Notice = { text: string; invalid: boolean }
 
 type Props = {
@@ -137,19 +139,24 @@ export function ChatComposer({
     setNotice(null)
     setSubmitting(true)
     try {
-      const request = await create.mutateAsync({
-        prompt: trimmed,
-        dashboardId,
-      })
+      let request: ObserveRequest
+      try {
+        request = await create.mutateAsync({ prompt: trimmed, dashboardId })
+      } catch (cause) {
+        const described = describeSubmitError(cause)
+        if (described.inline) {
+          reject({ text: described.message, invalid: described.invalid })
+        } else {
+          toast.error(described.message)
+          field.current?.focus()
+        }
+        return
+      }
       setPrompt("")
-      await onSent(request)
-    } catch (cause) {
-      const described = describeSubmitError(cause)
-      if (described.inline) {
-        reject({ text: described.message, invalid: described.invalid })
-      } else {
-        toast.error(described.message)
-        field.current?.focus()
+      try {
+        await onSent(request)
+      } catch {
+        toast.error(openFailedMessage)
       }
     } finally {
       setSubmitting(false)
