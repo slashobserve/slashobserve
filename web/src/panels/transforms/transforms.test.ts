@@ -186,6 +186,24 @@ describe("query format table", () => {
     expect(columns(out).service).toEqual(["api", "api", "web", "web"])
   })
 
+  it("keeps a second field of the same name instead of dropping it", () => {
+    const [out] = prepareFrames(tablePanel, [
+      frame([time([1]), num("c", [1]), num("c", [2])], {
+        labels: { pod: "a" },
+      }),
+      frame([time([1]), num("c", [3]), num("c", [4])], {
+        labels: { pod: "b" },
+      }),
+    ])
+    expect(out.fields.map((f) => f.name)).toEqual(["Time", "pod", "c", "c#1"])
+    expect(columns(out)).toEqual({
+      Time: [1, 1],
+      pod: ["a", "b"],
+      c: [1, 3],
+      "c#1": [2, 4],
+    })
+  })
+
   it("leaves other formats and other queries unchanged", () => {
     const a = frame([time([1, 2]), num("Value", [1, 2])], {
       labels: { pod: "a" },

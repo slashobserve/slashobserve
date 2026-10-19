@@ -1,5 +1,6 @@
 import { queryRef, type DataPanel } from "@/spec"
 
+import { uniqueKey } from "../frames"
 import {
   copyFrame,
   rowCount,
@@ -56,9 +57,10 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
 
   const byName = frames.map((frame) => {
     const named = new Map<string, PreparedField>()
+    const local = new Map<string, number>()
     const time = firstTime(frame)
     for (const field of frame.fields) {
-      if (field !== time && !named.has(field.name)) named.set(field.name, field)
+      if (field !== time) named.set(uniqueKey(local, field.name), field)
     }
     return named
   })
