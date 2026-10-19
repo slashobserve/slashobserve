@@ -733,6 +733,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const { id } = await createOverview(request)
 
       await openCard(page, id, "?panel=rps&tab=comments")
+      await expect(page).not.toHaveURL(/tab=/)
       await expect(scopeSelect(page)).toHaveValue("rps")
       await expect(panel(page, rpsTitle)).toHaveAttribute(
         "data-highlighted",
