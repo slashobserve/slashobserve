@@ -177,7 +177,7 @@ func (r *Runner) datasourceValues(v spec.Variable) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: variable %q has an invalid regex", ErrInvalidRequest, v.Name)
 	}
-	return spec.ApplyVariableRegex(re, uids), nil
+	return slices.DeleteFunc(uids, func(uid string) bool { return !re.MatchString(uid) }), nil
 }
 
 func (r *Runner) queryValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) ([]string, error) {

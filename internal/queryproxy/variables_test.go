@@ -836,6 +836,8 @@ func TestNewVariableTypeValuesAndDefaults(t *testing.T) {
 	pickable.IncludeAll, pickable.Multi = true, true
 	filtered := datasourceVariable("dsf", spec.Prometheus)
 	filtered.Regex = "/^prom2$/"
+	captured := datasourceVariable("dsc", spec.Prometheus)
+	captured.Regex = "/^(.*)2$/"
 
 	tests := []struct {
 		name        string
@@ -856,6 +858,7 @@ func TestNewVariableTypeValuesAndDefaults(t *testing.T) {
 		{"datasource default", withDefault(datasourceVariable("ds", spec.Prometheus), "prom2"), []string{"prom", "prom2"}, Selection{Values: []string{"prom2"}}, nil},
 		{"datasource default that is not a value", withDefault(datasourceVariable("ds", spec.Prometheus), "ch"), []string{"prom", "prom2"}, Selection{}, ErrVariableEmpty},
 		{"datasource regex", filtered, []string{"prom2"}, Selection{Values: []string{"prom2"}}, nil},
+		{"datasource regex only filters and never rewrites a uid through a capture group", captured, []string{"prom2"}, Selection{Values: []string{"prom2"}}, nil},
 		{"datasource with nothing configured", datasourceVariable("ds", spec.DatasourceType("loki")), []string{}, Selection{}, ErrVariableEmpty},
 		{"adhoc has no list and no filters by default", adhocVariable("f", "prom"), nil, Selection{}, nil},
 		{"query default as one value", withDefault(pickable, "web"), nil, Selection{Values: []string{"web"}}, nil},
