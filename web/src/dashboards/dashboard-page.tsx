@@ -8,21 +8,17 @@ import {
   type ReactNode,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
-import { HistoryIcon } from "lucide-react"
 
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { panelRefs } from "@/comments/latest-panels"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
-import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FollowUpBar } from "@/revisions/follow-up-bar"
 import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
 import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
-import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
 import { ThemeSwitch } from "@/shell/theme-switch"
@@ -35,7 +31,6 @@ import { EditControls, NewerVersionNotice } from "./edit/edit-controls"
 import { useGridEditable, useLayoutStore } from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
 import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
-import { LiveIndicator } from "./live/live-indicator"
 import {
   useDashboardEvents,
   type LiveStatus,
@@ -63,7 +58,7 @@ import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
-import { VersionBanner } from "./version-banner"
+import { VersionMenu } from "./version-menu"
 import { controlVariables, VariableLoadError } from "./variables"
 
 type PanelContainerProps = {
@@ -275,17 +270,6 @@ function DashboardView({
     </div>,
   ]
   const actions: ReactNode[] = [
-    <LiveIndicator key="live" status={liveStatus} pinned={pinned} />,
-    <Link
-      key="history"
-      to="/dashboards/$dashboardId/versions"
-      params={{ dashboardId }}
-      search={{ back: backFromSearch(search) }}
-      className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-    >
-      <HistoryIcon data-icon="inline-start" />
-      History
-    </Link>,
     <ThemeSwitch key="theme" />,
     <MoreMenu
       key="more"
@@ -318,17 +302,19 @@ function DashboardView({
           title={spec.title}
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           versionControl={
-            <span className="px-2 text-xs text-muted-foreground">
-              v{version}
-            </span>
+            <VersionMenu
+              dashboardId={dashboardId}
+              version={version}
+              latest={latestVersion}
+              pinned={pinned}
+              status={liveStatus}
+              back={backFromSearch(search)}
+            />
           }
           controls={controls}
           editing={<EditControls dashboardId={dashboardId} pinned={pinned} />}
           actions={actions}
         />
-        {pinned ? (
-          <VersionBanner version={version} latestVersion={latestVersion} />
-        ) : null}
         {editing ? (
           <NewerVersionNotice
             dashboardId={dashboardId}

@@ -341,14 +341,20 @@ test("views an older version and returns to latest", async ({
   const renamed = { ...spec, title: `${spec.title} renamed` }
   await addVersion(request, id, renamed, 1)
 
-  await openDashboard(page, id, "?version=1")
-  await expect(
-    page.getByText("You are viewing version 1. The latest is version 2.")
-  ).toBeVisible()
+  await openDashboard(page, id)
+  const versionButton = page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("button", { name: /^Version \d/ })
+  await versionButton.click()
+  await page.getByRole("menuitemradio", { name: /^v1\b/ }).click()
+  await expect(page).toHaveURL(/version=1/)
+  await expect(versionButton).toHaveText("v1 of 2")
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
 
-  await page.getByRole("button", { name: "Back to latest" }).click()
+  await versionButton.click()
+  await page.getByRole("menuitemradio", { name: /Latest/ }).click()
   await expect(page).not.toHaveURL(/version=/)
+  await expect(versionButton).toHaveText(/^(Live|Connecting) · v2$/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     renamed.title
   )

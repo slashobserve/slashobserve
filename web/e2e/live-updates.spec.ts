@@ -11,12 +11,22 @@ async function createLive(request: APIRequestContext) {
   return { id, spec }
 }
 
+function versionButton(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("button", { name: /^Version \d/ })
+}
+
 function indicator(page: Page, label: string) {
-  return page.getByRole("status").filter({ hasText: new RegExp(`^${label}$`) })
+  return versionButton(page).filter({
+    hasText: new RegExp(`^${label} · v\\d+$`),
+  })
 }
 
 function badge(page: Page, version: number) {
-  return page.getByText(`v${version}`, { exact: true })
+  return versionButton(page).filter({
+    hasText: new RegExp(`v${version}\\b`),
+  })
 }
 
 test("shows a new version without reload", async ({ page, request }) => {
@@ -95,9 +105,12 @@ test("offers the latest when viewing an old version", async ({
 }) => {
   const { id, spec } = await createLive(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  const stream = page.waitForResponse((response) =>
+    response.url().endsWith(`/dashboards/${id}/events`)
+  )
   await openDashboard(page, id, "?version=1")
-  await expect(indicator(page, "Live")).toBeVisible()
-  await expect(badge(page, 1)).toBeVisible()
+  await stream
+  await expect(badge(page, 1)).toHaveText("v1 of 2")
 
   await addVersion(request, id, { ...spec, title: `${spec.title} v3` }, 2)
 
