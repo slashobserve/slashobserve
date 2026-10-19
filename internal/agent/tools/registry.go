@@ -62,6 +62,7 @@ type Tool struct {
 	Description string
 	InputSchema json.RawMessage
 	ReadOnly    bool
+	MCPOnly     bool
 }
 
 type Result struct {
@@ -74,6 +75,7 @@ type Deps struct {
 	Datasources *datasource.Registry
 	Runner      *queryproxy.Runner
 	Dashboards  *dashboards.Service
+	Comments    *dashboards.Comments
 	PublicURL   *url.URL
 	Logger      *slog.Logger
 }
@@ -132,6 +134,7 @@ func New(d Deps) *Registry {
 	all = append(all, r.discoveryEntries()...)
 	all = append(all, r.queryEntries()...)
 	all = append(all, r.dashboardEntries()...)
+	all = append(all, r.commentEntries()...)
 	all = append(all, r.guideEntries()...)
 	for _, e := range all {
 		r.entries[e.tool.Name] = e

@@ -1051,7 +1051,7 @@ comment_body() {
 }
 
 comment_ids() {
-  grep -o '{"id":"[^"]*","dashboard_id"' "$1" | cut -d'"' -f4
+  { grep -o '{"id":"[^"]*","dashboard_id"' "$1" || true; } | cut -d'"' -f4
 }
 
 comments_suite() {
@@ -1714,9 +1714,9 @@ mcp_expect() {
 
 mcp_suite() {
   api_token
-  local out id name leak label args
-  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_dashboards list_datasources
-    list_label_values list_labels list_metrics query_instant query_range sample_rows update_dashboard)
+  local out id name leak label args panel cid wid vid
+  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_comments list_dashboards list_datasources
+    list_label_values list_labels list_metrics query_instant query_range reply_to_comment resolve_comment sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
 
   out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -D "$TMP/mcp.headers" -w '%{http_code}' -X POST \
@@ -1848,6 +1848,54 @@ mcp_suite() {
     fail "update_dashboard without a parent_version ($(cat "$TMP/mcp.body"))"
   fi
   pass "MCP update_dashboard demands dashboard_id and parent_version"
+
+  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
+  [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$panel" 'Please add p99')")"
+  [[ "$out" == 201 ]] || fail "create a panel comment for MCP ($out: $(cat "$TMP/api.body"))"
+  cid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$cid" ]] || fail "no comment id in the panel comment response ($(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$id/comments" -d '{"version":1,"body":"Overall layout feedback","request_revision":false}')"
+  [[ "$out" == 201 ]] || fail "create a whole-dashboard comment for MCP ($out: $(cat "$TMP/api.body"))"
+  wid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$wid" ]] || fail "no comment id in the whole-dashboard comment response ($(cat "$TMP/api.body"))"
+  mcp_tool list_comments "{\"dashboard_id\":\"$id\"}"
+  mcp_expect "list_comments" "\"id\":\"$cid\""
+  mcp_expect "list_comments" "\"id\":\"$wid\""
+  mcp_expect "list_comments" '"panel_id":null'
+  mcp_tool reply_to_comment "{\"comment_id\":\"$cid\",\"body\":\"Added p99 in the next version\"}"
+  mcp_expect "reply_to_comment" "\"parent_id\":\"$cid\""
+  out="$(api GET "/dashboards/$id/comments")"
+  [[ "$out" == 200 ]] || fail "list comments after an MCP reply ($out: $(cat "$TMP/api.body"))"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); r=[c for c in d["comments"] if c["parent_id"]==sys.argv[2]]; sys.exit(0 if len(r)==1 and r[0]["author"]["kind"]=="service_account" else 1)' "$TMP/api.body" "$cid" \
+    || fail "the MCP reply should be a service-account reply to $cid ($(cat "$TMP/api.body"))"
+  mcp_tool resolve_comment "{\"comment_id\":\"$cid\",\"version\":1}"
+  mcp_expect "resolve_comment" '"changed":true'
+  mcp_expect "resolve_comment" '"resolved_by_version":1'
+  mcp_tool resolve_comment "{\"comment_id\":\"$cid\",\"version\":1}"
+  mcp_expect "resolve_comment again" '"changed":false'
+  mcp_tool resolve_comment "{\"comment_id\":\"$wid\",\"version\":99}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'unknown_version' "$TMP/mcp.body"; then
+    fail "resolve_comment with an unknown version ($(cat "$TMP/mcp.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'Please check p99 on version 2')")"
+  [[ "$out" == 201 ]] || fail "create a comment on version 2 for MCP ($out: $(cat "$TMP/api.body"))"
+  vid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$vid" ]] || fail "no comment id in the version 2 comment response ($(cat "$TMP/api.body"))"
+  mcp_tool resolve_comment "{\"comment_id\":\"$vid\",\"version\":1}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body" || ! grep -q 'version must be at least 2' "$TMP/mcp.body"; then
+    fail "resolve_comment with a version before the thread's ($(cat "$TMP/mcp.body"))"
+  fi
+  mcp_tool reply_to_comment '{"comment_id":"x","body":"hello"}'
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body"; then
+    fail "reply_to_comment with a bad comment_id ($(cat "$TMP/mcp.body"))"
+  fi
+  mcp_tool list_comments "{\"dashboard_id\":\"$id\"}"
+  mcp_expect "list_comments after resolving" "\"id\":\"$wid\""
+  if grep -q "\"id\":\"$cid\"" "$TMP/mcp.body"; then
+    fail "a resolved thread should not be listed by default ($(cat "$TMP/mcp.body"))"
+  fi
+  pass "MCP clients list, answer and resolve comments with the version that fixed them"
 
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/mcp-all.body" || true)"
   [[ -z "$leak" ]] || fail "MCP responses expose connection details ($leak)"
@@ -2067,6 +2115,52 @@ strip_final_newline() {
   perl -0pe 's/\n\z//' "$1"
 }
 
+cli_comments_checks() {
+  local did="$1" out cid nil_id=00000000-0000-0000-0000-000000000000
+
+  out="$(api POST "/dashboards/$did/comments" -d '{"version":1,"body":"CLI thread"}')"
+  [[ "$out" == 201 ]] || fail "create a comment for the CLI ($out: $(cat "$TMP/api.body"))"
+  cid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$cid" ]] || fail "the new comment has no id ($(cat "$TMP/api.body"))"
+
+  cli_run comments list "$did" --json
+  [[ "$CLI_CODE" == 0 ]] || fail "observe comments list --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  python3 -m json.tool <"$TMP/cli.out" >/dev/null || fail "observe comments list --json is not JSON"
+  grep -qF "$cid" "$TMP/cli.out" || fail "observe comments list --json lacks the comment $cid"
+
+  cli_run comments list "$did"
+  cli_expect "observe comments list" 0 "$cid" out
+  grep -F "$cid" "$TMP/cli.out" | grep -qw dashboard || fail "observe comments list should show a whole-dashboard comment as dashboard ($(cat "$TMP/cli.out"))"
+
+  cli_run comments reply "$did" "$cid" Looks good now
+  cli_expect "observe comments reply" 0 "Replied to thread $cid" out
+  out="$(api GET "/dashboards/$did/comments")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"parent_id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"body":"Looks good now"' "$TMP/api.body"; then
+    fail "the reply from observe comments reply is missing ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  cli_run comments resolve "$did" "$cid" --version 1
+  cli_expect "observe comments resolve" 0 "Resolved thread $cid by version 1" out
+  out="$(api GET "/dashboards/$did/comments")"
+  if [[ "$out" != 200 ]] || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
+    fail "the comment resolved by the CLI lacks resolved_by_version 1 ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  cli_run comments list "$did"
+  [[ "$CLI_CODE" == 0 ]] || fail "observe comments list after resolve exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  if grep -qF "$cid" "$TMP/cli.out"; then
+    fail "observe comments list should hide a resolved thread by default ($(cat "$TMP/cli.out"))"
+  fi
+
+  cli_run comments resolve "$did" not-an-id
+  [[ "$CLI_CODE" == 2 ]] || fail "observe comments resolve with a bad id should exit 2, got $CLI_CODE"
+  cli_run comments resolve "$did" "$cid" --version 0
+  [[ "$CLI_CODE" == 2 ]] || fail "observe comments resolve --version 0 should exit 2, got $CLI_CODE"
+  cli_run comments resolve "$did" "$nil_id"
+  cli_expect "observe comments resolve for an unknown comment" 1 "not_found"
+  pass "observe comments lists, answers and resolves comments, with --json"
+}
+
 cli_saved_key_stays_home() {
   local sink_pid sink_port="" tries
   : >"$TMP/sink.log"
@@ -2141,7 +2235,7 @@ cli_suite() {
   fi
   pass "observe login validates the key, saves it with mode 600 and does not print it"
 
-  cli_run "log volume by service" --timeout 120s
+  cli_run --timeout 120s "log volume by service"
   url="$(cat "$TMP/cli.out")"
   if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
     fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
@@ -2149,6 +2243,8 @@ cli_suite() {
   grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
   did="${url##*/}"
   pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
+
+  cli_comments_checks "$did"
 
   command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did/versions/1" >"$TMP/cli.api"
   grep -q '"origin":"cli"' "$TMP/cli.api" || fail "the version the agent saved for a CLI prompt should record the cli origin ($(cat "$TMP/cli.api"))"
@@ -2195,7 +2291,7 @@ cli_suite() {
   cli_expect "observe status" 0 "succeeded" out
   pass "observe --no-wait prints a request id that status --wait and status resolve"
 
-  cli_run "e2e: a slow run that never saves" --timeout 120s
+  cli_run --timeout 120s "e2e: a slow run that never saves"
   cli_expect "a run that never saves" 1 "without saving"
   pass "observe reports a failed agent request and exits 1"
 

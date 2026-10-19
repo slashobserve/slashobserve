@@ -27,12 +27,14 @@ type app struct {
 	json    bool
 	quiet   bool
 
-	prompt    promptOptions
-	status    statusOptions
-	list      pageOptions
-	versions  pageOptions
-	show      showOptions
-	withToken bool
+	prompt         promptOptions
+	status         statusOptions
+	list           pageOptions
+	versions       pageOptions
+	show           showOptions
+	commentList    commentListOptions
+	commentResolve commentResolveOptions
+	withToken      bool
 }
 
 type usageError struct{ message string }
@@ -68,8 +70,8 @@ func (a *app) command() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "observe [flags] <prompt words...>",
 		Short:         "Turn a prompt into a dashboard",
-		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.\nA prompt whose first word is a command name (dashboards, status, login, logout, version, help) must be quoted as one argument.",
-		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list",
+		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.\nA prompt whose first word is a command name (dashboards, comments, status, login, logout, version, help) must be quoted as one argument.",
+		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list\n  observe comments list <dashboard-id>",
 		Args:          cobra.ArbitraryArgs,
 		RunE:          a.runPrompt,
 		SilenceUsage:  true,
@@ -88,7 +90,7 @@ func (a *app) command() *cobra.Command {
 	flags.BoolVarP(&a.quiet, "quiet", "q", false, "hide progress and confirmations; results and errors still print")
 	a.addPromptFlags(root)
 
-	root.AddCommand(a.statusCommand(), a.dashboardsCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand())
+	root.AddCommand(a.statusCommand(), a.dashboardsCommand(), a.commentsCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand())
 	return root
 }
 
@@ -102,6 +104,13 @@ func (a *app) versionCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func groupArgs(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return usagef("unknown command %q for %s", text(args[0]), cmd.CommandPath())
+	}
+	return nil
 }
 
 func noArgs(cmd *cobra.Command, args []string) error {

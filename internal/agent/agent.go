@@ -107,10 +107,12 @@ func New(c Config) *Agent {
 	if c.Logger == nil {
 		c.Logger = slog.Default()
 	}
-	list := c.Tools.List()
-	specs := make([]llm.ToolSpec, len(list))
-	for i, t := range list {
-		specs[i] = llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema}
+	specs := make([]llm.ToolSpec, 0)
+	for _, t := range c.Tools.List() {
+		if t.MCPOnly {
+			continue
+		}
+		specs = append(specs, llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
 	return &Agent{
 		provider:    c.Provider,

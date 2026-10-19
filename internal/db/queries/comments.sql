@@ -12,6 +12,9 @@ RETURNING *;
 -- name: GetComment :one
 SELECT * FROM dashboard_comments WHERE id = @id AND dashboard_id = @dashboard_id;
 
+-- name: GetCommentDashboard :one
+SELECT dashboard_id FROM dashboard_comments WHERE id = @id;
+
 -- name: GetCommentForShare :one
 SELECT * FROM dashboard_comments WHERE id = @id AND dashboard_id = @dashboard_id FOR SHARE;
 

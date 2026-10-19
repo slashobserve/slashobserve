@@ -1676,3 +1676,39 @@ func TestReplayFixtureExpectingTheWrongToolResultFails(t *testing.T) {
 		t.Fatalf("the error quotes the tool result: %v", err)
 	}
 }
+
+func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
+	registry := tools.New(tools.Deps{})
+	provider := &scriptedProvider{sessions: []*scriptedSession{session(stopTurn(llm.StopRefusal))}}
+	a := agent.New(agent.Config{
+		Provider:    provider,
+		Tools:       registry,
+		Dashboards:  &fakeDashboards{number: 3},
+		Datasources: fakeHealth{},
+		Logger:      slog.New(slog.DiscardHandler),
+	})
+	if _, err := a.Run(context.Background(), agent.Task{Prompt: "checkout health by pod", Principal: principal}); !errors.Is(err, agent.ErrRefused) {
+		t.Fatalf("err = %v", err)
+	}
+	offered := map[string]bool{}
+	for _, spec := range provider.started()[0].Tools {
+		offered[spec.Name] = true
+	}
+	mcpOnly := 0
+	for _, tool := range registry.List() {
+		if tool.MCPOnly {
+			mcpOnly++
+		}
+		if tool.MCPOnly == offered[tool.Name] {
+			t.Errorf("%s: MCPOnly = %v, offered to the model = %v", tool.Name, tool.MCPOnly, offered[tool.Name])
+		}
+	}
+	for _, name := range []string{"list_comments", "reply_to_comment", "resolve_comment"} {
+		if offered[name] {
+			t.Errorf("%s is offered to the model", name)
+		}
+	}
+	if mcpOnly != 3 || len(offered) != len(registry.List())-3 {
+		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
+	}
+}

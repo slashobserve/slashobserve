@@ -78,13 +78,8 @@ func (a *app) dashboardsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dashboards",
 		Short: "List and inspect dashboards",
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return usagef("unknown command %q for %s", text(args[0]), cmd.CommandPath())
-			}
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Args:  groupArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(a.listCommand(), a.showCommand(), a.versionsCommand())
 	return cmd
