@@ -1970,6 +1970,42 @@ expect_proxy_error() {
   fi
 }
 
+preview_body() {
+  local dashboard_id="$1" patch="$2" panel_id="${3:-p_up}"
+  python3 - "$FIXTURES/proxy-dashboard.json" "$FIXTURES/$patch" "$dashboard_id" "$panel_id" "$TMP/preview.request" <<'PY'
+import json
+import sys
+
+dashboard, patch, dashboard_id, panel_id, out = sys.argv[1:]
+panel = next(p for p in json.load(open(dashboard))["spec"]["panels"] if p["id"] == "p_up")
+panel.update(json.load(open(patch)))
+body = {
+    "dashboard_id": dashboard_id,
+    "version": 1,
+    "panel_id": panel_id,
+    "panel": panel,
+    "from": "now-15m",
+    "to": "now",
+    "max_data_points": 60,
+    "variables": {"n": ["1"]},
+}
+json.dump(body, open(out, "w"))
+PY
+}
+
+preview_call() {
+  local uid="$1"
+  shift
+  local out
+  out="$(command curl -sS --max-time 90 -o "$TMP/preview.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' "$@" --data-binary "@$TMP/preview.request" "$BASE_URL/api/v1/datasources/$uid/preview")"
+  cat "$TMP/preview.body" >>"$TMP/proxy-bodies.txt"
+  printf '%s' "$out"
+}
+
+preview_as_user() {
+  preview_call "$@" -b "$TMP/api-jar" -H "Origin: $BASE_URL"
+}
+
 urlencode() {
   local text="$1" i char out=""
   local LC_ALL=C
@@ -2251,6 +2287,69 @@ proxy_suite() {
     fail "an adhoc filter narrows a Prometheus query ($out: $others: $(cat "$TMP/api.body"))"
   fi
   pass "an adhoc filter narrows every Prometheus query on its datasource"
+
+  preview_body "$id" preview-edited.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/preview.body"; then
+    fail "the draft preview runs an edited panel ($out: $(cat "$TMP/preview.body"))"
+  fi
+  executed_at="$(grep -o '"executed_at":"[^"]*"' "$TMP/preview.body" || true)"
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 200 ]] || [[ -z "$executed_at" ]] || grep -qF "$executed_at" "$TMP/preview.body"; then
+    fail "the repeated draft preview ran again ($out: $executed_at: $(cat "$TMP/preview.body"))"
+  fi
+
+  preview_body "$id" preview-two-queries.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 200 ]] || ! grep -q '"ref":"A"' "$TMP/preview.body" || ! grep -q '"ref":"B"' "$TMP/preview.body"; then
+    fail "a two-query draft returns frames tagged by ref ($out: $(cat "$TMP/preview.body"))"
+  fi
+
+  preview_body "$id" preview-bad-unit.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/preview.body" || ! grep -q '"path":"/panels/' "$TMP/preview.body"; then
+    fail "an invalid draft is refused with Spec issues ($out: $(cat "$TMP/preview.body"))"
+  fi
+
+  preview_body "$id" preview-unbalanced.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"query_invalid"' "$TMP/preview.body" || ! grep -q '"ref":"A"' "$TMP/preview.body"; then
+    fail "a draft with an unbalanced query names the failing ref ($out: $(cat "$TMP/preview.body"))"
+  fi
+
+  preview_body "$id" preview-edited.json no_such_panel
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"panel_not_found"' "$TMP/preview.body"; then
+    fail "a draft for an unknown panel ($out: $(cat "$TMP/preview.body"))"
+  fi
+  preview_body "$id" preview-edited.json
+  out="$(preview_as_user ch)"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/preview.body" || ! grep -q "the panel's datasource must be ch" "$TMP/preview.body"; then
+    fail "a Prometheus draft previewed on another datasource ($out: $(cat "$TMP/preview.body"))"
+  fi
+  preview_body "$id" preview-query-override.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/preview.body" || ! grep -q 'every query of the panel must use datasource prom' "$TMP/preview.body"; then
+    fail "a draft with a query on another datasource ($out: $(cat "$TMP/preview.body"))"
+  fi
+  preview_body "$id" preview-edited.json
+  out="$(preview_as_user nope)"
+  [[ "$out" == 404 ]] || fail "a draft previewed on an unknown datasource ($out: $(cat "$TMP/preview.body"))"
+
+  preview_body "$id" preview-tight.json
+  out="$(preview_as_user prom_tight)"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"limit_exceeded"' "$TMP/preview.body"; then
+    fail "a draft over the series limit ($out: $(cat "$TMP/preview.body"))"
+  fi
+
+  preview_body "$id" preview-edited.json
+  out="$(preview_call prom -H "Authorization: Bearer $API_TOKEN")"
+  if [[ "$out" != 403 ]] || ! grep -q '"code":"user_session_required"' "$TMP/preview.body"; then
+    fail "a service-account key cannot preview a draft ($out: $(cat "$TMP/preview.body"))"
+  fi
+  out="$(preview_call prom)"
+  [[ "$out" == 401 ]] || fail "a draft preview without credentials ($out: $(cat "$TMP/preview.body"))"
+  pass "the draft preview runs an unsaved panel for a signed-in user, uncached and limited"
 
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/proxy-bodies.txt" || true)"
   [[ -z "$leak" ]] || fail "query proxy responses expose connection details ($leak)"

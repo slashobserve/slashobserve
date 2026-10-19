@@ -89,12 +89,6 @@ type conflictJSON struct {
 	LatestVersion int    `json:"latest_version"`
 }
 
-type invalidSpecJSON struct {
-	Error  string       `json:"error"`
-	Code   string       `json:"code"`
-	Issues []spec.Issue `json:"issues"`
-}
-
 func newAuthorJSON(a Author) authorJSON {
 	return authorJSON(a)
 }

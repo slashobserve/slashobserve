@@ -1,0 +1,3 @@
+{
+  "queries": [{ "query": "sum(rate(up[5m])" }]
+}

@@ -482,6 +482,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run an unsaved data panel placed into a saved dashboard version and return its frames.
+         * @description The draft replaces the panel `panel_id` of the given version, the result is validated as a whole like a save (the draft must keep the id `panel_id` and name the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows). Only signed-in users may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`, and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default. The response has the shape of panel data, with `meta.cached` always false.
+         */
+        post: operations["previewDraftPanel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/{uid}/metrics": {
         parameters: {
             query?: never;
@@ -2322,6 +2344,114 @@ export interface operations {
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
             504: components["responses"]["QueryTimeout"];
+        };
+    };
+    previewDraftPanel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    dashboard_id: string;
+                    version: number;
+                    panel_id: string;
+                    /** @description The draft panel, in the Spec's panel shape. */
+                    panel: {
+                        [key: string]: unknown;
+                    };
+                    from?: string;
+                    to?: string;
+                    /** @default 1000 */
+                    max_data_points?: number;
+                    variables?: {
+                        [key: string]: string[];
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description The frames the draft's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation, the draft is not a data panel, or its id does not match the request, or its datasource or any query's datasource is not the one in the path. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in user; the code is `user_session_required`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The datasource, dashboard or version does not exist (`not_found`), or the version has no panel `panel_id` (`panel_not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The draft fails Spec validation (`invalid_spec` with `issues`), or one of its queries or variables cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_failed` or `variable_empty`, with the failing query's `ref` when one query failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request, including a datasource call that failed without a classified cause. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the draft's 15 second query timeout, or the request did not finish within 20 seconds; `ref` names the failing query when one query timed out. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
         };
     };
     listDatasourceMetrics: {

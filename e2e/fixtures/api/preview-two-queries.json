@@ -1,0 +1,3 @@
+{
+  "queries": [{ "query": "count(up)" }, { "ref": "B", "query": "count(up) * 3" }]
+}

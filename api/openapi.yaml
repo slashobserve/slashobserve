@@ -56,6 +56,8 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
   /datasources/{uid}/lint:
     $ref: "./paths/queryproxy.yaml#/datasources-uid-lint"
+  /datasources/{uid}/preview:
+    $ref: "./paths/preview.yaml#/datasources-uid-preview"
   /datasources/{uid}/metrics:
     $ref: "./paths/names.yaml#/datasources-uid-metrics"
   /datasources/{uid}/labels:

@@ -228,6 +228,7 @@ type harness struct {
 	h      *Handler
 	router *gin.Engine
 	ds     *fakeDatasource
+	other  *fakeDatasource
 	specs  *fakeSpecs
 	runner *queryproxy.Runner
 	id     pgtype.UUID
@@ -236,10 +237,38 @@ type harness struct {
 
 func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 	t.Helper()
+	return buildHarness(t, nil, opts...)
+}
+
+func newPreviewHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
+	t.Helper()
+	hn := buildHarness(t, &fakeDatasource{}, opts...)
+	hn.specs.known[specKey{id: hn.id, version: 1}] = previewDashboard()
+	return hn
+}
+
+func previewDashboard() *spec.Dashboard {
+	return &spec.Dashboard{
+		SpecVersion: spec.Version,
+		Title:       "preview",
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
+		Variables:   []spec.Variable{{Name: "job", Type: spec.QueryVariable, Datasource: "prom", Query: "label_values(up, job)"}},
+		Panels: []spec.Panel{
+			{ID: "p_ts", Type: spec.Timeseries, Title: "ts", Datasource: "prom", GridPos: spec.GridPos{W: 12, H: 8}, Queries: []spec.Query{{Query: `up{job="$job"}`}}},
+		},
+	}
+}
+
+func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.RunnerOption) *harness {
+	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(logs, nil))
 	ds := &fakeDatasource{}
-	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: ds})
+	instances := []datasource.Instance{{UID: "prom", Datasource: ds}}
+	if other != nil {
+		instances = append(instances, datasource.Instance{UID: "other", Datasource: other})
+	}
+	registry, err := datasource.NewRegistry(logger, instances...)
 	if err != nil {
 		t.Fatalf("NewRegistry: %v", err)
 	}
@@ -259,10 +288,10 @@ func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 		if email == "" {
 			email = principal + "@example.com"
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{ID: principal, Email: email, Name: principal}))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal}))
 	})
 	h.Register(api)
-	return &harness{t: t, h: h, router: router, ds: ds, specs: specs, runner: runner, id: id, logs: logs}
+	return &harness{t: t, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}
 }
 
 func (hn *harness) dashboardPath(suffix string) string {
@@ -304,6 +333,30 @@ func (hn *harness) heldSlots() int {
 		total += n
 	}
 	return total
+}
+
+func (hn *harness) previewAs(kind auth.PrincipalKind, uid string, edit func(*spec.Panel)) *httptest.ResponseRecorder {
+	hn.t.Helper()
+	panel := previewDashboard().Panels[0]
+	if edit != nil {
+		edit(&panel)
+	}
+	body, err := json.Marshal(map[string]any{
+		"dashboard_id": hn.id.String(),
+		"version":      1,
+		"panel_id":     "p_ts",
+		"panel":        panel,
+		"from":         "1760000000123",
+		"to":           "1760021600456",
+		"variables":    map[string][]string{"job": {"api"}},
+	})
+	if err != nil {
+		hn.t.Fatalf("marshal preview body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datasources/"+uid+"/preview", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Kind", string(kind))
+	return hn.serve(req, "alice")
 }
 
 type errorBody struct {
@@ -374,6 +427,26 @@ func holdPrincipalSlots(t *testing.T, hn *harness, principal string) {
 			t.Fatal("could not fill the principal's slots")
 		}
 		t.Cleanup(release)
+	}
+}
+
+func TestPreviewRefusesAQueryOverridingTheDatasource(t *testing.T) {
+	hn := newPreviewHarness(t)
+	rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) {
+		p.Queries = append(p.Queries, spec.Query{Query: "up", Datasource: "other"})
+	})
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got := decodeError(t, rec).Error; got != "every query of the panel must use datasource prom" {
+		t.Fatalf("message = %q", got)
+	}
+	if ranges, _, _, _ := hn.other.counts(); ranges != 0 {
+		t.Fatalf("the overriding datasource ran %d queries", ranges)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+		t.Fatalf("the path's datasource ran %d queries", ranges)
+	}
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d slots still held", held)
 	}
 }
 
@@ -589,6 +662,11 @@ func TestNinthConcurrentRequestIsRefusedWithRetryAfter(t *testing.T) {
 	}
 	expectError(t, hn.get(hn.valuesPath("job", window), "alice"), http.StatusTooManyRequests, "too_many_requests")
 	expectError(t, hn.lintAs("alice", "prom", `{"query":"up"}`), http.StatusTooManyRequests, "too_many_requests")
+	rec = hn.previewAs(auth.KindUser, "prom", nil)
+	expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")
+	if got := rec.Header().Get("Retry-After"); got != "1" {
+		t.Fatalf("preview Retry-After = %q, want 1", got)
+	}
 
 	close(release)
 	wg.Wait()
@@ -1130,6 +1208,120 @@ func frameRefs(t *testing.T, body dataResponse) []string {
 		refs[i] = f.Ref
 	}
 	return refs
+}
+
+func TestPreviewRunsWithTheDraftLimitsAndIsNeverCached(t *testing.T) {
+	hn := newPreviewHarness(t)
+	first := decodeData(t, hn.previewAs(auth.KindUser, "prom", nil))
+	if first.Meta.Cached {
+		t.Fatal("the first preview reports cached")
+	}
+	if got := hn.ds.lastQuery().Limits; got != queryproxy.DraftLimits {
+		t.Fatalf("limits = %+v, want %+v", got, queryproxy.DraftLimits)
+	}
+	second := decodeData(t, hn.previewAs(auth.KindUser, "prom", nil))
+	if second.Meta.Cached {
+		t.Fatal("the second preview reports cached")
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 2 {
+		t.Fatalf("%d upstream range queries for 2 identical previews, want 2", ranges)
+	}
+}
+
+func TestPreviewIsRefusedForNonUsersWithoutTakingASlot(t *testing.T) {
+	hn := newPreviewHarness(t)
+	holdPrincipalSlots(t, hn, "alice")
+	for _, kind := range []auth.PrincipalKind{auth.KindServiceAccount, ""} {
+		expectError(t, hn.previewAs(kind, "prom", nil), http.StatusForbidden, "user_session_required")
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+		t.Fatalf("%d upstream range queries for refused previews", ranges)
+	}
+	if held := hn.heldSlots(); held != maxInFlightPerPrincipal {
+		t.Fatalf("%d slots held, want only the %d the test holds", held, maxInFlightPerPrincipal)
+	}
+}
+
+func TestPreviewRejectsMalformedIdentifiersAndVariableNames(t *testing.T) {
+	hn := newPreviewHarness(t)
+	valid := hn.id.String()
+	tests := []struct {
+		name    string
+		body    string
+		message string
+	}{
+		{"misplaced dashes", `"dashboard_id":"` + valid[:7] + "-" + valid[8:9] + valid[7:8] + valid[10:] + `","version":1`, "dashboard_id must be a UUID"},
+		{"no dashes", `"dashboard_id":"` + strings.ReplaceAll(valid, "-", "") + `","version":1`, "dashboard_id must be a UUID"},
+		{"empty variable name", `"dashboard_id":"` + valid + `","version":1,"variables":{"":["a"],"zz":[]}`, "variables needs non-empty names"},
+		{"first empty variable by name", `"dashboard_id":"` + valid + `","version":1,"variables":{"b":[],"a":[]}`, "variables.a needs at least one value"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{` + tc.body + `,"panel_id":"p_ts","panel":{}}`
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/datasources/prom/preview", strings.NewReader(body))
+			req.Header.Set("X-Kind", string(auth.KindUser))
+			rec := hn.serve(req, "alice")
+			expectError(t, rec, http.StatusBadRequest, "invalid_request")
+			if got := decodeError(t, rec).Error; got != tc.message {
+				t.Fatalf("message = %q, want %q", got, tc.message)
+			}
+		})
+	}
+}
+
+func TestPreviewLogsEachServerFailureOnce(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		msg    string
+		setup  func(hn *harness)
+	}{
+		{
+			name:   "frame conversion",
+			status: http.StatusInternalServerError,
+			msg:    "convert panel frames",
+			setup: func(hn *harness) {
+				hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+					return []datasource.Frame{{Fields: []datasource.Field{{Name: "Time", Type: datasource.FieldTime, Values: []any{"not a time"}}}}}, nil
+				}
+			},
+		},
+		{
+			name:   "datasource panic",
+			status: http.StatusInternalServerError,
+			msg:    "datasource call panicked",
+			setup:  func(hn *harness) { hn.ds.panicText = map[string]bool{"boom": true} },
+		},
+		{
+			name:   "version load",
+			status: http.StatusInternalServerError,
+			msg:    "load dashboard version",
+			setup:  func(hn *harness) { hn.specs.err = errors.New("storage broke") },
+		},
+		{
+			name:   "unavailable datasource",
+			status: http.StatusBadGateway,
+			msg:    "draft preview failed",
+			setup:  func(hn *harness) { hn.ds.failText = map[string]error{"boom": datasource.ErrUnavailable} },
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hn := newPreviewHarness(t)
+			tc.setup(hn)
+			rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) { p.Queries[0].Query = "boom" })
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d (body %s)", rec.Code, tc.status, rec.Body.String())
+			}
+			logs := hn.logs.String()
+			if got := strings.Count(logs, "level=ERROR"); got != 1 {
+				t.Fatalf("%d error log lines, want 1: %s", got, logs)
+			}
+			if !strings.Contains(logs, "msg=\""+tc.msg+"\"") {
+				t.Fatalf("log lacks %q: %s", tc.msg, logs)
+			}
+		})
+	}
 }
 
 func TestMultiQueryPanelReturnsFramesTaggedByQueryRefInPanelOrder(t *testing.T) {

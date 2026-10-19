@@ -1,0 +1,4 @@
+{
+  "datasource": "prom_tight",
+  "queries": [{ "query": "count by (__name__) ({__name__=~\".+\"})" }]
+}

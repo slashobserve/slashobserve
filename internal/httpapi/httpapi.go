@@ -16,12 +16,23 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const maxCursorMicros = 253402300799999999
 
 func AbortError(c *gin.Context, status int, code, message string) {
 	c.AbortWithStatusJSON(status, gin.H{"error": message, "code": code})
+}
+
+type InvalidSpecBody struct {
+	Error  string       `json:"error"`
+	Code   string       `json:"code"`
+	Issues []spec.Issue `json:"issues"`
+}
+
+func AbortInvalidSpec(c *gin.Context, message string, issues []spec.Issue) {
+	c.AbortWithStatusJSON(http.StatusUnprocessableEntity, InvalidSpecBody{Error: message, Code: "invalid_spec", Issues: issues})
 }
 
 func DecodeBody(c *gin.Context, dst any, limit int64) bool {

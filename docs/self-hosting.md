@@ -575,6 +575,7 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.
   The browser gets panel data from the server's query proxy, which runs only the queries stored in a saved dashboard and rejects any query text sent to it with `403 query_not_in_spec`.
+  The one exception is the draft preview: a signed-in user can run an unsaved panel's queries before saving, under the same limits as the agent's tools, and service-account keys cannot.
 - **Every query is bounded.**
   Whatever a prompt or a client asks for, each query has a timeout and limits on series, points and rows, applied on the server.
   ClickHouse is queried only as a read-only user.
