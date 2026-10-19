@@ -90,6 +90,25 @@ type DashboardVersion struct {
 	DatasourceUids []string
 }
 
+type Import struct {
+	ID              pgtype.UUID
+	DashboardID     pgtype.UUID
+	Version         int32
+	Source          string
+	ImporterVersion int32
+	Original        []byte
+	Mapping         []byte
+	Summary         []byte
+	Datasources     []byte
+	Report          []byte
+	Title           string
+	CreatedByKind   string
+	CreatedByID     pgtype.UUID
+	CreatedByName   string
+	CreatedByEmail  pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+}
+
 type Instance struct {
 	Singleton bool
 	ID        pgtype.UUID
