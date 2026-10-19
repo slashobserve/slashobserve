@@ -1713,7 +1713,7 @@ mcp_expect() {
 
 mcp_suite() {
   api_token
-  local out id name leak label args panel cid wid
+  local out id name leak label args panel cid wid vid
   local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_comments list_dashboards list_datasources
     list_label_values list_labels list_metrics query_instant query_range reply_to_comment resolve_comment sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
@@ -1876,6 +1876,14 @@ mcp_suite() {
   mcp_tool resolve_comment "{\"comment_id\":\"$wid\",\"version\":99}"
   if [[ "$MCP_ERROR" != true ]] || ! grep -q 'unknown_version' "$TMP/mcp.body"; then
     fail "resolve_comment with an unknown version ($(cat "$TMP/mcp.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'Please check p99 on version 2')")"
+  [[ "$out" == 201 ]] || fail "create a comment on version 2 for MCP ($out: $(cat "$TMP/api.body"))"
+  vid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$vid" ]] || fail "no comment id in the version 2 comment response ($(cat "$TMP/api.body"))"
+  mcp_tool resolve_comment "{\"comment_id\":\"$vid\",\"version\":1}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body" || ! grep -q 'version must be at least 2' "$TMP/mcp.body"; then
+    fail "resolve_comment with a version before the thread's ($(cat "$TMP/mcp.body"))"
   fi
   mcp_tool reply_to_comment '{"comment_id":"x","body":"hello"}'
   if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body"; then
