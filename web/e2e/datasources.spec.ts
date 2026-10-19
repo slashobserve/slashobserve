@@ -42,6 +42,9 @@ test("lists the configured datasources", async ({ page }) => {
 })
 
 test("never shows connection details", async ({ page }) => {
+  const listed = page.waitForResponse((response) =>
+    isList(new URL(response.url()))
+  )
   await openDatasources(page)
   await expect(datasourceRow(page, "prom")).toBeVisible()
   await expect(
@@ -50,6 +53,16 @@ test("never shows connection details", async ({ page }) => {
     )
   ).toBeVisible()
 
+  const body = await (await listed).text()
+  await page.evaluate(() => {
+    document
+      .querySelector('a[href$="#datasources-file"]')
+      ?.removeAttribute("href")
+    for (const element of document.querySelectorAll("[xmlns]")) {
+      element.removeAttribute("xmlns")
+    }
+  })
+  const html = await page.evaluate(() => document.body.outerHTML)
   const text = await page.locator("body").innerText()
   for (const forbidden of [
     "http://",
@@ -60,6 +73,50 @@ test("never shows connection details", async ({ page }) => {
     "slashobserve_ro",
   ]) {
     expect(text).not.toContain(forbidden)
+    expect(body).not.toContain(forbidden)
+    expect(html).not.toContain(forbidden)
+  }
+})
+
+test("keeps the rows when a refetch fails", async ({ page, consoleErrors }) => {
+  await page.clock.install()
+  let failing = false
+  let failures = 0
+  await page.route(isList, (route) => {
+    if (!failing) return route.fallback()
+    failures++
+    return route.fulfill({
+      status: 500,
+      json: { error: "internal error", code: "internal" },
+    })
+  })
+  await openDatasources(page)
+  await expect(datasourceRow(page, "prom")).toBeVisible()
+
+  failing = true
+  await expect
+    .poll(async () => {
+      await page.clock.fastForward(30_000)
+      return failures
+    })
+    .toBeGreaterThanOrEqual(3)
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const channel = new MessageChannel()
+        channel.port1.onmessage = () => resolve()
+        channel.port2.postMessage(null)
+      })
+  )
+
+  await expect(datasourceRow(page, "prom")).toBeVisible()
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  const logged = consoleErrors.filter((message) =>
+    message.includes("status of 500")
+  )
+  expect(logged.length).toBeGreaterThanOrEqual(3)
+  for (const message of logged) {
+    consoleErrors.splice(consoleErrors.indexOf(message), 1)
   }
 })
 
