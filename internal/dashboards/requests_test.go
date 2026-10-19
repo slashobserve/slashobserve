@@ -273,6 +273,24 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	}
 }
 
+func TestHasPanelLooksInTheGivenVersionAndMapsAMissingDashboard(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t, "rps", "errors")
+
+	for panel, want := range map[string]bool{"errors": true, "rps": true, "gone": false} {
+		if got, err := r.service.HasPanel(t.Context(), dash, 1, panel); err != nil || got != want {
+			t.Errorf("HasPanel(%q) = %v, %v, want %v", panel, got, err, want)
+		}
+	}
+	if _, err := r.service.HasPanel(t.Context(), dash, 2, "rps"); !errors.Is(err, revisions.ErrDashboardNotFound) {
+		t.Errorf("a missing version gave %v, want revisions.ErrDashboardNotFound", err)
+	}
+	missing := mustParse(t, "00000000-0000-4000-8000-000000000000")
+	if _, err := r.service.HasPanel(t.Context(), missing, 1, "rps"); !errors.Is(err, revisions.ErrDashboardNotFound) {
+		t.Errorf("a missing dashboard gave %v, want revisions.ErrDashboardNotFound", err)
+	}
+}
+
 func mustParse(t *testing.T, s string) pgtype.UUID {
 	t.Helper()
 	id, err := db.ParseUUID(s)

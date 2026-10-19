@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -201,6 +202,9 @@ func (s *Service) VersionSpec(ctx context.Context, id pgtype.UUID, version int) 
 
 func (s *Service) HasPanel(ctx context.Context, id pgtype.UUID, version int, panelID string) (bool, error) {
 	d, err := s.VersionSpec(ctx, id, version)
+	if errors.Is(err, ErrNotFound) {
+		return false, revisions.ErrDashboardNotFound
+	}
 	if err != nil {
 		return false, err
 	}
