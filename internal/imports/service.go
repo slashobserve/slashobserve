@@ -107,6 +107,9 @@ func (s *Service) Preview(_ context.Context, req Request) (*grafana.Result, erro
 }
 
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
+	if err := checkLimits(req); err != nil {
+		return Imported{}, err
+	}
 	release, ok := s.acquire(string(by.Kind) + ":" + by.ID)
 	if !ok {
 		return Imported{}, ErrBusy
@@ -357,6 +360,16 @@ func insertParams(req Request, cols columns, report grafana.Report, dash dashboa
 		CreatedByName:   by.Name,
 		CreatedByEmail:  pgtype.Text{String: by.Email, Valid: by.Email != ""},
 	}, nil
+}
+
+func checkLimits(req Request) error {
+	if len(req.JSON) > MaxBodyBytes {
+		return &grafana.InputError{Code: "too_large", Message: fmt.Sprintf("the dashboard JSON is %d bytes; the limit is %d", len(req.JSON), MaxBodyBytes)}
+	}
+	if len(req.Mapping) > MaxMappingEntries {
+		return &grafana.InputError{Code: "invalid_mapping", Message: fmt.Sprintf("the mapping has %d entries; the limit is %d", len(req.Mapping), MaxMappingEntries)}
+	}
+	return nil
 }
 
 func mappingOf(req Request) map[string]string {

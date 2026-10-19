@@ -407,3 +407,21 @@ func TestImportRefusesANULInADatasourceName(t *testing.T) {
 	}
 	assertNothingSaved(t, r)
 }
+
+func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
+	r := newRig(t)
+	var input *grafana.InputError
+	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
+	if !errors.As(err, &input) || input.Code != "too_large" {
+		t.Fatalf("large body: err = %v, want InputError too_large", err)
+	}
+	mapping := map[string]string{}
+	for i := range imports.MaxMappingEntries + 1 {
+		mapping[fmt.Sprintf("key%d", i)] = "prom"
+	}
+	_, err = r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
+	if !errors.As(err, &input) || input.Code != "invalid_mapping" {
+		t.Fatalf("large mapping: err = %v, want InputError invalid_mapping", err)
+	}
+	assertNothingSaved(t, r)
+}
