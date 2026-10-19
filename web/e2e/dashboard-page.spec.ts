@@ -115,16 +115,175 @@ test("shows the open comment count on the toggle and the panel", async ({
   await expectPanelsReady(page)
 
   const toggle = page.getByRole("button", {
-    name: "Show activity, 1 open comment",
+    name: "Activity, 1 open comment",
   })
   await expect(toggle).toBeVisible()
   await expect(toggle).toHaveText("1")
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
+  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+  await expect(
+    page.getByRole("complementary", { name: "Activity" })
+  ).toBeVisible()
   await expect(
     panel(page, rpsTitle).getByRole("button", {
       name: `1 open comment on ${rpsTitle}`,
     })
   ).toBeVisible()
+})
+
+test("keeps panel editing reachable", async ({ page, request }) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity).toBeVisible()
+  const activityBox = await activity.boundingBox()
+  expect(activityBox?.width).toBeGreaterThan(380)
+  expect(activityBox?.width).toBeLessThan(420)
+
+  await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
+  await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
+  const editor = page.getByRole("complementary", {
+    name: `Edit ${rpsTitle}`,
+  })
+  await expect(editor).toBeVisible()
+  await expect(editor.locator(".cm-editor")).toBeVisible()
+  const editBox = await editor.boundingBox()
+  expect(editBox?.width).toBeGreaterThan(700)
+  expect(editBox?.width).toBeLessThan(800)
+
+  await editor.getByRole("button", { name: "Back to activity" }).click()
+  await expect(
+    page.getByRole("complementary", { name: "Activity" })
+  ).toBeVisible()
+  const backBox = await page
+    .getByRole("complementary", { name: "Activity" })
+    .boundingBox()
+  expect(backBox?.width).toBeGreaterThan(380)
+  expect(backBox?.width).toBeLessThan(420)
+})
+
+test("keeps the composer inside the window", async ({ page, request }) => {
+  const { id } = await createPageDashboard(request)
+  for (let index = 1; index <= 20; index++) {
+    await createComment(
+      request,
+      id,
+      1,
+      "rps",
+      `Scroll comment ${index}: the card body scrolls, the composer stays put.`
+    )
+  }
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity.getByText(/^Scroll comment 20:/)).toBeVisible()
+  await expect(activity.getByText(/^Scroll comment 1:/)).not.toBeInViewport()
+  const composer = activity.getByRole("textbox", {
+    name: "Comment or request",
+  })
+  const box = await composer.boundingBox()
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(800)
+  const cardBox = await activity.boundingBox()
+  expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThanOrEqual(800)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight
+    )
+  ).toBe(true)
+})
+
+test("clears a posted draft after the dashboard was left", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  let release: () => void = () => undefined
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(`**/api/v1/dashboards/${id}/comments`, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback()
+    await held
+    return route.fallback()
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDashboard(page, id)
+
+  const composer = () =>
+    page
+      .getByRole("complementary", { name: "Activity" })
+      .getByRole("textbox", { name: "Comment or request" })
+  await composer().fill("Posted while leaving")
+  await page.getByRole("button", { name: "Add comment" }).click()
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Dashboards" })
+    .click()
+  await expect(page).toHaveURL("/dashboards")
+
+  const posted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/dashboards/${id}/comments`)
+  )
+  release()
+  expect((await posted).status()).toBe(201)
+
+  await page.goBack()
+  await expect(composer()).toBeVisible()
+  await expect(composer()).toHaveValue("")
+})
+
+test("explains why Edit layout is unavailable while activity is open", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 1000, height: 800 })
+  await openDashboard(page, id)
+
+  await moreButton(page).click()
+  const item = page.getByRole("menuitem", { name: /^Edit layout/ })
+  await expect(item).toHaveAttribute("aria-disabled", "true")
+  await expect(item).toHaveText("Edit layout (close activity first)")
+  await page.keyboard.press("Escape")
+
+  await page.getByRole("button", { name: "Activity", exact: true }).click()
+  await moreButton(page).click()
+  await expect(
+    page.getByRole("menuitem", { name: "Edit layout" })
+  ).not.toHaveAttribute("aria-disabled", "true")
+})
+
+test("resizes the activity card from the keyboard and remembers its width", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDashboard(page, id)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  const grip = page.getByRole("separator", { name: "Resize panel" })
+  await grip.focus()
+  await page.keyboard.press("Shift+ArrowLeft")
+  await expect(grip).toHaveAttribute("aria-valuenow", "464")
+  expect((await activity.boundingBox())?.width).toBeCloseTo(464, 0)
+
+  await page.reload()
+  await expect(
+    page.getByRole("separator", { name: "Resize panel" })
+  ).toHaveAttribute("aria-valuenow", "464")
+
+  await page.getByRole("separator", { name: "Resize panel" }).focus()
+  await page.keyboard.press("Enter")
+  await expect(
+    page.getByRole("separator", { name: "Resize panel" })
+  ).toHaveAttribute("aria-valuenow", "400")
 })
 
 test("fits a phone", async ({ page, request }) => {

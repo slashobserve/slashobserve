@@ -6,7 +6,6 @@ import { toast } from "sonner"
 import { ApiError } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
-import { isVersionApplied, versionToastId } from "@/revisions/applied-toast"
 
 import { latestDashboardQuery, type DashboardEnvelope } from "../queries"
 import {
@@ -22,6 +21,10 @@ import {
 } from "./reconnect"
 
 export type LiveStatus = "connecting" | "live" | "reconnecting"
+
+function versionToastId(dashboardId: string, version: number): string {
+  return `version-${dashboardId}-${version}`
+}
 
 const eventNames = [
   "ready",
@@ -125,7 +128,6 @@ export function useDashboardEvents(
       const description = describeVersion(event) || undefined
       const pinned = latest.current.pinnedVersion
       const id = versionToastId(dashboardId, event.version)
-      if (isVersionApplied(id)) return
       if (pinned === undefined) {
         toastIds.add(id)
         toast(`Updated to version ${event.version}`, { id, description })

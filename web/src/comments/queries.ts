@@ -11,7 +11,7 @@ import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys, observeKeys } from "@/api/keys"
+import { dashboardKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 export type Comment = components["schemas"]["Comment"]
@@ -137,44 +137,10 @@ function insertComment(queryClient: QueryClient, id: string, comment: Comment) {
   })
 }
 
-export function useCreateComment(id: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: {
-      version: number
-      panelId: string
-      body: string
-      requestRevision: boolean
-    }) =>
-      api
-        .POST("/dashboards/{id}/comments", {
-          params: { path: { id } },
-          body: {
-            version: input.version,
-            panel_id: input.panelId,
-            body: input.body,
-            request_revision: input.requestRevision,
-          },
-        })
-        .then(unwrap)
-        .then((body) => body.comment),
-    onSuccess: (comment) => {
-      insertComment(queryClient, id, comment)
-      if (comment.revision !== null) {
-        void queryClient.invalidateQueries({
-          queryKey: dashboardKeys.revisions(id),
-        })
-        void queryClient.invalidateQueries({
-          queryKey: observeKeys.mineAll(),
-        })
-      }
-    },
-  })
-}
-
 export function useAddComment(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: dashboardKeys.posts(id),
     networkMode: "always",
     mutationFn: (
       input: { body: string } & (

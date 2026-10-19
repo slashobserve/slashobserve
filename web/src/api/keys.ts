@@ -52,6 +52,7 @@ export const dashboardKeys = {
   revision: (id: string, revisionId: string) =>
     ["dashboards", id, "revision", revisionId] as const,
   saves: (id: string) => ["dashboards", id, "saves"] as const,
+  posts: (id: string) => ["dashboards", id, "posts"] as const,
 }
 
 export const observeKeys = {

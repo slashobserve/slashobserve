@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
 import { DashboardLoadError } from "@/dashboards/load-error"
@@ -22,6 +22,15 @@ import {
 export const Route = createFileRoute("/_authed/dashboards/$dashboardId/")({
   validateSearch: (raw: Record<string, unknown>): DashboardSearchParams =>
     searchFromState(validateDashboardSearch(raw)),
+  beforeLoad: ({ location, params }) => {
+    if (!("tab" in location.search)) return
+    throw redirect({
+      to: "/dashboards/$dashboardId",
+      params,
+      search: searchFromState(validateDashboardSearch(location.search)),
+      replace: true,
+    })
+  },
   loaderDeps: ({ search }) => ({
     version: validateDashboardSearch(search).version,
   }),

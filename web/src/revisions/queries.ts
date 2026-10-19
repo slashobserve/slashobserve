@@ -1,8 +1,6 @@
-import { useMemo } from "react"
 import {
   queryOptions,
   useMutation,
-  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -12,20 +10,16 @@ import { api } from "@/api/client"
 import { ApiError, unwrap } from "@/api/errors"
 import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { latestDashboardQuery } from "@/dashboards/queries"
-import { agentOffMessage, sentence, useAgentInfo } from "@/observe/queries"
+import { agentOffMessage, sentence } from "@/observe/queries"
 
 export type Revision = components["schemas"]["Revision"]
 export type RevisionStatusValue = Revision["status"]
-export type RevisionProgress = Pick<Revision, "id" | "status"> &
-  Partial<Pick<Revision, "attempts" | "result_version" | "error">>
 
 export const maxQueuedRevisions = 5
 export const maxPromptLength = 4000
 
 const waitingText = `This dashboard already has ${maxQueuedRevisions} revisions waiting.`
 export const tooManyRevisionsText = `${waitingText} Try again when one finishes.`
-export const tooManyRevisionsCommentText = `${waitingText} Your comment was not saved; try again when one finishes.`
 
 const pageSize = 50
 const safetyPollMs = 5000
@@ -52,72 +46,8 @@ export function revisionsQuery(id: string) {
   })
 }
 
-export function revisionQuery(id: string, revisionId: string) {
-  return queryOptions({
-    queryKey: dashboardKeys.revision(id, revisionId),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/dashboards/{id}/revisions/{revision_id}", {
-          params: { path: { id, revision_id: revisionId } },
-          signal,
-        })
-        .then(unwrap)
-        .then((body) => body.revision),
-    staleTime: (query) =>
-      query.state.data && !isActive(query.state.data.status) ? Infinity : 0,
-    refetchInterval: (query) =>
-      query.state.data && isActive(query.state.data.status)
-        ? safetyPollMs
-        : false,
-  })
-}
-
 export function useRevisions(id: string) {
   return useQuery(revisionsQuery(id))
-}
-
-export function useRevisionById(id: string): Map<string, Revision> {
-  const { data } = useRevisions(id)
-  return useMemo(
-    () => new Map((data ?? []).map((revision) => [revision.id, revision])),
-    [data]
-  )
-}
-
-export function useRevisionLookup(
-  id: string,
-  revisionIds: readonly string[]
-): ReadonlyMap<string, Revision> {
-  const list = useRevisions(id)
-  const listed = useRevisionById(id)
-  const missing = list.isSuccess
-    ? revisionIds.filter((revisionId) => !listed.has(revisionId))
-    : []
-  const fetched = useQueries({
-    queries: missing.map((revisionId) => revisionQuery(id, revisionId)),
-    combine: (results) =>
-      results.flatMap((result) => (result.data ? [result.data] : [])),
-  })
-  return useMemo(
-    () =>
-      new Map([
-        ...fetched.map((revision): [string, Revision] => [
-          revision.id,
-          revision,
-        ]),
-        ...listed,
-      ]),
-    [fetched, listed]
-  )
-}
-
-export function useLatestVersion(id: string): number | undefined {
-  const queryClient = useQueryClient()
-  return useQuery({
-    ...latestDashboardQuery(queryClient, id),
-    staleTime: Infinity,
-    select: (envelope) => envelope.dashboard.latest_version,
-  }).data
 }
 
 export function isAgentUnavailable(error: unknown): boolean {
@@ -143,10 +73,6 @@ export function markAgentUnavailable(queryClient: QueryClient) {
   )
 }
 
-export function useAgentAvailable(): boolean {
-  return useAgentInfo().data?.available !== false
-}
-
 export function describeRevisionError(error: unknown): string {
   if (isTooManyRevisions(error)) return tooManyRevisionsText
   if (isAgentUnavailable(error)) return agentOffMessage
@@ -161,6 +87,7 @@ export function describeRevisionError(error: unknown): string {
 export function useRequestRevision(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: dashboardKeys.posts(id),
     networkMode: "always",
     mutationFn: (input: {
       prompt: string

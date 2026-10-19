@@ -70,11 +70,7 @@ type Problem =
 
 function focusIsFree() {
   const active = document.activeElement
-  return (
-    !active ||
-    active === document.body ||
-    active.closest('[data-slot="sheet-content"]') === null
-  )
+  return !active || active === document.body
 }
 
 function hasCoarsePointer() {

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 
+import { watchPostedDrafts } from "@/activity/activity-store"
 import { setUnauthorizedHandler } from "@/api/client"
 import { createQueryClient } from "@/api/query-client"
 import { refreshSession } from "@/lib/auth"
@@ -11,6 +12,7 @@ import { routeTree } from "./routeTree.gen"
 import "./index.css"
 
 const queryClient = createQueryClient()
+watchPostedDrafts(queryClient)
 
 const router = createRouter({
   routeTree,

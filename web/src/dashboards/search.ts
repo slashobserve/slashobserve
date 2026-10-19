@@ -20,7 +20,7 @@ export type DashboardSearch = {
   refresh?: string
   version?: number
   panel?: string
-  tab?: "query" | "comments"
+  edit?: "query"
   vars: Record<string, string[]>
 }
 
@@ -79,9 +79,11 @@ export function validateDashboardSearch(
   const panel = firstString(raw.panel)
   if (panel !== undefined && panelIdPattern.test(panel)) state.panel = panel
 
-  const tab = firstString(raw.tab)
-  if (tab === "comments" || (tab === "query" && state.panel !== undefined)) {
-    state.tab = tab
+  if (
+    state.panel !== undefined &&
+    (firstString(raw.edit) === "query" || firstString(raw.tab) === "query")
+  ) {
+    state.edit = "query"
   }
 
   for (const key of Object.keys(raw)) {
@@ -103,7 +105,7 @@ export function searchFromState(
   if (state.refresh !== undefined) out.refresh = state.refresh
   if (state.version !== undefined) out.version = state.version
   if (state.panel !== undefined) out.panel = state.panel
-  if (state.tab !== undefined) out.tab = state.tab
+  if (state.edit !== undefined) out.edit = state.edit
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }
@@ -130,7 +132,7 @@ export function dashboardSearchFromBack(
   if (options?.dropVersion) {
     state.version = undefined
     state.panel = undefined
-    state.tab = undefined
+    state.edit = undefined
   }
   return searchFromState(state)
 }

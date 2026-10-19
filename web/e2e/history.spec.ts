@@ -560,11 +560,13 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
     new RegExp(`/dashboards/${id}\\?from=now-1h&version=2$`)
   )
 
-  const back = encodeURIComponent("from=now-1h&version=2&panel=rps&tab=query")
+  const back = encodeURIComponent("from=now-1h&version=2&panel=rps&edit=query")
   await openHistory(page, id, `?back=${back}`)
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/dashboards/${id}\\?from=now-1h&version=2&panel=rps&tab=query$`)
+    new RegExp(
+      `/dashboards/${id}\\?from=now-1h&version=2&panel=rps&edit=query$`
+    )
   )
 
   await openHistory(page, id, `?back=${back}`)
@@ -579,7 +581,7 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
 test("the View links keep the dashboard search", async ({ page, request }) => {
   const { id } = await createHistory(request)
   const back = encodeURIComponent(
-    "from=now-6h&var-pod=checkout-1&version=2&panel=rps&tab=query"
+    "from=now-6h&var-pod=checkout-1&version=2&panel=rps&edit=query"
   )
   await openHistory(page, id, `?back=${back}`)
 

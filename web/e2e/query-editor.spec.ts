@@ -52,7 +52,7 @@ async function createOverview(request: APIRequestContext) {
 }
 
 function sheet(page: Page) {
-  return page.getByRole("dialog")
+  return page.getByRole("complementary", { name: /^Edit / })
 }
 
 async function openFromMenu(page: Page, title: string) {
@@ -106,7 +106,7 @@ test("loads PromQL highlighting", async ({ page, request }) => {
   await openDashboard(page, id)
   await openFromMenu(page, rpsTitle)
 
-  await expect(page).toHaveURL(/panel=rps&tab=query/)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
   const editor = sheet(page).locator(".cm-editor")
   await expect(editor).toBeVisible()
   await expect(sheet(page).locator(".cm-content")).toBeFocused()
@@ -125,7 +125,7 @@ test("loads SQL highlighting", async ({ page, request }) => {
   await openDashboard(page, id)
   await openFromMenu(page, "Log rows by service")
 
-  await expect(page).toHaveURL(/panel=logs&tab=query/)
+  await expect(page).toHaveURL(/panel=logs&edit=query/)
   await expect(sheet(page).locator(".cm-editor")).toBeVisible()
   await expect(
     sheet(page).locator(".cm-content .tok-keyword").first()
@@ -204,17 +204,44 @@ test("closes with Escape and returns focus", async ({ page, request }) => {
   await page.keyboard.press("Escape")
 
   await expect(sheet(page)).toHaveCount(0)
-  await expect(page).not.toHaveURL(/panel=|tab=/)
+  await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(page.locator('[data-panel-menu="rps"]')).toBeFocused()
+})
+
+test("opens from an old link with the query tab", async ({ page, request }) => {
+  const { id } = await createOverview(request)
+  await page.goto(`/dashboards/${id}?panel=logs&tab=query`)
+
+  await expect(sheet(page)).toBeVisible()
+  await expect(page).toHaveURL(/panel=logs&edit=query/)
+  await expect(page).not.toHaveURL(/tab=/)
+  await expect(
+    sheet(page).getByRole("heading", { name: "Edit Log rows by service" })
+  ).toBeVisible()
+  await expect(sheet(page).locator(".cm-editor")).toBeVisible()
+})
+
+test("scopes the activity card from an old comments link", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.goto(`/dashboards/${id}?panel=rps&tab=comments`)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity).toBeVisible()
+  await expect(activity.getByLabel("Panel", { exact: true })).toHaveValue("rps")
+  await expect(page).toHaveURL(/panel=rps/)
+  await expect(page).not.toHaveURL(/tab=|edit=/)
 })
 
 test("opens directly from a link", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?panel=logs&tab=query`)
+  await page.goto(`/dashboards/${id}?panel=logs&edit=query`)
 
   await expect(sheet(page)).toBeVisible()
   await expect(
-    sheet(page).getByRole("heading", { name: "Log rows by service" })
+    sheet(page).getByRole("heading", { name: "Edit Log rows by service" })
   ).toBeVisible()
   const logs = spec.panels.find((item) => item.id === "logs")
   await expect(sheet(page).locator(".cm-content")).toContainText(
@@ -225,7 +252,7 @@ test("opens directly from a link", async ({ page, request }) => {
 test("is read-only on an old version", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
 
   await expect(
     sheet(page).getByText("Open the latest version to edit this query.")
@@ -354,7 +381,7 @@ test("keeps an unsaved query when its panel is deleted in a newer version", asyn
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
   await expect(
-    sheet(page).getByRole("heading", { name: rpsTitle })
+    sheet(page).getByRole("heading", { name: `Edit ${rpsTitle}` })
   ).toBeVisible()
 
   await sheet(page)
@@ -372,7 +399,7 @@ test("keeps editing a draft opened on the latest version pinned when a newer one
   request,
 }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
   const content = sheet(page).locator(".cm-content")
   await expect(content).toHaveAttribute("contenteditable", "true")
   await replaceQuery(page, savedQuery)
@@ -401,7 +428,7 @@ test("turns read-only when a newer version arrives while nothing is edited", asy
   request,
 }) => {
   const { id, spec } = await createOverview(request)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
   const content = sheet(page).locator(".cm-content")
   await expect(content).toHaveAttribute("contenteditable", "true")
 
@@ -429,14 +456,14 @@ test("asks before browser Back leaves an unsaved query", async ({
   await expect(discardDialog(page)).toBeVisible()
   await page.getByRole("button", { name: "Keep editing" }).click()
   await expect(discardDialog(page)).toHaveCount(0)
-  await expect(page).toHaveURL(/panel=rps&tab=query/)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
 
   await page.goBack()
   await expect(discardDialog(page)).toBeVisible()
   await page.getByRole("button", { name: "Discard" }).click()
   await expect(sheet(page)).toHaveCount(0)
-  await expect(page).not.toHaveURL(/panel=|tab=/)
+  await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(page.locator('[data-panel-menu="rps"]')).toBeFocused()
 })
 
@@ -457,7 +484,7 @@ test("confirms Escape once with an unsaved query and keeps or discards the draft
   await page.keyboard.press("Escape")
   await expect(discardDialog(page)).toHaveCount(0)
   await expect(sheet(page)).toBeVisible()
-  await expect(page).toHaveURL(/panel=rps&tab=query/)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
 
   await page.keyboard.press("Escape")
@@ -469,7 +496,7 @@ test("confirms Escape once with an unsaved query and keeps or discards the draft
   await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "Discard" }).click()
   await expect(sheet(page)).toHaveCount(0)
-  await expect(page).not.toHaveURL(/panel=|tab=/)
+  await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(page.locator('[data-panel-menu="rps"]')).toBeFocused()
 })
 
@@ -694,13 +721,45 @@ test("leaves focus where it is when a newer version arrives inside the sheet", a
   await expect(summary).toBeFocused()
 })
 
+test("asks before Edit layout drops an unsaved query draft", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.setViewportSize({ width: 1700, height: 900 })
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  const title = sheet(page).getByRole("textbox", { name: "Title" })
+  await title.fill("Renamed before the layout edit")
+
+  const saveLayout = page.getByRole("button", { name: "Save layout" })
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await expect(discardDialog(page)).toBeVisible()
+  await expect(saveLayout).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Keep editing" }).click()
+  await expect(discardDialog(page)).toHaveCount(0)
+  await expect(saveLayout).toHaveCount(0)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
+  await expect(title).toHaveValue("Renamed before the layout edit")
+
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await expect(discardDialog(page)).toBeVisible()
+  await page.getByRole("button", { name: "Discard" }).click()
+  await expect(saveLayout).toBeVisible()
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(page).not.toHaveURL(/edit=query/)
+})
+
 test("asks before Back drops a draft made after opening the latest version", async ({
   page,
   request,
 }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
   await expect(
     sheet(page).getByText("Open the latest version to edit this query.")
   ).toBeVisible()
@@ -717,7 +776,7 @@ test("asks before Back drops a draft made after opening the latest version", asy
   await page.getByRole("button", { name: "Keep editing" }).click()
   await expect(discardDialog(page)).toHaveCount(0)
   await expect(page).not.toHaveURL(/version=/)
-  await expect(page).toHaveURL(/panel=rps&tab=query/)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
 
   await page.goBack()
@@ -730,23 +789,20 @@ test("asks before Back drops a draft made after opening the latest version", asy
   await expect(sheet(page).locator(".cm-content")).not.toHaveText(savedQuery)
 })
 
-test("does not put a focus ring on the tab when a read-only panel opens", async ({
+test("focuses the heading when a read-only panel opens", async ({
   page,
   request,
 }) => {
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
-  await page.goto(`/dashboards/${id}?version=1&panel=rps&tab=query`)
+  await page.goto(`/dashboards/${id}?version=1&panel=rps&edit=query`)
 
   await expect(
     sheet(page).getByText("Open the latest version to edit this query.")
   ).toBeVisible()
   await expect(sheet(page).locator(".cm-content")).not.toBeFocused()
   await expect(
-    sheet(page).getByRole("tab", { name: "Query" })
-  ).not.toBeFocused()
-  await expect(
-    sheet(page).getByRole("heading", { name: rpsTitle })
+    sheet(page).getByRole("heading", { name: `Edit ${rpsTitle}` })
   ).toBeFocused()
 })
 
@@ -801,7 +857,7 @@ test("ignores a panel link reached with Back during a layout session", async ({
   await nudgeErrorRate(page)
   await page.goBack()
 
-  await expect(page).not.toHaveURL(/panel=|tab=/)
+  await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(sheet(page)).toHaveCount(0)
   await expect(page.getByRole("alertdialog")).toHaveCount(0)
   await expect(page.getByText("Unsaved changes")).toBeVisible()
