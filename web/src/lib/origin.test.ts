@@ -47,6 +47,15 @@ describe("clientDisplayName", () => {
     expect(clientDisplayName("  my-Tool 2 ")).toBe("my-Tool 2")
   })
 
+  it("returns a name that matches an object property as given", () => {
+    expect(clientDisplayName("constructor")).toBe("constructor")
+    expect(clientDisplayName("Constructor")).toBe("Constructor")
+    expect(clientDisplayName("toString")).toBe("toString")
+    expect(clientDisplayName(" valueOf ")).toBe("valueOf")
+    expect(clientDisplayName("hasOwnProperty")).toBe("hasOwnProperty")
+    expect(clientDisplayName("__proto__")).toBe("__proto__")
+  })
+
   it("falls back for an empty or missing name", () => {
     expect(clientDisplayName("")).toBe("MCP client")
     expect(clientDisplayName("   ")).toBe("MCP client")
@@ -69,6 +78,15 @@ describe("madeByLabel", () => {
     expect(madeByLabel(creator({ origin: "mcp" }))).toBe("MCP client, Ada")
   })
 
+  it("keeps an MCP client named like an object property", () => {
+    expect(
+      madeByLabel(creator({ origin: "mcp", origin_client: "constructor" }))
+    ).toBe("constructor, Ada")
+    expect(
+      madeByLabel(creator({ origin: "mcp", origin_client: "__proto__" }))
+    ).toBe("__proto__, Ada")
+  })
+
   it("names the author otherwise", () => {
     expect(madeByLabel(creator({ origin: "web" }))).toBe("Ada")
     expect(madeByLabel(creator({ origin: "cli" }))).toBe("Ada")
@@ -82,6 +100,15 @@ describe("madeByBreadcrumb", () => {
     expect(
       madeByBreadcrumb(creator({ origin: "mcp", origin_client: "cursor" }))
     ).toBe("made by Cursor")
+  })
+
+  it("keeps an MCP client named like an object property", () => {
+    expect(
+      madeByBreadcrumb(creator({ origin: "mcp", origin_client: "toString" }))
+    ).toBe("made by toString")
+    expect(
+      madeByBreadcrumb(creator({ origin: "mcp", origin_client: "__proto__" }))
+    ).toBe("made by __proto__")
   })
 
   it("falls back for an MCP dashboard without a client", () => {
@@ -129,6 +156,15 @@ describe("versionActor", () => {
       verb: "saved over MCP",
       agent: true,
     })
+  })
+
+  it("keeps an MCP client named like an object property", () => {
+    expect(
+      versionActor({ ...base, origin: "mcp", origin_client: "constructor" })
+    ).toEqual({ who: "constructor", verb: "saved over MCP", agent: true })
+    expect(
+      versionActor({ ...base, origin: "mcp", origin_client: "__proto__" })
+    ).toEqual({ who: "__proto__", verb: "saved over MCP", agent: true })
   })
 
   it("attributes any other save to the author", () => {

@@ -3,27 +3,33 @@ import type { components } from "@/api/schema.gen"
 type Creator = components["schemas"]["Creator"]
 type VersionMeta = components["schemas"]["VersionMeta"]
 
-const clientNames: Record<string, string> = {
-  "claude-code": "Claude Code",
-  "claude code": "Claude Code",
-  "claude-ai": "Claude",
-  cursor: "Cursor",
-  "cursor-vscode": "Cursor",
-  opencode: "OpenCode",
-  codex: "Codex",
-  "codex-mcp-client": "Codex",
-  windsurf: "Windsurf",
-  zed: "Zed",
-  vscode: "VS Code",
-  "visual studio code": "VS Code",
-}
+const clientNames = new Map<string, string>(
+  Object.entries({
+    "claude-code": "Claude Code",
+    "claude code": "Claude Code",
+    "claude-ai": "Claude",
+    cursor: "Cursor",
+    "cursor-vscode": "Cursor",
+    opencode: "OpenCode",
+    codex: "Codex",
+    "codex-mcp-client": "Codex",
+    windsurf: "Windsurf",
+    zed: "Zed",
+    vscode: "VS Code",
+    "visual studio code": "VS Code",
+  })
+)
 
 const unknownClient = "MCP client"
 
-export function clientDisplayName(raw: string | null | undefined): string {
+function namedClient(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim() ?? ""
-  if (trimmed === "") return unknownClient
-  return clientNames[trimmed.toLowerCase()] ?? trimmed
+  if (trimmed === "") return null
+  return clientNames.get(trimmed.toLowerCase()) ?? trimmed
+}
+
+export function clientDisplayName(raw: string | null | undefined): string {
+  return namedClient(raw) ?? unknownClient
 }
 
 export function madeByLabel(creator: Creator): string {
@@ -36,10 +42,8 @@ export function madeByLabel(creator: Creator): string {
 
 export function madeByBreadcrumb(creator: Creator): string | null {
   if (creator.origin !== "mcp") return null
-  const client = creator.origin_client?.trim() ?? ""
-  return client === ""
-    ? "made by an MCP client"
-    : `made by ${clientDisplayName(client)}`
+  const client = namedClient(creator.origin_client)
+  return client === null ? "made by an MCP client" : `made by ${client}`
 }
 
 export type VersionActor = { who: string; verb: string; agent: boolean }
