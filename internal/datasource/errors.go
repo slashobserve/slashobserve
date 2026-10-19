@@ -17,9 +17,10 @@ var (
 	ErrUnavailable    = errors.New("datasource unavailable")
 	ErrNotFound       = errors.New("not found")
 
-	ErrNotReadOnly = refine(ErrForbiddenQuery)
-	ErrUnsafeGrant = refine(ErrForbiddenQuery)
-	ErrAuthFailed  = refine(ErrUnavailable)
+	ErrNotReadOnly    = refine(ErrForbiddenQuery)
+	ErrUnsafeGrant    = refine(ErrForbiddenQuery)
+	ErrAuthFailed     = refine(ErrUnavailable)
+	ErrHostNotAllowed = refine(ErrUnavailable)
 )
 
 // refinedKind reads and matches as its parent, so it adds a distinguishable kind without changing any error text.

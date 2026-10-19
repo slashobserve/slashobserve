@@ -36,6 +36,7 @@ func TestHealthMessageNeverCarriesTheDatasourceAddress(t *testing.T) {
 		{"not read-only", datasource.Errorf(datasource.ErrNotReadOnly, "user bob at %s", address), "The ClickHouse user must be readonly = 2"},
 		{"unsafe grant", datasource.Errorf(datasource.ErrUnsafeGrant, "user bob at %s holds FILE", address), "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
 		{"auth failed", datasource.Errorf(datasource.ErrAuthFailed, "user bob at %s refused", address), "The datasource refused the credentials"},
+		{"host not allowed", datasource.Errorf(datasource.ErrHostNotAllowed, "user bob at %s", address), "The ClickHouse user may not connect from this server's address"},
 		{"limit", datasource.Errorf(datasource.ErrLimitExceeded, "%s sent too much", address), "The health check hit a datasource limit"},
 		{"invalid", datasource.Errorf(datasource.ErrInvalidQuery, "%s rejected", address), "The datasource rejected the health check"},
 		{"deadline", fmt.Errorf("%s: %w", address, context.DeadlineExceeded), "Timed out waiting for the datasource"},
@@ -100,6 +101,7 @@ func TestRefinedKindsKeepTheirParentKind(t *testing.T) {
 		{"not read-only", datasource.Errorf(datasource.ErrNotReadOnly, "x"), datasource.ErrForbiddenQuery},
 		{"unsafe grant", datasource.Errorf(datasource.ErrUnsafeGrant, "x"), datasource.ErrForbiddenQuery},
 		{"auth failed", datasource.Errorf(datasource.ErrAuthFailed, "x"), datasource.ErrUnavailable},
+		{"host not allowed", datasource.Errorf(datasource.ErrHostNotAllowed, "x"), datasource.ErrUnavailable},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

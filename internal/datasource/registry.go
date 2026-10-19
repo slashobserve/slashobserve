@@ -195,6 +195,8 @@ func healthMessage(err error) string {
 		return "Timed out waiting for the datasource"
 	case errors.Is(err, ErrAuthFailed):
 		return "The datasource refused the credentials"
+	case errors.Is(err, ErrHostNotAllowed):
+		return "The ClickHouse user may not connect from this server's address"
 	case errors.Is(err, ErrUnavailable):
 		return "The datasource is not answering"
 	case errors.Is(err, ErrNotReadOnly):
