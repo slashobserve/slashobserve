@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -37,12 +38,6 @@ type previewRequest struct {
 	To            *string             `json:"to"`
 	MaxDataPoints *int                `json:"max_data_points"`
 	Variables     map[string][]string `json:"variables"`
-}
-
-type previewInvalidSpec struct {
-	Error  string       `json:"error"`
-	Code   string       `json:"code"`
-	Issues []spec.Issue `json:"issues"`
 }
 
 func (h *Handler) preview(c *gin.Context) {
@@ -128,7 +123,7 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		abortError(c, http.StatusNotFound, string(queryproxy.CodePanelNotFound), "panel not found")
 		return nil, nil, false
 	case errors.As(err, &invalid):
-		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, previewInvalidSpec{Error: "the draft panel is not valid", Code: "invalid_spec", Issues: invalid.Issues})
+		httpapi.AbortInvalidSpec(c, "the draft panel is not valid", invalid.Issues)
 		return nil, nil, false
 	default:
 		h.internalFailure(c, uid, err)
@@ -180,8 +175,11 @@ func (r previewRequest) validate() (id pgtype.UUID, message string) {
 	case !bytes.HasPrefix(bytes.TrimSpace(r.Panel), []byte("{")):
 		return id, "panel must be a JSON object"
 	}
-	for name, values := range r.Variables {
-		if len(values) == 0 {
+	for _, name := range slices.Sorted(maps.Keys(r.Variables)) {
+		switch {
+		case name == "":
+			return id, "variables needs non-empty names"
+		case len(r.Variables[name]) == 0:
 			return id, "variables." + name + " needs at least one value"
 		}
 	}

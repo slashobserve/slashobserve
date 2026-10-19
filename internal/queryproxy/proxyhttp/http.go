@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -28,7 +29,6 @@ import (
 
 const (
 	maxInFlightPerPrincipal = 8
-	uuidTextBytes           = 36
 	maxVersion              = 1<<31 - 1
 	lintTimeout             = 5 * time.Second
 	maxLintQueryBytes       = 64 << 10
@@ -175,7 +175,13 @@ func (h *Handler) data(c *gin.Context) {
 	writeData(c, entry, false, entry.executedAt)
 }
 
-func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (dataEntry, error) {
+func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (result dataEntry, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			h.logPanic(ctx, panelID, p)
+			result, err = dataEntry{}, errInternal
+		}
+	}()
 	if cached, stored, ok := h.caches.data.Get(key); ok {
 		cached.executedAt = stored
 		return cached, nil
@@ -200,10 +206,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dataEntry, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			h.logger.ErrorContext(ctx, "query proxy panicked",
-				slog.String("panel_id", req.PanelID),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+			h.logPanic(ctx, req.PanelID, p)
 			entry, err = dataEntry{}, errInternal
 		}
 	}()
@@ -236,6 +239,13 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		queries[i] = queryMeta{Ref: q.Ref, Kind: q.Kind, StepMS: q.Step.Milliseconds()}
 	}
 	return dataEntry{frames: joinFrames(parts), queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, executedAt: time.Now()}, nil
+}
+
+func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
+	h.logger.ErrorContext(ctx, "query proxy panicked",
+		slog.String("panel_id", panelID),
+		slog.String("panic_type", fmt.Sprintf("%T", p)),
+		slog.String("stack", string(debug.Stack())))
 }
 
 func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser, scope string) {
@@ -504,7 +514,8 @@ func address(c *gin.Context) (id pgtype.UUID, version int, err error) {
 }
 
 func parseID(raw string) (id pgtype.UUID, ok bool) {
-	return id, id.Scan(raw) == nil && len(raw) == uuidTextBytes
+	id, err := db.ParseUUID(raw)
+	return id, err == nil
 }
 
 func validVersion(n int) bool {

@@ -1205,6 +1205,33 @@ func frameRefs(t *testing.T, body dataResponse) []string {
 	return refs
 }
 
+func TestPreviewRejectsMalformedIdentifiersAndVariableNames(t *testing.T) {
+	hn := newPreviewHarness(t)
+	valid := hn.id.String()
+	tests := []struct {
+		name    string
+		body    string
+		message string
+	}{
+		{"misplaced dashes", `"dashboard_id":"` + valid[:7] + "-" + valid[8:9] + valid[7:8] + valid[10:] + `","version":1`, "dashboard_id must be a UUID"},
+		{"no dashes", `"dashboard_id":"` + strings.ReplaceAll(valid, "-", "") + `","version":1`, "dashboard_id must be a UUID"},
+		{"empty variable name", `"dashboard_id":"` + valid + `","version":1,"variables":{"":["a"],"zz":[]}`, "variables needs non-empty names"},
+		{"first empty variable by name", `"dashboard_id":"` + valid + `","version":1,"variables":{"b":[],"a":[]}`, "variables.a needs at least one value"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{` + tc.body + `,"panel_id":"p_ts","panel":{}}`
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/datasources/prom/preview", strings.NewReader(body))
+			req.Header.Set("X-Kind", string(auth.KindUser))
+			rec := hn.serve(req, "alice")
+			expectError(t, rec, http.StatusBadRequest, "invalid_request")
+			if got := decodeError(t, rec).Error; got != tc.message {
+				t.Fatalf("message = %q, want %q", got, tc.message)
+			}
+		})
+	}
+}
+
 func TestPreviewLogsEachServerFailureOnce(t *testing.T) {
 	tests := []struct {
 		name   string

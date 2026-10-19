@@ -280,7 +280,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
 	case errors.As(err, &invalid):
-		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, invalidSpecJSON{Error: "spec is invalid", Code: "invalid_spec", Issues: invalid.Issues})
+		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
 	case errors.As(err, &invalidInput):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidInput.Message)
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):

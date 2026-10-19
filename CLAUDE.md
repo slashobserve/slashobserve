@@ -52,7 +52,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
   `e2e/fixtures/llm/` holds the replay fixtures.
 - `internal/dashboards/`: dashboard and version storage, the save validation pipeline and the `/api/v1/dashboards` routes (`Service.Register`).
-- `internal/httpapi/`: the HTTP helpers shared by `internal/dashboards` and `internal/revisions` (error responses, body decoding, path and limit parameters, time formatting, the `(time, id)` cursor codec).
+- `internal/httpapi/`: the HTTP helpers shared by `internal/dashboards` and `internal/revisions` (error responses, the 422 `invalid_spec` body, body decoding, path and limit parameters, time formatting, the `(time, id)` cursor codec).
 - `internal/events/`: the event payload, the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream, and the `Broker` that fans notifications out to subscribers; `internal/events/stream/` serves them over SSE.
 - `internal/revisions/`: the durable agent request queue (`agent_requests`), its in-process workers, the `Reviser` contract the agent implements (`agent.Reviser`) and the `/api/v1/dashboards/{id}/revisions` routes.
 - `internal/agent/tools/`: the only place agent tools are defined (17 tools, sorted, constant schemas; 14 for the built-in agent, since `MCPOnly` tools are left out of what `agent.New` sends to the model); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
