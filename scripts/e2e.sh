@@ -2292,7 +2292,7 @@ sys.exit(0 if ok else 1)' "$TMP/api.body"
   out="$(proxy_call GET "$base/panels/p_vars/data?$stable")"
   [[ "$out" == 200 ]] || fail "the new variable types take their defaults ($out: $(cat "$TMP/api.body"))"
   local column
-  for column in c:shop tb:hello iv:1m ds:ch; do
+  for column in c:shop tb:hello iv:30s ds:ch; do
     grep -Eq "\"name\":\"${column%%:*}\",\"type\":\"[a-z]+\",\"values\":\[\"${column#*:}\"\]" "$TMP/api.body" \
       || fail "the new variable types take their defaults: column ${column%%:*} is not [\"${column#*:}\"] ($(cat "$TMP/api.body"))"
   done
