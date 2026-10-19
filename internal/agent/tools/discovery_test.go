@@ -95,3 +95,25 @@ func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
+
+func TestListLabelsInvalidLimitMessage(t *testing.T) {
+	for _, limit := range []string{"0", "-1", "501"} {
+		t.Run(limit, func(t *testing.T) {
+			ds := &fakeDS{}
+			r := newTestRegistry(t, ds, nil)
+			res, err := call(t, r, nameListLabels, `{"datasource":"fake","limit":`+limit+`}`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := errorCode(t, res); got != codeInvalidRequest {
+				t.Fatalf("code = %q", got)
+			}
+			if got, want := res.Content.(errorBody).Message, "limit must be between 1 and 500"; got != want {
+				t.Fatalf("message = %q, want %q", got, want)
+			}
+			if len(ds.requests) != 0 {
+				t.Fatalf("discovery ran for a rejected limit")
+			}
+		})
+	}
+}

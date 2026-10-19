@@ -67,8 +67,10 @@ type fakeDatasource struct {
 	onVariable func(ctx context.Context, r datasource.TimeRange) ([]string, error)
 	valuesFor  func(q datasource.Query) []string
 	onLint     func(ctx context.Context, query string) ([]datasource.Diagnostic, error)
+	onDiscover func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
 
 	mu            sync.Mutex
+	discovered    []datasource.DiscoverRequest
 	rangeCalls    int
 	instantCalls  int
 	variableCalls int
@@ -104,8 +106,20 @@ func (f *fakeDatasource) counts() (ranges, instants, variables, lints int) {
 func (f *fakeDatasource) Type() string                      { return string(spec.Prometheus) }
 func (f *fakeDatasource) CheckHealth(context.Context) error { return nil }
 func (f *fakeDatasource) Close() error                      { return nil }
-func (f *fakeDatasource) Discover(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+func (f *fakeDatasource) Discover(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	f.mu.Lock()
+	f.discovered = append(f.discovered, req)
+	f.mu.Unlock()
+	if f.onDiscover != nil {
+		return f.onDiscover(ctx, req)
+	}
 	return &datasource.Catalog{}, nil
+}
+
+func (f *fakeDatasource) discoverRequests() []datasource.DiscoverRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]datasource.DiscoverRequest(nil), f.discovered...)
 }
 
 func (f *fakeDatasource) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
