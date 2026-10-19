@@ -68,14 +68,17 @@ test("header buttons use the 6px radius and 13px text", async ({
   const id = await createPrimitivesDashboard(request)
   await openDashboard(page, id)
 
-  const signOut = page.getByRole("button", { name: "Sign out" })
-  await expect(signOut).toBeVisible()
-  const style = await signOut.evaluate((element) => {
-    const computed = getComputedStyle(element)
-    return { borderRadius: computed.borderRadius, fontSize: computed.fontSize }
-  })
-  expect(style.borderRadius).toBe("6px")
-  expect(style.fontSize).toBe("13px")
+  const more = page.getByRole("button", { name: /^More/ })
+  await expect(more).toBeVisible()
+  const radius = await more.evaluate(
+    (element) => getComputedStyle(element).borderRadius
+  )
+  expect(radius).toBe("6px")
+  const timeRange = page.getByRole("button", { name: /^Time range/ })
+  const fontSize = await timeRange.evaluate(
+    (element) => getComputedStyle(element).fontSize
+  )
+  expect(fontSize).toBe("13px")
 })
 
 test("menus stay flat in dark mode", async ({ page, request }) => {
@@ -101,6 +104,7 @@ test("a focused multi-value variable control has a 2px brand ring", async ({
   const chips = page
     .locator('[data-slot="combobox-chips"]')
     .filter({ has: input })
+    .locator("xpath=..")
   await input.focus()
   await expect(input).toBeFocused()
   await expect

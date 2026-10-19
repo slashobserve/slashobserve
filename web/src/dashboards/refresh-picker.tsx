@@ -35,12 +35,9 @@ export function RefreshPicker({ value }: Props) {
     >
       <SelectTrigger
         aria-label={`Auto-refresh: ${label}`}
-        className="min-w-16 sm:min-w-24"
+        className="min-w-16 data-[size=default]:h-[30px]"
       >
-        <TimerIcon className="text-muted-foreground sm:hidden" />
-        <span className="hidden text-muted-foreground sm:inline">
-          Auto-refresh
-        </span>
+        <TimerIcon aria-hidden="true" className="text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent alignItemWithTrigger={false} align="end">

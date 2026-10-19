@@ -189,12 +189,12 @@ test("switches between chart and table view", async ({ page, request }) => {
   const rps = panel(page, rpsTitle)
   const menu = rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
   await menu.click()
-  await page.getByRole("menuitem", { name: "Show table view" }).click()
+  await page.getByRole("menuitem", { name: "View as table" }).click()
   await expect(rps.getByRole("columnheader", { name: "pod" })).toBeVisible()
   await expect(rps.locator("canvas")).toHaveCount(0)
 
   await menu.click()
-  await page.getByRole("menuitem", { name: "Show chart" }).click()
+  await page.getByRole("menuitem", { name: "View as chart" }).click()
   await expect(rps.locator("canvas")).toHaveCount(1)
 })
 
@@ -209,8 +209,7 @@ test("renders in dark mode without leaking canvases", async ({
 
   const rps = panel(page, rpsTitle)
   for (const choice of ["Dark", "Light", "Dark", "Light", "Dark"]) {
-    await page.getByRole("button", { name: "Theme" }).click()
-    await page.getByRole("menuitemradio", { name: choice }).click()
+    await page.getByRole("button", { name: "Switch theme" }).click()
     if (choice === "Dark") {
       await expect(page.locator("html")).toHaveClass(/\bdark\b/)
     } else {
@@ -220,9 +219,6 @@ test("renders in dark mode without leaking canvases", async ({
   }
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   await expectPanelsReady(page)
-
-  await page.getByRole("button", { name: "Theme" }).click()
-  await page.getByRole("menuitemradio", { name: "System" }).click()
 })
 
 test("keeps series colors when a variable filters series", async ({
@@ -264,10 +260,10 @@ test("keeps a hidden series hidden across the table view", async ({
 
   const menu = rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
   await menu.click()
-  await page.getByRole("menuitem", { name: "Show table view" }).click()
+  await page.getByRole("menuitem", { name: "View as table" }).click()
   await expect(rps.locator("canvas")).toHaveCount(0)
   await menu.click()
-  await page.getByRole("menuitem", { name: "Show chart" }).click()
+  await page.getByRole("menuitem", { name: "View as chart" }).click()
 
   await expect(rps.locator("canvas")).toHaveCount(1)
   await expect(legendButton(rps, "checkout-1")).toHaveAttribute(

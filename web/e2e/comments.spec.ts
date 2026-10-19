@@ -39,7 +39,7 @@ function composer(page: Page, title = rpsTitle) {
 
 async function openFromMenu(page: Page, title = rpsTitle) {
   await page.getByRole("button", { name: `Panel menu: ${title}` }).click()
-  await page.getByRole("menuitem", { name: "Comments" }).click()
+  await page.getByRole("menuitem", { name: "Comment" }).click()
   await expect(sheet(page)).toBeVisible()
 }
 
@@ -179,7 +179,7 @@ test("marks comments on removed panels", async ({ page, request }) => {
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
-  await page.getByRole("button", { name: /^Comments/ }).click()
+  await page.getByRole("button", { name: /activity/ }).click()
 
   await expect(page).toHaveURL(/tab=comments/)
   await expect(page).not.toHaveURL(/panel=/)
@@ -203,7 +203,7 @@ test("opens a panel from the dashboard-wide list", async ({
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
-  await page.getByRole("button", { name: /^Comments/ }).click()
+  await page.getByRole("button", { name: /activity/ }).click()
   await expect(
     sheet(page).getByRole("heading", { level: 3, name: rpsTitle })
   ).toBeVisible()
@@ -305,10 +305,11 @@ test("keeps comments unavailable while the layout is being edited", async ({
   await createComment(request, id, 1, "rps", "Before the layout session")
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await page.getByRole("button", { name: "Edit layout" }).click()
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
 
-  await expect(page.getByRole("button", { name: /^Comments/ })).toBeDisabled()
+  await expect(page.getByRole("button", { name: /activity/ })).toBeDisabled()
   await expect(
     rpsPanel(page).getByRole("button", {
       name: `1 open comment on ${rpsTitle}`,
@@ -316,7 +317,7 @@ test("keeps comments unavailable while the layout is being edited", async ({
   ).toBeDisabled()
   await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
   await expect(
-    page.getByRole("menuitem", { name: "Comments (finish layout first)" })
+    page.getByRole("menuitem", { name: "Comment (finish the layout first)" })
   ).toHaveAttribute("aria-disabled", "true")
 })
 
@@ -543,7 +544,7 @@ test("returns focus to the toolbar button when the dashboard-wide list closes", 
     page.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
   ).toBeFocused()
 
-  const toolbarButton = page.getByRole("button", { name: /^Comments/ })
+  const toolbarButton = page.getByRole("button", { name: /activity/ })
   await toolbarButton.click()
   await expect(sheet(page)).toBeVisible()
   await page.keyboard.press("Escape")
@@ -786,7 +787,7 @@ test("offers to open a panel that the pinned version still has", async ({
   await openDashboard(page, id, "?version=1")
   await expectPanelsReady(page)
 
-  await page.getByRole("button", { name: /^Comments/ }).click()
+  await page.getByRole("button", { name: /activity/ }).click()
 
   await expect(
     sheet(page).getByRole("heading", { level: 3, name: "Checkout error rate" })

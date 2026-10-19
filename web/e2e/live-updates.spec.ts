@@ -118,11 +118,11 @@ test("offers the latest when viewing an old version", async ({
 test("does not toast the author's own save", async ({ page, request }) => {
   const { id } = await createLive(request)
   await openDashboard(page, id)
-  const editLayout = page.getByRole("button", { name: "Edit layout" })
-  test.skip((await editLayout.count()) === 0, "needs the layout editor")
+  const more = page.getByRole("button", { name: /^More/ })
   await expect(indicator(page, "Live")).toBeVisible()
 
-  await editLayout.click()
+  await more.click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await page
     .getByRole("button", { name: "Move or resize Checkout error rate" })
     .focus()

@@ -13,7 +13,7 @@ import { layoutFromSpec, layoutPanels } from "./edit/layout"
 
 export const gridColumns = 24
 export const gridRowHeight = 30
-export const gridMargin = 8
+export const gridMargin = 10
 const singleColumnBelow = 768
 
 type Size = { width: number; height: number }

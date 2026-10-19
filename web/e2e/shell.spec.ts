@@ -191,9 +191,10 @@ test("keeps the dashboard outside the shell", async ({ page, request }) => {
   })
   await openDashboard(page, id)
   await expect(sidebar(page)).toHaveCount(0)
-  await expect(
-    page.getByRole("banner").getByRole("link", { name: "API keys" })
-  ).toHaveAttribute("href", "/keys")
+  await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0)
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "API keys" }).click()
+  await expect(page).toHaveURL(/\/keys$/)
 })
 
 test("shows focus in brand blue", async ({ page }) => {

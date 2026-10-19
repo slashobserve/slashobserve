@@ -1,4 +1,11 @@
-import { EllipsisVerticalIcon } from "lucide-react"
+import type { ReactNode } from "react"
+import {
+  ChartLineIcon,
+  EllipsisIcon,
+  MessageSquarePlusIcon,
+  PencilIcon,
+  TableIcon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +29,7 @@ type Props = {
 type MenuItem = {
   id: string
   label: string
+  icon: ReactNode
   onSelect: () => void
   disabled?: boolean
 }
@@ -33,44 +41,52 @@ export function PanelMenu({
   inspectable,
 }: Props) {
   const setSearch = useSetDashboardSearch()
-  const items: MenuItem[] = []
+  const items: MenuItem[] = [
+    {
+      id: "comment",
+      label: inspectable ? "Comment" : "Comment (finish the layout first)",
+      icon: <MessageSquarePlusIcon aria-hidden="true" />,
+      disabled: !inspectable,
+      onSelect: () =>
+        setSearch((state) => ({ ...state, panel: panel.id, tab: "comments" })),
+    },
+  ]
   const data = isDataPanel(panel)
-  if (data && panel.type !== "table" && panelRenderers[panel.type]) {
-    items.push({
-      id: "table-view",
-      label: tableView ? "Show chart" : "Show table view",
-      onSelect: onToggleTableView,
-    })
-  }
   if (data) {
     items.push({
-      id: "edit-query",
-      label: inspectable ? "Edit query" : "Edit query (finish layout first)",
+      id: "edit",
+      label: inspectable ? "Edit" : "Edit (finish the layout first)",
+      icon: <PencilIcon aria-hidden="true" />,
       disabled: !inspectable,
       onSelect: () =>
         setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
     })
   }
-  items.push({
-    id: "comments",
-    label: inspectable ? "Comments" : "Comments (finish layout first)",
-    disabled: !inspectable,
-    onSelect: () =>
-      setSearch((state) => ({ ...state, panel: panel.id, tab: "comments" })),
-  })
+  if (data && panel.type !== "table" && panelRenderers[panel.type]) {
+    items.push({
+      id: "table-view",
+      label: tableView ? "View as chart" : "View as table",
+      icon: tableView ? (
+        <ChartLineIcon aria-hidden="true" />
+      ) : (
+        <TableIcon aria-hidden="true" />
+      ),
+      onSelect: onToggleTableView,
+    })
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
           <Button
             variant="ghost"
-            size="icon-xs"
+            className="size-[26px] text-muted-foreground"
             aria-label={`Panel menu: ${panelTitle(panel)}`}
             data-panel-menu={panel.id}
           />
         }
       >
-        <EllipsisVerticalIcon />
+        <EllipsisIcon aria-hidden="true" className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-max">
         {items.map((item) => (
@@ -79,12 +95,10 @@ export function PanelMenu({
             disabled={item.disabled}
             onClick={item.onSelect}
           >
+            {item.icon}
             {item.label}
           </DropdownMenuItem>
         ))}
-        {items.length === 0 ? (
-          <DropdownMenuItem disabled>No actions available</DropdownMenuItem>
-        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

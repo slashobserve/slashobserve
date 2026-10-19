@@ -281,7 +281,9 @@ test("restores v1 from history", async ({ page, request }) => {
   await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
   await expect(
-    page.getByRole("main").getByText("v4", { exact: true })
+    page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByText("v4", { exact: true })
   ).toBeVisible()
 
   await page.getByRole("link", { name: "History" }).click()
@@ -332,7 +334,9 @@ test("restores from the version banner", async ({ page, request }) => {
   await expect(page).toHaveURL(/var-pod=checkout-1/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
   await expect(
-    page.getByRole("main").getByText("v4", { exact: true })
+    page
+      .getByRole("navigation", { name: "Breadcrumb" })
+      .getByText("v4", { exact: true })
   ).toBeVisible()
   await expect(
     page.getByRole("button", { name: "Restore this version" })
@@ -703,7 +707,7 @@ test.describe("on a phone", () => {
     request,
   }) => {
     const { id } = await createHistory(request)
-    await openDashboard(page, id, "?from=now-6h")
+    await openDashboard(page, id)
 
     const live = await page.getByRole("status").boundingBox()
     const history = await page
@@ -711,7 +715,7 @@ test.describe("on a phone", () => {
       .boundingBox()
     const centerY = (box: typeof live) => (box?.y ?? 0) + (box?.height ?? 0) / 2
     expect(centerY(history)).toBeCloseTo(centerY(live), 0)
-    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeCloseTo(374, 0)
+    expect(history?.x).toBeCloseTo((live?.x ?? 0) + (live?.width ?? 0) + 6, 0)
     expect(live?.x).toBeCloseTo(16, 0)
   })
 

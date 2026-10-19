@@ -1,22 +1,15 @@
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { useIsMutating } from "@tanstack/react-query"
-import { LayoutGridIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 
 import { dashboardKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { Dashboard } from "@/spec"
 
 import {
   editLayoutButtonId,
   focusEditLayoutButton,
-  focusWhenIdle,
   useIsDirty,
   useLayoutStore,
 } from "./layout-store"
@@ -25,28 +18,18 @@ import { DiscardLayoutDialog } from "./unsaved-changes-guard"
 
 type Props = {
   dashboardId: string
-  version: number
-  spec: Dashboard
   pinned: boolean
-  canEdit: boolean
 }
 
-function focusFirstMoveHandle() {
-  focusWhenIdle(() => document.querySelector("button.panel-drag-handle"))
+export function findFirstMoveHandle(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("button.panel-drag-handle")
 }
 
-export function EditControls({
-  dashboardId,
-  version,
-  spec,
-  pinned,
-  canEdit,
-}: Props) {
+export function EditControls({ dashboardId, pinned }: Props) {
   const sessionOpen = useLayoutStore(
     (state) => state.session?.dashboardId === dashboardId
   )
   const editing = sessionOpen && !pinned
-  const start = useLayoutStore((state) => state.start)
   const end = useLayoutStore((state) => state.end)
   const dirty = useIsDirty()
   const [saveOpen, setSaveOpen] = useState(false)
@@ -61,71 +44,37 @@ export function EditControls({
     focusEditLayoutButton()
   }
 
-  let controls: ReactNode = null
-  if (editing) {
-    controls = (
-      <>
-        {dirty ? (
-          <Badge variant="secondary" className="max-sm:hidden">
-            Unsaved changes
-          </Badge>
-        ) : null}
-        <Button
-          variant="ghost"
-          className="max-sm:w-8 max-sm:px-0"
-          onClick={cancel}
-        >
-          <XIcon className="sm:hidden" />
-          <span className="max-sm:sr-only">Cancel</span>
-        </Button>
-        <Button disabled={!dirty} onClick={() => setSaveOpen(true)}>
-          Save layout
-        </Button>
-        <SaveLayoutDialog
-          dashboardId={dashboardId}
-          open={saveOpen}
-          onOpenChange={setSaveOpen}
-        />
-      </>
-    )
-  } else if (canEdit && pinned) {
-    controls = (
-      <Tooltip>
-        <TooltipTrigger render={<span className="inline-flex" />}>
-          <Button
-            id={editLayoutButtonId}
-            variant="outline"
-            disabled
-            focusableWhenDisabled
-          >
-            <LayoutGridIcon data-icon="inline-start" />
-            Edit layout
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="end">
-          Open the latest version to edit the layout
-        </TooltipContent>
-      </Tooltip>
-    )
-  } else if (canEdit) {
-    controls = (
-      <Button
-        id={editLayoutButtonId}
-        variant="outline"
-        onClick={() => {
-          start(dashboardId, version, spec)
-          focusFirstMoveHandle()
-        }}
-      >
-        <LayoutGridIcon data-icon="inline-start" />
-        Edit layout
-      </Button>
-    )
-  }
-
   return (
     <>
-      {controls}
+      {editing ? (
+        <>
+          {dirty ? (
+            <Badge variant="secondary" className="max-sm:hidden">
+              Unsaved changes
+            </Badge>
+          ) : null}
+          <Button
+            variant="ghost"
+            className="h-[30px] max-sm:w-8 max-sm:px-0"
+            onClick={cancel}
+          >
+            <XIcon className="sm:hidden" />
+            <span className="max-sm:sr-only">Cancel</span>
+          </Button>
+          <Button
+            className="h-[30px]"
+            disabled={!dirty}
+            onClick={() => setSaveOpen(true)}
+          >
+            Save layout
+          </Button>
+          <SaveLayoutDialog
+            dashboardId={dashboardId}
+            open={saveOpen}
+            onOpenChange={setSaveOpen}
+          />
+        </>
+      ) : null}
       <DiscardLayoutDialog
         open={discardOpen}
         finalFocus={() => document.getElementById(editLayoutButtonId)}

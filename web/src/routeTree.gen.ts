@@ -16,7 +16,6 @@ import { Route as AuthedShellIndexRouteImport } from './routes/_authed/_shell/in
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
-import { Route as AuthedDashboardsDashboardIdRouteRouteImport } from './routes/_authed/dashboards/$dashboardId/route'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
 import { Route as AuthedShellObserveRequestIdRouteImport } from './routes/_authed/_shell/observe/$requestId'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
@@ -57,12 +56,6 @@ const AuthedShellPeopleRoute = AuthedShellPeopleRouteImport.update({
   path: '/people',
   getParentRoute: () => AuthedShellRoute,
 } as any)
-const AuthedDashboardsDashboardIdRouteRoute =
-  AuthedDashboardsDashboardIdRouteRouteImport.update({
-    id: '/dashboards/$dashboardId',
-    path: '/dashboards/$dashboardId',
-    getParentRoute: () => AuthedRoute,
-  } as any)
 const AuthedShellDashboardsIndexRoute =
   AuthedShellDashboardsIndexRouteImport.update({
     id: '/dashboards/',
@@ -88,21 +81,20 @@ const AuthedShellSettingsKeysRoute = AuthedShellSettingsKeysRouteImport.update({
 } as any)
 const AuthedDashboardsDashboardIdIndexRoute =
   AuthedDashboardsDashboardIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthedDashboardsDashboardIdRouteRoute,
+    id: '/dashboards/$dashboardId/',
+    path: '/dashboards/$dashboardId/',
+    getParentRoute: () => AuthedRoute,
   } as any)
 const AuthedDashboardsDashboardIdVersionsRoute =
   AuthedDashboardsDashboardIdVersionsRouteImport.update({
-    id: '/versions',
-    path: '/versions',
-    getParentRoute: () => AuthedDashboardsDashboardIdRouteRoute,
+    id: '/dashboards/$dashboardId/versions',
+    path: '/dashboards/$dashboardId/versions',
+    getParentRoute: () => AuthedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedShellIndexRoute
   '/login': typeof LoginRoute
-  '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdRouteRouteWithChildren
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
@@ -131,7 +123,6 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
-  '/_authed/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdRouteRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
@@ -148,7 +139,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/dashboards/$dashboardId'
     | '/datasources'
     | '/keys'
     | '/people'
@@ -176,7 +166,6 @@ export interface FileRouteTypes {
     | '/_authed'
     | '/login'
     | '/_authed/_shell'
-    | '/_authed/dashboards/$dashboardId'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
@@ -245,13 +234,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellPeopleRouteImport
       parentRoute: typeof AuthedShellRoute
     }
-    '/_authed/dashboards/$dashboardId': {
-      id: '/_authed/dashboards/$dashboardId'
-      path: '/dashboards/$dashboardId'
-      fullPath: '/dashboards/$dashboardId'
-      preLoaderRoute: typeof AuthedDashboardsDashboardIdRouteRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/_shell/dashboards/': {
       id: '/_authed/_shell/dashboards/'
       path: '/dashboards'
@@ -282,17 +264,17 @@ declare module '@tanstack/react-router' {
     }
     '/_authed/dashboards/$dashboardId/': {
       id: '/_authed/dashboards/$dashboardId/'
-      path: '/'
+      path: '/dashboards/$dashboardId'
       fullPath: '/dashboards/$dashboardId/'
       preLoaderRoute: typeof AuthedDashboardsDashboardIdIndexRouteImport
-      parentRoute: typeof AuthedDashboardsDashboardIdRouteRoute
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/dashboards/$dashboardId/versions': {
       id: '/_authed/dashboards/$dashboardId/versions'
-      path: '/versions'
+      path: '/dashboards/$dashboardId/versions'
       fullPath: '/dashboards/$dashboardId/versions'
       preLoaderRoute: typeof AuthedDashboardsDashboardIdVersionsRouteImport
-      parentRoute: typeof AuthedDashboardsDashboardIdRouteRoute
+      parentRoute: typeof AuthedRoute
     }
   }
 }
@@ -323,33 +305,17 @@ const AuthedShellRouteWithChildren = AuthedShellRoute._addFileChildren(
   AuthedShellRouteChildren,
 )
 
-interface AuthedDashboardsDashboardIdRouteRouteChildren {
+interface AuthedRouteChildren {
+  AuthedShellRoute: typeof AuthedShellRouteWithChildren
   AuthedDashboardsDashboardIdVersionsRoute: typeof AuthedDashboardsDashboardIdVersionsRoute
   AuthedDashboardsDashboardIdIndexRoute: typeof AuthedDashboardsDashboardIdIndexRoute
 }
 
-const AuthedDashboardsDashboardIdRouteRouteChildren: AuthedDashboardsDashboardIdRouteRouteChildren =
-  {
-    AuthedDashboardsDashboardIdVersionsRoute:
-      AuthedDashboardsDashboardIdVersionsRoute,
-    AuthedDashboardsDashboardIdIndexRoute:
-      AuthedDashboardsDashboardIdIndexRoute,
-  }
-
-const AuthedDashboardsDashboardIdRouteRouteWithChildren =
-  AuthedDashboardsDashboardIdRouteRoute._addFileChildren(
-    AuthedDashboardsDashboardIdRouteRouteChildren,
-  )
-
-interface AuthedRouteChildren {
-  AuthedShellRoute: typeof AuthedShellRouteWithChildren
-  AuthedDashboardsDashboardIdRouteRoute: typeof AuthedDashboardsDashboardIdRouteRouteWithChildren
-}
-
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedShellRoute: AuthedShellRouteWithChildren,
-  AuthedDashboardsDashboardIdRouteRoute:
-    AuthedDashboardsDashboardIdRouteRouteWithChildren,
+  AuthedDashboardsDashboardIdVersionsRoute:
+    AuthedDashboardsDashboardIdVersionsRoute,
+  AuthedDashboardsDashboardIdIndexRoute: AuthedDashboardsDashboardIdIndexRoute,
 }
 
 const AuthedRouteWithChildren =
