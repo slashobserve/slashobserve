@@ -2,7 +2,6 @@ import { Fragment, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 
 import { Mark } from "@/components/brand/mark"
-import { Wordmark } from "@/components/brand/wordmark"
 
 type Props = {
   title: string
@@ -42,10 +41,10 @@ export function DashboardTopRow({
         <Link
           to="/"
           aria-label="/observe home"
-          className="flex items-center gap-[7px] rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          title="/observe"
+          className="grid size-[18px] place-items-center rounded-sm no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Mark size={18} />
-          <Wordmark size={13} tone="ink" />
+          <Mark size={16} className="size-[15px]" />
         </Link>
         <Separator />
         <Link
