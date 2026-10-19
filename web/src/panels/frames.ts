@@ -34,8 +34,10 @@ export function seriesLabel(
         (key) => `${key}="${escapeLabelValue(frame.labels?.[key] ?? "")}"`
       )
       label = `${frame.name ?? ""}{${pairs.join(", ")}}`
+    } else if (frame.name !== undefined) {
+      label = frame.name
     } else {
-      label = frame.name ?? field.name
+      return field.name
     }
   }
   return numberFieldCount > 1 ? `${label} ${field.name}` : label
@@ -76,8 +78,16 @@ export function seriesKey(frame: WireFrame, fieldName: string): string {
 
 export function uniqueKey(seen: Map<string, number>, base: string): string {
   const count = seen.get(base) ?? 0
-  seen.set(base, count + 1)
-  return count === 0 ? base : `${base}#${count}`
+  if (count === 0) {
+    seen.set(base, 1)
+    return base
+  }
+  let next = count
+  while (seen.has(`${base}#${next}`)) next++
+  const name = `${base}#${next}`
+  seen.set(base, next + 1)
+  seen.set(name, 1)
+  return name
 }
 
 export function lastNumber(field: WireField): number | null {
