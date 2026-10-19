@@ -11,7 +11,7 @@ import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
 
 import { OpenDashboardLink } from "./turn-failure"
 
-const thumbnailCount = 4
+const thumbnailColumns = 4
 
 const sparklineColors = [
   "stroke-series-1",
@@ -28,21 +28,33 @@ function sparkline(seed: number, dips: boolean): string {
   }).join(" ")
 }
 
+function thumbnailSpan(panel: Panel): number {
+  return Math.min(
+    thumbnailColumns,
+    Math.max(1, Math.round(panel.gridPos.w / 6))
+  )
+}
+
 function thumbnails(panels: Panel[]): Panel[] {
-  return [...panels]
-    .sort((a, b) =>
-      a.gridPos.y === b.gridPos.y
-        ? a.gridPos.x - b.gridPos.x
-        : a.gridPos.y - b.gridPos.y
-    )
-    .slice(0, thumbnailCount)
+  const ordered = [...panels].sort((a, b) =>
+    a.gridPos.y === b.gridPos.y
+      ? a.gridPos.x - b.gridPos.x
+      : a.gridPos.y - b.gridPos.y
+  )
+  const shown: Panel[] = []
+  let used = 0
+  for (const panel of ordered) {
+    used += thumbnailSpan(panel)
+    if (used > thumbnailColumns) break
+    shown.push(panel)
+  }
+  return shown
 }
 
 function Thumbnail({ panel, index }: { panel: Panel; index: number }) {
-  const span = Math.min(4, Math.max(1, Math.round(panel.gridPos.w / 6)))
   return (
     <div
-      style={{ gridColumn: `span ${span}` }}
+      style={{ gridColumn: `span ${thumbnailSpan(panel)}` }}
       className="flex h-[52px] min-w-0 flex-col justify-between rounded-[5px] border p-1.5"
     >
       <span className="truncate text-[10px] text-muted-foreground">
