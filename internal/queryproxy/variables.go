@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -198,20 +197,23 @@ func referencedVariables(text string) map[string]bool {
 	return names
 }
 
-func referencesGlobal(text string, match func(name string) bool) bool {
+func referencesGlobal(text string, match func(spec.Macro) bool) bool {
 	refs, err := spec.ScanQuery(text)
 	if err != nil {
 		return false
 	}
-	return slices.ContainsFunc(refs, func(ref spec.Reference) bool { return ref.Kind == spec.MacroRef && match(ref.Name) })
+	return slices.ContainsFunc(refs, func(ref spec.Reference) bool {
+		macro, ok := spec.LookupMacro(ref.Name)
+		return ref.Kind == spec.MacroRef && ok && match(macro)
+	})
 }
 
 func usesUser(text string) bool {
-	return referencesGlobal(text, func(name string) bool { return strings.HasPrefix(name, "__user.") })
+	return referencesGlobal(text, func(m spec.Macro) bool { return m.PerUser })
 }
 
 func usesDashboard(text string) bool {
-	return referencesGlobal(text, func(name string) bool { return name == "__dashboard" })
+	return referencesGlobal(text, func(m spec.Macro) bool { return m.PerDashboard })
 }
 
 func DashboardUsesUser(d *spec.Dashboard) bool {

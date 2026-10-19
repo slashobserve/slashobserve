@@ -32,9 +32,12 @@ const (
 )
 
 type Macro struct {
-	Name     string
-	Function bool
-	Formats  MacroFormats
+	Name         string
+	Function     bool
+	Formats      MacroFormats
+	Global       bool
+	PerUser      bool
+	PerDashboard bool
 }
 
 type macroDef struct {
@@ -45,21 +48,21 @@ type macroDef struct {
 var bothDatasources = []DatasourceType{Prometheus, ClickHouse}
 
 var macroTable = []macroDef{
-	{Macro{"__interval", false, NoFormats}, bothDatasources},
-	{Macro{"__interval_ms", false, NoFormats}, bothDatasources},
-	{Macro{"__range", false, NoFormats}, []DatasourceType{Prometheus}},
-	{Macro{"__range_s", false, NoFormats}, bothDatasources},
-	{Macro{"__range_ms", false, NoFormats}, bothDatasources},
-	{Macro{"__rate_interval", false, NoFormats}, []DatasourceType{Prometheus}},
-	{Macro{"__from", false, TimeFormatsAllowed}, bothDatasources},
-	{Macro{"__to", false, TimeFormatsAllowed}, bothDatasources},
-	{Macro{"__dashboard", false, VariableFormatsAllowed}, bothDatasources},
-	{Macro{"__user.login", false, VariableFormatsAllowed}, bothDatasources},
-	{Macro{"__user.email", false, VariableFormatsAllowed}, bothDatasources},
-	{Macro{"__user.name", false, VariableFormatsAllowed}, bothDatasources},
-	{Macro{"__user.id", false, VariableFormatsAllowed}, bothDatasources},
-	{Macro{"__timeFilter", true, NoFormats}, []DatasourceType{ClickHouse}},
-	{Macro{"__timeGroup", true, NoFormats}, []DatasourceType{ClickHouse}},
+	{Macro{Name: "__interval"}, bothDatasources},
+	{Macro{Name: "__interval_ms"}, bothDatasources},
+	{Macro{Name: "__range"}, []DatasourceType{Prometheus}},
+	{Macro{Name: "__range_s"}, bothDatasources},
+	{Macro{Name: "__range_ms"}, bothDatasources},
+	{Macro{Name: "__rate_interval"}, []DatasourceType{Prometheus}},
+	{Macro{Name: "__from", Formats: TimeFormatsAllowed}, bothDatasources},
+	{Macro{Name: "__to", Formats: TimeFormatsAllowed}, bothDatasources},
+	{Macro{Name: "__dashboard", Formats: VariableFormatsAllowed, Global: true, PerDashboard: true}, bothDatasources},
+	{Macro{Name: "__user.login", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
+	{Macro{Name: "__user.email", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
+	{Macro{Name: "__user.name", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
+	{Macro{Name: "__user.id", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
+	{Macro{Name: "__timeFilter", Function: true}, []DatasourceType{ClickHouse}},
+	{Macro{Name: "__timeGroup", Function: true}, []DatasourceType{ClickHouse}},
 }
 
 func Macros(t DatasourceType) []Macro {
@@ -76,7 +79,7 @@ func knownMacro(name string) bool {
 	return slices.ContainsFunc(macroTable, func(m macroDef) bool { return m.Name == name })
 }
 
-func lookupMacro(name string) (Macro, bool) {
+func LookupMacro(name string) (Macro, bool) {
 	idx := slices.IndexFunc(macroTable, func(m macroDef) bool { return m.Name == name })
 	if idx < 0 {
 		return Macro{}, false
@@ -84,8 +87,24 @@ func lookupMacro(name string) (Macro, bool) {
 	return macroTable[idx].Macro, true
 }
 
+func (m Macro) CheckFormat(format string) error {
+	switch m.Formats {
+	case VariableFormatsAllowed:
+		if !slices.Contains(VariableFormats(), format) {
+			return fmt.Errorf("unknown format %q for $%s; use one of %s", format, m.Name, strings.Join(VariableFormats(), ", "))
+		}
+	case TimeFormatsAllowed:
+		if !ValidTimeMacroFormat(format) {
+			return fmt.Errorf("invalid date format %q for $%s", format, m.Name)
+		}
+	default:
+		return fmt.Errorf("macro $%s does not take a format", m.Name)
+	}
+	return nil
+}
+
 func validFormatFor(name, format string) bool {
-	if macro, ok := lookupMacro(name); ok && macro.Formats == TimeFormatsAllowed {
+	if macro, ok := LookupMacro(name); ok && macro.Formats == TimeFormatsAllowed {
 		return ValidTimeMacroFormat(format)
 	}
 	return validFormat(format)

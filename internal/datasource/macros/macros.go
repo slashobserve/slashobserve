@@ -240,8 +240,8 @@ func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (strin
 	}
 	macro := spec.Macros(dsType)[idx]
 	if ref.Format != "" {
-		if err := validateMacroFormat(macro, ref); err != nil {
-			return "", err
+		if err := macro.CheckFormat(ref.Format); err != nil {
+			return "", refErrorf(ref, "%s", err)
 		}
 	}
 	args := strings.TrimSpace(ref.Args)
@@ -267,41 +267,25 @@ func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (strin
 	return args, nil
 }
 
-func validateMacroFormat(macro spec.Macro, ref spec.Reference) error {
-	switch macro.Formats {
-	case spec.VariableFormatsAllowed:
-		if !slices.Contains(spec.VariableFormats(), ref.Format) {
-			return refErrorf(ref, "unknown format %q for macro %s", ref.Format, refLabel(ref))
-		}
-	case spec.TimeFormatsAllowed:
-		if !spec.ValidTimeMacroFormat(ref.Format) {
-			return refErrorf(ref, "invalid date format %q for macro %s", ref.Format, refLabel(ref))
-		}
-	default:
-		return refErrorf(ref, "macro %s does not take a format", refLabel(ref))
-	}
-	return nil
+var globalValues = map[string]func(Env) string{
+	"__dashboard":  func(env Env) string { return env.Dashboard },
+	"__user.login": func(env Env) string { return env.User.Login },
+	"__user.email": func(env Env) string { return env.User.Email },
+	"__user.name":  func(env Env) string { return env.User.Name },
+	"__user.id":    func(env Env) string { return env.User.ID },
 }
 
 func isGlobalVariable(name string) bool {
-	_, ok := globalVariable(name, Env{})
-	return ok
+	macro, ok := spec.LookupMacro(name)
+	return ok && macro.Global
 }
 
 func globalVariable(name string, env Env) (string, bool) {
-	switch name {
-	case "__dashboard":
-		return env.Dashboard, true
-	case "__user.login":
-		return env.User.Login, true
-	case "__user.email":
-		return env.User.Email, true
-	case "__user.name":
-		return env.User.Name, true
-	case "__user.id":
-		return env.User.ID, true
+	value, ok := globalValues[name]
+	if !ok || !isGlobalVariable(name) {
+		return "", false
 	}
-	return "", false
+	return value(env), true
 }
 
 func globalMacro(ref spec.Reference, env Env) (string, bool, error) {

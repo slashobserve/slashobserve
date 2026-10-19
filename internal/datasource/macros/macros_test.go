@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 var (
@@ -333,6 +334,35 @@ func TestGlobalMacros(t *testing.T) {
 				{name: "references in a comment are verbatim", d: d.dialect, query: d.commentQuery, env: base, want: d.commentQuery},
 			})
 		})
+	}
+}
+
+func TestEveryValueMacroOfTheTableExpands(t *testing.T) {
+	env := macros.Env{Range: testRange, Interval: 30 * time.Second, ScrapeInterval: 15 * time.Second, Dashboard: "d", User: datasource.QueryUser{ID: "u", Login: "l", Email: "e", Name: "n"}}
+	dialects := []struct {
+		name    string
+		dialect macros.Dialect
+		ds      spec.DatasourceType
+		str     func(string) string
+	}{
+		{"promql", macros.PromQL, spec.Prometheus, func(m string) string { return `up{a="` + m + `"}` }},
+		{"clickhouse", macros.ClickHouse, spec.ClickHouse, func(m string) string { return "SELECT '" + m + "'" }},
+	}
+	for _, d := range dialects {
+		for _, m := range spec.Macros(d.ds) {
+			if m.Function {
+				continue
+			}
+			t.Run(d.name+"/"+m.Name, func(t *testing.T) {
+				got, err := macros.Expand(d.dialect, d.str("${"+m.Name+"}"), env)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(got.Text, "$") {
+					t.Fatalf("Expand left a reference in %q", got.Text)
+				}
+			})
+		}
 	}
 }
 

@@ -564,30 +564,14 @@ func unknownFormatIssue(ref Reference) *Issue {
 	return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("unknown format %q in reference to variable %q; use one of %s", ref.Format, ref.Name, strings.Join(VariableFormats(), ", "))}
 }
 
-func checkMacroFormat(macro Macro, ref Reference) *Issue {
-	switch macro.Formats {
-	case VariableFormatsAllowed:
-		if !slices.Contains(VariableFormats(), ref.Format) {
-			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("unknown format %q for $%s; use one of %s", ref.Format, ref.Name, strings.Join(VariableFormats(), ", "))}
-		}
-	case TimeFormatsAllowed:
-		if !ValidTimeMacroFormat(ref.Format) {
-			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("invalid date format %q for $%s", ref.Format, ref.Name)}
-		}
-	default:
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take a format", ref.Name)}
-	}
-	return nil
-}
-
 func checkMacroRef(ref Reference) *Issue {
-	macro, ok := lookupMacro(ref.Name)
+	macro, ok := LookupMacro(ref.Name)
 	if !ok {
 		return &Issue{Code: CodeUnknownMacro, Message: fmt.Sprintf("macro $%s does not exist", ref.Name)}
 	}
 	if ref.Format != "" {
-		if issue := checkMacroFormat(macro, ref); issue != nil {
-			return issue
+		if err := macro.CheckFormat(ref.Format); err != nil {
+			return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 		}
 	}
 	switch {
