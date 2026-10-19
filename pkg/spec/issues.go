@@ -29,6 +29,8 @@ const (
 	CodeDuplicateQueryRef     IssueCode = "duplicate_query_ref"
 	CodeUnknownQueryRef       IssueCode = "unknown_query_ref"
 	CodeThresholdValueMissing IssueCode = "threshold_value_missing"
+	CodeInvalidDefault        IssueCode = "invalid_default"
+	CodeInvalidRegex          IssueCode = "invalid_regex"
 )
 
 const maxIssues = 50
