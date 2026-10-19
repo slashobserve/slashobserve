@@ -57,6 +57,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/revisions/`: the durable agent request queue (`agent_requests`), its in-process workers, the `Reviser` contract the agent implements (`agent.Reviser`) and the `/api/v1/dashboards/{id}/revisions` routes.
 - `internal/agent/tools/`: the only place agent tools are defined (17 tools, sorted, constant schemas; 14 for the built-in agent, since `MCPOnly` tools are left out of what `agent.New` sends to the model); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
 - `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
+  In suggest mode (a `suggest` agent request) the run's only product is one proposed panel: `update_dashboard` places the panel with the run's id into the requested version (with the user's draft), validates it with `spec.Parse` and the save rules for that panel, and returns it without saving; write tools other than that refuse.
   The agent, and any MCP client, may move or delete a placeholder panel but never create or edit one; `create_dashboard` and `update_dashboard` reject that with `placeholder_not_allowed` before saving.
 - `internal/agent/prompts/`: embedded prompts, including the system prompt and the Spec authoring guide.
 - `evals/`: scenarios (`scenarios/*.yaml`), pricing, and the runner (`go run ./evals/runner`), which scores validity, data, source, metrics, tables, units, panel count, thresholds and latency through the public API and reports cost; scenarios tagged `replay-smoke` run in e2e with replay fixtures.
@@ -356,7 +357,7 @@ Directories are created when their phase starts; this is where things go.
 - Datasource credentials never reach the browser; all panel data goes through the query proxy, which only runs queries from a saved Spec.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
 - Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them, except the comment tools, which are MCP-only.
-- The agent's text output is discarded; only tool-saved Specs leave a run.
+- The agent's text output is discarded; only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
 - The agent never creates or edits placeholder panels; they come from Grafana imports.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.

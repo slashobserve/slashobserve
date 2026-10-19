@@ -442,13 +442,13 @@ func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
 	}
-	if issues := nulIssues(canonical); len(issues) > 0 {
+	if issues := NULIssues(canonical); len(issues) > 0 {
 		return nil, nil, &InvalidSpecError{Issues: issues}
 	}
 	return parsed, canonical, nil
 }
 
-func nulIssues(canonical []byte) []spec.Issue {
+func NULIssues(canonical []byte) []spec.Issue {
 	dec := json.NewDecoder(bytes.NewReader(canonical))
 	dec.UseNumber()
 	var tree any

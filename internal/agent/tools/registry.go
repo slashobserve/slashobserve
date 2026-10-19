@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	codeTooLarge       = "too_large"
 
 	MaxModelSpecBytes = 128 << 10
+	maxSuggestResult  = 64 << 10
 )
 
 var (
@@ -55,7 +57,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10, nameUpdateDashboard: maxSuggestResult}
 
 type Tool struct {
 	Name        string
@@ -83,8 +85,9 @@ type Deps struct {
 type Mode string
 
 const (
-	ModeCreate Mode = "create"
-	ModeRevise Mode = "revise"
+	ModeCreate  Mode = "create"
+	ModeRevise  Mode = "revise"
+	ModeSuggest Mode = "suggest"
 )
 
 type Run struct {
@@ -92,6 +95,8 @@ type Run struct {
 	DashboardID   string
 	ParentVersion int
 	RequestID     string
+	PanelID       string
+	Base          *spec.Dashboard
 }
 
 type runKey struct{}

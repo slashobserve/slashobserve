@@ -71,6 +71,15 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	if len(body) > tools.MaxModelSpecBytes {
 		return "", ErrTooLarge
 	}
+	if mode == tools.ModeSuggest {
+		fmt.Fprintf(&b, "\nYou are proposing a change to dashboard %s, version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
+		title, _ := panelTitle(current.spec, panelID)
+		if title == "" {
+			title = panelID
+		}
+		fmt.Fprintf(&b, "\nPropose a change to panel %s titled %q for the request. Call update_dashboard with the full Spec as usual; only panel %s is taken from it, everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.number)
+		return b.String(), nil
+	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 	if panelID != "" {
 		fromComment := source == revisions.SourceComment

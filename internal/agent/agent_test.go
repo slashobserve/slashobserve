@@ -195,6 +195,7 @@ type fakeDashboards struct {
 	err    error
 	gets   int
 	spec   *spec.Dashboard
+	byNum  map[int]*spec.Dashboard
 }
 
 func (d *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error) {
@@ -206,6 +207,23 @@ func (d *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dash
 	}
 	return dashboards.Dashboard{ID: dashID, LatestVersion: d.number},
 		dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: d.number}, Spec: d.spec}, nil
+}
+
+func (d *fakeDashboards) GetVersion(_ context.Context, _ pgtype.UUID, version int) (dashboards.Dashboard, dashboards.Version, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, d.err
+	}
+	if version < 1 || version > d.number {
+		return dashboards.Dashboard{}, dashboards.Version{}, dashboards.ErrNotFound
+	}
+	content := d.spec
+	if byNum, ok := d.byNum[version]; ok {
+		content = byNum
+	}
+	return dashboards.Dashboard{ID: dashID, LatestVersion: d.number},
+		dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: version}, Spec: content}, nil
 }
 
 func (d *fakeDashboards) setNumber(n int) {
