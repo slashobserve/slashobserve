@@ -145,7 +145,6 @@ test.describe("with the replay agent", () => {
 
     await expect(box).toHaveValue("")
     await expectCommentResolvedByRevision(page, commentPrompt)
-    await expect(versionButton(page)).toHaveText(/v2$/)
     expect(
       await page.evaluate(
         () =>
@@ -157,6 +156,7 @@ test.describe("with the replay agent", () => {
 
     await page.keyboard.press("Escape")
     await expect(sheet(page)).toHaveCount(0)
+    await expect(versionButton(page)).toHaveText(/v2$/)
     await openVersionsFromMenu(page)
     const rows = page.getByRole("table", { name: "Versions" }).getByRole("row")
     await expect(rows).toHaveCount(3)
