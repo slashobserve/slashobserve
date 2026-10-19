@@ -213,12 +213,7 @@ export function EditPane({
   }
 
   return (
-    <div
-      // QueryTab leaves the focus alone when a newer version arrives while it is inside this slot.
-      data-slot="sheet-content"
-      className="flex min-h-0 flex-1 flex-col"
-      onKeyDown={onKeyDown}
-    >
+    <div className="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
       <CardHeader
         headingId={headingId}
         headingRef={headingRef}
