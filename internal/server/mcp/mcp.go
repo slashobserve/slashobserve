@@ -35,7 +35,8 @@ const (
 		"Call get_spec_guide before your first create_dashboard. " +
 		"Discover metric, label, table and column names with the list_* and get_schema tools, " +
 		"check queries with lint_query and query_range, then save with create_dashboard or update_dashboard; " +
-		"a save runs every panel query and rejects panels that fail or return no data."
+		"a save runs every panel query and rejects panels that fail or return no data. " +
+		"Work on feedback with list_comments, fix it with update_dashboard, then reply_to_comment and resolve_comment with the version you saved."
 )
 
 type Authenticator interface {

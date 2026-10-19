@@ -193,10 +193,12 @@ func run() error {
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, registry, logger)
 
+	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
 		Runner:      runner,
 		Dashboards:  dashboardsService,
+		Comments:    toolComments,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
 	})

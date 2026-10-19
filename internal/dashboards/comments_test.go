@@ -248,7 +248,8 @@ func TestSetStatusResolvesTheWholeThread(t *testing.T) {
 	reply := r.createComment(t, dash, NewComment{ParentID: mustParse(t, root.ID), Body: "reply"})
 	nested := r.createComment(t, dash, NewComment{ParentID: mustParse(t, reply.ID), Body: "nested"})
 	setStatus := func(id string, status string, version *int) (Comment, error) {
-		return r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
+		comment, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
+		return comment, err
 	}
 
 	resolved, err := setStatus(reply.ID, CommentResolved, new(2))
@@ -310,7 +311,8 @@ func TestSetStatusChecksTheResolvedByVersion(t *testing.T) {
 	onLatest := r.createComment(t, dash, NewComment{Version: 3, PanelID: new("rps"), Body: "latest"})
 	onFirst := r.createComment(t, dash, NewComment{Version: 1, Body: "first"})
 	setStatus := func(id string, status string, version *int) (Comment, error) {
-		return r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
+		comment, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, id), status, version)
+		return comment, err
 	}
 
 	var invalid *InvalidInputError

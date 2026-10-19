@@ -317,29 +317,40 @@ func checkResolvedByVersion(status string, resolvedByVersion *int) error {
 	return nil
 }
 
-func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string, resolvedByVersion *int) (Comment, error) {
+func (cm *Comments) DashboardOf(ctx context.Context, commentID pgtype.UUID) (pgtype.UUID, error) {
+	id, err := cm.db.Queries().GetCommentDashboard(ctx, commentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, ErrCommentNotFound
+	}
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("get comment dashboard: %w", err)
+	}
+	return id, nil
+}
+
+func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string, resolvedByVersion *int) (Comment, bool, error) {
 	if err := checkResolvedByVersion(status, resolvedByVersion); err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
 	actorID, err := db.ParseUUID(by.ID)
 	if err != nil {
-		return Comment{}, fmt.Errorf("actor id: %w", err)
+		return Comment{}, false, fmt.Errorf("actor id: %w", err)
 	}
 	actor := authorOf(by)
 	target, err := cm.threadRoot(ctx, dashboardID, commentID)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
 	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
 	if resolvedByVersion != nil {
 		if *resolvedByVersion > latest {
-			return Comment{}, ErrUnknownVersion
+			return Comment{}, false, ErrUnknownVersion
 		}
 		if *resolvedByVersion < int(target.Version) {
-			return Comment{}, &InvalidInputError{Message: fmt.Sprintf("resolved_by_version must be at least the version the thread is on (%d)", target.Version)}
+			return Comment{}, false, &InvalidInputError{Message: fmt.Sprintf("resolved_by_version must be at least the version the thread is on (%d)", target.Version)}
 		}
 	}
 	params := dbsqlc.SetCommentStatusParams{ID: target.ID, DashboardID: dashboardID, Status: status}
@@ -353,44 +364,45 @@ func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardI
 	}
 	panels, err := cm.panels(ctx, dashboardID, latest)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
 	var row dbsqlc.DashboardComment
+	var changed bool
 	err = cm.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = cm.applyStatus(ctx, q, params, actor)
+		row, changed, err = cm.applyStatus(ctx, q, params, actor)
 		return err
 	})
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
 	comments := []Comment{commentFromRow(row, row.Status, panels)}
 	if err := cm.attachRevisions(ctx, comments); err != nil {
-		return Comment{}, err
+		return Comment{}, false, err
 	}
-	return comments[0], nil
+	return comments[0], changed, nil
 }
 
-func (cm *Comments) applyStatus(ctx context.Context, q *dbsqlc.Queries, params dbsqlc.SetCommentStatusParams, actor Author) (dbsqlc.DashboardComment, error) {
+func (cm *Comments) applyStatus(ctx context.Context, q *dbsqlc.Queries, params dbsqlc.SetCommentStatusParams, actor Author) (dbsqlc.DashboardComment, bool, error) {
 	updated, err := q.SetCommentStatus(ctx, params)
 	switch {
 	case err == nil:
-		return updated, notifyComment(ctx, q, events.TypeCommentUpdated, updated, updated.Status, actor)
+		return updated, true, notifyComment(ctx, q, events.TypeCommentUpdated, updated, updated.Status, actor)
 	case errors.Is(err, pgx.ErrNoRows):
 		row, err := q.GetComment(ctx, dbsqlc.GetCommentParams{ID: params.ID, DashboardID: params.DashboardID})
 		if errors.Is(err, pgx.ErrNoRows) {
-			return row, ErrCommentNotFound
+			return row, false, ErrCommentNotFound
 		}
 		if err != nil {
-			return row, fmt.Errorf("get comment: %w", err)
+			return row, false, fmt.Errorf("get comment: %w", err)
 		}
-		return row, nil
+		return row, false, nil
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == "dashboard_comments_resolved_by_version_fkey" {
-		return updated, ErrUnknownVersion
+		return updated, false, ErrUnknownVersion
 	}
-	return updated, fmt.Errorf("set comment status: %w", err)
+	return updated, false, fmt.Errorf("set comment status: %w", err)
 }
 
 func (cm *Comments) attachRevisions(ctx context.Context, comments []Comment) error {

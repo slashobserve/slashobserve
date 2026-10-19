@@ -267,7 +267,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	if err != nil || len(listed) != 1 || listed[0].Revision == nil || listed[0].Revision.ID != rev.ID {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
-	resolved, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), CommentResolved, nil)
+	resolved, _, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), CommentResolved, nil)
 	if err != nil || resolved.Revision == nil || resolved.Revision.ID != rev.ID {
 		t.Fatalf("resolved = %+v, err %v", resolved, err)
 	}
