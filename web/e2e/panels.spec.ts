@@ -209,8 +209,7 @@ test("renders in dark mode without leaking canvases", async ({
 
   const rps = panel(page, rpsTitle)
   for (const choice of ["Dark", "Light", "Dark", "Light", "Dark"]) {
-    await page.getByRole("button", { name: "Theme" }).click()
-    await page.getByRole("menuitemradio", { name: choice }).click()
+    await page.getByRole("button", { name: "Switch theme" }).click()
     if (choice === "Dark") {
       await expect(page.locator("html")).toHaveClass(/\bdark\b/)
     } else {
@@ -220,9 +219,6 @@ test("renders in dark mode without leaking canvases", async ({
   }
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   await expectPanelsReady(page)
-
-  await page.getByRole("button", { name: "Theme" }).click()
-  await page.getByRole("menuitemradio", { name: "System" }).click()
 })
 
 test("keeps series colors when a variable filters series", async ({

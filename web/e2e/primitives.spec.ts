@@ -104,6 +104,7 @@ test("a focused multi-value variable control has a 2px brand ring", async ({
   const chips = page
     .locator('[data-slot="combobox-chips"]')
     .filter({ has: input })
+    .locator("xpath=..")
   await input.focus()
   await expect(input).toBeFocused()
   await expect
