@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1029,6 +1030,50 @@ func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
 			{"/variables/1", CodeVariableUnresolved, `variable "svc" could not be resolved`},
 		})
 	})
+}
+
+func TestCheckSpecSkipsTheAllListOfAGuardOnlyVariable(t *testing.T) {
+	tests := []struct {
+		name   string
+		panels []string
+		want   []wantIssue
+	}{
+		{"only a guard", []string{"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)"}, nil},
+		{"guard and its own condition", []string{"SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)"}, nil},
+		{"guard in one panel and listed in another", []string{
+			"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)",
+			"SELECT ${svc:singlequote}",
+		}, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/panels/1/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+		{"guard and a condition of another variable", []string{"SELECT 1 WHERE $__conditionalAll(x IN (${svc:singlequote}), $other)"}, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("clickhouse")
+			fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+				return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+			var panels []spec.Panel
+			for i, query := range tt.panels {
+				panels = append(panels, panelOf("p"+strconv.Itoa(i), spec.Stat, "ch", query))
+			}
+			other := customVariable("other", "a")
+			other.IncludeAll = true
+			d := dashboardOf(panels, includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"), other)
+			issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertIssues(t, issues, tt.want)
+		})
+	}
 }
 
 func TestCheckSpecExpandsTheConditionOfAConditionalAllSelectingAll(t *testing.T) {
