@@ -49,6 +49,7 @@ type converter struct {
 	emptyRows   []string
 	noRepeat    map[string]bool
 	repeatNoted map[string]bool
+	staleRows   []string
 }
 
 func Convert(raw []byte, opts Options) (*Result, error) {
@@ -251,6 +252,9 @@ func (c *converter) convertPanels() {
 		if cut {
 			c.note("rows", "A row title was cut to 200 characters.", n.path+".title")
 		}
+		if n.staleKids {
+			c.staleRows = append(c.staleRows, n.path+".panels")
+		}
 		row := &builtPanel{
 			node:   n,
 			panel:  spec.Panel{ID: n.id, Type: spec.Row, Title: title, GridPos: spec.GridPos{X: n.pos.x, Y: n.pos.y, W: n.pos.w, H: n.pos.h}, Collapsed: n.collapsed},
@@ -264,6 +268,9 @@ func (c *converter) convertPanels() {
 	}
 	if len(c.emptyRows) > 0 {
 		c.note("rows", "Rows without a title are named Row.", c.emptyRows...)
+	}
+	if len(c.staleRows) > 0 {
+		c.note("rows", "These rows are not collapsed but still list panels inside them; Grafana ignores those, and so does the import.", c.staleRows...)
 	}
 }
 

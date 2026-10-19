@@ -67,3 +67,21 @@ func panelLine(t *testing.T, res *Result, id string) PanelLine {
 func isMoved(line PanelLine) bool {
 	return slices.Contains(line.Reasons, movedReason)
 }
+
+func notesFor(res *Result, subject string) []Note {
+	var out []Note
+	for _, n := range res.Report.Notes {
+		if n.Subject == subject {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func hasPath(notes []Note, path string) bool {
+	return slices.ContainsFunc(notes, func(n Note) bool { return slices.Contains(n.Paths, path) })
+}
+
+func hasLine(res *Result, id string) bool {
+	return slices.ContainsFunc(res.Report.Panels, func(l PanelLine) bool { return l.PanelID == id })
+}

@@ -27,6 +27,7 @@ type panelNode struct {
 	path       string
 	row        bool
 	collapsed  bool
+	staleKids  bool
 	clone      bool
 	typ        string
 	sourceType string
@@ -60,10 +61,11 @@ func panelTypeOf(p map[string]any) (typ, sourceType string) {
 }
 
 func isRepeatClone(p map[string]any) bool {
-	if p["repeatPanelId"] != nil || p["repeatRowId"] != nil || truthy(p["repeatedByRow"]) {
-		return true
-	}
-	return p["repeatIteration"] != nil && !present(p["repeat"])
+	return p["repeatPanelId"] != nil || p["repeatRowId"] != nil || truthy(p["repeatedByRow"])
+}
+
+func isLegacyRepeatClone(row map[string]any) bool {
+	return isRepeatClone(row) || (row["repeatIteration"] != nil && !present(row["repeat"]))
 }
 
 func newNode(raw map[string]any, path string) *panelNode {
@@ -110,6 +112,10 @@ func newStyleNodes(items []any, base string) []*panelNode {
 		n := newNode(raw, fmt.Sprintf("%s[%d]", base, i))
 		if n.row {
 			children, _ := asArray(raw["panels"])
+			n.staleKids = !n.collapsed && len(children) > 0
+			if !n.collapsed {
+				children = nil
+			}
 			for j, child := range children {
 				childRaw, ok := asObject(child)
 				if !ok {
@@ -127,23 +133,30 @@ func newStyleNodes(items []any, base string) []*panelNode {
 	return nodes
 }
 
-func legacyGridHeight(v any, fallback int) int {
-	height := fallback
+func legacyPixels(v any) int {
 	switch h := v.(type) {
 	case string:
 		digits := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(h), "px"))
 		if n, err := strconv.Atoi(digits); err == nil {
-			height = n
+			return n
 		}
 	default:
-		if f, ok := asFloat(v); ok && f != 0 {
-			height = int(f)
+		if f, ok := asFloat(v); ok {
+			return int(min(max(f, -gridSanityLimit), gridSanityLimit))
 		}
 	}
-	if height == 0 {
-		height = fallback
+	return 0
+}
+
+func legacyGridUnits(pixels int) int {
+	return int(math.Ceil(float64(max(pixels, legacyMinHeight)) / legacyHeightStep))
+}
+
+func legacyGridHeight(v any, fallback int) int {
+	if px := legacyPixels(v); px > 0 {
+		return legacyGridUnits(px)
 	}
-	return int(math.Ceil(float64(max(height, legacyMinHeight)) / legacyHeightStep))
+	return legacyGridUnits(fallback)
 }
 
 func legacyMaxPanelID(rows []any) int {
@@ -188,8 +201,8 @@ func legacyNodes(rows []any) []*panelNode {
 }
 
 func (b *legacyBuilder) addRow(row map[string]any, path string) {
-	if isRepeatClone(row) {
-		b.out = append(b.out, &panelNode{raw: row, path: path, row: true, clone: true, typ: "row", sourceType: "row"})
+	if isLegacyRepeatClone(row) {
+		b.out = append(b.out, &panelNode{raw: row, path: path, row: true, clone: true, typ: "row", sourceType: "row", pos: gridPos{y: b.y, w: gridColumns, h: 1}})
 		return
 	}
 	collapsed := truthy(row["collapse"])
@@ -233,8 +246,8 @@ func (b *legacyBuilder) addPanels(row map[string]any, path string, rowNode *pane
 		}
 		w := min(span*legacyColumnFactor, gridColumns)
 		h := rowHeight
-		if present(p["height"]) {
-			h = legacyGridHeight(p["height"], legacyRowHeight)
+		if px := legacyPixels(p["height"]); px > 0 {
+			h = legacyGridUnits(px)
 		}
 		if x+w > gridColumns {
 			x = 0
