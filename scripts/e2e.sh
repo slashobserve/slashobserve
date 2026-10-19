@@ -1050,7 +1050,7 @@ comment_body() {
 }
 
 comment_ids() {
-  grep -o '{"id":"[^"]*","dashboard_id"' "$1" | cut -d'"' -f4
+  { grep -o '{"id":"[^"]*","dashboard_id"' "$1" || true; } | cut -d'"' -f4
 }
 
 comments_suite() {
@@ -1713,9 +1713,9 @@ mcp_expect() {
 
 mcp_suite() {
   api_token
-  local out id name leak label args
-  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_dashboards list_datasources
-    list_label_values list_labels list_metrics query_instant query_range sample_rows update_dashboard)
+  local out id name leak label args panel cid wid vid
+  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_comments list_dashboards list_datasources
+    list_label_values list_labels list_metrics query_instant query_range reply_to_comment resolve_comment sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
 
   out="$(command curl -sS --max-time 10 -o "$TMP/mcp.body" -D "$TMP/mcp.headers" -w '%{http_code}' -X POST \
@@ -1847,6 +1847,54 @@ mcp_suite() {
     fail "update_dashboard without a parent_version ($(cat "$TMP/mcp.body"))"
   fi
   pass "MCP update_dashboard demands dashboard_id and parent_version"
+
+  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
+  [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 1 "$panel" 'Please add p99')")"
+  [[ "$out" == 201 ]] || fail "create a panel comment for MCP ($out: $(cat "$TMP/api.body"))"
+  cid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$cid" ]] || fail "no comment id in the panel comment response ($(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$id/comments" -d '{"version":1,"body":"Overall layout feedback","request_revision":false}')"
+  [[ "$out" == 201 ]] || fail "create a whole-dashboard comment for MCP ($out: $(cat "$TMP/api.body"))"
+  wid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$wid" ]] || fail "no comment id in the whole-dashboard comment response ($(cat "$TMP/api.body"))"
+  mcp_tool list_comments "{\"dashboard_id\":\"$id\"}"
+  mcp_expect "list_comments" "\"id\":\"$cid\""
+  mcp_expect "list_comments" "\"id\":\"$wid\""
+  mcp_expect "list_comments" '"panel_id":null'
+  mcp_tool reply_to_comment "{\"comment_id\":\"$cid\",\"body\":\"Added p99 in the next version\"}"
+  mcp_expect "reply_to_comment" "\"parent_id\":\"$cid\""
+  out="$(api GET "/dashboards/$id/comments")"
+  [[ "$out" == 200 ]] || fail "list comments after an MCP reply ($out: $(cat "$TMP/api.body"))"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); r=[c for c in d["comments"] if c["parent_id"]==sys.argv[2]]; sys.exit(0 if len(r)==1 and r[0]["author"]["kind"]=="service_account" else 1)' "$TMP/api.body" "$cid" \
+    || fail "the MCP reply should be a service-account reply to $cid ($(cat "$TMP/api.body"))"
+  mcp_tool resolve_comment "{\"comment_id\":\"$cid\",\"version\":1}"
+  mcp_expect "resolve_comment" '"changed":true'
+  mcp_expect "resolve_comment" '"resolved_by_version":1'
+  mcp_tool resolve_comment "{\"comment_id\":\"$cid\",\"version\":1}"
+  mcp_expect "resolve_comment again" '"changed":false'
+  mcp_tool resolve_comment "{\"comment_id\":\"$wid\",\"version\":99}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'unknown_version' "$TMP/mcp.body"; then
+    fail "resolve_comment with an unknown version ($(cat "$TMP/mcp.body"))"
+  fi
+  out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'Please check p99 on version 2')")"
+  [[ "$out" == 201 ]] || fail "create a comment on version 2 for MCP ($out: $(cat "$TMP/api.body"))"
+  vid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$vid" ]] || fail "no comment id in the version 2 comment response ($(cat "$TMP/api.body"))"
+  mcp_tool resolve_comment "{\"comment_id\":\"$vid\",\"version\":1}"
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body" || ! grep -q 'version must be at least 2' "$TMP/mcp.body"; then
+    fail "resolve_comment with a version before the thread's ($(cat "$TMP/mcp.body"))"
+  fi
+  mcp_tool reply_to_comment '{"comment_id":"x","body":"hello"}'
+  if [[ "$MCP_ERROR" != true ]] || ! grep -q 'invalid_request' "$TMP/mcp.body"; then
+    fail "reply_to_comment with a bad comment_id ($(cat "$TMP/mcp.body"))"
+  fi
+  mcp_tool list_comments "{\"dashboard_id\":\"$id\"}"
+  mcp_expect "list_comments after resolving" "\"id\":\"$wid\""
+  if grep -q "\"id\":\"$cid\"" "$TMP/mcp.body"; then
+    fail "a resolved thread should not be listed by default ($(cat "$TMP/mcp.body"))"
+  fi
+  pass "MCP clients list, answer and resolve comments with the version that fixed them"
 
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro|password' "$TMP/mcp-all.body" || true)"
   [[ -z "$leak" ]] || fail "MCP responses expose connection details ($leak)"

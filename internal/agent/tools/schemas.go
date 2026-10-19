@@ -6,6 +6,7 @@ const (
 	nameGetSchema       = "get_schema"
 	nameGetSpecGuide    = "get_spec_guide"
 	nameLintQuery       = "lint_query"
+	nameListComments    = "list_comments"
 	nameListDashboards  = "list_dashboards"
 	nameListDatasources = "list_datasources"
 	nameListLabelValues = "list_label_values"
@@ -13,6 +14,8 @@ const (
 	nameListMetrics     = "list_metrics"
 	nameQueryInstant    = "query_instant"
 	nameQueryRange      = "query_range"
+	nameReplyToComment  = "reply_to_comment"
+	nameResolveComment  = "resolve_comment"
 	nameSampleRows      = "sample_rows"
 	nameUpdateDashboard = "update_dashboard"
 )
@@ -23,6 +26,7 @@ const (
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
 	descLintQuery       = "Check a PromQL or ClickHouse SQL query for syntax and policy problems without running it. Use it on a draft query before running or saving it. When the datasource cannot be reached it returns an error such as datasource_unavailable instead of diagnostics, which says nothing about the query."
+	descListComments    = "List a dashboard's comments, oldest first: open threads by default. A reply has parent_id; panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
 	descListDashboards  = "List saved dashboards, most recently updated first, with their latest version and URL. Use it to find a dashboard to open or revise."
 	descListDatasources = "List the configured datasources with their uid, type and health. Call it first to learn which datasource uid to pass to the other tools."
 	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. Use it to learn real services, routes or pods before filtering on them."
@@ -30,6 +34,8 @@ const (
 	descListMetrics     = "List the metrics of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by a search string. Use it to find real metric names before writing queries."
 	descQueryInstant    = "Run a PromQL or ClickHouse SQL query at one point in time and get a compact summary (rows or series with min, max, last). Use it to check a stat, table or bar gauge query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
 	descQueryRange      = "Run a PromQL or ClickHouse SQL query over a time range and get a compact summary (series, min, max, last). Use it to check a panel query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
+	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
+	descResolveComment  = "Resolve a comment thread once it is addressed. Pass version, the dashboard version that fixed it, so people see Resolved by version N. Resolving a resolved thread changes nothing."
 	descSampleRows      = "Read a few recent rows from a ClickHouse table. Use it to see real column values, such as log messages or span names, before writing a query."
 	descUpdateDashboard = "Save a new version of an existing dashboard from a full ObserveSpec document. Pass the version you read as parent_version; a newer saved version is reported as a conflict."
 )
@@ -46,6 +52,7 @@ const (
 	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see get_spec_guide."}`
 	propSummary    = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID     = `"dashboard_id":{"type":"string","description":"Dashboard id."}`
+	propCommentID  = `"comment_id":{"type":"string","description":"Comment id from list_comments."}`
 )
 
 const (
@@ -74,4 +81,10 @@ const (
 	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
 
 	schemaUpdateDashboard = `{"type":"object","properties":{` + propDashID + `,"parent_version":{"type":"integer","minimum":1,"description":"The version this change is based on."},` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
+)
+
+const (
+	schemaListComments   = `{"type":"object","properties":{` + propDashID + `,"status":{"type":"string","enum":["open","resolved","all"],"description":"Which threads to list. Default open."},"panel_id":{"type":"string","minLength":1,"maxLength":64,"description":"Only comments on this panel."},"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Comments per page. Default 50."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"required":["dashboard_id"],"additionalProperties":false}`
+	schemaReplyToComment = `{"type":"object","properties":{` + propCommentID + `,"body":{"type":"string","minLength":1,"maxLength":4000,"description":"The reply, plain text."}},"required":["comment_id","body"],"additionalProperties":false}`
+	schemaResolveComment = `{"type":"object","properties":{` + propCommentID + `,"version":{"type":"integer","minimum":1,"description":"The dashboard version that fixed the comment."}},"required":["comment_id"],"additionalProperties":false}`
 )

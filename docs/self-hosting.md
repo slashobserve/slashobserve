@@ -420,6 +420,9 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
+MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
+A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
+
 Export the key in the shell that starts your client, so the key never lands in a config file:
 
     export OBSERVE_TOKEN=<your service-account key>

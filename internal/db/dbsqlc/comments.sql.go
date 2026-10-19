@@ -106,6 +106,17 @@ func (q *Queries) GetComment(ctx context.Context, arg GetCommentParams) (Dashboa
 	return i, err
 }
 
+const getCommentDashboard = `-- name: GetCommentDashboard :one
+SELECT dashboard_id FROM dashboard_comments WHERE id = $1
+`
+
+func (q *Queries) GetCommentDashboard(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, getCommentDashboard, id)
+	var dashboard_id pgtype.UUID
+	err := row.Scan(&dashboard_id)
+	return dashboard_id, err
+}
+
 const getCommentForShare = `-- name: GetCommentForShare :one
 SELECT id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version FROM dashboard_comments WHERE id = $1 AND dashboard_id = $2 FOR SHARE
 `

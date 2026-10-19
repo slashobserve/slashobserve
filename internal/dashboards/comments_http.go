@@ -158,7 +158,7 @@ func (cm *Comments) patchComment(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "status is required")
 		return
 	}
-	comment, err := cm.SetStatus(c.Request.Context(), httpapi.Caller(c), id, commentID, *req.Status, req.ResolvedByVersion)
+	comment, _, err := cm.SetStatus(c.Request.Context(), httpapi.Caller(c), id, commentID, *req.Status, req.ResolvedByVersion)
 	if err != nil {
 		cm.fail(c, "set comment status", err)
 		return
