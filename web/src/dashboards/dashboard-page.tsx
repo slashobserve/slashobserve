@@ -306,7 +306,9 @@ function DashboardView({
               dashboardId={dashboardId}
               version={version}
               latest={latestVersion}
+              current={envelope.version}
               pinned={pinned}
+              editing={editing}
               status={liveStatus}
               back={backFromSearch(search)}
             />

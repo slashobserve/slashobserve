@@ -12,7 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { RelativeTime } from "@/components/relative-time"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useVersionHistory } from "@/history/use-version-history"
+import {
+  useVersionHistory,
+  type VersionMeta,
+} from "@/history/use-version-history"
 import { versionActor } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 
@@ -30,19 +33,46 @@ type Props = {
   dashboardId: string
   version: number
   latest: number
+  current: VersionMeta
   pinned: boolean
+  editing: boolean
   status: LiveStatus
   back: string | undefined
 }
 
+function listedRows(
+  history: ReturnType<typeof useVersionHistory>,
+  version: number,
+  current: VersionMeta
+): VersionMeta[] | undefined {
+  if (history.data === undefined) return undefined
+  const newest = history.data.pages[0].versions.slice(0, listedVersions)
+  if (newest.some((item) => item.version === version)) return newest
+  const shown =
+    history.data.pages
+      .flatMap((page) => page.versions)
+      .find((item) => item.version === version) ??
+    (current.version === version ? current : undefined)
+  return shown ? [...newest, shown] : newest
+}
+
 function VersionRows({
-  history,
+  rows,
+  failed,
   latest,
 }: {
-  history: ReturnType<typeof useVersionHistory>
+  rows: VersionMeta[] | undefined
+  failed: boolean
   latest: number
 }) {
-  if (history.isPending) {
+  if (rows === undefined) {
+    if (failed) {
+      return (
+        <p className="px-3 py-2 text-xs text-muted-foreground">
+          Could not load versions.
+        </p>
+      )
+    }
     return (
       <div className="flex flex-col gap-2 px-3 py-2">
         <Skeleton className="h-9 w-full" />
@@ -50,14 +80,7 @@ function VersionRows({
       </div>
     )
   }
-  if (history.isError) {
-    return (
-      <p className="px-3 py-2 text-xs text-muted-foreground">
-        Could not load versions.
-      </p>
-    )
-  }
-  return history.data.pages[0].versions.slice(0, listedVersions).map((item) => (
+  return rows.map((item) => (
     <DropdownMenuRadioItem
       key={item.version}
       value={String(item.version)}
@@ -83,8 +106,10 @@ function VersionRows({
 export function VersionMenu({
   dashboardId,
   version,
-  latest,
+  latest: dashboardLatest,
+  current,
   pinned,
+  editing,
   status,
   back,
 }: Props) {
@@ -93,6 +118,10 @@ export function VersionMenu({
   const history = useVersionHistory(dashboardId)
   const button = useRef<HTMLButtonElement>(null)
   const headingId = useId()
+  const latest = Math.max(
+    dashboardLatest,
+    history.data?.pages[0]?.versions[0]?.version ?? 0
+  )
   const state = { version, latest, status }
 
   // Pinning or unpinning swaps the page component, so this menu remounts and its trigger loses the focus Base UI would return to it.
@@ -149,8 +178,14 @@ export function VersionMenu({
             <span id={headingId}>Versions</span>
             <span>{latest} saved</span>
           </div>
+          {editing ? (
+            <p className="px-3 pb-1.5 text-xs text-muted-foreground">
+              Save or cancel your layout changes to switch versions.
+            </p>
+          ) : null}
           <DropdownMenuRadioGroup
             value={String(version)}
+            disabled={editing}
             onValueChange={(value) => {
               const next = Number(value) === latest ? 0 : Number(value)
               if (next === shown) return
@@ -159,7 +194,11 @@ export function VersionMenu({
               })
             }}
           >
-            <VersionRows history={history} latest={latest} />
+            <VersionRows
+              rows={listedRows(history, version, current)}
+              failed={history.isError}
+              latest={latest}
+            />
           </DropdownMenuRadioGroup>
           <DropdownMenuItem
             render={
