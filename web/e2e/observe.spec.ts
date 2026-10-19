@@ -162,7 +162,12 @@ test("links a failed comment revision back to its dashboard", async ({
   const commented = await page.request.post(
     `/api/v1/dashboards/${dashboardId}/comments`,
     {
-      data: { version: 1, panel_id: "rps", body: unanswerablePrompt },
+      data: {
+        version: 1,
+        panel_id: "rps",
+        body: unanswerablePrompt,
+        request_revision: true,
+      },
       headers: mutationHeaders,
     }
   )
