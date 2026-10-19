@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +14,58 @@ import (
 
 func prom(uid, url string) config.Datasource {
 	return config.Datasource{UID: uid, Type: "prometheus", Name: uid, Prometheus: &config.PrometheusDatasource{URL: url}}
+}
+
+func TestBuildCopiesGrafanaUIDs(t *testing.T) {
+	src := prom("prom", "http://prom:9090")
+	src.GrafanaUIDs = []string{"prometheus", "Main"}
+	registry, err := Build(nil, []config.Datasource{src, prom("other", "http://other:9090")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = registry.Close() })
+	in, ok := registry.Get("prom")
+	if !ok || !slices.Equal(in.GrafanaUIDs, []string{"prometheus", "Main"}) {
+		t.Fatalf("instance = %+v", in)
+	}
+	if other, _ := registry.Get("other"); len(other.GrafanaUIDs) != 0 {
+		t.Fatalf("other = %+v", other)
+	}
+}
+
+func TestRegistryHandsOutCopiesOfGrafanaUIDs(t *testing.T) {
+	src := prom("prom", "http://prom:9090")
+	src.GrafanaUIDs = []string{"prometheus"}
+	registry, err := Build(nil, []config.Datasource{src})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = registry.Close() })
+	listed := registry.List()
+	listed[0].GrafanaUIDs[0] = "changed"
+	got, _ := registry.Get("prom")
+	got.GrafanaUIDs[0] = "changed again"
+	if again, _ := registry.Get("prom"); !slices.Equal(again.GrafanaUIDs, []string{"prometheus"}) {
+		t.Fatalf("registry changed: %q", again.GrafanaUIDs)
+	}
+	if again := registry.List(); !slices.Equal(again[0].GrafanaUIDs, []string{"prometheus"}) {
+		t.Fatalf("registry changed: %q", again[0].GrafanaUIDs)
+	}
+}
+
+func TestRegistryIsNotChangedByMutatingItsInput(t *testing.T) {
+	src := prom("prom", "http://prom:9090")
+	src.GrafanaUIDs = []string{"prometheus"}
+	sources := []config.Datasource{src}
+	registry, err := Build(nil, sources)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = registry.Close() })
+	sources[0].GrafanaUIDs[0] = "changed"
+	if got, _ := registry.Get("prom"); !slices.Equal(got.GrafanaUIDs, []string{"prometheus"}) {
+		t.Fatalf("registry changed: %q", got.GrafanaUIDs)
+	}
 }
 
 func TestBuildEmpty(t *testing.T) {

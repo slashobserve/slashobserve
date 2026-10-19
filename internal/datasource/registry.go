@@ -27,9 +27,10 @@ var uidPattern = regexp.MustCompile(UIDPattern)
 func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
 type Instance struct {
-	UID        string
-	Name       string
-	Datasource Datasource
+	UID         string
+	Name        string
+	GrafanaUIDs []string
+	Datasource  Datasource
 }
 
 type Status struct {
@@ -79,6 +80,7 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		if strings.TrimSpace(in.Name) == "" {
 			in.Name = in.UID
 		}
+		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		r.instances[in.UID] = in
 	}
 	return r, nil
@@ -86,12 +88,14 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 
 func (r *Registry) Get(uid string) (Instance, bool) {
 	in, ok := r.instances[uid]
+	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, ok
 }
 
 func (r *Registry) List() []Instance {
 	out := make([]Instance, 0, len(r.instances))
 	for _, in := range r.instances {
+		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		out = append(out, in)
 	}
 	slices.SortFunc(out, func(a, b Instance) int { return strings.Compare(a.UID, b.UID) })
