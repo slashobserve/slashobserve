@@ -86,6 +86,21 @@ async function box(locator: Locator) {
   return result as NonNullable<typeof result>
 }
 
+async function panelEdges(aside: Locator) {
+  return aside.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      widths: [
+        style.borderTopWidth,
+        style.borderRightWidth,
+        style.borderBottomWidth,
+        style.borderLeftWidth,
+      ].join(" "),
+      radius: style.borderTopLeftRadius,
+    }
+  })
+}
+
 function offlineFailuresLogged(consoleErrors: string[]) {
   for (let index = consoleErrors.length - 1; index >= 0; index--) {
     if (consoleErrors[index].includes("ERR_INTERNET_DISCONNECTED")) {
@@ -121,6 +136,10 @@ test("creates a key for a new service account and shows it once", async ({
   const aside = panel(page)
   await expect(aside).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
+  expect(await panelEdges(aside)).toEqual({
+    widths: "0px 0px 0px 1px",
+    radius: "0px",
+  })
   const name = aside.getByLabel("Name", { exact: true })
   await expect(name).toBeFocused()
   await name.fill(keyName)
@@ -556,6 +575,29 @@ test("keeps a Select's Escape inside the panel", async ({ page }) => {
   await expect(expires).toBeFocused()
 })
 
+test.describe("beside a narrow content area", () => {
+  test.use({ viewport: { width: 1100, height: 800 } })
+
+  test("stacks the panel under the page with a top border", async ({
+    page,
+  }) => {
+    await openKeysPage(page)
+    await pageCreateKey(page).click()
+    const aside = panel(page)
+    await expect(aside).toBeVisible()
+    expect(await panelEdges(aside)).toEqual({
+      widths: "1px 0px 0px 0px",
+      radius: "0px",
+    })
+    const mainBox = await box(page.getByRole("main"))
+    const panelBox = await box(aside)
+    const railBox = await box(page.getByRole("navigation", { name: "Main" }))
+    expect(panelBox.y).toBeGreaterThanOrEqual(mainBox.y + mainBox.height - 1)
+    expect(panelBox.x).toBeCloseTo(railBox.x + railBox.width, 0)
+    expect(panelBox.x + panelBox.width).toBeCloseTo(1100, 0)
+  })
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`on a phone in ${colorScheme} mode`, () => {
     test.use({ viewport: { width: 390, height: 844 } })
@@ -596,6 +638,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(panelBox.y).toBeGreaterThanOrEqual(mainBox.y + mainBox.height - 1)
       expect(panelBox.x).toBeGreaterThanOrEqual(0)
       expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390)
+      expect(await panelEdges(aside)).toEqual({
+        widths: "1px 0px 0px 0px",
+        radius: "0px",
+      })
       expect(await noOverflow()).toBe(true)
 
       await name.fill("phone")
