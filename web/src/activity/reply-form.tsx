@@ -144,7 +144,7 @@ export function ReplyForm({
       <div className="flex flex-wrap items-center justify-end gap-2">
         {replySaved && !canSend ? (
           <Button type="button" size="sm" onClick={dismiss}>
-            {dismissLabel(replySaved)}
+            Done
           </Button>
         ) : (
           <>
