@@ -28,6 +28,10 @@ const stickThreshold = 80
 const stepsLoadedTurns = 3
 const titlePromptLength = 60
 
+function isActiveStatus(status: TurnSummary["status"]): boolean {
+  return status === "queued" || status === "running"
+}
+
 function scrollParent(element: HTMLElement): HTMLElement | null {
   for (
     let parent = element.parentElement;
@@ -200,10 +204,7 @@ function ConversationView({
 
   const root = turns.find((turn) => turn.id === requestId)
   const heading = dashboardTitle ?? root?.summary.prompt ?? ""
-  const active = turns.some(
-    (turn) =>
-      turn.summary.status === "queued" || turn.summary.status === "running"
-  )
+  const active = turns.some((turn) => isActiveStatus(turn.summary.status))
   const clipped =
     [...heading].length > titlePromptLength
       ? `${[...heading].slice(0, titlePromptLength).join("")}...`
@@ -214,6 +215,8 @@ function ConversationView({
 
   const agentOff = agent.data?.available === false
   const hasDashboard = dashboardId !== null
+  const waitingForDashboard =
+    !hasDashboard && root !== undefined && isActiveStatus(root.summary.status)
   const loadFrom = Math.max(0, turns.length - stepsLoadedTurns)
 
   return (
@@ -249,6 +252,7 @@ function ConversationView({
       <div className="sticky -bottom-7 w-full max-w-[760px] bg-background pt-2 pb-2">
         <ChatComposer
           rows={2}
+          disabled={waitingForDashboard}
           dashboardId={dashboardId ?? undefined}
           placeholder={
             hasDashboard
@@ -267,9 +271,11 @@ function ConversationView({
             })
           }}
         />
-        {hasDashboard && !agentOff ? (
+        {!agentOff && (hasDashboard || waitingForDashboard) ? (
           <p className="mt-1.5 text-center text-xs text-muted-foreground">
-            Each change is saved as a new version of the dashboard.
+            {hasDashboard
+              ? "Each change is saved as a new version of the dashboard."
+              : "Wait for the dashboard, then ask for changes."}
           </p>
         ) : null}
       </div>

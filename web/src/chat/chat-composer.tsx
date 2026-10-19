@@ -30,6 +30,7 @@ type Props = {
   placeholder: string
   rows: number
   autoFocus?: boolean
+  disabled?: boolean
   onSent: (request: ObserveRequest) => void | Promise<void>
   secondaryAction?: ReactNode
 }
@@ -68,6 +69,7 @@ export function ChatComposer({
   placeholder,
   rows,
   autoFocus = false,
+  disabled = false,
   onSent,
   secondaryAction,
 }: Props) {
@@ -129,7 +131,7 @@ export function ChatComposer({
   }
 
   async function submit() {
-    if (busy) return
+    if (busy || disabled) return
     const trimmed = prompt.trim()
     if (trimmed === "") {
       reject({
@@ -213,10 +215,11 @@ export function ChatComposer({
           rows={rows}
           placeholder={placeholder}
           readOnly={submitting || creating}
+          disabled={disabled}
           aria-invalid={notice?.invalid === true}
           aria-describedby={describedBy}
           enterKeyHint={coarse ? "enter" : "send"}
-          className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground narrow:text-base"
+          className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
           onChange={(event) => {
             setPrompt(event.target.value)
             setNotice(null)
@@ -244,7 +247,7 @@ export function ChatComposer({
               size="icon"
               aria-label="Send"
               aria-busy={submitting || creating}
-              disabled={submitting || creating}
+              disabled={submitting || creating || disabled}
               focusableWhenDisabled
               className="size-8"
             >
