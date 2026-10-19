@@ -851,7 +851,8 @@ func TestNewVariableTypeValuesAndDefaults(t *testing.T) {
 	}{
 		{"constant", constantVariable("c", "shop"), []string{"shop"}, Selection{Values: []string{"shop"}}, nil},
 		{"interval without auto", intervalVariable("iv", "1m", "5m"), []string{"1m", "5m"}, Selection{Values: []string{"1m"}}, nil},
-		{"interval with auto lists it first but defaults to the first option", auto, []string{"$__auto", "1m", "5m"}, Selection{Values: []string{"1m"}}, nil},
+		{"interval with auto lists it first and defaults to it", auto, []string{"$__auto", "1m", "5m"}, Selection{Values: []string{"$__auto"}}, nil},
+		{"interval with auto and a default keeps the default", withDefault(auto, "5m"), []string{"$__auto", "1m", "5m"}, Selection{Values: []string{"5m"}}, nil},
 		{"interval with auto and no options defaults to auto", spec.Variable{Name: "iv", Type: spec.IntervalVariable, Auto: true}, []string{"$__auto"}, Selection{Values: []string{"$__auto"}}, nil},
 		{"interval default", withDefault(intervalVariable("iv", "1m", "5m"), "5m"), []string{"1m", "5m"}, Selection{Values: []string{"5m"}}, nil},
 		{"textbox lists nothing and defaults to an empty string", textboxVariable("tb"), []string{}, Selection{Values: []string{""}}, nil},
