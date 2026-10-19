@@ -197,3 +197,52 @@ func TestCommentFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
+	version := 2147483647
+	author := strings.Repeat("<", 256)
+	comment := dashboards.Comment{
+		ID:                dashA,
+		ParentID:          dashB,
+		PanelID:           strings.Repeat("<", maxPanelFilterBytes),
+		PanelPresent:      true,
+		Version:           version,
+		Status:            dashboards.CommentResolved,
+		Author:            dashboards.Author{Name: author, Email: author},
+		CreatedAt:         time.Date(2026, 10, 19, 12, 30, 0, 0, time.UTC),
+		Body:              strings.Repeat("<", 2000),
+		ResolvedByVersion: &version,
+	}
+	cursor := strings.Repeat("c", 256)
+	out, _, cut := commentPage(dashA, []dashboards.Comment{comment}, cursor)
+	if cut || len(out.Comments) != 1 {
+		t.Fatalf("cut = %v with %d comments", cut, len(out.Comments))
+	}
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) > listBudget {
+		t.Fatalf("worst-case list result is %d bytes, over the %d byte budget", len(body), listBudget)
+	}
+	if !out.Comments[0].BodyTruncated || !strings.HasSuffix(out.Comments[0].Body, "...") {
+		t.Fatalf("the worst-case body was not cut: truncated = %v", out.Comments[0].BodyTruncated)
+	}
+}
+
+func TestCommentPageShrinksToFewerComments(t *testing.T) {
+	body := strings.Repeat("<", 1000)
+	list := make([]dashboards.Comment, 5)
+	for i := range list {
+		list[i] = dashboards.Comment{ID: dashA, Body: body}
+	}
+	out, kept, cut := commentPage(dashA, list, "next")
+	if !cut || kept < 1 || kept >= len(list) || len(out.Comments) != len(list) {
+		t.Fatalf("kept = %d cut = %v", kept, cut)
+	}
+	again, kept2, cut2 := commentPage(dashA, list[:kept], "next")
+	encoded, err := json.Marshal(again)
+	if cut2 || kept2 != kept || err != nil || len(encoded) > listBudget {
+		t.Fatalf("second page kept = %d cut = %v size = %d err = %v", kept2, cut2, len(encoded), err)
+	}
+}

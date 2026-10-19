@@ -181,31 +181,55 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
-	var (
-		items []commentOut
-		next  string
-	)
 	for {
 		list, cursor, err := r.deps.Comments.List(ctx, q.dashboardID, q.status, q.panelID, q.limit, q.cursor)
 		if err != nil {
 			return commentFailure(err)
 		}
-		items = make([]commentOut, 0, len(list))
-		for _, c := range list {
-			items = append(items, commentItem(c))
+		out, kept, cut := commentPage(q.dashboardID.String(), list, cursor)
+		if !cut {
+			return success("Listed "+plural(len(out.Comments), "comment", "comments"), out), nil
 		}
-		next = cursor
-		kept, cut := fit(items, listBudget)
-		if !cut || q.limit <= 1 {
-			break
-		}
-		q.limit = max(len(kept), 1)
+		q.limit = max(kept, 1)
 	}
-	out := commentListOut{DashboardID: q.dashboardID.String(), Comments: items}
+}
+
+func commentPage(dashboardID string, list []dashboards.Comment, next string) (commentListOut, int, bool) {
+	out := commentListOut{DashboardID: dashboardID, Comments: make([]commentOut, 0, len(list))}
 	if next != "" {
 		out.NextCursor = &next
 	}
-	return success("Listed "+plural(len(items), "comment", "comments"), out), nil
+	envelope, err := json.Marshal(out)
+	if err != nil {
+		return out, 0, false
+	}
+	budget := listBudget - len(envelope)
+	for _, c := range list {
+		out.Comments = append(out.Comments, commentItem(c))
+	}
+	kept, cut := fit(out.Comments, budget)
+	if !cut {
+		return out, len(kept), false
+	}
+	if len(list) == 1 {
+		out.Comments[0] = commentWithin(list[0], budget)
+		return out, 1, false
+	}
+	return out, len(kept), true
+}
+
+func commentWithin(c dashboards.Comment, budget int) commentOut {
+	out := commentItem(c)
+	n := min(len(c.Body), maxCommentOutBytes)
+	for n > 0 {
+		b, err := json.Marshal(out)
+		if err != nil || len(b)+1 <= budget {
+			break
+		}
+		n = max(n-(len(b)+1-budget), 0)
+		out.Body, out.BodyTruncated = clip(c.Body, n), true
+	}
+	return out
 }
 
 func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
