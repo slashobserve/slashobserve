@@ -404,7 +404,7 @@ export interface paths {
         head?: never;
         /**
          * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it is stored only when the call changes the status to resolved, and reopening clears it.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
          */
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
@@ -1922,14 +1922,14 @@ export interface operations {
                      */
                     request_revision?: boolean;
                     /** @description Required unless `parent_id` is set. */
-                    version?: number;
+                    version?: number | null;
                     /** @description The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`. */
                     panel_id?: string | null;
                     /**
                      * Format: uuid
                      * @description The comment to reply to. Not allowed with `version` or `panel_id`.
                      */
-                    parent_id?: string;
+                    parent_id?: string | null;
                     body: string;
                 };
             };

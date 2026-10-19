@@ -12,10 +12,13 @@ RETURNING *;
 -- name: GetComment :one
 SELECT * FROM dashboard_comments WHERE id = @id AND dashboard_id = @dashboard_id;
 
+-- name: GetCommentForShare :one
+SELECT * FROM dashboard_comments WHERE id = @id AND dashboard_id = @dashboard_id FOR SHARE;
+
 -- name: ListComments :many
 SELECT sqlc.embed(c), coalesce(root.status, c.status)::text AS thread_status
 FROM dashboard_comments c
-LEFT JOIN dashboard_comments root ON root.id = c.parent_id
+LEFT JOIN dashboard_comments root ON root.id = c.parent_id AND root.dashboard_id = c.dashboard_id
 WHERE c.dashboard_id = @dashboard_id
   AND (sqlc.narg('status')::text IS NULL OR coalesce(root.status, c.status) = sqlc.narg('status')::text)
   AND (sqlc.narg('panel_id')::text IS NULL OR c.panel_id = sqlc.narg('panel_id')::text)

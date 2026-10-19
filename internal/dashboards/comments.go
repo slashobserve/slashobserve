@@ -68,7 +68,7 @@ type Comment struct {
 
 type NewComment struct {
 	Version         int
-	PanelID         string
+	PanelID         *string
 	ParentID        pgtype.UUID
 	Body            string
 	RequestRevision bool
@@ -106,12 +106,30 @@ func (cm *Comments) anchor(ctx context.Context, dashboardID pgtype.UUID, in NewC
 	if !validVersion(in.Version) {
 		return commentAnchor{}, &InvalidInputError{Message: "version must be a positive 32-bit integer"}
 	}
-	if in.PanelID != "" {
-		if err := checkPanelID(in.PanelID); err != nil {
+	panelID := ""
+	if in.PanelID != nil {
+		if err := checkPanelID(*in.PanelID); err != nil {
 			return commentAnchor{}, err
 		}
+		panelID = *in.PanelID
 	}
-	return commentAnchor{version: in.Version, panelID: in.PanelID, threadStatus: CommentOpen}, nil
+	return commentAnchor{version: in.Version, panelID: panelID, threadStatus: CommentOpen}, nil
+}
+
+func (cm *Comments) anchorPanels(ctx context.Context, dashboardID pgtype.UUID, at commentAnchor, latest int, reply bool) (map[string]struct{}, error) {
+	if at.panelID == "" {
+		return nil, nil
+	}
+	if !reply {
+		onVersion, err := cm.panels(ctx, dashboardID, at.version)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := onVersion[at.panelID]; !ok {
+			return nil, ErrUnknownPanel
+		}
+	}
+	return cm.panels(ctx, dashboardID, latest)
 }
 
 func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in NewComment) (Comment, error) {
@@ -131,25 +149,28 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 	if err != nil {
 		return Comment{}, err
 	}
-	targetPanels, err := cm.panels(ctx, dashboardID, at.version)
+	if at.version > latest {
+		return Comment{}, ErrNotFound
+	}
+	latestPanels, err := cm.anchorPanels(ctx, dashboardID, at, latest, in.ParentID.Valid)
 	if err != nil {
 		return Comment{}, err
-	}
-	if !in.ParentID.Valid && at.panelID != "" {
-		if _, ok := targetPanels[at.panelID]; !ok {
-			return Comment{}, ErrUnknownPanel
-		}
-	}
-	latestPanels := targetPanels
-	if latest != at.version {
-		if latestPanels, err = cm.panels(ctx, dashboardID, latest); err != nil {
-			return Comment{}, err
-		}
 	}
 	author := authorOf(by)
 	var row dbsqlc.DashboardComment
 	var requested *CommentRevision
+	threadStatus := at.threadStatus
 	err = cm.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if at.parentID.Valid {
+			root, err := q.GetCommentForShare(ctx, dbsqlc.GetCommentForShareParams{ID: at.parentID, DashboardID: dashboardID})
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrCommentNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("lock thread root: %w", err)
+			}
+			threadStatus = root.Status
+		}
 		var err error
 		row, err = q.CreateComment(ctx, dbsqlc.CreateCommentParams{
 			DashboardID: dashboardID,
@@ -165,13 +186,13 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 		if err != nil {
 			return fmt.Errorf("create comment: %w", err)
 		}
-		requested, err = cm.announce(ctx, q, by, row, at.threadStatus, in.RequestRevision)
+		requested, err = cm.announce(ctx, q, by, row, threadStatus, in.RequestRevision)
 		return err
 	})
 	if err != nil {
 		return Comment{}, err
 	}
-	comment := commentFromRow(row, at.threadStatus, latestPanels)
+	comment := commentFromRow(row, threadStatus, latestPanels)
 	comment.Revision = requested
 	return comment, nil
 }
@@ -181,10 +202,17 @@ func (cm *Comments) threadRoot(ctx context.Context, dashboardID, commentID pgtyp
 	if err != nil {
 		return dbsqlc.DashboardComment{}, err
 	}
-	if row.ParentID.Valid {
-		return cm.getComment(ctx, dashboardID, row.ParentID)
+	if !row.ParentID.Valid {
+		return row, nil
 	}
-	return row, nil
+	root, err := cm.getComment(ctx, dashboardID, row.ParentID)
+	if err != nil {
+		return dbsqlc.DashboardComment{}, err
+	}
+	if root.ParentID.Valid {
+		return dbsqlc.DashboardComment{}, fmt.Errorf("comment %s: parent %s is itself a reply", row.ID, root.ID)
+	}
+	return root, nil
 }
 
 func (cm *Comments) getComment(ctx context.Context, dashboardID, commentID pgtype.UUID) (dbsqlc.DashboardComment, error) {
@@ -298,16 +326,21 @@ func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardI
 		return Comment{}, fmt.Errorf("actor id: %w", err)
 	}
 	actor := authorOf(by)
+	target, err := cm.threadRoot(ctx, dashboardID, commentID)
+	if err != nil {
+		return Comment{}, err
+	}
 	latest, err := cm.dashboards.LatestVersion(ctx, dashboardID)
 	if err != nil {
 		return Comment{}, err
 	}
-	if resolvedByVersion != nil && *resolvedByVersion > latest {
-		return Comment{}, ErrUnknownVersion
-	}
-	target, err := cm.threadRoot(ctx, dashboardID, commentID)
-	if err != nil {
-		return Comment{}, err
+	if resolvedByVersion != nil {
+		if *resolvedByVersion > latest {
+			return Comment{}, ErrUnknownVersion
+		}
+		if *resolvedByVersion < int(target.Version) {
+			return Comment{}, &InvalidInputError{Message: fmt.Sprintf("resolved_by_version must be at least the version the thread is on (%d)", target.Version)}
+		}
 	}
 	params := dbsqlc.SetCommentStatusParams{ID: target.ID, DashboardID: dashboardID, Status: status}
 	if status == CommentResolved {

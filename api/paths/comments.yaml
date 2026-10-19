@@ -38,6 +38,7 @@ dashboards-id-comments:
                 description: Whether to queue an agent revision for the comment, when an agent is configured. A reply cannot request one.
               version:
                 type: integer
+                nullable: true
                 minimum: 1
                 maximum: 2147483647
                 description: Required unless `parent_id` is set.
@@ -49,6 +50,7 @@ dashboards-id-comments:
                 description: The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`.
               parent_id:
                 type: string
+                nullable: true
                 format: uuid
                 description: The comment to reply to. Not allowed with `version` or `panel_id`.
               body:
@@ -167,7 +169,7 @@ dashboards-id-comments-commentid:
       Setting the status a comment already has answers 200 with the comment unchanged and sends no event.
       A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status.
       Changing a reply changes its thread and returns the thread's first comment.
-      `resolved_by_version` names the version that fixed the thread; it is stored only when the call changes the status to resolved, and reopening clears it.
+      `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
     requestBody:
       required: true
       content:

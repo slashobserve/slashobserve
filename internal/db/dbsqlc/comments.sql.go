@@ -106,10 +106,45 @@ func (q *Queries) GetComment(ctx context.Context, arg GetCommentParams) (Dashboa
 	return i, err
 }
 
+const getCommentForShare = `-- name: GetCommentForShare :one
+SELECT id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version FROM dashboard_comments WHERE id = $1 AND dashboard_id = $2 FOR SHARE
+`
+
+type GetCommentForShareParams struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+}
+
+func (q *Queries) GetCommentForShare(ctx context.Context, arg GetCommentForShareParams) (DashboardComment, error) {
+	row := q.db.QueryRow(ctx, getCommentForShare, arg.ID, arg.DashboardID)
+	var i DashboardComment
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Version,
+		&i.PanelID,
+		&i.Body,
+		&i.Status,
+		&i.AuthorKind,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorEmail,
+		&i.ResolvedAt,
+		&i.ResolvedByKind,
+		&i.ResolvedByID,
+		&i.ResolvedByName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
+	)
+	return i, err
+}
+
 const listComments = `-- name: ListComments :many
 SELECT c.id, c.dashboard_id, c.version, c.panel_id, c.body, c.status, c.author_kind, c.author_id, c.author_name, c.author_email, c.resolved_at, c.resolved_by_kind, c.resolved_by_id, c.resolved_by_name, c.created_at, c.updated_at, c.parent_id, c.resolved_by_version, coalesce(root.status, c.status)::text AS thread_status
 FROM dashboard_comments c
-LEFT JOIN dashboard_comments root ON root.id = c.parent_id
+LEFT JOIN dashboard_comments root ON root.id = c.parent_id AND root.dashboard_id = c.dashboard_id
 WHERE c.dashboard_id = $1
   AND ($2::text IS NULL OR coalesce(root.status, c.status) = $2::text)
   AND ($3::text IS NULL OR c.panel_id = $3::text)

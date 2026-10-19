@@ -94,10 +94,6 @@ func (cm *Comments) createComment(c *gin.Context) {
 			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a reply takes its version and panel from its thread; omit version and panel_id")
 			return
 		}
-		if requestRevision {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a reply cannot request a revision")
-			return
-		}
 		in.ParentID = parentID
 	} else {
 		if req.Version == nil {
@@ -105,13 +101,7 @@ func (cm *Comments) createComment(c *gin.Context) {
 			return
 		}
 		in.Version = *req.Version
-		if req.PanelID != nil {
-			if err := checkPanelID(*req.PanelID); err != nil {
-				cm.fail(c, "create comment", err)
-				return
-			}
-			in.PanelID = *req.PanelID
-		}
+		in.PanelID = req.PanelID
 	}
 	comment, err := cm.Create(c.Request.Context(), httpapi.Caller(c), id, in)
 	if err != nil {
