@@ -11,7 +11,7 @@ import (
 func ExpandRegex(text string, vars []datasource.Variable) (string, error) {
 	refs, err := spec.ScanQuery(text)
 	if err != nil {
-		return text, nil
+		return "", scanFailure(err)
 	}
 	var b strings.Builder
 	last := 0

@@ -1166,6 +1166,7 @@ func TestExpandRegex(t *testing.T) {
 		{"a slash and flag-like text cannot end the pattern", "/^$env$/", []datasource.Variable{val("env", "/x/z")}, `/^\/x\/z$/`, false},
 		{"slashes in several values are escaped", "$env", []datasource.Variable{val("env", "a/b", "c")}, `(a\/b|c)`, false},
 		{"an allValue keeps its slashes", "$env", []datasource.Variable{allValue("env", "a/.*")}, "a/.*", false},
+		{"an invalid reference is refused", "${a b}", nil, "", true},
 		{"another format is refused", "${env:csv}", []datasource.Variable{val("env", "a")}, "", true},
 		{"adhoc is refused", "$f", []datasource.Variable{adhoc("f")}, "", true},
 		{"no value is refused", "$env", []datasource.Variable{val("env")}, "", true},
