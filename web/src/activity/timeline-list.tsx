@@ -1,10 +1,9 @@
 import {
   Fragment,
-  useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type ReactNode,
-  type RefObject,
 } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -23,15 +22,17 @@ type Props = {
   renderEntry: (entry: TimelineEntry) => ReactNode
 }
 
-export function useStickToBottom(
-  ref: RefObject<HTMLElement | null>,
-  depsKey: string
-) {
+function scrollToEnd(element: HTMLElement) {
+  element.scrollTop = element.scrollHeight
+}
+
+export function useStickToBottom(depsKey: string) {
+  const [element, setElement] = useState<HTMLElement | null>(null)
   const nearBottom = useRef(true)
 
-  useEffect(() => {
-    const element = ref.current
+  useLayoutEffect(() => {
     if (element === null) return
+    nearBottom.current = true
     const onScroll = () => {
       nearBottom.current =
         element.scrollHeight - element.scrollTop - element.clientHeight <=
@@ -39,18 +40,22 @@ export function useStickToBottom(
     }
     element.addEventListener("scroll", onScroll, { passive: true })
     return () => element.removeEventListener("scroll", onScroll)
-  }, [ref])
+  }, [element])
 
   useLayoutEffect(() => {
-    const element = ref.current
     if (element === null || !nearBottom.current) return
-    element.scrollTop = element.scrollHeight
-  }, [ref, depsKey])
+    scrollToEnd(element)
+  }, [element, depsKey])
+
+  return setElement
 }
 
-function Message({ children }: { children: ReactNode }) {
+function Message({ children, role }: { children: ReactNode; role?: "alert" }) {
   return (
-    <div className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+    <div
+      role={role}
+      className="px-4 py-8 text-center text-[13px] text-muted-foreground"
+    >
       {children}
     </div>
   )
@@ -66,7 +71,8 @@ export function TimelineList({
 }: Props) {
   if (loading) {
     return (
-      <div className="flex flex-col gap-[18px] px-4 pt-4 pb-2">
+      <div aria-busy="true" className="flex flex-col gap-[18px] px-4 pt-4 pb-2">
+        <span className="sr-only">Loading activity</span>
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
@@ -75,7 +81,7 @@ export function TimelineList({
   }
   if (error) {
     return (
-      <Message>
+      <Message role="alert">
         <p>Could not load activity.</p>
         <Button
           type="button"
