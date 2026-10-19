@@ -204,7 +204,7 @@ func scanQueryUse(text string) queryUse {
 
 func (u *queryUse) add(ref spec.Reference, guard string) {
 	nested := ref.Nested
-	if name := ref.Guard; name != "" {
+	if name := ref.Guard; name != "" && len(nested) > 0 {
 		u.variables[name] = true
 		nested = nested[:len(nested)-1]
 		guard = name
