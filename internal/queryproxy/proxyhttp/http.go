@@ -75,6 +75,9 @@ func (h *Handler) Register(api *gin.RouterGroup) {
 	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", h.data)
 	api.GET("/dashboards/:id/versions/:version/variables/:name/values", h.values)
 	api.POST("/datasources/:uid/lint", h.lint)
+	api.GET("/datasources/:uid/metrics", h.metrics)
+	api.GET("/datasources/:uid/labels", h.labels)
+	api.GET("/datasources/:uid/labels/:name/values", h.labelValues)
 }
 
 type dataMeta struct {

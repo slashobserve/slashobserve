@@ -341,18 +341,7 @@ func fit[T any](items []T, budget int) ([]T, bool) {
 	return items, false
 }
 
-func clip(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	cut := n
-	for cut > 0 && !isRuneStart(s[cut]) {
-		cut--
-	}
-	return s[:cut] + "..."
-}
-
-func isRuneStart(b byte) bool { return b&0xC0 != 0x80 }
+func clip(s string, n int) string { return queryproxy.ClipBytes(s, n) }
 
 func plural(n int, one, many string) string {
 	if n == 1 {

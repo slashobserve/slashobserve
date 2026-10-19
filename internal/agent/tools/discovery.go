@@ -1,8 +1,10 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -12,19 +14,16 @@ import (
 )
 
 const (
-	discoveryTimeout   = 10 * time.Second
-	defaultDiscoverMax = 100
-	maxDiscoverItems   = 500
-	defaultSampleRows  = 5
-	maxSampleRows      = 20
-	maxSearchBytes     = 200
-	maxNameBytes       = 256
-	maxHelpBytes       = 160
-	maxCellBytes       = 300
-	maxSampleColumns   = 50
-	maxStepNameBytes   = 64
-	columnsBudget      = 3 << 10
-	sampleRowsBudget   = 10 << 10
+	discoveryTimeout  = 10 * time.Second
+	maxDiscoverItems  = 500
+	defaultSampleRows = 5
+	maxSampleRows     = 20
+	maxNameBytes      = 256
+	maxCellBytes      = 300
+	maxSampleColumns  = 50
+	maxStepNameBytes  = 64
+	columnsBudget     = 3 << 10
+	sampleRowsBudget  = 10 << 10
 )
 
 func (r *Registry) discoveryEntries() []entry {
@@ -124,51 +123,53 @@ func checkLength(field, value string, limit int) (Result, bool) {
 	return Result{}, true
 }
 
-type listInput struct {
+type listMetricsInput struct {
 	Datasource string `json:"datasource"`
-	Label      string `json:"label"`
-	Metric     string `json:"metric"`
 	Search     string `json:"search"`
 	Limit      *int   `json:"limit"`
 }
 
-type discoverSpec struct {
-	kind      datasource.DiscoverKind
-	needLabel bool
-	noun      string
+type listLabelsInput struct {
+	Datasource string `json:"datasource"`
+	Metric     string `json:"metric"`
+	Table      string `json:"table"`
+	Search     string `json:"search"`
+	Limit      *int   `json:"limit"`
 }
 
-type listed struct {
-	in    listInput
-	limit int
-	cat   *datasource.Catalog
+type listLabelValuesInput struct {
+	Datasource string `json:"datasource"`
+	Label      string `json:"label"`
+	Metric     string `json:"metric"`
+	Table      string `json:"table"`
+	Search     string `json:"search"`
+	Limit      *int   `json:"limit"`
 }
 
-func (r *Registry) listItems(ctx context.Context, input json.RawMessage, s discoverSpec) (listed, Result, bool, error) {
-	var l listed
-	if res, ok := decodeInput(input, &l.in); !ok {
-		return l, res, false, nil
+func namesLimit(p *int) int {
+	if p == nil {
+		return 0
 	}
-	limit, res, ok := boundedInt(l.in.Limit, defaultDiscoverMax, 1, maxDiscoverItems, "limit")
-	if !ok {
-		return l, res, false, nil
+	return cmp.Or(*p, -1)
+}
+
+func (r *Registry) listNames(ctx context.Context, req queryproxy.NamesRequest, noun string) (queryproxy.Names, Result, bool, error) {
+	if req.Datasource == "" {
+		return queryproxy.Names{}, invalid("datasource is required; call list_datasources"), false, nil
 	}
-	l.limit = limit
-	for _, c := range []struct {
-		field, value string
-		limit        int
-	}{{"search", l.in.Search, maxSearchBytes}, {"metric", l.in.Metric, maxNameBytes}, {"label", l.in.Label, maxNameBytes}} {
-		if res, ok := checkLength(c.field, c.value, c.limit); !ok {
-			return l, res, false, nil
-		}
+	names, err := r.deps.Runner.Names(ctx, req)
+	switch {
+	case err == nil:
+		return names, Result{}, true, nil
+	case errors.Is(err, queryproxy.ErrInvalidRequest):
+		_, _, message := queryproxy.Classify(err)
+		return queryproxy.Names{}, invalid("%s", message), false, nil
+	case errors.Is(err, queryproxy.ErrUnknownDatasource):
+		code := string(queryproxy.CodeUnknownDatasource)
+		return queryproxy.Names{}, toolError(code, fmt.Sprintf("unknown datasource %q; call list_datasources", clip(req.Datasource, maxStepNameBytes))), false, nil
 	}
-	if s.needLabel && l.in.Label == "" {
-		return l, invalid("label is required"), false, nil
-	}
-	req := datasource.DiscoverRequest{Kind: s.kind, Search: l.in.Search, Metric: l.in.Metric, Label: l.in.Label, Limit: limit + 1}
-	cat, res, ok, err := r.discover(ctx, l.in.Datasource, req, "Listing "+s.noun)
-	l.cat = cat
-	return l, res, ok, err
+	res, err := datasourceFailure("Listing "+noun+" on "+req.Datasource, err)
+	return queryproxy.Names{}, res, false, err
 }
 
 type metricsOut struct {
@@ -178,18 +179,21 @@ type metricsOut struct {
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
-	l, res, ok, err := r.listItems(ctx, input, discoverSpec{kind: datasource.DiscoverMetrics, noun: "metrics"})
+	var in listMetricsInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverMetrics,
+		Search:     in.Search,
+		Limit:      namesLimit(in.Limit),
+	}, "metrics")
 	if !ok || err != nil {
 		return res, err
 	}
-	uid := l.in.Datasource
-	metrics := make([]datasource.Metric, 0, len(l.cat.Metrics))
-	for _, m := range l.cat.Metrics {
-		m.Help = clip(m.Help, maxHelpBytes)
-		metrics = append(metrics, m)
-	}
-	metrics, truncated := cutList(metrics, l.limit)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), uid), metricsOut{Datasource: uid, Metrics: metrics, Truncated: truncated}), nil
+	metrics, cut := fit(names.Metrics, listBudget)
+	return success(fmt.Sprintf("Listed %s on %s", plural(len(metrics), "metric", "metrics"), names.Datasource), metricsOut{Datasource: names.Datasource, Metrics: metrics, Truncated: names.Truncated || cut}), nil
 }
 
 type labelsOut struct {
@@ -199,13 +203,23 @@ type labelsOut struct {
 }
 
 func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Result, error) {
-	l, res, ok, err := r.listItems(ctx, input, discoverSpec{kind: datasource.DiscoverLabels, noun: "labels"})
+	var in listLabelsInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverLabels,
+		Search:     in.Search,
+		Metric:     in.Metric,
+		Table:      in.Table,
+		Limit:      namesLimit(in.Limit),
+	}, "labels")
 	if !ok || err != nil {
 		return res, err
 	}
-	uid := l.in.Datasource
-	labels, truncated := cutList(append([]string{}, l.cat.Labels...), l.limit)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(labels), "label", "labels"), uid), labelsOut{Datasource: uid, Labels: labels, Truncated: truncated}), nil
+	labels, cut := fit(names.Labels, listBudget)
+	return success(fmt.Sprintf("Listed %s on %s", plural(len(labels), "label", "labels"), names.Datasource), labelsOut{Datasource: names.Datasource, Labels: labels, Truncated: names.Truncated || cut}), nil
 }
 
 type labelValuesOut struct {
@@ -216,13 +230,24 @@ type labelValuesOut struct {
 }
 
 func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (Result, error) {
-	l, res, ok, err := r.listItems(ctx, input, discoverSpec{kind: datasource.DiscoverLabelValues, needLabel: true, noun: "label values"})
+	var in listLabelValuesInput
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	names, res, ok, err := r.listNames(ctx, queryproxy.NamesRequest{
+		Datasource: in.Datasource,
+		Kind:       datasource.DiscoverLabelValues,
+		Search:     in.Search,
+		Metric:     in.Metric,
+		Label:      in.Label,
+		Table:      in.Table,
+		Limit:      namesLimit(in.Limit),
+	}, "label values")
 	if !ok || err != nil {
 		return res, err
 	}
-	uid := l.in.Datasource
-	values, truncated := cutList(append([]string{}, l.cat.Values...), l.limit)
-	return success(fmt.Sprintf("Listed %s on %s", plural(len(values), "label value", "label values"), uid), labelValuesOut{Datasource: uid, Label: l.in.Label, Values: values, Truncated: truncated}), nil
+	values, cut := fit(names.Values, listBudget)
+	return success(fmt.Sprintf("Listed %s on %s", plural(len(values), "label value", "label values"), names.Datasource), labelValuesOut{Datasource: names.Datasource, Label: names.Label, Values: values, Truncated: names.Truncated || cut}), nil
 }
 
 func cutList[T any](items []T, limit int) ([]T, bool) {

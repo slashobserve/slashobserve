@@ -1818,6 +1818,10 @@ mcp_suite() {
   mcp_expect "list_label_values" '"checkout"'
   pass "MCP discovers Prometheus metrics, labels and label values"
 
+  mcp_tool list_labels '{"datasource":"ch","table":"otel_logs"}'
+  mcp_expect "list_labels on ClickHouse" '"ServiceName"'
+  pass "MCP list_labels reads ClickHouse attribute keys from a table"
+
   mcp_tool get_schema '{"datasource":"ch","table":"otel_logs"}'
   mcp_expect "get_schema" 'ServiceName'
   mcp_tool sample_rows '{"datasource":"ch","table":"otel_logs","limit":2}'
@@ -2112,6 +2116,40 @@ proxy_suite() {
   out="$(proxy_call POST /datasources/prom/lint -d '{"query":""}')"
   [[ "$out" == 400 ]] || fail "lint with an empty query ($out)"
   pass "lint returns diagnostics without data and rejects unknown datasources and empty queries"
+
+  out="$(proxy_call GET "/datasources/prom/metrics?search=http_requests&limit=5")"
+  if [[ "$out" != 200 ]] || ! grep -q '"name":"http_requests_total"' "$TMP/api.body" || ! grep -q '"truncated":' "$TMP/api.body"; then
+    fail "list Prometheus metric names ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "/datasources/prom/labels?metric=http_requests_total")"
+  if [[ "$out" != 200 ]] || ! grep -q '"pod"' "$TMP/api.body"; then
+    fail "list Prometheus label names for a metric ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "/datasources/prom/labels/service/values?metric=http_requests_total")"
+  if [[ "$out" != 200 ]] || ! grep -q '"checkout"' "$TMP/api.body" || ! grep -q '"label":"service"' "$TMP/api.body"; then
+    fail "list Prometheus label values for a metric ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "/datasources/ch/labels?table=otel_logs")"
+  if [[ "$out" != 200 ]] || ! grep -q '"ServiceName"' "$TMP/api.body"; then
+    fail "list ClickHouse attribute keys for a table ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "/datasources/ch/labels/ServiceName/values?table=otel_logs")"
+  if [[ "$out" != 200 ]] || ! grep -q '"values":\["' "$TMP/api.body"; then
+    fail "list ClickHouse label values for a table ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "/datasources/ch/metrics")"
+  if [[ "$out" != 200 ]] || ! grep -q '"metrics":\[' "$TMP/api.body"; then
+    fail "list ClickHouse metric names ($out: $(cat "$TMP/api.body"))"
+  fi
+  expect_proxy_error "/datasources/nope/metrics" 404 not_found "metric names on an unknown datasource"
+  expect_proxy_error "/datasources/prom/metrics?limit=0" 400 invalid_request "metric names with a zero limit"
+  expect_proxy_error "/datasources/prom/metrics?bogus=1" 400 invalid_request "metric names with an unknown parameter"
+  expect_proxy_error "/datasources/prom/metrics?search=a&search=b" 400 invalid_request "metric names with a repeated parameter"
+  expect_proxy_error "/datasources/ch/labels" 400 invalid_request "ClickHouse labels without a table or metric"
+  grep -q 'table or metric' "$TMP/api.body" || fail "ClickHouse labels without a table or metric name the missing parameters ($(cat "$TMP/api.body"))"
+  out="$(command curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/datasources/prom/metrics")"
+  [[ "$out" == 401 ]] || fail "metric names without credentials ($out)"
+  pass "the browser lists metric, label and label value names through the server"
 
   out="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1$base/panels/p_up/data")"
   [[ "$out" == 401 ]] || fail "panel data without credentials ($out)"

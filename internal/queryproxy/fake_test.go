@@ -32,9 +32,11 @@ type fakeDatasource struct {
 	onRange    func(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onInstant  func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error)
 	onVariable func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]string, error)
+	onDiscover func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
 
 	mu       sync.Mutex
 	calls    []call
+	requests []datasource.DiscoverRequest
 	inflight int
 	peak     int
 }
@@ -95,8 +97,20 @@ func (f *fakeDatasource) Lint(context.Context, string) ([]datasource.Diagnostic,
 	return nil, nil
 }
 func (f *fakeDatasource) Close() error { return nil }
-func (f *fakeDatasource) Discover(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+func (f *fakeDatasource) Discover(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	f.mu.Lock()
+	f.requests = append(f.requests, req)
+	f.mu.Unlock()
+	if f.onDiscover != nil {
+		return f.onDiscover(ctx, req)
+	}
 	return &datasource.Catalog{}, nil
+}
+
+func (f *fakeDatasource) discoverRequests() []datasource.DiscoverRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]datasource.DiscoverRequest(nil), f.requests...)
 }
 
 func (f *fakeDatasource) VariableValues(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]string, error) {

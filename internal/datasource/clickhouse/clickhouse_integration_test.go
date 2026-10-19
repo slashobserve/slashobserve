@@ -684,6 +684,14 @@ func TestDiscover(t *testing.T) {
 			t.Errorf("labels = %v, want %s", labels, l)
 		}
 	}
+	byMetric := discover(datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Metric: "http.server.active_requests"}).Labels
+	if !slices.Equal(byMetric, labels) {
+		t.Errorf("labels by metric alone = %v, want %v", byMetric, labels)
+	}
+	_, noMetricErr := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Metric: "no.such.metric"})
+	if !errors.Is(noMetricErr, datasource.ErrNotFound) {
+		t.Errorf("labels for a metric in no table err = %v, want ErrNotFound", noMetricErr)
+	}
 	if none := discover(datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Table: "otel_metrics_gauge", Metric: "nope"}).Labels; slices.Contains(none, "Attributes['pod']") {
 		t.Errorf("labels for unknown metric = %v", none)
 	}
