@@ -3,6 +3,7 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useInfiniteQuery,
+  useIsMutating,
   useMutation,
   useQuery,
   useQueryClient,
@@ -192,6 +193,7 @@ export type ObserveInput = { prompt: string; dashboardId?: string }
 export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: observeKeys.create(),
     networkMode: "always",
     mutationFn: ({ prompt, dashboardId }: ObserveInput) =>
       api
@@ -213,6 +215,10 @@ export function useCreateObserveRequest() {
       }
     },
   })
+}
+
+export function useCreatePending(): boolean {
+  return useIsMutating({ mutationKey: observeKeys.create() }) > 0
 }
 
 function isAgentUnavailable(error: unknown): boolean {

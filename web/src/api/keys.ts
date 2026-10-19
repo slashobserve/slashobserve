@@ -60,6 +60,7 @@ export const observeKeys = {
   mine: (source: "all" | "observe", limit: number) =>
     ["observe-mine", source, limit] as const,
   mineAll: () => ["observe-mine"] as const,
+  create: () => ["observe-create"] as const,
 }
 
 export const serviceAccountKeys = {

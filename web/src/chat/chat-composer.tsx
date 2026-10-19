@@ -11,6 +11,7 @@ import {
   describeSubmitError,
   useAgentInfo,
   useCreateObserveRequest,
+  useCreatePending,
 } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
 
@@ -59,7 +60,7 @@ export function useSendExample() {
     }
   }
 
-  return { send, pending: create.isPending }
+  return { send, pending: useCreatePending() }
 }
 
 export function ChatComposer({
@@ -73,6 +74,7 @@ export function ChatComposer({
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const create = useCreateObserveRequest()
+  const creating = useCreatePending()
   const coarse = useCoarsePointer()
   const [prompt, setPrompt] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -83,6 +85,7 @@ export function ChatComposer({
   const hintId = useId()
 
   const agentOff = agent.data?.available === false
+  const busy = submitting || creating
   const model = agent.data?.model ?? null
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
 
@@ -125,7 +128,7 @@ export function ChatComposer({
   }
 
   async function submit() {
-    if (submitting) return
+    if (busy) return
     const trimmed = prompt.trim()
     if (trimmed === "") {
       reject({
@@ -208,7 +211,7 @@ export function ChatComposer({
           value={prompt}
           rows={rows}
           placeholder={placeholder}
-          readOnly={submitting}
+          readOnly={busy}
           aria-invalid={notice?.invalid === true}
           aria-describedby={describedBy}
           enterKeyHint={coarse ? "enter" : "send"}
@@ -239,8 +242,8 @@ export function ChatComposer({
               type="submit"
               size="icon"
               aria-label="Send"
-              aria-busy={submitting}
-              disabled={submitting}
+              aria-busy={busy}
+              disabled={busy}
               focusableWhenDisabled
               className="size-8"
             >
