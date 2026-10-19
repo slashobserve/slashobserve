@@ -3,3 +3,15 @@ Copyright 2026 The SlashObserve Authors
 
 This product is licensed under the Apache License, Version 2.0.
 See the LICENSE file for the full license text.
+
+Third-party test data
+
+The Grafana importer's golden corpus under pkg/grafana/testdata/corpus/ holds dashboards from the repositories below.
+Each file lives there unmodified, except the kube-prometheus dashboards, which are re-serialized from the ConfigMapList in manifests/grafana-dashboardDefinitions.yaml.
+Each source directory carries its upstream LICENSE, and SOURCES.md records the commit and files.
+
+- rfmoz/grafana-dashboards (https://github.com/rfmoz/grafana-dashboards), Apache-2.0
+- prometheus-operator/kube-prometheus (https://github.com/prometheus-operator/kube-prometheus), Apache-2.0
+- grafana/clickhouse-datasource (https://github.com/grafana/clickhouse-datasource), Apache-2.0
+- Altinity/clickhouse-grafana (https://github.com/Altinity/clickhouse-grafana), MIT
+- dotdc/grafana-dashboards-kubernetes (https://github.com/dotdc/grafana-dashboards-kubernetes), Apache-2.0
