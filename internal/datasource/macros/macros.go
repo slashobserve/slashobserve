@@ -1,8 +1,8 @@
 package macros
 
 import (
+	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,9 +19,10 @@ const (
 	ClickHouse
 )
 
-var columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$`)
-
-const defaultScrapeInterval = 15 * time.Second
+const (
+	defaultScrapeInterval = 15 * time.Second
+	allPlaceholder        = "x"
+)
 
 type Env struct {
 	Range          datasource.TimeRange
@@ -91,9 +92,13 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 	if err := validateEnv(env); err != nil {
 		return Expansion{}, err
 	}
+	return expandText(d, dsType, query, env)
+}
+
+func expandText(d Dialect, dsType spec.DatasourceType, query string, env Env) (Expansion, error) {
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
-		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
+		return Expansion{}, scanFailure(err)
 	}
 	lx, err := newLexer(d, query, refs)
 	if err != nil {
@@ -128,7 +133,7 @@ func substitute(d Dialect, dsType spec.DatasourceType, query string, refs []spec
 			continue
 		}
 		c := lx.contextAt(ref.Start)
-		if lx.contextAt(ref.End-1).region != c.region {
+		if !staysWithinOneContext(lx, ref, c) {
 			return Expansion{}, refErrorf(ref, "reference %s crosses a string, comment or identifier boundary", refLabel(ref))
 		}
 		if c.kind == ctxComment {
@@ -154,6 +159,16 @@ func substitute(d Dialect, dsType spec.DatasourceType, query string, refs []spec
 	return Expansion{Text: b.String(), spans: spans}, nil
 }
 
+func staysWithinOneContext(lx lexer, ref spec.Reference, start ctx) bool {
+	end := lx.contextAt(ref.End - 1)
+	if macro, ok := spec.LookupMacro(ref.Name); ok && ref.Kind == spec.MacroRef && macro.Args == spec.ConditionAndVariable {
+		if start.kind == ctxCode && end.kind == ctxCode {
+			return true
+		}
+	}
+	return end.region == start.region
+}
+
 func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Reference, c ctx, env Env) (string, error) {
 	if c.kind == ctxOpaque {
 		return "", refErrorf(ref, "reference %s is not allowed in a heredoc or unicode quoted literal", refLabel(ref))
@@ -170,14 +185,14 @@ func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Ref
 func ExpandForLint(d Dialect, query string) (Expansion, error) {
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
-		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
+		return Expansion{}, scanFailure(err)
 	}
 	var vars []datasource.Variable
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind != spec.VariableRef || slices.ContainsFunc(vars, func(v datasource.Variable) bool { return v.Name == ref.Name }) {
 			continue
 		}
-		vars = append(vars, datasource.Variable{Name: ref.Name, Values: []string{"x"}})
+		vars = append(vars, datasource.Variable{Name: ref.Name, Values: []string{allPlaceholder}})
 	}
 	now := time.Now()
 	return Expand(d, query, Env{
@@ -205,11 +220,44 @@ func refLabel(ref spec.Reference) string {
 }
 
 func refErrorf(ref spec.Reference, format string, args ...any) error {
-	return datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", fmt.Sprintf(format, args...), ref.Start)
+	return offsetErrorf(ref.Start, fmt.Sprintf(format, args...)+" at offset ", "")
+}
+
+type offsetError struct {
+	*datasource.UpstreamError
+	before, after string
+	offset        int
+}
+
+func offsetErrorf(offset int, before, after string) error {
+	return &offsetError{
+		UpstreamError: &datasource.UpstreamError{Kind: datasource.ErrInvalidQuery, Message: before + strconv.Itoa(offset) + after},
+		before:        before,
+		after:         after,
+		offset:        offset,
+	}
+}
+
+func (e *offsetError) Unwrap() error { return e.UpstreamError }
+
+func shiftOffset(err error, by int) error {
+	var oe *offsetError
+	if errors.As(err, &oe) {
+		return offsetErrorf(oe.offset+by, oe.before, oe.after)
+	}
+	return err
+}
+
+func scanFailure(err error) error {
+	var se *spec.ScanError
+	if errors.As(err, &se) {
+		return offsetErrorf(se.Offset, se.Prefix, "")
+	}
+	return datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
 }
 
 func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.Reference, c ctx, env Env) (string, error) {
-	args, err := validateMacro(dsType, ref, c)
+	macro, args, err := validateMacro(dsType, ref, c)
 	if err != nil {
 		return "", err
 	}
@@ -219,13 +267,16 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	if out, ok, err := globalMacro(ref, env); ok || err != nil {
 		return out, err
 	}
+	if macro.Args == spec.ConditionAndVariable {
+		return expandConditionalAll(d, dsType, ref, args, env)
+	}
 	var out string
 	var ok bool
 	switch d {
 	case PromQL:
 		out, ok = promMacro(ref.Name, env)
 	case ClickHouse:
-		out, ok = clickHouseMacro(ref.Name, args, env)
+		out, ok = clickHouseMacro(ref.Name, args.Values, env)
 	}
 	if !ok {
 		return "", refErrorf(ref, "macro %s is not implemented", refLabel(ref))
@@ -233,38 +284,82 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	return out, nil
 }
 
-func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (string, error) {
+func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (spec.Macro, spec.MacroArguments, error) {
 	idx := slices.IndexFunc(spec.Macros(dsType), func(m spec.Macro) bool { return m.Name == ref.Name })
 	if idx < 0 {
-		return "", refErrorf(ref, "unknown macro %s", refLabel(ref))
+		return spec.Macro{}, spec.MacroArguments{}, refErrorf(ref, "unknown macro %s", refLabel(ref))
 	}
 	macro := spec.Macros(dsType)[idx]
 	if ref.Format != "" {
 		if err := macro.CheckFormat(ref.Format); err != nil {
-			return "", refErrorf(ref, "%s", err)
+			return macro, spec.MacroArguments{}, refErrorf(ref, "%s", err)
 		}
 	}
-	args := strings.TrimSpace(ref.Args)
-	if !macro.Function {
-		switch {
-		case ref.HasArgs:
-			return "", refErrorf(ref, "macro %s does not take arguments", refLabel(ref))
-		case c.kind != ctxCode && c.kind != ctxString:
-			return "", refErrorf(ref, "macro %s is not allowed in a quoted identifier", refLabel(ref))
-		}
-		return "", nil
+	args, err := macro.ParseArguments(ref)
+	if err != nil {
+		return macro, spec.MacroArguments{}, refErrorf(ref, "%s", err)
 	}
 	switch {
-	case !ref.HasArgs || args == "":
-		return "", refErrorf(ref, "macro %s requires an argument", refLabel(ref))
-	case strings.ContainsAny(args, "$;"):
-		return "", refErrorf(ref, "macro %s argument must not contain \"$\" or \";\"", refLabel(ref))
-	case !columnPattern.MatchString(args):
-		return "", refErrorf(ref, "macro %s argument must be a column name", refLabel(ref))
+	case !macro.Function():
+		if c.kind != ctxCode && c.kind != ctxString {
+			return macro, spec.MacroArguments{}, refErrorf(ref, "macro %s is not allowed in a quoted identifier", refLabel(ref))
+		}
 	case c.kind != ctxCode:
-		return "", refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
+		return macro, spec.MacroArguments{}, refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
 	}
-	return args, nil
+	return macro, args, nil
+}
+
+func expandConditionalAll(d Dialect, dsType spec.DatasourceType, ref spec.Reference, args spec.MacroArguments, env Env) (string, error) {
+	condition, name := args.Values[0], args.Values[1]
+	idx := slices.IndexFunc(env.Variables, func(v datasource.Variable) bool { return v.Name == name })
+	if idx < 0 {
+		return "", refErrorf(ref, "unknown variable %s", strconv.Quote("$"+name))
+	}
+	v := env.Variables[idx]
+	if !v.All && len(v.Values) == 0 {
+		return "", refErrorf(ref, "no value selected for %s", strconv.Quote("$"+name))
+	}
+	probe := env
+	if v.All {
+		probe.Variables = slices.Clone(env.Variables)
+		probe.Variables[idx] = datasource.Variable{Name: name, Values: []string{allPlaceholder}}
+	}
+	exp, err := expandText(d, dsType, condition, probe)
+	if err != nil {
+		return "", shiftOffset(err, args.ConditionStart)
+	}
+	out := "(" + exp.Text + ")"
+	if !wrapsExactly(out) {
+		return "", refErrorf(ref, "the condition of %s must have balanced parentheses and no comment that reaches the end of it", refLabel(ref))
+	}
+	if v.All {
+		return "1=1", nil
+	}
+	return out, nil
+}
+
+func wrapsExactly(text string) bool {
+	tokens, err := TokenizeClickHouse(text)
+	if err != nil {
+		return false
+	}
+	depth := 0
+	for i, tok := range tokens {
+		if tok.Kind != TokenPunct {
+			continue
+		}
+		switch text[tok.Start:tok.End] {
+		case "(":
+			depth++
+		case ")":
+			depth--
+		}
+		if depth < 0 || (depth == 0 && i < len(tokens)-1) {
+			return false
+		}
+	}
+	return depth == 0
 }
 
 var globalValues = map[string]func(Env) string{
@@ -326,17 +421,46 @@ func promMacro(name string, env Env) (string, bool) {
 	return "", false
 }
 
-func clickHouseMacro(name, args string, env Env) (string, bool) {
+func clickHouseMacro(name string, args []string, env Env) (string, bool) {
+	from, to := env.Range.From, env.Range.To
 	switch name {
 	case "__interval":
 		return strconv.FormatInt(intervalSeconds(env.Interval), 10), true
-	case "__timeFilter":
-		return fmt.Sprintf("(%[1]s >= fromUnixTimestamp64Milli(toInt64(%[2]d), 'UTC') AND %[1]s <= fromUnixTimestamp64Milli(toInt64(%[3]d), 'UTC'))",
-			args, env.Range.From.UnixMilli(), env.Range.To.UnixMilli()), true
+	case "__interval_s":
+		return strconv.FormatInt(wholeSeconds(env.Interval), 10), true
+	case "__timeFilter", "__timeFilter_ms":
+		return timeFilter(args[0], env), true
 	case "__timeGroup":
-		return fmt.Sprintf("toStartOfInterval(%s, INTERVAL %d SECOND)", args, intervalSeconds(env.Interval)), true
+		return fmt.Sprintf("toStartOfInterval(%s, INTERVAL %d SECOND)", args[0], intervalSeconds(env.Interval)), true
+	case "__dateFilter":
+		return dateFilter(args[0], env), true
+	case "__dateTimeFilter", "__dt":
+		return fmt.Sprintf("(%s AND %s)", dateFilter(args[0], env), timeFilter(args[1], env)), true
+	case "__fromTime":
+		return fmt.Sprintf("toDateTime(%d)", from.Unix()), true
+	case "__toTime":
+		return fmt.Sprintf("toDateTime(%d)", to.Unix()), true
+	case "__fromTime_ms":
+		return fmt.Sprintf("fromUnixTimestamp64Milli(toInt64(%d))", from.UnixMilli()), true
+	case "__toTime_ms":
+		return fmt.Sprintf("fromUnixTimestamp64Milli(toInt64(%d))", to.UnixMilli()), true
+	case "__timeInterval":
+		return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %d second)", args[0], wholeSeconds(env.Interval)), true
+	case "__timeInterval_ms":
+		return fmt.Sprintf("toStartOfInterval(toDateTime64(%s, 3), INTERVAL %d millisecond)", args[0], max(env.Interval.Milliseconds(), 1)), true
 	}
 	return "", false
+}
+
+func timeFilter(column string, env Env) string {
+	return fmt.Sprintf("(%[1]s >= fromUnixTimestamp64Milli(toInt64(%[2]d), 'UTC') AND %[1]s <= fromUnixTimestamp64Milli(toInt64(%[3]d), 'UTC'))",
+		column, env.Range.From.UnixMilli(), env.Range.To.UnixMilli())
+}
+
+func dateFilter(column string, env Env) string {
+	const layout = "2006-01-02"
+	return fmt.Sprintf("(%[1]s >= toDate('%[2]s') AND %[1]s <= toDate('%[3]s'))",
+		column, env.Range.From.UTC().Format(layout), env.Range.To.UTC().Format(layout))
 }
 
 func promDuration(d time.Duration) string {
@@ -345,6 +469,10 @@ func promDuration(d time.Duration) string {
 		return strconv.FormatInt(ms/1000, 10) + "s"
 	}
 	return strconv.FormatInt(ms, 10) + "ms"
+}
+
+func wholeSeconds(d time.Duration) int64 {
+	return max(int64(d/time.Second), 1)
 }
 
 func intervalSeconds(d time.Duration) int64 {

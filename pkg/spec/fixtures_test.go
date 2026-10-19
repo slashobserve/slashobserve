@@ -536,3 +536,55 @@ func TestFalseBooleansSurvive(t *testing.T) {
 		}
 	}
 }
+
+func TestClickHouseMacroArguments(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	variables := `"variables": [{"name": "svc", "type": "custom", "options": ["a"]}], "panels"`
+	cases := []struct {
+		name  string
+		query string
+		code  spec.IssueCode
+	}{
+		{"date time filter", `$__dt(d, t)`, ""},
+		{"date time filter long name", `$__dateTimeFilter(logs.d, logs.t)`, ""},
+		{"date time filter with one column", `$__dt(d)`, spec.CodeInvalidReference},
+		{"date time filter with an expression", `$__dt(d, toDateTime(t))`, spec.CodeInvalidReference},
+		{"date time filter with three columns", `$__dt(d, t, u)`, spec.CodeInvalidReference},
+		{"date filter", `$__dateFilter(d)`, ""},
+		{"time interval", `$__timeInterval(Timestamp)`, ""},
+		{"time interval without a column", `$__timeInterval`, spec.CodeInvalidReference},
+		{"from and to time", `$__fromTime_ms < $__toTime AND $__interval_s > 0`, ""},
+		{"from time with arguments", `$__fromTime(x)`, spec.CodeInvalidReference},
+		{"conditional all", `$__conditionalAll(ServiceName IN (${svc:singlequote}), $svc)`, ""},
+		{"conditional all with a braced variable", `$__conditionalAll(ServiceName = 'a, b', ${svc})`, ""},
+		{"conditional all with an array literal", `$__conditionalAll(has(['a','b'], ServiceName), $svc)`, ""},
+		{"conditional all mentioned in a comment of the condition", "$__conditionalAll(ServiceName = 'x' /* $__conditionalAll(a, $svc) */, $svc)", ""},
+		{"conditional all mentioned in a comment together with another one", "$__conditionalAll(ServiceName = 'x' /* $__conditionalAll(b AND $__conditionalAll(c, $x), $y) */, $svc)", ""},
+		{"conditional all with a literal second argument", `$__conditionalAll(ServiceName = 'x', 'x')`, spec.CodeInvalidReference},
+		{"conditional all with a formatted second argument", `$__conditionalAll(ServiceName = 'x', ${svc:csv})`, spec.CodeInvalidReference},
+		{"conditional all with one argument", `$__conditionalAll($svc)`, spec.CodeInvalidReference},
+		{"conditional all without arguments", `$__conditionalAll`, spec.CodeInvalidReference},
+		{"conditional all nested", `$__conditionalAll($__conditionalAll(a = 1, $svc), $svc)`, spec.CodeInvalidReference},
+		{"conditional all with an undeclared variable in the condition", `$__conditionalAll(ServiceName IN (${other:singlequote}), $svc)`, spec.CodeUnknownVariable},
+		{"conditional all with an undeclared second argument", `$__conditionalAll(ServiceName = 'x', $other)`, spec.CodeUnknownVariable},
+		{"conditional all with a macro in the condition", `$__conditionalAll(ts > $__fromTime, $svc)`, ""},
+		{"conditional all with a bad macro format in the condition", `$__conditionalAll(a = ${__range_s:csv}, $svc)`, spec.CodeInvalidReference},
+		{"conditional all with an unknown macro in the condition", `$__conditionalAll(a = $__bogus, $svc)`, spec.CodeUnknownMacro},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data := strings.Replace(minimal, `$__timeFilter(Timestamp)`, c.query, 1)
+			data = strings.Replace(data, `"panels"`, variables, 1)
+			if c.code == "" {
+				if _, err := spec.Parse([]byte(data)); err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				return
+			}
+			issues := parseIssues(t, []byte(data))
+			if len(issues) != 1 || issues[0].Code != c.code || issues[0].Path != "/panels/0/queries/0/query" {
+				t.Fatalf("got %+v, want one %s issue at the query", issues, c.code)
+			}
+		})
+	}
+}

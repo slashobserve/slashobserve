@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -992,5 +994,146 @@ func TestCheckSpecRunsQueriesAsTheSavingPrincipal(t *testing.T) {
 		if c.query.User != saver || c.query.Dashboard != "Checkout health" {
 			t.Errorf("%s call saw dashboard %q and user %+v, want the saving principal", c.method, c.query.Dashboard, c.query.User)
 		}
+	}
+}
+
+func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
+	t.Run("a macro the datasource does not have", func(t *testing.T) {
+		fake := newFake("clickhouse")
+		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+		d := dashboardOf(
+			[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x > $__range, $svc)")},
+			customVariable("svc", "a"),
+		)
+		assertIssues(t, runner.CheckDatasources(d), []wantIssue{
+			{"/panels/0/queries/0/query", spec.CodeUnknownMacro, "macro $__range is not available for clickhouse queries"},
+		})
+	})
+	t.Run("a failed variable blocks the panel and the variable query", func(t *testing.T) {
+		fake := newFake("clickhouse")
+		fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+			return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+		}
+		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+		d := dashboardOf(
+			[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x IN (${svc:singlequote}), $svc)")},
+			queryVariable("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"),
+			queryVariable("pod", "ch", "SELECT DISTINCT p FROM t WHERE $__conditionalAll(s IN (${svc:singlequote}), $svc)"),
+		)
+		issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIssues(t, issues, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+			{"/variables/1", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+		})
+	})
+}
+
+func TestCheckSpecChecksTheAllListOfAGuardOnlyVariableWithoutFailingItsPanels(t *testing.T) {
+	tests := []struct {
+		name   string
+		panels []string
+		want   []wantIssue
+	}{
+		{"only a guard", []string{"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)"}, []wantIssue{
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+		{"guard and its own condition", []string{"SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)"}, []wantIssue{
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+		{"guard in one panel and listed in another", []string{
+			"SELECT 1 WHERE $__conditionalAll(x > 1, $svc)",
+			"SELECT ${svc:singlequote}",
+		}, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/panels/1/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+		{"guard and a condition of another variable", []string{"SELECT 1 WHERE $__conditionalAll(x IN (${svc:singlequote}), $other)"}, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("clickhouse")
+			fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+				return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+			var panels []spec.Panel
+			for i, query := range tt.panels {
+				panels = append(panels, panelOf("p"+strconv.Itoa(i), spec.Stat, "ch", query))
+			}
+			other := customVariable("other", "a")
+			other.IncludeAll = true
+			d := dashboardOf(panels, includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"), other)
+			issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertIssues(t, issues, tt.want)
+		})
+	}
+}
+
+func TestCheckSpecReportsAnEmptyAllListOfAGuardOnlyVariableOnce(t *testing.T) {
+	fake := newFake("clickhouse")
+	fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) { return nil, nil }
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+	d := dashboardOf(
+		[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x > 1, $svc)")},
+		includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"),
+	)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertIssues(t, issues, []wantIssue{{"/variables/0", CodeVariableEmpty, ""}})
+}
+
+func TestCheckSpecExpandsTheConditionOfAConditionalAllSelectingAll(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		bad   bool
+	}{
+		{"a valid condition", `SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)`, false},
+		{"both quote styles around a variable", `SELECT 1 WHERE $__conditionalAll(a = '$svc' OR b = "$svc", $svc)`, true},
+		{"a line comment that reaches the end of the condition", "SELECT 1 WHERE $__conditionalAll(a = 1 -- x\n, $svc)", true},
+		{"an undeclared variable", `SELECT 1 WHERE $__conditionalAll(a = $nope, $svc)`, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("clickhouse")
+			expand := func(q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+				if _, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: r, Interval: time.Minute, Variables: q.Variables}); err != nil {
+					return nil, err
+				}
+				return dataFrames(), nil
+			}
+			fake.onRange = func(_ context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+				return expand(q, r)
+			}
+			fake.onInstant = func(_ context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+				return expand(q, r)
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+			svc := customVariable("svc", "a", "b")
+			svc.IncludeAll, svc.Multi = true, true
+			d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "ch", tt.query)}, svc)
+			issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !tt.bad {
+				assertIssues(t, issues, nil)
+				return
+			}
+			assertIssues(t, issues, []wantIssue{{"/panels/0/queries/0/query", CodeQueryInvalid, ""}})
+		})
 	}
 }

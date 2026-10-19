@@ -359,11 +359,47 @@ func TestRangeQuery(t *testing.T) {
 		t.Fatalf("$__interval = %v, want 60", got)
 	}
 
-	used := panelQuery + rangeQuery + "SELECT $__interval AS i" + globalsQuery
+	used := panelQuery + rangeQuery + "SELECT $__interval AS i" + globalsQuery + pluginMacrosQuery
 	for _, m := range spec.Macros(spec.ClickHouse) {
 		if !strings.Contains(used, "$"+m.Name) && !strings.Contains(used, "${"+m.Name) {
 			t.Errorf("macro %s is not exercised by any query", m.Name)
 		}
+	}
+}
+
+const pluginMacrosQuery = "SELECT count() AS n, $__fromTime AS from_t, $__toTime AS to_t, $__fromTime_ms AS from_ms, $__toTime_ms AS to_ms, $__interval_s AS interval_s, " +
+	"any($__timeInterval(Timestamp)) AS bucket, any($__timeInterval_ms(Timestamp)) AS bucket_ms FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) " +
+	"WHERE $__timeFilter_ms(Timestamp) AND $__dateFilter(day) AND $__dateTimeFilter(day, Timestamp) AND $__dt(day, Timestamp) " +
+	"AND $__conditionalAll(ServiceName IN (${svc:singlequote}), $svc)"
+
+func TestPluginMacros(t *testing.T) {
+	ds := roDS(t)
+	rng := lastHour()
+	for _, tc := range []struct {
+		name string
+		svc  datasource.Variable
+		want float64
+	}{
+		{"all", datasource.Variable{Name: "svc", All: true, Values: []string{"cart", "checkout"}}, 6},
+		{"one service", datasource.Variable{Name: "svc", Values: []string{"checkout"}}, 3},
+		{"two services", datasource.Variable{Name: "svc", Values: []string{"cart", "checkout"}}, 6},
+		{"a service with a quote", datasource.Variable{Name: "svc", Values: []string{"it's"}}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			frames, err := ds.QueryInstant(context.Background(), query(pluginMacrosQuery, tc.svc), rng)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(frames) != 1 || frames[0].Rows() != 1 {
+				t.Fatalf("frames = %+v, want one frame with one row", frames)
+			}
+			if got := column(t, frames[0], "n").Values[0]; got != tc.want {
+				t.Errorf("n = %v, want %v", got, tc.want)
+			}
+			if got := column(t, frames[0], "interval_s").Values[0]; got != float64(3) {
+				t.Errorf("interval_s = %v, want 3", got)
+			}
+		})
 	}
 }
 

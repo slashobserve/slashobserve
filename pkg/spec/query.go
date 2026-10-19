@@ -3,7 +3,9 @@ package spec
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 type ReferenceKind int
@@ -19,6 +21,8 @@ type Reference struct {
 	Format  string
 	Args    string
 	HasArgs bool
+	Nested  []Reference
+	Guard   string
 	Start   int
 	End     int
 }
@@ -31,13 +35,26 @@ const (
 	TimeFormatsAllowed
 )
 
+type MacroArgs int
+
+const (
+	NoArgs MacroArgs = iota
+	OneColumn
+	TwoColumns
+	ConditionAndVariable
+)
+
 type Macro struct {
 	Name         string
-	Function     bool
+	Args         MacroArgs
 	Formats      MacroFormats
 	Global       bool
 	PerUser      bool
 	PerDashboard bool
+}
+
+func (m Macro) Function() bool {
+	return m.Args != NoArgs
 }
 
 type macroDef struct {
@@ -45,7 +62,10 @@ type macroDef struct {
 	datasources []DatasourceType
 }
 
-var bothDatasources = []DatasourceType{Prometheus, ClickHouse}
+var (
+	bothDatasources = []DatasourceType{Prometheus, ClickHouse}
+	clickHouseOnly  = []DatasourceType{ClickHouse}
+)
 
 var macroTable = []macroDef{
 	{Macro{Name: "__interval"}, bothDatasources},
@@ -61,8 +81,20 @@ var macroTable = []macroDef{
 	{Macro{Name: "__user.email", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
 	{Macro{Name: "__user.name", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
 	{Macro{Name: "__user.id", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
-	{Macro{Name: "__timeFilter", Function: true}, []DatasourceType{ClickHouse}},
-	{Macro{Name: "__timeGroup", Function: true}, []DatasourceType{ClickHouse}},
+	{Macro{Name: "__timeFilter", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeFilter_ms", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeGroup", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__dateFilter", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__dateTimeFilter", Args: TwoColumns}, clickHouseOnly},
+	{Macro{Name: "__dt", Args: TwoColumns}, clickHouseOnly},
+	{Macro{Name: "__fromTime"}, clickHouseOnly},
+	{Macro{Name: "__toTime"}, clickHouseOnly},
+	{Macro{Name: "__fromTime_ms"}, clickHouseOnly},
+	{Macro{Name: "__toTime_ms"}, clickHouseOnly},
+	{Macro{Name: "__interval_s"}, clickHouseOnly},
+	{Macro{Name: "__timeInterval", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeInterval_ms", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__conditionalAll", Args: ConditionAndVariable}, clickHouseOnly},
 }
 
 func Macros(t DatasourceType) []Macro {
@@ -116,15 +148,45 @@ func VariableFormats() []string {
 
 const maxScanWork = 1 << 22
 
+type ScanError struct {
+	Prefix string
+	Offset int
+}
+
+func (e *ScanError) Error() string {
+	return e.Prefix + strconv.Itoa(e.Offset)
+}
+
+func scanErrorf(offset int, format string, args ...any) *ScanError {
+	return &ScanError{Prefix: fmt.Sprintf(format, args...), Offset: offset}
+}
+
 func ScanQuery(query string) ([]Reference, error) {
-	var refs []Reference
 	budget := maxScanWork
+	refs, err := scanQuery(query, &budget, false)
+	if err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+func FlattenReferences(refs []Reference) []Reference {
+	var out []Reference
+	for _, ref := range refs {
+		out = append(out, ref)
+		out = append(out, FlattenReferences(ref.Nested)...)
+	}
+	return out
+}
+
+func scanQuery(query string, budget *int, inArgs bool) ([]Reference, *ScanError) {
+	var refs []Reference
 	for i := 0; i < len(query); {
 		if query[i] != '$' {
 			i++
 			continue
 		}
-		ref, next, err := scanReference(query, i, &budget)
+		ref, next, err := scanReference(query, i, budget, inArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +198,7 @@ func ScanQuery(query string) ([]Reference, error) {
 	return refs, nil
 }
 
-func scanReference(query string, start int, budget *int) (*Reference, int, error) {
+func scanReference(query string, start int, budget *int, inArgs bool) (*Reference, int, *ScanError) {
 	rest := query[start+1:]
 	if strings.HasPrefix(rest, "{") {
 		return scanBraced(query, start)
@@ -150,23 +212,163 @@ func scanReference(query string, start int, budget *int) (*Reference, int, error
 	if ref.Kind == MacroRef && strings.HasPrefix(rest[n:], "(") {
 		args, end, ok := matchParen(query, ref.End)
 		if *budget -= matchedBytes(query, ref.End, end, ok); *budget < 0 {
-			return nil, 0, fmt.Errorf("too many unclosed \"(\" in macro arguments; stopped at offset %d", ref.End)
+			return nil, 0, scanErrorf(ref.End, "too many unclosed \"(\" in macro arguments; stopped at offset ")
 		}
 		if !ok && !knownMacro(ref.Name) {
 			return ref, ref.End, nil
 		}
 		if !ok {
-			return nil, 0, fmt.Errorf("unclosed \"(\" at offset %d", ref.End)
+			return nil, 0, scanErrorf(ref.End, "unclosed \"(\" at offset ")
 		}
+		open := ref.End
 		ref.Args, ref.HasArgs, ref.End = args, true, end
+		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable {
+			if err := scanConditionNested(ref, macro, open, budget, inArgs); err != nil {
+				return nil, 0, err
+			}
+		}
 	}
 	return ref, ref.End, nil
 }
 
-func scanBraced(query string, start int) (*Reference, int, error) {
+func scanConditionNested(ref *Reference, macro Macro, open int, budget *int, inArgs bool) *ScanError {
+	if inArgs {
+		ref.Nested = []Reference{}
+		return nil
+	}
+	nested, err := scanQuery(ref.Args, budget, true)
+	if err != nil {
+		return &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, err.Prefix), Offset: err.Offset + open + 1}
+	}
+	for i := range nested {
+		nested[i].Start += open + 1
+		nested[i].End += open + 1
+	}
+	ref.Nested = nested
+	if parsed, err := macro.ParseArguments(*ref); err == nil {
+		ref.Guard = parsed.Values[1]
+	}
+	return nil
+}
+
+type MacroArguments struct {
+	Values         []string
+	ConditionStart int
+}
+
+func (m Macro) ParseArguments(ref Reference) (MacroArguments, error) {
+	switch m.Args {
+	case OneColumn:
+		switch args := strings.TrimSpace(ref.Args); {
+		case args == "":
+			return MacroArguments{}, fmt.Errorf("macro $%s needs arguments, for example $%s(column)", m.Name, m.Name)
+		case !IsColumnArg(args):
+			return MacroArguments{}, fmt.Errorf("macro $%s argument must be a column name such as column or table.column", m.Name)
+		default:
+			return MacroArguments{Values: []string{args}}, nil
+		}
+	case TwoColumns:
+		parts := SplitMacroArgs(ref.Args)
+		if len(parts) != 2 || !IsColumnArg(parts[0]) || !IsColumnArg(parts[1]) {
+			return MacroArguments{}, fmt.Errorf("macro $%s needs two column names, for example $%s(date_column, time_column)", m.Name, m.Name)
+		}
+		return MacroArguments{Values: parts}, nil
+	case ConditionAndVariable:
+		return parseConditionAndVariable(m, ref)
+	}
+	if ref.HasArgs {
+		return MacroArguments{}, fmt.Errorf("macro $%s does not take arguments; remove the parentheses", m.Name)
+	}
+	return MacroArguments{}, nil
+}
+
+func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
+	parts := SplitMacroArgs(ref.Args)
+	if len(parts) != 2 || parts[0] == "" {
+		return MacroArguments{}, fmt.Errorf("macro $%s needs a condition and a variable, for example $%s(pod IN (${pod:singlequote}), $pod)", m.Name, m.Name)
+	}
+	budget := maxScanWork
+	variable, err := scanQuery(parts[1], &budget, true)
+	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(parts[1]) {
+		return MacroArguments{}, fmt.Errorf("the second argument of $%s must be one variable reference such as $pod", m.Name)
+	}
+	argsStart := ref.Start + 1 + len(ref.Name) + 1
+	conditionAt := len(ref.Args) - len(strings.TrimLeftFunc(ref.Args, unicode.IsSpace))
+	conditionEnd := conditionAt + len(parts[0])
+	if err := checkConditionNesting(m, ref, argsStart, conditionAt, conditionEnd, &budget); err != nil {
+		return MacroArguments{}, err
+	}
+	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionStart: argsStart + conditionAt}, nil
+}
+
+func checkConditionNesting(m Macro, ref Reference, argsStart, conditionAt, conditionEnd int, budget *int) error {
+	nestedRefs, origin := ref.Nested, argsStart
+	if nestedRefs == nil && strings.Contains(ref.Args, "$"+m.Name) {
+		rescanned, scanErr := scanQuery(ref.Args, budget, true)
+		if scanErr != nil {
+			return fmt.Errorf("the arguments of $%s: %s", m.Name, scanErr.Error())
+		}
+		nestedRefs, origin = rescanned, 0
+	}
+	opaque := opaqueCursor{s: ref.Args, end: -1}
+	for _, nested := range nestedRefs {
+		at := nested.Start - origin
+		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !opaque.contains(at) {
+			return fmt.Errorf("$%s cannot be nested", m.Name)
+		}
+	}
+	return nil
+}
+
+type opaqueCursor struct {
+	s   string
+	i   int
+	end int
+}
+
+func (c *opaqueCursor) contains(offset int) bool {
+	for c.i <= offset && c.i < len(c.s) {
+		end, skipped := skipOpaque(c.s, c.i)
+		if !skipped {
+			c.i++
+			continue
+		}
+		c.end, c.i = end, end+1
+	}
+	return offset <= c.end
+}
+
+func SplitMacroArgs(args string) []string {
+	var parts []string
+	depth, from := 0, 0
+	for i := 0; i < len(args); i++ {
+		if end, skipped := skipOpaque(args, i); skipped {
+			i = end
+			continue
+		}
+		switch c := args[i]; {
+		case c == '$' && strings.HasPrefix(args[i+1:], "{"):
+			if end := strings.IndexByte(args[i:], '}'); end >= 0 {
+				i += end
+			} else {
+				i = len(args)
+			}
+		case c == '(', c == '[', c == '{':
+			depth++
+		case c == ')', c == ']', c == '}':
+			depth--
+		case c == ',' && depth == 0:
+			parts = append(parts, strings.TrimSpace(args[from:i]))
+			from = i + 1
+		}
+	}
+	return append(parts, strings.TrimSpace(args[from:]))
+}
+
+func scanBraced(query string, start int) (*Reference, int, *ScanError) {
 	closing := strings.IndexByte(query[start:], '}')
 	if closing < 0 {
-		return nil, 0, fmt.Errorf("unterminated \"${\" at offset %d", start)
+		return nil, 0, scanErrorf(start, "unterminated \"${\" at offset ")
 	}
 	end := start + closing + 1
 	name, format, hasFormat := strings.Cut(query[start+2:end-1], ":")
@@ -174,7 +376,7 @@ func scanBraced(query string, start int) (*Reference, int, error) {
 		return nil, end, nil
 	}
 	if !validReferenceName(name) || (hasFormat && !validFormatFor(name, format)) {
-		return nil, 0, fmt.Errorf("invalid reference %q at offset %d", query[start:end], start)
+		return nil, 0, scanErrorf(start, "invalid reference %q at offset ", query[start:end])
 	}
 	return &Reference{Kind: referenceKind(name), Name: name, Format: format, Start: start, End: end}, end, nil
 }
@@ -200,16 +402,14 @@ func matchedBytes(query string, open, end int, ok bool) int {
 func matchParen(s string, open int) (args string, end int, ok bool) {
 	depth := 0
 	for i := open; i < len(s); i++ {
-		switch {
-		case isLineComment(s, i):
-			i = skipLine(s, i)
-		case strings.HasPrefix(s[i:], "/*"):
-			i = skipBlockComment(s, i)
-		case s[i] == '\'', s[i] == '"', s[i] == '`':
-			i = skipQuoted(s, i)
-		case s[i] == '(':
+		if end, skipped := skipOpaque(s, i); skipped {
+			i = end
+			continue
+		}
+		switch s[i] {
+		case '(':
 			depth++
-		case s[i] == ')':
+		case ')':
 			depth--
 			if depth == 0 {
 				return s[open+1 : i], i + 1, true
@@ -217,6 +417,18 @@ func matchParen(s string, open int) (args string, end int, ok bool) {
 		}
 	}
 	return "", 0, false
+}
+
+func skipOpaque(s string, i int) (end int, skipped bool) {
+	switch {
+	case isLineComment(s, i):
+		return skipLine(s, i), true
+	case strings.HasPrefix(s[i:], "/*"):
+		return skipBlockComment(s, i), true
+	case s[i] == '\'', s[i] == '"', s[i] == '`':
+		return skipQuoted(s, i), true
+	}
+	return i, false
 }
 
 func skipLine(s string, from int) int {

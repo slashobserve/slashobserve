@@ -4,7 +4,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -136,7 +135,7 @@ func newClickHouseLexer(query string, refs []spec.Reference) (lexer, error) {
 	}
 	for _, r := range l.regions {
 		if r.ctx.kind == ctxOpaque && r.ctx.tagLen > 0 && ri.endsAt[r.start] {
-			return lexer{}, datasource.Errorf(datasource.ErrInvalidQuery, "heredoc follows a reference at offset %d", r.start)
+			return lexer{}, offsetErrorf(r.start, "heredoc follows a reference at offset ", "")
 		}
 	}
 	return l, nil
@@ -149,7 +148,7 @@ func rejectStrayDollars(query string, tokens []Token, ri refIndex) error {
 		}
 		for j := tok.Start; j < tok.End; j++ {
 			if query[j] == '$' && !ri.covered[j] {
-				return datasource.Errorf(datasource.ErrInvalidQuery, "unexpected \"$\" at offset %d", j)
+				return offsetErrorf(j, "unexpected \"$\" at offset ", "")
 			}
 		}
 	}
@@ -194,7 +193,7 @@ func (l lexer) contextAt(offset int) ctx {
 }
 
 func unterminated(what string, offset int) error {
-	return datasource.Errorf(datasource.ErrInvalidQuery, "unterminated %s at offset %d", what, offset)
+	return offsetErrorf(offset, "unterminated "+what+" at offset ", "")
 }
 
 func lexPromQL(q string, i int) (int, ctx, error) {

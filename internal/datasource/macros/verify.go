@@ -75,7 +75,7 @@ func verifyExpansion(d Dialect, query string, orig []unit, exp Expansion) error 
 		return datasource.Errorf(datasource.ErrInvalidQuery, "expanded query does not tokenize: %s", err)
 	}
 	fail := func(offset int) error {
-		return datasource.Errorf(datasource.ErrInvalidQuery, "expansion changes how the query around offset %d is tokenized", offset)
+		return offsetErrorf(offset, "expansion changes how the query around offset ", " is tokenized")
 	}
 	origAt, expAt := unitIndex(orig, len(query)), unitIndex(units, len(exp.Text))
 	i, j, next := 0, 0, 0

@@ -53,7 +53,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 
 	phase, cancelPhase := context.WithTimeout(budget, checkVariablePhase)
 	lists := map[string]allList{}
-	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, user, lists)
+	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, user, lists, guardOnlyVariables(d))
 	cancelPhase()
 	issues = append(issues, variableIssues...)
 	if canceled() {
@@ -145,7 +145,7 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	available := spec.Macros(spec.DatasourceType(dsType))
 	var issues []spec.Issue
 	reported := map[string]bool{}
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind != spec.MacroRef || reported[ref.Name] {
 			continue
 		}
@@ -158,7 +158,7 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	return issues
 }
 
-func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, user datasource.QueryUser, lists map[string]allList) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
+func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, user datasource.QueryUser, lists map[string]allList, guardOnly map[string]bool) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
 	selections = make(map[string]Selection, len(d.Variables))
 	failed = map[string]bool{}
 	for i, v := range d.Variables {
@@ -174,25 +174,37 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		}
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
 		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
+		listReported := false
 		if err == nil && sel.All {
-			_, err = r.allValues(vctx, d, i, rng, selections, user, lists)
+			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
+				if guardOnly[v.Name] {
+					issues = append(issues, variableIssue(path, listErr))
+					listReported = true
+				} else {
+					err = listErr
+				}
+			}
 		}
-		if err == nil {
+		if err == nil && !listReported {
 			err = checkSelection(v, sel)
 		}
 		cancel()
 		if err != nil {
 			failed[v.Name] = true
-			_, code, message := Classify(err)
-			if !errors.Is(err, ErrVariableEmpty) {
-				code = string(CodeVariableFailed)
-			}
-			issues = append(issues, issue(path, spec.IssueCode(code), "%s", message))
+			issues = append(issues, variableIssue(path, err))
 			continue
 		}
 		selections[v.Name] = sel
 	}
 	return selections, failed, issues
+}
+
+func variableIssue(path string, err error) spec.Issue {
+	_, code, message := Classify(err)
+	if !errors.Is(err, ErrVariableEmpty) {
+		code = string(CodeVariableFailed)
+	}
+	return issue(path, spec.IssueCode(code), "%s", message)
 }
 
 func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList, skip []bool) []spec.Issue {
@@ -268,6 +280,30 @@ func framesEmpty(frames []datasource.Frame) bool {
 	return true
 }
 
+func guardOnlyVariables(d *spec.Dashboard) map[string]bool {
+	used, listed := map[string]bool{}, map[string]bool{}
+	note := func(text string) {
+		use := scanQueryUse(text)
+		maps.Copy(used, use.variables)
+		for name, ok := range use.listed {
+			listed[name] = listed[name] || ok
+		}
+	}
+	for _, v := range d.Variables {
+		note(v.Query)
+	}
+	for _, e := range d.DataPanels() {
+		for _, q := range e.Panel.Queries {
+			note(q.Query)
+		}
+	}
+	out := map[string]bool{}
+	for name := range used {
+		out[name] = !listed[name]
+	}
+	return out
+}
+
 func failedReference(text string, failed map[string]bool) string {
 	if len(failed) == 0 || text == "" {
 		return ""
@@ -276,7 +312,7 @@ func failedReference(text string, failed map[string]bool) string {
 	if err != nil {
 		return ""
 	}
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind == spec.VariableRef && failed[ref.Name] {
 			return ref.Name
 		}

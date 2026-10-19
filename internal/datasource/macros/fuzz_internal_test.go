@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 var hostileValues = [][]string{
@@ -99,6 +100,80 @@ var clickHouseFuzzSeeds = []string{
 	"SELECT $__interval_ms, $__range_s, $__range_ms, ${__from:date:seconds}, $__to, '${__from:date:YYYY-MM-DD}'",
 	"SELECT ${__user.id:csv} FROM t WHERE a = '$__dashboard' AND b IN ($w)",
 	"SELECT 1 /* ${__user.login} */ WHERE x = ${__dashboard}",
+	"SELECT 1 WHERE $__timeFilter_ms(ts) AND $__dateFilter(d) AND $__dt(d, ts) AND x = '$v'",
+	"SELECT $__fromTime, $__toTime, $__fromTime_ms, $__toTime_ms, $__interval_s, '$w'",
+	"SELECT $__timeInterval(ts), $__timeInterval_ms(ts), $w FROM t",
+	"SELECT 1 WHERE $__conditionalAll(a IN (${v:singlequote}) AND b = '$w', $v) AND c = '$w'",
+	"SELECT 1 WHERE $__conditionalAll(a = ${v:raw}e-- x'\n, $w)",
+	"SELECT 1 WHERE $__conditionalAll(a = 'x' /* ${w} */ OR b = $$ ${v} $$, $v)",
+	"SELECT 1 WHERE $__conditionalAll(a = $$ x ) $$ AND b = ${v}, $w) -- '$v",
+	"SELECT 1 WHERE $__conditionalAll(a = ${v:csv} -- ) '\n, $w)\nAND b = '$v'",
+	"SELECT 1 WHERE $__conditionalAll(a = '${v:sqlstring}', ${w})",
+}
+
+var conditionalAllFuzzSeeds = []string{
+	"a IN (${v:singlequote}) AND b = '$w'",
+	" a = '$v' ",
+	"a = $v",
+	"a = ${v:raw}",
+	"a = ${v:raw}e-- x'\n",
+	"a = 1 -- x\n",
+	"a = 1 /* $w */",
+	"a = 1 /* $w",
+	"a = 'x, y' AND b = \"$w\"",
+	"a = '$v' OR b = \"$v\"",
+	"has(['a','b'], c) AND d IN ($w)",
+	"m = {'a': 1, 'b': 2} AND n = '$w'",
+	"$__timeFilter(ts) AND a = '$v'",
+	"$__dt(d, ts) AND a IN (${w:singlequote})",
+	"a > $__fromTime AND b < $__interval_s",
+	"a = ${__dashboard:raw} AND b = '${__user.login}'",
+	"a = $$ x ) $$",
+	"a = $$ it's $$ AND b = $w",
+	"a = ${v:csv}",
+	"a = `b` AND \"c\" = 1",
+	"a = 'it\\'s' AND b = $v",
+	"a = 1 # c\n",
+	"a = 1 #! c\nAND b = $w",
+	"a = ‘x’ AND b = $v",
+	"f(a, b) = 1",
+	"a = 1, b = 2",
+	"$__conditionalAll(a = 1, $w)",
+	"(a = 1) OR (b = $w",
+	"a = 1) OR (b = $w",
+	"",
+}
+
+func FuzzConditionalAllMatchesParenthesisedCondition(f *testing.F) {
+	for _, seed := range conditionalAllFuzzSeeds {
+		for _, hostile := range []string{"a", "1", "' OR 1=1 --", "$t$", "a\\", "*/"} {
+			f.Add(seed, hostile)
+		}
+	}
+	const head = "SELECT 1 WHERE "
+	f.Fuzz(func(t *testing.T, condition, hostile string) {
+		macro := "$__conditionalAll(" + condition + ", $v)"
+		conditional := head + macro + " AND z = 1"
+		refs, err := spec.ScanQuery(conditional)
+		if err != nil || len(refs) == 0 || refs[0].Start != len(head) || refs[0].End != len(head)+len(macro) {
+			t.Skip("the condition closes the macro itself")
+		}
+		parenthesised := head + "(" + strings.TrimSpace(condition) + ") AND z = 1"
+		for _, values := range append([][]string{{hostile}}, hostileValues...) {
+			got, err := Expand(ClickHouse, conditional, fuzzEnv(values...))
+			if err != nil {
+				continue
+			}
+			want, err := Expand(ClickHouse, parenthesised, fuzzEnv(values...))
+			if err != nil {
+				t.Fatalf("conditional all expands but its parenthesised condition does not\ncondition: %q\nvalues:    %q\nerror:     %v\nexpansion: %q", condition, values, err, got.Text)
+			}
+			if got.Text != want.Text {
+				t.Fatalf("conditional all differs from the parenthesised condition\ncondition:     %q\nvalues:        %q\nconditional:   %q\nparenthesised: %q", condition, values, got.Text, want.Text)
+			}
+		}
+		checkNoDesync(t, ClickHouse, parenthesised, []string{hostile})
+	})
 }
 
 func FuzzExpandClickHouse(f *testing.F) {
@@ -138,6 +213,18 @@ func FuzzExpandPromQL(f *testing.F) {
 	f.Fuzz(func(t *testing.T, template, hostile string) {
 		checkNoDesync(t, PromQL, template, []string{hostile})
 	})
+}
+
+func TestConditionalAllFuzzSeedsExpandToSomething(t *testing.T) {
+	expanded := 0
+	for _, seed := range conditionalAllFuzzSeeds {
+		if _, err := Expand(ClickHouse, "$__conditionalAll("+seed+", $v)", fuzzEnv("a")); err == nil {
+			expanded++
+		}
+	}
+	if expanded < 15 {
+		t.Fatalf("only %d conditional all fuzz seeds expand with a benign value; the oracle would be vacuous", expanded)
+	}
 }
 
 func TestFuzzSeedsExpandToSomething(t *testing.T) {

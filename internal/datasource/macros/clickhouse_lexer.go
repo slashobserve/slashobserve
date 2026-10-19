@@ -2,8 +2,6 @@ package macros
 
 import (
 	"strings"
-
-	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
 type TokenKind int
@@ -80,7 +78,7 @@ func prevOf(tok Token, q string) prevKind {
 }
 
 func (s *chScanner) fail(what string) error {
-	return datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", what, s.pos)
+	return offsetErrorf(s.pos, what+" at offset ", "")
 }
 
 func (s *chScanner) tok(kind TokenKind, end int) (Token, error) {

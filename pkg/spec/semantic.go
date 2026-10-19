@@ -531,7 +531,7 @@ func (rc refChecker) checkQuery(query string, visible int) *Issue {
 	if err != nil {
 		return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 	}
-	for _, ref := range refs {
+	for _, ref := range FlattenReferences(refs) {
 		var issue *Issue
 		if ref.Kind == MacroRef {
 			issue = checkMacroRef(ref)
@@ -572,13 +572,8 @@ func checkMacroRef(ref Reference) *Issue {
 			return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 		}
 	}
-	switch {
-	case macro.Function && strings.TrimSpace(ref.Args) == "":
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
-	case macro.Function && !IsColumnArg(strings.TrimSpace(ref.Args)):
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s argument must be a column name such as column or table.column", ref.Name)}
-	case !macro.Function && ref.HasArgs:
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take arguments; remove the parentheses", ref.Name)}
+	if _, err := macro.ParseArguments(ref); err != nil {
+		return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 	}
 	return nil
 }
