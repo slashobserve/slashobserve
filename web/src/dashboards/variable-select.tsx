@@ -106,29 +106,33 @@ export function VariableSelect({ state, onChange }: Props) {
       >
         <ComboboxChips
           ref={anchor}
-          className="min-h-[26px] max-w-full min-w-0 flex-wrap gap-1.5 rounded-none border-0 py-0.5 pr-[9px] pl-[9px] focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:px-[9px]"
+          className="min-h-[26px] max-w-full min-w-0 flex-nowrap gap-1.5 rounded-none border-0 py-0.5 pr-[9px] pl-[9px] focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:px-[9px]"
           aria-busy={refreshing || undefined}
         >
-          <ComboboxValue>
-            {(selected: string[]) => (
-              <>
-                {selected.map((value) => (
-                  <ComboboxChip key={value}>{optionLabel(value)}</ComboboxChip>
-                ))}
-                <ComboboxChipsInput
-                  id={id}
-                  className="field-sizing-content w-auto min-w-1 flex-none narrow:leading-4"
-                  aria-label={label}
-                  placeholder={
-                    refreshing && state.selected.length === 0
-                      ? "Loading..."
-                      : undefined
-                  }
-                  aria-busy={refreshing || undefined}
-                />
-              </>
-            )}
-          </ComboboxValue>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            <ComboboxValue>
+              {(selected: string[]) => (
+                <>
+                  {selected.map((value) => (
+                    <ComboboxChip key={value}>
+                      {optionLabel(value)}
+                    </ComboboxChip>
+                  ))}
+                  <ComboboxChipsInput
+                    id={id}
+                    className="field-sizing-content w-auto min-w-1 flex-none narrow:leading-4"
+                    aria-label={label}
+                    placeholder={
+                      refreshing && state.selected.length === 0
+                        ? "Loading..."
+                        : undefined
+                    }
+                    aria-busy={refreshing || undefined}
+                  />
+                </>
+              )}
+            </ComboboxValue>
+          </div>
           {refreshing ? (
             <LoaderCircleIcon
               aria-hidden="true"
