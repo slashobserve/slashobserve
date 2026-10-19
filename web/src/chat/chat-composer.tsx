@@ -18,6 +18,8 @@ import { NoAgentNote } from "./no-agent-note"
 
 const maxPromptLength = 4000
 
+const keyboardHint = "Enter sends. Shift+Enter adds a new line."
+
 const openFailedMessage = "Request created, but it could not be opened."
 
 type Notice = { text: string; invalid: boolean }
@@ -78,6 +80,7 @@ export function ChatComposer({
   const field = useRef<HTMLTextAreaElement>(null)
   const inputId = useId()
   const messageId = useId()
+  const hintId = useId()
 
   const agentOff = agent.data?.available === false
   const model = agent.data?.model ?? null
@@ -110,6 +113,11 @@ export function ChatComposer({
   }, [])
 
   if (agentOff) return <NoAgentNote />
+
+  const describedBy =
+    [coarse ? null : hintId, notice !== null ? messageId : null]
+      .filter((id) => id !== null)
+      .join(" ") || undefined
 
   function reject(next: Notice) {
     setNotice(next)
@@ -189,6 +197,11 @@ export function ChatComposer({
         <label htmlFor={inputId} className="sr-only">
           Message the agent
         </label>
+        {coarse ? null : (
+          <p id={hintId} className="sr-only">
+            {keyboardHint}
+          </p>
+        )}
         <textarea
           ref={field}
           id={inputId}
@@ -197,7 +210,7 @@ export function ChatComposer({
           placeholder={placeholder}
           readOnly={submitting}
           aria-invalid={notice?.invalid === true}
-          aria-describedby={notice !== null ? messageId : undefined}
+          aria-describedby={describedBy}
           enterKeyHint={coarse ? "enter" : "send"}
           className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground narrow:text-base"
           onChange={(event) => {
