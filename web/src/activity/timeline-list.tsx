@@ -71,7 +71,7 @@ export function TimelineList({
 }: Props) {
   if (loading) {
     return (
-      <div aria-busy="true" className="flex flex-col gap-[18px] px-4 pt-4 pb-2">
+      <div aria-busy="true" className="flex flex-col gap-2 px-4 pt-1 pb-4">
         <span className="sr-only">Loading activity</span>
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
@@ -105,10 +105,7 @@ export function TimelineList({
     )
   }
   return (
-    <ol
-      aria-label="Activity"
-      className="flex flex-col gap-[18px] px-4 pt-4 pb-2"
-    >
+    <ol aria-label="Activity" className="flex flex-col px-4 pt-1 pb-4">
       {entries.map((entry) => (
         <Fragment key={entry.key}>{renderEntry(entry)}</Fragment>
       ))}

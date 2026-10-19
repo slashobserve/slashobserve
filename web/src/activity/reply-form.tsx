@@ -108,7 +108,7 @@ export function ReplyForm({
   return (
     <form
       aria-label="Reply to this comment"
-      className="mt-2.5 flex flex-col gap-2"
+      className="mt-1 flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault()
         void submit(false)

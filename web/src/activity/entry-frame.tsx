@@ -1,12 +1,8 @@
 import type { ComponentProps, ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
-import {
-  ArrowUpRightIcon,
-  CheckIcon,
-  SaveIcon,
-  SparkleIcon,
-} from "lucide-react"
+import { ArrowRightIcon } from "lucide-react"
 
+import { AgentMark } from "@/components/agent-mark"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { cn } from "@/lib/utils"
@@ -15,8 +11,7 @@ import { sentence } from "@/observe/queries"
 
 import { initialOf } from "./initial"
 
-export type EntryAvatar =
-  { kind: "person"; name: string } | { kind: "agent" } | { kind: "version" }
+export type EntryAvatar = { kind: "person"; name: string } | { kind: "agent" }
 
 type Props = {
   avatar: EntryAvatar
@@ -28,16 +23,7 @@ type Props = {
   children?: ReactNode
 }
 
-function AvatarMark({ avatar }: { avatar: EntryAvatar }) {
-  switch (avatar.kind) {
-    case "person":
-      return <>{initialOf(avatar.name)}</>
-    case "agent":
-      return <SparkleIcon className="size-3" />
-    case "version":
-      return <SaveIcon className="size-3" />
-  }
-}
+export const boxClass = "rounded-[8px] border px-[11px] py-[9px] text-[13px]"
 
 export function EntryFrame({
   avatar,
@@ -48,40 +34,45 @@ export function EntryFrame({
   nested,
   children,
 }: Props) {
+  const size = nested ? "size-[19px]" : "size-[23px]"
   return (
-    <li
-      className={cn(
-        "grid gap-2.5",
-        nested ? "grid-cols-[19px_1fr]" : "grid-cols-[23px_1fr]"
+    <li className={cn("relative flex gap-2.5", nested ? "py-1.5" : "py-2")}>
+      {nested ? null : (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-[11px] w-px bg-border"
+        />
       )}
-    >
       <span
         aria-hidden="true"
         className={cn(
-          "flex items-center justify-center rounded-full border bg-background text-[11px] font-medium text-muted-foreground",
-          nested ? "size-[19px]" : "size-[23px]"
+          "relative grid flex-none place-items-center rounded-full border text-[11px] font-semibold",
+          size,
+          avatar.kind === "agent"
+            ? "bg-primary text-primary-foreground"
+            : "bg-background text-foreground"
         )}
       >
-        <AvatarMark avatar={avatar} />
+        {avatar.kind === "agent" ? (
+          <AgentMark size={nested ? 10 : 12} />
+        ) : (
+          initialOf(avatar.name)
+        )}
       </span>
-      <div className="min-w-0">
-        <p className="text-[13px] leading-[23px]">
-          <span className="font-semibold wrap-anywhere">{who}</span>{" "}
+      <div className="flex min-w-0 flex-1 flex-col gap-[5px] pt-0.5">
+        <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[13px]">
+          <span className="font-medium wrap-anywhere">{who}</span>
           <span className="text-muted-foreground">{verb}</span>
           {panel === undefined ? null : (
-            <>
-              {" "}
-              <button
-                type="button"
-                className="rounded-sm text-left wrap-anywhere text-foreground outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={panel.onSelect}
-              >
-                {panel.title}
-              </button>
-            </>
+            <button
+              type="button"
+              className="rounded-sm text-left font-medium wrap-anywhere underline decoration-border underline-offset-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={panel.onSelect}
+            >
+              {panel.title}
+            </button>
           )}
           <span className="text-xs text-muted-foreground">
-            {" · "}
             <RelativeTime iso={at} />
           </span>
         </p>
@@ -95,7 +86,8 @@ export function EntryBody({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "mt-1.5 rounded-control border px-2.5 py-2 text-[13px] leading-normal wrap-anywhere whitespace-pre-wrap",
+        boxClass,
+        "leading-normal wrap-anywhere whitespace-pre-wrap",
         className
       )}
       {...props}
@@ -105,7 +97,7 @@ export function EntryBody({ className, ...props }: ComponentProps<"div">) {
 
 export function EntryMeta({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
       {children}
     </div>
   )
@@ -119,7 +111,7 @@ export function MetaState({
   children: ReactNode
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex items-center gap-[5px]">
       {icon}
       {children}
     </span>
@@ -128,7 +120,7 @@ export function MetaState({
 
 export function SentToAgent() {
   return (
-    <MetaState icon={<ArrowUpRightIcon className="size-3" />}>
+    <MetaState icon={<ArrowRightIcon className="size-3" />}>
       Sent to the agent
     </MetaState>
   )
@@ -136,7 +128,23 @@ export function SentToAgent() {
 
 export function ResolvedState({ text }: { text: string }) {
   return (
-    <MetaState icon={<CheckIcon className="size-3 text-status-ok" />}>
+    <MetaState
+      icon={
+        <svg
+          width={12}
+          height={12}
+          viewBox="0 0 24 24"
+          fill="none"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          className="flex-none stroke-status-ok"
+        >
+          <path d="m5 12 5 5 9-10" />
+        </svg>
+      }
+    >
       {text}
     </MetaState>
   )
@@ -168,7 +176,7 @@ export function DetailsLink({
       target="_blank"
       rel="noopener"
       aria-label={label}
-      className="mt-1 inline-block rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+      className="self-start text-xs text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
       Details
     </Link>

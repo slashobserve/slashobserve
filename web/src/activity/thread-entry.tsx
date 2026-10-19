@@ -1,5 +1,4 @@
 import { useRef, useState, type ComponentProps } from "react"
-import { CircleIcon } from "lucide-react"
 
 import { useSetCommentStatus } from "@/comments/queries"
 import { cn } from "@/lib/utils"
@@ -33,7 +32,7 @@ function MetaButton({ className, ...props }: ComponentProps<"button">) {
     <button
       type="button"
       className={cn(
-        "rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-50",
+        "rounded-sm underline outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-50",
         className
       )}
       {...props}
@@ -92,11 +91,7 @@ export function ThreadEntry({
       />
     )
   } else if (gate.kind === "no-model") {
-    state = (
-      <MetaState icon={<CircleIcon className="size-3" />}>
-        Open, waiting for {clientName}
-      </MetaState>
-    )
+    state = <MetaState>Open, waiting for {clientName}</MetaState>
   } else {
     state = <MetaState>Open</MetaState>
   }
@@ -134,7 +129,7 @@ export function ThreadEntry({
         </MetaButton>
       </EntryMeta>
       {replies.length === 0 ? null : (
-        <ol className="mt-2.5 flex flex-col gap-3 border-l pl-3">
+        <ol className="mt-1 flex flex-col border-l pl-3">
           {replies.map((reply) => (
             <EntryFrame
               key={reply.id}

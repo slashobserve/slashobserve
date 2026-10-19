@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRightIcon } from "lucide-react"
 
 import { versionActor } from "@/lib/origin"
 
-import { DetailsLink, EntryFrame } from "./entry-frame"
+import { boxClass, DetailsLink, EntryFrame } from "./entry-frame"
 import type { TimelineEntry } from "./timeline-model"
 
 type Props = {
@@ -19,7 +18,11 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
 
   return (
     <EntryFrame
-      avatar={{ kind: "version" }}
+      avatar={
+        actor.agent
+          ? { kind: "agent" }
+          : { kind: "person", name: version.author.name }
+      }
       who={actor.who}
       verb={actor.verb}
       at={entry.at}
@@ -28,17 +31,16 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
         to="/dashboards/$dashboardId/versions"
         params={{ dashboardId }}
         search={n > 1 ? { from: n - 1, to: n, back } : { to: n, back }}
-        className="mt-1.5 flex items-center gap-3 rounded-control border px-2.5 py-2 text-[13px] no-underline outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+        className={`${boxClass} flex items-center justify-between gap-2.5 no-underline outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring`}
       >
-        <span className="flex min-w-0 flex-col">
-          <span className="font-semibold">Version {n}</span>
-          <span className="wrap-anywhere text-muted-foreground">
+        <span className="min-w-0">
+          <span className="font-medium">Version {n}</span>
+          <span className="block text-xs wrap-anywhere text-muted-foreground">
             {version.summary.trim() === "" ? "No summary" : version.summary}
           </span>
         </span>
-        <span className="ml-auto inline-flex flex-none items-center gap-1.5 text-muted-foreground">
+        <span className="flex-none text-xs text-muted-foreground">
           See changes
-          <ArrowRightIcon className="size-3.5" />
         </span>
       </Link>
       {version.agent_request_id === null ? null : (
