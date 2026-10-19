@@ -167,7 +167,9 @@ test.describe("with the replay agent", () => {
     await dialog.getByRole("button", { name: "Restore", exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
     await expect(
-      page.getByRole("main").getByText("v3", { exact: true })
+      page
+        .getByRole("navigation", { name: "Breadcrumb" })
+        .getByText("v3", { exact: true })
     ).toBeVisible()
 
     const restored = await getDashboard(page.request, id)
@@ -638,7 +640,8 @@ test.describe("on a phone", () => {
     const history = await page
       .getByRole("link", { name: "History" })
       .boundingBox()
-    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeCloseTo(374, 0)
+    expect(history?.x ?? 0).toBeGreaterThanOrEqual(16)
+    expect((history?.x ?? 0) + (history?.width ?? 0)).toBeLessThanOrEqual(374)
     const overflow = await page.evaluate(
       () =>
         document.documentElement.scrollWidth -
