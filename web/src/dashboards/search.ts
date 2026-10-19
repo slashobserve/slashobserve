@@ -1,11 +1,14 @@
 import { useCallback, useMemo } from "react"
-import type { HistoryState } from "@tanstack/history"
-import { useNavigate, useSearch } from "@tanstack/react-router"
+import {
+  useNavigate,
+  useSearch,
+  type HistoryState,
+} from "@tanstack/react-router"
 
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { isTimeValue, refreshOptions, refreshPattern } from "@/lib/time"
 
-declare module "@tanstack/history" {
+declare module "@tanstack/react-router" {
   interface HistoryState {
     focusVersionButtonAt?: number
   }
