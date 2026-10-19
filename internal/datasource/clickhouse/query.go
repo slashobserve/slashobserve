@@ -22,7 +22,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 		return nil, err
 	}
 	if q.Format == "table" || q.Format == "logs" {
-		return checkPoints([]datasource.Frame{rs.tableFrame()}, lim)
+		return rawFrames(rs, lim)
 	}
 	frames := rs.seriesFrames()
 	if len(frames) > lim.MaxSeries {
@@ -36,7 +36,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	if err != nil {
 		return nil, err
 	}
-	return checkPoints([]datasource.Frame{rs.tableFrame()}, lim)
+	return rawFrames(rs, lim)
 }
 
 func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]string, error) {
@@ -73,6 +73,14 @@ func checkPoints(frames []datasource.Frame, lim datasource.Limits) ([]datasource
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "result exceeds %d points", lim.MaxPoints)
 	}
 	return frames, nil
+}
+
+func rawFrames(rs *resultSet, lim datasource.Limits) ([]datasource.Frame, error) {
+	frame := rs.tableFrame()
+	if frame.Rows() > lim.MaxPoints {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "result exceeds %d points", lim.MaxPoints)
+	}
+	return []datasource.Frame{frame}, nil
 }
 
 func instantInterval(r datasource.TimeRange) time.Duration {
