@@ -176,7 +176,7 @@ export function VariableSelect({ state, onChange }: Props) {
           id={id}
           aria-label={label}
           aria-busy={refreshing || undefined}
-          className="min-w-24 gap-1.5 rounded-none border-0 px-[9px] focus-visible:ring-0 data-[size=default]:h-auto"
+          className="min-w-24 gap-1.5 rounded-none border-0 px-[9px] py-0 focus-visible:ring-0 data-[size=default]:h-auto"
           icon={
             refreshing ? (
               <LoaderCircleIcon
