@@ -350,6 +350,9 @@ function DashboardView({
     <MoreMenu
       key="more"
       canEditLayout={canEdit && !editing}
+      layoutBlockedByActivity={
+        !canEdit && !editing && cardVisible && !cardLayout.stacked
+      }
       pinned={pinned}
       onEditLayout={() =>
         startLayout(dashboardId, envelopeVersion, envelopeSpec)

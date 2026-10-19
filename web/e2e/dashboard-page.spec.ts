@@ -238,6 +238,27 @@ test("clears a posted draft after the dashboard was left", async ({
   await expect(composer()).toHaveValue("")
 })
 
+test("explains why Edit layout is unavailable while activity is open", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 1000, height: 800 })
+  await openDashboard(page, id)
+
+  await moreButton(page).click()
+  const item = page.getByRole("menuitem", { name: /^Edit layout/ })
+  await expect(item).toHaveAttribute("aria-disabled", "true")
+  await expect(item).toContainText("Close activity to edit the layout")
+  await page.keyboard.press("Escape")
+
+  await page.getByRole("button", { name: "Activity", exact: true }).click()
+  await moreButton(page).click()
+  await expect(
+    page.getByRole("menuitem", { name: "Edit layout" })
+  ).not.toHaveAttribute("aria-disabled", "true")
+})
+
 test("resizes the activity card from the keyboard and remembers its width", async ({
   page,
   request,
