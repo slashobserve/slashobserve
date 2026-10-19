@@ -719,7 +719,7 @@ func TestFailedThreadResolutionStillRecordsTheSuccessfulRun(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	svc := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-		version, err := saveNextVersion(ctx, t, d, req)
+		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}), logger)
 	ctx := context.Background()
@@ -1031,7 +1031,7 @@ func TestListPagesNewestFirst(t *testing.T) {
 	}
 }
 
-func saveNextVersion(ctx context.Context, t *testing.T, d *dbtest.Database, req revisions.Request) (int, error) {
+func saveNextVersion(ctx context.Context, d *dbtest.Database, req revisions.Request) (int, error) {
 	dash, err := db.ParseUUID(req.DashboardID)
 	if err != nil {
 		return 0, err
@@ -1055,7 +1055,9 @@ func saveNextVersion(ctx context.Context, t *testing.T, d *dbtest.Database, req 
 	}); err != nil {
 		return 0, err
 	}
-	d.Exec(t, "UPDATE dashboards SET latest_version = $2 WHERE id = $1", dash, next)
+	if _, err := d.Queries().BumpDashboardVersion(ctx, dbsqlc.BumpDashboardVersionParams{Title: "t", Tags: []string{}, ID: dash, ExpectedVersion: latest}); err != nil {
+		return 0, err
+	}
 	return int(next), nil
 }
 
@@ -1066,7 +1068,7 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 		if req.Prompt == "fail" {
 			return revisions.Result{}, errors.New("model call failed")
 		}
-		version, err := saveNextVersion(ctx, t, d, req)
+		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}))
 	ctx := context.Background()
