@@ -631,6 +631,7 @@ func TestReviseHappyPath(t *testing.T) {
 	}())
 	task := r.reviseTask()
 	task.PanelID = panelID
+	task.Source = revisions.SourceComment
 
 	out, err := r.agent.Run(context.Background(), task)
 	if err != nil {
@@ -669,6 +670,7 @@ func TestReviseCommentOnPanelMissingFromLatestVersion(t *testing.T) {
 	r.tools.onSave("update_dashboard", savedResult(dashID, 4))
 	task := r.reviseTask()
 	task.PanelID = "p_gone"
+	task.Source = revisions.SourceComment
 
 	if _, err := r.agent.Run(context.Background(), task); err != nil {
 		t.Fatal(err)

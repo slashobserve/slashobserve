@@ -64,7 +64,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 	if panelID != "" {
-		fromComment := source != revisions.SourcePrompt
+		fromComment := source == revisions.SourceComment
 		if title, ok := panelTitle(current.spec, panelID); ok {
 			if fromComment {
 				fmt.Fprintf(&b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
