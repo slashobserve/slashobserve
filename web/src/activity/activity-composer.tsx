@@ -119,7 +119,8 @@ export function ActivityComposer({
   const pendingComment = addComment.isPending
   const pendingRequest = requestRevision.isPending
   const pending = pendingComment || pendingRequest
-  const emptyOrOver = trimmed === "" || over
+  const waitingForPanels = target.kind === "panel" && panels.length === 0
+  const cannotSubmit = trimmed === "" || over || waitingForPanels
 
   function announce(text: string) {
     setNote((current) => ({ text, count: current.count + 1 }))
@@ -137,7 +138,7 @@ export function ActivityComposer({
   }
 
   function addCommentNow() {
-    if (emptyOrOver || pending) return
+    if (cannotSubmit || pending) return
     setFailure(null)
     addComment.mutate(
       { body: trimmed, version: latestVersion, panelId },
@@ -149,7 +150,7 @@ export function ActivityComposer({
   }
 
   function sendToAgent() {
-    if (emptyOrOver || pending) return
+    if (cannotSubmit || pending) return
     setFailure(null)
     requestRevision.mutate(
       { prompt: trimmed, baseVersion: latestVersion, panelId },
@@ -242,7 +243,7 @@ export function ActivityComposer({
         <Button
           type="submit"
           variant="outline"
-          disabled={emptyOrOver}
+          disabled={cannotSubmit}
           aria-disabled={pending || undefined}
           aria-busy={pendingComment || undefined}
         >
@@ -251,7 +252,7 @@ export function ActivityComposer({
         {gate.kind === "allowed" ? (
           <Button
             type="button"
-            disabled={emptyOrOver}
+            disabled={cannotSubmit}
             aria-disabled={pending || undefined}
             aria-busy={pendingRequest || undefined}
             onClick={sendToAgent}
