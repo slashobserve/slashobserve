@@ -54,7 +54,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/httpapi/`: the HTTP helpers shared by `internal/dashboards` and `internal/revisions` (error responses, body decoding, path and limit parameters, time formatting, the `(time, id)` cursor codec).
 - `internal/events/`: the event payload, the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream, and the `Broker` that fans notifications out to subscribers; `internal/events/stream/` serves them over SSE.
 - `internal/revisions/`: the durable agent request queue (`agent_requests`), its in-process workers, the `Reviser` contract the agent implements (`agent.Reviser`) and the `/api/v1/dashboards/{id}/revisions` routes.
-- `internal/agent/tools/`: the only place agent tools are defined (17 tools, sorted, constant schemas); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
+- `internal/agent/tools/`: the only place agent tools are defined (17 tools, sorted, constant schemas; 14 for the built-in agent, since `MCPOnly` tools are left out of what `agent.New` sends to the model); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
 - `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
 - `internal/agent/prompts/`: embedded prompts, including the system prompt and the Spec authoring guide.
 - `evals/`: scenarios (`scenarios/*.yaml`), pricing, and the runner (`go run ./evals/runner`), which scores validity, data, source, metrics, tables, units, panel count, thresholds and latency through the public API and reports cost; scenarios tagged `replay-smoke` run in e2e with replay fixtures.
@@ -97,7 +97,7 @@ Directories are created when their phase starts; this is where things go.
   Responses forbid framing (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`).
 - MCP: `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
   It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB, 429 above 8 in-flight requests per principal and 503 `busy` above 32 in flight across all principals, and keeps no session state (the `Mcp-Session-Id` it sets on `initialize` only carries the client name).
-  Comment tools (`list_comments`, `reply_to_comment`, `resolve_comment`) never queue revisions; in an agent run they only reach the run's own dashboard.
+  Comment tools (`list_comments`, `reply_to_comment`, `resolve_comment`) are MCP-only: `agent.New` leaves them (`Tool.MCPOnly`) out of the model's tool list and a call made inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; they never queue revisions.
   Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
   Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/keys` (API keys in the sidebar; `/settings/keys` redirects).
 - Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
@@ -333,7 +333,7 @@ Directories are created when their phase starts; this is where things go.
 - The agent only ever outputs ObserveSpec JSON; no code path takes LLM-written HTML or JS into the UI.
 - Datasource credentials never reach the browser; all panel data goes through the query proxy, which only runs queries from a saved Spec.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
-- Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them.
+- Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them, except the comment tools, which are MCP-only.
 - The agent's text output is discarded; only tool-saved Specs leave a run.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.

@@ -62,6 +62,7 @@ type Tool struct {
 	Description string
 	InputSchema json.RawMessage
 	ReadOnly    bool
+	MCPOnly     bool
 }
 
 type Result struct {

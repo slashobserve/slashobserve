@@ -27,9 +27,9 @@ var errCommentsNotConfigured = errors.New("comments are not configured")
 
 func (r *Registry) commentEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true}, r.listComments},
-		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment)}, r.replyToComment},
-		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment)}, r.resolveComment},
+		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true}, r.listComments},
+		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true}, r.replyToComment},
+		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MCPOnly: true}, r.resolveComment},
 	}
 }
 
@@ -91,22 +91,11 @@ func parseCommentID(raw string) (pgtype.UUID, Result, bool) {
 	return id, Result{}, true
 }
 
-func checkCommentScope(ctx context.Context, dashboardID pgtype.UUID) (Result, bool, error) {
-	run, scoped := RunFrom(ctx)
-	if !scoped {
-		return Result{}, true, nil
+func rejectAgentRun(ctx context.Context) (Result, bool) {
+	if _, scoped := RunFrom(ctx); scoped {
+		return invalid("comment tools are for MCP clients; the server answers and resolves threads after a run"), false
 	}
-	runID, err := validateRun(run)
-	if err != nil {
-		return Result{}, false, err
-	}
-	if run.Mode == ModeCreate {
-		return invalid("this run creates a new dashboard; it has no comments yet"), false, nil
-	}
-	if dashboardID != runID {
-		return invalid("this run revises dashboard %s; comments on other dashboards are out of scope", run.DashboardID), false, nil
-	}
-	return Result{}, true, nil
+	return Result{}, true
 }
 
 func commentFailure(err error) (Result, error) {
@@ -132,8 +121,7 @@ func (r *Registry) commentTarget(ctx context.Context, raw string) (pgtype.UUID, 
 		res, err := commentFailure(err)
 		return pgtype.UUID{}, pgtype.UUID{}, res, false, err
 	}
-	res, ok, err = checkCommentScope(ctx, dashboardID)
-	return commentID, dashboardID, res, ok, err
+	return commentID, dashboardID, Result{}, true, nil
 }
 
 type commentQuery struct {
@@ -183,16 +171,15 @@ func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 }
 
 func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, ok := rejectAgentRun(ctx); !ok {
+		return res, nil
+	}
 	if r.deps.Comments == nil {
 		return Result{}, errCommentsNotConfigured
 	}
 	q, res, ok := parseCommentQuery(input)
 	if !ok {
 		return res, nil
-	}
-	res, ok, err := checkCommentScope(ctx, q.dashboardID)
-	if err != nil || !ok {
-		return res, err
 	}
 	var (
 		items []commentOut
@@ -222,6 +209,9 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 }
 
 func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, ok := rejectAgentRun(ctx); !ok {
+		return res, nil
+	}
 	if r.deps.Comments == nil {
 		return Result{}, errCommentsNotConfigured
 	}
@@ -248,6 +238,9 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 }
 
 func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, ok := rejectAgentRun(ctx); !ok {
+		return res, nil
+	}
 	if r.deps.Comments == nil {
 		return Result{}, errCommentsNotConfigured
 	}
