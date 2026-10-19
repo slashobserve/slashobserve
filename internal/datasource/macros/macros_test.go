@@ -350,7 +350,7 @@ func TestEveryValueMacroOfTheTableExpands(t *testing.T) {
 	}
 	for _, d := range dialects {
 		for _, m := range spec.Macros(d.ds) {
-			if m.Function {
+			if m.Function() {
 				continue
 			}
 			t.Run(d.name+"/"+m.Name, func(t *testing.T) {
@@ -732,6 +732,15 @@ func TestExpandForLint(t *testing.T) {
 			}
 		}
 	})
+	t.Run("clickhouse conditional all declares the variables inside it", func(t *testing.T) {
+		got, err := macros.ExpandForLint(macros.ClickHouse, `SELECT 1 FROM t WHERE $__conditionalAll(pod IN (${pod:singlequote}) AND n = '$n', $pod)`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := `SELECT 1 FROM t WHERE (pod IN ('x') AND n = 'x')`; got.Text != want {
+			t.Fatalf("got %q, want %q", got.Text, want)
+		}
+	})
 	t.Run("repeated variable", func(t *testing.T) {
 		got, err := macros.ExpandForLint(macros.PromQL, `up{a="$v", b="$v"}`)
 		if err != nil || got.Text != `up{a="x", b="x"}` {
@@ -775,7 +784,7 @@ func TestTimeMacroColumnArgumentRejections(t *testing.T) {
 		"ts -- x", "ts --", "ts #", "ts /* x", "ts */", "*/ ts", "a'b", `"a"`, "`a`", "a b", "a,b", "a..b", ".a", "a.", "1a",
 		"toDateTime(ts)", "(ts", "ts OR 1=1", "t\ns", "ts\x00",
 	} {
-		for _, macro := range []string{"__timeFilter", "__timeGroup"} {
+		for _, macro := range []string{"__timeFilter", "__timeFilter_ms", "__timeGroup", "__dateFilter", "__timeInterval", "__timeInterval_ms"} {
 			query := "SELECT 1 FROM t WHERE $" + macro + "(" + arg + ")"
 			if got, err := macros.Expand(macros.ClickHouse, query, envWith()); err == nil {
 				t.Fatalf("Expand(%q) = %q, want error", query, got.Text)
@@ -952,4 +961,96 @@ func TestLexerContextProbesWithInjectionCorpus(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestClickHousePluginMacros(t *testing.T) {
+	env := func(interval time.Duration) macros.Env {
+		return macros.Env{Range: testRange, Interval: interval}
+	}
+	from, to := testRange.From, testRange.To
+	crossing := macros.Env{
+		Range:    datasource.TimeRange{From: time.Date(2026, 1, 1, 23, 30, 0, 0, time.UTC), To: time.Date(2026, 1, 2, 0, 30, 0, 0, time.UTC)},
+		Interval: time.Minute,
+	}
+	offsetZone := macros.Env{
+		Range:    datasource.TimeRange{From: time.Date(2026, 1, 2, 1, 0, 0, 0, time.FixedZone("x", 3*3600)), To: time.Date(2026, 1, 2, 2, 0, 0, 0, time.FixedZone("x", 3*3600))},
+		Interval: time.Minute,
+	}
+	timeFilter := func(col string, fromMs, toMs int64) string {
+		return fmt.Sprintf("(%[1]s >= fromUnixTimestamp64Milli(toInt64(%[2]d), 'UTC') AND %[1]s <= fromUnixTimestamp64Milli(toInt64(%[3]d), 'UTC'))", col, fromMs, toMs)
+	}
+	dateFilter := func(col, fromDate, toDate string) string {
+		return fmt.Sprintf("(%[1]s >= toDate('%[2]s') AND %[1]s <= toDate('%[3]s'))", col, fromDate, toDate)
+	}
+	runExpandCases(t, []expandCase{
+		{name: "time filter in milliseconds", d: macros.ClickHouse, query: `WHERE $__timeFilter_ms(ts)`, env: env(time.Minute), want: `WHERE ` + timeFilter("ts", from.UnixMilli(), to.UnixMilli())},
+		{name: "time filter in milliseconds dotted", d: macros.ClickHouse, query: `WHERE $__timeFilter_ms(t.ts)`, env: env(time.Minute), want: `WHERE ` + timeFilter("t.ts", from.UnixMilli(), to.UnixMilli())},
+		{name: "date filter", d: macros.ClickHouse, query: `WHERE $__dateFilter(d)`, env: env(time.Minute), want: `WHERE ` + dateFilter("d", "2026-01-01", "2026-01-01")},
+		{name: "date filter over midnight", d: macros.ClickHouse, query: `WHERE $__dateFilter(d)`, env: crossing, want: `WHERE ` + dateFilter("d", "2026-01-01", "2026-01-02")},
+		{name: "date filter uses UTC dates", d: macros.ClickHouse, query: `WHERE $__dateFilter(d)`, env: offsetZone, want: `WHERE ` + dateFilter("d", "2026-01-01", "2026-01-01")},
+		{name: "date time filter", d: macros.ClickHouse, query: `WHERE $__dateTimeFilter(d, ts)`, env: crossing, want: `WHERE (` + dateFilter("d", "2026-01-01", "2026-01-02") + ` AND ` + timeFilter("ts", crossing.Range.From.UnixMilli(), crossing.Range.To.UnixMilli()) + `)`},
+		{name: "date time filter alias", d: macros.ClickHouse, query: `WHERE $__dt(d,ts)`, env: crossing, want: `WHERE (` + dateFilter("d", "2026-01-01", "2026-01-02") + ` AND ` + timeFilter("ts", crossing.Range.From.UnixMilli(), crossing.Range.To.UnixMilli()) + `)`},
+		{name: "date time filter with one column", d: macros.ClickHouse, query: `WHERE $__dt(d)`, env: crossing, err: true},
+		{name: "date time filter with three columns", d: macros.ClickHouse, query: `WHERE $__dt(a, b, c)`, env: crossing, err: true},
+		{name: "date time filter with an empty column", d: macros.ClickHouse, query: `WHERE $__dt(a, )`, env: crossing, err: true},
+		{name: "date time filter with an expression", d: macros.ClickHouse, query: `WHERE $__dt(a, toDateTime(b))`, env: crossing, err: true},
+		{name: "date time filter with a dollar", d: macros.ClickHouse, query: `WHERE $__dt(a, $b)`, env: crossing, err: true},
+		{name: "date time filter with a semicolon", d: macros.ClickHouse, query: `WHERE $__dt(a, b;)`, env: crossing, err: true},
+		{name: "date time filter in a string", d: macros.ClickHouse, query: `WHERE x = '$__dt(a, b)'`, env: crossing, err: true},
+		{name: "from time", d: macros.ClickHouse, query: `SELECT $__fromTime`, env: env(time.Minute), want: fmt.Sprintf(`SELECT toDateTime(%d)`, from.Unix())},
+		{name: "to time", d: macros.ClickHouse, query: `SELECT ${__toTime}`, env: env(time.Minute), want: fmt.Sprintf(`SELECT toDateTime(%d)`, to.Unix())},
+		{name: "from time floors seconds", d: macros.ClickHouse, query: `SELECT $__fromTime`, env: macros.Env{Range: datasource.TimeRange{From: from.Add(1999 * time.Millisecond), To: to}, Interval: time.Minute}, want: fmt.Sprintf(`SELECT toDateTime(%d)`, from.Unix()+1)},
+		{name: "from time in milliseconds", d: macros.ClickHouse, query: `SELECT $__fromTime_ms`, env: env(time.Minute), want: fmt.Sprintf(`SELECT fromUnixTimestamp64Milli(toInt64(%d))`, from.UnixMilli())},
+		{name: "to time in milliseconds", d: macros.ClickHouse, query: `SELECT $__toTime_ms`, env: env(time.Minute), want: fmt.Sprintf(`SELECT fromUnixTimestamp64Milli(toInt64(%d))`, to.UnixMilli())},
+		{name: "time macro with arguments", d: macros.ClickHouse, query: `SELECT $__fromTime(1)`, env: env(time.Minute), err: true},
+		{name: "time macro with a format", d: macros.ClickHouse, query: `SELECT ${__toTime:raw}`, env: env(time.Minute), err: true},
+		{name: "interval in seconds", d: macros.ClickHouse, query: `SELECT $__interval_s`, env: env(30 * time.Second), want: `SELECT 30`},
+		{name: "interval in seconds rounds up", d: macros.ClickHouse, query: `SELECT $__interval_s`, env: env(1500 * time.Millisecond), want: `SELECT 2`},
+		{name: "interval in seconds minimum one", d: macros.ClickHouse, query: `SELECT $__interval_s`, env: env(100 * time.Millisecond), want: `SELECT 1`},
+		{name: "time interval", d: macros.ClickHouse, query: `SELECT $__timeInterval(ts) GROUP BY 1`, env: env(30 * time.Second), want: `SELECT toStartOfInterval(toDateTime(ts), INTERVAL 30 second) GROUP BY 1`},
+		{name: "time interval rounds up", d: macros.ClickHouse, query: `SELECT $__timeInterval(ts)`, env: env(1500 * time.Millisecond), want: `SELECT toStartOfInterval(toDateTime(ts), INTERVAL 2 second)`},
+		{name: "time interval in milliseconds", d: macros.ClickHouse, query: `SELECT $__timeInterval_ms(ts)`, env: env(1500 * time.Millisecond), want: `SELECT toStartOfInterval(toDateTime64(ts, 3), INTERVAL 1500 millisecond)`},
+		{name: "time interval in milliseconds minimum one", d: macros.ClickHouse, query: `SELECT $__timeInterval_ms(ts)`, env: env(100 * time.Microsecond), want: `SELECT toStartOfInterval(toDateTime64(ts, 3), INTERVAL 1 millisecond)`},
+		{name: "time interval in milliseconds without a column", d: macros.ClickHouse, query: `SELECT $__timeInterval_ms`, env: env(time.Second), err: true},
+		{name: "plugin macros are refused for promql", d: macros.PromQL, query: `up[$__interval_s]`, env: env(time.Minute), err: true},
+	})
+}
+
+func TestClickHouseConditionalAll(t *testing.T) {
+	const cond = `SELECT 1 FROM t WHERE $__conditionalAll(pod IN (${pod:singlequote}), $pod) AND x = 1`
+	runExpandCases(t, []expandCase{
+		{name: "all selected", d: macros.ClickHouse, query: cond, env: envWith(all("pod", "a", "b")), want: `SELECT 1 FROM t WHERE 1=1 AND x = 1`},
+		{name: "all selected needs no list", d: macros.ClickHouse, query: cond, env: envWith(all("pod")), want: `SELECT 1 FROM t WHERE 1=1 AND x = 1`},
+		{name: "two values", d: macros.ClickHouse, query: cond, env: envWith(val("pod", "a", "b")), want: `SELECT 1 FROM t WHERE (pod IN ('a','b')) AND x = 1`},
+		{name: "one value", d: macros.ClickHouse, query: cond, env: envWith(val("pod", "a")), want: `SELECT 1 FROM t WHERE (pod IN ('a')) AND x = 1`},
+		{name: "braced variable in the second argument", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = $pod, ${pod})`, env: envWith(val("pod", "a")), want: `WHERE (pod = 'a')`},
+		{name: "quote in a value is escaped", d: macros.ClickHouse, query: cond, env: envWith(val("pod", "a') OR 1=1 --")), want: `SELECT 1 FROM t WHERE (pod IN ('a\') OR 1=1 --')) AND x = 1`},
+		{name: "string literal with a comma and a parenthesis", d: macros.ClickHouse, query: `WHERE $__conditionalAll(msg != 'a, )' AND pod = $pod, $pod)`, env: envWith(val("pod", "a")), want: `WHERE (msg != 'a, )' AND pod = 'a')`},
+		{name: "reference in a string of the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = '$pod', $pod)`, env: envWith(val("pod", "a")), want: `WHERE (pod = 'a')`},
+		{name: "reference in a comment of the condition is verbatim", d: macros.ClickHouse, query: "WHERE $__conditionalAll(pod = 1 /* $x */, $pod)", env: envWith(val("pod", "a")), want: "WHERE (pod = 1 /* $x */)"},
+		{name: "macro in the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll($__timeFilter(ts) AND pod = $pod, $pod)`, env: envWith(val("pod", "a")), want: `WHERE ((ts >= fromUnixTimestamp64Milli(toInt64(1767225600000), 'UTC') AND ts <= fromUnixTimestamp64Milli(toInt64(1767247200000), 'UTC')) AND pod = 'a')`},
+		{name: "unknown variable in the second argument", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = 1, $nope)`, env: envWith(val("pod", "a")), err: true},
+		{name: "no value selected", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = 1, $pod)`, env: envWith(val("pod")), err: true},
+		{name: "unknown variable in the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = $nope, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "literal second argument", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = 1, 'a')`, env: envWith(val("pod", "a")), err: true},
+		{name: "formatted second argument", d: macros.ClickHouse, query: `WHERE $__conditionalAll(pod = 1, ${pod:csv})`, env: envWith(val("pod", "a")), err: true},
+		{name: "one argument", d: macros.ClickHouse, query: `WHERE $__conditionalAll($pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "three arguments", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a, b, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "without arguments", d: macros.ClickHouse, query: `WHERE $__conditionalAll`, env: envWith(val("pod", "a")), err: true},
+		{name: "nested", d: macros.ClickHouse, query: `WHERE $__conditionalAll($__conditionalAll(a = 1, $pod), $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "empty condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "in a string", d: macros.ClickHouse, query: `WHERE x = '$__conditionalAll(a = 1, $pod)'`, env: envWith(val("pod", "a")), err: true},
+		{name: "in a quoted identifier", d: macros.ClickHouse, query: `WHERE "$__conditionalAll(a = 1, $pod)" = 1`, env: envWith(val("pod", "a")), err: true},
+		{name: "in a comment is verbatim", d: macros.ClickHouse, query: "SELECT 1 -- $__conditionalAll(a = 1, $pod)\n", env: envWith(), want: "SELECT 1 -- $__conditionalAll(a = 1, $pod)\n"},
+		{name: "touching a word before", d: macros.ClickHouse, query: `WHERE x$__conditionalAll(a = 1, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "touching a word after", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = 1, $pod)x`, env: envWith(val("pod", "a")), err: true},
+		{name: "variable touching a word in the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = 1${pod:raw}, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "condition ending in a line comment would swallow the closing parenthesis", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 -- x\n, $pod)", env: envWith(val("pod", "a")), err: true},
+		{name: "unbalanced closing parenthesis hidden in a heredoc", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = $$(x$$ AND b = (1, $pod)", env: envWith(val("pod", "a")), err: true},
+		{name: "heredoc hiding the closing parenthesis", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = $$ x ) $$ AND b = 1, $pod)", env: envWith(val("pod", "a")), err: true},
+		{name: "condition ending in a line comment before more query", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 -- x\n, $pod)\nAND y = 1", env: envWith(val("pod", "a")), err: true},
+		{name: "condition with a trailing block comment", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 /* x */, $pod)", env: envWith(val("pod", "a")), want: "WHERE (a = 1 /* x */)"},
+		{name: "unterminated string in the arguments", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = 'x, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "prometheus has no conditional all", d: macros.PromQL, query: `up{a="$__conditionalAll(a = 1, $pod)"}`, env: envWith(val("pod", "a")), err: true},
+	})
 }

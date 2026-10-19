@@ -19,6 +19,7 @@ type Reference struct {
 	Format  string
 	Args    string
 	HasArgs bool
+	Nested  []Reference
 	Start   int
 	End     int
 }
@@ -31,13 +32,26 @@ const (
 	TimeFormatsAllowed
 )
 
+type MacroArgs int
+
+const (
+	NoArgs MacroArgs = iota
+	OneColumn
+	TwoColumns
+	ConditionAndVariable
+)
+
 type Macro struct {
 	Name         string
-	Function     bool
+	Args         MacroArgs
 	Formats      MacroFormats
 	Global       bool
 	PerUser      bool
 	PerDashboard bool
+}
+
+func (m Macro) Function() bool {
+	return m.Args != NoArgs
 }
 
 type macroDef struct {
@@ -45,7 +59,10 @@ type macroDef struct {
 	datasources []DatasourceType
 }
 
-var bothDatasources = []DatasourceType{Prometheus, ClickHouse}
+var (
+	bothDatasources = []DatasourceType{Prometheus, ClickHouse}
+	clickHouseOnly  = []DatasourceType{ClickHouse}
+)
 
 var macroTable = []macroDef{
 	{Macro{Name: "__interval"}, bothDatasources},
@@ -61,8 +78,20 @@ var macroTable = []macroDef{
 	{Macro{Name: "__user.email", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
 	{Macro{Name: "__user.name", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
 	{Macro{Name: "__user.id", Formats: VariableFormatsAllowed, Global: true, PerUser: true}, bothDatasources},
-	{Macro{Name: "__timeFilter", Function: true}, []DatasourceType{ClickHouse}},
-	{Macro{Name: "__timeGroup", Function: true}, []DatasourceType{ClickHouse}},
+	{Macro{Name: "__timeFilter", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeFilter_ms", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeGroup", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__dateFilter", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__dateTimeFilter", Args: TwoColumns}, clickHouseOnly},
+	{Macro{Name: "__dt", Args: TwoColumns}, clickHouseOnly},
+	{Macro{Name: "__fromTime"}, clickHouseOnly},
+	{Macro{Name: "__toTime"}, clickHouseOnly},
+	{Macro{Name: "__fromTime_ms"}, clickHouseOnly},
+	{Macro{Name: "__toTime_ms"}, clickHouseOnly},
+	{Macro{Name: "__interval_s"}, clickHouseOnly},
+	{Macro{Name: "__timeInterval", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__timeInterval_ms", Args: OneColumn}, clickHouseOnly},
+	{Macro{Name: "__conditionalAll", Args: ConditionAndVariable}, clickHouseOnly},
 }
 
 func Macros(t DatasourceType) []Macro {
@@ -117,14 +146,27 @@ func VariableFormats() []string {
 const maxScanWork = 1 << 22
 
 func ScanQuery(query string) ([]Reference, error) {
-	var refs []Reference
 	budget := maxScanWork
+	return scanQuery(query, &budget, false)
+}
+
+func FlattenReferences(refs []Reference) []Reference {
+	var out []Reference
+	for _, ref := range refs {
+		out = append(out, ref)
+		out = append(out, FlattenReferences(ref.Nested)...)
+	}
+	return out
+}
+
+func scanQuery(query string, budget *int, inArgs bool) ([]Reference, error) {
+	var refs []Reference
 	for i := 0; i < len(query); {
 		if query[i] != '$' {
 			i++
 			continue
 		}
-		ref, next, err := scanReference(query, i, &budget)
+		ref, next, err := scanReference(query, i, budget, inArgs)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +178,7 @@ func ScanQuery(query string) ([]Reference, error) {
 	return refs, nil
 }
 
-func scanReference(query string, start int, budget *int) (*Reference, int, error) {
+func scanReference(query string, start int, budget *int, inArgs bool) (*Reference, int, error) {
 	rest := query[start+1:]
 	if strings.HasPrefix(rest, "{") {
 		return scanBraced(query, start)
@@ -158,9 +200,70 @@ func scanReference(query string, start int, budget *int) (*Reference, int, error
 		if !ok {
 			return nil, 0, fmt.Errorf("unclosed \"(\" at offset %d", ref.End)
 		}
+		open := ref.End
 		ref.Args, ref.HasArgs, ref.End = args, true, end
+		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable && !inArgs {
+			nested, err := scanQuery(args, budget, true)
+			if err != nil {
+				return nil, 0, fmt.Errorf("in the arguments of $%s: %w", ref.Name, err)
+			}
+			for i := range nested {
+				nested[i].Start += open + 1
+				nested[i].End += open + 1
+			}
+			ref.Nested = nested
+		}
 	}
 	return ref, ref.End, nil
+}
+
+type ConditionalAll struct {
+	Condition string
+	Variable  string
+}
+
+func ParseConditionalAll(args string) (ConditionalAll, error) {
+	parts := SplitMacroArgs(args)
+	if len(parts) != 2 || parts[0] == "" {
+		return ConditionalAll{}, fmt.Errorf("macro $__conditionalAll needs a condition and a variable, for example $__conditionalAll(pod IN (${pod:singlequote}), $pod)")
+	}
+	budget := maxScanWork
+	variable, err := scanQuery(parts[1], &budget, true)
+	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(parts[1]) {
+		return ConditionalAll{}, fmt.Errorf("the second argument of $__conditionalAll must be one variable reference such as $pod")
+	}
+	condition, err := scanQuery(parts[0], &budget, true)
+	if err != nil {
+		return ConditionalAll{}, err
+	}
+	if slices.ContainsFunc(condition, func(ref Reference) bool {
+		macro, ok := LookupMacro(ref.Name)
+		return ref.Kind == MacroRef && ok && macro.Args == ConditionAndVariable
+	}) {
+		return ConditionalAll{}, fmt.Errorf("$__conditionalAll cannot be nested")
+	}
+	return ConditionalAll{Condition: parts[0], Variable: variable[0].Name}, nil
+}
+
+func SplitMacroArgs(args string) []string {
+	var parts []string
+	depth, from := 0, 0
+	for i := 0; i < len(args); i++ {
+		if end, skipped := skipOpaque(args, i); skipped {
+			i = end
+			continue
+		}
+		switch c := args[i]; {
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+		case c == ',' && depth == 0:
+			parts = append(parts, strings.TrimSpace(args[from:i]))
+			from = i + 1
+		}
+	}
+	return append(parts, strings.TrimSpace(args[from:]))
 }
 
 func scanBraced(query string, start int) (*Reference, int, error) {
@@ -200,16 +303,14 @@ func matchedBytes(query string, open, end int, ok bool) int {
 func matchParen(s string, open int) (args string, end int, ok bool) {
 	depth := 0
 	for i := open; i < len(s); i++ {
-		switch {
-		case isLineComment(s, i):
-			i = skipLine(s, i)
-		case strings.HasPrefix(s[i:], "/*"):
-			i = skipBlockComment(s, i)
-		case s[i] == '\'', s[i] == '"', s[i] == '`':
-			i = skipQuoted(s, i)
-		case s[i] == '(':
+		if end, skipped := skipOpaque(s, i); skipped {
+			i = end
+			continue
+		}
+		switch s[i] {
+		case '(':
 			depth++
-		case s[i] == ')':
+		case ')':
 			depth--
 			if depth == 0 {
 				return s[open+1 : i], i + 1, true
@@ -217,6 +318,18 @@ func matchParen(s string, open int) (args string, end int, ok bool) {
 		}
 	}
 	return "", 0, false
+}
+
+func skipOpaque(s string, i int) (end int, skipped bool) {
+	switch {
+	case isLineComment(s, i):
+		return skipLine(s, i), true
+	case strings.HasPrefix(s[i:], "/*"):
+		return skipBlockComment(s, i), true
+	case s[i] == '\'', s[i] == '"', s[i] == '`':
+		return skipQuoted(s, i), true
+	}
+	return i, false
 }
 
 func skipLine(s string, from int) int {

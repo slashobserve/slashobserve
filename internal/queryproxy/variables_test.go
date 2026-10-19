@@ -693,3 +693,44 @@ func TestDefaultsRejectsBadDefaults(t *testing.T) {
 		})
 	}
 }
+
+func TestRunPanelConditionalAllThroughRealMacros(t *testing.T) {
+	const query = "SELECT count() FROM t WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)"
+	tests := []struct {
+		name          string
+		selection     Selection
+		want          string
+		wantListCalls int
+	}{
+		{"All", Selection{All: true}, "SELECT count() FROM t WHERE 1=1", 1},
+		{"one value", Selection{Values: []string{"cart"}}, "SELECT count() FROM t WHERE (svc IN ('cart'))", 0},
+		{"two values", Selection{Values: []string{"cart", "it's"}}, `SELECT count() FROM t WHERE (svc IN ('cart','it\'s'))`, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("clickhouse")
+			fake.onVariable = answer("cart", "pay")
+			var expanded string
+			fake.onInstant = func(_ context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+				exp, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: r, Interval: time.Minute, Variables: q.Variables})
+				if err != nil {
+					return nil, err
+				}
+				expanded = exp.Text
+				return dataFrames(), nil
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+			panel := spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
+			d := dashboardOf([]spec.Panel{panel}, includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"))
+			if err := runAll(t, runner, d, "p1", map[string]Selection{"svc": tt.selection}); err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			if expanded != tt.want {
+				t.Fatalf("expanded = %q, want %q", expanded, tt.want)
+			}
+			if got := len(fake.callsTo("variable")); got != tt.wantListCalls {
+				t.Fatalf("variable list calls = %d, want %d", got, tt.wantListCalls)
+			}
+		})
+	}
+}

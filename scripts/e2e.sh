@@ -1752,6 +1752,16 @@ proxy_suite() {
   fi
   pass "global macros expand on the server, including the dashboard title and the caller"
 
+  out="$(proxy_call GET "$base/panels/p_chmacros/data?$stable")"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
+    fail "ClickHouse plugin macros with All selected ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(proxy_call GET "$base/panels/p_chmacros/data?$stable&var-services=$(urlencode "$service")")"
+  if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
+    fail "ClickHouse plugin macros with one service selected ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "ClickHouse plugin macros, conditionalAll included, run on the server"
+
   out="$(proxy_call GET "$base/panels/p_up/data?query=up")"
   if [[ "$out" != 403 ]] || ! grep -q '"code":"query_not_in_spec"' "$TMP/api.body"; then
     fail "query text on the data endpoint ($out: $(cat "$TMP/api.body"))"

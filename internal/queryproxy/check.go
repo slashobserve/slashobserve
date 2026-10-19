@@ -145,7 +145,7 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	available := spec.Macros(spec.DatasourceType(dsType))
 	var issues []spec.Issue
 	reported := map[string]bool{}
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind != spec.MacroRef || reported[ref.Name] {
 			continue
 		}
@@ -276,7 +276,7 @@ func failedReference(text string, failed map[string]bool) string {
 	if err != nil {
 		return ""
 	}
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind == spec.VariableRef && failed[ref.Name] {
 			return ref.Name
 		}

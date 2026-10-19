@@ -140,6 +140,7 @@ func TestDashboardUsesUser(t *testing.T) {
 		{"query variable", dashboardOf(nil, queryVariable("v", "prom", `label_values(`+user+`, job)`)), true},
 		{"custom variable option is not a query", dashboardOf(nil, customVariable("v", user)), false},
 		{"bare user is not a user reference", dashboardOf([]spec.Panel{panelOf("p", spec.Timeseries, "prom", `up{a="$__user"}`)}), false},
+		{"user inside conditional all", dashboardOf([]spec.Panel{panelOf("p", spec.Timeseries, "ch", `$__conditionalAll(who = ${__user.login}, $svc)`)}), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

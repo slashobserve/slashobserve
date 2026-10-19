@@ -994,3 +994,38 @@ func TestCheckSpecRunsQueriesAsTheSavingPrincipal(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
+	t.Run("a macro the datasource does not have", func(t *testing.T) {
+		fake := newFake("clickhouse")
+		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+		d := dashboardOf(
+			[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x > $__range, $svc)")},
+			customVariable("svc", "a"),
+		)
+		assertIssues(t, runner.CheckDatasources(d), []wantIssue{
+			{"/panels/0/queries/0/query", spec.CodeUnknownMacro, "macro $__range is not available for clickhouse queries"},
+		})
+	})
+	t.Run("a failed variable blocks the panel and the variable query", func(t *testing.T) {
+		fake := newFake("clickhouse")
+		fake.onVariable = func(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+			return nil, datasource.Errorf(datasource.ErrUnavailable, "down")
+		}
+		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+		d := dashboardOf(
+			[]spec.Panel{panelOf("p0", spec.Stat, "ch", "SELECT 1 WHERE $__conditionalAll(x IN (${svc:singlequote}), $svc)")},
+			queryVariable("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"),
+			queryVariable("pod", "ch", "SELECT DISTINCT p FROM t WHERE $__conditionalAll(s IN (${svc:singlequote}), $svc)"),
+		)
+		issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertIssues(t, issues, []wantIssue{
+			{"/panels/0/queries/0/query", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+			{"/variables/0", CodeVariableFailed, ""},
+			{"/variables/1", CodeVariableUnresolved, `variable "svc" could not be resolved`},
+		})
+	})
+}

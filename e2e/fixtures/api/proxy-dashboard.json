@@ -145,6 +145,18 @@
             "query": "SELECT $__interval_ms AS interval_ms, $__range_s AS range_s, $__range_ms AS range_ms, ${__from:date:seconds} AS from_s, $__to AS to_ms, $__dashboard AS dashboard, ${__user.login} AS login"
           }
         ]
+      },
+      {
+        "id": "p_chmacros",
+        "type": "table",
+        "title": "ClickHouse plugin macros",
+        "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT $__timeInterval(Timestamp) AS t, count() AS n FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) WHERE $__dateTimeFilter(day, Timestamp) AND $__conditionalAll(ServiceName IN (${services:singlequote}), $services) AND Timestamp >= $__fromTime_ms AND Timestamp <= $__toTime GROUP BY t ORDER BY t LIMIT 100"
+          }
+        ]
       }
     ]
   }

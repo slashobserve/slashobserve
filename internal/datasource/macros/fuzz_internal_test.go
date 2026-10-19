@@ -99,6 +99,15 @@ var clickHouseFuzzSeeds = []string{
 	"SELECT $__interval_ms, $__range_s, $__range_ms, ${__from:date:seconds}, $__to, '${__from:date:YYYY-MM-DD}'",
 	"SELECT ${__user.id:csv} FROM t WHERE a = '$__dashboard' AND b IN ($w)",
 	"SELECT 1 /* ${__user.login} */ WHERE x = ${__dashboard}",
+	"SELECT 1 WHERE $__timeFilter_ms(ts) AND $__dateFilter(d) AND $__dt(d, ts) AND x = '$v'",
+	"SELECT $__fromTime, $__toTime, $__fromTime_ms, $__toTime_ms, $__interval_s, '$w'",
+	"SELECT $__timeInterval(ts), $__timeInterval_ms(ts), $w FROM t",
+	"SELECT 1 WHERE $__conditionalAll(a IN (${v:singlequote}) AND b = '$w', $v) AND c = '$w'",
+	"SELECT 1 WHERE $__conditionalAll(a = ${v:raw}e-- x'\n, $w)",
+	"SELECT 1 WHERE $__conditionalAll(a = 'x' /* ${w} */ OR b = $$ ${v} $$, $v)",
+	"SELECT 1 WHERE $__conditionalAll(a = $$ x ) $$ AND b = ${v}, $w) -- '$v",
+	"SELECT 1 WHERE $__conditionalAll(a = ${v:csv} -- ) '\n, $w)\nAND b = '$v'",
+	"SELECT 1 WHERE $__conditionalAll(a = '${v:sqlstring}', ${w})",
 }
 
 func FuzzExpandClickHouse(f *testing.F) {

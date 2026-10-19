@@ -195,7 +195,7 @@ func scanQueryUse(text string) queryUse {
 		return queryUse{}
 	}
 	use := queryUse{variables: map[string]bool{}}
-	for _, ref := range refs {
+	for _, ref := range spec.FlattenReferences(refs) {
 		if ref.Kind == spec.VariableRef {
 			use.variables[ref.Name] = true
 			continue

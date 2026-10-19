@@ -533,7 +533,7 @@ func (rc refChecker) checkQuery(query string, visible int) *Issue {
 	if err != nil {
 		return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 	}
-	for _, ref := range refs {
+	for _, ref := range FlattenReferences(refs) {
 		var issue *Issue
 		if ref.Kind == MacroRef {
 			issue = checkMacroRef(ref)
@@ -574,13 +574,26 @@ func checkMacroRef(ref Reference) *Issue {
 			return &Issue{Code: CodeInvalidReference, Message: err.Error()}
 		}
 	}
-	switch {
-	case macro.Function && strings.TrimSpace(ref.Args) == "":
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
-	case macro.Function && !IsColumnArg(strings.TrimSpace(ref.Args)):
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s argument must be a column name such as column or table.column", ref.Name)}
-	case !macro.Function && ref.HasArgs:
-		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take arguments; remove the parentheses", ref.Name)}
+	switch macro.Args {
+	case NoArgs:
+		if ref.HasArgs {
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s does not take arguments; remove the parentheses", ref.Name)}
+		}
+	case OneColumn:
+		switch args := strings.TrimSpace(ref.Args); {
+		case args == "":
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs arguments, for example $%s(column)", ref.Name, ref.Name)}
+		case !IsColumnArg(args):
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s argument must be a column name such as column or table.column", ref.Name)}
+		}
+	case TwoColumns:
+		if parts := SplitMacroArgs(ref.Args); len(parts) != 2 || !IsColumnArg(parts[0]) || !IsColumnArg(parts[1]) {
+			return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("macro $%s needs two column names, for example $%s(date_column, time_column)", ref.Name, ref.Name)}
+		}
+	case ConditionAndVariable:
+		if _, err := ParseConditionalAll(ref.Args); err != nil {
+			return &Issue{Code: CodeInvalidReference, Message: err.Error()}
+		}
 	}
 	return nil
 }
