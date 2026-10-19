@@ -63,13 +63,13 @@ test("redirects /settings/keys to /keys", async ({ page }) => {
   await expect(page).toHaveURL(/\/keys$/)
 })
 
-test("shows the mark, wordmark and server host", async ({ page }) => {
+test("shows the mark and wordmark without the server host", async ({
+  page,
+}) => {
   await page.goto("/")
   const home = page.getByRole("link", { name: "/observe home" })
   await expect(home).toBeVisible()
-  await expect(home).toContainText("/observe")
-  const baseURL = test.info().project.use.baseURL as string
-  await expect(home).toContainText(new URL(baseURL).host)
+  await expect(home).toHaveText("/observe")
 })
 
 test("resizes the sidebar from the keyboard and remembers it", async ({

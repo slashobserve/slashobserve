@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react"
-import { useQuery } from "@tanstack/react-query"
 import { Link, useLinkProps, useRouterState } from "@tanstack/react-router"
 import {
   DatabaseIcon,
@@ -11,7 +10,6 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import { instanceQuery, serverHost } from "@/api/instance"
 import { Mark } from "@/components/brand/mark"
 import { Wordmark } from "@/components/brand/wordmark"
 import {
@@ -44,7 +42,6 @@ const icons: Record<NavPath, LucideIcon> = {
 const focusRing = "outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
 function HomeLink({ collapsed }: { collapsed: boolean }) {
-  const instance = useQuery(instanceQuery())
   const linkProps = useLinkProps({ to: "/" })
   return (
     <a
@@ -58,16 +55,7 @@ function HomeLink({ collapsed }: { collapsed: boolean }) {
       )}
     >
       <Mark size={22} />
-      {collapsed ? null : (
-        <span className="flex min-w-0 flex-col leading-[1.25]">
-          <Wordmark size={14} className="leading-[1.25]" />
-          {instance.data ? (
-            <span className="truncate text-xs text-muted-foreground">
-              {serverHost(instance.data.public_url)}
-            </span>
-          ) : null}
-        </span>
-      )}
+      {collapsed ? null : <Wordmark size={14} />}
     </a>
   )
 }

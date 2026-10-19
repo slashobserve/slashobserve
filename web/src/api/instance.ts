@@ -15,11 +15,3 @@ export function instanceQuery() {
     staleTime: Infinity,
   })
 }
-
-export function serverHost(publicUrl: string): string {
-  try {
-    return new URL(publicUrl).host
-  } catch {
-    return publicUrl
-  }
-}
