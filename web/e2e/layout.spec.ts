@@ -421,6 +421,7 @@ test("locks the version menu while editing", async ({ page, request }) => {
   const url = page.url()
   await rows.nth(1).click({ force: true })
   await expect(page).toHaveURL(url)
+  await expect(versionButton(page)).toHaveText(/^(Live|Connecting) · v2$/)
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
 })
 
