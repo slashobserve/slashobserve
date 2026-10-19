@@ -92,7 +92,7 @@ export function ChatComposer({
 
   useEffect(() => {
     if (autoFocus) field.current?.focus()
-  }, [autoFocus, agentOff, agentPending])
+  }, [autoFocus, agentOff])
 
   useEffect(() => {
     function focusOnSlash(event: globalThis.KeyboardEvent) {
