@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  clampQuery,
   countText,
   hasFilters,
   madeByText,
+  maxQueryLength,
   toFilters,
   validateListSearch,
 } from "./list-filters"
@@ -19,6 +21,12 @@ describe("validateListSearch", () => {
         datasource: "prom",
       })
     ).toEqual({ q: "checkout", made_by: "me", datasource: "prom" })
+  })
+
+  it("names every filter so a dropped value overrides the raw URL", () => {
+    expect(
+      Object.keys(validateListSearch({ made_by: "bogus" })).sort()
+    ).toEqual(["datasource", "made_by", "q"])
   })
 
   it("takes the first value of a repeated key", () => {
@@ -45,7 +53,11 @@ describe("validateListSearch", () => {
       "agent",
       "mcp",
       "mcp:claude-code",
+      "mcp:Claude Code",
+      `mcp:${"a".repeat(64)}`,
+      `mcp:${"😀".repeat(64)}`,
       `user:${id}`,
+      `user:${id.toUpperCase()}`,
       `service_account:${id}`,
     ]) {
       expect(validateListSearch({ made_by: value })).toEqual({ made_by: value })
@@ -54,22 +66,74 @@ describe("validateListSearch", () => {
       "",
       "anyone",
       "mcp:",
-      "mcp: x",
-      `mcp:${"a".repeat(65)}`,
       "user:abc",
-      `user:${id.toUpperCase()}`,
       "service_account:",
+      `user:${"-".repeat(36)}`,
+      `user:${id.replaceAll("-", "")}-abcd`,
+      `user:${id}0`,
+      `user:${id.slice(0, -1)}g`,
+      `service_account:${"0".repeat(36)}`,
+      `robot:${id}`,
     ]) {
       expect(validateListSearch({ made_by: value })).toEqual({})
     }
   })
 
-  it("limits the datasource to 1 to 64 characters", () => {
-    expect(validateListSearch({ datasource: "" })).toEqual({})
-    expect(validateListSearch({ datasource: "a".repeat(65) })).toEqual({})
-    expect(validateListSearch({ datasource: "a".repeat(64) }).datasource).toBe(
-      "a".repeat(64)
-    )
+  it("holds an MCP client name to what the server accepts", () => {
+    for (const client of [
+      " x",
+      "x ",
+      "\tx",
+      "x\n",
+      "\u00a0x",
+      "x\u3000",
+      "a\u0001b",
+      "a\nb",
+      "a\u007fb",
+      "a\u200bb",
+      "a\u202eb",
+      "a\ufeffb",
+      "a\ud800b",
+      "a".repeat(65),
+      "😀".repeat(65),
+    ]) {
+      expect(validateListSearch({ made_by: `mcp:${client}` })).toEqual({})
+    }
+  })
+
+  it("keeps only datasource uids the registry accepts", () => {
+    for (const uid of [
+      "p",
+      "prom",
+      "ch_tight",
+      "a-b_c",
+      "A1",
+      "a".repeat(40),
+    ]) {
+      expect(validateListSearch({ datasource: uid }).datasource).toBe(uid)
+    }
+    for (const uid of [
+      "",
+      "a".repeat(41),
+      "_prom",
+      "-prom",
+      "pro m",
+      "prom\n",
+      "pro\0m",
+      "pröm",
+      "prom.1",
+    ]) {
+      expect(validateListSearch({ datasource: uid })).toEqual({})
+    }
+  })
+})
+
+describe("clampQuery", () => {
+  it("cuts text to the validator's limit in code points", () => {
+    const text = "😀".repeat(maxQueryLength + 5)
+    expect(Array.from(clampQuery(text))).toHaveLength(maxQueryLength)
+    expect(validateListSearch({ q: clampQuery(text) }).q).toBeDefined()
+    expect(clampQuery("short")).toBe("short")
   })
 })
 

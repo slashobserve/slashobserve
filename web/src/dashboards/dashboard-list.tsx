@@ -18,6 +18,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import { DatasourceMenu, MadeByMenu } from "./list-filter-menus"
 import {
+  clampQuery,
   countText,
   hasFilters,
   toFilters,
@@ -30,7 +31,6 @@ type DashboardSummary =
 const pageSize = 50
 const skeletonRows = 5
 const searchDelayMs = 250
-const maxQueryLength = 200
 
 function useDashboardList(search: ListSearch) {
   const filters = toFilters(search)
@@ -184,10 +184,9 @@ function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
         <input
           type="text"
           value={text}
-          maxLength={maxQueryLength}
           autoComplete="off"
           placeholder="Filter by title"
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => setText(clampQuery(event.target.value))}
           className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
         />
       </label>

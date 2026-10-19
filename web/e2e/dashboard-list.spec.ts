@@ -226,6 +226,29 @@ test("filters by title, maker and datasource, in the URL", async ({
   await expect(rowFor(page, title)).toBeVisible()
 })
 
+test("ignores filter values in the URL that the server would refuse", async ({
+  page,
+}) => {
+  const listed: URL[] = []
+  page.on("request", (request) => {
+    const url = new URL(request.url())
+    if (isListRequest(url)) listed.push(url)
+  })
+  await page.goto("/dashboards?made_by=mcp:%20x&datasource=_bad")
+  await expect(
+    page.getByRole("button", { name: "Made by: anyone" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Datasource: any" })
+  ).toBeVisible()
+  await expect(page.getByRole("alert")).toHaveCount(0)
+  expect(listed.length).toBeGreaterThan(0)
+  for (const url of listed) {
+    expect(url.searchParams.has("made_by")).toBe(false)
+    expect(url.searchParams.has("datasource")).toBe(false)
+  }
+})
+
 test("counts matches", async ({ page, request }) => {
   const title = uniqueTitle("List count")
   await createDashboard(request, { ...loadSpec("overview"), title })

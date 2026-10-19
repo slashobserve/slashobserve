@@ -3,10 +3,35 @@ import { clientDisplayName } from "@/lib/origin"
 
 export type ListSearch = { q?: string; made_by?: string; datasource?: string }
 
-const madeByPattern =
-  /^(me|agent|mcp|mcp:[^\s].{0,63}|user:[0-9a-f-]{36}|service_account:[0-9a-f-]{36})$/
-const maxQueryLength = 200
-const maxDatasourceLength = 64
+const uuid =
+  "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+const madeByPattern = new RegExp(
+  `^(?:me|agent|mcp|mcp:(.+)|user:${uuid}|service_account:${uuid})$`,
+  "su"
+)
+const maxClientLength = 64
+const unsafeClientPattern = /[\p{Cc}\p{Cf}\p{Cs}]|^\s|\s$/u
+const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
+
+export const maxQueryLength = 200
+
+function validMadeBy(value: string): boolean {
+  const match = madeByPattern.exec(value)
+  if (match === null) return false
+  const client = match[1]
+  if (client === undefined) return true
+  return (
+    Array.from(client).length <= maxClientLength &&
+    !unsafeClientPattern.test(client)
+  )
+}
+
+export function clampQuery(text: string): string {
+  const points = Array.from(text)
+  return points.length <= maxQueryLength
+    ? text
+    : points.slice(0, maxQueryLength).join("")
+}
 
 function firstString(value: unknown): string | undefined {
   const item = Array.isArray(value) ? value[0] : value
@@ -14,7 +39,12 @@ function firstString(value: unknown): string | undefined {
 }
 
 export function validateListSearch(raw: Record<string, unknown>): ListSearch {
-  const search: ListSearch = {}
+  // The router merges the raw URL under a route's validated search, so a dropped key must be present as undefined to override it.
+  const search: ListSearch = {
+    q: undefined,
+    made_by: undefined,
+    datasource: undefined,
+  }
   const q = firstString(raw.q)?.trim()
   if (
     q !== undefined &&
@@ -25,15 +55,11 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     search.q = q
   }
   const madeBy = firstString(raw.made_by)
-  if (madeBy !== undefined && madeByPattern.test(madeBy)) {
+  if (madeBy !== undefined && validMadeBy(madeBy)) {
     search.made_by = madeBy
   }
   const datasource = firstString(raw.datasource)
-  if (
-    datasource !== undefined &&
-    datasource.length >= 1 &&
-    datasource.length <= maxDatasourceLength
-  ) {
+  if (datasource !== undefined && datasourcePattern.test(datasource)) {
     search.datasource = datasource
   }
   return search
