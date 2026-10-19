@@ -65,7 +65,7 @@ function PanelCard({
       ref={asideRef}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
-      className="flex min-h-0 max-w-[calc(100%-16px)] min-w-0 flex-[0_1_440px] flex-col rounded-card border bg-background"
+      className="flex min-h-0 max-w-full min-w-0 flex-[0_1_440px] flex-col border-l bg-background"
     >
       <div className="flex items-start justify-between gap-2 border-b pt-4 pr-3 pb-3.5 pl-[18px]">
         <div className="flex min-w-0 flex-col gap-[3px]">

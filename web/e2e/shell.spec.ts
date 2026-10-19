@@ -197,20 +197,27 @@ test("draws the shell in dark mode", async ({ page }) => {
 
   const styles = await main.evaluate((element) => {
     const root = element.parentElement?.parentElement as HTMLElement
+    const rail = document.querySelector('nav[aria-label="Main"]') as HTMLElement
     const current = document.querySelector(
       'nav[aria-label="Main"] a[aria-current="page"]'
     ) as HTMLElement
     return {
       root: getComputedStyle(root).backgroundColor,
       main: getComputedStyle(element).backgroundColor,
-      border: getComputedStyle(element).borderTopColor,
+      borderWidth: getComputedStyle(element).borderTopWidth,
+      radius: getComputedStyle(element).borderTopLeftRadius,
+      gap:
+        element.getBoundingClientRect().left -
+        rail.getBoundingClientRect().right,
       current: getComputedStyle(current).backgroundColor,
     }
   })
   expect(styles).toEqual({
     root: "rgb(9, 9, 11)",
     main: "rgb(17, 17, 19)",
-    border: "rgb(42, 42, 46)",
+    borderWidth: "0px",
+    radius: "0px",
+    gap: 0,
     current: "rgb(17, 17, 19)",
   })
 })

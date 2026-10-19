@@ -15,8 +15,8 @@ export function AppShell() {
       <ActionsHostContext value={actionsHost}>
         <div className="flex h-svh bg-chrome text-foreground">
           <Sidebar />
-          <div className="flex min-w-0 flex-1 flex-wrap gap-2 py-2 pr-2 narrow:pl-2">
-            <main className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col overflow-hidden rounded-card border bg-background">
+          <div className="flex min-w-0 flex-1 flex-wrap bg-background">
+            <main className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col overflow-hidden bg-background">
               <TopRow setActionsHost={setActionsHost} />
               <div className="min-h-0 flex-1 overflow-auto px-6 pt-3.5 pb-7">
                 <Outlet />
