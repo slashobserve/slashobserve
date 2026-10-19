@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { ArrowUpRightIcon } from "lucide-react"
 
 import { useNow } from "@/components/relative-time"
+import { StatusIcon } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buttonVariants } from "@/components/ui/button"
 import { asDashboardSpec, dashboardVersionQuery } from "@/dashboards/queries"
@@ -11,8 +12,6 @@ import { formatShortRelative } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { joinNames, lowerFirst } from "@/observe/conversation"
 import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
-
-import { ToneIcon } from "./step-list"
 
 const thumbnailCount = 4
 
@@ -130,7 +129,7 @@ export function ResultCard({ dashboardId, version, finishedAt }: Props) {
         </Link>
       </div>
       <div className="flex items-center gap-1.5 border-t px-3.5 py-[9px] text-xs text-muted-foreground">
-        <ToneIcon tone="ok" />
+        <StatusIcon tone="ok" />
         <span>
           Saved as version {version}
           {finishedAt === null ? null : (

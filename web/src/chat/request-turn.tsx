@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { dashboardKeys } from "@/api/keys"
 import { AgentMark } from "@/components/agent-mark"
+import { StatusIcon } from "@/components/status-label"
 import { shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
@@ -14,7 +15,7 @@ import {
 } from "@/observe/queries"
 
 import { ResultCard } from "./result-card"
-import { StepList, ToneIcon } from "./step-list"
+import { StepList } from "./step-list"
 import { RetryButton, Stalled, TurnFailure } from "./turn-failure"
 
 const reconnectingAfterFailures = 2
@@ -121,7 +122,7 @@ export function RequestTurn({
           {active ? (
             <div className="flex flex-col gap-2.5">
               <span className="flex items-center gap-2 text-[13px]">
-                <ToneIcon tone="running" />
+                <StatusIcon tone="running" />
                 {dashboardTitle !== undefined
                   ? `Revising ${dashboardTitle}`
                   : request.dashboard_id !== null

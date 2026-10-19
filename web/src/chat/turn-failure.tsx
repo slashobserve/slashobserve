@@ -3,6 +3,7 @@ import { ArrowUpRightIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { StatusIcon } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -12,8 +13,6 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { retryAction } from "@/observe/request-model"
-
-import { ToneIcon } from "./step-list"
 
 export function RetryButton({
   busy,
@@ -100,7 +99,7 @@ export function TurnFailure({
       className="flex items-start gap-2.5 rounded-card border px-3.5 py-3 text-[13px]"
     >
       <span className="flex h-[1.45em] items-center">
-        <ToneIcon tone="critical" />
+        <StatusIcon tone="critical" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <div className="flex flex-col gap-0.5">
