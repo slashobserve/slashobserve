@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { Link, useLocation, useRouter } from "@tanstack/react-router"
 import { ArrowRightIcon, ChevronDownIcon } from "lucide-react"
 
@@ -28,6 +28,7 @@ import {
 } from "./version-label"
 
 const listedVersions = 5
+const reconnectingText = "Reconnecting to live updates"
 
 type Props = {
   dashboardId: string
@@ -124,6 +125,17 @@ export function VersionMenu({
   )
   const state = { version, latest, status }
 
+  const [seenStatus, setSeenStatus] = useState(status)
+  const [announcement, setAnnouncement] = useState("")
+  if (status !== seenStatus) {
+    setSeenStatus(status)
+    if (status === "reconnecting") {
+      setAnnouncement(reconnectingText)
+    } else if (status === "live" && announcement === reconnectingText) {
+      setAnnouncement("Live updates restored")
+    }
+  }
+
   // Pinning or unpinning swaps the page component, so this menu remounts and its trigger loses the focus Base UI would return to it.
   // The pick carries the version it pins (0 for Live) in its history entry, and the menu that shows that version focuses the button and clears the entry.
   const shown = pinned ? version : 0
@@ -170,7 +182,7 @@ export function VersionMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          sideOffset={6}
+          sideOffset={4}
           aria-labelledby={headingId}
           className="w-[340px] max-w-[calc(100vw-32px)] rounded-[8px] p-0"
         >
@@ -216,7 +228,7 @@ export function VersionMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       <span role="status" className="sr-only">
-        {status === "reconnecting" ? "Reconnecting to live updates" : ""}
+        {announcement}
       </span>
     </>
   )
