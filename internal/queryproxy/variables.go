@@ -563,6 +563,7 @@ func variableIndex(d *spec.Dashboard, name string) int {
 const maxAdhocFilters = 20
 
 func (r *Runner) checkSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) error {
+	// A varState belongs to one request and sees one fixed selection set, so a check that passed stays valid for it.
 	key := selectionKey(d.Variables[idx].Name, sel)
 	if st.parsed.isChecked(key) {
 		return nil
