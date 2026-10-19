@@ -1,4 +1,5 @@
 import { useId } from "react"
+import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { ChevronDownIcon, LoaderCircleIcon, RotateCcwIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -105,7 +106,7 @@ export function VariableSelect({ state, onChange }: Props) {
       >
         <ComboboxChips
           ref={anchor}
-          className="relative min-h-[26px] w-64 max-w-full rounded-none border-0 py-0.5 pr-7 focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:pr-7"
+          className="min-h-[26px] max-w-full flex-nowrap gap-1.5 rounded-none border-0 py-0.5 pr-[9px] pl-[9px] focus-within:border-0 focus-within:ring-0 has-data-[slot=combobox-chip]:px-[9px]"
           aria-busy={refreshing || undefined}
         >
           <ComboboxValue>
@@ -116,6 +117,7 @@ export function VariableSelect({ state, onChange }: Props) {
                 ))}
                 <ComboboxChipsInput
                   id={id}
+                  className="field-sizing-content w-auto min-w-1 flex-none"
                   aria-label={label}
                   placeholder={
                     refreshing && state.selected.length === 0
@@ -130,9 +132,20 @@ export function VariableSelect({ state, onChange }: Props) {
           {refreshing ? (
             <LoaderCircleIcon
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground motion-safe:animate-spin"
+              className="pointer-events-none size-3 shrink-0 text-muted-foreground motion-safe:animate-spin"
             />
-          ) : null}
+          ) : (
+            <ComboboxPrimitive.Trigger
+              aria-label={`Show ${label} values`}
+              tabIndex={-1}
+              className="grid shrink-0 place-items-center outline-none"
+            >
+              <ChevronDownIcon
+                aria-hidden="true"
+                className="pointer-events-none size-3 text-muted-foreground"
+              />
+            </ComboboxPrimitive.Trigger>
+          )}
         </ComboboxChips>
         <ComboboxContent anchor={anchor}>
           <ComboboxEmpty>No values found</ComboboxEmpty>
