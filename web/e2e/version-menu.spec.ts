@@ -118,6 +118,28 @@ for (const scheme of themes) {
       await expect(activity).toBeFocused()
     })
 
+    test("lists a pinned version outside the newest five", async ({
+      page,
+      request,
+    }) => {
+      const spec = loadSpec("overview")
+      spec.title = uniqueTitle("E2E many versions")
+      const { id } = await createDashboard(request, spec)
+      for (let parent = 1; parent < 7; parent++) {
+        await addVersion(request, id, spec, parent, `Save ${parent + 1}`)
+      }
+      await openDashboard(page, id, "?version=1")
+      await expect(versionButton(page)).toHaveText("v1 of 7")
+
+      await versionButton(page).click()
+      const items = versionMenu(page).getByRole("menuitemradio")
+      await expect(items).toHaveCount(6)
+      await expect(items.first()).toContainText("v7")
+      await expect(items.first()).toHaveAttribute("aria-checked", "false")
+      await expect(items.last()).toContainText("v1")
+      await expect(items.last()).toHaveAttribute("aria-checked", "true")
+    })
+
     test("compares versions", async ({ page, request }) => {
       const { id } = await createVersions(request)
       await openDashboard(page, id, "?from=now-6h")

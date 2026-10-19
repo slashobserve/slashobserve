@@ -215,6 +215,9 @@ test("reconnects after the stream is rejected", async ({
   })
   await expect(indicator(page, "Live")).toBeVisible({ timeout: 30_000 })
   expect(rejected).toBe(3)
+  await expect(
+    page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("status")
+  ).toHaveText("Live updates restored")
 
   const renamed = `${spec.title} v2`
   await addVersion(request, id, { ...spec, title: renamed }, 1)

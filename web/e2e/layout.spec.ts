@@ -401,6 +401,29 @@ test("is unavailable on a pinned old version", async ({ page, request }) => {
   ).toHaveAttribute("aria-disabled", "true")
 })
 
+test("locks the version menu while editing", async ({ page, request }) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await startEditing(page)
+
+  await versionButton(page).click()
+  const menu = page.getByRole("menu", { name: "Versions" })
+  await expect(
+    menu.getByText("Save or cancel your layout changes to switch versions.")
+  ).toBeVisible()
+  const rows = menu.getByRole("menuitemradio")
+  await expect(rows).toHaveCount(2)
+  await expect(rows.nth(0)).toHaveAttribute("aria-disabled", "true")
+  await expect(rows.nth(1)).toHaveAttribute("aria-disabled", "true")
+
+  const url = page.url()
+  await rows.nth(1).click({ force: true })
+  await expect(page).toHaveURL(url)
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+})
+
 test("does not block time range changes while editing", async ({
   page,
   request,
