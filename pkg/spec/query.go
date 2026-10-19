@@ -222,22 +222,33 @@ func scanReference(query string, start int, budget *int, inArgs bool) (*Referenc
 		}
 		open := ref.End
 		ref.Args, ref.HasArgs, ref.End = args, true, end
-		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable && !inArgs {
-			nested, err := scanQuery(args, budget, true)
-			if err != nil {
-				return nil, 0, &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, err.Prefix), Offset: err.Offset + open + 1}
-			}
-			for i := range nested {
-				nested[i].Start += open + 1
-				nested[i].End += open + 1
-			}
-			ref.Nested = nested
-			if parsed, err := macro.ParseArguments(*ref); err == nil {
-				ref.Guard = parsed.Values[1]
+		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable {
+			if err := scanConditionNested(ref, macro, open, budget, inArgs); err != nil {
+				return nil, 0, err
 			}
 		}
 	}
 	return ref, ref.End, nil
+}
+
+func scanConditionNested(ref *Reference, macro Macro, open int, budget *int, inArgs bool) *ScanError {
+	if inArgs {
+		ref.Nested = []Reference{}
+		return nil
+	}
+	nested, err := scanQuery(ref.Args, budget, true)
+	if err != nil {
+		return &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, err.Prefix), Offset: err.Offset + open + 1}
+	}
+	for i := range nested {
+		nested[i].Start += open + 1
+		nested[i].End += open + 1
+	}
+	ref.Nested = nested
+	if parsed, err := macro.ParseArguments(*ref); err == nil {
+		ref.Guard = parsed.Values[1]
+	}
+	return nil
 }
 
 type MacroArguments struct {

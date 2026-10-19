@@ -559,6 +559,7 @@ func TestClickHouseMacroArguments(t *testing.T) {
 		{"conditional all with a braced variable", `$__conditionalAll(ServiceName = 'a, b', ${svc})`, ""},
 		{"conditional all with an array literal", `$__conditionalAll(has(['a','b'], ServiceName), $svc)`, ""},
 		{"conditional all mentioned in a comment of the condition", "$__conditionalAll(ServiceName = 'x' /* $__conditionalAll(a, $svc) */, $svc)", ""},
+		{"conditional all mentioned in a comment together with another one", "$__conditionalAll(ServiceName = 'x' /* $__conditionalAll(b AND $__conditionalAll(c, $x), $y) */, $svc)", ""},
 		{"conditional all with a literal second argument", `$__conditionalAll(ServiceName = 'x', 'x')`, spec.CodeInvalidReference},
 		{"conditional all with a formatted second argument", `$__conditionalAll(ServiceName = 'x', ${svc:csv})`, spec.CodeInvalidReference},
 		{"conditional all with one argument", `$__conditionalAll($svc)`, spec.CodeInvalidReference},

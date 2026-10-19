@@ -119,7 +119,7 @@ func TestScanQuery(t *testing.T) {
 		}},
 		{"conditional all nested in itself is scanned one level", `$__conditionalAll($__conditionalAll(a, $x), $y)`, []spec.Reference{
 			{Kind: spec.MacroRef, Name: "__conditionalAll", Args: `$__conditionalAll(a, $x), $y`, HasArgs: true, Start: 0, End: 47, Nested: []spec.Reference{
-				{Kind: spec.MacroRef, Name: "__conditionalAll", Args: `a, $x`, HasArgs: true, Start: 18, End: 42},
+				{Kind: spec.MacroRef, Name: "__conditionalAll", Args: `a, $x`, HasArgs: true, Start: 18, End: 42, Nested: []spec.Reference{}},
 				{Kind: spec.VariableRef, Name: "y", Start: 44, End: 46},
 			}},
 		}},
@@ -384,6 +384,7 @@ func TestParseConditionalAllIgnoresNestingInCommentsAndStrings(t *testing.T) {
 		{"single quoted string", "a = '$__conditionalAll(b, $x)', $y"},
 		{"double quoted identifier", `"$__conditionalAll(b, $x)" = 1, $y`},
 		{"backticks", "`$__conditionalAll(b, $x)` = 1, $y"},
+		{"inner conditional all inside a comment holding another one", "a = 1 /* $__conditionalAll(b AND $__conditionalAll(c, $x), $y) */, $y"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			macro, ref := conditionalAllRef(t, c.args)
