@@ -21,21 +21,24 @@ type MenuProps = {
   onChange: (value: string | undefined) => void
 }
 
-const contentClass = "min-w-max max-w-[calc(100vw-32px)]"
+const contentClass =
+  "w-max min-w-(--anchor-width) max-w-[calc(100vw-32px)] wrap-anywhere"
 
 function Trigger({ children }: { children: string }) {
   return (
     <DropdownMenuTrigger
-      render={<Button variant="outline" className="font-normal" />}
+      render={
+        <Button variant="outline" className="max-w-full min-w-0 font-normal" />
+      }
     >
-      {children}
+      <span className="truncate">{children}</span>
       <ChevronDownIcon className="size-3" aria-hidden="true" />
     </DropdownMenuTrigger>
   )
 }
 
 export function MadeByMenu({ value, onChange }: MenuProps) {
-  const users = useQuery(usersQuery()).data ?? []
+  const users = useQuery({ ...usersQuery(), refetchInterval: false }).data ?? []
   return (
     <DropdownMenu>
       <Trigger>{`Made by: ${madeByText(value, users)}`}</Trigger>

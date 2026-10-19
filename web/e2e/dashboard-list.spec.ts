@@ -399,6 +399,86 @@ test.describe("on a phone", () => {
   })
 })
 
+test.describe("on a phone with long filter values", () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test("keeps the filters and their menus inside the screen", async ({
+    page,
+  }) => {
+    const now = new Date().toISOString()
+    const person = {
+      id: crypto.randomUUID(),
+      name: "Bartholomew-Maximilian-Featherstonehaugh-Wolfeschlegelsteinhausenberger",
+      email: "long@example.com",
+      created_at: now,
+      last_login_at: now,
+      last_seen_at: now,
+    }
+    const uid = "x".repeat(40)
+    await page.route(isListRequest, (route) =>
+      route.fulfill({ json: listBody([fakeSummary("Phone filters")]) })
+    )
+    await page.route(
+      (url) => url.pathname === "/api/v1/users",
+      (route) => route.fulfill({ json: { users: [person], next_cursor: null } })
+    )
+    await page.route(
+      (url) => url.pathname === "/api/v1/datasources",
+      (route) =>
+        route.fulfill({
+          json: {
+            datasources: [
+              {
+                uid,
+                type: "prometheus",
+                name: uid,
+                healthy: true,
+                checked_at: now,
+                dashboard_count: 1,
+              },
+            ],
+          },
+        })
+    )
+
+    await page.goto(`/dashboards?made_by=user:${person.id}&datasource=${uid}`)
+    const madeBy = page.getByRole("button", { name: /^Made by:/ })
+    const datasource = page.getByRole("button", { name: /^Datasource:/ })
+    await expect(madeBy).toContainText(person.name)
+    await expect(datasource).toContainText(uid)
+
+    const overflow = () =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth
+      )
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    for (const trigger of [madeBy, datasource]) {
+      const box = await trigger.boundingBox()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390)
+    }
+
+    for (const [trigger, option] of [
+      [madeBy, person.name],
+      [datasource, `${uid} (prometheus)`],
+    ] as const) {
+      await trigger.click()
+      const item = page.getByRole("menuitemradio", { name: option })
+      await expect(item).toBeVisible()
+      const menu = page.getByRole("menu")
+      const box = await menu.boundingBox()
+      expect(box!.x).toBeGreaterThanOrEqual(0)
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390)
+      expect(
+        await item.evaluate((node) => node.scrollWidth <= node.clientWidth)
+      ).toBe(true)
+      expect(await overflow()).toBeLessThanOrEqual(0)
+      await page.keyboard.press("Escape")
+      await expect(menu).toHaveCount(0)
+    }
+  })
+})
+
 test("shows the empty state", async ({ page }) => {
   await page.route(isListRequest, (route) =>
     route.fulfill({ json: listBody([]) })
