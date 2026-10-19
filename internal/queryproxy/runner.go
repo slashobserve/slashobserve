@@ -35,6 +35,7 @@ const (
 	minMaxDataPoints     = 10
 	maxMaxDataPoints     = 11000
 	panelDeadline        = 55 * time.Second
+	upstreamWait         = 5 * time.Second
 )
 
 var upstreamCalls = semaphore.NewWeighted(maxUpstreamCalls)
@@ -105,6 +106,7 @@ type Runner struct {
 	values *valueCache
 
 	panelDeadline time.Duration
+	upstreamWait  time.Duration
 }
 
 type RunnerOption func(*Runner)
@@ -113,11 +115,15 @@ func WithValueCache() RunnerOption {
 	return func(r *Runner) { r.values = newValueCache() }
 }
 
+func WithUpstreamWait(d time.Duration) RunnerOption {
+	return func(r *Runner) { r.upstreamWait = d }
+}
+
 func NewRunner(reg *datasource.Registry, logger *slog.Logger, opts ...RunnerOption) *Runner {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, panelDeadline: panelDeadline}
+	r := &Runner{reg: reg, logger: logger, sem: upstreamCalls, panelDeadline: panelDeadline, upstreamWait: upstreamWait}
 	for _, opt := range opts {
 		opt(r)
 	}

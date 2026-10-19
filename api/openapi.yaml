@@ -1264,7 +1264,7 @@ components:
           schema:
             $ref: "#/components/schemas/VersionConflict"
     TooManyRequests:
-      description: The caller already has the maximum number of query requests in flight.
+      description: The caller already has the maximum number of query requests in flight, or the server's shared upstream call slots stayed busy for 5 seconds.
       headers:
         Retry-After:
           required: true

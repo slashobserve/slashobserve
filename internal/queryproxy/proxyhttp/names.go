@@ -92,6 +92,8 @@ func (h *Handler) names(c *gin.Context, kind datasource.DiscoverKind, allowed []
 		return names, true
 	case errors.Is(err, queryproxy.ErrUnknownDatasource):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+	case errors.Is(err, queryproxy.ErrUpstreamBusy):
+		tooManyRequests(c)
 	default:
 		h.fail(c, err)
 	}

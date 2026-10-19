@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 func TestNamesRequestReportsTheSameMessageForTheSameBadQuery(t *testing.T) {
@@ -43,5 +46,29 @@ func TestNamesRouteAnswersBadParametersWithTheSharedWording(t *testing.T) {
 		if got := decodeError(t, rec).Error; got != want {
 			t.Fatalf("%s: error = %q, want %q", path, got, want)
 		}
+	}
+}
+
+func TestNamesRoutesAnswer429WhenEveryUpstreamSlotStaysHeld(t *testing.T) {
+	hn := newHarness(t, queryproxy.WithUpstreamWait(30*time.Millisecond))
+	holdUpstreamSlots(t, hn)
+
+	for _, path := range []string{
+		"/api/v1/datasources/prom/metrics",
+		"/api/v1/datasources/prom/labels",
+		"/api/v1/datasources/prom/labels/service/values",
+	} {
+		start := time.Now()
+		rec := hn.get(path, "")
+		expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")
+		if got := rec.Header().Get("Retry-After"); got != "1" {
+			t.Fatalf("%s: Retry-After = %q, want 1", path, got)
+		}
+		if elapsed := time.Since(start); elapsed > 5*time.Second {
+			t.Fatalf("%s: answered after %v", path, elapsed)
+		}
+	}
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d principal slots leaked", held)
 	}
 }

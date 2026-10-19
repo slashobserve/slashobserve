@@ -15,6 +15,7 @@ var (
 	ErrUnknownVariable   = errors.New("unknown variable")
 	ErrVariableEmpty     = errors.New("variable has no values")
 	ErrInvalidRequest    = errors.New("invalid request")
+	ErrUpstreamBusy      = errors.New("datasource calls are busy")
 
 	errInternal = errors.New(internalMessage)
 )
@@ -37,12 +38,14 @@ const (
 	CodeVariableEmpty      spec.IssueCode = "variable_empty"
 	CodeVariableUnresolved spec.IssueCode = "variable_unresolved"
 	CodeTimeRangeInvalid   spec.IssueCode = "time_range_invalid"
+	CodeTooManyRequests    spec.IssueCode = "too_many_requests"
 )
 
 const (
 	internalMessage     = "internal error"
 	queryTimeoutMessage = "query timed out"
 	canceledMessage     = "request canceled"
+	upstreamBusyMessage = "the server is making too many datasource calls right now; try again shortly"
 	statusClientGone    = 0
 )
 
@@ -82,6 +85,8 @@ func classifyRunner(err error) (status int, code, message string) {
 		return http.StatusUnprocessableEntity, string(CodeUnknownDatasource), err.Error()
 	case errors.Is(err, ErrUnknownVariable):
 		return http.StatusBadRequest, string(CodeInvalidRequest), err.Error()
+	case errors.Is(err, ErrUpstreamBusy):
+		return http.StatusTooManyRequests, string(CodeTooManyRequests), upstreamBusyMessage
 	case errors.Is(err, ErrVariableEmpty):
 		return http.StatusUnprocessableEntity, string(CodeVariableEmpty), err.Error()
 	default:

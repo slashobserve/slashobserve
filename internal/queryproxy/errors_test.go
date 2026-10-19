@@ -32,6 +32,7 @@ func TestClassify(t *testing.T) {
 		{"unknown datasource", fmt.Errorf("%w: %q", ErrUnknownDatasource, "x"), http.StatusUnprocessableEntity, "unknown_datasource", `unknown datasource: "x"`},
 		{"unknown variable", fmt.Errorf("%w: %q", ErrUnknownVariable, "v"), http.StatusBadRequest, "invalid_request", `unknown variable: "v"`},
 		{"variable empty", fmt.Errorf("%w: %q", ErrVariableEmpty, "v"), http.StatusUnprocessableEntity, "variable_empty", `variable has no values: "v"`},
+		{"upstream busy", ErrUpstreamBusy, http.StatusTooManyRequests, "too_many_requests", upstreamBusyMessage},
 		{"canceled", context.Canceled, statusClientGone, "canceled", "request canceled"},
 		{"wrapped canceled", fmt.Errorf("get: %w", context.Canceled), statusClientGone, "canceled", "request canceled"},
 		{"canceled wins over upstream kind", errors.Join(datasource.ErrUnavailable, context.Canceled), statusClientGone, "canceled", "request canceled"},

@@ -493,7 +493,7 @@ export interface paths {
         };
         /**
          * List the metric names of a datasource, up to a limit.
-         * @description The browser's only path to metric names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_metrics` tool: a Prometheus datasource lists its metrics with their type and help, and a ClickHouse datasource lists the OpenTelemetry metric names of its `otel_metrics_*` tables with the OTel kind as `type` and the table. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         * @description The browser's only path to metric names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_metrics` tool: a Prometheus datasource lists its metrics with their type and help, and a ClickHouse datasource lists the OpenTelemetry metric names of its `otel_metrics_*` tables with the OTel kind as `type` and the table. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceMetrics"];
         put?: never;
@@ -515,7 +515,7 @@ export interface paths {
         };
         /**
          * List the label names of a datasource, or its OpenTelemetry attribute keys on ClickHouse, up to a limit.
-         * @description The browser's only path to label names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_labels` tool. ClickHouse labels need `table` or `metric`: with only `metric` the server uses the first `otel_metrics_*` table that holds it, and answers 404 `not_found` when none does. A ClickHouse request with neither is a 400. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         * @description The browser's only path to label names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_labels` tool. ClickHouse labels need `table` or `metric`: with only `metric` the server uses the first `otel_metrics_*` table that holds it, and answers 404 `not_found` when none does. A ClickHouse request with neither is a 400. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceLabels"];
         put?: never;
@@ -538,7 +538,7 @@ export interface paths {
         };
         /**
          * List the values of one label of a datasource, up to a limit.
-         * @description The browser's only path to label values; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_label_values` tool. ClickHouse labels need `table` or `metric`, as for the label names operation, and a malformed label name is a 422 `query_invalid`. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         * @description The browser's only path to label values; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_label_values` tool. ClickHouse labels need `table` or `metric`, as for the label names operation, and a malformed label name is a 422 `query_invalid`. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
          */
         get: operations["listDatasourceLabelValues"];
         put?: never;
@@ -1271,7 +1271,7 @@ export interface components {
                 "application/json": components["schemas"]["VersionConflict"];
             };
         };
-        /** @description The caller already has the maximum number of query requests in flight. */
+        /** @description The caller already has the maximum number of query requests in flight, or the server's shared upstream call slots stayed busy for 5 seconds. */
         TooManyRequests: {
             headers: {
                 "Retry-After": string;

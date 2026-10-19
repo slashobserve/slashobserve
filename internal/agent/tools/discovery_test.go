@@ -1,7 +1,13 @@
 package tools
 
 import (
+	"context"
+	"log/slog"
 	"testing"
+	"time"
+
+	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
 func TestListToolsRejectFieldsTheirSchemaDoesNotDeclare(t *testing.T) {
@@ -56,5 +62,36 @@ func TestListToolsPassTheirDeclaredFieldsToDiscovery(t *testing.T) {
 		got[1].Metric != "m" || got[1].Table != "t" ||
 		got[2].Label != "l" || got[2].Search != "s" {
 		t.Fatalf("discovery requests = %#v", got)
+	}
+}
+
+func TestListToolsReportABusyUpstreamAsTooManyRequests(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	reg, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: &fakeDS{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := queryproxy.NewRunner(reg, logger, queryproxy.WithUpstreamWait(30*time.Millisecond))
+	r := New(Deps{Datasources: reg, Runner: runner, Logger: logger})
+	for range 32 {
+		release, err := runner.AcquireUpstream(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(release)
+	}
+
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := errorCode(t, res); got != "too_many_requests" {
+		t.Fatalf("code = %q", got)
+	}
+	if got, want := res.Content.(errorBody).Message, "the server is making too many datasource calls right now; try again shortly"; got != want {
+		t.Fatalf("message = %q, want %q", got, want)
+	}
+	if want := "Listing metrics on fake: too_many_requests"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
