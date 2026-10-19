@@ -425,3 +425,41 @@ func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	}
 	assertNothingSaved(t, r)
 }
+
+func TestARetriedRequestReplaysWhateverItCarries(t *testing.T) {
+	r := newRig(t)
+	row, err := r.queue.SubmitObserve(t.Context(), ada, "import it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, req := range map[string]imports.Request{
+		"not json":            {JSON: []byte(`not json`), RequestID: row.ID},
+		"unmatched sources":   {JSON: grafanaJSON("Shop", "elsewhere", 1), RequestID: row.ID},
+		"different dashboard": {JSON: grafanaJSON("Other", "prom", 3), RequestID: row.ID},
+	} {
+		again, err := r.imports.Import(t.Context(), ada, req)
+		if err != nil || !again.Replayed || again.Dashboard.ID != first.Dashboard.ID || again.Record.ID != first.Record.ID {
+			t.Errorf("%s: replayed %t, err %v", name, again.Replayed, err)
+		}
+	}
+}
+
+func TestReplayOfADashboardTheAgentCreatedHasNoRecord(t *testing.T) {
+	r := newRig(t)
+	row, err := r.queue.SubmitObserve(t.Context(), ada, "build it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, specWith("up"), "create", row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	if err != nil || !got.Replayed || got.Dashboard.ID != created.ID || got.Record.ID != "" {
+		t.Fatalf("replayed %t, dashboard %q, record %+v, err %v", got.Replayed, got.Dashboard.ID, got.Record, err)
+	}
+}

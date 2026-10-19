@@ -137,6 +137,10 @@ func (s *Service) replayedCreate(ctx context.Context, requestID pgtype.UUID) (Da
 	return dash, ver, true, nil
 }
 
+func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	return s.createdByRequest(ctx, requestID)
+}
+
 func (s *Service) createdByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	dash, ver, found, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
 	if err != nil || !found {

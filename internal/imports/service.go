@@ -80,6 +80,8 @@ type Meta struct {
 	CreatedAt       time.Time
 }
 
+// A replay of a request id whose dashboard was not created by an import (the agent saved it with
+// create_dashboard) has Replayed true and an empty Record.
 type Imported struct {
 	Record    Record
 	Dashboard dashboards.Dashboard
@@ -109,6 +111,15 @@ func (s *Service) Preview(_ context.Context, req Request) (*grafana.Result, erro
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
 	if err := checkLimits(req); err != nil {
 		return Imported{}, err
+	}
+	if req.RequestID.Valid {
+		dash, ver, found, err := s.dashboard.CreatedByRequest(ctx, req.RequestID)
+		if err != nil {
+			return Imported{}, err
+		}
+		if found {
+			return s.replay(ctx, dash, ver)
+		}
 	}
 	release, ok := s.acquire(string(by.Kind) + ":" + by.ID)
 	if !ok {
@@ -149,17 +160,13 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 	if err != nil {
 		return Imported{}, err
 	}
-	imported := Imported{Dashboard: dash, Version: ver, Replayed: replayed}
 	if replayed {
-		id, err := db.ParseUUID(dash.ID)
-		if err != nil {
-			return Imported{}, fmt.Errorf("dashboard id: %w", err)
-		}
-		if imported.Record, err = s.ForDashboard(ctx, id); err != nil {
-			return Imported{}, err
-		}
-	} else {
-		imported.Record = Record{
+		return s.replay(ctx, dash, ver)
+	}
+	imported := Imported{
+		Dashboard: dash,
+		Version:   ver,
+		Record: Record{
 			ID:              inserted.ID.String(),
 			DashboardID:     dash.ID,
 			Version:         ver.Number,
@@ -171,16 +178,37 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 			Report:          result.Report,
 			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
 			CreatedAt:       inserted.CreatedAt.Time.UTC(),
-		}
+		},
 	}
+	s.logImported(ctx, imported)
+	return imported, nil
+}
+
+func (s *Service) replay(ctx context.Context, dash dashboards.Dashboard, ver dashboards.Version) (Imported, error) {
+	imported := Imported{Dashboard: dash, Version: ver, Replayed: true}
+	id, err := db.ParseUUID(dash.ID)
+	if err != nil {
+		return Imported{}, fmt.Errorf("dashboard id: %w", err)
+	}
+	record, err := s.ForDashboard(ctx, id)
+	switch {
+	case err == nil:
+		imported.Record = record
+	case !errors.Is(err, ErrNotFound):
+		return Imported{}, err
+	}
+	s.logImported(ctx, imported)
+	return imported, nil
+}
+
+func (s *Service) logImported(ctx context.Context, imported Imported) {
 	s.logger.InfoContext(ctx, "dashboard imported",
-		slog.String("dashboard_id", dash.ID),
+		slog.String("dashboard_id", imported.Dashboard.ID),
 		slog.String("import_id", imported.Record.ID),
-		slog.Bool("replayed", replayed),
+		slog.Bool("replayed", imported.Replayed),
 		slog.Int("panels", imported.Record.Report.Counts.Total),
 		slog.Int("unverified", imported.Record.Report.Counts.Unverified),
 	)
-	return imported, nil
 }
 
 func (s *Service) List(ctx context.Context, limit int, cursor string) ([]Meta, string, error) {
