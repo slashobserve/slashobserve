@@ -32,6 +32,7 @@ const (
 	codeTooLarge       = "too_large"
 
 	MaxModelSpecBytes = 128 << 10
+	maxSuggestResult  = 64 << 10
 )
 
 var (
@@ -56,7 +57,7 @@ func FailureCode(err error) string {
 	return FailureToolFailed
 }
 
-var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10}
+var resultLimits = map[string]int{nameGetDashboard: MaxModelSpecBytes, nameGetSpecGuide: 64 << 10, nameUpdateDashboard: maxSuggestResult}
 
 type Tool struct {
 	Name        string

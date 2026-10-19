@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const maxSuggestedPanelBytes = maxContentBytes - 1<<10
+const maxSuggestedPanelBytes = maxSuggestResult - 1<<10
 
 type suggestedOut struct {
 	Suggested bool            `json:"suggested"`
@@ -47,6 +48,13 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 	candidate, err := spec.WithPanel(run.Base, run.PanelID, raw)
 	if err != nil {
 		return suggestionFailure(err)
+	}
+	canonical, err := json.Marshal(candidate)
+	if err != nil {
+		return Result{}, err
+	}
+	if issues := dashboards.NULIssues(canonical); len(issues) > 0 {
+		return suggestionRejected(issues), nil
 	}
 	if entry.Panel.Type.IsData() {
 		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, time.Now(), queryproxy.UserFor(principal), []string{run.PanelID})
