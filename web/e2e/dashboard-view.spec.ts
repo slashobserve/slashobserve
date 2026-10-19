@@ -349,7 +349,7 @@ test("shows a load problem for a version that fails and retries it", async ({
     })
   )
   await page.goto(`/dashboards/${id}?version=1`)
-  await expect(page.getByText("Could not load the dashboard")).toBeVisible()
+  await expect(page.getByText("Could not load version 1")).toBeVisible()
   await expect(page.getByText("Database unavailable.")).toBeVisible()
   await expect(
     page.getByRole("navigation", { name: "Breadcrumb" })

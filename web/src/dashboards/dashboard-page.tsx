@@ -36,7 +36,6 @@ import {
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { downloadSpec } from "./export-spec"
-import { DashboardLoadError } from "./load-error"
 import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
@@ -388,17 +387,7 @@ function PinnedDashboardPage({
   liveStatus: LiveStatus
 }) {
   const pinned = useQuery(dashboardVersionQuery(dashboardId, version))
-  if (!pinned.data) {
-    if (!pinned.isError) return <DashboardPageSkeleton />
-    return (
-      <DashboardLoadError
-        title={`Could not load version ${version}`}
-        error={pinned.error}
-        retrying={pinned.isFetching}
-        onRetry={() => void pinned.refetch()}
-      />
-    )
-  }
+  if (!pinned.data) return <DashboardPageSkeleton />
   return (
     <DashboardView
       dashboardId={dashboardId}
