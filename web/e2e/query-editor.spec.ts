@@ -221,6 +221,20 @@ test("opens from an old link with the query tab", async ({ page, request }) => {
   await expect(sheet(page).locator(".cm-editor")).toBeVisible()
 })
 
+test("scopes the activity card from an old comments link", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.goto(`/dashboards/${id}?panel=rps&tab=comments`)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity).toBeVisible()
+  await expect(activity.getByLabel("Panel", { exact: true })).toHaveValue("rps")
+  await expect(page).toHaveURL(/panel=rps/)
+  await expect(page).not.toHaveURL(/tab=|edit=/)
+})
+
 test("opens directly from a link", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
   await page.goto(`/dashboards/${id}?panel=logs&edit=query`)
