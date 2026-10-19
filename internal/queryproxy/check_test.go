@@ -653,6 +653,32 @@ func TestCheckSpecIncludeAllVariableProblems(t *testing.T) {
 	}
 }
 
+func TestCheckSpecRunsTheQueryOfAnIncludeAllVariableWithAnAllValue(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = func(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]string, error) {
+		if q.Text == "bad" {
+			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "parse error")
+		}
+		return []string{"v1"}, nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	good, bad := queryVariable("good", "prom", "good"), queryVariable("bad", "prom", "bad")
+	good.IncludeAll, bad.IncludeAll = true, true
+	good.AllValue, bad.AllValue = ".*", ".*"
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job=~"$good", pod=~"$bad"}`)}, good, bad)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	if err != nil {
+		t.Fatalf("CheckSpec error: %v", err)
+	}
+	assertIssues(t, issues, []wantIssue{
+		{"/panels/0/queries/0/query", CodeVariableUnresolved, ""},
+		{"/variables/1", CodeVariableFailed, ""},
+	})
+	if got := len(fake.callsTo("variable")); got != 2 {
+		t.Fatalf("variable lookups = %d, want 2 (each variable query runs even with an allValue)", got)
+	}
+}
+
 func TestCheckSpecBadCustomDefault(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})

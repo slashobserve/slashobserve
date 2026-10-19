@@ -214,8 +214,14 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
 		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
 		listReported := false
-		if err == nil && sel.All && v.AllValue == "" {
-			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
+		if err == nil && sel.All {
+			var listErr error
+			if v.AllValue == "" {
+				_, listErr = r.allValues(vctx, d, i, rng, selections, user, lists)
+			} else {
+				_, listErr = r.resolveValues(vctx, d, i, rng, selections, user, lists)
+			}
+			if listErr != nil {
 				if guardOnly[v.Name] {
 					issues = append(issues, variableIssue(path, listErr))
 					listReported = true
