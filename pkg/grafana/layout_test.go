@@ -133,3 +133,27 @@ func TestATallDashboardAlwaysConverts(t *testing.T) {
 		t.Fatal("the panels that were shrunk to fit are not reported")
 	}
 }
+
+// Expected positions come from react-grid-layout's verticalCompactor on the same input.
+func TestOverlapCascadeMatchesReactGridLayout(t *testing.T) {
+	res := convertDoc(t, dashboardJSON("",
+		panelJSON(1, 0, 0, 12, 4, ""),
+		panelJSON(2, 6, 2, 12, 4, ""),
+		panelJSON(3, 12, 5, 12, 4, ""),
+		panelJSON(4, 0, 6, 24, 2, ""),
+	))
+	want := map[string]spec.GridPos{
+		"p1": {X: 0, Y: 0, W: 12, H: 4},
+		"p2": {X: 6, Y: 4, W: 12, H: 4},
+		"p3": {X: 12, Y: 8, W: 12, H: 4},
+		"p4": {X: 0, Y: 12, W: 24, H: 2},
+	}
+	for id, grid := range want {
+		if got := gridOf(t, res, id); got != grid {
+			t.Errorf("%s = %+v, want %+v", id, got, grid)
+		}
+		if isMoved(panelLine(t, res, id)) {
+			t.Errorf("%s is marked moved by plain compaction", id)
+		}
+	}
+}
