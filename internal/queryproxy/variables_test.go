@@ -785,3 +785,11 @@ func TestRunPanelConditionalAllGuardOnlyNeedsNoAllList(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryUseRecordsTheGuardOfAReferenceWithoutNestedReferences(t *testing.T) {
+	use := queryUse{variables: map[string]bool{}, listed: map[string]bool{}}
+	use.add(spec.Reference{Kind: spec.MacroRef, Name: "__conditionalAll", HasArgs: true, Guard: "svc"}, "")
+	if !use.variables["svc"] || use.listed["svc"] {
+		t.Fatalf("variables = %v, listed = %v, want svc used and not listed", use.variables, use.listed)
+	}
+}
