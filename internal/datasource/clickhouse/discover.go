@@ -208,6 +208,35 @@ func (d *Datasource) metricTables(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
+func (d *Datasource) metricTable(ctx context.Context, metric string) (string, error) {
+	tables, err := d.metricTables(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, table := range tables {
+		rs, err := d.discoverQuery(ctx, "SELECT 1 FROM "+quoteIdent(table)+" WHERE MetricName = {metric:String} LIMIT 1", ch.Parameters{"metric": metric})
+		if err != nil {
+			return "", err
+		}
+		if len(rs.rows) > 0 {
+			return table, nil
+		}
+	}
+	return "", datasource.Errorf(datasource.ErrNotFound, "metric %q not found", metric)
+}
+
+func (d *Datasource) resolveTable(ctx context.Context, req datasource.DiscoverRequest) (datasource.DiscoverRequest, error) {
+	if req.Table != "" || req.Metric == "" {
+		return req, nil
+	}
+	table, err := d.metricTable(ctx, req.Metric)
+	if err != nil {
+		return req, err
+	}
+	req.Table = table
+	return req, nil
+}
+
 func (d *Datasource) discoverMetrics(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	names, err := d.metricTables(ctx)
 	if err != nil {
@@ -276,6 +305,10 @@ func metricPredicate(req datasource.DiscoverRequest, kind string, columns []data
 }
 
 func (d *Datasource) discoverLabels(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+	req, err := d.resolveTable(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	columns, err := d.tableColumns(ctx, req.Table)
 	if err != nil {
 		return nil, err
@@ -318,6 +351,10 @@ func (d *Datasource) discoverLabels(ctx context.Context, req datasource.Discover
 func (d *Datasource) discoverLabelValues(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
 	if req.Label == "" {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "label is required")
+	}
+	req, err := d.resolveTable(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 	columns, err := d.tableColumns(ctx, req.Table)
 	if err != nil {

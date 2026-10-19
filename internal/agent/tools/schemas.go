@@ -29,8 +29,8 @@ const (
 	descListComments    = "List a dashboard's comments, oldest first: open threads by default. A reply has parent_id; panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
 	descListDashboards  = "List saved dashboards, most recently updated first, with their latest version and URL. Use it to find a dashboard to open or revise."
 	descListDatasources = "List the configured datasources with their uid, type and health. Call it first to learn which datasource uid to pass to the other tools."
-	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. Use it to learn real services, routes or pods before filtering on them."
-	descListLabels      = "List label names (or OpenTelemetry attribute keys on ClickHouse) on a datasource, optionally for one metric. Use it to find the dimensions a metric can be grouped by."
+	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them."
+	descListLabels      = "List label names (or OpenTelemetry attribute keys on ClickHouse) on a datasource, optionally for one metric. On ClickHouse pass table (an otel_* table from get_schema) or metric. Use it to find the dimensions a metric can be grouped by."
 	descListMetrics     = "List the metrics of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by a search string. Use it to find real metric names before writing queries."
 	descQueryInstant    = "Run a PromQL or ClickHouse SQL query at one point in time and get a compact summary (rows or series with min, max, last). Use it to check a stat, table or bar gauge query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
 	descQueryRange      = "Run a PromQL or ClickHouse SQL query over a time range and get a compact summary (series, min, max, last). Use it to check a panel query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
@@ -43,6 +43,7 @@ const (
 const (
 	propDatasource = `"datasource":{"type":"string","description":"Datasource uid from list_datasources."}`
 	propSearch     = `"search":{"type":"string","maxLength":200,"description":"Case-insensitive substring filter."}`
+	propTable      = `"table":{"type":"string","description":"ClickHouse table such as otel_logs; not used by Prometheus."}`
 	propDiscLimit  = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
 	propQuery      = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL or ClickHouse SQL, using the macros in get_spec_guide."}`
 	propFrom       = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
@@ -60,9 +61,9 @@ const (
 
 	schemaListMetrics = `{"type":"object","properties":{` + propDatasource + `,` + propSearch + `,` + propDiscLimit + `},"required":["datasource"],"additionalProperties":false}`
 
-	schemaListLabels = `{"type":"object","properties":{` + propDatasource + `,"metric":{"type":"string","description":"Only labels seen on this metric."},` + propDiscLimit + `},"required":["datasource"],"additionalProperties":false}`
+	schemaListLabels = `{"type":"object","properties":{` + propDatasource + `,"metric":{"type":"string","description":"Only labels seen on this metric."},` + propTable + `,` + propSearch + `,` + propDiscLimit + `},"required":["datasource"],"additionalProperties":false}`
 
-	schemaListLabelValues = `{"type":"object","properties":{` + propDatasource + `,"label":{"type":"string","description":"Label name or attribute key."},"metric":{"type":"string","description":"Only values seen on this metric."},` + propSearch + `,` + propDiscLimit + `},"required":["datasource","label"],"additionalProperties":false}`
+	schemaListLabelValues = `{"type":"object","properties":{` + propDatasource + `,"label":{"type":"string","description":"Label name or attribute key."},"metric":{"type":"string","description":"Only values seen on this metric."},` + propTable + `,` + propSearch + `,` + propDiscLimit + `},"required":["datasource","label"],"additionalProperties":false}`
 
 	schemaGetSchema = `{"type":"object","properties":{` + propDatasource + `,"table":{"type":"string","description":"Table to describe. Omit to list tables."}},"required":["datasource"],"additionalProperties":false}`
 

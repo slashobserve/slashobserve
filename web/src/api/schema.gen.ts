@@ -482,6 +482,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/datasources/{uid}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the metric names of a datasource, up to a limit.
+         * @description The browser's only path to metric names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_metrics` tool: a Prometheus datasource lists its metrics with their type and help, and a ClickHouse datasource lists the OpenTelemetry metric names of its `otel_metrics_*` tables with the OTel kind as `type` and the table. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["listDatasourceMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the label names of a datasource, or its OpenTelemetry attribute keys on ClickHouse, up to a limit.
+         * @description The browser's only path to label names; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_labels` tool. ClickHouse labels need `table` or `metric`: with only `metric` the server uses the first `otel_metrics_*` table that holds it, and answers 404 `not_found` when none does. A ClickHouse request with neither is a 400. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["listDatasourceLabels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/datasources/{uid}/labels/{name}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List the values of one label of a datasource, up to a limit.
+         * @description The browser's only path to label values; it never calls a datasource directly. It runs the same code, validation and limits as the agent's `list_label_values` tool. ClickHouse labels need `table` or `metric`, as for the label names operation, and a malformed label name is a 422 `query_invalid`. The call takes one of the server's shared upstream slots, counts against the per-caller in-flight limit, times out after 15 seconds and is never cached. Any query parameter not listed below, or one given twice, is a 400.
+         */
+        get: operations["listDatasourceLabelValues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/revisions": {
         parameters: {
             query?: never;
@@ -716,6 +783,13 @@ export interface components {
         };
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];
+        };
+        MetricName: {
+            name: string;
+            type?: string;
+            help?: string;
+            unit?: string;
+            table?: string;
         };
         Author: {
             /** @enum {string} */
@@ -2239,6 +2313,133 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    listDatasourceMetrics: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring filter. */
+                search?: string;
+                /** @description Maximum names to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` metrics; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        datasource: string;
+                        metrics: components["schemas"]["MetricName"][];
+                        truncated: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    listDatasourceLabels: {
+        parameters: {
+            query?: {
+                /** @description Only names seen on this metric. On ClickHouse it also finds the metric's table when `table` is not given. */
+                metric?: string;
+                /** @description ClickHouse table such as `otel_logs`; Prometheus ignores it. */
+                table?: string;
+                /** @description Case-insensitive substring filter. */
+                search?: string;
+                /** @description Maximum names to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` label names; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        datasource: string;
+                        labels: string[];
+                        truncated: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["Internal"];
+            502: components["responses"]["QueryBadGateway"];
+            504: components["responses"]["QueryTimeout"];
+        };
+    };
+    listDatasourceLabelValues: {
+        parameters: {
+            query?: {
+                /** @description Only names seen on this metric. On ClickHouse it also finds the metric's table when `table` is not given. */
+                metric?: string;
+                /** @description ClickHouse table such as `otel_logs`; Prometheus ignores it. */
+                table?: string;
+                /** @description Case-insensitive substring filter. */
+                search?: string;
+                /** @description Maximum names to return. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to `limit` values of the label; `truncated` is true when there were more. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        datasource: string;
+                        label: string;
+                        values: string[];
+                        truncated: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["QueryUnprocessable"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];

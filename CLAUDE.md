@@ -140,6 +140,7 @@ Directories are created when their phase starts; this is where things go.
   A version whose queries reference `${__user.*}` is cached per principal, because the caches are otherwise shared by everyone.
   Variable selections are repeated `var-<name>` parameters, `$__all` selects All, custom variables accept only their options, and All expands to the full value list.
   Variable value lists are served by `GET .../variables/{name}/values`, and `POST /api/v1/datasources/{uid}/lint` parses a query without running it.
+  `GET /api/v1/datasources/{uid}/metrics`, `/labels` and `/labels/{name}/values` serve names to the browser through `Runner.Names`, the same validation, limits and upstream slot as the `list_metrics`, `list_labels` and `list_label_values` tools; they count against the per-principal in-flight limit and are never cached; ClickHouse labels need `table`, or a `metric` whose `otel_metrics_*` table the adapter finds.
   `Datasource.Lint` returns an error, not a warning diagnostic, when the datasource is unavailable or times out, so the lint endpoint answers 502 `datasource_unavailable` or 504 `query_timeout` and the editor shows "Lint is unavailable right now."
   The proxy's runner is built with `queryproxy.WithValueCache()`, which caches query-variable value lookups for 10 s and coalesces concurrent identical ones; the runner that validates saves stays uncached, and both share the 32-call semaphore.
   A malformed query string is a 400, and a forbidden parameter name is a 403 even when its value is malformed.
