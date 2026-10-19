@@ -117,7 +117,7 @@ export function VariableSelect({ state, onChange }: Props) {
                 ))}
                 <ComboboxChipsInput
                   id={id}
-                  className="field-sizing-content w-auto min-w-1 flex-none"
+                  className="field-sizing-content w-auto min-w-1 flex-none narrow:leading-4"
                   aria-label={label}
                   placeholder={
                     refreshing && state.selected.length === 0
