@@ -100,22 +100,19 @@ func (c *converter) convertVariables() {
 		c.reportUnhandledKeys(raw, path, subject)
 		c.vars = append(c.vars, &builtVar{v: v, path: path})
 	}
-	var pulled []string
-	c.vars, pulled = orderByDependency(c.vars)
-	if len(pulled) > 0 {
-		c.note("variables", "Variables were reordered so that each one comes after the variables its query uses.", pulled...)
+	var moved []string
+	c.vars, moved = orderByDependency(c.vars)
+	if len(moved) > 0 {
+		c.note("variables", "Variables were reordered so that each one comes after the variables its query uses.", moved...)
 	}
 }
 
 func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {
 	byName := map[string]*builtVar{}
-	declared := map[*builtVar]int{}
-	for i, v := range vars {
+	for _, v := range vars {
 		byName[v.v.Name] = v
-		declared[v] = i
 	}
 	var ordered []*builtVar
-	var pulled []string
 	state := map[string]int{}
 	var visit func(v *builtVar)
 	visit = func(v *builtVar) {
@@ -129,9 +126,6 @@ func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {
 				if !ok || ref.Kind != spec.VariableRef || dep == v {
 					continue
 				}
-				if declared[dep] > declared[v] && state[dep.v.Name] == 0 {
-					pulled = append(pulled, dep.path)
-				}
 				visit(dep)
 			}
 		}
@@ -141,7 +135,24 @@ func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {
 	for _, v := range vars {
 		visit(v)
 	}
-	return ordered, pulled
+	return ordered, reordered(vars, ordered)
+}
+
+func reordered(declared, ordered []*builtVar) []string {
+	position := map[*builtVar]int{}
+	for i, v := range ordered {
+		position[v] = i
+	}
+	var paths []string
+	for i, v := range declared {
+		for j, other := range declared {
+			if i != j && (j < i) != (position[other] < position[v]) {
+				paths = append(paths, v.path)
+				break
+			}
+		}
+	}
+	return paths
 }
 
 func (c *converter) dropVariable(subject, path, reason string) {

@@ -68,6 +68,24 @@ func TestReorderedVariablesAreReported(t *testing.T) {
 	}
 }
 
+func TestIndirectlyReorderedVariablesAreReported(t *testing.T) {
+	queryUsing := func(name, uses string) string {
+		query := "label_values(up, job)"
+		if uses != "" {
+			query = `label_values(up{job=\"$` + uses + `\"}, instance)`
+		}
+		return `{"name":"` + name + `","type":"query","datasource":` + promRef + `,"query":"` + query + `"}`
+	}
+	res := convertVariables(t, queryUsing("a", "c"), queryUsing("b", ""), queryUsing("c", "b"), queryUsing("d", ""))
+	if names := variableNames(res); !slices.Equal(names, []string{"b", "c", "a", "d"}) {
+		t.Fatalf("variable order = %v, want b, c, a, d", names)
+	}
+	notes := notesFor(res, "variables")
+	if len(notes) != 1 || !slices.Equal(notes[0].Paths, []string{"templating.list[0]", "templating.list[1]", "templating.list[2]"}) {
+		t.Fatalf("variables notes = %+v, want a, b and c, whose relative order changed, and not d", notes)
+	}
+}
+
 func variableNames(res *Result) []string {
 	var names []string
 	for _, v := range res.Spec.Variables {
