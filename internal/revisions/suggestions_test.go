@@ -286,3 +286,79 @@ func TestSuggestionThatIsNotAnObjectFailsAsNoSuggestion(t *testing.T) {
 		})
 	}
 }
+
+func draftWithCompactSize(t *testing.T, base *spec.Dashboard, size int) json.RawMessage {
+	t.Helper()
+	build := func(last int) json.RawMessage {
+		queries := []map[string]string{}
+		for range 3 {
+			queries = append(queries, map[string]string{"query": strings.Repeat("a", 20000)})
+		}
+		queries = append(queries, map[string]string{"query": strings.Repeat("a", last)})
+		raw, err := json.Marshal(map[string]any{
+			"id": "p1", "type": "stat", "title": "Log rows", "datasource": "ch",
+			"gridPos": map[string]int{"x": 0, "y": 0, "w": 6, "h": 4},
+			"queries": queries,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	compact := func(raw json.RawMessage) int {
+		placed, err := spec.WithPanel(base, "p1", raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry, _ := placed.FindPanel("p1")
+		out, err := json.Marshal(entry.Panel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(out)
+	}
+	const probe = 1000
+	last := probe + size - compact(build(probe))
+	raw := build(last)
+	if got := compact(raw); got != size || len(raw) > revisions.MaxDraftBytes {
+		t.Fatalf("built a draft of %d compact and %d raw bytes, want %d compact and at most %d raw", got, len(raw), size, revisions.MaxDraftBytes)
+	}
+	return raw
+}
+
+func TestDraftIsMeasuredAsCompactJSONAgainstTheSuggestedPanelLimit(t *testing.T) {
+	svc, d := newSuggestService(t, proposing(suggestedPanel))
+	base, err := spec.Parse([]byte(baseSpec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dash := seedDashboard(t, d, 1)
+	submitDraft := func(draft json.RawMessage) error {
+		_, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "make it better", draft, user)
+		return err
+	}
+
+	if err := submitDraft(draftWithCompactSize(t, base, spec.MaxSuggestedPanelBytes)); err != nil {
+		t.Errorf("draft exactly at the limit: %v", err)
+	}
+	if err := submitDraft(draftWithCompactSize(t, base, spec.MaxSuggestedPanelBytes-1)); err != nil {
+		t.Errorf("draft just under the limit: %v", err)
+	}
+	err = submitDraft(draftWithCompactSize(t, base, spec.MaxSuggestedPanelBytes+1))
+	if !errors.Is(err, revisions.ErrDraftTooLarge) || !strings.Contains(err.Error(), "compact JSON") {
+		t.Errorf("draft just over the limit: err = %v, want the compact JSON ErrDraftTooLarge", err)
+	}
+}
+
+func TestDraftOverTheRawBodyGuardIsRefusedWithItsOwnMessage(t *testing.T) {
+	svc, d := newSuggestService(t, proposing(suggestedPanel))
+	dash := seedDashboard(t, d, 1)
+	draft := []byte(`{"id":"p1","pad":"` + strings.Repeat("a", revisions.MaxDraftBytes) + `"}`)
+	_, err := svc.SubmitSuggestion(context.Background(), dash, 1, "p1", "make it better", draft, user)
+	if !errors.Is(err, revisions.ErrDraftTooLarge) || strings.Contains(err.Error(), "compact") {
+		t.Fatalf("err = %v, want ErrDraftTooLarge without the compact JSON wording", err)
+	}
+	if want := fmt.Sprintf("the draft panel is over %d bytes", revisions.MaxDraftBytes); err.Error() != want {
+		t.Fatalf("err = %q, want %q", err, want)
+	}
+}
