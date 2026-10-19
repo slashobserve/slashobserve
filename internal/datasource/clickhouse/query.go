@@ -83,7 +83,7 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	if err := d.readOnly(ctx); err != nil {
 		return nil, lim, err
 	}
-	exp, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: r, Interval: interval, Variables: q.Variables})
+	exp, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: r, Interval: interval, Variables: q.Variables, Dashboard: q.Dashboard, User: q.User})
 	if err != nil {
 		return nil, lim, err
 	}

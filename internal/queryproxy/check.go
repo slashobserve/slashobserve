@@ -32,7 +32,7 @@ func (r *Runner) CheckDatasources(d *spec.Dashboard) []spec.Issue {
 	return issues
 }
 
-func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time) ([]spec.Issue, error) {
+func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser) ([]spec.Issue, error) {
 	canceled := func() bool { return errors.Is(ctx.Err(), context.Canceled) }
 	if canceled() {
 		return nil, context.Canceled
@@ -53,7 +53,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 
 	phase, cancelPhase := context.WithTimeout(budget, checkVariablePhase)
 	lists := map[string]allList{}
-	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, lists)
+	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, user, lists)
 	cancelPhase()
 	issues = append(issues, variableIssues...)
 	if canceled() {
@@ -79,7 +79,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			continue
 		}
 		group.Go(func() error {
-			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, maps.Clone(lists), skip)...)
+			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, user, maps.Clone(lists), skip)...)
 			return nil
 		})
 	}
@@ -158,7 +158,7 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	return issues
 }
 
-func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, lists map[string]allList) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
+func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, user datasource.QueryUser, lists map[string]allList) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
 	selections = make(map[string]Selection, len(d.Variables))
 	failed = map[string]bool{}
 	for i, v := range d.Variables {
@@ -173,9 +173,9 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			continue
 		}
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
-		sel, err := r.defaultSelection(vctx, d, i, rng, selections, lists)
+		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
 		if err == nil && sel.All {
-			_, err = r.allValues(vctx, d, i, rng, selections, lists)
+			_, err = r.allValues(vctx, d, i, rng, selections, user, lists)
 		}
 		if err == nil {
 			err = checkSelection(v, sel)
@@ -195,7 +195,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 	return selections, failed, issues
 }
 
-func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList, skip []bool) []spec.Issue {
+func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList, skip []bool) []spec.Issue {
 	ctx, cancel := context.WithTimeout(ctx, checkPanelDeadline(skip))
 	defer cancel()
 	maxDataPoints := checkMaxDataPoints
@@ -210,6 +210,7 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 		MaxDataPoints: maxDataPoints,
 		Limits:        datasource.Limits{Timeout: checkPanelBudget},
 		IncludeHidden: true,
+		User:          user,
 		skip:          skip,
 	}, lists, false)
 	if err != nil {

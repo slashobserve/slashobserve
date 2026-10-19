@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 var (
@@ -228,6 +229,199 @@ func TestClickHouseMacros(t *testing.T) {
 		{name: "macro with format", d: macros.ClickHouse, query: `SELECT ${__interval:raw}`, env: env(time.Minute), err: true},
 		{name: "unbalanced macro args", d: macros.ClickHouse, query: `SELECT $__timeFilter(ts`, env: env(time.Minute), err: true},
 		{name: "macro args break out of string", d: macros.ClickHouse, query: `SELECT $__timeFilter(a') FROM t WHERE x = 'y'`, env: env(time.Minute), err: true},
+	})
+}
+
+func TestGlobalMacros(t *testing.T) {
+	user := datasource.QueryUser{ID: "u-1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada L"}
+	env := func(title string, u datasource.QueryUser) macros.Env {
+		return macros.Env{Range: testRange, Interval: 30 * time.Second, ScrapeInterval: 15 * time.Second, Dashboard: title, User: u}
+	}
+	base := env("Checkout health", user)
+	fractional := macros.Env{
+		Range:    datasource.TimeRange{From: rangeFrom.Add(1500 * time.Millisecond), To: rangeFrom.Add(4*time.Second + 500*time.Millisecond)},
+		Interval: 30 * time.Second,
+	}
+	withInterval := func(interval time.Duration) macros.Env {
+		e := base
+		e.Interval = interval
+		return e
+	}
+	from, to := rangeFrom.UnixMilli(), rangeFrom.Add(6*time.Hour).UnixMilli()
+	dialects := []struct {
+		name         string
+		dialect      macros.Dialect
+		code, str    func(string) string
+		quotedTitle  string
+		commentQuery string
+	}{
+		{
+			name: "promql", dialect: macros.PromQL,
+			code:         func(m string) string { return "up > " + m },
+			str:          func(m string) string { return `up{a="` + m + `"}` },
+			quotedTitle:  `it's \"x\" \\`,
+			commentQuery: "up # $__range_s ${__user.login}\n",
+		},
+		{
+			name: "clickhouse", dialect: macros.ClickHouse,
+			code:         func(m string) string { return "SELECT " + m },
+			str:          func(m string) string { return "SELECT '" + m + "'" },
+			quotedTitle:  `it\'s "x" \\`,
+			commentQuery: "SELECT 1 -- $__range_s ${__user.login}\n",
+		},
+	}
+	for _, d := range dialects {
+		t.Run(d.name, func(t *testing.T) {
+			numeric := []struct {
+				name, macro string
+				env         macros.Env
+				want        string
+			}{
+				{"interval ms", "$__interval_ms", base, "30000"},
+				{"interval ms keeps sub second precision", "$__interval_ms", withInterval(1500 * time.Millisecond), "1500"},
+				{"interval ms minimum one", "$__interval_ms", withInterval(200 * time.Microsecond), "1"},
+				{"interval ms braced", "${__interval_ms}", base, "30000"},
+				{"range s", "$__range_s", base, "21600"},
+				{"range s rounds half up", "$__range_s", fractional, "3"},
+				{"range ms", "$__range_ms", base, "21600000"},
+				{"range ms exact", "$__range_ms", fractional, "3000"},
+				{"from is epoch ms", "$__from", base, strconv.FormatInt(from, 10)},
+				{"to is epoch ms", "$__to", base, strconv.FormatInt(to, 10)},
+				{"from braced", "${__from}", base, strconv.FormatInt(from, 10)},
+				{"from seconds", "${__from:date:seconds}", base, strconv.FormatInt(from/1000, 10)},
+				{"to seconds", "${__to:date:seconds}", base, strconv.FormatInt(to/1000, 10)},
+			}
+			for _, tc := range numeric {
+				runExpandCases(t, []expandCase{
+					{name: tc.name + " in code", d: d.dialect, query: d.code(tc.macro), env: tc.env, want: d.code(tc.want)},
+					{name: tc.name + " in a string", d: d.dialect, query: d.str(tc.macro), env: tc.env, want: d.str(tc.want)},
+				})
+			}
+			dates := []struct{ name, macro, want string }{
+				{"from date", "${__from:date}", "2026-01-01T00:00:00.000Z"},
+				{"from iso", "${__from:date:iso}", "2026-01-01T00:00:00.000Z"},
+				{"to date", "${__to:date}", "2026-01-01T06:00:00.000Z"},
+				{"from pattern", "${__from:date:YYYY-MM-DD HH:mm}", "2026-01-01 00:00"},
+				{"to pattern", "${__to:date:dddd D MMMM YYYY h:mm A}", "Thursday 1 January 2026 6:00 AM"},
+				{"to pattern padded and unpadded", "${__to:date:MM/M DD/D}", "01/1 01/1"},
+			}
+			for _, tc := range dates {
+				runExpandCases(t, []expandCase{{name: tc.name, d: d.dialect, query: d.str(tc.macro), env: base, want: d.str(tc.want)}})
+			}
+			noUser := datasource.QueryUser{ID: "k", Login: "ci", Name: "ci"}
+			runExpandCases(t, []expandCase{
+				{name: "dashboard in a string", d: d.dialect, query: d.str("$__dashboard"), env: base, want: d.str("Checkout health")},
+				{name: "dashboard braced in a string", d: d.dialect, query: d.str("${__dashboard}"), env: base, want: d.str("Checkout health")},
+				{name: "dashboard title quote is escaped in a string", d: d.dialect, query: d.str("$__dashboard"), env: env(`it's "x" \`, user), want: d.str(d.quotedTitle)},
+				{name: "user login in a string", d: d.dialect, query: d.str("${__user.login}"), env: base, want: d.str("ada@example.com")},
+				{name: "user email in a string", d: d.dialect, query: d.str("${__user.email}"), env: base, want: d.str("ada@example.com")},
+				{name: "user name in a string", d: d.dialect, query: d.str("${__user.name}"), env: base, want: d.str("Ada L")},
+				{name: "user id in a string", d: d.dialect, query: d.str("${__user.id}"), env: base, want: d.str("u-1")},
+				{name: "empty email in a string is empty", d: d.dialect, query: d.str("${__user.email}"), env: env("d", noUser), want: d.str("")},
+				{name: "csv format of the title", d: d.dialect, query: d.str("${__dashboard:csv}"), env: base, want: d.str("Checkout health")},
+				{name: "pipe format of the login", d: d.dialect, query: d.str("${__user.login:pipe}"), env: base, want: d.str("ada@example.com")},
+				{name: "variable format on a date macro", d: d.dialect, query: d.str("${__from:csv}"), env: base, err: true},
+				{name: "unknown dashboard format", d: d.dialect, query: d.str("${__dashboard:bogus}"), env: base, err: true},
+				{name: "format on a numeric macro", d: d.dialect, query: d.code("${__interval_ms:raw}"), env: base, err: true},
+				{name: "unknown date token", d: d.dialect, query: d.str("${__from:date:Q}"), env: base, err: true},
+				{name: "numeric macro after a word character", d: d.dialect, query: d.code("a$__interval_ms"), env: base, err: true},
+				{name: "numeric macro before a digit", d: d.dialect, query: d.code("$__range_s5"), env: base, err: true},
+				{name: "dashboard after a word character", d: d.dialect, query: d.code("a$__dashboard"), env: base, err: true},
+				{name: "dashboard before a dot", d: d.dialect, query: d.code("$__dashboard.x"), env: base, err: true},
+				{name: "bare user is unknown", d: d.dialect, query: d.str("$__user"), env: base, err: true},
+				{name: "numeric macro with args", d: d.dialect, query: d.code("$__range_s(1)"), env: base, err: true},
+				{name: "dashboard with args", d: d.dialect, query: d.code("$__dashboard(1)"), env: base, err: true},
+				{name: "references in a comment are verbatim", d: d.dialect, query: d.commentQuery, env: base, want: d.commentQuery},
+			})
+		})
+	}
+}
+
+func TestEveryValueMacroOfTheTableExpands(t *testing.T) {
+	env := macros.Env{Range: testRange, Interval: 30 * time.Second, ScrapeInterval: 15 * time.Second, Dashboard: "d", User: datasource.QueryUser{ID: "u", Login: "l", Email: "e", Name: "n"}}
+	dialects := []struct {
+		name    string
+		dialect macros.Dialect
+		ds      spec.DatasourceType
+		str     func(string) string
+	}{
+		{"promql", macros.PromQL, spec.Prometheus, func(m string) string { return `up{a="` + m + `"}` }},
+		{"clickhouse", macros.ClickHouse, spec.ClickHouse, func(m string) string { return "SELECT '" + m + "'" }},
+	}
+	for _, d := range dialects {
+		for _, m := range spec.Macros(d.ds) {
+			if m.Function {
+				continue
+			}
+			t.Run(d.name+"/"+m.Name, func(t *testing.T) {
+				got, err := macros.Expand(d.dialect, d.str("${"+m.Name+"}"), env)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(got.Text, "$") {
+					t.Fatalf("Expand left a reference in %q", got.Text)
+				}
+			})
+		}
+	}
+}
+
+func TestPromQLGlobalMacrosInCode(t *testing.T) {
+	user := datasource.QueryUser{ID: "u-1", Login: "ada", Email: "ada@example.com", Name: "Ada"}
+	env := func(title string, u datasource.QueryUser) macros.Env {
+		return macros.Env{Range: testRange, Interval: 30 * time.Second, Dashboard: title, User: u}
+	}
+	runExpandCases(t, []expandCase{
+		{name: "identifier title in code", d: macros.PromQL, query: `sum by (${__dashboard}) (up)`, env: env("pod", user), want: `sum by (pod) (up)`},
+		{name: "title with spaces is refused in code", d: macros.PromQL, query: `sum by (${__dashboard}) (up)`, env: env("Checkout health", user), err: true},
+		{name: "title as a quoted label value", d: macros.PromQL, query: `up{a=${__dashboard:doublequote}}`, env: env(`Checkout "x"`, user), want: `up{a="Checkout \"x\""}`},
+		{name: "title in a regex matcher", d: macros.PromQL, query: `up{a=~"$__dashboard"}`, env: env("a.b", user), want: `up{a=~"a\\.b"}`},
+		{name: "login with an at sign is refused in code", d: macros.PromQL, query: `sum by (${__user.login}) (up)`, env: env("d", datasource.QueryUser{Login: "ada@example.com"}), err: true},
+		{name: "login quoted in code", d: macros.PromQL, query: `up{a=${__user.login:doublequote}}`, env: env("d", datasource.QueryUser{Login: "ada@example.com"}), want: `up{a="ada@example.com"}`},
+		{name: "empty login is refused in code", d: macros.PromQL, query: `sum by (${__user.login}) (up)`, env: env("d", datasource.QueryUser{}), err: true},
+		{name: "empty login in a string is empty", d: macros.PromQL, query: `up{a="${__user.login}"}`, env: env("d", datasource.QueryUser{}), want: `up{a=""}`},
+		{name: "control character in the title", d: macros.PromQL, query: `up{a="$__dashboard"}`, env: env("a\nb", user), err: true},
+	})
+}
+
+func TestClickHouseGlobalMacrosInCode(t *testing.T) {
+	user := datasource.QueryUser{ID: "u-1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}
+	env := func(title string, u datasource.QueryUser) macros.Env {
+		return macros.Env{Range: testRange, Interval: 30 * time.Second, Dashboard: title, User: u}
+	}
+	ci := datasource.QueryUser{Login: "ci"}
+	runExpandCases(t, []expandCase{
+		{name: "title is quoted by default in code", d: macros.ClickHouse, query: `SELECT $__dashboard AS d`, env: env("Checkout health", user), want: `SELECT 'Checkout health' AS d`},
+		{name: "title quote is escaped in code", d: macros.ClickHouse, query: `SELECT ${__dashboard} AS d`, env: env("it's", user), want: `SELECT 'it''s' AS d`},
+		{name: "title backslash is escaped in code", d: macros.ClickHouse, query: `SELECT ${__dashboard} AS d`, env: env(`a\b`, user), want: `SELECT 'a\\b' AS d`},
+		{name: "injection attempt in the title stays a literal", d: macros.ClickHouse, query: `SELECT 1 WHERE d = $__dashboard`, env: env(`x' OR 1=1 --`, user), want: `SELECT 1 WHERE d = 'x'' OR 1=1 --'`},
+		{name: "login is quoted by default in code", d: macros.ClickHouse, query: `SELECT 1 WHERE u = ${__user.login}`, env: env("d", user), want: `SELECT 1 WHERE u = 'ada@example.com'`},
+		{name: "empty email is an empty literal by default in code", d: macros.ClickHouse, query: `SELECT ${__user.email}`, env: env("d", ci), want: `SELECT ''`},
+		{name: "empty email is refused in code with an identifier format", d: macros.ClickHouse, query: `SELECT ${__user.email:csv}`, env: env("d", ci), err: true},
+		{name: "email with an identifier format is refused in code", d: macros.ClickHouse, query: `SELECT ${__user.email:raw}`, env: env("d", user), err: true},
+		{name: "user id as an identifier", d: macros.ClickHouse, query: `SELECT ${__user.id:raw}`, env: env("d", datasource.QueryUser{ID: "u1"}), want: `SELECT u1`},
+		{name: "quoted identifier is refused", d: macros.ClickHouse, query: `SELECT "$__dashboard"`, env: env("d", user), err: true},
+		{name: "heredoc is refused", d: macros.ClickHouse, query: "SELECT $$ ${__user.login} $$", env: env("d", user), err: true},
+	})
+}
+
+func TestClickHouseDateFormatCannotOpenAComment(t *testing.T) {
+	env := macros.Env{Range: testRange, Interval: 30 * time.Second}
+	for _, query := range []string{
+		"SELECT ${__from:date:YYYY--MM} FROM t WHERE x = 1",
+		"SELECT 1 WHERE d = ${__to:date:YYYY--MM-DD} AND y = 2",
+		"SELECT ${__from:date:YYYY--MM}\nFROM t",
+	} {
+		got, err := macros.Expand(macros.ClickHouse, query, env)
+		if err == nil {
+			t.Fatalf("Expand(%q) = %q, want error", query, got.Text)
+		}
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "crosses a string, comment or identifier boundary") {
+			t.Fatalf("Expand(%q) error = %v, want a boundary error", query, err)
+		}
+	}
+	runExpandCases(t, []expandCase{
+		{name: "a single dash date keeps the rest of the query", d: macros.ClickHouse, query: "SELECT ${__from:date:YYYY-MM} FROM t WHERE x = 1", env: env, want: "SELECT 2026-01 FROM t WHERE x = 1"},
 	})
 }
 

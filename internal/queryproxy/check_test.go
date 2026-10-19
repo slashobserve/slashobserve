@@ -336,7 +336,7 @@ func TestCheckSpecIssues(t *testing.T) {
 			if tt.mutate != nil {
 				tt.mutate(d)
 			}
-			issues, err := runner.CheckSpec(t.Context(), d, testNow)
+			issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("CheckSpec error: %v", err)
 			}
@@ -360,7 +360,7 @@ func TestCheckSpecResolvesRangeFromNow(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up")})
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	if got := fake.recorded()[0].rng; got != testRange() {
@@ -376,7 +376,7 @@ func TestCheckSpecPanelCallShape(t *testing.T) {
 		panelOf("single", spec.Stat, "prom", "up"),
 	})
 	before := time.Now()
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	after := time.Now()
@@ -420,7 +420,7 @@ func TestCheckSpecPanelBudgetScalesWithItsQueryCount(t *testing.T) {
 			}
 			p := spec.Panel{ID: "p0", Type: spec.Timeseries, Title: "p0", Datasource: "prom", Queries: queries}
 			before := time.Now()
-			if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{p}), testNow); err != nil || issues != nil {
+			if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{p}), testNow, datasource.QueryUser{}); err != nil || issues != nil {
 				t.Fatalf("issues = %+v, err = %v", issues, err)
 			}
 			after := time.Now()
@@ -445,7 +445,7 @@ func TestCheckSpecVariableCallShape(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Stat, "prom", "up")}, queryVariable("job", "prom", "label_values(job)"))
 	before := time.Now()
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	after := time.Now()
@@ -486,7 +486,7 @@ func TestCheckSpecPanelParallelismBound(t *testing.T) {
 	}
 	done := make(chan checked, 1)
 	go func() {
-		issues, err := runner.CheckSpec(t.Context(), dashboardOf(panels), testNow)
+		issues, err := runner.CheckSpec(t.Context(), dashboardOf(panels), testNow, datasource.QueryUser{})
 		done <- checked{issues, err}
 	}()
 
@@ -520,7 +520,7 @@ func TestCheckSpecVariablesResolveSequentially(t *testing.T) {
 		queryVariable("b", "prom", "b"),
 		queryVariable("c", "prom", "c"),
 	)
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	if got := fake.peakInflight(); got != 1 {
@@ -553,7 +553,7 @@ func TestCheckSpecVariableValuesNeverInterpolated(t *testing.T) {
 		queryVariable("env", "prom", "label_values(env)"),
 		queryVariable("pod", "prom", "label_values(up{env=\"$env\"}, pod)"),
 	)
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	wantText := map[string]string{
@@ -607,7 +607,7 @@ func TestCheckSpecIncludeAllVariableIsPassedWithItsValues(t *testing.T) {
 	v := queryVariable("job", "prom", "label_values(job)")
 	v.IncludeAll, v.Multi = true, true
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job=~"$job"}`)}, v)
-	if issues, err := runner.CheckSpec(t.Context(), d, testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	if got := len(fake.callsTo("variable")); got != 1 {
@@ -637,7 +637,7 @@ func TestCheckSpecIncludeAllVariableProblems(t *testing.T) {
 		panelOf("p0", spec.Timeseries, "prom", `up{job=~"$ghost"}`),
 		panelOf("p1", spec.Timeseries, "prom", "up"),
 	}, ghost, bad)
-	issues, err := runner.CheckSpec(t.Context(), d, testNow)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("CheckSpec error: %v", err)
 	}
@@ -655,7 +655,7 @@ func TestCheckSpecBadCustomDefault(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up$env")}, customVariable("env", "a\x00b"))
-	issues, err := runner.CheckSpec(t.Context(), d, testNow)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
 	if err != nil {
 		t.Fatalf("CheckSpec error: %v", err)
 	}
@@ -681,7 +681,7 @@ func TestCheckSpecCanceledDuringVariablePhase(t *testing.T) {
 		cancel()
 	}()
 	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up$v")}, queryVariable("v", "prom", "x"))
-	issues, err := runner.CheckSpec(ctx, d, testNow)
+	issues, err := runner.CheckSpec(ctx, d, testNow, datasource.QueryUser{})
 	if !errors.Is(err, context.Canceled) || issues != nil {
 		t.Fatalf("issues = %+v, err = %v, want nil and context.Canceled", issues, err)
 	}
@@ -703,7 +703,7 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 		start := time.Now()
-		issues, err := runner.CheckSpec(ctx, dashboardOf(panels), testNow)
+		issues, err := runner.CheckSpec(ctx, dashboardOf(panels), testNow, datasource.QueryUser{})
 		if err != nil {
 			t.Fatalf("CheckSpec error: %v", err)
 		}
@@ -730,7 +730,7 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			cancel()
 		}()
-		issues, err := runner.CheckSpec(ctx, dashboardOf(panels), testNow)
+		issues, err := runner.CheckSpec(ctx, dashboardOf(panels), testNow, datasource.QueryUser{})
 		if !errors.Is(err, context.Canceled) || issues != nil {
 			t.Fatalf("issues = %+v, err = %v, want nil and context.Canceled", issues, err)
 		}
@@ -746,7 +746,7 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 		d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up$v")}, queryVariable("v", "prom", "x"))
-		issues, err := runner.CheckSpec(ctx, d, testNow)
+		issues, err := runner.CheckSpec(ctx, d, testNow, datasource.QueryUser{})
 		if err != nil {
 			t.Fatalf("CheckSpec error: %v", err)
 		}
@@ -941,7 +941,7 @@ func TestCheckSpecMultiQueryPanels(t *testing.T) {
 				tt.setup(fake)
 			}
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			issues, err := runner.CheckSpec(t.Context(), dashboardOf(tt.panels, tt.variables...), testNow)
+			issues, err := runner.CheckSpec(t.Context(), dashboardOf(tt.panels, tt.variables...), testNow, datasource.QueryUser{})
 			if err != nil {
 				t.Fatalf("CheckSpec error: %v", err)
 			}
@@ -960,7 +960,7 @@ func TestCheckSpecCapsDataPointsByPanel(t *testing.T) {
 	capped.MaxDataPoints = 50
 	loose := panelOf("p1", spec.Timeseries, "prom", "up2")
 	loose.MaxDataPoints = 5000
-	if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{capped, loose}), testNow); err != nil || issues != nil {
+	if issues, err := runner.CheckSpec(t.Context(), dashboardOf([]spec.Panel{capped, loose}), testNow, datasource.QueryUser{}); err != nil || issues != nil {
 		t.Fatalf("issues = %+v, err = %v", issues, err)
 	}
 	steps := map[string]time.Duration{}
@@ -969,5 +969,28 @@ func TestCheckSpecCapsDataPointsByPanel(t *testing.T) {
 	}
 	if steps["up"] != 432*time.Second || steps["up2"] != 108*time.Second {
 		t.Fatalf("steps = %v, want up 432s (maxDataPoints 50) and up2 108s (capped at 200)", steps)
+	}
+}
+
+func TestCheckSpecRunsQueriesAsTheSavingPrincipal(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf(
+		[]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{who="${__user.login}", dash="$__dashboard"}`)},
+		queryVariable("job", "prom", `label_values(up{who="${__user.login}"}, job)`),
+	)
+	d.Title = "Checkout health"
+	saver := datasource.QueryUser{ID: "u1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}
+	if issues, err := runner.CheckSpec(t.Context(), d, testNow, saver); err != nil || issues != nil {
+		t.Fatalf("issues = %+v, err = %v", issues, err)
+	}
+	calls := fake.recorded()
+	if len(calls) < 2 {
+		t.Fatalf("%d upstream calls, want the variable lookup and the panel query: %+v", len(calls), calls)
+	}
+	for _, c := range calls {
+		if c.query.User != saver || c.query.Dashboard != "Checkout health" {
+			t.Errorf("%s call saw dashboard %q and user %+v, want the saving principal", c.method, c.query.Dashboard, c.query.User)
+		}
 	}
 }

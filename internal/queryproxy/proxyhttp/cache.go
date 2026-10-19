@@ -10,6 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/ttlcache"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -36,6 +38,11 @@ type specKey struct {
 	version int
 }
 
+type loadedVersion struct {
+	dashboard *spec.Dashboard
+	usesUser  bool
+}
+
 type queryMeta struct {
 	Ref    string          `json:"ref"`
 	Kind   queryproxy.Kind `json:"kind"`
@@ -59,7 +66,7 @@ type valuesEntry struct {
 }
 
 type caches struct {
-	specs       *ttlcache.Cache[specKey, *spec.Dashboard]
+	specs       *ttlcache.Cache[specKey, loadedVersion]
 	data        *ttlcache.Cache[cacheKey, dataEntry]
 	dataFlights *ttlcache.Group[dataEntry]
 	values      *ttlcache.Cache[cacheKey, valuesEntry]
@@ -67,7 +74,7 @@ type caches struct {
 
 func newCaches() *caches {
 	return &caches{
-		specs:       ttlcache.New[specKey, *spec.Dashboard](0, specCacheEntries),
+		specs:       ttlcache.New[specKey, loadedVersion](0, specCacheEntries),
 		data:        ttlcache.New[cacheKey, dataEntry](resultTTL, resultMaxCost),
 		dataFlights: ttlcache.NewGroup[dataEntry](runTimeout),
 		values:      ttlcache.New[cacheKey, valuesEntry](resultTTL, valuesMaxCost),
@@ -114,7 +121,18 @@ func (k *keyBuilder) selections(selections map[string]queryproxy.Selection) {
 
 func (k *keyBuilder) sum() cacheKey { return sha256.Sum256(k.buf) }
 
-func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, al alignment, selections map[string]queryproxy.Selection) cacheKey {
+func principalScope(kind auth.PrincipalKind, user datasource.QueryUser) string {
+	var k keyBuilder
+	k.text(string(kind))
+	k.text(user.ID)
+	k.text(user.Login)
+	k.text(user.Email)
+	k.text(user.Name)
+	sum := k.sum()
+	return string(sum[:])
+}
+
+func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, al alignment, selections map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("data")
 	k.text(string(id.Bytes[:]))
@@ -125,10 +143,11 @@ func dataKey(id pgtype.UUID, version int, panelID string, kind queryproxy.Kind, 
 	k.number(al.rng.To.UnixMilli())
 	k.number(al.step.Milliseconds())
 	k.selections(selections)
+	k.text(principal)
 	return k.sum()
 }
 
-func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection) cacheKey {
+func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, earlier map[string]queryproxy.Selection, principal string) cacheKey {
 	var k keyBuilder
 	k.text("values")
 	k.text(string(id.Bytes[:]))
@@ -137,5 +156,6 @@ func valuesKey(id pgtype.UUID, version int, name string, from, to time.Time, ear
 	k.number(from.Unix() / valuesResolution)
 	k.number(to.Unix() / valuesResolution)
 	k.selections(earlier)
+	k.text(principal)
 	return k.sum()
 }

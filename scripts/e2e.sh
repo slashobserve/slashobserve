@@ -1746,6 +1746,12 @@ proxy_suite() {
   fi
   pass "a ClickHouse panel runs with an explicitly selected variable"
 
+  out="$(proxy_call GET "$base/panels/p_globals/data?$stable")"
+  if [[ "$out" != 200 ]] || ! grep -q 'Query proxy dashboard' "$TMP/api.body" || ! grep -q 'e2e-api' "$TMP/api.body"; then
+    fail "global macros expand on the server ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "global macros expand on the server, including the dashboard title and the caller"
+
   out="$(proxy_call GET "$base/panels/p_up/data?query=up")"
   if [[ "$out" != 403 ]] || ! grep -q '"code":"query_not_in_spec"' "$TMP/api.body"; then
     fail "query text on the data endpoint ($out: $(cat "$TMP/api.body"))"

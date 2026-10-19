@@ -23,17 +23,17 @@ type allList struct {
 	unlisted bool
 }
 
-func (r *Runner) VariableValues(ctx context.Context, d *spec.Dashboard, name string, rng datasource.TimeRange, earlier map[string]Selection) (values []string, truncated bool, err error) {
+func (r *Runner) VariableValues(ctx context.Context, d *spec.Dashboard, name string, rng datasource.TimeRange, earlier map[string]Selection, user datasource.QueryUser) (values []string, truncated bool, err error) {
 	idx := variableIndex(d, name)
 	if idx < 0 {
 		return nil, false, fmt.Errorf("%w: %q", ErrUnknownVariable, name)
 	}
 	lists := map[string]allList{}
-	selections, err := r.complete(ctx, d, idx, rng, earlier, lists)
+	selections, err := r.complete(ctx, d, idx, rng, earlier, user, lists)
 	if err != nil {
 		return nil, false, err
 	}
-	values, err = r.resolveValues(ctx, d, idx, rng, selections, lists)
+	values, err = r.resolveValues(ctx, d, idx, rng, selections, user, lists)
 	if err != nil {
 		return nil, false, err
 	}
@@ -43,11 +43,11 @@ func (r *Runner) VariableValues(ctx context.Context, d *spec.Dashboard, name str
 	return values, false, nil
 }
 
-func (r *Runner) Defaults(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, given map[string]Selection) (map[string]Selection, error) {
-	return r.complete(ctx, d, len(d.Variables), rng, given, map[string]allList{})
+func (r *Runner) Defaults(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, given map[string]Selection, user datasource.QueryUser) (map[string]Selection, error) {
+	return r.complete(ctx, d, len(d.Variables), rng, given, user, map[string]allList{})
 }
 
-func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng datasource.TimeRange, given map[string]Selection, lists map[string]allList) (map[string]Selection, error) {
+func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng datasource.TimeRange, given map[string]Selection, user datasource.QueryUser, lists map[string]allList) (map[string]Selection, error) {
 	for _, name := range slices.Sorted(maps.Keys(given)) {
 		idx := variableIndex(d, name)
 		if idx < 0 {
@@ -69,7 +69,7 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 		if _, ok := out[v.Name]; ok {
 			continue
 		}
-		sel, err := r.defaultSelection(ctx, d, i, rng, out, lists)
+		sel, err := r.defaultSelection(ctx, d, i, rng, out, user, lists)
 		if err != nil {
 			return nil, err
 		}
@@ -81,12 +81,12 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 	return out, nil
 }
 
-func (r *Runner) defaultSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) (Selection, error) {
+func (r *Runner) defaultSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) (Selection, error) {
 	v := d.Variables[idx]
 	if v.IncludeAll {
 		return Selection{All: true}, nil
 	}
-	values, err := r.resolveValues(ctx, d, idx, rng, selections, lists)
+	values, err := r.resolveValues(ctx, d, idx, rng, selections, user, lists)
 	if err != nil {
 		return Selection{}, err
 	}
@@ -96,7 +96,7 @@ func (r *Runner) defaultSelection(ctx context.Context, d *spec.Dashboard, idx in
 	return Selection{Values: []string{values[0]}}, nil
 }
 
-func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) ([]string, error) {
+func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) ([]string, error) {
 	v := d.Variables[idx]
 	if v.Type == spec.CustomVariable {
 		return slices.Clone(v.Options), nil
@@ -114,11 +114,11 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 	if err := rng.Validate(); err != nil {
 		return nil, invalidRangeError(err)
 	}
-	vars, err := r.variablesFor(ctx, d, idx, v.Query, rng, selections, lists)
+	vars, err := r.variablesFor(ctx, d, idx, v.Query, rng, selections, user, lists)
 	if err != nil {
 		return nil, err
 	}
-	q := datasource.Query{Text: v.Query, Variables: vars}
+	q := datasource.Query{Text: v.Query, Variables: vars, Dashboard: d.Title, User: user}
 	fetch := func(ctx context.Context) ([]string, error) {
 		return upstream(ctx, r, "variable:"+v.Name, inst, func(ctx context.Context) ([]string, error) {
 			return inst.Datasource.VariableValues(ctx, q, rng)
@@ -130,12 +130,12 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 	return r.values.get(ctx, valueKey(inst.UID, q, rng), fetch)
 }
 
-func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) (allList, error) {
+func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) (allList, error) {
 	name := d.Variables[idx].Name
 	if list, ok := lists[name]; ok {
 		return list, nil
 	}
-	values, err := r.resolveValues(ctx, d, idx, rng, selections, lists)
+	values, err := r.resolveValues(ctx, d, idx, rng, selections, user, lists)
 	if err != nil {
 		return allList{}, err
 	}
@@ -154,8 +154,8 @@ func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng 
 	return list, nil
 }
 
-func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, text string, rng datasource.TimeRange, selections map[string]Selection, lists map[string]allList) ([]datasource.Variable, error) {
-	refs := referencedVariables(text)
+func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, text string, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) ([]datasource.Variable, error) {
+	refs := scanQueryUse(text).variables
 	out := make([]datasource.Variable, 0, upto)
 	for i, v := range d.Variables[:upto] {
 		sel, ok := selections[v.Name]
@@ -170,7 +170,7 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 		}
 		variable := datasource.Variable{Name: v.Name, Values: slices.Clone(sel.Values), All: sel.All}
 		if sel.All && refs[v.Name] {
-			list, err := r.allValues(ctx, d, i, rng, selections, lists)
+			list, err := r.allValues(ctx, d, i, rng, selections, user, lists)
 			if err != nil {
 				return nil, err
 			}
@@ -183,18 +183,44 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 	return out, nil
 }
 
-func referencedVariables(text string) map[string]bool {
+type queryUse struct {
+	variables map[string]bool
+	user      bool
+	dashboard bool
+}
+
+func scanQueryUse(text string) queryUse {
 	refs, err := spec.ScanQuery(text)
 	if err != nil {
-		return nil
+		return queryUse{}
 	}
-	names := map[string]bool{}
+	use := queryUse{variables: map[string]bool{}}
 	for _, ref := range refs {
 		if ref.Kind == spec.VariableRef {
-			names[ref.Name] = true
+			use.variables[ref.Name] = true
+			continue
+		}
+		if macro, ok := spec.LookupMacro(ref.Name); ok {
+			use.user = use.user || macro.PerUser
+			use.dashboard = use.dashboard || macro.PerDashboard
 		}
 	}
-	return names
+	return use
+}
+
+func DashboardUsesUser(d *spec.Dashboard) bool {
+	if d == nil {
+		return false
+	}
+	if slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Type == spec.QueryVariable && scanQueryUse(v.Query).user }) {
+		return true
+	}
+	for _, e := range d.DataPanels() {
+		if slices.ContainsFunc(e.Panel.Queries, func(q spec.Query) bool { return scanQueryUse(q.Query).user }) {
+			return true
+		}
+	}
+	return false
 }
 
 func variableIndex(d *spec.Dashboard, name string) int {

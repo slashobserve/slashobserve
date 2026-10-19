@@ -127,11 +127,12 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	d, err := h.dashboard(ctx, id, version)
+	v, err := h.dashboard(ctx, id, version)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
+	d := v.dashboard
 	panelID := c.Param("panel_id")
 	found, ok := d.FindDataPanel(panelID)
 	if !ok {
@@ -149,18 +150,19 @@ func (h *Handler) data(c *gin.Context) {
 	}
 	kind := queryproxy.PanelKind(found.Panel)
 	al := align(rng, kind, maxDataPoints)
-	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections)
+	user, scope := cacheScope(ctx, v)
+	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections, user)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	key := dataKey(id, version, panelID, kind, al, selections)
+	key := dataKey(id, version, panelID, kind, al, selections, scope)
 	if entry, at, ok := h.caches.data.Get(key); ok {
 		writeData(c, entry, true, at)
 		return
 	}
 	entry, err := h.caches.dataFlights.Do(ctx, string(key[:]), func(ctx context.Context) (dataEntry, error) {
-		return h.execute(ctx, key, d, panelID, al, selections)
+		return h.execute(ctx, key, d, panelID, al, selections, user)
 	})
 	if err != nil {
 		h.fail(c, err)
@@ -169,7 +171,7 @@ func (h *Handler) data(c *gin.Context) {
 	writeData(c, entry, false, entry.executedAt)
 }
 
-func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection) (entry dataEntry, err error) {
+func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (entry dataEntry, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			h.logger.ErrorContext(ctx, "query proxy panicked",
@@ -209,6 +211,7 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		Range:         al.rng,
 		Selections:    selections,
 		MaxDataPoints: al.maxDataPoints,
+		User:          user,
 		Admit:         admit,
 	})
 	if err != nil {
@@ -224,6 +227,15 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 		entry.executedAt = h.caches.data.Put(key, entry, entry.cost())
 	}
 	return entry, nil
+}
+
+func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser, scope string) {
+	principal, _ := auth.FromContext(ctx)
+	user = queryproxy.UserFor(principal)
+	if v.usesUser {
+		scope = principalScope(principal.Kind, user)
+	}
+	return user, scope
 }
 
 func writeData(c *gin.Context, e dataEntry, cached bool, executedAt time.Time) {
@@ -262,11 +274,12 @@ func (h *Handler) values(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
-	d, err := h.dashboard(ctx, id, version)
+	v, err := h.dashboard(ctx, id, version)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
+	d := v.dashboard
 	rng, err := p.timeRange(d, time.Now())
 	if err != nil {
 		h.fail(c, err)
@@ -274,12 +287,13 @@ func (h *Handler) values(c *gin.Context) {
 	}
 	name := c.Param("name")
 	rng = align(rng, queryproxy.KindRange, defaultMaxDataPoints).rng
-	key := valuesKey(id, version, name, rng.From, rng.To, p.selections)
+	user, scope := cacheScope(ctx, v)
+	key := valuesKey(id, version, name, rng.From, rng.To, p.selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
 		c.JSON(http.StatusOK, valuesResponse{Values: entry.values, Truncated: entry.truncated, Cached: true})
 		return
 	}
-	values, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections)
+	values, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
 	if err != nil {
 		h.fail(c, err)
 		return
@@ -386,21 +400,22 @@ func decodeLint(c *gin.Context, req *lintRequest) (status int, code, message str
 	return 0, "", ""
 }
 
-func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error) {
+func (h *Handler) dashboard(ctx context.Context, id pgtype.UUID, version int) (loadedVersion, error) {
 	key := specKey{id: id, version: version}
-	if d, _, ok := h.caches.specs.Get(key); ok {
-		return d, nil
+	if v, _, ok := h.caches.specs.Get(key); ok {
+		return v, nil
 	}
 	d, err := h.specs.VersionSpec(ctx, id, version)
 	switch {
 	case err == nil:
-		h.caches.specs.Put(key, d, 1)
-		return d, nil
+		v := loadedVersion{dashboard: d, usesUser: queryproxy.DashboardUsesUser(d)}
+		h.caches.specs.Put(key, v, 1)
+		return v, nil
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return nil, err
+		return loadedVersion{}, err
 	default:
 		h.logger.ErrorContext(ctx, "load dashboard version", failureAttrs(err)...)
-		return nil, errInternal
+		return loadedVersion{}, errInternal
 	}
 }
 

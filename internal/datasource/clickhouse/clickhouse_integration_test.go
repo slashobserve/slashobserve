@@ -359,10 +359,44 @@ func TestRangeQuery(t *testing.T) {
 		t.Fatalf("$__interval = %v, want 60", got)
 	}
 
-	used := panelQuery + rangeQuery + "SELECT $__interval AS i"
+	used := panelQuery + rangeQuery + "SELECT $__interval AS i" + globalsQuery
 	for _, m := range spec.Macros(spec.ClickHouse) {
-		if !strings.Contains(used, "$"+m.Name) {
+		if !strings.Contains(used, "$"+m.Name) && !strings.Contains(used, "${"+m.Name) {
 			t.Errorf("macro %s is not exercised by any query", m.Name)
+		}
+	}
+}
+
+const globalsQuery = "SELECT $__interval_ms AS interval_ms, $__range_s AS range_s, $__range_ms AS range_ms, ${__from:date:seconds} AS from_s, $__to AS to_ms, " +
+	"$__dashboard AS dashboard, ${__user.login} AS login, ${__user.email} AS email, ${__user.name} AS name, ${__user.id} AS id"
+
+func TestGlobalMacros(t *testing.T) {
+	from := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	q := query(globalsQuery)
+	q.Dashboard = "Checkout it's health"
+	q.User = datasource.QueryUser{ID: "u-1", Login: "ada@example.com", Email: "ada@example.com", Name: "Ada"}
+	frames, err := roDS(t).QueryInstant(context.Background(), q, datasource.TimeRange{From: from, To: from.Add(90 * time.Minute)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(frames) != 1 || frames[0].Rows() != 1 {
+		t.Fatalf("frames = %+v, want one frame with one row", frames)
+	}
+	want := map[string]any{
+		"interval_ms": float64(5400),
+		"range_s":     float64(5400),
+		"range_ms":    float64(5400000),
+		"from_s":      float64(from.Unix()),
+		"to_ms":       float64(from.Add(90 * time.Minute).UnixMilli()),
+		"dashboard":   "Checkout it's health",
+		"login":       "ada@example.com",
+		"email":       "ada@example.com",
+		"name":        "Ada",
+		"id":          "u-1",
+	}
+	for name, value := range want {
+		if got := column(t, frames[0], name).Values[0]; got != value {
+			t.Errorf("%s = %#v, want %#v", name, got, value)
 		}
 	}
 }

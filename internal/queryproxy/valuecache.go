@@ -77,9 +77,9 @@ func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.
 	}
 	field(uid)
 	field(q.Text)
-	refs := referencedVariables(q.Text)
+	use := scanQueryUse(q.Text)
 	for _, v := range q.Variables {
-		if !refs[v.Name] {
+		if !use.variables[v.Name] {
 			continue
 		}
 		field(v.Name)
@@ -92,6 +92,15 @@ func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.
 		for _, value := range v.Values {
 			field(value)
 		}
+	}
+	if use.user {
+		field(q.User.ID)
+		field(q.User.Login)
+		field(q.User.Email)
+		field(q.User.Name)
+	}
+	if use.dashboard {
+		field(q.Dashboard)
 	}
 	number(rng.From.Unix() / valueRangeResolution)
 	number(rng.To.Unix() / valueRangeResolution)

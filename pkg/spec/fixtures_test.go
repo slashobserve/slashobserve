@@ -209,6 +209,15 @@ func TestRejectedDocuments(t *testing.T) {
 		{"override with an empty array and a real option is valid", with(`"queries":`, `"overrides": [{"match": {"query": "A"}, "links": [], "color": "ok"}], "queries":`), "", ""},
 		{"float out of range in a mapping range", with(`"queries":`, `"mappings": [{"range": [1e999, null], "text": "high"}], "queries":`), spec.CodeSchema, "/panels/0/mappings/0/range/0"},
 		{"a macro of another datasource type is left to the query proxy", with(`"datasource": "ch"`, `"datasource": "prom"`), "", ""},
+		{"range in seconds", with(`$__timeFilter(Timestamp)`, `$__range_s`), "", ""},
+		{"dashboard with a variable format", with(`$__timeFilter(Timestamp)`, `${__dashboard:sqlstring}`), "", ""},
+		{"user login with a variable format", with(`$__timeFilter(Timestamp)`, `${__user.login:csv}`), "", ""},
+		{"from with a date format", with(`$__timeFilter(Timestamp)`, `${__from:date:YYYY-MM-DD}`), "", ""},
+		{"unknown time format", with(`$__timeFilter(Timestamp)`, `${__from:bogus}`), spec.CodeInvalidReference, "/panels/0/queries/0/query"},
+		{"unknown dashboard format", with(`$__timeFilter(Timestamp)`, `${__dashboard:bogus}`), spec.CodeInvalidReference, "/panels/0/queries/0/query"},
+		{"format on a value macro", with(`$__timeFilter(Timestamp)`, `${__range_s:csv}`), spec.CodeInvalidReference, "/panels/0/queries/0/query"},
+		{"unknown user field", with(`$__timeFilter(Timestamp)`, `${__user.bogus}`), spec.CodeInvalidReference, "/panels/0/queries/0/query"},
+		{"bare user", with(`$__timeFilter(Timestamp)`, `$__user`), spec.CodeUnknownMacro, "/panels/0/queries/0/query"},
 		{"unknown macro with unclosed args", with(`$__timeFilter(Timestamp)`, `$__foo(x`), spec.CodeUnknownMacro, "/panels/0/queries/0/query"},
 		{"day start after month end", with(`"from": "now-15m", "to": "now"`, `"from": "now-1d", "to": "now-1M"`), spec.CodeTimeRangeOrder, "/time"},
 		{"month start before 30 days end", with(`"from": "now-15m", "to": "now"`, `"from": "now-1M", "to": "now-30d"`), "", ""},
@@ -286,6 +295,33 @@ func TestExclusiveMemberIssues(t *testing.T) {
 			issues := parseIssues(t, []byte(data))
 			if len(issues) != 1 || issues[0].Path != c.path || issues[0].Message != c.message || issues[0].Code != spec.CodeSchema {
 				t.Fatalf("got %+v, want one schema issue at %s: %s", issues, c.path, c.message)
+			}
+		})
+	}
+}
+
+func TestReferenceFormatMessages(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	formats := "csv, doublequote, pipe, raw, regex, singlequote, sqlstring"
+	cases := []struct {
+		name    string
+		query   string
+		message string
+	}{
+		{"dashboard", `${__dashboard:bogus}`, `unknown format "bogus" for $__dashboard; use one of ` + formats},
+		{"user field", `${__user.email:bogus}`, `unknown format "bogus" for $__user.email; use one of ` + formats},
+		{"no format", `${__range_s:csv}`, `macro $__range_s does not take a format`},
+		{"variable", `${env:bogus}`, `unknown format "bogus" in reference to variable "env"; use one of ` + formats},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data := strings.Replace(minimal, `$__timeFilter(Timestamp)`, c.query, 1)
+			if c.name == "variable" {
+				data = strings.Replace(data, `"panels"`, `"variables": [{"name": "env", "type": "custom", "options": ["a"]}], "panels"`, 1)
+			}
+			issues := parseIssues(t, []byte(data))
+			if len(issues) != 1 || issues[0].Code != spec.CodeInvalidReference || issues[0].Message != c.message {
+				t.Fatalf("got %+v, want one invalid_reference issue: %s", issues, c.message)
 			}
 		})
 	}

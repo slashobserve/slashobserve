@@ -114,6 +114,8 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 		Interval:       interval,
 		ScrapeInterval: d.opts.ScrapeInterval,
 		Variables:      q.Variables,
+		Dashboard:      q.Dashboard,
+		User:           q.User,
 	})
 	if err != nil {
 		return "", err

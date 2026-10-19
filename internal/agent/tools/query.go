@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"maps"
@@ -8,7 +9,9 @@ import (
 	"regexp"
 	"slices"
 	"time"
+	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -34,6 +37,8 @@ const (
 	tableColumnsBudget = 3 << 10
 	tableRowsBudget    = 4 << 10
 	adhocPanelID       = "adhoc"
+	defaultDashTitle   = "Untitled dashboard"
+	maxDashTitleChars  = 200
 )
 
 var (
@@ -118,6 +123,8 @@ type instantInput struct {
 	From       string              `json:"from"`
 	To         string              `json:"to"`
 	Variables  map[string][]string `json:"variables"`
+
+	DashboardTitle string `json:"dashboard_title"`
 }
 
 type rangeInput struct {
@@ -163,6 +170,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	}
 	ctx, cancel := context.WithTimeout(ctx, toolLimits.Timeout+queryGrace)
 	defer cancel()
+	principal, _ := auth.FromContext(ctx)
 	out, err := r.deps.Runner.RunPanel(ctx, queryproxy.Request{
 		Dashboard:     dash,
 		PanelID:       adhocPanelID,
@@ -170,6 +178,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		Selections:    selections,
 		MaxDataPoints: dataPoints,
 		Limits:        toolLimits,
+		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {
 		return datasourceFailure("Ran a query on "+inst.UID, err)
@@ -211,6 +220,9 @@ func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in insta
 	if len(in.Variables) > maxVariables {
 		return nil, nil, invalid("at most %d variables are allowed", maxVariables), false
 	}
+	if utf8.RuneCountInString(in.DashboardTitle) > maxDashTitleChars {
+		return nil, nil, invalid("dashboard_title must be at most %d characters", maxDashTitleChars), false
+	}
 	names := slices.Sorted(maps.Keys(in.Variables))
 	variables := make([]spec.Variable, 0, len(names))
 	selections := make(map[string]queryproxy.Selection, len(names))
@@ -224,7 +236,7 @@ func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in insta
 	}
 	dash := &spec.Dashboard{
 		SpecVersion: spec.Version,
-		Title:       adhocPanelID,
+		Title:       cmp.Or(in.DashboardTitle, defaultDashTitle),
 		Time:        spec.TimeRange{From: "now-1h", To: "now"},
 		Variables:   variables,
 		Panels: []spec.Panel{{
