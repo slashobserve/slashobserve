@@ -46,6 +46,7 @@ const askLabel = "Ask the agent to revise this panel"
 const noAgentNote =
   "No agent is configured on this server, so your comment was saved without a revision request."
 const revisionsButton = /^Revisions/
+const noOpenComments = "No open comments on this panel."
 
 async function createRevisionDashboard(page: Page) {
   const spec = loadEnvelopeSpec()
@@ -60,6 +61,24 @@ function sheet(page: Page) {
 
 function commentChip(page: Page) {
   return sheet(page).getByRole("article").locator("[data-revision-status]")
+}
+
+async function showResolvedComments(page: Page) {
+  await sheet(page)
+    .getByRole("tab", { name: /^Resolved/ })
+    .click()
+}
+
+async function expectCommentResolvedByRevision(page: Page, prompt: string) {
+  await expect(sheet(page).getByText(noOpenComments)).toBeVisible({
+    timeout: agentTimeout,
+  })
+  await showResolvedComments(page)
+  const item = sheet(page).getByRole("article")
+  await expect(item).toHaveCount(1)
+  await expect(item).toContainText(prompt)
+  await expect(item.getByText("Resolved", { exact: true })).toBeVisible()
+  await expect(commentChip(page)).toContainText("Created version 2")
 }
 
 function followUp(page: Page) {
@@ -117,15 +136,8 @@ test.describe("with the replay agent", () => {
     await box.fill(commentPrompt)
     await box.press("Control+Enter")
 
-    const item = sheet(page).getByRole("article")
-    await expect(item).toContainText(commentPrompt)
-    await expect(item.getByRole("status")).toHaveCount(0)
-    await expect(commentChip(page)).toContainText(
-      /Queued for the agent|Agent is working|Created version 2/
-    )
-    await expect(commentChip(page)).toContainText("Created version 2", {
-      timeout: agentTimeout,
-    })
+    await expect(box).toHaveValue("")
+    await expectCommentResolvedByRevision(page, commentPrompt)
     await expect(page.getByText("v2", { exact: true })).toBeVisible()
     expect(
       await page.evaluate(
@@ -178,13 +190,15 @@ test.describe("with the replay agent", () => {
     })
     await box.fill(commentPrompt)
     await box.press("Control+Enter")
-    await expect(sheet(page).getByRole("article")).toContainText(commentPrompt)
+    await expect(box).toHaveValue("")
     await page.keyboard.press("Escape")
     await expect(sheet(page)).toHaveCount(0)
 
     await expect(page.getByText("Revision applied as version 2")).toBeVisible({
       timeout: agentTimeout,
     })
+    await openRpsComments(page)
+    await expectCommentResolvedByRevision(page, commentPrompt)
   })
 
   test("follows a comment's revision that is missing from the newest page", async ({
@@ -200,9 +214,7 @@ test.describe("with the replay agent", () => {
     await expectPanelsReady(page)
 
     await openRpsComments(page)
-    await expect(commentChip(page)).toContainText("Created version 2", {
-      timeout: agentTimeout,
-    })
+    await expectCommentResolvedByRevision(page, commentPrompt)
   })
 
   test("a follow-up prompt produces a new version", async ({ page }) => {
