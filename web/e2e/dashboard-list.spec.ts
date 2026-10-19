@@ -479,6 +479,31 @@ test.describe("on a phone with long filter values", () => {
   })
 })
 
+test("keeps the new tab arrow with the last word of a wrapped title", async ({
+  page,
+}) => {
+  const row = fakeSummary(
+    Array.from({ length: 40 }, (_, index) => `latency${index}`).join(" ")
+  )
+  await page.route(isListRequest, (route) =>
+    route.fulfill({ json: listBody([row]) })
+  )
+  await page.goto("/dashboards")
+  const link = page.getByRole("link", { name: row.title })
+  await expect(link).toBeVisible()
+  const placement = await link.evaluate((element) => {
+    const lines = Array.from(element.getClientRects())
+    const arrow = element.querySelector("svg")!.getBoundingClientRect()
+    const last = lines[lines.length - 1]
+    return {
+      lines: lines.length,
+      onLastLine: arrow.top >= last.top - 2 && arrow.bottom <= last.bottom + 2,
+    }
+  })
+  expect(placement.lines).toBeGreaterThan(1)
+  expect(placement.onLastLine).toBe(true)
+})
+
 test("shows the empty state", async ({ page }) => {
   await page.route(isListRequest, (route) =>
     route.fulfill({ json: listBody([]) })

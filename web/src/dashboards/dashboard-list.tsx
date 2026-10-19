@@ -82,12 +82,12 @@ function DashboardRow({ dashboard }: { dashboard: DashboardSummary }) {
           params={{ dashboardId: dashboard.id }}
           target="_blank"
           rel="noopener"
-          className="inline-flex items-center gap-1 rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           {dashboard.title}
           <ArrowUpRightIcon
             aria-hidden="true"
-            className="size-3.5 flex-none text-muted-foreground"
+            className="ml-1 inline-block size-3.5 align-text-bottom text-muted-foreground"
           />
           <span className="sr-only"> (opens in a new tab)</span>
         </Link>
