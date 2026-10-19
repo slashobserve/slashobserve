@@ -220,10 +220,14 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 	var dash pgtype.UUID
 	observeRunning := make(chan struct{})
 	releaseObserve := make(chan struct{})
-	svc, d = newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+	svc, d = newService(t, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 		if req.Source == revisions.SourceObserve {
 			close(observeRunning)
-			<-releaseObserve
+			select {
+			case <-releaseObserve:
+			case <-ctx.Done():
+				return revisions.Result{}, ctx.Err()
+			}
 			saveVersionFor(t, d, dash, req.ID)
 		}
 		return revisions.Result{Version: 2}, nil
