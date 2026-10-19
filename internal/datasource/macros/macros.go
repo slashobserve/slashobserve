@@ -1,6 +1,7 @@
 package macros
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -18,7 +19,10 @@ const (
 	ClickHouse
 )
 
-const defaultScrapeInterval = 15 * time.Second
+const (
+	defaultScrapeInterval = 15 * time.Second
+	allPlaceholder        = "x"
+)
 
 type Env struct {
 	Range          datasource.TimeRange
@@ -94,7 +98,7 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 func expandText(d Dialect, dsType spec.DatasourceType, query string, env Env) (Expansion, error) {
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
-		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
+		return Expansion{}, scanFailure(err)
 	}
 	lx, err := newLexer(d, query, refs)
 	if err != nil {
@@ -181,7 +185,7 @@ func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Ref
 func ExpandForLint(d Dialect, query string) (Expansion, error) {
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
-		return Expansion{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
+		return Expansion{}, scanFailure(err)
 	}
 	var vars []datasource.Variable
 	for _, ref := range spec.FlattenReferences(refs) {
@@ -216,11 +220,44 @@ func refLabel(ref spec.Reference) string {
 }
 
 func refErrorf(ref spec.Reference, format string, args ...any) error {
-	return datasource.Errorf(datasource.ErrInvalidQuery, "%s at offset %d", fmt.Sprintf(format, args...), ref.Start)
+	return offsetErrorf(ref.Start, fmt.Sprintf(format, args...)+" at offset ", "")
+}
+
+type offsetError struct {
+	*datasource.UpstreamError
+	before, after string
+	offset        int
+}
+
+func offsetErrorf(offset int, before, after string) error {
+	return &offsetError{
+		UpstreamError: &datasource.UpstreamError{Kind: datasource.ErrInvalidQuery, Message: before + strconv.Itoa(offset) + after},
+		before:        before,
+		after:         after,
+		offset:        offset,
+	}
+}
+
+func (e *offsetError) Unwrap() error { return e.UpstreamError }
+
+func shiftOffset(err error, by int) error {
+	var oe *offsetError
+	if errors.As(err, &oe) {
+		return offsetErrorf(oe.offset+by, oe.before, oe.after)
+	}
+	return err
+}
+
+func scanFailure(err error) error {
+	var se *spec.ScanError
+	if errors.As(err, &se) {
+		return offsetErrorf(se.Offset, se.Prefix, "")
+	}
+	return datasource.Errorf(datasource.ErrInvalidQuery, "%s", err)
 }
 
 func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.Reference, c ctx, env Env) (string, error) {
-	args, err := validateMacro(dsType, ref, c)
+	macro, args, err := validateMacro(dsType, ref, c)
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +267,7 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	if out, ok, err := globalMacro(ref, env); ok || err != nil {
 		return out, err
 	}
-	if ref.Name == "__conditionalAll" {
+	if macro.Args == spec.ConditionAndVariable {
 		return expandConditionalAll(d, dsType, ref, args, env)
 	}
 	var out string
@@ -239,7 +276,7 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	case PromQL:
 		out, ok = promMacro(ref.Name, env)
 	case ClickHouse:
-		out, ok = clickHouseMacro(ref.Name, args, env)
+		out, ok = clickHouseMacro(ref.Name, args.Values, env)
 	}
 	if !ok {
 		return "", refErrorf(ref, "macro %s is not implemented", refLabel(ref))
@@ -247,88 +284,57 @@ func expandMacro(d Dialect, dsType spec.DatasourceType, query string, ref spec.R
 	return out, nil
 }
 
-func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) ([]string, error) {
+func validateMacro(dsType spec.DatasourceType, ref spec.Reference, c ctx) (spec.Macro, spec.MacroArguments, error) {
 	idx := slices.IndexFunc(spec.Macros(dsType), func(m spec.Macro) bool { return m.Name == ref.Name })
 	if idx < 0 {
-		return nil, refErrorf(ref, "unknown macro %s", refLabel(ref))
+		return spec.Macro{}, spec.MacroArguments{}, refErrorf(ref, "unknown macro %s", refLabel(ref))
 	}
 	macro := spec.Macros(dsType)[idx]
 	if ref.Format != "" {
 		if err := macro.CheckFormat(ref.Format); err != nil {
-			return nil, refErrorf(ref, "%s", err)
+			return macro, spec.MacroArguments{}, refErrorf(ref, "%s", err)
 		}
 	}
-	if !macro.Function() {
-		switch {
-		case ref.HasArgs:
-			return nil, refErrorf(ref, "macro %s does not take arguments", refLabel(ref))
-		case c.kind != ctxCode && c.kind != ctxString:
-			return nil, refErrorf(ref, "macro %s is not allowed in a quoted identifier", refLabel(ref))
-		}
-		return nil, nil
-	}
-	args, err := macroArgs(macro, ref)
+	args, err := macro.ParseArguments(ref)
 	if err != nil {
-		return nil, err
+		return macro, spec.MacroArguments{}, refErrorf(ref, "%s", err)
 	}
-	if c.kind != ctxCode {
-		return nil, refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
+	switch {
+	case !macro.Function():
+		if c.kind != ctxCode && c.kind != ctxString {
+			return macro, spec.MacroArguments{}, refErrorf(ref, "macro %s is not allowed in a quoted identifier", refLabel(ref))
+		}
+	case c.kind != ctxCode:
+		return macro, spec.MacroArguments{}, refErrorf(ref, "macro %s is only allowed in code", refLabel(ref))
 	}
-	return args, nil
+	return macro, args, nil
 }
 
-func macroArgs(macro spec.Macro, ref spec.Reference) ([]string, error) {
-	if macro.Args == spec.ConditionAndVariable {
-		parsed, err := spec.ParseConditionalAll(ref.Args)
-		if err != nil {
-			return nil, refErrorf(ref, "%s", err)
-		}
-		return []string{parsed.Condition, parsed.Variable}, nil
-	}
-	args := []string{strings.TrimSpace(ref.Args)}
-	want := 1
-	if macro.Args == spec.TwoColumns {
-		args, want = spec.SplitMacroArgs(ref.Args), 2
-	}
-	if !ref.HasArgs || strings.TrimSpace(ref.Args) == "" {
-		return nil, refErrorf(ref, "macro %s requires an argument", refLabel(ref))
-	}
-	if len(args) != want {
-		return nil, refErrorf(ref, "macro %s requires %d column arguments", refLabel(ref), want)
-	}
-	for _, arg := range args {
-		switch {
-		case arg == "":
-			return nil, refErrorf(ref, "macro %s requires an argument", refLabel(ref))
-		case strings.ContainsAny(arg, "$;"):
-			return nil, refErrorf(ref, "macro %s argument must not contain \"$\" or \";\"", refLabel(ref))
-		case !spec.IsColumnArg(arg):
-			return nil, refErrorf(ref, "macro %s argument must be a column name", refLabel(ref))
-		}
-	}
-	return args, nil
-}
-
-func expandConditionalAll(d Dialect, dsType spec.DatasourceType, ref spec.Reference, args []string, env Env) (string, error) {
-	condition, name := args[0], args[1]
+func expandConditionalAll(d Dialect, dsType spec.DatasourceType, ref spec.Reference, args spec.MacroArguments, env Env) (string, error) {
+	condition, name := args.Values[0], args.Values[1]
 	idx := slices.IndexFunc(env.Variables, func(v datasource.Variable) bool { return v.Name == name })
 	if idx < 0 {
 		return "", refErrorf(ref, "unknown variable %s", strconv.Quote("$"+name))
 	}
 	v := env.Variables[idx]
-	if v.All {
-		return "1=1", nil
-	}
-	if len(v.Values) == 0 {
+	if !v.All && len(v.Values) == 0 {
 		return "", refErrorf(ref, "no value selected for %s", strconv.Quote("$"+name))
 	}
-	exp, err := expandText(d, dsType, condition, env)
+	probe := env
+	if v.All {
+		probe.Variables = slices.Clone(env.Variables)
+		probe.Variables[idx] = datasource.Variable{Name: name, Values: []string{allPlaceholder}}
+	}
+	exp, err := expandText(d, dsType, condition, probe)
 	if err != nil {
-		return "", err
+		return "", shiftOffset(err, ref.Start+1+len(ref.Name)+1+args.ConditionOffset)
 	}
 	out := "(" + exp.Text + ")"
 	if !wrapsExactly(out) {
 		return "", refErrorf(ref, "the condition of %s must have balanced parentheses and no comment that reaches the end of it", refLabel(ref))
+	}
+	if v.All {
+		return "1=1", nil
 	}
 	return out, nil
 }

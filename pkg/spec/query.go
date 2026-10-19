@@ -1,9 +1,12 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 type ReferenceKind int
@@ -145,6 +148,19 @@ func VariableFormats() []string {
 
 const maxScanWork = 1 << 22
 
+type ScanError struct {
+	Prefix string
+	Offset int
+}
+
+func (e *ScanError) Error() string {
+	return e.Prefix + strconv.Itoa(e.Offset)
+}
+
+func scanErrorf(offset int, format string, args ...any) *ScanError {
+	return &ScanError{Prefix: fmt.Sprintf(format, args...), Offset: offset}
+}
+
 func ScanQuery(query string) ([]Reference, error) {
 	budget := maxScanWork
 	return scanQuery(query, &budget, false)
@@ -192,19 +208,23 @@ func scanReference(query string, start int, budget *int, inArgs bool) (*Referenc
 	if ref.Kind == MacroRef && strings.HasPrefix(rest[n:], "(") {
 		args, end, ok := matchParen(query, ref.End)
 		if *budget -= matchedBytes(query, ref.End, end, ok); *budget < 0 {
-			return nil, 0, fmt.Errorf("too many unclosed \"(\" in macro arguments; stopped at offset %d", ref.End)
+			return nil, 0, scanErrorf(ref.End, "too many unclosed \"(\" in macro arguments; stopped at offset ")
 		}
 		if !ok && !knownMacro(ref.Name) {
 			return ref, ref.End, nil
 		}
 		if !ok {
-			return nil, 0, fmt.Errorf("unclosed \"(\" at offset %d", ref.End)
+			return nil, 0, scanErrorf(ref.End, "unclosed \"(\" at offset ")
 		}
 		open := ref.End
 		ref.Args, ref.HasArgs, ref.End = args, true, end
 		if macro, known := LookupMacro(ref.Name); known && macro.Args == ConditionAndVariable && !inArgs {
 			nested, err := scanQuery(args, budget, true)
 			if err != nil {
+				var inner *ScanError
+				if errors.As(err, &inner) {
+					return nil, 0, &ScanError{Prefix: fmt.Sprintf("in the arguments of $%s: %s", ref.Name, inner.Prefix), Offset: inner.Offset + open + 1}
+				}
 				return nil, 0, fmt.Errorf("in the arguments of $%s: %w", ref.Name, err)
 			}
 			for i := range nested {
@@ -217,32 +237,69 @@ func scanReference(query string, start int, budget *int, inArgs bool) (*Referenc
 	return ref, ref.End, nil
 }
 
-type ConditionalAll struct {
-	Condition string
-	Variable  string
+type MacroArguments struct {
+	Values          []string
+	ConditionOffset int
 }
 
-func ParseConditionalAll(args string) (ConditionalAll, error) {
-	parts := SplitMacroArgs(args)
+func (m Macro) ParseArguments(ref Reference) (MacroArguments, error) {
+	switch m.Args {
+	case OneColumn:
+		switch args := strings.TrimSpace(ref.Args); {
+		case args == "":
+			return MacroArguments{}, fmt.Errorf("macro $%s needs arguments, for example $%s(column)", m.Name, m.Name)
+		case !IsColumnArg(args):
+			return MacroArguments{}, fmt.Errorf("macro $%s argument must be a column name such as column or table.column", m.Name)
+		default:
+			return MacroArguments{Values: []string{args}}, nil
+		}
+	case TwoColumns:
+		parts := SplitMacroArgs(ref.Args)
+		if len(parts) != 2 || !IsColumnArg(parts[0]) || !IsColumnArg(parts[1]) {
+			return MacroArguments{}, fmt.Errorf("macro $%s needs two column names, for example $%s(date_column, time_column)", m.Name, m.Name)
+		}
+		return MacroArguments{Values: parts}, nil
+	case ConditionAndVariable:
+		return parseConditionAndVariable(m, ref)
+	}
+	if ref.HasArgs {
+		return MacroArguments{}, fmt.Errorf("macro $%s does not take arguments; remove the parentheses", m.Name)
+	}
+	return MacroArguments{}, nil
+}
+
+func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
+	parts := SplitMacroArgs(ref.Args)
 	if len(parts) != 2 || parts[0] == "" {
-		return ConditionalAll{}, fmt.Errorf("macro $__conditionalAll needs a condition and a variable, for example $__conditionalAll(pod IN (${pod:singlequote}), $pod)")
+		return MacroArguments{}, fmt.Errorf("macro $%s needs a condition and a variable, for example $%s(pod IN (${pod:singlequote}), $pod)", m.Name, m.Name)
 	}
 	budget := maxScanWork
 	variable, err := scanQuery(parts[1], &budget, true)
 	if err != nil || len(variable) != 1 || variable[0].Kind != VariableRef || variable[0].Format != "" || variable[0].Start != 0 || variable[0].End != len(parts[1]) {
-		return ConditionalAll{}, fmt.Errorf("the second argument of $__conditionalAll must be one variable reference such as $pod")
+		return MacroArguments{}, fmt.Errorf("the second argument of $%s must be one variable reference such as $pod", m.Name)
 	}
-	condition, err := scanQuery(parts[0], &budget, true)
-	if err != nil {
-		return ConditionalAll{}, err
+	argsAt := ref.Start + 1 + len(ref.Name) + 1
+	conditionAt := len(ref.Args) - len(strings.TrimLeftFunc(ref.Args, unicode.IsSpace))
+	conditionEnd := conditionAt + len(parts[0])
+	for _, nested := range ref.Nested {
+		at := nested.Start - argsAt
+		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !insideOpaque(ref.Args, at) {
+			return MacroArguments{}, fmt.Errorf("$%s cannot be nested", m.Name)
+		}
 	}
-	if slices.ContainsFunc(condition, func(ref Reference) bool {
-		macro, ok := LookupMacro(ref.Name)
-		return ref.Kind == MacroRef && ok && macro.Args == ConditionAndVariable
-	}) {
-		return ConditionalAll{}, fmt.Errorf("$__conditionalAll cannot be nested")
+	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionOffset: conditionAt}, nil
+}
+
+func insideOpaque(s string, offset int) bool {
+	for i := 0; i <= offset && i < len(s); i++ {
+		if end, skipped := skipOpaque(s, i); skipped {
+			if offset <= end {
+				return true
+			}
+			i = end
+		}
 	}
-	return ConditionalAll{Condition: parts[0], Variable: variable[0].Name}, nil
+	return false
 }
 
 func SplitMacroArgs(args string) []string {
@@ -254,9 +311,15 @@ func SplitMacroArgs(args string) []string {
 			continue
 		}
 		switch c := args[i]; {
-		case c == '(':
+		case c == '$' && strings.HasPrefix(args[i+1:], "{"):
+			if end := strings.IndexByte(args[i:], '}'); end >= 0 {
+				i += end
+			} else {
+				i = len(args)
+			}
+		case c == '(', c == '[', c == '{':
 			depth++
-		case c == ')':
+		case c == ')', c == ']', c == '}':
 			depth--
 		case c == ',' && depth == 0:
 			parts = append(parts, strings.TrimSpace(args[from:i]))
@@ -269,7 +332,7 @@ func SplitMacroArgs(args string) []string {
 func scanBraced(query string, start int) (*Reference, int, error) {
 	closing := strings.IndexByte(query[start:], '}')
 	if closing < 0 {
-		return nil, 0, fmt.Errorf("unterminated \"${\" at offset %d", start)
+		return nil, 0, scanErrorf(start, "unterminated \"${\" at offset ")
 	}
 	end := start + closing + 1
 	name, format, hasFormat := strings.Cut(query[start+2:end-1], ":")
@@ -277,7 +340,7 @@ func scanBraced(query string, start int) (*Reference, int, error) {
 		return nil, end, nil
 	}
 	if !validReferenceName(name) || (hasFormat && !validFormatFor(name, format)) {
-		return nil, 0, fmt.Errorf("invalid reference %q at offset %d", query[start:end], start)
+		return nil, 0, scanErrorf(start, "invalid reference %q at offset ", query[start:end])
 	}
 	return &Reference{Kind: referenceKind(name), Name: name, Format: format, Start: start, End: end}, end, nil
 }

@@ -235,9 +235,17 @@ func TestScanQueryManyClosedMacros(t *testing.T) {
 }
 
 func TestScanQueryErrorInsideConditionalAllArguments(t *testing.T) {
-	_, err := spec.ScanQuery(`$__conditionalAll(a = ${x, $v)`)
-	if err == nil || !strings.Contains(err.Error(), "$__conditionalAll") || !strings.Contains(err.Error(), `unterminated "${"`) {
-		t.Fatalf("got error %v", err)
+	for _, c := range []struct{ name, query, want string }{
+		{"unterminated brace", `$__conditionalAll(a = ${x, $v)`, `in the arguments of $__conditionalAll: unterminated "${" at offset 22`},
+		{"unterminated brace after other text", `SELECT 1 WHERE $__conditionalAll(a = ${x, $v)`, `in the arguments of $__conditionalAll: unterminated "${" at offset 37`},
+		{"invalid reference", `SELECT 1 WHERE $__conditionalAll(a = ${x:}, $v)`, `in the arguments of $__conditionalAll: invalid reference "${x:}" at offset 37`},
+		{"unclosed macro", `SELECT 1 WHERE $__conditionalAll(a /* $__timeFilter(ts */, $v)`, `in the arguments of $__conditionalAll: unclosed "(" at offset 51`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := spec.ScanQuery(c.query); err == nil || err.Error() != c.want {
+				t.Fatalf("got error %v, want %q", err, c.want)
+			}
+		})
 	}
 }
 
@@ -257,6 +265,11 @@ func TestSplitMacroArgs(t *testing.T) {
 		{"comma in nested parentheses", `f(a, (b, c)) = 1, $v`, []string{`f(a, (b, c)) = 1`, "$v"}},
 		{"comma in line comment", "a = 1 -- x, y\n, $v", []string{"a = 1 -- x, y", "$v"}},
 		{"comma in block comment", "a = 1 /* x, y */, $v", []string{"a = 1 /* x, y */", "$v"}},
+		{"comma in brackets", `tags = ['a','b'], $v`, []string{`tags = ['a','b']`, "$v"}},
+		{"comma in braces", `m = {'a': 1, 'b': 2}, $v`, []string{`m = {'a': 1, 'b': 2}`, "$v"}},
+		{"comma in nested mixed brackets", `f([(1, 2), {3, 4}], x) = 1, $v`, []string{`f([(1, 2), {3, 4}], x) = 1`, "$v"}},
+		{"comma in a braced reference", `a = ${v:csv}, $v`, []string{`a = ${v:csv}`, "$v"}},
+		{"bracket in a string", `a = '[', $v`, []string{`a = '['`, "$v"}},
 		{"three parts", "a, b, c", []string{"a", "b", "c"}},
 		{"empty parts", ",", []string{"", ""}},
 	}
@@ -283,9 +296,23 @@ func TestFlattenReferencesIsDepthFirst(t *testing.T) {
 	}
 }
 
-func TestParseConditionalAll(t *testing.T) {
-	good, err := spec.ParseConditionalAll(" pod IN (${pod:singlequote}) , ${pod} ")
-	if err != nil || good.Condition != "pod IN (${pod:singlequote})" || good.Variable != "pod" {
+func conditionalAllRef(t *testing.T, args string) (spec.Macro, spec.Reference) {
+	t.Helper()
+	refs, err := spec.ScanQuery("$__conditionalAll(" + args + ")")
+	if err != nil || len(refs) != 1 {
+		t.Fatalf("ScanQuery: %v, %d refs", err, len(refs))
+	}
+	macro, ok := spec.LookupMacro("__conditionalAll")
+	if !ok {
+		t.Fatal("__conditionalAll is not a macro")
+	}
+	return macro, refs[0]
+}
+
+func TestParseConditionalAllArguments(t *testing.T) {
+	macro, ref := conditionalAllRef(t, " pod IN (${pod:singlequote}) , ${pod} ")
+	good, err := macro.ParseArguments(ref)
+	if err != nil || !slices.Equal(good.Values, []string{"pod IN (${pod:singlequote})", "pod"}) || good.ConditionOffset != 1 {
 		t.Fatalf("got %+v, %v", good, err)
 	}
 	for _, c := range []struct{ name, args, message string }{
@@ -298,13 +325,45 @@ func TestParseConditionalAll(t *testing.T) {
 		{"variable and text", "a = 1, $pod x", "must be one variable reference"},
 		{"macro instead of a variable", "a = 1, $__interval", "must be one variable reference"},
 		{"nested", "$__conditionalAll(a, $x), $y", "cannot be nested"},
+		{"nested after other text", "a = 1 AND $__conditionalAll(a, $x), $y", "cannot be nested"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if _, err := spec.ParseConditionalAll(c.args); err == nil || !strings.Contains(err.Error(), c.message) {
+			macro, ref := conditionalAllRef(t, c.args)
+			if _, err := macro.ParseArguments(ref); err == nil || !strings.Contains(err.Error(), c.message) {
 				t.Fatalf("got error %v, want it to contain %q", err, c.message)
 			}
 		})
 	}
+}
+
+func TestParseConditionalAllIgnoresNestingInCommentsAndStrings(t *testing.T) {
+	for _, c := range []struct{ name, args string }{
+		{"line comment", "a = 1 -- $__conditionalAll(b, $x)\n, $y"},
+		{"block comment", "a = 1 /* $__conditionalAll(b, $x) */, $y"},
+		{"single quoted string", "a = '$__conditionalAll(b, $x)', $y"},
+		{"double quoted identifier", `"$__conditionalAll(b, $x)" = 1, $y`},
+		{"backticks", "`$__conditionalAll(b, $x)` = 1, $y"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			macro, ref := conditionalAllRef(t, c.args)
+			got, err := macro.ParseArguments(ref)
+			if err != nil || got.Values[1] != "y" {
+				t.Fatalf("got %+v, %v", got, err)
+			}
+		})
+	}
+	t.Run("code after a comment is still nested", func(t *testing.T) {
+		macro, ref := conditionalAllRef(t, "a = 1 /* x */ AND $__conditionalAll(b, $x), $y")
+		if _, err := macro.ParseArguments(ref); err == nil || !strings.Contains(err.Error(), "cannot be nested") {
+			t.Fatalf("got error %v", err)
+		}
+	})
+	t.Run("code after a string is still nested", func(t *testing.T) {
+		macro, ref := conditionalAllRef(t, "a = 'x' AND $__conditionalAll(b, $x), $y")
+		if _, err := macro.ParseArguments(ref); err == nil || !strings.Contains(err.Error(), "cannot be nested") {
+			t.Fatalf("got error %v", err)
+		}
+	})
 }
 
 func TestScanQueryManyClosedConditionalAlls(t *testing.T) {

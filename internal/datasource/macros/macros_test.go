@@ -1051,6 +1051,49 @@ func TestClickHouseConditionalAll(t *testing.T) {
 		{name: "condition ending in a line comment before more query", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 -- x\n, $pod)\nAND y = 1", env: envWith(val("pod", "a")), err: true},
 		{name: "condition with a trailing block comment", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 /* x */, $pod)", env: envWith(val("pod", "a")), want: "WHERE (a = 1 /* x */)"},
 		{name: "unterminated string in the arguments", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = 'x, $pod)`, env: envWith(val("pod", "a")), err: true},
+		{name: "all selected still validates a quote style that fails", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = '$v' OR b = "$v", $v)`, env: envWith(all("v", "a")), err: true},
+		{name: "all selected still validates a line comment that reaches the end", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 -- x\n, $v)", env: envWith(all("v", "a")), err: true},
+		{name: "all selected still validates the other variables", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = $nope, $v)`, env: envWith(all("v", "a")), err: true},
+		{name: "all selected still validates the other variables values", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a IN (${w:csv}), $v)`, env: envWith(all("v"), val("w", "a b")), err: true},
+		{name: "all selected with a valid condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = '$v' AND b IN (${w:singlequote}), $v)`, env: envWith(all("v"), val("w", "a b")), want: `WHERE 1=1`},
+		{name: "all selected with a non identifier guard value in the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a IN (${v:csv}), $v)`, env: envWith(all("v", "a b")), want: `WHERE 1=1`},
+		{name: "a value that is no identifier fails in code", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a IN (${v:csv}), $v)`, env: envWith(val("v", "a b")), err: true},
+		{name: "array literal in the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(has(['a','b'], svc) AND svc != '$v', $v)`, env: envWith(val("v", "a")), want: `WHERE (has(['a','b'], svc) AND svc != 'a')`},
+		{name: "nested conditional all in a comment of the condition", d: macros.ClickHouse, query: "WHERE $__conditionalAll(a = 1 /* $__conditionalAll(b, $w) */, $v)", env: envWith(val("v", "a")), want: "WHERE (a = 1 /* $__conditionalAll(b, $w) */)"},
+		{name: "nested conditional all in a string of the condition", d: macros.ClickHouse, query: `WHERE $__conditionalAll(a = '$__conditionalAll(b, $w)', $v)`, env: envWith(val("v", "a")), err: true},
 		{name: "prometheus has no conditional all", d: macros.PromQL, query: `up{a="$__conditionalAll(a = 1, $pod)"}`, env: envWith(val("pod", "a")), err: true},
 	})
+}
+
+func TestConditionalAllErrorOffsetsAreAbsolute(t *testing.T) {
+	const prefix = "SELECT 1 WHERE "
+	cases := []struct {
+		name   string
+		query  string
+		marker string
+		env    macros.Env
+	}{
+		{"unknown variable", prefix + `$__conditionalAll(a = $nope, $v)`, "$nope", envWith(val("v", "a"))},
+		{"unknown variable with all selected", prefix + `$__conditionalAll(a = $nope, $v)`, "$nope", envWith(all("v"))},
+		{"unknown variable after a leading space", prefix + `$__conditionalAll(   a = $nope, $v)`, "$nope", envWith(val("v", "a"))},
+		{"unknown variable on a later line", prefix + "$__conditionalAll(a = 1\n AND b = $nope, $v)", "$nope", envWith(val("v", "a"))},
+		{"quoted identifier", prefix + `$__conditionalAll("a$w" = 1, $v)`, "$w", envWith(val("v", "a"), val("w", "b"))},
+		{"boundary crossing", prefix + "$__conditionalAll(d = ${__from:date:YYYY--MM}\n, $v)", "${__from", envWith(val("v", "a"))},
+		{"stray dollar", prefix + "$__conditionalAll(a = $ 1, $v)", "$ 1", envWith(val("v", "a"))},
+		{"heredoc after a reference", prefix + "$__conditionalAll(a = $w$$ x $$, $v)", "$$ x", envWith(val("v", "a"), val("w", "b"))},
+		{"invalid value in code", prefix + "$__conditionalAll(a IN (${w:csv}), $v)", "${w:csv}", envWith(val("v", "a"), val("w", "a b"))},
+		{"fusing neighbour", prefix + "$__conditionalAll(a = 1${w:raw}, $v)", "${w:raw}", envWith(val("v", "a"), val("w", "b"))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := macros.Expand(macros.ClickHouse, tc.query, tc.env)
+			if err == nil {
+				t.Fatal("want an error")
+			}
+			want := "offset " + strconv.Itoa(strings.Index(tc.query, tc.marker))
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("error %q does not contain %q", err, want)
+			}
+		})
+	}
 }

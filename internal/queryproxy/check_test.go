@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -1028,4 +1029,47 @@ func TestCheckSeesReferencesInsideConditionalAll(t *testing.T) {
 			{"/variables/1", CodeVariableUnresolved, `variable "svc" could not be resolved`},
 		})
 	})
+}
+
+func TestCheckSpecExpandsTheConditionOfAConditionalAllSelectingAll(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		bad   bool
+	}{
+		{"a valid condition", `SELECT 1 WHERE $__conditionalAll(svc IN (${svc:singlequote}), $svc)`, false},
+		{"both quote styles around a variable", `SELECT 1 WHERE $__conditionalAll(a = '$svc' OR b = "$svc", $svc)`, true},
+		{"a line comment that reaches the end of the condition", "SELECT 1 WHERE $__conditionalAll(a = 1 -- x\n, $svc)", true},
+		{"an undeclared variable", `SELECT 1 WHERE $__conditionalAll(a = $nope, $svc)`, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("clickhouse")
+			expand := func(q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+				if _, err := macros.Expand(macros.ClickHouse, q.Text, macros.Env{Range: r, Interval: time.Minute, Variables: q.Variables}); err != nil {
+					return nil, err
+				}
+				return dataFrames(), nil
+			}
+			fake.onRange = func(_ context.Context, q datasource.Query, r datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+				return expand(q, r)
+			}
+			fake.onInstant = func(_ context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
+				return expand(q, r)
+			}
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
+			svc := customVariable("svc", "a", "b")
+			svc.IncludeAll, svc.Multi = true, true
+			d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "ch", tt.query)}, svc)
+			issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !tt.bad {
+				assertIssues(t, issues, nil)
+				return
+			}
+			assertIssues(t, issues, []wantIssue{{"/panels/0/queries/0/query", CodeQueryInvalid, ""}})
+		})
+	}
 }
