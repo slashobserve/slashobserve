@@ -261,6 +261,116 @@ test("counts matches", async ({ page, request }) => {
   await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
 })
 
+function filteredList(
+  row: Summary,
+  options: { gate?: Promise<void>; seen?: (q: string | null) => void } = {}
+) {
+  return async (route: Route) => {
+    const params = new URL(route.request().url()).searchParams
+    const filtered = ["q", "made_by", "datasource"].some((name) =>
+      params.has(name)
+    )
+    options.seen?.(params.get("q"))
+    if (params.get("q")?.endsWith("-slow")) await options.gate
+    return route.fulfill({
+      json: filtered
+        ? { dashboards: [], next_cursor: null, total_count: 0 }
+        : { dashboards: [row], next_cursor: "c2", total_count: 7 },
+    })
+  }
+}
+
+test("keeps the no match state while a longer search loads", async ({
+  page,
+}) => {
+  const row = fakeSummary(uniqueTitle("Flicker"))
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  let slowSeen = false
+  await page.route(
+    isListRequest,
+    filteredList(row, { gate, seen: (q) => (slowSeen ||= q === "zz-slow") })
+  )
+  const noMatch = page.getByRole("heading", {
+    name: "No dashboards match these filters.",
+  })
+  const noDashboards = page.getByRole("heading", { name: "No dashboards yet" })
+
+  await page.goto("/dashboards?q=zz")
+  await expect(noMatch).toBeVisible()
+
+  await filterBox(page).fill("zz-slow")
+  await expect.poll(() => slowSeen).toBe(true)
+  await expect(noMatch).toBeVisible()
+  await page.waitForTimeout(300)
+  await expect(noMatch).toBeVisible()
+  await expect(noDashboards).toHaveCount(0)
+
+  release()
+  await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
+  await expect(noMatch).toBeVisible()
+
+  await page.getByRole("button", { name: "Clear filters" }).click()
+  await expect(noDashboards).toHaveCount(0)
+  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+})
+
+test("hides Load more and the count while a new filter loads", async ({
+  page,
+}) => {
+  const row = fakeSummary(uniqueTitle("Stale results"))
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  let slowSeen = false
+  await page.route(
+    isListRequest,
+    filteredList(row, { gate, seen: (q) => (slowSeen ||= q === "x-slow") })
+  )
+  await page.goto("/dashboards")
+  const status = page.getByRole("status").filter({ hasText: /dashboard/ })
+  await expect(status).toHaveText("7 dashboards")
+  await expect(page.getByRole("button", { name: "Load more" })).toBeVisible()
+  await expect(dashboardsCard(page).locator("tbody")).toHaveAttribute(
+    "aria-busy",
+    "false"
+  )
+
+  await filterBox(page).fill("x-slow")
+  await expect.poll(() => slowSeen).toBe(true)
+  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+  await expect(dashboardsCard(page).locator("tbody")).toHaveAttribute(
+    "aria-busy",
+    "true"
+  )
+  await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0)
+  await expect(page.getByText(/^\d+ dashboards?$/)).toHaveCount(0)
+
+  release()
+  await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "No dashboards match these filters." })
+  ).toBeVisible()
+})
+
+test("Clear filters also drops search text that was not applied yet", async ({
+  page,
+}) => {
+  const row = fakeSummary(uniqueTitle("Clear pending"))
+  await page.route(isListRequest, filteredList(row))
+  await page.goto("/dashboards?datasource=no_such_ds")
+  await expect(
+    page.getByRole("heading", { name: "No dashboards match these filters." })
+  ).toBeVisible()
+
+  await filterBox(page).fill("typed but not applied")
+  await page.getByRole("button", { name: "Clear filters" }).click()
+  await expect(filterBox(page)).toHaveValue("")
+  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+  await page.waitForTimeout(600)
+  await expect(filterBox(page)).toHaveValue("")
+  expect(new URL(page.url()).search).toBe("")
+})
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } })
 

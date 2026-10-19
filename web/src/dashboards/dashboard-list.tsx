@@ -198,11 +198,9 @@ function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
         value={search.datasource}
         onChange={(datasource) => onSearchChange({ ...search, datasource })}
       />
-      {total !== undefined ? (
-        <span role="status" className="ml-auto text-xs text-muted-foreground">
-          {countText(total)}
-        </span>
-      ) : null}
+      <span role="status" className="ml-auto text-xs text-muted-foreground">
+        {total !== undefined ? countText(total) : null}
+      </span>
     </div>
   )
 }
@@ -216,11 +214,9 @@ type Props = {
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const query = useDashboardList(search)
   const dashboards = query.data?.pages.flatMap((page) => page.dashboards) ?? []
-  const empty =
-    query.data !== undefined &&
-    !query.isPlaceholderData &&
-    dashboards.length === 0
-  const noDashboards = empty && !hasFilters(search)
+  const empty = query.data !== undefined && dashboards.length === 0
+  const noDashboards = empty && !query.isPlaceholderData && !hasFilters(search)
+  const [resetKey, setResetKey] = useState(0)
   const showTable = query.isPending || dashboards.length > 0
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
@@ -228,6 +224,11 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const loadMoreButton = useRef<HTMLButtonElement>(null)
   const focusFrom = useRef<number | null>(null)
   const rowCount = dashboards.length
+
+  const { q, made_by: madeBy, datasource } = search
+  useEffect(() => {
+    focusFrom.current = null
+  }, [q, madeBy, datasource])
 
   const fetchingNextPage = query.isFetchingNextPage
   useEffect(() => {
@@ -253,9 +254,14 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     <>
       {noDashboards ? null : (
         <FilterRow
+          key={resetKey}
           search={search}
           onSearchChange={onSearchChange}
-          total={query.data?.pages[0].total_count}
+          total={
+            query.isPlaceholderData
+              ? undefined
+              : query.data?.pages[0].total_count
+          }
         />
       )}
       {query.isError && !loadMoreFailed ? (
@@ -288,7 +294,13 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
               <h2 className="text-lg font-semibold">
                 No dashboards match these filters.
               </h2>
-              <Button variant="outline" onClick={() => onSearchChange({})}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setResetKey((key) => key + 1)
+                  onSearchChange({})
+                }}
+              >
                 Clear filters
               </Button>
             </>
@@ -299,7 +311,10 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
         <>
           <TableCard minWidth={760} labelledBy={labelledBy}>
             <ListHeader />
-            <tbody ref={rows} aria-busy={query.isPending}>
+            <tbody
+              ref={rows}
+              aria-busy={query.isPending || query.isPlaceholderData}
+            >
               {query.isPending ? (
                 <SkeletonRows />
               ) : (
@@ -309,7 +324,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
               )}
             </tbody>
           </TableCard>
-          {query.hasNextPage ? (
+          {query.hasNextPage && !query.isPlaceholderData ? (
             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               {loadMoreFailed ? (
                 <p
