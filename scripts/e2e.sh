@@ -2186,7 +2186,7 @@ cli_suite() {
   fi
   pass "observe login validates the key, saves it with mode 600 and does not print it"
 
-  cli_run "log volume by service" --timeout 120s
+  cli_run --timeout 120s "log volume by service"
   url="$(cat "$TMP/cli.out")"
   if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
     fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
@@ -2242,7 +2242,7 @@ cli_suite() {
   cli_expect "observe status" 0 "succeeded" out
   pass "observe --no-wait prints a request id that status --wait and status resolve"
 
-  cli_run "e2e: a slow run that never saves" --timeout 120s
+  cli_run --timeout 120s "e2e: a slow run that never saves"
   cli_expect "a run that never saves" 1 "without saving"
   pass "observe reports a failed agent request and exits 1"
 

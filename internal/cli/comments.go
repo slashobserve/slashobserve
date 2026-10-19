@@ -133,12 +133,15 @@ func commentPreview(body string) string {
 }
 
 func (a *app) commentsReplyCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "reply <dashboard-id> <comment-id> <text...>",
+	cmd := &cobra.Command{
+		Use:   "reply [flags] <dashboard-id> <comment-id> <text...>",
 		Short: "Reply to a comment thread",
+		Long:  "Everything after the two ids is the reply text, flag-like words included, so flags such as --json or -q must come before the ids.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
+	cmd.Flags().SetInterspersed(false)
+	return cmd
 }
 
 func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
