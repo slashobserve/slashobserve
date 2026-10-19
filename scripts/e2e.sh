@@ -1050,7 +1050,7 @@ comment_body() {
 }
 
 comment_ids() {
-  grep -o '{"id":"[^"]*","dashboard_id"' "$1" | cut -d'"' -f4
+  { grep -o '{"id":"[^"]*","dashboard_id"' "$1" || true; } | cut -d'"' -f4
 }
 
 comments_suite() {
