@@ -192,6 +192,7 @@ export type ObserveInput = { prompt: string; dashboardId?: string }
 export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: ({ prompt, dashboardId }: ObserveInput) =>
       api
         .POST("/observe", { body: { prompt, dashboard_id: dashboardId } })
