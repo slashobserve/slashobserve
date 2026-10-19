@@ -9,25 +9,28 @@ import {
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { HistoryIcon, MessageSquareIcon } from "lucide-react"
+import { HistoryIcon } from "lucide-react"
 
 import type { Selections } from "@/api/keys"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { panelRefs } from "@/comments/latest-panels"
-import { isPanelThread, useComments } from "@/comments/queries"
-import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { useComments } from "@/comments/queries"
+import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FollowUpBar } from "@/revisions/follow-up-bar"
 import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
 import { refreshToMs } from "@/lib/time"
+import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
+import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
+import { ActivityToggle } from "./activity-toggle"
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
-import { DashboardToolbar } from "./dashboard-toolbar"
+import { DashboardTopRow } from "./dashboard-top-row"
 import { EditControls, NewerVersionNotice } from "./edit/edit-controls"
 import { useGridEditable, useLayoutStore } from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
@@ -37,6 +40,8 @@ import {
   useDashboardEvents,
   type LiveStatus,
 } from "./live/use-dashboard-events"
+import { downloadSpec } from "./export-spec"
+import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { PanelInspector } from "./panel-inspector"
 import { PanelMenu } from "./panel-menu"
@@ -198,22 +203,8 @@ function DashboardView({
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
   const { comments } = useComments(dashboardId)
-  const openByPanel = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const comment of comments) {
-      if (comment.status !== "open" || !isPanelThread(comment)) continue
-      counts.set(comment.panel_id, (counts.get(comment.panel_id) ?? 0) + 1)
-    }
-    return counts
-  }, [comments])
-  const openTotal = useMemo(
-    () =>
-      comments.reduce(
-        (n, c) => n + (c.status === "open" && isPanelThread(c) ? 1 : 0),
-        0
-      ),
-    [comments]
-  )
+  const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
+  const openTotal = useMemo(() => openThreadCount(comments), [comments])
   const envelopeVersion = envelope.version.version
   const envelopeSpec = useMemo(
     () => asDashboardSpec(envelope.version.spec),
@@ -221,6 +212,7 @@ function DashboardView({
   )
   const session = useLayoutStore((state) => state.session)
   const setLayout = useLayoutStore((state) => state.setLayout)
+  const startLayout = useLayoutStore((state) => state.start)
   const gridBox = useRef<HTMLDivElement>(null)
   const canEdit = useGridEditable(gridBox)
   const editing =
@@ -266,122 +258,130 @@ function DashboardView({
   const refreshValue = search.refresh ?? spec.refresh ?? "off"
   const refreshMs = refreshToMs(refreshValue)
 
+  const pinned = search.version !== undefined
+  const activityOpen = search.tab === "comments" && search.panel === undefined
+
   const controls = [
-    <TimeRangePicker
-      key="time-range"
-      dashboardId={dashboardId}
-      version={version}
-      from={effectiveFrom}
-      to={effectiveTo}
-    />,
-    <RefreshPicker key="refresh" value={refreshValue} />,
+    <div key="time" className="flex items-center gap-1.5">
+      <TimeRangePicker
+        dashboardId={dashboardId}
+        version={version}
+        from={effectiveFrom}
+        to={effectiveTo}
+      />
+      <RefreshPicker value={refreshValue} />
+    </div>,
   ]
   const actions: ReactNode[] = [
-    <LiveIndicator
-      key="live"
-      status={liveStatus}
-      pinned={search.version !== undefined}
-    />,
-    <Button
-      key="comments"
-      variant="outline"
-      data-comments-trigger=""
-      disabled={editing}
-      aria-label={openTotal > 0 ? `Comments, ${openTotal} open` : "Comments"}
-      onClick={() =>
-        setSearch((state) => ({ ...state, panel: undefined, tab: "comments" }))
-      }
-    >
-      <MessageSquareIcon data-icon="inline-start" />
-      Comments
-      {openTotal > 0 ? (
-        <Badge variant="secondary" className="tabular-nums">
-          {openTotal}
-        </Badge>
-      ) : null}
-    </Button>,
+    <LiveIndicator key="live" status={liveStatus} pinned={pinned} />,
     <Link
       key="history"
       to="/dashboards/$dashboardId/versions"
       params={{ dashboardId }}
       search={{ back: backFromSearch(search) }}
-      className={cn(buttonVariants({ variant: "outline" }))}
+      className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
     >
       <HistoryIcon data-icon="inline-start" />
       History
     </Link>,
-    <EditControls
-      key="edit-layout"
-      dashboardId={dashboardId}
-      version={envelopeVersion}
-      spec={envelopeSpec}
-      pinned={search.version !== undefined}
-      canEdit={canEdit}
+    <ThemeSwitch key="theme" />,
+    <MoreMenu
+      key="more"
+      canEditLayout={canEdit && !editing}
+      pinned={pinned}
+      onEditLayout={() =>
+        startLayout(dashboardId, envelopeVersion, envelopeSpec)
+      }
+      onExport={() => downloadSpec(spec, spec.title, version)}
+    />,
+    <ActivityToggle
+      key="activity"
+      pressed={activityOpen}
+      openCount={openTotal}
+      disabled={editing}
+      onToggle={() =>
+        setSearch((state) => ({
+          ...state,
+          panel: undefined,
+          tab: activityOpen ? undefined : "comments",
+        }))
+      }
     />,
   ]
 
   return (
-    <main className="flex flex-1 flex-col">
-      <DashboardToolbar
-        title={spec.title}
-        versionBadge={`v${version}`}
-        controls={controls}
-        actions={actions}
-      />
-      {search.version !== undefined ? (
-        <VersionBanner version={version} latestVersion={latestVersion} />
-      ) : null}
-      {editing ? (
-        <NewerVersionNotice
+    <div className="flex h-svh flex-wrap bg-background text-foreground narrow:h-auto narrow:min-h-svh">
+      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+        <DashboardTopRow
+          title={spec.title}
+          madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+          versionControl={
+            <span className="px-2 text-xs text-muted-foreground">
+              v{version}
+            </span>
+          }
+          controls={controls}
+          editing={<EditControls dashboardId={dashboardId} pinned={pinned} />}
+          actions={actions}
+        />
+        {pinned ? (
+          <VersionBanner version={version} latestVersion={latestVersion} />
+        ) : null}
+        {editing ? (
+          <NewerVersionNotice
+            dashboardId={dashboardId}
+            baseVersion={session.baseVersion}
+            latestVersion={latestVersion}
+          />
+        ) : null}
+        <VariablesBar states={states} />
+        <FollowUpBar
           dashboardId={dashboardId}
-          baseVersion={session.baseVersion}
-          latestVersion={latestVersion}
+          version={version}
+          panels={refs}
+          canAsk={!pinned && !editing}
         />
-      ) : null}
-      <VariablesBar states={states} />
-      <FollowUpBar
-        dashboardId={dashboardId}
-        version={version}
-        panels={refs}
-        canAsk={search.version === undefined && !editing}
-      />
-      <LayoutAnnouncer />
-      <div ref={gridBox} className="flex-1 p-4">
-        <DashboardGrid
-          spec={spec}
-          editable={editing && canEdit}
-          layout={editing ? session.layout : undefined}
-          onLayoutChange={editing ? setLayout : undefined}
-          renderPanel={(panel, size) => (
-            <PanelContainer
-              dashboardId={dashboardId}
-              version={version}
-              panel={panel}
-              width={size.width}
-              height={size.height}
-              from={search.from}
-              to={search.to}
-              selections={selections}
-              selectionsReady={ready}
-              blockedBy={blockedBy}
-              onRetryBlocked={onRetryBlocked}
-              refreshMs={refreshMs}
-              editable={editing && canEdit}
-              layoutSession={editing}
-              openComments={openByPanel.get(panel.id) ?? 0}
-            />
-          )}
-        />
+        <LayoutAnnouncer />
+        <main
+          ref={gridBox}
+          className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
+        >
+          <DashboardGrid
+            spec={spec}
+            editable={editing && canEdit}
+            layout={editing ? session.layout : undefined}
+            onLayoutChange={editing ? setLayout : undefined}
+            renderPanel={(panel, size) => (
+              <PanelContainer
+                dashboardId={dashboardId}
+                version={version}
+                panel={panel}
+                width={size.width}
+                height={size.height}
+                from={search.from}
+                to={search.to}
+                selections={selections}
+                selectionsReady={ready}
+                blockedBy={blockedBy}
+                onRetryBlocked={onRetryBlocked}
+                refreshMs={refreshMs}
+                editable={editing && canEdit}
+                layoutSession={editing}
+                openComments={openByPanel.get(panel.id) ?? 0}
+              />
+            )}
+          />
+        </main>
       </div>
       <PanelInspector
         spec={spec}
         dashboardId={dashboardId}
         version={version}
         latestVersion={latestVersion}
-        pinned={search.version !== undefined}
+        pinned={pinned}
         suspended={editing}
       />
-    </main>
+    </div>
   )
 }
 
@@ -461,24 +461,29 @@ const skeletonPanels = [
 
 export function DashboardPageSkeleton() {
   return (
-    <main className="flex flex-1 flex-col" aria-busy="true">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
-        <Skeleton className="h-7 w-56 animate-none motion-safe:animate-pulse" />
-        <Skeleton className="h-8 w-48 animate-none motion-safe:animate-pulse" />
-      </div>
-      <div className="flex-1 p-4">
-        <div
-          className="grid grid-cols-1 min-[800px]:grid-cols-24"
-          style={{ gridAutoRows: gridRowHeight, gap: gridMargin }}
-        >
-          {skeletonPanels.map((span, index) => (
-            <Skeleton
-              key={index}
-              className={`${span} animate-none motion-safe:animate-pulse`}
-            />
-          ))}
+    <div
+      className="flex h-svh flex-wrap bg-background text-foreground narrow:h-auto narrow:min-h-svh"
+      aria-busy="true"
+    >
+      <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
+          <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
+          <Skeleton className="h-[30px] w-48 animate-none motion-safe:animate-pulse" />
         </div>
+        <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">
+          <div
+            className="grid grid-cols-1 min-[800px]:grid-cols-24"
+            style={{ gridAutoRows: gridRowHeight, gap: gridMargin }}
+          >
+            {skeletonPanels.map((span, index) => (
+              <Skeleton
+                key={index}
+                className={`${span} animate-none motion-safe:animate-pulse`}
+              />
+            ))}
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   )
 }

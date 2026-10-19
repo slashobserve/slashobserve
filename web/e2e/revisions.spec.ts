@@ -526,7 +526,8 @@ test("lists past revisions while the layout is being edited", async ({
   await expectPanelsReady(page)
   await expect(followUp(page)).toBeVisible()
 
-  await page.getByRole("button", { name: "Edit layout" }).click()
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
   await expect(followUp(page)).toHaveCount(0)
   await expectRevisionListed(page)
@@ -654,7 +655,7 @@ test.describe("on a phone", () => {
     await openDashboard(page, id)
     await expectPanelsReady(page)
     await expect(
-      page.getByRole("button", { name: "Comments, 1 open" })
+      page.getByRole("button", { name: "Show activity, 1 open comment" })
     ).toBeVisible()
 
     const field = await followUp(page).boundingBox()
@@ -676,7 +677,7 @@ test.describe("on a phone", () => {
     await openDashboard(page, id, "?version=1")
     await expectPanelsReady(page)
     await expect(
-      page.getByRole("button", { name: "Comments, 1 open" })
+      page.getByRole("button", { name: "Show activity, 1 open comment" })
     ).toBeVisible()
 
     await expect(followUp(page)).toHaveCount(0)

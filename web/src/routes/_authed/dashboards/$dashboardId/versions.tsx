@@ -11,6 +11,7 @@ import { dashboardSearchFromBack, validateBack } from "@/dashboards/search"
 import { useKnownLatestVersion } from "@/history/use-version-history"
 import { VersionDiff } from "@/history/version-diff"
 import { VersionList } from "@/history/version-list"
+import { LegacyHeader } from "@/shell/legacy-header"
 
 type HistorySearch = { from?: number; to?: number; back?: string }
 
@@ -109,38 +110,41 @@ function HistoryRoute() {
     search.from !== undefined || search.to !== undefined || latestVersion >= 2
 
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
-      <Link
-        to="/dashboards/$dashboardId"
-        params={{ dashboardId }}
-        search={dashboardSearchFromBack(search.back)}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ArrowLeftIcon aria-hidden="true" className="size-4" />
-        Back to dashboard
-      </Link>
-      <header className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Version history</h1>
-        <p className="text-sm wrap-anywhere text-muted-foreground">{title}</p>
-      </header>
-      <VersionList
-        dashboardId={dashboardId}
-        latestVersion={latestVersion}
-        back={search.back}
-        onCompare={onCompare}
-        onRestored={onRestored}
-      />
-      {showDiff && latestVersion > 0 ? (
-        <VersionDiff
+    <>
+      <LegacyHeader />
+      <main className="mx-auto w-full max-w-5xl p-6">
+        <Link
+          to="/dashboards/$dashboardId"
+          params={{ dashboardId }}
+          search={dashboardSearchFromBack(search.back)}
+          className="mb-4 inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ArrowLeftIcon aria-hidden="true" className="size-4" />
+          Back to dashboard
+        </Link>
+        <header className="mb-6 flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold">Version history</h1>
+          <p className="text-sm wrap-anywhere text-muted-foreground">{title}</p>
+        </header>
+        <VersionList
           dashboardId={dashboardId}
           latestVersion={latestVersion}
-          from={search.from}
-          to={search.to}
-          focusRequest={focusRequest}
-          onFocused={onFocused}
-          onChange={onRange}
+          back={search.back}
+          onCompare={onCompare}
+          onRestored={onRestored}
         />
-      ) : null}
-    </main>
+        {showDiff && latestVersion > 0 ? (
+          <VersionDiff
+            dashboardId={dashboardId}
+            latestVersion={latestVersion}
+            from={search.from}
+            to={search.to}
+            focusRequest={focusRequest}
+            onFocused={onFocused}
+            onChange={onRange}
+          />
+        ) : null}
+      </main>
+    </>
   )
 }

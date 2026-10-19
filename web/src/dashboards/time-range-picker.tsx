@@ -78,6 +78,7 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
           render={
             <Button
               variant="outline"
+              className="h-[30px]"
               aria-label={`Time range: ${rangeLabel}`}
             />
           }
@@ -148,6 +149,7 @@ export function TimeRangePicker({ dashboardId, version, from, to }: Props) {
       <Button
         variant="outline"
         size="icon"
+        className="size-[30px]"
         aria-label="Refresh now"
         onClick={() =>
           void queryClient.invalidateQueries({

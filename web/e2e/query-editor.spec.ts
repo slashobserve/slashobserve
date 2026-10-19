@@ -750,7 +750,8 @@ function moveHandle(page: Page, title: string) {
 }
 
 async function startLayoutEditing(page: Page) {
-  await page.getByRole("button", { name: "Edit layout" }).click()
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
 }
 

@@ -1,31 +1,15 @@
-import { useState } from "react"
-import { Link, useNavigate, useRouteContext } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { KeyRoundIcon } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { invalidateSession, logout } from "@/lib/auth"
 import { cn } from "@/lib/utils"
+
+import { useSignOut } from "./use-sign-out"
 
 export function LegacyHeader() {
   const { principal } = useRouteContext({ from: "/_authed" })
-  const navigate = useNavigate()
-  const [pending, setPending] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  async function signOut() {
-    setPending(true)
-    setFailed(false)
-    try {
-      await logout()
-      invalidateSession()
-      await navigate({ to: "/login" })
-    } catch {
-      setFailed(true)
-    } finally {
-      setPending(false)
-    }
-  }
+  const { signOut, pending } = useSignOut()
 
   return (
     <header className="flex items-center justify-between gap-4 border-b px-4 py-3 sm:px-6">
@@ -47,11 +31,6 @@ export function LegacyHeader() {
         <span className="truncate max-sm:sr-only">
           {principal.email || principal.name}
         </span>
-        {failed ? (
-          <p role="alert" className="text-destructive">
-            Sign out failed. Try again.
-          </p>
-        ) : null}
         <Button
           variant="outline"
           size="sm"

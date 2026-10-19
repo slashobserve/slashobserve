@@ -10,7 +10,7 @@ export function VariablesBar({ states }: Props) {
   if (states.length === 0) return null
   const variables = states.map((state) => state.variable)
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2">
+    <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
       {states.map((state) => (
         <VariableSelect
           key={state.variable.name}

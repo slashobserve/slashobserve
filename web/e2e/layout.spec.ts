@@ -37,12 +37,13 @@ function liveRegion(page: Page) {
 }
 
 async function startEditing(page: Page) {
-  await page.getByRole("button", { name: "Edit layout" }).click()
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
 }
 
 function editLayoutButton(page: Page) {
-  return page.getByRole("button", { name: "Edit layout" })
+  return page.getByRole("button", { name: /^More/ })
 }
 
 async function recordAnnouncements(page: Page) {
@@ -152,7 +153,7 @@ test("drags and resizes a panel and saves a new version", async ({
     w: 6,
     h: 4,
   })
-  await expect(page.getByRole("button", { name: "Edit layout" })).toBeVisible()
+  await expect(editLayoutButton(page)).toBeVisible()
 })
 
 test("moves and resizes with the keyboard", async ({ page, request }) => {
@@ -340,7 +341,7 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   await page.keyboard.press("ArrowRight")
   await expect(page.getByText("Unsaved changes")).toBeVisible()
 
-  await page.getByRole("link", { name: "SlashObserve" }).click()
+  await page.getByRole("link", { name: "/observe home" }).click()
   const dialog = page.getByRole("alertdialog", {
     name: "Discard unsaved layout changes?",
   })
@@ -372,15 +373,12 @@ test("is unavailable on a pinned old version", async ({ page, request }) => {
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id, "?version=1")
 
-  const edit = page.getByRole("button", { name: "Edit layout" })
-  await expect(edit).toBeDisabled()
-  await page
-    .locator('span[data-slot="tooltip-trigger"]')
-    .filter({ has: edit })
-    .hover()
+  await editLayoutButton(page).click()
   await expect(
-    page.getByText("Open the latest version to edit the layout")
-  ).toBeVisible()
+    page.getByRole("menuitem", {
+      name: "Edit layout (open the latest version first)",
+    })
+  ).toHaveAttribute("aria-disabled", "true")
 })
 
 test("does not block time range changes while editing", async ({
@@ -481,7 +479,6 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await page.goBack()
   await expect(page).toHaveURL(/version=1/)
   await expect(page.getByText("You are viewing version 1.")).toBeVisible()
-  await expect(editLayoutButton(page)).toBeDisabled()
   await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   await expect(page.getByText("Unsaved changes")).toHaveCount(0)
