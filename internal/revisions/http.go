@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -29,6 +31,7 @@ type createRequest struct {
 	Prompt      *string `json:"prompt"`
 	BaseVersion *int    `json:"base_version"`
 	PanelID     *string `json:"panel_id"`
+	CommentID   *string `json:"comment_id"`
 }
 
 type authorJSON struct {
@@ -104,11 +107,21 @@ func (s *Service) createRevision(c *gin.Context) {
 			return
 		}
 	}
+	commentID, ok := threadCommentID(c, req)
+	if !ok {
+		return
+	}
 	if !s.Available() {
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
 		return
 	}
-	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, panelID, prompt, httpapi.Caller(c))
+	var row dbsqlc.AgentRequest
+	var err error
+	if commentID.Valid {
+		row, err = s.SubmitForThread(c.Request.Context(), dashboardID, commentID, req.BaseVersion, prompt, httpapi.Caller(c))
+	} else {
+		row, err = s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, panelID, prompt, httpapi.Caller(c))
+	}
 	if err != nil {
 		s.fail(c, "enqueue revision", err, dashboardAttr(dashboardID))
 		return
@@ -116,6 +129,22 @@ func (s *Service) createRevision(c *gin.Context) {
 	rev := revisionFromRow(row)
 	c.Header("Location", "/api/v1/dashboards/"+rev.DashboardID+"/revisions/"+rev.ID)
 	c.JSON(http.StatusAccepted, envelopeJSON{Revision: newRevisionJSON(rev)})
+}
+
+func threadCommentID(c *gin.Context, req createRequest) (pgtype.UUID, bool) {
+	if req.CommentID == nil {
+		return pgtype.UUID{}, true
+	}
+	id, err := db.ParseUUID(*req.CommentID)
+	if err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "comment_id must be a UUID")
+		return pgtype.UUID{}, false
+	}
+	if req.PanelID != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "send comment_id or panel_id, not both; a thread request uses its thread's panel")
+		return pgtype.UUID{}, false
+	}
+	return id, true
 }
 
 func (s *Service) listRevisions(c *gin.Context) {
@@ -174,7 +203,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	case errors.Is(err, context.Canceled):
 		s.logger.DebugContext(ctx, action+": client went away")
 		c.AbortWithStatus(statusClientClosedRequest)
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())

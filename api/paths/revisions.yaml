@@ -18,6 +18,7 @@ dashboards-id-revisions:
       At most 5 revisions may be queued or running per dashboard.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
       With `panel_id` the agent focuses on that panel.
+      With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
     requestBody:
       required: true
       content:
@@ -40,6 +41,13 @@ dashboards-id-revisions:
                 maxLength: 64
                 nullable: true
                 description: The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard.
+              comment_id:
+                type: string
+                format: uuid
+                nullable: true
+                description: >-
+                  A comment or reply whose thread the agent should address; the request takes the thread's panel, so do not send panel_id with it.
+                  When the request succeeds, the server resolves the thread with resolved_by_version set to the saved version, unless it is already resolved.
     responses:
       "202":
         description: The queued revision.
@@ -59,7 +67,11 @@ dashboards-id-revisions:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
-        $ref: "../openapi.yaml#/components/responses/NotFound"
+        description: The dashboard or the version does not exist, or `comment_id` names no comment on this dashboard.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

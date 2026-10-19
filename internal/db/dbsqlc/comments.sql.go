@@ -152,6 +152,43 @@ func (q *Queries) GetCommentForShare(ctx context.Context, arg GetCommentForShare
 	return i, err
 }
 
+const getCommentThreadRoot = `-- name: GetCommentThreadRoot :one
+SELECT root.id, root.dashboard_id, root.version, root.panel_id, root.body, root.status, root.author_kind, root.author_id, root.author_name, root.author_email, root.resolved_at, root.resolved_by_kind, root.resolved_by_id, root.resolved_by_name, root.created_at, root.updated_at, root.parent_id, root.resolved_by_version FROM dashboard_comments c
+JOIN dashboard_comments root ON root.id = coalesce(c.parent_id, c.id)
+WHERE c.id = $1 AND c.dashboard_id = $2
+`
+
+type GetCommentThreadRootParams struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+}
+
+func (q *Queries) GetCommentThreadRoot(ctx context.Context, arg GetCommentThreadRootParams) (DashboardComment, error) {
+	row := q.db.QueryRow(ctx, getCommentThreadRoot, arg.ID, arg.DashboardID)
+	var i DashboardComment
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Version,
+		&i.PanelID,
+		&i.Body,
+		&i.Status,
+		&i.AuthorKind,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorEmail,
+		&i.ResolvedAt,
+		&i.ResolvedByKind,
+		&i.ResolvedByID,
+		&i.ResolvedByName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
+	)
+	return i, err
+}
+
 const listComments = `-- name: ListComments :many
 SELECT c.id, c.dashboard_id, c.version, c.panel_id, c.body, c.status, c.author_kind, c.author_id, c.author_name, c.author_email, c.resolved_at, c.resolved_by_kind, c.resolved_by_id, c.resolved_by_name, c.created_at, c.updated_at, c.parent_id, c.resolved_by_version, coalesce(root.status, c.status)::text AS thread_status
 FROM dashboard_comments c
@@ -224,6 +261,61 @@ func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]L
 		return nil, err
 	}
 	return items, nil
+}
+
+const resolveThreadForAgentRequest = `-- name: ResolveThreadForAgentRequest :one
+UPDATE dashboard_comments
+SET status = 'resolved',
+  resolved_at = now(),
+  resolved_by_kind = $1::text,
+  resolved_by_id = $2::uuid,
+  resolved_by_name = $3::text,
+  resolved_by_version = $4::integer,
+  updated_at = now()
+WHERE id = $5 AND dashboard_id = $6 AND parent_id IS NULL AND status = 'open'
+RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version
+`
+
+type ResolveThreadForAgentRequestParams struct {
+	ResolvedByKind    string
+	ResolvedByID      pgtype.UUID
+	ResolvedByName    string
+	ResolvedByVersion int32
+	ID                pgtype.UUID
+	DashboardID       pgtype.UUID
+}
+
+func (q *Queries) ResolveThreadForAgentRequest(ctx context.Context, arg ResolveThreadForAgentRequestParams) (DashboardComment, error) {
+	row := q.db.QueryRow(ctx, resolveThreadForAgentRequest,
+		arg.ResolvedByKind,
+		arg.ResolvedByID,
+		arg.ResolvedByName,
+		arg.ResolvedByVersion,
+		arg.ID,
+		arg.DashboardID,
+	)
+	var i DashboardComment
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Version,
+		&i.PanelID,
+		&i.Body,
+		&i.Status,
+		&i.AuthorKind,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorEmail,
+		&i.ResolvedAt,
+		&i.ResolvedByKind,
+		&i.ResolvedByID,
+		&i.ResolvedByName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
+	)
+	return i, err
 }
 
 const setCommentStatus = `-- name: SetCommentStatus :one

@@ -647,7 +647,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: The version that fixed the thread, when the resolver named one. Always null on a reply.
+          description: The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply.
         panel_present:
           type: boolean
           description: Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment.

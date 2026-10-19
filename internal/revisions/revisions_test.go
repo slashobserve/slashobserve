@@ -613,6 +613,34 @@ func TestExhaustedRequestWithASavedVersionSucceeds(t *testing.T) {
 	}
 }
 
+func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) {
+	svc, d := newService(t, succeedWith(9))
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 2)
+	root, err := d.Queries().CreateComment(ctx, dbsqlc.CreateCommentParams{
+		DashboardID: dash, Version: 1, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saveVersionFor(t, d, dash, row.ID.String())
+	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
+	got, err := d.Queries().GetComment(ctx, dbsqlc.GetCommentParams{ID: root.ID, DashboardID: dash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "resolved" || got.ResolvedByVersion.Int32 != 2 {
+		t.Fatalf("thread = %+v", got)
+	}
+}
+
 func TestExpiredRunningRequestIsRetriedBeforeANewerOneOfItsDashboard(t *testing.T) {
 	var mu sync.Mutex
 	var order []string
@@ -901,5 +929,84 @@ func TestListPagesNewestFirst(t *testing.T) {
 	}
 	if _, _, err := svc.List(context.Background(), dash, 3, "!!!"); !errors.Is(err, revisions.ErrInvalidCursor) {
 		t.Fatalf("bad cursor: %v", err)
+	}
+}
+
+func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		if req.Prompt == "fail" {
+			return revisions.Result{}, errors.New("model call failed")
+		}
+		return revisions.Result{Version: 2}, nil
+	}))
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 2)
+	author := mustUUID(t, userID)
+	newComment := func(parent pgtype.UUID) dbsqlc.DashboardComment {
+		t.Helper()
+		params := dbsqlc.CreateCommentParams{
+			DashboardID: dash, Version: 1, Body: "split by route", AuthorKind: "user", AuthorID: author, AuthorName: "Ada", ParentID: parent,
+		}
+		if !parent.Valid {
+			params.PanelID = pgtype.Text{String: "p1", Valid: true}
+		}
+		row, err := d.Queries().CreateComment(ctx, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return row
+	}
+	thread := func(id pgtype.UUID) dbsqlc.DashboardComment {
+		t.Helper()
+		row, err := d.Queries().GetComment(ctx, dbsqlc.GetCommentParams{ID: id, DashboardID: dash})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return row
+	}
+	sendFromThread := func(comment pgtype.UUID, prompt string) revisions.Revision {
+		t.Helper()
+		row, err := svc.SubmitForThread(ctx, dash, comment, nil, prompt, user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return get(t, svc, dash, row.ID.String())
+	}
+
+	root := newComment(pgtype.UUID{})
+	reply := newComment(root.ID)
+	rev := sendFromThread(reply.ID, "go")
+	if rev.Source != revisions.SourceComment || rev.CommentID != root.ID.String() || rev.PanelID != "p1" || rev.BaseVersion == nil || *rev.BaseVersion != 2 {
+		t.Fatalf("enqueued revision = %+v", rev)
+	}
+	if _, err := svc.SubmitForThread(ctx, dash, mustUUID(t, "00000000-0000-0000-0000-000000000000"), nil, "go", user); !errors.Is(err, revisions.ErrCommentNotFound) {
+		t.Fatalf("unknown comment: %v", err)
+	}
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+	resolved := thread(root.ID)
+	if resolved.Status != "resolved" || !resolved.ResolvedByVersion.Valid || resolved.ResolvedByVersion.Int32 != 2 || resolved.ResolvedByName.String != "Ada" || resolved.ResolvedByKind.String != "user" || !resolved.ResolvedAt.Valid {
+		t.Fatalf("thread after the request succeeded = %+v", resolved)
+	}
+	if got := thread(reply.ID); got.ResolvedByVersion.Valid {
+		t.Fatalf("a reply carries resolved_by_version: %+v", got)
+	}
+
+	other := newComment(pgtype.UUID{})
+	failedOther := sendFromThread(other.ID, "fail")
+	waitForStatus(t, svc, dash, failedOther.ID, revisions.StatusFailed)
+	if row := thread(other.ID); row.Status != "open" || row.ResolvedByVersion.Valid {
+		t.Fatalf("a failed request touched the thread: %+v", row)
+	}
+
+	earlier := newComment(pgtype.UUID{})
+	d.Exec(t, "UPDATE dashboard_comments SET status = 'resolved', resolved_at = now(), resolved_by_kind = 'user', resolved_by_id = $2, resolved_by_name = 'Grace', resolved_by_version = 1 WHERE id = $1", earlier.ID, author)
+	before := thread(earlier.ID)
+	again := sendFromThread(earlier.ID, "go")
+	waitForStatus(t, svc, dash, again.ID, revisions.StatusSucceeded)
+	after := thread(earlier.ID)
+	if after.ResolvedByName.String != "Grace" || after.ResolvedByVersion.Int32 != 1 || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
+		t.Fatalf("an already resolved thread changed: before %+v, after %+v", before, after)
 	}
 }

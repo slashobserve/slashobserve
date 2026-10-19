@@ -496,7 +496,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -865,7 +865,7 @@ export interface components {
             /** Format: date-time */
             resolved_at: string | null;
             resolved_by: components["schemas"]["Author"] | null;
-            /** @description The version that fixed the thread, when the resolver named one. Always null on a reply. */
+            /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
             resolved_by_version: number | null;
             /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment. */
             panel_present: boolean;
@@ -2294,6 +2294,11 @@ export interface operations {
                     base_version: number;
                     /** @description The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard. */
                     panel_id?: string | null;
+                    /**
+                     * Format: uuid
+                     * @description A comment or reply whose thread the agent should address; the request takes the thread's panel, so do not send panel_id with it. When the request succeeds, the server resolves the thread with resolved_by_version set to the saved version, unless it is already resolved.
+                     */
+                    comment_id?: string | null;
                 };
             };
         };
@@ -2311,7 +2316,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description The dashboard or the version does not exist, or `comment_id` names no comment on this dashboard. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The panel does not exist in the latest version (`unknown_panel`). */
             422: {
