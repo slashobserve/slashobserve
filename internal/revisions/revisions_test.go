@@ -932,15 +932,46 @@ func TestListPagesNewestFirst(t *testing.T) {
 	}
 }
 
+func saveNextVersion(ctx context.Context, t *testing.T, d *dbtest.Database, req revisions.Request) (int, error) {
+	dash, err := db.ParseUUID(req.DashboardID)
+	if err != nil {
+		return 0, err
+	}
+	latest, err := d.Queries().GetDashboardLatestVersion(ctx, dash)
+	if err != nil {
+		return 0, err
+	}
+	requestID, err := db.ParseUUID(req.ID)
+	if err != nil {
+		return 0, err
+	}
+	author, err := db.ParseUUID(userID)
+	if err != nil {
+		return 0, err
+	}
+	next := latest + 1
+	if _, err := d.Queries().InsertDashboardVersion(ctx, dbsqlc.InsertDashboardVersionParams{
+		DashboardID: dash, Version: next, ParentVersion: pgtype.Int4{Int32: latest, Valid: true}, Spec: []byte(`{}`), Summary: "s",
+		AuthorKind: "user", AuthorID: author, AuthorName: "Ada", AgentRequestID: requestID,
+	}); err != nil {
+		return 0, err
+	}
+	d.Exec(t, "UPDATE dashboards SET latest_version = $2 WHERE id = $1", dash, next)
+	return int(next), nil
+}
+
 func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *testing.T) {
-	svc, d := newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+	var d *dbtest.Database
+	var svc *revisions.Service
+	svc, d = newService(t, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 		if req.Prompt == "fail" {
 			return revisions.Result{}, errors.New("model call failed")
 		}
-		return revisions.Result{Version: 2}, nil
+		version, err := saveNextVersion(ctx, t, d, req)
+		return revisions.Result{Version: version}, err
 	}))
 	ctx := context.Background()
-	dash := seedDashboard(t, d, 2)
+	dash := seedDashboard(t, d, 3)
 	author := mustUUID(t, userID)
 	newComment := func(parent pgtype.UUID) dbsqlc.DashboardComment {
 		t.Helper()
@@ -964,9 +995,11 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 		}
 		return row
 	}
+	firstVersion := 1
+	baseVersion := &firstVersion
 	sendFromThread := func(comment pgtype.UUID, prompt string) revisions.Revision {
 		t.Helper()
-		row, err := svc.SubmitForThread(ctx, dash, comment, nil, prompt, user)
+		row, err := svc.SubmitForThread(ctx, dash, comment, baseVersion, prompt, user)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -976,7 +1009,7 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 	root := newComment(pgtype.UUID{})
 	reply := newComment(root.ID)
 	rev := sendFromThread(reply.ID, "go")
-	if rev.Source != revisions.SourceComment || rev.CommentID != root.ID.String() || rev.PanelID != "p1" || rev.BaseVersion == nil || *rev.BaseVersion != 2 {
+	if rev.Source != revisions.SourceComment || rev.CommentID != root.ID.String() || rev.PanelID != "p1" || rev.BaseVersion == nil || *rev.BaseVersion != 1 {
 		t.Fatalf("enqueued revision = %+v", rev)
 	}
 	if _, err := svc.SubmitForThread(ctx, dash, mustUUID(t, "00000000-0000-0000-0000-000000000000"), nil, "go", user); !errors.Is(err, revisions.ErrCommentNotFound) {
@@ -986,7 +1019,7 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
 	resolved := thread(root.ID)
-	if resolved.Status != "resolved" || !resolved.ResolvedByVersion.Valid || resolved.ResolvedByVersion.Int32 != 2 || resolved.ResolvedByName.String != "Ada" || resolved.ResolvedByKind.String != "user" || !resolved.ResolvedAt.Valid {
+	if resolved.Status != "resolved" || !resolved.ResolvedByVersion.Valid || resolved.ResolvedByVersion.Int32 != 4 || resolved.ResolvedByName.String != "Ada" || resolved.ResolvedByKind.String != "user" || !resolved.ResolvedAt.Valid {
 		t.Fatalf("thread after the request succeeded = %+v", resolved)
 	}
 	if got := thread(reply.ID); got.ResolvedByVersion.Valid {
