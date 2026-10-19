@@ -151,6 +151,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("author id: %w", err)
 	}
+	originKind, originClient := in.origin.Columns()
 	params := dbsqlc.InsertDashboardVersionParams{
 		DashboardID:    in.dashboardID,
 		Version:        httpapi.Int32(number),
@@ -161,8 +162,8 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		AuthorName:     in.author.Name,
 		AuthorEmail:    pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
 		AgentRequestID: in.requestID,
-		Origin:         pgtype.Text{String: string(in.origin.Kind), Valid: in.origin.Kind != ""},
-		OriginClient:   pgtype.Text{String: in.origin.Client, Valid: in.origin.Kind == origin.MCP && in.origin.Client != ""},
+		Origin:         originKind,
+		OriginClient:   originClient,
 	}
 	if number > 1 {
 		params.ParentVersion = pgtype.Int4{Int32: httpapi.Int32(in.parent), Valid: true}

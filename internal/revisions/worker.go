@@ -207,9 +207,7 @@ func (w *Worker) revise(ctx context.Context, req Request) (result Result, err er
 			result, err = Result{}, errCrashed
 		}
 	}()
-	if req.Origin.Kind != "" {
-		ctx = origin.With(ctx, req.Origin)
-	}
+	ctx = origin.With(ctx, req.Origin)
 	return w.service.reviser.Revise(ctx, req)
 }
 

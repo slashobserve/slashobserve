@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -24,6 +25,12 @@ const MaxClientRunes = 64
 type Origin struct {
 	Kind   Kind
 	Client string
+}
+
+func (o Origin) Columns() (kind, client pgtype.Text) {
+	kind = pgtype.Text{String: string(o.Kind), Valid: o.Kind != ""}
+	client = pgtype.Text{String: o.Client, Valid: o.Kind == MCP && o.Client != ""}
+	return kind, client
 }
 
 type contextKey struct{}

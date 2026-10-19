@@ -81,7 +81,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if active >= MaxActive {
 		return dbsqlc.AgentRequest{}, ErrTooManyRevisions
 	}
-	originKind, originClient := originColumns(ctx)
+	originKind, originClient := origin.From(ctx).Columns()
 	row, err := q.EnqueueAgentRequest(ctx, dbsqlc.EnqueueAgentRequestParams{
 		DashboardID:      p.DashboardID,
 		Source:           string(p.Source),
@@ -139,7 +139,7 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
-	originKind, originClient := originColumns(ctx)
+	originKind, originClient := origin.From(ctx).Columns()
 	var row dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := q.LockObserveRequests(ctx); err != nil {
@@ -354,13 +354,6 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 		return fmt.Errorf("notify event: %w", err)
 	}
 	return nil
-}
-
-func originColumns(ctx context.Context) (kind, client pgtype.Text) {
-	o := origin.From(ctx)
-	kind = pgtype.Text{String: string(o.Kind), Valid: o.Kind != ""}
-	client = pgtype.Text{String: o.Client, Valid: o.Kind == origin.MCP && o.Client != ""}
-	return kind, client
 }
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
