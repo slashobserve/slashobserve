@@ -27,6 +27,8 @@ dashboards-id-versions-version-panels-panel-id-data:
       Each variable selection is a repeated `var-<name>` parameter, for example `var-pod=a&var-pod=b`,
       and the single value `$__all` selects All; OpenAPI 3.0 cannot describe a parameter family, so these are not listed below.
       A variable that is not given gets its default, and a request for an undeclared variable is a 400.
+      An interval variable accepts `$__auto` when its `auto` is set, a constant accepts only its value, and a textbox accepts one value, an empty one included.
+      An adhoc variable takes repeated `var-<name>=key|op|value` filters (at most 20) with `=`, `!=`, `=~` or `!~`, split at the first two `|`.
       `from` and `to` accept a Spec time expression such as `now-6h`, an RFC 3339 time or epoch milliseconds,
       default to the version's `time`, and may span at most 400 days.
       A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds;
@@ -135,6 +137,8 @@ dashboards-id-versions-version-variables-name-values:
     summary: List the values of one variable in one dashboard version.
     description: >-
       A custom variable returns its options without an upstream call.
+      A constant returns its value, an interval variable its options with `$__auto` first when `auto` is set, and a datasource variable the uids of the configured datasources of its type;
+      a textbox variable lists nothing, and an adhoc variable has no list, so asking for it is a 400.
       A query variable runs its saved query with the selections of the variables declared before it, given as repeated `var-<name>` parameters
       (not listed below, see the panel data operation); an earlier variable without a selection gets its default,
       and a selection for the listed variable or a later one is a 400.

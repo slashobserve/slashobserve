@@ -343,6 +343,11 @@ func (r *Runner) prepare(ctx context.Context, req Request, lists map[string]allL
 		return nil, err
 	}
 	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
+	if inst.Datasource.Type() == string(spec.Prometheus) {
+		if dq.Filters, err = r.implicitFilters(req.Dashboard, req.Selections, inst.UID); err != nil {
+			return nil, err
+		}
+	}
 	pq := &preparedQuery{inst: inst, kind: QueryKind(panel, q)}
 	if pq.kind == KindRange {
 		pq.step = QueryStep(baseStep, panel, q)

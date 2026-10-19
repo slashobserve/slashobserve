@@ -101,11 +101,14 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {
 	badVariables = make([]bool, len(d.Variables))
 	badQueries = map[string][]bool{}
-	for i, v := range d.Variables {
-		if v.Type != spec.QueryVariable || v.Datasource == "" {
-			continue
+	adhoc := map[string]bool{}
+	for _, v := range d.Variables {
+		if v.Type == spec.AdhocVariable {
+			adhoc[v.Name] = true
 		}
-		found := r.checkRef(itemPath("variables", i)+"/datasource", v.Datasource, itemPath("variables", i)+"/query", v.Query)
+	}
+	for i, v := range d.Variables {
+		found := r.checkVariableDatasource(i, v)
 		badVariables[i] = len(found) > 0
 		issues = append(issues, found...)
 	}
@@ -117,7 +120,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 			if q.Datasource != "" {
 				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
 			}
-			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query)
+			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
 			bad[j] = len(found) > 0
 			if q.Datasource == "" && len(found) == 1 && found[0].Path == base {
 				if panelDatasourceReported {
@@ -132,7 +135,39 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 	return issues, badVariables, badQueries
 }
 
-func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
+func (r *Runner) checkVariableDatasource(i int, v spec.Variable) []spec.Issue {
+	path := itemPath("variables", i)
+	switch v.Type {
+	case spec.QueryVariable:
+		if v.Datasource != "" {
+			return r.checkRef(path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
+		}
+	case spec.AdhocVariable:
+		if _, err := r.instance(v.Datasource); err != nil {
+			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
+		}
+	case spec.DatasourceVariable:
+		return r.checkDatasourceDefault(path+"/default", v)
+	}
+	return nil
+}
+
+func (r *Runner) checkDatasourceDefault(path string, v spec.Variable) []spec.Issue {
+	uid := declaredValue(v)
+	if uid == "" {
+		return nil
+	}
+	inst, err := r.instance(uid)
+	switch {
+	case err != nil:
+		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
+	case inst.Datasource.Type() != string(v.DatasourceType):
+		return []spec.Issue{issue(path, spec.CodeInvalidDefault, "default %q of variable %q is not a %s datasource", uid, v.Name, v.DatasourceType)}
+	}
+	return nil
+}
+
+func (r *Runner) checkRef(path, uid, queryAt, query string, adhoc map[string]bool) []spec.Issue {
 	inst, err := r.instance(uid)
 	if errors.Is(err, ErrUnknownDatasource) {
 		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
@@ -146,6 +181,10 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	var issues []spec.Issue
 	reported := map[string]bool{}
 	for _, ref := range spec.FlattenReferences(refs) {
+		if ref.Kind == spec.VariableRef && adhoc[ref.Name] && dsType == string(spec.Prometheus) && !reported["$"+ref.Name] {
+			reported["$"+ref.Name] = true
+			issues = append(issues, issue(queryAt, spec.CodeInvalidReference, "adhoc variable %q applies to every query on its datasource and cannot be referenced", ref.Name))
+		}
 		if ref.Kind != spec.MacroRef || reported[ref.Name] {
 			continue
 		}
@@ -175,7 +214,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
 		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
 		listReported := false
-		if err == nil && sel.All {
+		if err == nil && sel.All && v.AllValue == "" {
 			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
 				if guardOnly[v.Name] {
 					issues = append(issues, variableIssue(path, listErr))
@@ -186,7 +225,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			}
 		}
 		if err == nil && !listReported {
-			err = checkSelection(v, sel)
+			err = r.checkSelection(v, sel)
 		}
 		cancel()
 		if err != nil {

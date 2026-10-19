@@ -1137,3 +1137,75 @@ func TestCheckSpecExpandsTheConditionOfAConditionalAllSelectingAll(t *testing.T)
 		})
 	}
 }
+
+func TestCheckSpecNewVariableTypes(t *testing.T) {
+	auto := intervalVariable("iv", "1m", "5m")
+	auto.Auto = true
+	panels := func(query string) []spec.Panel {
+		return []spec.Panel{panelOf("p0", spec.Timeseries, "prom", query)}
+	}
+	tests := []struct {
+		name      string
+		panels    []spec.Panel
+		variables []spec.Variable
+		want      []wantIssue
+	}{
+		{
+			name:   "every new type resolves without a variable call",
+			panels: panels(`up{job="$c", pod="$tb", instance="${dsv}", env="${iv}"}`),
+			variables: []spec.Variable{
+				constantVariable("c", "shop"), withDefault(textboxVariable("tb"), "hello"), auto,
+				withDefault(datasourceVariable("dsv", spec.Prometheus), "prom"), adhocVariable("f", "prom"),
+			},
+		},
+		{
+			name:      "adhoc variable on an unknown datasource",
+			panels:    panels("up"),
+			variables: []spec.Variable{adhocVariable("f", "missing")},
+			want:      []wantIssue{{"/variables/0/datasource", CodeUnknownDatasource, `datasource "missing" is not configured`}},
+		},
+		{
+			name:      "datasource variable default on an unknown datasource",
+			panels:    panels("up"),
+			variables: []spec.Variable{withDefault(datasourceVariable("dsv", spec.Prometheus), "missing")},
+			want:      []wantIssue{{"/variables/0/default", CodeUnknownDatasource, `datasource "missing" is not configured`}},
+		},
+		{
+			name:      "datasource variable default of the wrong type",
+			panels:    panels("up"),
+			variables: []spec.Variable{withDefault(datasourceVariable("dsv", spec.ClickHouse), "prom")},
+			want:      []wantIssue{{"/variables/0/default", spec.CodeInvalidDefault, ""}},
+		},
+		{
+			name:      "datasource variable default that its regex drops",
+			panels:    panels("up"),
+			variables: []spec.Variable{withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/^nope$/"; return v }(), "prom")},
+			want:      []wantIssue{{"/variables/0", CodeVariableEmpty, ""}},
+		},
+		{
+			name:      "adhoc variable referenced by a Prometheus query",
+			panels:    panels(`up{job="$f"}`),
+			variables: []spec.Variable{adhocVariable("f", "prom")},
+			want:      []wantIssue{{"/panels/0/queries/0/query", spec.CodeInvalidReference, ""}},
+		},
+		{
+			name:      "adhoc variable referenced by a ClickHouse query",
+			panels:    []spec.Panel{panelOf("p0", spec.Table, "ch", "SELECT 1 WHERE $f")},
+			variables: []spec.Variable{adhocVariable("f", "ch")},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prom, ch := newFake("prometheus"), newFake("clickhouse")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom, "ch": ch})
+			issues, err := runner.CheckSpec(t.Context(), dashboardOf(tt.panels, tt.variables...), testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatalf("CheckSpec error: %v", err)
+			}
+			assertIssues(t, issues, tt.want)
+			if n := len(prom.callsTo("variable")) + len(ch.callsTo("variable")); n != 0 {
+				t.Fatalf("variable calls = %d, want none", n)
+			}
+		})
+	}
+}
