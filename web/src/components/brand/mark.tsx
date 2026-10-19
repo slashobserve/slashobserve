@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils"
 
+export const slashPath = "M14.6 5.6 9.4 18.4"
+
 type Props = { size?: number; variant?: "ink" | "brand"; className?: string }
 
 export function Mark({ size = 22, variant = "ink", className }: Props) {
@@ -19,7 +21,7 @@ export function Mark({ size = 22, variant = "ink", className }: Props) {
         className={variant === "brand" ? "fill-brand" : "fill-foreground"}
       />
       <path
-        d="M14.6 5.6 9.4 18.4"
+        d={slashPath}
         strokeWidth="2.6"
         strokeLinecap="round"
         fill="none"
