@@ -57,7 +57,7 @@ func TestFormatTimeMacro(t *testing.T) {
 		{"ZZ", morning, "date:ZZ", "+0000"},
 		{"Z", morning, "date:Z", "+00:00"},
 		{"padded and unpadded differ", morning, "date:MM/M DD/D HH/H mm/m ss/s", "03/3 05/5 07/7 08/8 09/9"},
-		{"longest token wins", morning, "date:YYYYYY", "202626"},
+		{"adjacent different tokens", morning, "date:YYYYMMDDHHmmss", "20260305070809"},
 		{"literals", morning, "date:YYYY-MM-DDTHH:mm:ss.SSS_/, 12", "2026-03-05T07:08:09.045_/, 12"},
 		{"full timestamp", afternoon, "date:YYYY-MM-DD HH:mm:ss", "2026-12-25 15:04:05"},
 		{"twelve hour clock", afternoon, "date:h:mm A", "3:04 PM"},
@@ -91,7 +91,23 @@ func TestInvalidTimeMacroFormats(t *testing.T) {
 		"date:YYYY*",
 		"date:é",
 		"date:iso:x",
-		"date:" + strings.Repeat("Y", 65),
+		"date:" + strings.Repeat("YYYY-", 13),
+		"date:YYY",
+		"date:YYYYYY",
+		"date:MMMMM",
+		"date:DDD",
+		"date:DDDD",
+		"date:hhh",
+		"date:mmm",
+		"date:sss",
+		"date:SSSS",
+		"date:HHH",
+		"date:ZZZ",
+		"date:AA",
+		"date:aa",
+		"date:XX",
+		"date:xx",
+		"date:YYYY-MM-DDD",
 		"DATE",
 		"seconds",
 	} {
@@ -107,7 +123,7 @@ func TestInvalidTimeMacroFormats(t *testing.T) {
 			}
 		})
 	}
-	if !spec.ValidTimeMacroFormat("date:" + strings.Repeat("Y", 64)) {
+	if !spec.ValidTimeMacroFormat("date:" + strings.Repeat("YYYY-", 12)+"YYYY") {
 		t.Fatal("a 64 byte pattern must be valid")
 	}
 }

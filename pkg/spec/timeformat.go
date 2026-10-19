@@ -130,8 +130,12 @@ func parseDatePattern(pattern string) ([]datePart, bool) {
 }
 
 func matchDateToken(s string) *dateToken {
+	run := 1
+	for run < len(s) && s[run] == s[0] {
+		run++
+	}
 	for i := range dateTokens {
-		if strings.HasPrefix(s, dateTokens[i].name) {
+		if dateTokens[i].name == s[:run] {
 			return &dateTokens[i]
 		}
 	}
