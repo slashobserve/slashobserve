@@ -1237,13 +1237,101 @@ func TestAdhocFiltersAndDatasourceRegexesAreParsedOncePerRequest(t *testing.T) {
 		t.Fatalf("a different selection must not reuse the cached filters: %+v, %v", other, err)
 	}
 
-	ds := datasourceVariable("ds", spec.Prometheus)
-	ds.Regex = "/^prom/"
-	a, err := st.parsed.regex(ds)
+	a, err := st.parsed.regex("ds", "/^prom/")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := st.parsed.regex(ds); a != b {
+	if b, _ := st.parsed.regex("ds", "/^prom/"); a != b {
 		t.Fatal("a second lookup compiled the datasource regex again")
+	}
+}
+
+func TestVariableRegexInterpolatesEarlierVariables(t *testing.T) {
+	envOptions := customVariable("env", "a.b", "axb", "x)|(y")
+	envOptions.IncludeAll, envOptions.Multi = true, true
+	answers := []string{"a.b", "axb", "a.b-1", "x)|(y", "other"}
+	tests := []struct {
+		name    string
+		regex   string
+		earlier Selection
+		want    []string
+		wantErr error
+	}{
+		{"a value is matched literally", "/^$env$/", Selection{Values: []string{"a.b"}}, []string{"a.b"}, nil},
+		{"braced reference with a suffix", "/^${env}-1$/", Selection{Values: []string{"a.b"}}, []string{"a.b-1"}, nil},
+		{"regex metacharacters cannot inject a pattern", "/^$env$/", Selection{Values: []string{"x)|(y"}}, []string{"x)|(y"}, nil},
+		{"several values become an alternation", "/^$env$/", Selection{Values: []string{"a.b", "axb"}}, []string{"a.b", "axb"}, nil},
+		{"All matches anything", "/^$env$/", Selection{All: true}, answers, nil},
+		{"a plain pattern is interpolated too", "$env-1", Selection{Values: []string{"a.b"}}, []string{"a.b-1"}, nil},
+		{"a name that is not an earlier variable stays in the pattern", "/^other$later/", Selection{Values: []string{"a.b"}}, []string{}, nil},
+		{"another format is refused", "/^${env:csv}$/", Selection{Values: []string{"a.b"}}, nil, datasource.ErrInvalidQuery},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onVariable = answer(answers...)
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			v := includeAllQuery("svc", "prom", "label_values(job)")
+			v.Regex = tt.regex
+			d := dashboardOf(nil, envOptions, v)
+			got, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), map[string]Selection{"env": tt.earlier}, datasource.QueryUser{})
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("err = %v, want %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil || !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("VariableValues = %q, %v, want %q", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestVariableRegexUsesTheDefaultOfAnEarlierVariable(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("web-1", "api-1", "web-2")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("svc", "prom", "label_values(job)")
+	v.Regex = "/^$tier-/"
+	d := dashboardOf(nil, customVariable("tier", "api", "web"), v)
+	defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+	if err != nil || !reflect.DeepEqual(defaults["svc"], Selection{Values: []string{"api-1"}}) {
+		t.Fatalf("Defaults = %+v, %v, want api-1", defaults, err)
+	}
+}
+
+func TestVariableRegexRefusesAnAdhocReference(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = answer("a")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	v := queryVariable("svc", "prom", "label_values(job)")
+	v.Regex = "/$f/"
+	d := dashboardOf(nil, adhocVariable("f", "prom"), v)
+	if _, _, err := runner.VariableValues(t.Context(), d, "svc", testRange(), nil, datasource.QueryUser{}); err == nil {
+		t.Fatal("VariableValues accepted an adhoc variable in a regex")
+	}
+}
+
+func TestDatasourceVariableRegexInterpolatesEarlierVariables(t *testing.T) {
+	pick := customVariable("pick", "prom", "prom2", "pr.m")
+	ds := datasourceVariable("ds", spec.Prometheus)
+	ds.Regex = "/^$pick$/"
+	runner := newTypesRunner(t)
+	d := dashboardOf(nil, pick, ds)
+	values, _, err := runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"prom2"}}}, datasource.QueryUser{})
+	if err != nil || !reflect.DeepEqual(values, []string{"prom2"}) {
+		t.Fatalf("VariableValues = %q, %v, want prom2", values, err)
+	}
+	values, _, err = runner.VariableValues(t.Context(), d, "ds", testRange(), map[string]Selection{"pick": {Values: []string{"pr.m"}}}, datasource.QueryUser{})
+	if err != nil || len(values) != 0 {
+		t.Fatalf("VariableValues = %q, %v, want nothing (pr.m is literal)", values, err)
+	}
+	if _, err := runner.Defaults(t.Context(), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom2"}}}, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("a datasource its regex filters out: err = %v, want ErrInvalidRequest", err)
+	}
+	got, err := runner.Defaults(t.Context(), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom"}}}, datasource.QueryUser{})
+	if err != nil || !reflect.DeepEqual(got["ds"], Selection{Values: []string{"prom"}}) {
+		t.Fatalf("Defaults = %+v, %v", got, err)
 	}
 }

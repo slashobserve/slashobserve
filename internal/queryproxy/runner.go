@@ -338,7 +338,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), q.Query, req.Range, req.Selections, req.User, st)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), scanQueryUse(q.Query), req.Range, req.Selections, req.User, st)
 	if err != nil {
 		return nil, err
 	}

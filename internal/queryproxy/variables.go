@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -87,8 +88,10 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 		if idx >= upto {
 			return nil, fmt.Errorf("%w: variable %q cannot be selected here", ErrInvalidRequest, name)
 		}
-		if err := r.checkSelection(st, d.Variables[idx], given[name]); err != nil {
-			return nil, err
+		if v := d.Variables[idx]; !checkNeedsEarlier(v) {
+			if err := r.checkSelection(ctx, d, idx, rng, given, user, st, given[name]); err != nil {
+				return nil, err
+			}
 		}
 	}
 	out := maps.Clone(given)
@@ -97,19 +100,28 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 	}
 	for i := range upto {
 		v := d.Variables[i]
-		if _, ok := out[v.Name]; ok {
+		if sel, ok := out[v.Name]; ok {
+			if checkNeedsEarlier(v) {
+				if err := r.checkSelection(ctx, d, i, rng, out, user, st, sel); err != nil {
+					return nil, err
+				}
+			}
 			continue
 		}
 		sel, err := r.defaultSelection(ctx, d, i, rng, out, user, st)
 		if err != nil {
 			return nil, err
 		}
-		if err := r.checkSelection(st, v, sel); err != nil {
+		if err := r.checkSelection(ctx, d, i, rng, out, user, st, sel); err != nil {
 			return nil, err
 		}
 		out[v.Name] = sel
 	}
 	return out, nil
+}
+
+func checkNeedsEarlier(v spec.Variable) bool {
+	return v.Type == spec.DatasourceVariable && len(scanQueryUse(v.Regex).variables) > 0
 }
 
 func (r *Runner) defaultSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) (Selection, error) {
@@ -184,41 +196,58 @@ func (r *Runner) resolveValues(ctx context.Context, d *spec.Dashboard, idx int, 
 		}
 		return slices.Clone(v.Options), nil
 	case spec.DatasourceVariable:
-		return r.datasourceValues(st, v)
+		return r.datasourceValues(ctx, d, idx, rng, selections, user, st)
 	case spec.AdhocVariable:
 		return nil, fmt.Errorf("%w: adhoc variable %q has no value list", ErrInvalidRequest, v.Name)
 	}
 	return r.queryValues(ctx, d, idx, rng, selections, user, st)
 }
 
-func (r *Runner) datasourceValues(st *varState, v spec.Variable) ([]string, error) {
+func (r *Runner) datasourceValues(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) ([]string, error) {
+	v := d.Variables[idx]
 	uids := []string{}
 	for _, inst := range r.reg.List() {
 		if inst.Datasource.Type() == string(v.DatasourceType) {
 			uids = append(uids, inst.UID)
 		}
 	}
-	if v.Regex == "" {
-		return uids, nil
-	}
-	re, err := st.parsed.regex(v)
-	if err != nil {
-		return nil, err
+	re, err := r.variableRegex(ctx, d, idx, rng, selections, user, st)
+	if err != nil || re == nil {
+		return uids, err
 	}
 	return slices.DeleteFunc(uids, func(uid string) bool { return !re.MatchString(uid) }), nil
 }
 
-func (c *parseCache) regex(v spec.Variable) (*spec.VariableRegex, error) {
+func (r *Runner) variableRegex(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) (*spec.VariableRegex, error) {
+	v := d.Variables[idx]
+	if v.Regex == "" {
+		return nil, nil
+	}
+	pattern := v.Regex
+	if use := scanQueryUse(pattern); len(use.variables) > 0 {
+		use.listed = map[string]bool{}
+		vars, err := r.variablesFor(ctx, d, idx, use, rng, selections, user, st)
+		if err != nil {
+			return nil, err
+		}
+		if pattern, err = macros.ExpandRegex(pattern, vars); err != nil {
+			return nil, err
+		}
+	}
+	return st.parsed.regex(v.Name, pattern)
+}
+
+func (c *parseCache) regex(name, pattern string) (*spec.VariableRegex, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if re, ok := c.regexes[v.Regex]; ok {
+	if re, ok := c.regexes[pattern]; ok {
 		return re, nil
 	}
-	re, err := spec.CompileVariableRegex(v.Regex)
+	re, err := spec.CompileVariableRegex(pattern)
 	if err != nil {
-		return nil, fmt.Errorf("%w: variable %q has an invalid regex", ErrInvalidRequest, v.Name)
+		return nil, fmt.Errorf("%w: variable %q has an invalid regex", ErrInvalidRequest, name)
 	}
-	c.regexes[v.Regex] = re
+	c.regexes[pattern] = re
 	return re, nil
 }
 
@@ -227,12 +256,9 @@ func (r *Runner) queryValues(ctx context.Context, d *spec.Dashboard, idx int, rn
 	if v.Datasource == "" {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "variable %q has no datasource", v.Name)
 	}
-	var re *spec.VariableRegex
-	if v.Regex != "" {
-		var err error
-		if re, err = st.parsed.regex(v); err != nil {
-			return nil, err
-		}
+	re, err := r.variableRegex(ctx, d, idx, rng, selections, user, st)
+	if err != nil {
+		return nil, err
 	}
 	inst, err := r.instance(v.Datasource)
 	if err != nil {
@@ -244,7 +270,7 @@ func (r *Runner) queryValues(ctx context.Context, d *spec.Dashboard, idx int, rn
 	if name := adhocReference(d, idx, v.Query); name != "" {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "a variable query cannot use adhoc variable %q", name)
 	}
-	vars, err := r.variablesFor(ctx, d, idx, v.Query, rng, selections, user, st)
+	vars, err := r.variablesFor(ctx, d, idx, scanQueryUse(v.Query), rng, selections, user, st)
 	if err != nil {
 		return nil, err
 	}
@@ -305,8 +331,7 @@ func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng 
 	return list, nil
 }
 
-func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, text string, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) ([]datasource.Variable, error) {
-	use := scanQueryUse(text)
+func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, use queryUse, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState) ([]datasource.Variable, error) {
 	out := make([]datasource.Variable, 0, upto)
 	for i, v := range d.Variables[:upto] {
 		sel, ok := selections[v.Name]
@@ -316,7 +341,7 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 			}
 			continue
 		}
-		if err := r.checkSelection(st, v, sel); err != nil {
+		if err := r.checkSelection(ctx, d, i, rng, selections, user, st, sel); err != nil {
 			return nil, err
 		}
 		if v.Type == spec.AdhocVariable && !use.variables[v.Name] {
@@ -534,7 +559,8 @@ func variableIndex(d *spec.Dashboard, name string) int {
 
 const maxAdhocFilters = 20
 
-func (r *Runner) checkSelection(st *varState, v spec.Variable, sel Selection) error {
+func (r *Runner) checkSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) error {
+	v := d.Variables[idx]
 	switch {
 	case sel.All:
 		return checkAll(v, sel)
@@ -547,7 +573,7 @@ func (r *Runner) checkSelection(st *varState, v spec.Variable, sel Selection) er
 	case v.Type == spec.QueryVariable || v.Type == spec.CustomVariable:
 		return checkListSelection(v, sel)
 	}
-	return r.checkSingleSelection(st, v, sel)
+	return r.checkSingleSelection(ctx, d, idx, rng, selections, user, st, sel)
 }
 
 func checkAll(v spec.Variable, sel Selection) error {
@@ -560,7 +586,8 @@ func checkAll(v spec.Variable, sel Selection) error {
 	return nil
 }
 
-func (r *Runner) checkSingleSelection(st *varState, v spec.Variable, sel Selection) error {
+func (r *Runner) checkSingleSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) error {
+	v := d.Variables[idx]
 	if len(sel.Values) != 1 {
 		return fmt.Errorf("%w: variable %q takes exactly one value", ErrInvalidRequest, v.Name)
 	}
@@ -580,7 +607,7 @@ func (r *Runner) checkSingleSelection(st *varState, v spec.Variable, sel Selecti
 			return fmt.Errorf("%w: variable %q has a value that is not one of its options", ErrInvalidRequest, v.Name)
 		}
 	case spec.DatasourceVariable:
-		values, err := r.datasourceValues(st, v)
+		values, err := r.datasourceValues(ctx, d, idx, rng, selections, user, st)
 		if err != nil {
 			return err
 		}

@@ -679,6 +679,28 @@ func TestCheckSpecRunsTheQueryOfAnIncludeAllVariableWithAnAllValue(t *testing.T)
 	}
 }
 
+func TestCheckSpecSkipsAVariableWhoseRegexUsesAFailedVariable(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onVariable = func(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]string, error) {
+		if q.Text == "bad" {
+			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "parse error")
+		}
+		return []string{"v1"}, nil
+	}
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	bad, dependent := queryVariable("bad", "prom", "bad"), queryVariable("dep", "prom", "dep")
+	dependent.Regex = "/^$bad/"
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", "up")}, bad, dependent)
+	issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{})
+	if err != nil {
+		t.Fatalf("CheckSpec error: %v", err)
+	}
+	assertIssues(t, issues, []wantIssue{
+		{"/variables/0", CodeVariableFailed, ""},
+		{"/variables/1", CodeVariableUnresolved, ""},
+	})
+}
+
 func TestCheckSpecBadCustomDefault(t *testing.T) {
 	fake := newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})

@@ -1,6 +1,7 @@
 package queryproxy
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -210,7 +211,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			continue
 		}
 		path := itemPath("variables", i)
-		if name := failedReference(v.Query, failed); name != "" {
+		if name := cmp.Or(failedReference(v.Query, failed), failedReference(v.Regex, failed)); name != "" {
 			failed[v.Name] = true
 			issues = append(issues, issue(path, CodeVariableUnresolved, "variable %q could not be resolved", name))
 			continue
@@ -235,7 +236,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			}
 		}
 		if err == nil && !listReported {
-			err = r.checkSelection(st, v, sel)
+			err = r.checkSelection(vctx, d, i, rng, selections, user, st, sel)
 		}
 		cancel()
 		if err != nil {

@@ -1141,3 +1141,38 @@ func TestAllValueSkipsTheFormat(t *testing.T) {
 		{name: "clickhouse string is escaped", d: macros.ClickHouse, query: `SELECT 1 WHERE svc = '$svc'`, env: envWith(allValue("svc", "it's")), want: `SELECT 1 WHERE svc = 'it\'s'`},
 	})
 }
+
+func TestExpandRegex(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		vars []datasource.Variable
+		want string
+		err  bool
+	}{
+		{"no reference", "/^web-.*/", nil, "/^web-.*/", false},
+		{"a value is regex quoted", "/^$env-.*/", []datasource.Variable{val("env", "prod.eu")}, `/^prod\.eu-.*/`, false},
+		{"braced reference", "web-${env}-1", []datasource.Variable{val("env", "a")}, "web-a-1", false},
+		{"explicit regex format", "${env:regex}", []datasource.Variable{val("env", "a+b")}, `a\+b`, false},
+		{"several values become an alternation", "web-$env", []datasource.Variable{val("env", "a", "b.c")}, `web-(a|b\.c)`, false},
+		{"All matches anything", "web-$env", []datasource.Variable{all("env", "a", "b")}, "web-.*", false},
+		{"allValue is used as it is", "web-$env", []datasource.Variable{allValue("env", "(a|b)")}, "web-(a|b)", false},
+		{"an injection value stays one literal", "^$env$", []datasource.Variable{val("env", `.*)|(x`)}, `^\.\*\)\|\(x$`, false},
+		{"an unknown name is left alone", "^$other$", []datasource.Variable{val("env", "a")}, "^$other$", false},
+		{"a macro is left alone", "^$__from$", []datasource.Variable{val("env", "a")}, "^$__from$", false},
+		{"a trailing anchor is not a reference", "/web$/", nil, "/web$/", false},
+		{"a quantifier after an anchor is not a reference", "a${2}", nil, "a${2}", false},
+		{"another format is refused", "${env:csv}", []datasource.Variable{val("env", "a")}, "", true},
+		{"adhoc is refused", "$f", []datasource.Variable{adhoc("f")}, "", true},
+		{"no value is refused", "$env", []datasource.Variable{val("env")}, "", true},
+		{"a control character is refused", "$env", []datasource.Variable{val("env", "a\nb")}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := macros.ExpandRegex(tt.text, tt.vars)
+			if (err != nil) != tt.err || got != tt.want {
+				t.Fatalf("ExpandRegex = %q, %v, want %q (error %v)", got, err, tt.want, tt.err)
+			}
+		})
+	}
+}
