@@ -1,7 +1,7 @@
 datasources:
   get:
     operationId: listDatasources
-    summary: Report the health of every configured datasource, never its connection details.
+    summary: Report the health and dashboard usage of every configured datasource, never its connection details.
     responses:
       "200":
         description: One status per configured datasource.

@@ -289,8 +289,8 @@ func TestHealth(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "not read-only") {
 			t.Fatalf("err = %v, want not read-only", err)
 		}
-		if !errors.Is(err, datasource.ErrForbiddenQuery) {
-			t.Fatalf("err = %v, want ErrForbiddenQuery", err)
+		if !errors.Is(err, datasource.ErrForbiddenQuery) || !errors.Is(err, datasource.ErrNotReadOnly) {
+			t.Fatalf("err = %v, want ErrNotReadOnly", err)
 		}
 		if _, err := newDS(t, "admin", adminPass, datasource.Limits{}).QueryInstant(ctx, query("SELECT 1"), lastHour()); !errors.Is(err, datasource.ErrForbiddenQuery) {
 			t.Fatalf("QueryInstant err = %v, want ErrForbiddenQuery", err)
@@ -298,14 +298,14 @@ func TestHealth(t *testing.T) {
 	})
 	t.Run("readonly=1 user is refused with a specific error", func(t *testing.T) {
 		err := newDS(t, ro1User, roPass, datasource.Limits{}).CheckHealth(ctx)
-		if !errors.Is(err, datasource.ErrForbiddenQuery) || !strings.Contains(err.Error(), "readonly=2") {
-			t.Fatalf("err = %v, want ErrForbiddenQuery mentioning readonly=2", err)
+		if !errors.Is(err, datasource.ErrNotReadOnly) || !strings.Contains(err.Error(), "readonly=2") {
+			t.Fatalf("err = %v, want ErrNotReadOnly mentioning readonly=2", err)
 		}
 	})
 	t.Run("wrong password leaks nothing", func(t *testing.T) {
 		err := newDS(t, roUser, "wrong-"+roPass, datasource.Limits{}).CheckHealth(ctx)
-		if !errors.Is(err, datasource.ErrUnavailable) {
-			t.Fatalf("err = %v, want ErrUnavailable", err)
+		if !errors.Is(err, datasource.ErrAuthFailed) || !errors.Is(err, datasource.ErrUnavailable) {
+			t.Fatalf("err = %v, want ErrAuthFailed", err)
 		}
 		hostname, port, _ := strings.Cut(host, ":")
 		for _, secret := range []string{hostname, port, roUser, roPass, "wrong-"} {
@@ -503,8 +503,8 @@ func TestSourceGrantsRefused(t *testing.T) {
 	} {
 		ds := newDS(t, tc.user, roPass, datasource.Limits{})
 		err := ds.CheckHealth(ctx)
-		if !errors.Is(err, datasource.ErrForbiddenQuery) || !strings.Contains(err.Error(), tc.grant) {
-			t.Errorf("CheckHealth(%s) err = %v, want ErrForbiddenQuery naming %s", tc.user, err, tc.grant)
+		if !errors.Is(err, datasource.ErrUnsafeGrant) || !strings.Contains(err.Error(), tc.grant) {
+			t.Errorf("CheckHealth(%s) err = %v, want ErrUnsafeGrant naming %s", tc.user, err, tc.grant)
 		}
 		if _, err := ds.QueryInstant(ctx, query("SELECT 1"), lastHour()); !errors.Is(err, datasource.ErrForbiddenQuery) {
 			t.Errorf("QueryInstant(%s) err = %v, want ErrForbiddenQuery", tc.user, err)

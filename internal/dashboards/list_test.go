@@ -274,3 +274,36 @@ func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 		}
 	}
 }
+
+func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
+	r := newRig(t, false)
+	dash, _, err := r.service.Create(t.Context(), testUser, specWithDatasources("Usage", "", "prom"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(label string, want map[string]int) {
+		t.Helper()
+		usage, err := r.service.DatasourceUsage(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, uid := range []string{"prom", "ch"} {
+			if usage[uid] != want[uid] {
+				t.Errorf("%s: usage[%s] = %d, want %d", label, uid, usage[uid], want[uid])
+			}
+			page, err := r.service.List(t.Context(), ListParams{Limit: 1, Datasource: uid})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if page.Total != usage[uid] {
+				t.Errorf("%s: list total for %s = %d, usage = %d", label, uid, page.Total, usage[uid])
+			}
+		}
+	}
+	check("first version", map[string]int{"prom": 1})
+
+	if _, _, _, err := r.service.AddVersion(t.Context(), testUser, mustParse(t, dash.ID), 1, specWithDatasources("Usage", "", "ch"), "switch"); err != nil {
+		t.Fatal(err)
+	}
+	check("second version", map[string]int{"ch": 1})
+}

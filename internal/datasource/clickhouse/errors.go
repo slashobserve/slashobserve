@@ -70,9 +70,9 @@ func mapException(ex *ch.Exception) error {
 	case 164, 497:
 		return datasource.Errorf(datasource.ErrForbiddenQuery, "not allowed for the read-only user")
 	case 516, 192, 193, 194:
-		return datasource.Errorf(datasource.ErrUnavailable, "authentication failed")
+		return datasource.Errorf(datasource.ErrAuthFailed, "authentication failed")
 	case 195:
-		return datasource.Errorf(datasource.ErrUnavailable, "connection not allowed for the datasource user")
+		return datasource.Errorf(datasource.ErrHostNotAllowed, "connection not allowed for the datasource user")
 	case 209, 210, 279, 519:
 		return datasource.Errorf(datasource.ErrUnavailable, "connection to a ClickHouse shard failed")
 	}

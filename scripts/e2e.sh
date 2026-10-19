@@ -734,12 +734,12 @@ check_datasources() {
   while IFS= read -r entry; do
     keys="$(grep -oE '"[A-Za-z0-9_]+":' <<<"$entry" | tr -d '":' | sort | paste -sd, -)"
     case "$keys" in
-      checked_at,healthy,name,type,uid | checked_at,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
+      checked_at,dashboard_count,healthy,name,type,uid | checked_at,dashboard_count,healthy,message,name,type,uid) entries=$((entries + 1)) ;;
       *) fail "datasource entry has unexpected keys ($keys)" ;;
     esac
   done < <(sed -E 's/:"([^"\\]|\\.)*"/:/g' <<<"$body" | grep -oE '\{[^{}]*\}')
   [[ "$entries" == 4 ]] || fail "expected 4 datasource entries, found $entries"
-  pass "datasource entries carry exactly uid, type, name, healthy, checked_at and an optional message"
+  pass "datasource entries carry exactly uid, type, name, healthy, checked_at, dashboard_count and an optional message"
 }
 
 API_TOKEN=""
@@ -2497,6 +2497,16 @@ dashboard_list_suite() {
     fi
   done
   pass "the dashboard list reports creator, datasources and open threads, and filters by maker, datasource and text"
+
+  out="$(api GET "/dashboards?datasource=prom&limit=1")"
+  [[ "$out" == 200 ]] || fail "list the dashboards that use prom ($out: $(cat "$TMP/api.body"))"
+  want="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("total_count", ""))' "$TMP/api.body")"
+  [[ -n "$want" ]] || fail "the prom dashboard list has no total_count ($(head -c 300 "$TMP/api.body"))"
+  out="$(api GET /datasources)"
+  [[ "$out" == 200 ]] || fail "list datasources for their usage ($out: $(cat "$TMP/api.body"))"
+  python3 -c 'import json,sys; e={d["uid"]: d["dashboard_count"] for d in json.load(open(sys.argv[1]))["datasources"]}; n=int(sys.argv[2]); sys.exit(0 if n >= 1 and e.get("prom") == n else 1)' "$TMP/api.body" "$want" \
+    || fail "the dashboard_count of prom should equal the prom list's total_count $want and be at least 1 ($(head -c 1500 "$TMP/api.body"))"
+  pass "datasources report how many dashboards use them, matching the dashboard list filter"
 }
 
 people_suite() {

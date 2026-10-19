@@ -209,7 +209,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Report the health of every configured datasource, never its connection details. */
+        /** Report the health and dashboard usage of every configured datasource, never its connection details. */
         get: operations["listDatasources"];
         put?: never;
         post?: never;
@@ -711,8 +711,13 @@ export interface components {
             name: string;
             healthy: boolean;
             message?: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the server last checked the datasource; checks are cached for 10 seconds.
+             */
             checked_at: string;
+            /** @description Dashboards whose latest version uses this datasource. */
+            dashboard_count: number;
         };
         DatasourceList: {
             datasources: components["schemas"]["DatasourceStatus"][];

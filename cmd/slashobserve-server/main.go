@@ -227,9 +227,10 @@ func run() error {
 	defer stopWorkers()
 
 	handler, err := server.New(server.Options{
-		Logger:      logger,
-		Auth:        authService,
-		Datasources: registry,
+		Logger:          logger,
+		Auth:            authService,
+		Datasources:     registry,
+		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
 			stream.NewHandler(broker, dashboardsService, authService, logger),

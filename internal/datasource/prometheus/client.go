@@ -96,7 +96,7 @@ func (d *Datasource) do(ctx context.Context, method, path string, form url.Value
 func decodeResponse(status int, raw []byte) (json.RawMessage, error) {
 	switch status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "authentication failed (HTTP %d)", status)
+		return nil, datasource.Errorf(datasource.ErrAuthFailed, "authentication failed (HTTP %d)", status)
 	case http.StatusTooManyRequests:
 		return nil, datasource.Errorf(datasource.ErrUnavailable, "rate limited by upstream")
 	}

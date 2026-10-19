@@ -305,6 +305,18 @@ func (s *Service) List(ctx context.Context, p ListParams) (ListPage, error) {
 	return page, nil
 }
 
+func (s *Service) DatasourceUsage(ctx context.Context) (map[string]int, error) {
+	rows, err := s.store.db.Queries().CountDashboardsByDatasource(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count dashboards by datasource: %w", err)
+	}
+	usage := make(map[string]int, len(rows))
+	for _, row := range rows {
+		usage[row.Uid] = int(row.Dashboards)
+	}
+	return usage, nil
+}
+
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {
 	before, err := decodeVersionCursor(cursor)
 	if err != nil {

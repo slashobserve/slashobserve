@@ -138,10 +138,10 @@ func (d *Datasource) verifyReadOnly(ctx context.Context, timeout time.Duration) 
 	switch level {
 	case 0:
 		d.readOnlyUntil.Store(0)
-		return datasource.Errorf(datasource.ErrForbiddenQuery, "datasource user is not read-only")
+		return datasource.Errorf(datasource.ErrNotReadOnly, "datasource user is not read-only")
 	case 1:
 		d.readOnlyUntil.Store(0)
-		return datasource.Errorf(datasource.ErrForbiddenQuery, "read-only user must use readonly=2 so per-query limits can be set")
+		return datasource.Errorf(datasource.ErrNotReadOnly, "read-only user must use readonly=2 so per-query limits can be set")
 	}
 	d.maxExecution.Store(int64(maxSeconds * float64(time.Second)))
 	budget := d.clampTimeout(readOnlyTimeout)
@@ -239,7 +239,7 @@ func (d *Datasource) verifyNoSourceGrants(ctx context.Context, timeout time.Dura
 	}
 	for i, check := range checks {
 		if held[i] {
-			return datasource.Errorf(datasource.ErrForbiddenQuery,
+			return datasource.Errorf(datasource.ErrUnsafeGrant,
 				"datasource user holds the %s grant, which lets queries reach external systems or create temporary tables; revoke it (directly, through a role, and any SOURCES, READ, WRITE or ALL grant that implies it)",
 				strings.TrimSuffix(check, " ON *.*"))
 		}

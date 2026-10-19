@@ -337,7 +337,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, healthy, checked_at]
+      required: [uid, type, name, healthy, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -352,6 +352,11 @@ components:
         checked_at:
           type: string
           format: date-time
+          description: When the server last checked the datasource; checks are cached for 10 seconds.
+        dashboard_count:
+          type: integer
+          minimum: 0
+          description: Dashboards whose latest version uses this datasource.
     DatasourceList:
       type: object
       additionalProperties: false
