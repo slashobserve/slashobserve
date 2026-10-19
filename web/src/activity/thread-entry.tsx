@@ -2,7 +2,6 @@ import { useRef, useState, type ComponentProps } from "react"
 
 import { useSetCommentStatus } from "@/comments/queries"
 import { cn } from "@/lib/utils"
-import { isActive } from "@/revisions/queries"
 
 import type { AgentGate } from "./agent-gate"
 import {
@@ -16,6 +15,12 @@ import {
 } from "./entry-frame"
 import { ReplyForm } from "./reply-form"
 import type { TimelineEntry } from "./timeline-model"
+import {
+  askedAgentWithComment,
+  canResolveThread,
+  threadState,
+  threadVerbText,
+} from "./thread-view"
 
 type Props = {
   dashboardId: string
@@ -40,19 +45,6 @@ function MetaButton({ className, ...props }: ComponentProps<"button">) {
   )
 }
 
-function threadVerb(
-  panelId: string | null,
-  panelTitle: string | null,
-  onSelectPanel: (panelId: string) => void
-): { verb: string; panel?: { title: string; onSelect: () => void } } {
-  if (panelId === null) return { verb: "commented" }
-  if (panelTitle === null) return { verb: "commented on a removed panel" }
-  return {
-    verb: "commented on",
-    panel: { title: panelTitle, onSelect: () => onSelectPanel(panelId) },
-  }
-}
-
 export function ThreadEntry({
   dashboardId,
   entry,
@@ -68,32 +60,36 @@ export function ThreadEntry({
   const replyButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
   const resolved = root.status === "resolved"
-  const { verb, panel } = threadVerb(panelId, panelTitle, onSelectPanel)
+  const verb = threadVerbText(
+    askedAgentWithComment(root, request),
+    panelId,
+    panelTitle
+  )
+  const panel =
+    panelId !== null && panelTitle !== null
+      ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
+      : undefined
 
   function closeReply() {
     setReplying(false)
     replyButton.current?.focus()
   }
 
+  const view = threadState({ root, request, gate, clientName })
   let state
-  if (request !== null && isActive(request.status)) {
-    state = <SentToAgent />
-  } else if (request?.status === "failed" && !resolved) {
-    state = <RequestFailure error={request.error} />
-  } else if (resolved && root.resolved_by_version !== null) {
-    state = (
-      <ResolvedState text={`Resolved by version ${root.resolved_by_version}`} />
-    )
-  } else if (resolved) {
-    state = (
-      <ResolvedState
-        text={`Resolved by ${root.resolved_by?.name ?? "someone"}`}
-      />
-    )
-  } else if (gate.kind === "no-model") {
-    state = <MetaState>Open, waiting for {clientName}</MetaState>
-  } else {
-    state = <MetaState>Open</MetaState>
+  switch (view.kind) {
+    case "sent":
+      state = <SentToAgent />
+      break
+    case "failed":
+      state = <RequestFailure error={view.error} />
+      break
+    case "resolved":
+      state = <ResolvedState text={view.text} />
+      break
+    case "note":
+      state = <MetaState>{view.text}</MetaState>
+      break
   }
 
   return (
@@ -114,19 +110,21 @@ export function ThreadEntry({
         >
           Reply
         </MetaButton>
-        <MetaButton
-          aria-disabled={setStatus.isPending || undefined}
-          aria-busy={setStatus.isPending || undefined}
-          onClick={() => {
-            if (setStatus.isPending) return
-            setStatus.mutate({
-              commentId: root.id,
-              status: resolved ? "open" : "resolved",
-            })
-          }}
-        >
-          {resolved ? "Reopen" : "Resolve"}
-        </MetaButton>
+        {canResolveThread(request) ? (
+          <MetaButton
+            aria-disabled={setStatus.isPending || undefined}
+            aria-busy={setStatus.isPending || undefined}
+            onClick={() => {
+              if (setStatus.isPending) return
+              setStatus.mutate({
+                commentId: root.id,
+                status: resolved ? "open" : "resolved",
+              })
+            }}
+          >
+            {resolved ? "Reopen" : "Resolve"}
+          </MetaButton>
+        ) : null}
       </EntryMeta>
       {replies.length === 0 ? null : (
         <ol className="mt-1 flex flex-col border-l pl-3">
