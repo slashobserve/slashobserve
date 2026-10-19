@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 const (
@@ -143,7 +145,7 @@ func (r *Registry) status(ctx context.Context, in Instance) Status {
 			UID:       in.UID,
 			Type:      in.Datasource.Type(),
 			Name:      in.Name,
-			Message:   "health check cancelled: " + ctx.Err().Error(),
+			Message:   healthMessage(ctx.Err()),
 			CheckedAt: time.Now().UTC(),
 		}
 	}
@@ -172,7 +174,7 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 		CheckedAt: time.Now().UTC(),
 	}
 	if err != nil {
-		s.Message = err.Error()
+		s.Message = healthMessage(err)
 	}
 
 	r.mu.Lock()
@@ -181,9 +183,28 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	r.mu.Unlock()
 
 	if err != nil && (!seen || prev.status.Healthy) {
-		r.logger.Warn("datasource unhealthy", "uid", in.UID, "type", s.Type)
+		r.logger.Warn("datasource unhealthy", logattrs.Failure("datasource_unhealthy", err, slog.String("uid", in.UID), slog.String("type", s.Type))...)
 	}
 	return s
+}
+
+// Status messages reach browsers and the agent, so an error's own text, which can echo an address or a user, never does.
+func healthMessage(err error) string {
+	switch {
+	case errors.Is(err, ErrTimeout), errors.Is(err, context.DeadlineExceeded):
+		return "Timed out waiting for the datasource"
+	case errors.Is(err, ErrUnavailable):
+		return "The datasource is not answering"
+	case errors.Is(err, ErrForbiddenQuery):
+		return "The datasource user is not set up as read-only"
+	case errors.Is(err, ErrLimitExceeded):
+		return "The health check hit a datasource limit"
+	case errors.Is(err, ErrInvalidQuery):
+		return "The datasource rejected the health check"
+	case errors.Is(err, context.Canceled):
+		return "The health check was cancelled"
+	}
+	return "The health check failed"
 }
 
 func (r *Registry) safeCheckHealth(ctx context.Context, in Instance) (err error) {
