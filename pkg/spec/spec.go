@@ -14,6 +14,7 @@ const (
 	Version     = "0"
 	GridColumns = 24
 	MaxBytes    = 1 << 20
+	MaxPanels   = 200
 )
 
 type DatasourceType string

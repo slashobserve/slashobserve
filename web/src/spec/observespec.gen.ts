@@ -314,10 +314,10 @@ export interface Dashboard {
    */
   links?: Link[];
   /**
-   * At most 100 panels in total, row children included; ids are unique across all of them.
+   * At most 200 panels in total, row children included; ids are unique across all of them.
    *
    * @minItems 1
-   * @maxItems 100
+   * @maxItems 200
    */
   panels: Panel[];
 }
@@ -560,7 +560,7 @@ export interface RowPanel {
   collapsed?: boolean;
   repeat?: VariableName;
   /**
-   * @maxItems 100
+   * @maxItems 200
    */
   panels?: (DataPanel | TextPanel | PlaceholderPanel)[];
 }

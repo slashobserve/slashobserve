@@ -98,7 +98,7 @@ components:
           type: string
           description: >-
             Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`,
-            `too_many_panels` (more than 100 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have)
+            `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have)
             and `threshold_value_missing` (a threshold other than the first omits its value).
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
             `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),

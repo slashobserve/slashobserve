@@ -61,10 +61,10 @@
       }
     },
     "panels": {
-      "description": "At most 100 panels in total, row children included; ids are unique across all of them.",
+      "description": "At most 200 panels in total, row children included; ids are unique across all of them.",
       "type": "array",
       "minItems": 1,
-      "maxItems": 100,
+      "maxItems": 200,
       "items": {
         "$ref": "#/$defs/panel"
       }
@@ -1863,7 +1863,7 @@
         },
         "panels": {
           "type": "array",
-          "maxItems": 100,
+          "maxItems": 200,
           "items": {
             "oneOf": [
               {

@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-const maxPanels = 100
-
 func checkSemantics(d *Dashboard) []Issue {
 	var issues []Issue
 	entries := d.AllPanels()
@@ -34,13 +32,13 @@ func checkSemantics(d *Dashboard) []Issue {
 
 func checkPanelCount(d *Dashboard) []Issue {
 	n := d.PanelCount()
-	if n <= maxPanels {
+	if n <= MaxPanels {
 		return nil
 	}
 	return []Issue{{
 		Path:    pointer("panels"),
 		Code:    CodeTooManyPanels,
-		Message: fmt.Sprintf("the dashboard has %d panels including row children; the limit is %d", n, maxPanels),
+		Message: fmt.Sprintf("the dashboard has %d panels including row children; the limit is %d", n, MaxPanels),
 	}}
 }
 
