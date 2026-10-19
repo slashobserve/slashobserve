@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils"
 import { lowerFirst } from "@/observe/conversation"
 import { sentence } from "@/observe/queries"
 
+import { initialOf } from "./initial"
+
 export type EntryAvatar =
   { kind: "person"; name: string } | { kind: "agent" } | { kind: "version" }
 
@@ -29,7 +31,7 @@ type Props = {
 function AvatarMark({ avatar }: { avatar: EntryAvatar }) {
   switch (avatar.kind) {
     case "person":
-      return <>{avatar.name.trim().charAt(0).toUpperCase()}</>
+      return <>{initialOf(avatar.name)}</>
     case "agent":
       return <SparkleIcon className="size-3" />
     case "version":
@@ -71,7 +73,7 @@ export function EntryFrame({
               {" "}
               <button
                 type="button"
-                className="rounded-sm text-foreground outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded-sm text-left wrap-anywhere text-foreground outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={panel.onSelect}
               >
                 {panel.title}
@@ -152,13 +154,20 @@ export function RequestFailure({ error }: { error: string | null }) {
   )
 }
 
-export function DetailsLink({ requestId }: { requestId: string }) {
+export function DetailsLink({
+  requestId,
+  label,
+}: {
+  requestId: string
+  label: string
+}) {
   return (
     <Link
       to="/observe/$requestId"
       params={{ requestId }}
       target="_blank"
       rel="noopener"
+      aria-label={label}
       className="mt-1 inline-block rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
     >
       Details

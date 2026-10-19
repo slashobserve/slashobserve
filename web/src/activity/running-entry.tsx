@@ -30,7 +30,10 @@ export function RunningEntry({ entry }: Props) {
             : "Starting"
           : `${last.message}, step ${currentStep(steps)}`}
       </EntryBody>
-      <DetailsLink requestId={request.id} />
+      <DetailsLink
+        requestId={request.id}
+        label="Details of the running agent request, opens in a new tab"
+      />
     </EntryFrame>
   )
 }

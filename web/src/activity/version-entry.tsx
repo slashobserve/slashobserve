@@ -42,7 +42,10 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
         </span>
       </Link>
       {version.agent_request_id === null ? null : (
-        <DetailsLink requestId={version.agent_request_id} />
+        <DetailsLink
+          requestId={version.agent_request_id}
+          label={`Agent run details for version ${n}, opens in a new tab`}
+        />
       )}
     </EntryFrame>
   )
