@@ -130,9 +130,9 @@ func TestCreateRejectsPlaceholderPanels(t *testing.T) {
 	if issue.Path != "/panels/1" || !strings.Contains(issue.Message, "cannot create placeholder panels") {
 		t.Fatalf("issue = %+v", issue)
 	}
-	list, _, err := r.service.List(r.ctx, 10, "")
-	if err != nil || len(list) != 0 {
-		t.Fatalf("saved dashboards = %v err = %v", list, err)
+	page, err := r.service.List(r.ctx, dashboards.ListParams{Limit: 10})
+	if err != nil || len(page.Items) != 0 {
+		t.Fatalf("saved dashboards = %v err = %v", page.Items, err)
 	}
 }
 
