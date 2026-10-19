@@ -424,8 +424,10 @@ func promMacro(name string, env Env) (string, bool) {
 func clickHouseMacro(name string, args []string, env Env) (string, bool) {
 	from, to := env.Range.From, env.Range.To
 	switch name {
-	case "__interval", "__interval_s":
+	case "__interval":
 		return strconv.FormatInt(intervalSeconds(env.Interval), 10), true
+	case "__interval_s":
+		return strconv.FormatInt(wholeSeconds(env.Interval), 10), true
 	case "__timeFilter", "__timeFilter_ms":
 		return timeFilter(args[0], env), true
 	case "__timeGroup":
@@ -443,7 +445,7 @@ func clickHouseMacro(name string, args []string, env Env) (string, bool) {
 	case "__toTime_ms":
 		return fmt.Sprintf("fromUnixTimestamp64Milli(toInt64(%d))", to.UnixMilli()), true
 	case "__timeInterval":
-		return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %d second)", args[0], intervalSeconds(env.Interval)), true
+		return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %d second)", args[0], wholeSeconds(env.Interval)), true
 	case "__timeInterval_ms":
 		return fmt.Sprintf("toStartOfInterval(toDateTime64(%s, 3), INTERVAL %d millisecond)", args[0], max(env.Interval.Milliseconds(), 1)), true
 	}
@@ -467,6 +469,10 @@ func promDuration(d time.Duration) string {
 		return strconv.FormatInt(ms/1000, 10) + "s"
 	}
 	return strconv.FormatInt(ms, 10) + "ms"
+}
+
+func wholeSeconds(d time.Duration) int64 {
+	return max(int64(d/time.Second), 1)
 }
 
 func intervalSeconds(d time.Duration) int64 {

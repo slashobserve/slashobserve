@@ -396,8 +396,8 @@ func TestPluginMacros(t *testing.T) {
 			if got := column(t, frames[0], "n").Values[0]; got != tc.want {
 				t.Errorf("n = %v, want %v", got, tc.want)
 			}
-			if got := column(t, frames[0], "interval_s").Values[0]; got != float64(4) {
-				t.Errorf("interval_s = %v, want 4", got)
+			if got := column(t, frames[0], "interval_s").Values[0]; got != float64(3) {
+				t.Errorf("interval_s = %v, want 3", got)
 			}
 		})
 	}
