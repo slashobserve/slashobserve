@@ -104,7 +104,7 @@ export function requestStatusView(
 
 export function myRequestsQuery(source: "all" | "observe", limit: number) {
   return infiniteQueryOptions({
-    queryKey: observeKeys.mine(source),
+    queryKey: observeKeys.mine(source, limit),
     queryFn: ({ pageParam, signal }) =>
       api
         .GET("/observe", {

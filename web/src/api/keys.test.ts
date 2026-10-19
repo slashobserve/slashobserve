@@ -69,10 +69,20 @@ describe("filtered dashboard lists", () => {
 
 describe("observeKeys", () => {
   test("the caller's requests share the mineAll root", () => {
-    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("all"))).toBe(true)
-    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("observe"))).toBe(
+    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("all", 20))).toBe(
       true
     )
+    expect(
+      isPrefix(observeKeys.mineAll(), observeKeys.mine("observe", 5))
+    ).toBe(true)
+  })
+
+  test("the caller's requests differ by source and by limit", () => {
+    expect(observeKeys.mine("all", 5)).not.toEqual(observeKeys.mine("all", 20))
+    expect(observeKeys.mine("all", 5)).not.toEqual(
+      observeKeys.mine("observe", 5)
+    )
+    expect(observeKeys.mine("all", 5)).toEqual(observeKeys.mine("all", 5))
   })
 
   test("a single request is not under the caller's requests", () => {

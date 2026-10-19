@@ -57,7 +57,8 @@ export const dashboardKeys = {
 export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
-  mine: (source: "all" | "observe") => ["observe-mine", source] as const,
+  mine: (source: "all" | "observe", limit: number) =>
+    ["observe-mine", source, limit] as const,
   mineAll: () => ["observe-mine"] as const,
 }
 
