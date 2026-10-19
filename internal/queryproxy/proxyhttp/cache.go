@@ -38,6 +38,11 @@ type specKey struct {
 	version int
 }
 
+type loadedVersion struct {
+	dashboard *spec.Dashboard
+	usesUser  bool
+}
+
 type queryMeta struct {
 	Ref    string          `json:"ref"`
 	Kind   queryproxy.Kind `json:"kind"`
@@ -61,7 +66,7 @@ type valuesEntry struct {
 }
 
 type caches struct {
-	specs       *ttlcache.Cache[specKey, *spec.Dashboard]
+	specs       *ttlcache.Cache[specKey, loadedVersion]
 	data        *ttlcache.Cache[cacheKey, dataEntry]
 	dataFlights *ttlcache.Group[dataEntry]
 	values      *ttlcache.Cache[cacheKey, valuesEntry]
@@ -69,7 +74,7 @@ type caches struct {
 
 func newCaches() *caches {
 	return &caches{
-		specs:       ttlcache.New[specKey, *spec.Dashboard](0, specCacheEntries),
+		specs:       ttlcache.New[specKey, loadedVersion](0, specCacheEntries),
 		data:        ttlcache.New[cacheKey, dataEntry](resultTTL, resultMaxCost),
 		dataFlights: ttlcache.NewGroup[dataEntry](runTimeout),
 		values:      ttlcache.New[cacheKey, valuesEntry](resultTTL, valuesMaxCost),

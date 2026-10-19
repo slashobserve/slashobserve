@@ -1402,3 +1402,21 @@ func TestAVariableQueryThatReferencesTheUserKeepsPrincipalsApartForValuesAndPane
 		t.Fatalf("%d range queries, want one per principal", ranges)
 	}
 }
+
+func TestPerPrincipalScopeSurvivesAnEvictedAndReloadedVersion(t *testing.T) {
+	hn := newHarness(t)
+	hn.withUserVersions()
+	path := hn.versionPath(userPanelVersion, "/panels/p_user/data?"+window+"&var-job=api")
+	decodeData(t, hn.get(path, "alice"))
+	loads := hn.specs.lookups()
+
+	for i := range specCacheEntries + 1 {
+		hn.h.caches.specs.Put(specKey{id: hn.id, version: 1000 + i}, loadedVersion{}, 1)
+	}
+	if bob := decodeData(t, hn.get(path, "bob")); bob.Meta.Cached {
+		t.Fatal("a reloaded version was served from another principal's cache")
+	}
+	if hn.specs.lookups() == loads {
+		t.Fatal("the version was not reloaded, so the test did not evict it")
+	}
+}

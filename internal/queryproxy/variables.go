@@ -155,7 +155,7 @@ func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng 
 }
 
 func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, text string, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) ([]datasource.Variable, error) {
-	refs := referencedVariables(text)
+	refs := scanQueryUse(text).variables
 	out := make([]datasource.Variable, 0, upto)
 	for i, v := range d.Variables[:upto] {
 		sel, ok := selections[v.Name]
@@ -183,48 +183,40 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 	return out, nil
 }
 
-func referencedVariables(text string) map[string]bool {
+type queryUse struct {
+	variables map[string]bool
+	user      bool
+	dashboard bool
+}
+
+func scanQueryUse(text string) queryUse {
 	refs, err := spec.ScanQuery(text)
 	if err != nil {
-		return nil
+		return queryUse{}
 	}
-	names := map[string]bool{}
+	use := queryUse{variables: map[string]bool{}}
 	for _, ref := range refs {
 		if ref.Kind == spec.VariableRef {
-			names[ref.Name] = true
+			use.variables[ref.Name] = true
+			continue
+		}
+		if macro, ok := spec.LookupMacro(ref.Name); ok {
+			use.user = use.user || macro.PerUser
+			use.dashboard = use.dashboard || macro.PerDashboard
 		}
 	}
-	return names
-}
-
-func referencesGlobal(text string, match func(spec.Macro) bool) bool {
-	refs, err := spec.ScanQuery(text)
-	if err != nil {
-		return false
-	}
-	return slices.ContainsFunc(refs, func(ref spec.Reference) bool {
-		macro, ok := spec.LookupMacro(ref.Name)
-		return ref.Kind == spec.MacroRef && ok && match(macro)
-	})
-}
-
-func usesUser(text string) bool {
-	return referencesGlobal(text, func(m spec.Macro) bool { return m.PerUser })
-}
-
-func usesDashboard(text string) bool {
-	return referencesGlobal(text, func(m spec.Macro) bool { return m.PerDashboard })
+	return use
 }
 
 func DashboardUsesUser(d *spec.Dashboard) bool {
 	if d == nil {
 		return false
 	}
-	if slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Type == spec.QueryVariable && usesUser(v.Query) }) {
+	if slices.ContainsFunc(d.Variables, func(v spec.Variable) bool { return v.Type == spec.QueryVariable && scanQueryUse(v.Query).user }) {
 		return true
 	}
 	for _, e := range d.DataPanels() {
-		if slices.ContainsFunc(e.Panel.Queries, func(q spec.Query) bool { return usesUser(q.Query) }) {
+		if slices.ContainsFunc(e.Panel.Queries, func(q spec.Query) bool { return scanQueryUse(q.Query).user }) {
 			return true
 		}
 	}
