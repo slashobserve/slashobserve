@@ -1,118 +1,228 @@
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { useEffect, useId, useRef } from "react"
+import { ArrowUpRightIcon, SearchIcon } from "lucide-react"
+import { useEffect, useId, useRef, useState } from "react"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { LoadProblem } from "@/components/load-problem"
+import { RelativeTime } from "@/components/relative-time"
+import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { madeByLabel } from "@/lib/origin"
+import { cn } from "@/lib/utils"
+import { loadProblemText } from "@/service-accounts/queries"
+
+import { DatasourceMenu, MadeByMenu } from "./list-filter-menus"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { formatDateTime, formatRelative } from "@/lib/time"
+  countText,
+  hasFilters,
+  toFilters,
+  type ListSearch,
+} from "./list-filters"
 
 type DashboardSummary =
   paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
 
 const pageSize = 50
 const skeletonRows = 5
-const busyButton = "text-foreground"
+const searchDelayMs = 250
+const maxQueryLength = 200
 
-function useDashboardList() {
+function useDashboardList(search: ListSearch) {
+  const filters = toFilters(search)
   return useInfiniteQuery({
-    queryKey: dashboardKeys.list(),
+    queryKey: dashboardKeys.filtered(filters),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) =>
       api
         .GET("/dashboards", {
-          params: { query: { limit: pageSize, cursor: pageParam } },
+          params: {
+            query: {
+              limit: pageSize,
+              cursor: pageParam,
+              q: filters.q,
+              made_by: filters.madeBy,
+              datasource: filters.datasource,
+            },
+          },
           signal,
         })
         .then(unwrap),
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     staleTime: 15_000,
+    placeholderData: keepPreviousData,
   })
 }
 
 function ListHeader() {
   return (
-    <TableHeader>
-      <TableRow className="hover:bg-transparent">
-        <TableHead>Title</TableHead>
-        <TableHead className="w-36 sm:w-64">Updated</TableHead>
-        <TableHead className="w-16 text-right">Version</TableHead>
-      </TableRow>
-    </TableHeader>
+    <thead>
+      <tr>
+        <HeaderCell>Title</HeaderCell>
+        <HeaderCell>Made by</HeaderCell>
+        <HeaderCell>Datasources</HeaderCell>
+        <HeaderCell>Open comments</HeaderCell>
+        <HeaderCell>Version</HeaderCell>
+        <HeaderCell className="text-right">Updated</HeaderCell>
+      </tr>
+    </thead>
   )
 }
 
 function DashboardRow({ dashboard }: { dashboard: DashboardSummary }) {
   return (
-    <TableRow>
-      <TableCell className="whitespace-normal">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Link
-            to="/dashboards/$dashboardId"
-            params={{ dashboardId: dashboard.id }}
-            className="rounded-sm font-medium wrap-anywhere underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {dashboard.title}
-          </Link>
-          {dashboard.tags.map((tag) => (
-            <Badge key={tag} variant="outline" className="max-w-full">
-              <span className="truncate" title={tag}>
-                {tag}
-              </span>
-            </Badge>
-          ))}
-        </div>
-      </TableCell>
-      <TableCell className="whitespace-normal text-muted-foreground">
-        <time
-          dateTime={dashboard.updated_at}
-          title={formatDateTime(dashboard.updated_at)}
+    <tr>
+      <Cell>
+        <Link
+          to="/dashboards/$dashboardId"
+          params={{ dashboardId: dashboard.id }}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-1 rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {formatRelative(dashboard.updated_at)}
-        </time>
-        <span className="max-sm:block"> by {dashboard.updated_by.name}</span>
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        v{dashboard.latest_version}
-      </TableCell>
-    </TableRow>
+          {dashboard.title}
+          <ArrowUpRightIcon
+            aria-hidden="true"
+            className="size-3.5 flex-none text-muted-foreground"
+          />
+          <span className="sr-only"> (opens in a new tab)</span>
+        </Link>
+        {dashboard.description ? (
+          <div className="text-xs wrap-anywhere text-muted-foreground">
+            {dashboard.description}
+          </div>
+        ) : null}
+      </Cell>
+      <Cell className="min-w-40 text-muted-foreground">
+        {madeByLabel(dashboard.creator)}
+      </Cell>
+      <Cell>
+        {dashboard.datasource_uids.length > 0 ? (
+          <span className="font-mono text-xs">
+            {dashboard.datasource_uids.join(", ")}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        )}
+      </Cell>
+      <Cell className="tabular-nums">
+        {dashboard.open_comment_count > 0
+          ? dashboard.open_comment_count
+          : "None"}
+      </Cell>
+      <Cell className="tabular-nums">v{dashboard.latest_version}</Cell>
+      <Cell className="text-right whitespace-nowrap text-muted-foreground">
+        <RelativeTime iso={dashboard.updated_at} />
+      </Cell>
+    </tr>
   )
 }
 
 function SkeletonRows() {
   return Array.from({ length: skeletonRows }, (_, index) => (
-    <TableRow key={index} className="hover:bg-transparent">
-      <TableCell>
-        <Skeleton className="h-5 w-48 max-w-full max-sm:w-32" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-5 w-24 sm:w-36" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="ml-auto h-5 w-8" />
-      </TableCell>
-    </TableRow>
+    <tr key={index}>
+      <Cell>
+        <Skeleton className="h-5 w-48 max-w-full" />
+      </Cell>
+      <Cell>
+        <Skeleton className="h-5 w-28" />
+      </Cell>
+      <Cell>
+        <Skeleton className="h-5 w-16" />
+      </Cell>
+      <Cell>
+        <Skeleton className="h-5 w-10" />
+      </Cell>
+      <Cell>
+        <Skeleton className="h-5 w-8" />
+      </Cell>
+      <Cell>
+        <Skeleton className="ml-auto h-5 w-16" />
+      </Cell>
+    </tr>
   ))
 }
 
-export function DashboardList({ labelledBy }: { labelledBy: string }) {
-  const query = useDashboardList()
+type FilterRowProps = {
+  search: ListSearch
+  onSearchChange: (next: ListSearch) => void
+  total: number | undefined
+}
+
+function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
+  const [text, setText] = useState(search.q ?? "")
+  const emitted = useRef(search.q)
+  const typed = text.trim() === "" ? undefined : text.trim()
+
+  useEffect(() => {
+    if (search.q === emitted.current) return
+    emitted.current = search.q
+    setText(search.q ?? "")
+  }, [search.q])
+
+  useEffect(() => {
+    if (typed === search.q) return
+    const timer = setTimeout(() => {
+      emitted.current = typed
+      onSearchChange({ ...search, q: typed })
+    }, searchDelayMs)
+    return () => clearTimeout(timer)
+  }, [typed, search, onSearchChange])
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <label className="flex h-8 w-[280px] max-w-full items-center gap-2 rounded-control border bg-background px-2.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring">
+        <SearchIcon
+          aria-hidden="true"
+          className="size-3.5 flex-none text-muted-foreground"
+        />
+        <span className="sr-only">Filter dashboards</span>
+        <input
+          type="text"
+          value={text}
+          maxLength={maxQueryLength}
+          autoComplete="off"
+          placeholder="Filter by title"
+          onChange={(event) => setText(event.target.value)}
+          className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+        />
+      </label>
+      <MadeByMenu
+        value={search.made_by}
+        onChange={(made_by) => onSearchChange({ ...search, made_by })}
+      />
+      <DatasourceMenu
+        value={search.datasource}
+        onChange={(datasource) => onSearchChange({ ...search, datasource })}
+      />
+      {total !== undefined ? (
+        <span role="status" className="ml-auto text-xs text-muted-foreground">
+          {countText(total)}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+type Props = {
+  labelledBy: string
+  search: ListSearch
+  onSearchChange: (next: ListSearch) => void
+}
+
+export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
+  const query = useDashboardList(search)
   const dashboards = query.data?.pages.flatMap((page) => page.dashboards) ?? []
-  const empty = query.data !== undefined && dashboards.length === 0
-  const showTable = query.isPending || (query.data !== undefined && !empty)
+  const empty =
+    query.data !== undefined &&
+    !query.isPlaceholderData &&
+    dashboards.length === 0
+  const noDashboards = empty && !hasFilters(search)
+  const showTable = query.isPending || dashboards.length > 0
   const loadMoreFailed = query.isFetchNextPageError
   const loadMoreErrorId = useId()
   const rows = useRef<HTMLTableSectionElement>(null)
@@ -142,42 +252,55 @@ export function DashboardList({ labelledBy }: { labelledBy: string }) {
 
   return (
     <>
+      {noDashboards ? null : (
+        <FilterRow
+          search={search}
+          onSearchChange={onSearchChange}
+          total={query.data?.pages[0].total_count}
+        />
+      )}
       {query.isError && !loadMoreFailed ? (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Could not load dashboards</AlertTitle>
-          <AlertDescription>
-            <p>{query.error.message}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className={busyButton}
-              disabled={query.isFetching}
-              focusableWhenDisabled
-              aria-busy={query.isFetching}
-              onClick={() => void query.refetch()}
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <div className="mb-4">
+          <LoadProblem
+            title="Could not load dashboards"
+            detail={loadProblemText(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        </div>
       ) : null}
       {empty ? (
         <section className="flex flex-col items-center gap-2 py-16 text-center">
-          <h2 className="text-lg font-semibold">No dashboards yet</h2>
-          <p className="text-sm text-muted-foreground">
-            Dashboards you or the agent create appear here.
-          </p>
+          {noDashboards ? (
+            <>
+              <h2 className="text-lg font-semibold">No dashboards yet</h2>
+              <p className="text-sm text-muted-foreground">
+                Ask for one in the chat and it shows up here.
+              </p>
+              <Link
+                to="/"
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                Open the chat
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold">
+                No dashboards match these filters.
+              </h2>
+              <Button variant="outline" onClick={() => onSearchChange({})}>
+                Clear filters
+              </Button>
+            </>
+          )}
         </section>
       ) : null}
       {showTable ? (
         <>
-          <Table
-            className="table-fixed"
-            aria-labelledby={labelledBy}
-            aria-busy={query.isPending}
-          >
+          <TableCard minWidth={760} labelledBy={labelledBy}>
             <ListHeader />
-            <TableBody ref={rows}>
+            <tbody ref={rows} aria-busy={query.isPending}>
               {query.isPending ? (
                 <SkeletonRows />
               ) : (
@@ -185,8 +308,8 @@ export function DashboardList({ labelledBy }: { labelledBy: string }) {
                   <DashboardRow key={dashboard.id} dashboard={dashboard} />
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </TableCard>
           {query.hasNextPage ? (
             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               {loadMoreFailed ? (
@@ -201,7 +324,7 @@ export function DashboardList({ labelledBy }: { labelledBy: string }) {
               <Button
                 ref={loadMoreButton}
                 variant="outline"
-                className={busyButton}
+                className="text-foreground"
                 disabled={query.isFetchingNextPage}
                 focusableWhenDisabled
                 aria-busy={query.isFetchingNextPage}

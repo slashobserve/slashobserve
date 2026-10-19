@@ -4,39 +4,87 @@ import type { Route } from "@playwright/test"
 import { expect, test, type Page } from "./fixtures"
 
 const listPath = "/api/v1/dashboards"
+const newTabSuffix = " (opens in a new tab)"
+
+const cardColors = {
+  light: { background: "rgb(255, 255, 255)", border: "rgb(228, 228, 231)" },
+  dark: { background: "rgb(17, 17, 19)", border: "rgb(42, 42, 46)" },
+} as const
 
 function isListRequest(url: URL): boolean {
   return url.pathname === listPath
 }
 
-function fakeSummary(title: string, tags: string[] = []) {
+type Summary = ReturnType<typeof fakeSummary>
+
+function fakeSummary(
+  title: string,
+  overrides: { description?: string | null; datasource_uids?: string[] } = {}
+) {
   const now = new Date().toISOString()
+  const author = {
+    kind: "user" as const,
+    id: crypto.randomUUID(),
+    name: "Fake Author",
+  }
   return {
     id: crypto.randomUUID(),
     title,
-    tags,
+    description: null as string | null,
+    tags: [] as string[],
     latest_version: 3,
     created_at: now,
     updated_at: now,
-    updated_by: {
-      kind: "user",
-      id: crypto.randomUUID(),
-      name: "Fake Author",
+    updated_by: author,
+    creator: {
+      author,
+      origin: "web" as const,
+      origin_client: null,
+      via: "direct" as const,
     },
+    datasource_uids: ["prom"],
+    open_comment_count: 0,
+    ...overrides,
   }
 }
 
-test("lists dashboards newest first and opens one", async ({
-  page,
-  request,
-}) => {
+function listBody(dashboards: Summary[], nextCursor: string | null = null) {
+  return {
+    dashboards,
+    next_cursor: nextCursor,
+    total_count: dashboards.length,
+  }
+}
+
+function dashboardsCard(page: Page) {
+  return page.getByRole("region", { name: "Dashboards" })
+}
+
+function filterBox(page: Page) {
+  return page.getByRole("textbox", { name: "Filter dashboards" })
+}
+
+function rowFor(page: Page, title: string) {
+  return page
+    .getByRole("row")
+    .filter({ has: page.getByRole("link", { name: title }) })
+}
+
+async function filterByTitle(page: Page, title: string) {
+  await filterBox(page).fill(title)
+  await expect(rowFor(page, title)).toBeVisible()
+  await expect(dashboardsCard(page).getByRole("row")).toHaveCount(2)
+}
+
+function searchParam(page: Page, name: string) {
+  return new URL(page.url()).searchParams.get(name)
+}
+
+test("lists dashboards newest first", async ({ page, request }) => {
   const titleA = uniqueTitle("List A")
   const titleB = uniqueTitle("List B")
   await createDashboard(request, { ...loadSpec("overview"), title: titleA })
-  const b = await createDashboard(request, {
-    ...loadSpec("overview"),
-    title: titleB,
-  })
+  await createDashboard(request, { ...loadSpec("overview"), title: titleB })
 
   await page.goto("/dashboards")
   const linkA = page.getByRole("link", { name: titleA })
@@ -48,41 +96,179 @@ test("lists dashboards newest first and opens one", async ({
   const boxB = await linkB.boundingBox()
   expect(boxB!.y).toBeLessThan(boxA!.y)
 
-  for (const link of [linkA, linkB]) {
-    const row = page.getByRole("row").filter({ has: link })
-    await expect(row.getByText("v1", { exact: true })).toBeVisible()
+  for (const title of [titleA, titleB]) {
+    await expect(
+      rowFor(page, title).getByText("v1", { exact: true })
+    ).toBeVisible()
   }
-
-  await expect(page.getByRole("table", { name: "Dashboards" })).toBeVisible()
-
-  await linkB.click()
-  await expect(page).toHaveURL(new RegExp(`/dashboards/${b.id}`))
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleB)
+  await expect(dashboardsCard(page)).toBeVisible()
+  await expect(page.getByRole("columnheader")).toHaveText([
+    "Title",
+    "Made by",
+    "Datasources",
+    "Open comments",
+    "Version",
+    "Updated",
+  ])
 })
 
-test("keeps unbroken titles and tags inside the table on a phone", async ({
-  page,
-}) => {
-  const row = fakeSummary("checkout_service_p99_latency_by_region_".repeat(4), [
-    "checkout_service_p99_latency_by_region_x",
-  ])
-  await page.route(isListRequest, (route) =>
-    route.fulfill({ json: { dashboards: [row], next_cursor: null } })
-  )
-  await page.setViewportSize({ width: 390, height: 844 })
+for (const scheme of ["light", "dark"] as const) {
+  test.describe(scheme, () => {
+    test.use({ colorScheme: scheme })
+
+    test("lists a dashboard with its maker and datasources", async ({
+      page,
+      request,
+    }) => {
+      const title = uniqueTitle("List")
+      await createDashboard(request, { ...loadSpec("overview"), title })
+      const listed = await request.get(
+        `${listPath}?q=${encodeURIComponent(title)}`
+      )
+      const body = (await listed.json()) as {
+        dashboards: { creator: { author: { name: string } } }[]
+      }
+      expect(body.dashboards).toHaveLength(1)
+      const maker = body.dashboards[0].creator.author.name
+
+      await page.goto("/dashboards")
+      await filterByTitle(page, title)
+      const cells = rowFor(page, title).getByRole("cell")
+      await expect(cells.nth(1)).toHaveText(maker)
+      await expect(cells.nth(2)).toContainText("prom")
+      await expect(cells.nth(3)).toHaveText("None")
+      await expect(cells.nth(4)).toHaveText("v1")
+
+      const card = dashboardsCard(page)
+      await expect(card).toHaveCSS(
+        "background-color",
+        cardColors[scheme].background
+      )
+      await expect(card).toHaveCSS(
+        "border-top-color",
+        cardColors[scheme].border
+      )
+    })
+  })
+}
+
+test("opens a dashboard in a new tab", async ({ page, context, request }) => {
+  const title = uniqueTitle("List tab")
+  const created = await createDashboard(request, {
+    ...loadSpec("overview"),
+    title,
+  })
   await page.goto("/dashboards")
-  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth
+  await filterByTitle(page, title)
+
+  const link = page.getByRole("link", { name: title })
+  await expect(link).toHaveAttribute("target", "_blank")
+  await expect(link).toHaveAccessibleName(`${title}${newTabSuffix}`)
+  const [popup] = await Promise.all([
+    context.waitForEvent("page"),
+    link.click(),
+  ])
+  await expect(popup).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(popup.getByRole("heading", { level: 1 })).toHaveText(title)
+  await expect(page).toHaveURL(/\/dashboards(\?.*)?$/)
+  await popup.close()
+})
+
+test("filters by title, maker and datasource, in the URL", async ({
+  page,
+  request,
+}) => {
+  const title = uniqueTitle("List filter")
+  await createDashboard(request, { ...loadSpec("overview"), title })
+  await page.goto("/dashboards")
+
+  await filterByTitle(page, title)
+  await expect.poll(() => searchParam(page, "q")).toBe(title)
+
+  await page.getByRole("button", { name: /^Made by:/ }).click()
+  await page.getByRole("menuitemradio", { name: "Me" }).click()
+  await expect(page.getByRole("button", { name: "Made by: me" })).toBeVisible()
+  await expect.poll(() => searchParam(page, "made_by")).toBe("me")
+  await expect(rowFor(page, title)).toBeVisible()
+
+  await page.getByRole("button", { name: /^Datasource:/ }).click()
+  await page
+    .getByRole("menuitemradio", { name: "prom (prometheus)", exact: true })
+    .click()
+  await expect(
+    page.getByRole("button", { name: "Datasource: prom" })
+  ).toBeVisible()
+  await expect.poll(() => searchParam(page, "datasource")).toBe("prom")
+  await expect(rowFor(page, title)).toBeVisible()
+
+  await page.reload()
+  await expect(filterBox(page)).toHaveValue(title)
+  await expect(page.getByRole("button", { name: "Made by: me" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Datasource: prom" })
+  ).toBeVisible()
+  await expect(rowFor(page, title)).toBeVisible()
+
+  await filterBox(page).fill(`${title} no such dashboard`)
+  await expect(
+    page.getByRole("heading", { name: "No dashboards match these filters." })
+  ).toBeVisible()
+  await expect(dashboardsCard(page)).toHaveCount(0)
+  await page.getByRole("button", { name: "Clear filters" }).click()
+  await expect.poll(() => new URL(page.url()).search).toBe("")
+  await expect(filterBox(page)).toHaveValue("")
+  await expect(
+    page.getByRole("button", { name: "Made by: anyone" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "Datasource: any" })
+  ).toBeVisible()
+  await expect(rowFor(page, title)).toBeVisible()
+})
+
+test("counts matches", async ({ page, request }) => {
+  const title = uniqueTitle("List count")
+  await createDashboard(request, { ...loadSpec("overview"), title })
+  await page.goto("/dashboards")
+
+  await filterByTitle(page, title)
+  await expect(page.getByText("1 dashboard", { exact: true })).toBeVisible()
+
+  await filterBox(page).fill(`${title} no such dashboard`)
+  await expect(page.getByText("0 dashboards", { exact: true })).toBeVisible()
+})
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test("fits a phone", async ({ page }) => {
+    const row = fakeSummary(
+      "checkout_service_p99_latency_by_region_".repeat(4),
+      {
+        description: "checkout_service_p99_latency_by_region_x".repeat(3),
+      }
     )
-  ).toBe(true)
+    await page.route(isListRequest, (route) =>
+      route.fulfill({ json: listBody([row]) })
+    )
+    await page.goto("/dashboards")
+    await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth
+      )
+    ).toBe(true)
+    expect(
+      await dashboardsCard(page).evaluate(
+        (element) => element.scrollWidth > element.clientWidth
+      )
+    ).toBe(true)
+  })
 })
 
 test("shows the empty state", async ({ page }) => {
-  await page.route(
-    (url) => isListRequest(url),
-    (route) => route.fulfill({ json: { dashboards: [], next_cursor: null } })
+  await page.route(isListRequest, (route) =>
+    route.fulfill({ json: listBody([]) })
   )
   await page.goto("/dashboards")
   await expect(
@@ -92,27 +278,36 @@ test("shows the empty state", async ({ page }) => {
     page.getByRole("heading", { name: "No dashboards yet" })
   ).toBeVisible()
   await expect(
-    page.getByText("Dashboards you or the agent create appear here.")
+    page.getByText("Ask for one in the chat and it shows up here.")
   ).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: "Open the chat" })
+  ).toHaveAttribute("href", "/")
 })
 
 function pagedList(
-  pages: Record<string, { dashboards: object[]; next_cursor: string | null }>
+  pages: Record<string, { dashboards: Summary[]; next_cursor: string | null }>
 ) {
   return (route: Route) => {
     const cursor = new URL(route.request().url()).searchParams.get("cursor")
-    return route.fulfill({ json: pages[cursor ?? ""] })
+    const page = pages[cursor ?? ""]
+    return route.fulfill({ json: listBody(page.dashboards, page.next_cursor) })
   }
 }
 
-function activeElementText(page: Page) {
-  return page.evaluate(() => document.activeElement?.textContent ?? "")
+function activeLinkTitle(page: Page) {
+  return page.evaluate(
+    (suffix) => (document.activeElement?.textContent ?? "").replace(suffix, ""),
+    newTabSuffix
+  )
 }
 
 test("loads more pages and moves focus to the first new row", async ({
   page,
 }) => {
-  const first = fakeSummary(uniqueTitle("Paged first"), ["alpha", "beta"])
+  const first = fakeSummary(uniqueTitle("Paged first"), {
+    description: "alpha beta",
+  })
   const secondA = fakeSummary(uniqueTitle("Paged second A"))
   const secondB = fakeSummary(uniqueTitle("Paged second B"))
   const third = fakeSummary(uniqueTitle("Paged third"))
@@ -127,22 +322,21 @@ test("loads more pages and moves focus to the first new row", async ({
 
   await page.goto("/dashboards")
   await expect(page.getByRole("link", { name: first.title })).toBeVisible()
-  await expect(page.getByText("alpha", { exact: true })).toHaveCount(1)
-  await expect(page.getByText("beta", { exact: true })).toHaveCount(1)
+  await expect(page.getByText("alpha beta", { exact: true })).toHaveCount(1)
   await expect(page.getByRole("link", { name: secondA.title })).toHaveCount(0)
 
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.focus()
   await page.keyboard.press("Enter")
   await expect(page.getByRole("link", { name: secondB.title })).toBeVisible()
-  await expect.poll(() => activeElementText(page)).toBe(secondA.title)
+  await expect.poll(() => activeLinkTitle(page)).toBe(secondA.title)
 
   await expect(loadMore).toBeVisible()
   await loadMore.focus()
   await page.keyboard.press("Enter")
   await expect(page.getByRole("link", { name: third.title })).toBeVisible()
   await expect(loadMore).toHaveCount(0)
-  await expect.poll(() => activeElementText(page)).toBe(third.title)
+  await expect.poll(() => activeLinkTitle(page)).toBe(third.title)
 })
 
 test("keeps Load more focusable and inert while a page loads", async ({
@@ -158,10 +352,7 @@ test("keeps Load more focusable and inert while a page loads", async ({
     requests.push(cursor)
     if (cursor === "c2") await gate
     return route.fulfill({
-      json:
-        cursor === "c2"
-          ? { dashboards: [second], next_cursor: null }
-          : { dashboards: [first], next_cursor: "c2" },
+      json: cursor === "c2" ? listBody([second]) : listBody([first], "c2"),
     })
   })
 
@@ -181,7 +372,7 @@ test("keeps Load more focusable and inert while a page loads", async ({
   release()
   await expect(page.getByRole("link", { name: second.title })).toBeVisible()
   expect(requests.filter((cursor) => cursor === "c2")).toHaveLength(1)
-  await expect.poll(() => activeElementText(page)).toBe(second.title)
+  await expect.poll(() => activeLinkTitle(page)).toBe(second.title)
 })
 
 test("moves focus to the last row when Load more returns an empty page", async ({
@@ -202,7 +393,7 @@ test("moves focus to the last row when Load more returns an empty page", async (
   await loadMore.focus()
   await page.keyboard.press("Enter")
   await expect(loadMore).toHaveCount(0)
-  await expect.poll(() => activeElementText(page)).toBe(second.title)
+  await expect.poll(() => activeLinkTitle(page)).toBe(second.title)
 })
 
 test("does not steal focus on a later refetch after a failed Load more", async ({
@@ -223,10 +414,9 @@ test("does not steal focus on a later refetch after a failed Load more", async (
       })
     }
     return route.fulfill({
-      json: {
-        dashboards: refetched ? [first, second, third] : [first, second],
-        next_cursor: refetched ? null : "c2",
-      },
+      json: refetched
+        ? listBody([first, second, third])
+        : listBody([first, second], "c2"),
     })
   })
 
@@ -261,9 +451,7 @@ test("shows a failed Load more next to the button and retries from it", async ({
   await page.route(isListRequest, (route) => {
     const cursor = new URL(route.request().url()).searchParams.get("cursor")
     if (cursor !== "c2") {
-      return route.fulfill({
-        json: { dashboards: [first], next_cursor: "c2" },
-      })
+      return route.fulfill({ json: listBody([first], "c2") })
     }
     if (failNext) {
       failNext = false
@@ -272,7 +460,7 @@ test("shows a failed Load more next to the button and retries from it", async ({
         json: { error: "page boom", code: "internal" },
       })
     }
-    return route.fulfill({ json: { dashboards: [second], next_cursor: null } })
+    return route.fulfill({ json: listBody([second]) })
   })
 
   await page.goto("/dashboards")
@@ -295,7 +483,7 @@ test("shows a failed Load more next to the button and retries from it", async ({
   await expect(page.getByRole("link", { name: second.title })).toBeVisible()
   await expect(page.getByRole("alert")).toHaveCount(0)
   await expect(loadMore).toHaveCount(0)
-  await expect.poll(() => activeElementText(page)).toBe(second.title)
+  await expect.poll(() => activeLinkTitle(page)).toBe(second.title)
   consoleErrors.length = 0
 })
 
@@ -312,7 +500,7 @@ test("shows an error with retry", async ({ page, request, consoleErrors }) => {
   )
   await page.goto("/dashboards")
   const alert = page.getByRole("alert")
-  await expect(alert).toContainText("boom")
+  await expect(alert).toContainText("Boom.")
   const retry = page.getByRole("button", { name: "Retry" })
   await expect(retry).toHaveCSS("color", await foregroundColor(page))
 
@@ -347,7 +535,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
       attempts += 1
       await gate
     }
-    return route.fulfill({ json: { dashboards: [], next_cursor: null } })
+    return route.fulfill({ json: listBody([]) })
   })
   const emptyHeading = page.getByRole("heading", { name: "No dashboards yet" })
   await page.goto("/dashboards")
@@ -364,7 +552,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
     .getByRole("navigation", { name: "Main" })
     .getByRole("link", { name: "Dashboards" })
     .click()
-  await expect(page.getByRole("alert")).toContainText("boom")
+  await expect(page.getByRole("alert")).toContainText("Boom.")
   await expect(emptyHeading).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)
 
