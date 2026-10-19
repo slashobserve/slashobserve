@@ -1206,7 +1206,12 @@ func TestCheckSpecNewVariableTypes(t *testing.T) {
 			name:      "datasource variable default that its regex drops",
 			panels:    panels("up"),
 			variables: []spec.Variable{withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/^nope$/"; return v }(), "prom")},
-			want:      []wantIssue{{"/variables/0", CodeVariableEmpty, ""}},
+			want:      []wantIssue{{"/variables/0/default", spec.CodeInvalidDefault, "default \"prom\" of variable \"dsv\" does not match its regex"}},
+		},
+		{
+			name:      "datasource variable default that its regex keeps",
+			panels:    panels("up"),
+			variables: []spec.Variable{withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/^pro/"; return v }(), "prom")},
 		},
 		{
 			name:      "adhoc variable referenced by a Prometheus query",
