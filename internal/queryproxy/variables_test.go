@@ -1397,3 +1397,25 @@ func TestVariableRegexMatchesAnEarlierValueWithSlashesLiterally(t *testing.T) {
 		}
 	}
 }
+
+func TestVariableRegexWithAnUnparsableReferenceFailsWithTheScanError(t *testing.T) {
+	ds := datasourceVariable("ds", spec.Prometheus)
+	ds.Regex = "/${a b}/"
+	query := queryVariable("svc", "prom", "label_values(job)")
+	query.Regex = "/^${a b}$/"
+	for _, v := range []spec.Variable{ds, query} {
+		t.Run(string(v.Type), func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onVariable = answer("a")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			d := dashboardOf(nil, v)
+			_, _, err := runner.VariableValues(t.Context(), d, v.Name, testRange(), nil, datasource.QueryUser{})
+			if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "invalid reference") {
+				t.Fatalf("VariableValues err = %v, want the invalid reference scan error", err)
+			}
+			if _, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{}); !errors.Is(err, datasource.ErrInvalidQuery) {
+				t.Fatalf("Defaults err = %v, want the scan error", err)
+			}
+		})
+	}
+}

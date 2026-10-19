@@ -225,16 +225,17 @@ func (r *Runner) variableRegex(ctx context.Context, d *spec.Dashboard, idx int, 
 	if v.Regex == "" {
 		return nil, nil
 	}
-	pattern := v.Regex
-	if use := scanQueryUse(pattern); len(use.variables) > 0 {
+	var vars []datasource.Variable
+	if use := scanQueryUse(v.Regex); len(use.variables) > 0 {
 		use.listed = map[string]bool{}
-		vars, err := r.variablesFor(ctx, d, idx, use, rng, selections, user, st)
-		if err != nil {
+		var err error
+		if vars, err = r.variablesFor(ctx, d, idx, use, rng, selections, user, st); err != nil {
 			return nil, err
 		}
-		if pattern, err = macros.ExpandRegex(pattern, vars); err != nil {
-			return nil, err
-		}
+	}
+	pattern, err := macros.ExpandRegex(v.Regex, vars)
+	if err != nil {
+		return nil, err
 	}
 	return st.parsed.regex(v.Name, pattern)
 }
