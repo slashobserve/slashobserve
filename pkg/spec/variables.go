@@ -2,6 +2,7 @@ package spec
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -146,5 +147,5 @@ func leadingNumber(s string) (float64, bool) {
 		return 0, false
 	}
 	n, err := strconv.ParseFloat(found, 64)
-	return n, err == nil
+	return n, err == nil || errors.Is(err, strconv.ErrRange)
 }
