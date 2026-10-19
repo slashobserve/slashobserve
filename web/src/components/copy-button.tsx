@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button"
 
 const copiedMs = 2000
 
-type Props = Pick<ComponentProps<typeof Button>, "variant" | "size" | "ref"> & {
+type Props = Pick<
+  ComponentProps<typeof Button>,
+  "variant" | "size" | "ref" | "className" | "aria-describedby"
+> & {
   text: string
   label: string
   children?: React.ReactNode
@@ -20,6 +23,8 @@ export function CopyButton({
   variant,
   size,
   ref,
+  className,
+  "aria-describedby": describedBy,
   onCopyFailed,
 }: Props) {
   const [copied, setCopied] = useState(false)
@@ -48,6 +53,8 @@ export function CopyButton({
         type="button"
         variant={variant}
         size={size}
+        className={className}
+        aria-describedby={describedBy}
         aria-label={children === undefined ? label : undefined}
         onClick={() => void copy()}
       >

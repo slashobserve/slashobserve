@@ -42,6 +42,7 @@ export function serviceAccountKeysQuery(accountId: string) {
 export function useCreateServiceAccount() {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: (input: { name: string; description?: string }) =>
       api.POST("/service-accounts", { body: input }).then(unwrap),
     onSuccess: () =>
@@ -49,18 +50,27 @@ export function useCreateServiceAccount() {
   })
 }
 
-export function useCreateKey(accountId: string) {
+export function useCreateKey() {
   const queryClient = useQueryClient()
   return useMutation({
     gcTime: 0,
-    mutationFn: (input: { name: string; expires_at: string | null }) =>
+    networkMode: "always",
+    mutationFn: ({
+      accountId,
+      name,
+      expires_at,
+    }: {
+      accountId: string
+      name: string
+      expires_at: string | null
+    }) =>
       api
         .POST("/service-accounts/{id}/keys", {
           params: { path: { id: accountId } },
-          body: input,
+          body: { name, expires_at },
         })
         .then(unwrap),
-    onSuccess: () =>
+    onSuccess: (_response, { accountId }) =>
       queryClient.invalidateQueries({
         queryKey: serviceAccountKeys.keys(accountId),
       }),
@@ -70,6 +80,7 @@ export function useCreateKey(accountId: string) {
 export function useRevokeKey(accountId: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: (keyId: string) =>
       api
         .DELETE("/service-accounts/{id}/keys/{keyId}", {

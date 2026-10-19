@@ -349,10 +349,10 @@ The project does not vouch for any particular local model, and dashboard quality
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
 1. Sign in to the web app and choose **API keys** in the sidebar, or open `<public url>/keys` (the old `/settings/keys` address redirects).
-2. Choose **New service account**, give it a name (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), then give the first key a name and an expiry.
-   The expiry choices are 30 days, 90 days (the default), 1 year or no expiry.
-3. Copy the key.
-   It is shown once, in that dialog, and the server stores only a hash of it, so a lost key cannot be recovered; create a new one and revoke the old one.
+2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
+3. Choose **Create key** in the panel and copy the key.
+   It is shown once, in that panel, with an `export OBSERVE_TOKEN=…` line to paste into your shell.
+   The server stores only a hash of the key, so a lost key cannot be recovered; create a new one and revoke the old one.
 
 Keys start with `sok_`.
 Add more keys to an account, and revoke a key, from the same page.
@@ -447,9 +447,11 @@ Claude Code expands `${OBSERVE_TOKEN}` from its environment when it starts.
 `claude mcp add` can create the same entry.
 Use single quotes so your shell does not expand the variable and write the key into the config:
 
-    claude mcp add --transport http slashobserve https://observe.example.com/mcp --header 'Authorization: Bearer ${OBSERVE_TOKEN}'
+    claude mcp add --transport http --scope project slashobserve https://observe.example.com/mcp --header 'Authorization: Bearer ${OBSERVE_TOKEN}'
 
 Prefer `.mcp.json`.
+
+The **API keys** page's Claude Code snippet also appends one line to your project's `CLAUDE.md` (only if the file does not already contain `For SlashObserve dashboards`) so Claude Code reads open comments with `list_comments`, fixes them with `update_dashboard`, then replies to each comment with `reply_to_comment` and resolves it with `resolve_comment`, passing the version that fixed it.
 
 ### OpenCode
 

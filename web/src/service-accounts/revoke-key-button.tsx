@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -34,6 +34,16 @@ export function RevokeKeyButton({ account, serviceKey, finalFocus }: Props) {
   const revoked = useRef(false)
   const revoke = useRevokeKey(account.id)
 
+  useEffect(
+    () => () => {
+      const active = document.activeElement
+      if (revoked.current && (active === null || active === document.body)) {
+        finalFocus.current?.focus()
+      }
+    },
+    [finalFocus]
+  )
+
   function changeOpen(next: boolean) {
     if (!next && revoke.isPending) return
     setOpen(next)
@@ -58,8 +68,9 @@ export function RevokeKeyButton({ account, serviceKey, finalFocus }: Props) {
   return (
     <>
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
+        className="px-3 font-normal"
         aria-label={`Revoke key ${serviceKey.name} for ${account.name}`}
         onClick={() => {
           revoked.current = false

@@ -8,26 +8,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import { CodeSnippet } from "./code-snippet"
 import { loadProblemText } from "./queries"
+import { claudeSnippet, cliSnippet, openCodeSnippet } from "./snippets"
 
-function Code({ children }: { children: string }) {
-  return <code className="font-mono text-xs">{children}</code>
-}
+const triggerClass =
+  "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 pb-2 text-[13px] font-medium text-muted-foreground -mb-px after:hidden data-active:border-foreground data-active:text-foreground dark:data-active:border-foreground dark:group-data-[variant=line]/tabs-list:data-active:border-foreground"
 
 export function ConnectClients() {
   const headingId = useId()
   const query = useQuery(instanceQuery())
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 id={headingId} className="text-lg font-semibold">
-          Connect a client
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Create a key above, then set up a client. The snippets never contain
-          the key.
-        </p>
-      </div>
+    <section aria-labelledby={headingId} className="rounded-card border p-4">
+      <h2 id={headingId} className="mb-1 text-sm font-semibold">
+        Connect a client
+      </h2>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Put the key in OBSERVE_TOKEN, then use one of these. The key itself
+        never goes in a file.
+      </p>
       {query.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : query.data === undefined ? (
@@ -38,93 +36,43 @@ export function ConnectClients() {
           onRetry={() => void query.refetch()}
         />
       ) : (
-        <Snippets
-          publicUrl={query.data.public_url}
-          mcpUrl={query.data.mcp_url}
-        />
+        <Tabs defaultValue="claude">
+          <TabsList
+            variant="line"
+            activateOnFocus
+            aria-label="Client"
+            className="mb-3 h-auto w-full justify-start gap-[18px] border-b p-0"
+          >
+            <TabsTrigger value="claude" className={triggerClass}>
+              Claude Code
+            </TabsTrigger>
+            <TabsTrigger value="opencode" className={triggerClass}>
+              OpenCode
+            </TabsTrigger>
+            <TabsTrigger value="cli" className={triggerClass}>
+              observe CLI
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="claude">
+            <CodeSnippet
+              code={claudeSnippet(query.data.mcp_url)}
+              label="Claude Code setup"
+            />
+          </TabsContent>
+          <TabsContent value="opencode">
+            <CodeSnippet
+              code={openCodeSnippet(query.data.mcp_url)}
+              label="OpenCode configuration"
+            />
+          </TabsContent>
+          <TabsContent value="cli">
+            <CodeSnippet
+              code={cliSnippet(query.data.public_url)}
+              label="observe CLI commands"
+            />
+          </TabsContent>
+        </Tabs>
       )}
     </section>
-  )
-}
-
-function Snippets({
-  publicUrl,
-  mcpUrl,
-}: {
-  publicUrl: string
-  mcpUrl: string
-}) {
-  const claude = JSON.stringify(
-    {
-      mcpServers: {
-        slashobserve: {
-          type: "http",
-          url: mcpUrl,
-          headers: { Authorization: "Bearer ${OBSERVE_TOKEN}" },
-        },
-      },
-    },
-    null,
-    2
-  )
-  const opencode = JSON.stringify(
-    {
-      $schema: "https://opencode.ai/config.json",
-      mcp: {
-        slashobserve: {
-          type: "remote",
-          url: mcpUrl,
-          enabled: true,
-          oauth: false,
-          headers: { Authorization: "Bearer {env:OBSERVE_TOKEN}" },
-        },
-      },
-    },
-    null,
-    2
-  )
-
-  return (
-    <Tabs defaultValue="cli">
-      <TabsList activateOnFocus>
-        <TabsTrigger value="cli">observe CLI</TabsTrigger>
-        <TabsTrigger value="claude">Claude Code</TabsTrigger>
-        <TabsTrigger value="opencode">OpenCode</TabsTrigger>
-      </TabsList>
-      <TabsContent value="cli" className="flex flex-col gap-3">
-        <p className="text-muted-foreground">
-          Run this, then paste the key when asked. The CLI checks the key and
-          saves it for this server.
-        </p>
-        <CodeSnippet
-          code={`observe login --server ${publicUrl}`}
-          label="observe CLI command"
-          wrap
-        />
-      </TabsContent>
-      <TabsContent value="claude" className="flex flex-col gap-3">
-        <p className="text-muted-foreground">
-          Add this to .mcp.json in your project. Claude Code expands{" "}
-          <Code>OBSERVE_TOKEN</Code> from the environment, so the key is never
-          stored in the file.
-        </p>
-        <CodeSnippet
-          code={claude}
-          label="Claude Code configuration"
-          wrap={false}
-        />
-      </TabsContent>
-      <TabsContent value="opencode" className="flex flex-col gap-3">
-        <p className="text-muted-foreground">
-          Add this to opencode.json. OpenCode reads <Code>OBSERVE_TOKEN</Code>{" "}
-          from the environment when it starts.
-        </p>
-        <CodeSnippet
-          code={opencode}
-          label="OpenCode configuration"
-          wrap={false}
-        />
-      </TabsContent>
-    </Tabs>
   )
 }
