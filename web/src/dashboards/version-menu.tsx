@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 import type { LiveStatus } from "./live/use-dashboard-events"
 import { useSetDashboardSearch } from "./search"
 import {
-  isPinnedOlder,
+  isOlderVersion,
   versionButtonLabel,
   versionButtonText,
 } from "./version-label"
@@ -33,7 +33,6 @@ type Props = {
   dashboardId: string
   version: number
   latest: number
-  pinned: boolean
   status: LiveStatus
   back: string | undefined
 }
@@ -87,7 +86,6 @@ export function VersionMenu({
   dashboardId,
   version,
   latest,
-  pinned,
   status,
   back,
 }: Props) {
@@ -95,7 +93,7 @@ export function VersionMenu({
   const history = useVersionHistory(dashboardId)
   const button = useRef<HTMLButtonElement>(null)
   const headingId = useId()
-  const state = { version, latest, pinned, status }
+  const state = { version, latest, status }
 
   useEffect(() => {
     if (!restoreFocusOnMount) return
@@ -120,7 +118,7 @@ export function VersionMenu({
             aria-hidden="true"
             className={cn(
               "size-1.5 rounded-full",
-              isPinnedOlder(state)
+              isOlderVersion(state)
                 ? "bg-muted-foreground"
                 : status === "live"
                   ? "bg-status-ok"

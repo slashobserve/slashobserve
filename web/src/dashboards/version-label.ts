@@ -3,7 +3,6 @@ import type { LiveStatus } from "./live/use-dashboard-events"
 type Input = {
   version: number
   latest: number
-  pinned: boolean
   status: LiveStatus
 }
 
@@ -13,18 +12,15 @@ const statusLabels: Record<LiveStatus, string> = {
   reconnecting: "Reconnecting",
 }
 
-export function isPinnedOlder({ version, latest, pinned }: Input): boolean {
-  return pinned && version < latest
+export function isOlderVersion({ version, latest }: Input): boolean {
+  return version < latest
 }
 
 export function versionButtonText(input: Input): string {
-  if (isPinnedOlder(input)) return `v${input.version} of ${input.latest}`
+  if (isOlderVersion(input)) return `v${input.version} of ${input.latest}`
   return `${statusLabels[input.status]} · v${input.version}`
 }
 
 export function versionButtonLabel(input: Input): string {
-  if (isPinnedOlder(input)) {
-    return `Version ${input.version} of ${input.latest}. Choose a version`
-  }
-  return `Version ${input.version}, ${input.status}. Choose a version`
+  return `${versionButtonText(input)}. Choose a version`
 }

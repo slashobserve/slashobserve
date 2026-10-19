@@ -79,7 +79,7 @@ for (const scheme of themes) {
       await expect(page).toHaveURL(/version=1/)
       await expect(versionButton(page)).toHaveText("v1 of 3")
       await expect(versionButton(page)).toHaveAccessibleName(
-        "Version 1 of 3. Choose a version"
+        "v1 of 3. Choose a version"
       )
       await expectPanelsReady(page)
 

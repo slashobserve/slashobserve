@@ -8,7 +8,7 @@ export async function openDashboard(page: Page, id: string, search = "") {
 export function versionButton(page: Page) {
   return page
     .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
+    .getByRole("button", { name: /\. Choose a version$/ })
 }
 
 export async function openVersionsFromMenu(page: Page) {
