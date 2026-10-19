@@ -1756,10 +1756,15 @@ proxy_suite() {
   if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
     fail "ClickHouse plugin macros with All selected ($out: $(cat "$TMP/api.body"))"
   fi
+  rows_all="$({ grep -o '"name":"n","type":"number","values":\[[^]]*\]' "$TMP/api.body" || true; } | sed 's/.*\[//; s/\]//' | tr ',' '\n' | awk '{ sum += $1 } END { print sum + 0 }')"
+  [[ -n "$rows_all" && "$rows_all" -gt 0 ]] || fail "ClickHouse plugin macros with All selected count no rows ($rows_all: $(cat "$TMP/api.body"))"
   out="$(proxy_call GET "$base/panels/p_chmacros/data?$stable&var-services=$(urlencode "$service")")"
   if [[ "$out" != 200 ]] || ! grep -q '"frames":\[{' "$TMP/api.body"; then
     fail "ClickHouse plugin macros with one service selected ($out: $(cat "$TMP/api.body"))"
   fi
+  rows_one="$({ grep -o '"name":"n","type":"number","values":\[[^]]*\]' "$TMP/api.body" || true; } | sed 's/.*\[//; s/\]//' | tr ',' '\n' | awk '{ sum += $1 } END { print sum + 0 }')"
+  [[ -n "$rows_one" && "$rows_one" -gt 0 ]] || fail "ClickHouse plugin macros with one service selected count no rows ($rows_one: $(cat "$TMP/api.body"))"
+  [[ "$rows_one" -lt "$rows_all" ]] || fail "conditionalAll filtered nothing for one service ($rows_one rows against $rows_all with All)"
   pass "ClickHouse plugin macros, conditionalAll included, run on the server"
 
   out="$(proxy_call GET "$base/panels/p_up/data?query=up")"
