@@ -16,7 +16,7 @@ import { CardHeader } from "./card-header"
 import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
-import { EditPane } from "./edit-pane"
+import { EditPane, type EditGuard } from "./edit-pane"
 import { ResizeHandle } from "./resize-handle"
 
 export const activityCardId = "activity-card"
@@ -31,6 +31,7 @@ type Props = {
   madeBy: string | null
   back: string | undefined
   composerRef: Ref<HTMLTextAreaElement>
+  guardRef: Ref<EditGuard>
   onSelectPanel: (panelId: string) => void
   onClose: () => void
 }
@@ -45,6 +46,7 @@ export function ActivityCard({
   madeBy,
   back,
   composerRef,
+  guardRef,
   onSelectPanel,
   onClose,
 }: Props) {
@@ -144,6 +146,7 @@ export function ActivityCard({
           onSaved={onSaved}
           headingId={headingId}
           headingRef={heading}
+          guardRef={guardRef}
         />
       ) : (
         <>

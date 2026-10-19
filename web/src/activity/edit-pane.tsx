@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type KeyboardEvent,
@@ -38,7 +39,9 @@ import { CardHeader } from "./card-header"
 
 const QueryTab = lazy(() => import("@/query-editor/query-tab"))
 
-type Leave = "back" | "close" | "saved"
+type Leave = "back" | "close" | "saved" | "layout"
+
+export type EditGuard = { leaveThen: (proceed: () => void) => void }
 
 type Props = {
   dashboardId: string
@@ -52,6 +55,7 @@ type Props = {
   onSaved: () => void
   headingId: string
   headingRef: Ref<HTMLHeadingElement>
+  guardRef: Ref<EditGuard>
 }
 
 function panelTrigger(panelId: string) {
@@ -97,6 +101,7 @@ export function EditPane({
   onSaved,
   headingId,
   headingRef,
+  guardRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const unsaved = useRef(false)
@@ -106,8 +111,9 @@ export function EditPane({
     setDirty(next)
   }, [])
   const [confirm, setConfirm] = useState<Leave | null>(null)
-  const discarding = useRef(false)
+  const focusAfter = useRef<"default" | "trigger" | "none">("default")
   const returnFocus = useRef(false)
+  const afterLeave = useRef<(() => void) | null>(null)
 
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
@@ -138,6 +144,12 @@ export function EditPane({
     (kind: Leave) => {
       unsaved.current = false
       setConfirm(null)
+      if (kind === "layout") {
+        const proceed = afterLeave.current
+        afterLeave.current = null
+        proceed?.()
+        return
+      }
       if (kind !== "back") returnFocus.current = true
       if (kind === "back") onBack()
       else if (kind === "close") onClose()
@@ -154,14 +166,26 @@ export function EditPane({
     [run]
   )
 
+  useImperativeHandle(
+    guardRef,
+    () => ({
+      leaveThen: (proceed) => {
+        afterLeave.current = proceed
+        leave("layout")
+      },
+    }),
+    [leave]
+  )
+
   function keepEditing() {
-    discarding.current = false
+    focusAfter.current = "default"
+    afterLeave.current = null
     setConfirm(null)
     if (blocker.status === "blocked") blocker.reset()
   }
 
   function discard() {
-    discarding.current = true
+    focusAfter.current = confirm === "layout" ? "none" : "trigger"
     if (blocker.status === "blocked") {
       unsaved.current = false
       setConfirm(null)
@@ -231,9 +255,12 @@ export function EditPane({
         }}
       >
         <AlertDialogContent
-          finalFocus={() =>
-            discarding.current ? (panelTrigger(panelId) ?? true) : true
-          }
+          finalFocus={() => {
+            if (focusAfter.current === "none") return false
+            return focusAfter.current === "trigger"
+              ? (panelTrigger(panelId) ?? true)
+              : true
+          }}
         >
           <AlertDialogHeader>
             <AlertDialogTitle>Discard your query changes?</AlertDialogTitle>

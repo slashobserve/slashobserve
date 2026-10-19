@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { Selections } from "@/api/keys"
 import { ActivityCard, activityCardId } from "@/activity/activity-card"
+import type { EditGuard } from "@/activity/edit-pane"
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { useComments } from "@/comments/queries"
@@ -30,8 +31,16 @@ import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 import { ActivityToggle } from "./activity-toggle"
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardTopRow } from "./dashboard-top-row"
-import { EditControls, NewerVersionNotice } from "./edit/edit-controls"
-import { useGridEditable, useLayoutStore } from "./edit/layout-store"
+import {
+  EditControls,
+  findFirstMoveHandle,
+  NewerVersionNotice,
+} from "./edit/edit-controls"
+import {
+  focusWhenIdle,
+  useGridEditable,
+  useLayoutStore,
+} from "./edit/layout-store"
 import { LayoutAnnouncer } from "./edit/panel-move-handle"
 import { UnsavedChangesGuard } from "./edit/unsaved-changes-guard"
 import {
@@ -70,7 +79,6 @@ function pageClass(stacked: boolean) {
       ? "min-h-svh flex-wrap"
       : "h-svh flex-nowrap narrow:h-auto narrow:min-h-svh"
   )
-
 }
 
 type PanelContainerProps = {
@@ -282,6 +290,7 @@ function DashboardView({
   const cardVisible = (open || editingPanel) && !editing
   const cardLayout = useActivityLayout(editingPanel)
   const composerRef = useRef<HTMLTextAreaElement>(null)
+  const editGuard = useRef<EditGuard>(null)
   const [flashed, setFlashed] = useState<string | null>(null)
   const flashTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
@@ -334,6 +343,15 @@ function DashboardView({
     flashTimer.current = window.setTimeout(() => setFlashed(null), 2000)
   }, [])
 
+  const beginLayoutEdit = () => {
+    const start = () => {
+      startLayout(dashboardId, envelopeVersion, envelopeSpec)
+      focusWhenIdle(findFirstMoveHandle)
+    }
+    if (editGuard.current) editGuard.current.leaveThen(start)
+    else start()
+  }
+
   const controls = [
     <div key="time" className="flex items-center gap-1.5">
       <TimeRangePicker
@@ -354,9 +372,7 @@ function DashboardView({
         !canEdit && !editing && cardVisible && !cardLayout.stacked
       }
       pinned={pinned}
-      onEditLayout={() =>
-        startLayout(dashboardId, envelopeVersion, envelopeSpec)
-      }
+      onEditLayout={beginLayoutEdit}
       onExport={() => downloadSpec(spec, spec.title, version)}
     />,
     <ActivityToggle
@@ -444,6 +460,7 @@ function DashboardView({
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           back={backFromSearch(search)}
           composerRef={composerRef}
+          guardRef={editGuard}
           onSelectPanel={onSelectPanel}
           onClose={closeCard}
         />
