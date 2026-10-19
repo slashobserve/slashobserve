@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  dashboardSearchFromBack,
   searchFromState,
   validateDashboardSearch,
   withVariables,
@@ -13,7 +14,7 @@ describe("validateDashboardSearch", () => {
       "var-pod": ["a", "b"],
       "var-x": "1",
       version: "3",
-      tab: "query",
+      edit: "query",
       panel: "p_rps",
       junk: "y",
       "var-1bad": "z",
@@ -22,7 +23,7 @@ describe("validateDashboardSearch", () => {
       from: "now-1h",
       version: 3,
       panel: "p_rps",
-      tab: "query",
+      edit: "query",
       vars: { pod: ["a", "b"], x: ["1"] },
     })
   })
@@ -34,6 +35,7 @@ describe("validateDashboardSearch", () => {
       refresh: "soon",
       version: "0",
       panel: "1bad",
+      edit: "other",
       tab: "other",
       "var-empty": "",
     })
@@ -45,9 +47,34 @@ describe("validateDashboardSearch", () => {
     expect(validateDashboardSearch({ "var-n": 7 }).vars).toEqual({ n: ["7"] })
   })
 
-  it("allows the comments tab without a panel but not the query tab", () => {
-    expect(validateDashboardSearch({ tab: "comments" }).tab).toBe("comments")
-    expect(validateDashboardSearch({ tab: "query" }).tab).toBeUndefined()
+  it("keeps edit only as query with a panel", () => {
+    expect(validateDashboardSearch({ panel: "rps", edit: "query" })).toEqual({
+      panel: "rps",
+      edit: "query",
+      vars: {},
+    })
+    expect(validateDashboardSearch({ edit: "query" })).toEqual({ vars: {} })
+    expect(validateDashboardSearch({ panel: "rps", edit: "json" })).toEqual({
+      panel: "rps",
+      vars: {},
+    })
+  })
+
+  it("maps the legacy comments tab to a panel scope", () => {
+    expect(validateDashboardSearch({ panel: "rps", tab: "comments" })).toEqual({
+      panel: "rps",
+      vars: {},
+    })
+    expect(validateDashboardSearch({ tab: "comments" })).toEqual({ vars: {} })
+  })
+
+  it("maps the legacy query tab to the editor", () => {
+    expect(validateDashboardSearch({ panel: "rps", tab: "query" })).toEqual({
+      panel: "rps",
+      edit: "query",
+      vars: {},
+    })
+    expect(validateDashboardSearch({ tab: "query" })).toEqual({ vars: {} })
   })
 
   it("accepts the refresh options and custom intervals", () => {
@@ -86,13 +113,42 @@ describe("searchFromState", () => {
     ])
   })
 
+  it("never writes the legacy tab", () => {
+    const flat = searchFromState(
+      validateDashboardSearch({ panel: "rps", tab: "query" })
+    )
+    expect(flat).toEqual({ panel: "rps", edit: "query" })
+  })
+
   it("round-trips through validation", () => {
     const state = validateDashboardSearch({
       refresh: "5s",
       panel: "rps",
+      edit: "query",
       "var-pod": ["a"],
     })
     expect(validateDashboardSearch(searchFromState(state))).toEqual(state)
+  })
+})
+
+describe("dashboardSearchFromBack", () => {
+  const back = "from=now-1h&version=3&panel=rps&edit=query&var-pod=a"
+
+  it("keeps the whole search by default", () => {
+    expect(dashboardSearchFromBack(back)).toEqual({
+      from: "now-1h",
+      version: 3,
+      panel: "rps",
+      edit: "query",
+      "var-pod": ["a"],
+    })
+  })
+
+  it("drops the version, panel and editor when asked", () => {
+    expect(dashboardSearchFromBack(back, { dropVersion: true })).toEqual({
+      from: "now-1h",
+      "var-pod": ["a"],
+    })
   })
 })
 

@@ -138,7 +138,9 @@ export function PanelChrome({
             {datasourceLabel}
           </span>
         ) : null}
-        {editing ? <span className="text-xs font-medium">Editing</span> : null}
+        {editing ? (
+          <span className="text-xs font-medium text-brand">Editing</span>
+        ) : null}
         <div className="ml-auto flex items-center gap-0.5">
           {refreshing ? (
             <span className="flex items-center text-muted-foreground">
