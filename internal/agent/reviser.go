@@ -25,7 +25,7 @@ func NewReviser(a *Agent, steps revisions.StepRecorder) *Reviser {
 }
 
 func (r *Reviser) Revise(ctx context.Context, req revisions.Request) (revisions.Result, error) {
-	task := Task{Prompt: req.Prompt, RequestID: req.ID, DashboardID: req.DashboardID, PanelID: req.PanelID, Principal: req.RequestedBy}
+	task := Task{Prompt: req.Prompt, RequestID: req.ID, DashboardID: req.DashboardID, PanelID: req.PanelID, Source: req.Source, Principal: req.RequestedBy}
 	if r.steps != nil {
 		task.Progress = func(s Step) {
 			r.steps.RecordStep(context.WithoutCancel(ctx), req, revisions.Step{

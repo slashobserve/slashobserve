@@ -9,6 +9,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 	"github.com/slashobserve/slashobserve/spec/examples"
 )
@@ -38,7 +39,7 @@ func writeJSONBlock(b *strings.Builder, body []byte) {
 	b.WriteString("\n```")
 }
 
-func buildContext(statuses []datasource.Status, mode tools.Mode, panelID string, current *revision) (string, error) {
+func buildContext(statuses []datasource.Status, mode tools.Mode, source revisions.Source, panelID string, current *revision) (string, error) {
 	var b strings.Builder
 	b.WriteString("Configured datasources:\n")
 	sorted := slices.Clone(statuses)
@@ -63,10 +64,17 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, panelID string,
 	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 	if panelID != "" {
+		fromComment := source != revisions.SourcePrompt
 		if title, ok := panelTitle(current.spec, panelID); ok {
-			fmt.Fprintf(&b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
-		} else {
+			if fromComment {
+				fmt.Fprintf(&b, "\nThe request is a comment on panel %s titled %q.", panelID, title)
+			} else {
+				fmt.Fprintf(&b, "\nThe request is about panel %s titled %q.", panelID, title)
+			}
+		} else if fromComment {
 			fmt.Fprintf(&b, "\nPanel %s from the comment is not in the latest version.", panelID)
+		} else {
+			fmt.Fprintf(&b, "\nPanel %s from the request is not in the latest version.", panelID)
 		}
 	}
 	return b.String(), nil

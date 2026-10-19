@@ -52,6 +52,20 @@ func TestReviserRunsTheAgentInReviseModeForTheRequest(t *testing.T) {
 	}
 }
 
+func TestReviserTellsTheAgentAPromptIsAboutAPanel(t *testing.T) {
+	r := newRig(t, session(toolTurn(call("c1", "update_dashboard", `{"spec":{}}`))))
+	r.tools.onSave("update_dashboard", savedResult(dashID, 4))
+	req := revisionRequest()
+	req.Source = revisions.SourcePrompt
+
+	if _, err := agent.NewReviser(r.agent, nil).Revise(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.provider.started()[0].Context; !strings.Contains(got, fmt.Sprintf("The request is about panel %s", panelID)) {
+		t.Fatalf("context = %s", got)
+	}
+}
+
 func TestReviserStoresOnlyTheAgentsOwnMessages(t *testing.T) {
 	leak := "SECRET sk-live-123 db.internal:5432"
 	for name, c := range map[string]struct {
