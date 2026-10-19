@@ -2210,10 +2210,12 @@ proxy_suite() {
   pass "values for constant, interval, datasource, textbox and adhoc variables"
 
   out="$(proxy_call GET "$base/panels/p_vars/data?$stable")"
-  if [[ "$out" != 200 ]] || ! grep -q 'shop' "$TMP/api.body" || ! grep -q 'hello' "$TMP/api.body" \
-    || ! grep -q '1m' "$TMP/api.body" || ! grep -q '"ch"' "$TMP/api.body"; then
-    fail "the new variable types take their defaults ($out: $(cat "$TMP/api.body"))"
-  fi
+  [[ "$out" == 200 ]] || fail "the new variable types take their defaults ($out: $(cat "$TMP/api.body"))"
+  local column
+  for column in c:shop tb:hello iv:1m ds:ch; do
+    grep -Eq "\"name\":\"${column%%:*}\",\"type\":\"[a-z]+\",\"values\":\[\"${column#*:}\"\]" "$TMP/api.body" \
+      || fail "the new variable types take their defaults: column ${column%%:*} is not [\"${column#*:}\"] ($(cat "$TMP/api.body"))"
+  done
   out="$(proxy_call GET "$base/panels/p_vars/data?$stable&var-iv=%24__auto")"
   [[ "$out" == 200 ]] || fail "the interval variable accepts auto ($out: $(cat "$TMP/api.body"))"
   out="$(proxy_call GET "$base/panels/p_vars/data?$stable&var-chf=ServiceName%7C%3D%7C$(urlencode "$service")")"
