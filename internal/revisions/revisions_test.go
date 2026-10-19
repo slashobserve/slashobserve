@@ -641,6 +641,105 @@ func TestExhaustedThreadRequestWithASavedVersionResolvesTheThread(t *testing.T) 
 	}
 }
 
+func blockThreadResolution(t *testing.T, d *dbtest.Database) {
+	t.Helper()
+	d.Exec(t, `CREATE FUNCTION block_thread_resolution() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status = 'resolved' THEN
+    RAISE EXCEPTION 'resolution blocked';
+  END IF;
+  RETURN NEW;
+END $$`)
+	d.Exec(t, "CREATE TRIGGER block_thread_resolution BEFORE UPDATE ON dashboard_comments FOR EACH ROW EXECUTE FUNCTION block_thread_resolution()")
+}
+
+func openThread(t *testing.T, d *dbtest.Database, dash pgtype.UUID) dbsqlc.DashboardComment {
+	t.Helper()
+	root, err := d.Queries().CreateComment(context.Background(), dbsqlc.CreateCommentParams{
+		DashboardID: dash, Version: 1, Body: "fix", AuthorKind: "user", AuthorID: mustUUID(t, userID), AuthorName: "Ada",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func assertThreadOpen(t *testing.T, d *dbtest.Database, dash, id pgtype.UUID) {
+	t.Helper()
+	got, err := d.Queries().GetComment(context.Background(), dbsqlc.GetCommentParams{ID: id, DashboardID: dash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "open" || got.ResolvedByVersion.Valid {
+		t.Fatalf("thread = %+v, want it left open", got)
+	}
+}
+
+func assertResolveFailureLogged(t *testing.T, logs *logtest.Capture, requestID string) {
+	t.Helper()
+	record := findEventually(t, logs, "resolve comment thread of a succeeded agent request")
+	logs.AssertSafeFailure(t, record, "agent_request_thread_resolve_failed", "resolution blocked")
+	if record["agent_request_id"] != requestID || record["sqlstate"] != "P0001" {
+		t.Fatalf("resolve failure record = %v", record)
+	}
+}
+
+func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaimed(t *testing.T) {
+	logger, logs := logtest.New()
+	d := dbtest.New(t)
+	var calls atomic.Int32
+	svc := revisions.NewService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}), logger)
+	ctx := context.Background()
+	swept := seedDashboard(t, d, 2)
+	other := seedDashboard(t, d, 2)
+	root := openThread(t, d, swept)
+	row, err := svc.SubmitForThread(ctx, swept, root.ID, nil, "go", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saveVersionFor(t, d, swept, row.ID.String())
+	d.Exec(t, "UPDATE agent_requests SET status = 'running', attempts = 2, started_at = clock_timestamp(), lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+	queued := submit(t, svc, other, "later")
+	blockThreadResolution(t, d)
+
+	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
+	waitForStatus(t, svc, other, queued.ID, revisions.StatusSucceeded)
+	done := waitForStatus(t, svc, swept, row.ID.String(), revisions.StatusSucceeded)
+	if done.ResultVersion == nil || *done.ResultVersion != 2 || calls.Load() != 1 {
+		t.Fatalf("swept revision = %+v after %d calls", done, calls.Load())
+	}
+	assertThreadOpen(t, d, swept, root.ID)
+	assertResolveFailureLogged(t, logs, row.ID.String())
+}
+
+func TestFailedThreadResolutionStillRecordsTheSuccessfulRun(t *testing.T) {
+	logger, logs := logtest.New()
+	d := dbtest.New(t)
+	svc := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
+		version, err := saveNextVersion(ctx, t, d, req)
+		return revisions.Result{Version: version}, err
+	}), logger)
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 2)
+	root := openThread(t, d, dash)
+	row, err := svc.SubmitForThread(ctx, dash, root.ID, nil, "go", user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blockThreadResolution(t, d)
+
+	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
+	done := waitForStatus(t, svc, dash, row.ID.String(), revisions.StatusSucceeded)
+	if done.ResultVersion == nil || *done.ResultVersion != 3 || done.Attempts != 1 {
+		t.Fatalf("revision = %+v", done)
+	}
+	assertThreadOpen(t, d, dash, root.ID)
+	assertResolveFailureLogged(t, logs, row.ID.String())
+}
+
 func TestExpiredRunningRequestIsRetriedBeforeANewerOneOfItsDashboard(t *testing.T) {
 	var mu sync.Mutex
 	var order []string

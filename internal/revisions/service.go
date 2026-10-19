@@ -312,7 +312,7 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string
 func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
 	var claimed dbsqlc.AgentRequest
 	found := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
@@ -325,9 +325,7 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 				return err
 			}
 			if row.Status == string(StatusSucceeded) {
-				if err := resolveThread(ctx, q, row); err != nil {
-					return err
-				}
+				s.resolveThread(ctx, savepoint, row)
 			}
 		}
 		row, err := q.ClaimAgentRequest(ctx, MaxAttempts)
@@ -366,7 +364,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		}
 	}
 	finished := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		var row dbsqlc.AgentRequest
 		var err error
 		if o.version != nil {
@@ -389,7 +387,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return err
 		}
 		if o.version != nil {
-			return resolveThread(ctx, q, row)
+			s.resolveThread(ctx, savepoint, row)
 		}
 		return nil
 	})
@@ -449,7 +447,14 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 	return nil
 }
 
-func resolveThread(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
+func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
+	err := savepoint(func(q *dbsqlc.Queries) error { return resolveThreadOf(ctx, q, row) })
+	if err != nil {
+		s.logger.WarnContext(ctx, "resolve comment thread of a succeeded agent request", logattrs.Failure("agent_request_thread_resolve_failed", err, slog.String("agent_request_id", row.ID.String()))...)
+	}
+}
+
+func resolveThreadOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
 	if !row.CommentID.Valid || !row.DashboardID.Valid || !row.ResultVersion.Valid {
 		return nil
 	}
