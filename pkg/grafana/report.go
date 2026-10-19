@@ -50,18 +50,26 @@ func (r *Result) Verify(issues []spec.Issue) {
 			}
 		}
 		if best < 0 {
-			r.Report.Notes = append(r.Report.Notes, Note{Subject: "dashboard", Status: statusUnverified, Reason: issue.Message, Paths: []string{}})
+			r.dashboardNote(issue)
 			continue
 		}
 		entry := entries[best]
 		line := r.panelLine(entry.Panel.ID)
-		if line == nil || line.Status == statusPlaceholder {
+		if line == nil {
+			r.dashboardNote(issue)
+			continue
+		}
+		if line.Status == statusPlaceholder {
 			continue
 		}
 		line.Status = statusUnverified
 		line.Reasons = append(line.Reasons, verifyReason(entry, strings.TrimPrefix(issue.Path, entry.Pointer), issue))
 	}
 	r.Report.recount()
+}
+
+func (r *Result) dashboardNote(issue spec.Issue) {
+	r.Report.Notes = append(r.Report.Notes, Note{Subject: "dashboard", Status: statusUnverified, Reason: issue.Message, Paths: []string{}})
 }
 
 func verifyReason(entry spec.PanelEntry, suffix string, issue spec.Issue) string {
