@@ -38,12 +38,13 @@ export function displayWithDefaults(
   type: DataPanelType,
   display: unknown
 ): Record<string, unknown> {
-  const merged = copyValue(displayDefaultsFor(type)) as Record<string, unknown>
-  if (!isPlainObject(display)) return merged
-  for (const [key, value] of Object.entries(display)) {
-    if (value !== undefined) merged[key] = value
-  }
-  return merged
+  const given = isPlainObject(display)
+    ? Object.entries(display).filter(([, value]) => value !== undefined)
+    : []
+  return Object.fromEntries([
+    ...Object.entries(copyValue(displayDefaultsFor(type)) as object),
+    ...given,
+  ])
 }
 
 function sameValue(a: unknown, b: unknown): boolean {

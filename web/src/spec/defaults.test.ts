@@ -141,6 +141,18 @@ describe("spec defaults", () => {
     ).toEqual({ legend: "bottom", legendValues: [], tooltip: "all" })
   })
 
+  it("displayWithDefaults keeps a __proto__ key as plain data", () => {
+    const given = JSON.parse(
+      '{"__proto__": {"polluted": true}, "tooltip": "all"}'
+    )
+    const merged = displayWithDefaults("timeseries", given)
+    expect(Object.getPrototypeOf(merged)).toBe(Object.prototype)
+    expect(Object.hasOwn(merged, "__proto__")).toBe(true)
+    expect(Object.hasOwn(merged, "polluted")).toBe(false)
+    expect(merged.tooltip).toBe("all")
+    expect(merged.legend).toBe("bottom")
+  })
+
   it("an unknown panel type has no defaults and never throws", () => {
     const unknownType = "nope" as DataPanel["type"]
     expect(displayWithDefaults(unknownType, { legend: "right" })).toEqual({
