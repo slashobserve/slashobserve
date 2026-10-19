@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard } from "./dashboards"
+import { expectPanelsReady, openDashboard, versionButton } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const themes = ["light", "dark"] as const
@@ -13,12 +13,6 @@ async function createVersions(request: APIRequestContext) {
   await addVersion(request, id, spec, 1, "Second save")
   await addVersion(request, id, spec, 2, "Third save")
   return { id, spec }
-}
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
 }
 
 function versionMenu(page: Page) {

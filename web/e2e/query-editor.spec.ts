@@ -8,14 +8,13 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
-}
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"

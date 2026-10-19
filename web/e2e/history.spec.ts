@@ -7,7 +7,11 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { openDashboard } from "./dashboards"
+import {
+  openDashboard,
+  openVersionsFromMenu,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const simplifiedQuery =
@@ -44,17 +48,6 @@ async function openHistory(page: Page, id: string, search = "") {
     page.getByRole("heading", { level: 1, name: /: history$/ })
   ).toBeVisible()
   await expect(page.getByRole("table", { name: "Versions" })).toBeVisible()
-}
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
-}
-
-async function openVersionsFromMenu(page: Page) {
-  await versionButton(page).click()
-  await page.getByRole("menuitem", { name: "Compare versions" }).click()
 }
 
 function dialog(page: Page) {

@@ -5,6 +5,17 @@ export async function openDashboard(page: Page, id: string, search = "") {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 }
 
+export function versionButton(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("button", { name: /^Version \d/ })
+}
+
+export async function openVersionsFromMenu(page: Page) {
+  await versionButton(page).click()
+  await page.getByRole("menuitem", { name: "Compare versions" }).click()
+}
+
 export function panel(page: Page, title: string) {
   return page.getByRole("article", { name: title })
 }

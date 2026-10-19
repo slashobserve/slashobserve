@@ -8,7 +8,12 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const errorRateTitle = "Checkout error rate"
@@ -30,12 +35,6 @@ function gridPos(spec: { panels: Array<Record<string, unknown>> }, id: string) {
 
 function moveHandle(page: Page, title: string) {
   return page.getByRole("button", { name: `Move or resize ${title}` })
-}
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
 }
 
 async function openLatest(page: Page) {

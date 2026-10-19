@@ -1,7 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard } from "./dashboards"
+import { expectPanelsReady, openDashboard, versionButton } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 async function createLive(request: APIRequestContext) {
@@ -9,12 +9,6 @@ async function createLive(request: APIRequestContext) {
   spec.title = uniqueTitle("E2E live")
   const { id } = await createDashboard(request, spec)
   return { id, spec }
-}
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
 }
 
 function indicator(page: Page, label: string) {

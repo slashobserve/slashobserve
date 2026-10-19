@@ -12,7 +12,13 @@ import {
   uniqueTitle,
   type Spec,
 } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  openVersionsFromMenu,
+  panel,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const repoRoot = join(import.meta.dirname, "..", "..")
@@ -47,16 +53,6 @@ const noAgentNote =
   "No agent is configured on this server, so your comment was saved without a revision request."
 const revisionsButton = /^Revisions/
 
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
-}
-
-async function openVersionsFromMenu(page: Page) {
-  await versionButton(page).click()
-  await page.getByRole("menuitem", { name: "Compare versions" }).click()
-}
 const noOpenComments = "No open comments on this panel."
 
 async function createRevisionDashboard(page: Page) {

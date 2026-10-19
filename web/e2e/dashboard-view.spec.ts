@@ -6,6 +6,7 @@ import {
   openDashboard,
   panel,
   panelDataResponse,
+  versionButton,
 } from "./dashboards"
 import { expect, test } from "./fixtures"
 
@@ -342,19 +343,16 @@ test("views an older version and returns to latest", async ({
   await addVersion(request, id, renamed, 1)
 
   await openDashboard(page, id)
-  const versionButton = page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
-  await versionButton.click()
+  await versionButton(page).click()
   await page.getByRole("menuitemradio", { name: /^v1\b/ }).click()
   await expect(page).toHaveURL(/version=1/)
-  await expect(versionButton).toHaveText("v1 of 2")
+  await expect(versionButton(page)).toHaveText("v1 of 2")
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
 
-  await versionButton.click()
+  await versionButton(page).click()
   await page.getByRole("menuitemradio", { name: /Latest/ }).click()
   await expect(page).not.toHaveURL(/version=/)
-  await expect(versionButton).toHaveText(/^(Live|Connecting) · v2$/)
+  await expect(versionButton(page)).toHaveText(/^(Live|Connecting) · v2$/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     renamed.title
   )

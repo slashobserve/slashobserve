@@ -7,7 +7,7 @@ import {
   loadSpec,
   uniqueTitle,
 } from "./api"
-import { expectPanelsReady, openDashboard } from "./dashboards"
+import { expectPanelsReady, openDashboard, versionButton } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
@@ -41,12 +41,6 @@ async function openFromMenu(page: Page, title = rpsTitle) {
   await page.getByRole("button", { name: `Panel menu: ${title}` }).click()
   await page.getByRole("menuitem", { name: "Comment" }).click()
   await expect(sheet(page)).toBeVisible()
-}
-
-function versionButton(page: Page) {
-  return page
-    .getByRole("navigation", { name: "Breadcrumb" })
-    .getByRole("button", { name: /^Version \d/ })
 }
 
 async function waitForLive(page: Page) {
