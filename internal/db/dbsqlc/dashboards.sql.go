@@ -91,6 +91,39 @@ func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams
 	return count, err
 }
 
+const countDashboardsByDatasource = `-- name: CountDashboardsByDatasource :many
+SELECT uid::text AS uid, count(*)::integer AS dashboards
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+CROSS JOIN LATERAL unnest(v.datasource_uids) AS uid
+GROUP BY uid
+`
+
+type CountDashboardsByDatasourceRow struct {
+	Uid        string
+	Dashboards int32
+}
+
+func (q *Queries) CountDashboardsByDatasource(ctx context.Context) ([]CountDashboardsByDatasourceRow, error) {
+	rows, err := q.db.Query(ctx, countDashboardsByDatasource)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountDashboardsByDatasourceRow
+	for rows.Next() {
+		var i CountDashboardsByDatasourceRow
+		if err := rows.Scan(&i.Uid, &i.Dashboards); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createDashboard = `-- name: CreateDashboard :one
 INSERT INTO dashboards (
   title, tags, latest_version, created_by_kind, created_by_id, created_by_name, created_by_email,

@@ -149,7 +149,7 @@ Directories are created when their phase starts; this is where things go.
 - Datasources: adapters live in `internal/datasource/{prometheus,clickhouse}` behind `datasource.Datasource`, and `internal/datasource/provision` builds the registry from `config.Datasources`.
   Variable values reach queries only through `internal/datasource/macros`.
   ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
-  `GET /api/v1/datasources` returns health only, never a URL, address, user or secret, and datasources never gate `/readyz`.
+  `GET /api/v1/datasources` returns health, `checked_at` and `dashboard_count` (dashboards whose latest version uses the uid), never a URL, address, user or secret, and datasources never gate `/readyz`.
   A Spec names a datasource by uid only and its type comes from the registry, so the query proxy, not `spec.Parse`, rejects a macro that the datasource's type does not have (`unknown_macro`).
 - Logging: `log/slog`, JSON by default; request logs record the path, never the query string.
   The server never logs secrets, prompt text, query text or tool results, so a failure is logged as a fixed message plus `logattrs.Failure(code, err, ids...)` (`error_code`, `error_type`, `sqlstate`) and the relevant ids, never `err.Error()`, and a panic by its type only.

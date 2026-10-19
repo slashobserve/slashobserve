@@ -85,6 +85,13 @@ WHERE (sqlc.narg('creator_kind')::text IS NULL
     OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
     OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0);
 
+-- name: CountDashboardsByDatasource :many
+SELECT uid::text AS uid, count(*)::integer AS dashboards
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+CROSS JOIN LATERAL unnest(v.datasource_uids) AS uid
+GROUP BY uid;
+
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
   author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at

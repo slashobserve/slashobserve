@@ -32,13 +32,18 @@ type Mount struct {
 	Handler http.Handler
 }
 
+type DatasourceUsage interface {
+	DatasourceUsage(ctx context.Context) (map[string]int, error)
+}
+
 type Options struct {
-	Logger      *slog.Logger
-	Readiness   []Check
-	Auth        Auth
-	Datasources *datasource.Registry
-	API         []Registrar
-	Mounts      []Mount
+	Logger          *slog.Logger
+	Readiness       []Check
+	Auth            Auth
+	Datasources     *datasource.Registry
+	DatasourceUsage DatasourceUsage
+	API             []Registrar
+	Mounts          []Mount
 
 	ContractCheck bool
 }
@@ -61,7 +66,7 @@ func New(opts Options) (http.Handler, error) {
 	}
 	authenticated := opts.Auth.Mount(apiGroup)
 	authenticated.Use(origin.Middleware)
-	registerDatasourceRoutes(authenticated, opts.Datasources)
+	registerDatasourceRoutes(authenticated, opts.Datasources, opts.DatasourceUsage, opts.Logger)
 	for _, r := range opts.API {
 		r.Register(authenticated)
 	}
