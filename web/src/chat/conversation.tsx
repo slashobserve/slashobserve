@@ -67,8 +67,18 @@ function useChatScroll(
     }
     measure()
     parent.addEventListener("scroll", measure, { passive: true })
+    let lastTurn = element.lastElementChild
+    let lastHeight = lastTurn?.getBoundingClientRect().height ?? 0
     const observer = new ResizeObserver(() => {
-      if (pinned.current) parent.scrollTop = parent.scrollHeight
+      const last = element.lastElementChild
+      const height = last?.getBoundingClientRect().height ?? 0
+      const grew = last !== lastTurn || height > lastHeight
+      lastTurn = last
+      lastHeight = height
+      const busy = element.querySelector('[aria-busy="true"]') !== null
+      if (pinned.current && (grew || busy)) {
+        parent.scrollTop = parent.scrollHeight
+      }
     })
     observer.observe(element)
     return () => {
