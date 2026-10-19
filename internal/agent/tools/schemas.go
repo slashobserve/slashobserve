@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so call get_spec_guide first if you have not read it, and fix any rejected panels it names."
+	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so call get_spec_guide first if you have not read it, and fix any rejected panels it names. Never include a placeholder panel."
 	descGetDashboard    = "Read a saved dashboard's ObserveSpec at its latest version, or at a given version. Use it before revising a dashboard."
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
@@ -37,7 +37,7 @@ const (
 	descReplyToComment  = "Reply to a comment thread, for example to say what you changed or why you did not. A reply to a reply joins the same thread."
 	descResolveComment  = "Resolve a comment thread once it is addressed. Pass version, the dashboard version that fixed it, so people see Resolved by version N. Resolving a resolved thread changes nothing."
 	descSampleRows      = "Read a few recent rows from a ClickHouse table. Use it to see real column values, such as log messages or span names, before writing a query."
-	descUpdateDashboard = "Save a new version of an existing dashboard from a full ObserveSpec document. Pass the version you read as parent_version; a newer saved version is reported as a conflict."
+	descUpdateDashboard = "Save a new version of an existing dashboard from a full ObserveSpec document. Pass the version you read as parent_version; a newer saved version is reported as a conflict. Placeholder panels may be moved or removed, never added or edited."
 )
 
 const (

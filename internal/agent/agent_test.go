@@ -454,6 +454,16 @@ func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {
 			t.Fatalf("system text lacks %q", want)
 		}
 	}
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, spec.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(reqs[0].System, "```json\n"+compact.String()+"\n```") {
+		t.Fatal("system text does not carry the compacted schema")
+	}
+	if !strings.Contains(reqs[0].System, "- Never create a placeholder panel. Keep existing placeholders unchanged apart from their position, and delete one only when the request asks.") {
+		t.Fatal("system prompt lacks the placeholder rule")
+	}
 	if reqs[0].Prompt != "checkout health by pod" {
 		t.Fatalf("prompt = %q", reqs[0].Prompt)
 	}
