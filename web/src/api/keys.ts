@@ -13,9 +13,17 @@ export type VariableValuesParams = {
   selections: Selections
 }
 
+export type DashboardListFilters = {
+  q?: string
+  madeBy?: string
+  datasource?: string
+}
+
 export const dashboardKeys = {
   all: ["dashboards"] as const,
   list: () => ["dashboards", "list"] as const,
+  filtered: (filters: DashboardListFilters) =>
+    ["dashboards", "list", filters] as const,
   titles: () => ["dashboards", "titles"] as const,
   latest: (id: string) => ["dashboards", id, "latest"] as const,
   version: (id: string, version: number) =>
@@ -49,6 +57,9 @@ export const dashboardKeys = {
 export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
+  mine: (source: "all" | "observe", limit: number) =>
+    ["observe-mine", source, limit] as const,
+  mineAll: () => ["observe-mine"] as const,
 }
 
 export const serviceAccountKeys = {

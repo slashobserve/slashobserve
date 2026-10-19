@@ -7,6 +7,7 @@ import {
   describeSubmitError,
   pollDelayMs,
   pollFailures,
+  requestStatusView,
   sentence,
   stopsPolling,
 } from "./queries"
@@ -158,5 +159,51 @@ describe("pollFailures", () => {
   it("counts failures before the first success", () => {
     const query = { state: { dataUpdateCount: 0, errorUpdateCount: 1 } }
     expect(pollFailures(query)).toBe(1)
+  })
+})
+
+describe("requestStatusView", () => {
+  const base = { dashboard_title: null, error: null, result_version: null }
+
+  it("shows queued and running requests as working", () => {
+    expect(requestStatusView({ ...base, status: "queued" })).toEqual({
+      tone: "running",
+      text: "Working",
+    })
+    expect(requestStatusView({ ...base, status: "running" })).toEqual({
+      tone: "running",
+      text: "Working",
+    })
+  })
+
+  it("shows a succeeded request with the dashboard title", () => {
+    expect(
+      requestStatusView({
+        ...base,
+        status: "succeeded",
+        dashboard_title: "Checkout health",
+        result_version: 1,
+      })
+    ).toEqual({ tone: "ok", text: "Checkout health" })
+  })
+
+  it("falls back to a generic saved text without a title", () => {
+    expect(requestStatusView({ ...base, status: "succeeded" })).toEqual({
+      tone: "ok",
+      text: "Dashboard saved",
+    })
+  })
+
+  it("shows a failed request with the error as a sentence", () => {
+    expect(
+      requestStatusView({ ...base, status: "failed", error: "model timed out" })
+    ).toEqual({ tone: "critical", text: "Model timed out." })
+  })
+
+  it("falls back to a generic failure text without an error", () => {
+    expect(requestStatusView({ ...base, status: "failed" })).toEqual({
+      tone: "critical",
+      text: "The request failed.",
+    })
   })
 })

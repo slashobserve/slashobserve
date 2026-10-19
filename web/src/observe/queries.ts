@@ -1,5 +1,8 @@
+import { useMemo } from "react"
 import {
+  infiniteQueryOptions,
   queryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -7,11 +10,14 @@ import {
 
 import { api } from "@/api/client"
 import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
-import { observeKeys } from "@/api/keys"
-import type { paths } from "@/api/schema.gen"
+import { dashboardKeys, observeKeys } from "@/api/keys"
+import type { components, paths } from "@/api/schema.gen"
+import type { StatusTone } from "@/components/status-label"
 
 export type ObserveRequest =
   paths["/observe/{id}"]["get"]["responses"][200]["content"]["application/json"]["request"]
+
+export type RequestSummary = components["schemas"]["RequestSummary"]
 
 export const agentOffMessage =
   "No LLM provider is configured on this server, so the agent is off."
@@ -76,6 +82,74 @@ export function isTerminal(request: ObserveRequest | undefined): boolean {
   return request?.status === "succeeded" || request?.status === "failed"
 }
 
+export function requestStatusView(
+  r: Pick<
+    RequestSummary,
+    "status" | "dashboard_title" | "error" | "result_version"
+  >
+): { tone: StatusTone; text: string } {
+  switch (r.status) {
+    case "queued":
+    case "running":
+      return { tone: "running", text: "Working" }
+    case "succeeded":
+      return { tone: "ok", text: r.dashboard_title ?? "Dashboard saved" }
+    case "failed":
+      return {
+        tone: "critical",
+        text: sentence(r.error ?? "The request failed"),
+      }
+  }
+}
+
+export function myRequestsQuery(source: "all" | "observe", limit: number) {
+  return infiniteQueryOptions({
+    queryKey: observeKeys.mine(source, limit),
+    queryFn: ({ pageParam, signal }) =>
+      api
+        .GET("/observe", {
+          params: {
+            query: {
+              source: source === "observe" ? "observe" : undefined,
+              limit,
+              cursor: pageParam,
+            },
+          },
+          signal,
+        })
+        .then(unwrap),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+    staleTime: 10_000,
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) =>
+        page.requests.some(
+          (request) =>
+            request.status === "queued" || request.status === "running"
+        )
+      )
+        ? 5000
+        : false,
+  })
+}
+
+export function useMyRequests(source: "all" | "observe", limit = 20) {
+  const query = useInfiniteQuery(myRequestsQuery(source, limit))
+  const requests = useMemo(() => {
+    const seen = new Set<string>()
+    const unique: RequestSummary[] = []
+    for (const page of query.data?.pages ?? []) {
+      for (const request of page.requests) {
+        if (seen.has(request.id)) continue
+        seen.add(request.id)
+        unique.push(request)
+      }
+    }
+    return unique
+  }, [query.data])
+  return { requests, query }
+}
+
 export function useAgentInfo() {
   return useQuery({
     queryKey: observeKeys.agent(),
@@ -125,6 +199,12 @@ export function useCreateObserveRequest() {
         .then((body) => body.request),
     onSuccess: (request) => {
       queryClient.setQueryData(observeKeys.request(request.id), request)
+      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
+      if (request.dashboard_id) {
+        void queryClient.invalidateQueries({
+          queryKey: dashboardKeys.revisions(request.dashboard_id),
+        })
+      }
     },
     onError: (error) => {
       if (isAgentUnavailable(error)) {
