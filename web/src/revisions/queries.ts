@@ -165,6 +165,7 @@ export function useRequestRevision(id: string) {
       prompt: string
       baseVersion: number
       panelId?: string | null
+      commentId?: string
     }) =>
       api
         .POST("/dashboards/{id}/revisions", {
@@ -172,7 +173,9 @@ export function useRequestRevision(id: string) {
           body: {
             prompt: input.prompt,
             base_version: input.baseVersion,
-            panel_id: input.panelId ?? undefined,
+            ...(input.commentId === undefined
+              ? { panel_id: input.panelId ?? undefined }
+              : { comment_id: input.commentId }),
           },
         })
         .then(unwrap)
