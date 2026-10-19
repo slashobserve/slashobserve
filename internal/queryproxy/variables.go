@@ -155,12 +155,12 @@ func (r *Runner) allValues(ctx context.Context, d *spec.Dashboard, idx int, rng 
 }
 
 func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, text string, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList) ([]datasource.Variable, error) {
-	refs := scanQueryUse(text).variables
+	use := scanQueryUse(text)
 	out := make([]datasource.Variable, 0, upto)
 	for i, v := range d.Variables[:upto] {
 		sel, ok := selections[v.Name]
 		if !ok {
-			if refs[v.Name] {
+			if use.variables[v.Name] {
 				return nil, fmt.Errorf("%w: no selection for variable %q", ErrInvalidRequest, v.Name)
 			}
 			continue
@@ -169,7 +169,7 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 			return nil, err
 		}
 		variable := datasource.Variable{Name: v.Name, Values: slices.Clone(sel.Values), All: sel.All}
-		if sel.All && refs[v.Name] {
+		if sel.All && use.listed[v.Name] {
 			list, err := r.allValues(ctx, d, i, rng, selections, user, lists)
 			if err != nil {
 				return nil, err
@@ -185,6 +185,7 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 
 type queryUse struct {
 	variables map[string]bool
+	listed    map[string]bool
 	user      bool
 	dashboard bool
 }
@@ -194,18 +195,43 @@ func scanQueryUse(text string) queryUse {
 	if err != nil {
 		return queryUse{}
 	}
-	use := queryUse{variables: map[string]bool{}}
-	for _, ref := range spec.FlattenReferences(refs) {
-		if ref.Kind == spec.VariableRef {
-			use.variables[ref.Name] = true
-			continue
-		}
-		if macro, ok := spec.LookupMacro(ref.Name); ok {
-			use.user = use.user || macro.PerUser
-			use.dashboard = use.dashboard || macro.PerDashboard
-		}
+	use := queryUse{variables: map[string]bool{}, listed: map[string]bool{}}
+	for _, ref := range refs {
+		use.add(ref, "")
 	}
 	return use
+}
+
+func (u *queryUse) add(ref spec.Reference, guard string) {
+	nested := ref.Nested
+	if name := conditionalGuard(ref); name != "" {
+		u.variables[name] = true
+		nested = nested[:len(nested)-1]
+		guard = name
+	}
+	if ref.Kind == spec.VariableRef {
+		u.variables[ref.Name] = true
+		u.listed[ref.Name] = u.listed[ref.Name] || ref.Name != guard
+	} else if macro, ok := spec.LookupMacro(ref.Name); ok {
+		u.user = u.user || macro.PerUser
+		u.dashboard = u.dashboard || macro.PerDashboard
+	}
+	for _, n := range nested {
+		u.add(n, guard)
+	}
+}
+
+func conditionalGuard(ref spec.Reference) string {
+	macro, ok := spec.LookupMacro(ref.Name)
+	if !ok || ref.Kind != spec.MacroRef || macro.Args != spec.ConditionAndVariable || len(ref.Nested) == 0 {
+		return ""
+	}
+	args, err := macro.ParseArguments(ref)
+	last := ref.Nested[len(ref.Nested)-1]
+	if err != nil || last.Kind != spec.VariableRef || last.Name != args.Values[1] {
+		return ""
+	}
+	return last.Name
 }
 
 func DashboardUsesUser(d *spec.Dashboard) bool {
