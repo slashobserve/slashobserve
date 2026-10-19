@@ -328,6 +328,14 @@ func (cm *Comments) DashboardOf(ctx context.Context, commentID pgtype.UUID) (pgt
 	return id, nil
 }
 
+func (cm *Comments) ThreadVersion(ctx context.Context, dashboardID, commentID pgtype.UUID) (int, error) {
+	root, err := cm.threadRoot(ctx, dashboardID, commentID)
+	if err != nil {
+		return 0, err
+	}
+	return int(root.Version), nil
+}
+
 func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string, resolvedByVersion *int) (Comment, bool, error) {
 	if err := checkResolvedByVersion(status, resolvedByVersion); err != nil {
 		return Comment{}, false, err

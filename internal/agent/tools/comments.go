@@ -268,6 +268,21 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	return success("Replied to a comment", commentResultOut{Comment: commentItem(comment)}), nil
 }
 
+func (r *Registry) checkThreadVersion(ctx context.Context, dashboardID, commentID pgtype.UUID, version *int) (Result, bool, error) {
+	if version == nil {
+		return Result{}, true, nil
+	}
+	threadVersion, err := r.deps.Comments.ThreadVersion(ctx, dashboardID, commentID)
+	if err != nil {
+		res, err := commentFailure(err)
+		return res, false, err
+	}
+	if *version < threadVersion {
+		return invalid("version must be at least %d, the version the thread is on", threadVersion), false, nil
+	}
+	return Result{}, true, nil
+}
+
 func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (Result, error) {
 	if res, ok := rejectAgentRun(ctx); !ok {
 		return res, nil
@@ -293,6 +308,9 @@ func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (R
 	}
 	commentID, dashboardID, res, ok, err := r.commentTarget(ctx, in.CommentID)
 	if err != nil || !ok {
+		return res, err
+	}
+	if res, ok, err := r.checkThreadVersion(ctx, dashboardID, commentID, in.Version); err != nil || !ok {
 		return res, err
 	}
 	comment, changed, err := r.deps.Comments.SetStatus(ctx, principal, dashboardID, commentID, dashboards.CommentResolved, in.Version)
