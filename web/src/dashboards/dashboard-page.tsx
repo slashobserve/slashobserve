@@ -472,6 +472,9 @@ export function DashboardPageSkeleton() {
           <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
           <Skeleton className="h-[30px] w-48 animate-none motion-safe:animate-pulse" />
         </div>
+        <div className="pr-2.5 pb-2.5 pl-4">
+          <Skeleton className="h-7 w-48 animate-none motion-safe:animate-pulse" />
+        </div>
         <main className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4">
           <div
             className="grid grid-cols-1 min-[800px]:grid-cols-24"
