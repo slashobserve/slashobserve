@@ -4,12 +4,7 @@ import type { Comment } from "@/comments/queries"
 import type { Revision } from "@/revisions/queries"
 
 import type { AgentGate } from "./agent-gate"
-import {
-  askedAgentWithComment,
-  canResolveThread,
-  threadState,
-  threadVerbText,
-} from "./thread-view"
+import { canResolveThread, threadState, threadVerbText } from "./thread-view"
 
 const author = { kind: "user", id: "u1", name: "Ada" } as const
 const other = { kind: "user", id: "u2", name: "Grace" } as const
@@ -151,34 +146,6 @@ describe("canResolveThread", () => {
     expect(canResolveThread(null)).toBe(true)
     expect(canResolveThread(request({ status: "succeeded" }))).toBe(true)
     expect(canResolveThread(request({ status: "failed" }))).toBe(true)
-  })
-})
-
-describe("askedAgentWithComment", () => {
-  it("is true for a request sent with the root comment", () => {
-    expect(askedAgentWithComment(root(), request())).toBe(true)
-    expect(askedAgentWithComment(root(), request({ created_at: at(5) }))).toBe(
-      true
-    )
-  })
-
-  it("is false for a request sent later from a reply", () => {
-    expect(askedAgentWithComment(root(), request({ created_at: at(6) }))).toBe(
-      false
-    )
-    expect(
-      askedAgentWithComment(root(), request({ created_at: at(3600) }))
-    ).toBe(false)
-  })
-
-  it("is false when someone else made the request", () => {
-    expect(
-      askedAgentWithComment(root(), request({ requested_by: other }))
-    ).toBe(false)
-  })
-
-  it("is false without a request", () => {
-    expect(askedAgentWithComment(root(), null)).toBe(false)
   })
 })
 

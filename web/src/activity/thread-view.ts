@@ -3,30 +3,11 @@ import { isActive, type Revision } from "@/revisions/queries"
 
 import type { AgentGate } from "./agent-gate"
 
-const sameSendWindowMs = 5000
-
 export type ThreadState =
   | { kind: "sent" }
   | { kind: "failed"; error: string | null }
   | { kind: "resolved"; text: string }
   | { kind: "note"; text: string }
-
-export function askedAgentWithComment(
-  root: Comment,
-  request: Revision | null
-): boolean {
-  if (request === null) return false
-  if (
-    request.requested_by.kind !== root.author.kind ||
-    request.requested_by.id !== root.author.id
-  ) {
-    return false
-  }
-  const gap = Math.abs(
-    Date.parse(request.created_at) - Date.parse(root.created_at)
-  )
-  return gap <= sameSendWindowMs
-}
 
 export function threadVerbText(
   askedAgent: boolean,

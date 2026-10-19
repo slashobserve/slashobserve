@@ -12,6 +12,7 @@ export type TimelineEntry =
       panelId: string | null
       thread: Thread
       request: Revision | null
+      askedAgent: boolean
     }
   | {
       kind: "request"
@@ -66,6 +67,8 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   version: 3,
 }
 
+const sameSendWindowMs = 2000
+
 function timeOf(iso: string): number {
   const time = Date.parse(iso)
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
@@ -115,6 +118,19 @@ function newestRequest(requests: readonly Revision[]): Revision | null {
   return newest
 }
 
+function askedAgentWithComment(
+  root: Comment,
+  requests: readonly Revision[]
+): boolean {
+  const rootTime = timeOf(root.created_at)
+  return requests.some(
+    (request) =>
+      request.requested_by.kind === root.author.kind &&
+      request.requested_by.id === root.author.id &&
+      Math.abs(timeOf(request.created_at) - rootTime) <= sameSendWindowMs
+  )
+}
+
 function runningAt(request: Revision): string {
   const raw = request.started_at ?? request.created_at
   const start = Date.parse(raw)
@@ -138,13 +154,15 @@ export function buildTimeline(input: {
 
   const threads = groupThreads(input.comments)
   for (const thread of threads) {
+    const requests = byComment.get(thread.root.id) ?? []
     entries.push({
       kind: "thread",
       key: `thread:${thread.root.id}`,
       at: thread.root.created_at,
       panelId: thread.root.panel_id,
       thread,
-      request: newestRequest(byComment.get(thread.root.id) ?? []),
+      request: newestRequest(requests),
+      askedAgent: askedAgentWithComment(thread.root, requests),
     })
   }
 

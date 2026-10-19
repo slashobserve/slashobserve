@@ -142,6 +142,75 @@ describe("buildTimeline", () => {
     expect(entry?.kind === "thread" && entry.request?.id).toBe("new")
   })
 
+  describe("askedAgent", () => {
+    function askedAgent(requests: Revision[]): boolean | null {
+      const [entry] = buildTimeline({
+        ...none,
+        comments: [comment({ id: "c1", created_at: at(1) })],
+        requests,
+      })
+      return entry?.kind === "thread" ? entry.askedAgent : null
+    }
+
+    function threadRequest(
+      overrides: Partial<Revision> & { id: string }
+    ): Revision {
+      return request({ source: "comment", comment_id: "c1", ...overrides })
+    }
+
+    it("is true for a request sent with the root comment", () => {
+      expect(askedAgent([threadRequest({ id: "r1", created_at: at(1) })])).toBe(
+        true
+      )
+      expect(
+        askedAgent([threadRequest({ id: "r1", created_at: at(1, 2000) })])
+      ).toBe(true)
+    })
+
+    it("is false without a request or for a request outside the window", () => {
+      expect(askedAgent([])).toBe(false)
+      expect(
+        askedAgent([threadRequest({ id: "r1", created_at: at(1, 2001) })])
+      ).toBe(false)
+    })
+
+    it("is false when someone else made the request", () => {
+      const other = { kind: "user", id: "u2", name: "Grace" } as const
+      expect(
+        askedAgent([
+          threadRequest({ id: "r1", created_at: at(1), requested_by: other }),
+        ])
+      ).toBe(false)
+    })
+
+    it("stays true when a reply sends a later request", () => {
+      expect(
+        askedAgent([
+          threadRequest({ id: "r1", created_at: at(1, 5) }),
+          threadRequest({ id: "r2", created_at: at(9) }),
+        ])
+      ).toBe(true)
+    })
+
+    it("stays true when the first request failed and a retry ran later", () => {
+      expect(
+        askedAgent([
+          threadRequest({ id: "r1", status: "failed", created_at: at(1, 5) }),
+          threadRequest({ id: "r2", created_at: at(4) }),
+        ])
+      ).toBe(true)
+    })
+
+    it("stays false when only later requests exist", () => {
+      expect(
+        askedAgent([
+          threadRequest({ id: "r1", created_at: at(5) }),
+          threadRequest({ id: "r2", created_at: at(9) }),
+        ])
+      ).toBe(false)
+    })
+  })
+
   it("shows a request whose thread is not loaded as a request entry", () => {
     const entries = buildTimeline({
       ...none,

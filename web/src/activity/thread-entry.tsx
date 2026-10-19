@@ -15,12 +15,7 @@ import {
 } from "./entry-frame"
 import { ReplyForm } from "./reply-form"
 import type { TimelineEntry } from "./timeline-model"
-import {
-  askedAgentWithComment,
-  canResolveThread,
-  threadState,
-  threadVerbText,
-} from "./thread-view"
+import { canResolveThread, threadState, threadVerbText } from "./thread-view"
 
 type Props = {
   dashboardId: string
@@ -54,17 +49,13 @@ export function ThreadEntry({
   latestVersion,
   clientName,
 }: Props) {
-  const { thread, request, panelId } = entry
+  const { thread, request, panelId, askedAgent } = entry
   const { root, replies } = thread
   const [replying, setReplying] = useState(false)
   const replyButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
   const resolved = root.status === "resolved"
-  const verb = threadVerbText(
-    askedAgentWithComment(root, request),
-    panelId,
-    panelTitle
-  )
+  const verb = threadVerbText(askedAgent, panelId, panelTitle)
   const panel =
     panelId !== null && panelTitle !== null
       ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
