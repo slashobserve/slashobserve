@@ -75,6 +75,8 @@ func (s *Service) Register(api *gin.RouterGroup) {
 	g.POST("", s.createRevision)
 	g.GET("", s.listRevisions)
 	g.GET("/:revision_id", s.getRevision)
+	api.POST("/dashboards/:id/suggestions", s.createSuggestion)
+	api.GET("/dashboards/:id/suggestions/:suggestion_id", s.getSuggestion)
 }
 
 func (s *Service) createRevision(c *gin.Context) {

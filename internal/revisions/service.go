@@ -32,6 +32,9 @@ type Service struct {
 	reviser Reviser
 	logger  *slog.Logger
 	panels  PanelChecker
+	specs   SpecReader
+
+	canonicalCheck CanonicalCheck
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
@@ -347,11 +350,12 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 }
 
 type outcome struct {
-	version *int
-	message string
-	code    string
-	cause   error
-	usage   *Usage
+	version    *int
+	suggestion json.RawMessage
+	message    string
+	code       string
+	cause      error
+	usage      *Usage
 }
 
 func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outcome) (bool, error) {
@@ -367,11 +371,16 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		var row dbsqlc.AgentRequest
 		var err error
-		if o.version != nil {
+		switch {
+		case o.suggestion != nil:
+			row, err = q.SucceedSuggestRequest(ctx, dbsqlc.SucceedSuggestRequestParams{
+				ID: claimed.ID, Attempts: claimed.Attempts, Suggestion: o.suggestion, RunUsage: usage,
+			})
+		case o.version != nil:
 			row, err = q.SucceedAgentRequest(ctx, dbsqlc.SucceedAgentRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, ResultVersion: httpapi.Int32(*o.version), RunUsage: usage,
 			})
-		} else {
+		default:
 			row, err = q.FailAgentRequest(ctx, dbsqlc.FailAgentRequestParams{
 				ID: claimed.ID, Attempts: claimed.Attempts, Error: truncateError(o.message), RunUsage: usage,
 			})
@@ -422,7 +431,7 @@ func (s *Service) existingVersion(ctx context.Context, claimed dbsqlc.AgentReque
 }
 
 func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	if !row.DashboardID.Valid {
+	if !row.DashboardID.Valid || row.Source == string(SourceSuggest) {
 		return nil
 	}
 	ev := events.Event{

@@ -26,6 +26,8 @@ const (
 	checkFailedMessage = "could not check the request's saved version"
 	timedOutMessage    = "the agent run timed out"
 	crashedMessage     = "the agent run crashed"
+
+	noSuggestionMessage = "the agent did not propose a panel"
 )
 
 var errCrashed = errors.New(crashedMessage)
@@ -140,8 +142,11 @@ func (w *Worker) step(ctx context.Context) (bool, error) {
 }
 
 func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool {
-	if settled, progressed := w.settleSaved(ctx, claimed, true, nil); settled {
-		return progressed
+	suggest := claimed.Source == string(SourceSuggest)
+	if !suggest {
+		if settled, progressed := w.settleSaved(ctx, claimed, true, nil); settled {
+			return progressed
+		}
 	}
 
 	runCtx, cancel := context.WithTimeout(ctx, w.opts.RunTimeout)
@@ -150,11 +155,13 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 	cancel()
 
 	if err == nil {
-		w.finish(ctx, claimed, outcome{version: &result.Version, usage: result.Usage})
+		w.finish(ctx, claimed, successOutcome(suggest, result))
 		return true
 	}
-	if settled, progressed := w.settleSaved(ctx, claimed, false, result.Usage); settled {
-		return progressed
+	if !suggest {
+		if settled, progressed := w.settleSaved(ctx, claimed, false, result.Usage); settled {
+			return progressed
+		}
 	}
 	crashed := errors.Is(err, errCrashed)
 	code := "agent_run_failed"
@@ -175,6 +182,16 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		w.finish(ctx, claimed, outcome{message: err.Error(), code: code, cause: err, usage: result.Usage})
 	}
 	return true
+}
+
+func successOutcome(suggest bool, result Result) outcome {
+	switch {
+	case !suggest:
+		return outcome{version: &result.Version, usage: result.Usage}
+	case len(result.Suggestion) == 0:
+		return outcome{message: noSuggestionMessage, code: "agent_no_suggestion", usage: result.Usage}
+	}
+	return outcome{suggestion: result.Suggestion, usage: result.Usage}
 }
 
 func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, beforeRun bool, usage *Usage) (settled, progressed bool) {
@@ -238,6 +255,8 @@ func (w *Worker) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o outc
 		w.logger.ErrorContext(ctx, "finish agent request", logattrs.Failure("agent_request_finish_failed", err, attrs...)...)
 	case !finished:
 		w.logger.WarnContext(ctx, "agent request was finished elsewhere; dropping this result", attrs...)
+	case o.suggestion != nil:
+		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("attempt", int(claimed.Attempts)))...)
 	case o.version != nil:
 		w.logger.InfoContext(ctx, "agent request succeeded", append(attrs, slog.Int("version", *o.version), slog.Int("attempt", int(claimed.Attempts)))...)
 	default:
@@ -261,6 +280,7 @@ func requestFrom(row dbsqlc.AgentRequest) Request {
 		Prompt:      row.Prompt,
 		PanelID:     row.PanelID.String,
 		BaseVersion: int(row.BaseVersion.Int32),
+		Draft:       row.Draft,
 		Attempt:     int(row.Attempts),
 		RequestedBy: requesterOf(row),
 		Origin:      origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},

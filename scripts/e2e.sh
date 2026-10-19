@@ -676,6 +676,7 @@ suite() {
   events_suite
   comments_suite
   revisions_suite
+  suggestions_suite
   observe_suite
   mcp_suite
   proxy_suite
@@ -1540,6 +1541,161 @@ sys.exit(0 if len(c)==1 and c[0]["status"]=="resolved" and c[0]["resolved_by_ver
   [[ "$out" == 400 ]] || fail "a revision with an empty panel_id should answer 400 ($out: $(cat "$TMP/api.body"))"
   wait_revision "$pid" "$prid" failed 90
   pass "a revision can target one panel, and an unknown panel is refused"
+}
+
+suggestion_id_of() {
+  grep -o '"suggestion":{"id":"[^"]*"' "$1" | head -1 | cut -d'"' -f6
+}
+
+suggestion_wait() {
+  local dashboard="$1" suggestion="$2" tries="$3"
+  until [[ "$(api GET "/dashboards/$dashboard/suggestions/$suggestion")" == 200 ]] && grep -Eq '"status":"(succeeded|failed)"' "$TMP/api.body"; do
+    ((--tries > 0)) || fail "suggestion $suggestion never finished ($(cat "$TMP/api.body"))"
+    sleep 1
+  done
+}
+
+suggestion_draft_body() {
+  python3 -c 'import json,sys
+spec = json.load(open(sys.argv[1]))["spec"]
+panel = next(p for p in spec["panels"] if p["id"] == sys.argv[2])
+panel.update(json.loads(sys.argv[4]))
+print(json.dumps({"version": 1, "panel_id": sys.argv[2], "prompt": sys.argv[3], "panel": panel}))' \
+    "$FIXTURES/dashboard-valid.json" "$1" "$2" "$3" >"$TMP/suggestion-body.json"
+}
+
+suggestions_suite() {
+  api_token
+  local out did panel sid sid2 bad accepted_ids=() nil_id=00000000-0000-0000-0000-000000000000
+
+  panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
+  [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the suggestions dashboard ($out: $(cat "$TMP/api.body"))"
+  did="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+
+  out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"Suggest a p95 line next to the existing series"}')"
+  if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"panel":null' "$TMP/api.body" \
+    || ! grep -q '"error":null' "$TMP/api.body" || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"base_version":1' "$TMP/api.body" \
+    || ! grep -q '"requested_by":{"kind":"service_account"' "$TMP/api.body"; then
+    fail "a suggestion is queued ($out: $(cat "$TMP/api.body"))"
+  fi
+  sid="$(suggestion_id_of "$TMP/api.body")"
+  [[ -n "$sid" ]] || fail "the queued suggestion has no id ($(cat "$TMP/api.body"))"
+  grep -qi "^location: /api/v1/dashboards/$did/suggestions/$sid" "$TMP/api.headers" || fail "the suggestion response has no Location header ($(cat "$TMP/api.headers"))"
+  suggestion_wait "$did" "$sid" 90
+  if ! grep -q '"status":"succeeded"' "$TMP/api.body" || ! grep -q '"panel":{' "$TMP/api.body" || ! grep -q '"ref":"B"' "$TMP/api.body" \
+    || ! grep -q 'p95' "$TMP/api.body" || ! grep -q '"error":null' "$TMP/api.body" || ! grep -q 'Proposed a change to panel' "$TMP/api.body"; then
+    fail "the suggestion proposes a panel with a p95 query ($(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$did")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":1' "$TMP/api.body"; then
+    fail "a suggestion must not save a version ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$did/revisions")"
+  if [[ "$out" != 200 ]] || grep -q "$sid" "$TMP/api.body" || grep -q '"source":"suggest"' "$TMP/api.body"; then
+    fail "a suggestion must not appear in the dashboard's revisions ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$did/revisions/$sid")"
+  [[ "$out" == 404 ]] || fail "a suggestion is not a revision ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/observe/$sid")"
+  [[ "$out" == 404 ]] || fail "a suggestion is not an observe request ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/observe?limit=100")"
+  if [[ "$out" != 200 ]] || grep -q "$sid" "$TMP/api.body"; then
+    fail "a suggestion must not appear in the observe list ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a suggestion proposes a panel, saves no version and stays out of revisions and the observe list"
+
+  out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"Suggest a broken query first"}')"
+  [[ "$out" == 202 ]] || fail "queue the repairing suggestion ($out: $(cat "$TMP/api.body"))"
+  sid2="$(suggestion_id_of "$TMP/api.body")"
+  suggestion_wait "$did" "$sid2" 90
+  if ! python3 -c 'import json,sys
+s = json.load(open(sys.argv[1]))["suggestion"]
+errors = [i for i, x in enumerate(s["steps"]) if x["status"] == "error"]
+proposed = [i for i, x in enumerate(s["steps"]) if x["message"].startswith("Proposed a change to panel")]
+sys.exit(0 if s["status"] == "succeeded" and errors and proposed and errors[0] < proposed[-1] else 1)' "$TMP/api.body" \
+    || ! grep -q 'sum(rate(http_requests_total\[5m\]))' "$TMP/api.body"; then
+    fail "the suggestion repairs a rejected query before proposing ($(cat "$TMP/api.body"))"
+  fi
+  pass "a suggestion whose first query is rejected is repaired before the panel is proposed"
+
+  suggestion_draft_body "$panel" "Suggest a p95 line next to the existing series" '{"title":"Requests per second (draft)"}'
+  out="$(api POST "/dashboards/$did/suggestions" --data-binary "@$TMP/suggestion-body.json")"
+  [[ "$out" == 202 ]] || fail "queue a suggestion with a valid draft ($out: $(cat "$TMP/api.body"))"
+  sid2="$(suggestion_id_of "$TMP/api.body")"
+  suggestion_wait "$did" "$sid2" 90
+  if ! grep -q '"status":"succeeded"' "$TMP/api.body" || ! grep -q '"ref":"B"' "$TMP/api.body"; then
+    fail "a suggestion started from a valid draft succeeds ($(cat "$TMP/api.body"))"
+  fi
+  pass "a suggestion can start from the editor's draft panel"
+
+  for bad in '{"unit":"bogus"}' '{"id":"renamed_panel"}' '{"type":"row","panels":[]}' '{"title":"a\u0000b"}'; do
+    suggestion_draft_body "$panel" "Suggest a p95 line next to the existing series" "$bad"
+    out="$(api POST "/dashboards/$did/suggestions" --data-binary "@$TMP/suggestion-body.json")"
+    if [[ "$out" != 422 ]] || ! grep -q '"code":"invalid_spec"' "$TMP/api.body" || ! grep -q '"issues":\[{' "$TMP/api.body"; then
+      fail "the draft patched with $bad should be rejected with invalid_spec ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"no_such_panel","prompt":"Suggest a p95 line next to the existing series"}')"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"unknown_panel"' "$TMP/api.body"; then
+    fail "a suggestion for an unknown panel is refused ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$did/suggestions" -d '{"version":99,"panel_id":"'"$panel"'","prompt":"x"}')"
+  [[ "$out" == 404 ]] || fail "a suggestion against an unknown version ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$nil_id/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"x"}')"
+  [[ "$out" == 404 ]] || fail "a suggestion for an unknown dashboard ($out: $(cat "$TMP/api.body"))"
+  for bad in '{"version":1,"panel_id":"'"$panel"'"}' '{"panel_id":"'"$panel"'","prompt":"x"}' '{"version":1,"prompt":"x"}' \
+    '{"version":1,"panel_id":"'"$panel"'","prompt":"   "}' '{"version":1,"panel_id":"'"$panel"'","prompt":"a\u0000b"}' \
+    '{"version":0,"panel_id":"'"$panel"'","prompt":"x"}' '{"version":1,"panel_id":"","prompt":"x"}' \
+    '{"version":1,"panel_id":"'"$panel"'","prompt":"x","panel":"text"}' '{"version":1,"panel_id":"'"$panel"'","prompt":"x","panel":[]}' \
+    '{"version":1,"panel_id":"'"$panel"'","prompt":"x","extra":1}'; do
+    out="$(api POST "/dashboards/$did/suggestions" -d "$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "invalid suggestion ${bad:0:70} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  out="$(api POST /dashboards/not-a-uuid/suggestions -d '{"version":1,"panel_id":"'"$panel"'","prompt":"x"}')"
+  [[ "$out" == 400 ]] || fail "a suggestion for a malformed dashboard id ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$did/suggestions/$nil_id")"
+  [[ "$out" == 404 ]] || fail "read an unknown suggestion ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$did/suggestions/not-a-uuid")"
+  [[ "$out" == 400 ]] || fail "read a malformed suggestion id ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$nil_id/suggestions/$sid")"
+  [[ "$out" == 404 ]] || fail "read a suggestion through another dashboard ($out: $(cat "$TMP/api.body"))"
+  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"version":1,"panel_id":"'"$panel"'","prompt":"x"}' "$BASE_URL/api/v1/dashboards/$did/suggestions")"
+  [[ "$out" == 401 ]] || fail "a suggestion without a token ($out)"
+  pass "suggestion requests refuse invalid drafts, panels, versions, bodies and anonymous callers"
+
+  hold_claim_lock
+  poll 30 "the test holds the agent request claim lock" claim_lock_held
+  for bad in 1 2; do
+    out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"No fixture covers this suggestion"}')"
+    [[ "$out" == 202 ]] || fail "suggestion $bad of 2 should be accepted ($out: $(cat "$TMP/api.body"))"
+    accepted_ids+=("$(suggestion_id_of "$TMP/api.body")")
+  done
+  out="$(api POST "/dashboards/$did/suggestions" -d '{"version":1,"panel_id":"'"$panel"'","prompt":"No fixture covers this suggestion"}')"
+  if [[ "$out" != 429 ]] || ! grep -q '"code":"too_many_suggestions"' "$TMP/api.body"; then
+    fail "the third queued suggestion should be refused with too_many_suggestions ($out: $(cat "$TMP/api.body"))"
+  fi
+  release_claim_lock
+  for bad in "${accepted_ids[@]}"; do
+    suggestion_wait "$did" "$bad" 90
+    if ! grep -q '"status":"failed"' "$TMP/api.body" || ! grep -q '"panel":null' "$TMP/api.body" || grep -q '"error":null' "$TMP/api.body"; then
+      fail "a suggestion the agent cannot answer fails with a safe error ($(cat "$TMP/api.body"))"
+    fi
+  done
+  pass "at most two suggestions are queued or running per caller, and a failed one proposes nothing"
+
+  out="$(command curl -sS -o "$TMP/api.body" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/dashboards/$did/suggestions/$sid")"
+  [[ "$out" == 404 ]] || fail "another principal must not read the suggestion ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$did/suggestions/$sid")"
+  [[ "$out" == 200 ]] || fail "the requester reads the suggestion ($out: $(cat "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$did")"
+  if [[ "$out" != 200 ]] || ! grep -q '"latest_version":1' "$TMP/api.body"; then
+    fail "no suggestion may save a version ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "the agent proposes a panel without saving, and only the requester sees it"
 }
 
 observe_id_of() {

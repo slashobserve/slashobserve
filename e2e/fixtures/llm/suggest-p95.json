@@ -1,0 +1,73 @@
+{
+  "prompt": "Suggest a p95 line next to the existing series",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "update_dashboard",
+          "input": {
+            "summary": "Suggest p95",
+            "spec": {
+              "specVersion": "0",
+              "title": "E2E dashboard",
+              "tags": ["e2e"],
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": "rps",
+                  "type": "timeseries",
+                  "title": "Requests per second",
+                  "gridPos": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "prom",
+                  "queries": [
+                    {
+                      "query": "sum(rate(http_requests_total[$__rate_interval]))"
+                    },
+                    {
+                      "ref": "B",
+                      "query": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+                      "legend": "p95"
+                    }
+                  ]
+                },
+                {
+                  "id": "log_services",
+                  "type": "table",
+                  "title": "Log rows by service",
+                  "gridPos": {
+                    "x": 12,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  },
+                  "datasource": "ch",
+                  "queries": [
+                    {
+                      "query": "SELECT ServiceName AS service, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY n DESC LIMIT 10"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "done",
+      "expect": [
+        {
+          "is_error": false
+        }
+      ]
+    }
+  ]
+}

@@ -592,6 +592,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the agent to propose a change to one panel without saving anything.
+         * @description The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change. A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it never waits behind or blocks a revision of the dashboard. Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`. `version` is the version the proposal is judged inside, and `panel_id` must be a data or text panel of that version. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused. `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data or text panel, must not contain the NUL character and may be at most 64 KiB. The proposed panel is validated inside the base version with the user's draft, and its queries run with the save rules before the suggestion succeeds. A caller may have 2 suggestions queued or running and the instance 10. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         */
+        post: operations["createPanelSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboards/{id}/suggestions/{suggestion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one panel suggestion.
+         * @description Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404. `panel` is set only when the status is `succeeded` and `error` only when it is `failed`. Poll every second until the status is `succeeded` or `failed`; suggestions send no events.
+         */
+        get: operations["getPanelSuggestion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agent": {
         parameters: {
             query?: never;
@@ -1083,6 +1128,43 @@ export interface components {
         };
         RevisionEnvelope: {
             revision: components["schemas"]["Revision"];
+        };
+        SuggestionEnvelope: {
+            suggestion: components["schemas"]["Suggestion"];
+        };
+        Suggestion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The panel the agent was asked to change. */
+            panel_id: string;
+            /** @description The version the proposal is judged inside. */
+            base_version: number;
+            prompt: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            steps: components["schemas"]["AgentStep"][];
+            /** @description The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it. */
+            panel: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Why the suggestion failed, set only when the status is `failed`. */
+            error: string | null;
+            requested_by: components["schemas"]["Author"];
+            /**
+             * @description Where the request came from. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's self-reported `clientInfo.name`, only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
         };
         AgentInfo: {
             available: boolean;
@@ -2581,6 +2663,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevisionEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createPanelSuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A version that exists on the dashboard. */
+                    version: number;
+                    panel_id: string;
+                    prompt: string;
+                    /** @description The editor's current draft of the panel. Omit it or send null to start from the stored panel. */
+                    panel?: {
+                        [key: string]: unknown;
+                    } | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The queued suggestion. */
+            202: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionEnvelope"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The dashboard or the version does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The panel is not a data or text panel of that version (`unknown_panel`), or the draft fails inside the version (`invalid_spec`, with `issues`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description The caller already has 2 suggestions queued or running (`too_many_suggestions`), or 10 are queued or running across the instance (`agent_busy`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description No LLM provider is configured (`agent_unavailable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPanelSuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The suggestion with its current status and progress steps. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionEnvelope"];
                 };
             };
             400: components["responses"]["BadRequest"];

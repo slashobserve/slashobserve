@@ -14,6 +14,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -25,6 +26,9 @@ const (
 
 	MaxActiveObservePerPrincipal = 3
 	MaxActiveObserve             = 20
+	MaxActiveSuggestPerPrincipal = 2
+	MaxActiveSuggest             = 10
+	MaxDraftBytes                = 64 << 10
 	MaxSteps                     = 100
 	MaxStepMessageRunes          = 200
 
@@ -61,6 +65,10 @@ var (
 	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
 	ErrCommentNotFound  = errors.New("comment not found")
 
+	ErrTooManySuggestions = fmt.Errorf("you already have %d suggestions queued or running", MaxActiveSuggestPerPrincipal)
+	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes", MaxDraftBytes)
+	ErrDraftInvalid       = errors.New("the draft panel is not valid")
+
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
@@ -69,10 +77,33 @@ type PanelChecker interface {
 	HasPanel(ctx context.Context, dashboardID pgtype.UUID, version int, panelID string) (bool, error)
 }
 
+type SpecReader interface {
+	VersionSpec(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error)
+}
+
+type CanonicalCheck func(canonical []byte) []spec.Issue
+
+type DraftError struct {
+	Issues []spec.Issue
+}
+
+func (e *DraftError) Error() string { return ErrDraftInvalid.Error() }
+
+func (e *DraftError) Unwrap() error { return ErrDraftInvalid }
+
 type Option func(*Service)
 
 func WithPanels(p PanelChecker) Option {
 	return func(s *Service) { s.panels = p }
+}
+
+func WithSpecs(r SpecReader) Option {
+	return func(s *Service) { s.specs = r }
+}
+
+// internal/dashboards imports this package, so the NUL check it owns is passed in rather than imported.
+func WithCanonicalCheck(check CanonicalCheck) Option {
+	return func(s *Service) { s.canonicalCheck = check }
 }
 
 type Request struct {
