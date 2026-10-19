@@ -3,14 +3,12 @@
 CREATE FUNCTION observespec_datasource_uids(spec jsonb) RETURNS text[]
 LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
 AS $$
-SELECT coalesce(array_agg(DISTINCT uid ORDER BY uid), '{}'::text[]) FROM (
+SELECT coalesce(array_agg(DISTINCT uid COLLATE "C" ORDER BY uid COLLATE "C"), '{}'::text[]) FROM (
   SELECT jsonb_path_query(spec, 'lax $.panels[*].datasource ? (@.type() == "string")') #>> '{}' AS uid
-  UNION ALL SELECT jsonb_path_query(spec, 'lax $.panels[*].datasource.uid ? (@.type() == "string")') #>> '{}'
   UNION ALL SELECT jsonb_path_query(spec, 'lax $.panels[*].queries[*].datasource ? (@.type() == "string")') #>> '{}'
   UNION ALL SELECT jsonb_path_query(spec, 'lax $.panels[*].panels[*].datasource ? (@.type() == "string")') #>> '{}'
   UNION ALL SELECT jsonb_path_query(spec, 'lax $.panels[*].panels[*].queries[*].datasource ? (@.type() == "string")') #>> '{}'
   UNION ALL SELECT jsonb_path_query(spec, 'lax $.variables[*].datasource ? (@.type() == "string")') #>> '{}'
-  UNION ALL SELECT jsonb_path_query(spec, 'lax $.variables[*].datasource.uid ? (@.type() == "string")') #>> '{}'
 ) found
 WHERE uid <> ''
 $$;
