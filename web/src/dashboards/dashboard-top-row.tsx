@@ -33,7 +33,7 @@ export function DashboardTopRow({
   actions,
 }: Props) {
   return (
-    <header className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
+    <header className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4 narrow:sticky narrow:top-0 narrow:z-10 narrow:bg-background">
       <nav
         aria-label="Breadcrumb"
         className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]"
