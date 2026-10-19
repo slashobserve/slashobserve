@@ -485,3 +485,15 @@ func TestSummaryKeepsItsFramingForTrimmedAndLongTitles(t *testing.T) {
 		}
 	}
 }
+
+func TestAFreshImportWithoutDatasourcesHasAnEmptyList(t *testing.T) {
+	r := newRig(t)
+	body := []byte(`{"title":"Notes","uid":"abc","schemaVersion":39,"panels":[{"id":1,"type":"text","title":"Hello","gridPos":{"x":0,"y":0,"w":12,"h":4},"options":{"mode":"markdown","content":"hi"}}]}`)
+	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Record.Datasources == nil || len(got.Record.Datasources) != 0 {
+		t.Fatalf("datasources = %#v, want an empty non-nil slice", got.Record.Datasources)
+	}
+}

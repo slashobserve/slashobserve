@@ -175,7 +175,7 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 			Title:           dash.Title,
 			Mapping:         mappingOf(req),
 			Summary:         result.Summary,
-			Datasources:     result.Datasources,
+			Datasources:     datasourcesOf(result),
 			Report:          result.Report,
 			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
 			CreatedAt:       inserted.CreatedAt.Time.UTC(),
