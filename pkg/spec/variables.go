@@ -20,7 +20,7 @@ type VariableRegex struct {
 	Global bool
 }
 
-var firstNumber = regexp.MustCompile(`[0-9]+(\.[0-9]+)?`)
+var firstNumber = regexp.MustCompile(`[0-9]+`)
 
 func CompileVariableRegex(s string) (*VariableRegex, error) {
 	pattern, global := "^"+s+"$", false

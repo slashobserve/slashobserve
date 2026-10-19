@@ -71,6 +71,9 @@ func TestSortVariableValues(t *testing.T) {
 		{"num", []string{"b1", "a1", "c0"}, []string{"c0", "b1", "a1"}},
 		{"num", []string{"9" + strings.Repeat("9", 400), "5", "x"}, []string{"x", "5", "9" + strings.Repeat("9", 400)}},
 		{"numDesc", []string{"5", "9" + strings.Repeat("9", 400), "x"}, []string{"9" + strings.Repeat("9", 400), "5", "x"}},
+		{"num", []string{"v1.10", "v1.9"}, []string{"v1.10", "v1.9"}},
+		{"numDesc", []string{"v1.10", "v1.9"}, []string{"v1.9", "v1.10"}},
+		{"num", []string{"-3", "2", "x"}, []string{"x", "2", "-3"}},
 		{"", []string{"b", "a"}, []string{"b", "a"}},
 	}
 	for _, tc := range cases {
