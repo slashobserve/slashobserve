@@ -29,6 +29,7 @@ const (
 	maxRepairRounds = 3
 	maxModelCalls   = 20
 	maxRestarts     = 1
+	maxLoggedIssues = 20
 )
 
 var (
@@ -42,7 +43,21 @@ var (
 	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
 	ErrDraftInvalid    = errors.New("the draft panel is not valid")
 	errModelCall       = errors.New("model call failed")
+
+	ErrSuggestRepairExhausted error = &variantError{
+		message: fmt.Sprintf("the proposed panel still failed validation after %d repair rounds", maxRepairRounds),
+		base:    ErrRepairExhausted,
+	}
+	ErrSuggestTurnLimit error = &variantError{message: "the agent stopped without proposing a panel", base: ErrTurnLimit}
 )
+
+type variantError struct {
+	message string
+	base    error
+}
+
+func (e *variantError) Error() string { return e.message }
+func (e *variantError) Unwrap() error { return e.base }
 
 var panelIDPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
 
@@ -228,15 +243,37 @@ func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision
 	if err != nil {
 		return nil, err
 	}
-	if len(t.Draft) > 0 {
-		if rev.spec, err = spec.WithPanel(rev.spec, t.PanelID, t.Draft); err != nil {
-			return nil, ErrDraftInvalid
+	if len(t.Draft) == 0 {
+		if _, ok := rev.spec.FindPanel(t.PanelID); !ok {
+			return nil, fmt.Errorf("%w: the panel is not in that version of the dashboard", ErrInvalidTask)
 		}
+	} else if rev.spec, err = spec.WithPanel(rev.spec, t.PanelID, t.Draft); err != nil {
+		return nil, a.draftInvalid(ctx, t.RequestID, err)
 	}
-	if _, ok := rev.spec.FindPanel(t.PanelID); !ok {
-		return nil, ErrDraftInvalid
+	entry, ok := rev.spec.FindPanel(t.PanelID)
+	switch {
+	case !ok:
+		return nil, a.draftInvalid(ctx, t.RequestID, ErrDraftInvalid)
+	case !entry.Panel.Type.IsData() && entry.Panel.Type != spec.Text:
+		return nil, fmt.Errorf("%w: the panel is not a data or text panel", ErrInvalidTask)
 	}
 	return rev, nil
+}
+
+func (a *Agent) draftInvalid(ctx context.Context, requestID string, err error) error {
+	attrs := logattrs.Failure("draft_invalid", err, slog.String("agent_request_id", requestID))
+	var invalid *spec.ValidationError
+	if errors.As(err, &invalid) {
+		issues := invalid.Issues[:min(len(invalid.Issues), maxLoggedIssues)]
+		codes := make([]string, len(issues))
+		paths := make([]string, len(issues))
+		for i, issue := range issues {
+			codes[i], paths[i] = string(issue.Code), issue.Path
+		}
+		attrs = append(attrs, slog.Int("issue_count", len(invalid.Issues)), slog.Any("issue_codes", codes), slog.Any("issue_paths", paths))
+	}
+	a.logger.WarnContext(ctx, "agent draft panel is not valid", attrs...)
+	return ErrDraftInvalid
 }
 
 func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashboards.Version, err error, requestID, noSpec string) (*revision, error) {
@@ -308,10 +345,10 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		case outcome.notFound:
 			return false, dashboards.ErrNotFound
 		case outcome.rejected && state.rejections > maxRepairRounds:
-			return false, repairExhausted(outcome.issueCodes)
+			return false, repairExhausted(mode, outcome.issueCodes)
 		}
 	}
-	return false, ErrTurnLimit
+	return false, turnLimitError(mode)
 }
 
 func runScope(t Task, mode tools.Mode, current *revision) tools.Run {
@@ -335,6 +372,13 @@ func noResultError(mode tools.Mode) error {
 	return ErrNoSave
 }
 
+func turnLimitError(mode tools.Mode) error {
+	if mode == tools.ModeSuggest {
+		return ErrSuggestTurnLimit
+	}
+	return ErrTurnLimit
+}
+
 func contextError(err error) error {
 	if errors.Is(err, ErrTooLarge) {
 		return err
@@ -349,11 +393,15 @@ func providerError(ctx context.Context, err error) error {
 	return fmt.Errorf("%w: %w", errModelCall, err)
 }
 
-func repairExhausted(codes []string) error {
-	if len(codes) == 0 {
-		return ErrRepairExhausted
+func repairExhausted(mode tools.Mode, codes []string) error {
+	exhausted := ErrRepairExhausted
+	if mode == tools.ModeSuggest {
+		exhausted = ErrSuggestRepairExhausted
 	}
-	return fmt.Errorf("%w (last issues: %s)", ErrRepairExhausted, strings.Join(codes, ", "))
+	if len(codes) == 0 {
+		return exhausted
+	}
+	return fmt.Errorf("%w (last issues: %s)", exhausted, strings.Join(codes, ", "))
 }
 
 func (a *Agent) logFinish(ctx context.Context, mode tools.Mode, requestID string, out Outcome, took time.Duration, err error) {
