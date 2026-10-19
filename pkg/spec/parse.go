@@ -51,19 +51,7 @@ func Parse(data []byte) (*Dashboard, error) {
 			Message: fmt.Sprintf("document is %d bytes; the limit is %d bytes", len(data), MaxBytes),
 		}})
 	}
-	if !utf8.Valid(data) {
-		return nil, newValidationError([]Issue{{
-			Code:    CodeMalformedJSON,
-			Message: "document is not valid UTF-8",
-		}})
-	}
-	if offset := loneSurrogate(data); offset >= 0 {
-		return nil, newValidationError([]Issue{{
-			Code:    CodeMalformedJSON,
-			Message: fmt.Sprintf("document has an unpaired UTF-16 surrogate escape at byte offset %d", offset),
-		}})
-	}
-	if issues := scanJSON(data); len(issues) > 0 {
+	if issues := byteIssues(data, 0); len(issues) > 0 {
 		return nil, newValidationError(issues)
 	}
 	issues, err := validateSchema(data)
@@ -83,6 +71,22 @@ func Parse(data []byte) (*Dashboard, error) {
 		return nil, newValidationError(issues)
 	}
 	return &d, nil
+}
+
+func byteIssues(data []byte, depth int) []Issue {
+	if !utf8.Valid(data) {
+		return []Issue{{
+			Code:    CodeMalformedJSON,
+			Message: "document is not valid UTF-8",
+		}}
+	}
+	if offset := loneSurrogate(data); offset >= 0 {
+		return []Issue{{
+			Code:    CodeMalformedJSON,
+			Message: fmt.Sprintf("document has an unpaired UTF-16 surrogate escape at byte offset %d", offset),
+		}}
+	}
+	return scanJSON(data, depth)
 }
 
 func loneSurrogate(data []byte) int {
@@ -132,10 +136,10 @@ type jsonScanner struct {
 	issues []Issue
 }
 
-func scanJSON(data []byte) []Issue {
+func scanJSON(data []byte, depth int) []Issue {
 	s := &jsonScanner{dec: json.NewDecoder(bytes.NewReader(data))}
 	s.dec.UseNumber()
-	if err := s.value(nil, 0); err != nil {
+	if err := s.value(nil, depth); err != nil {
 		return []Issue{s.malformed(err)}
 	}
 	offset := s.dec.InputOffset()

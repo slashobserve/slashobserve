@@ -1274,3 +1274,101 @@ func TestCheckSpecNewVariableTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckPanels(t *testing.T) {
+	twelvePanels := func(mutate func(i int, p *spec.Panel)) []spec.Panel {
+		panels := make([]spec.Panel, 12)
+		for i := range panels {
+			panels[i] = panelOf("p"+strconv.Itoa(i), spec.Timeseries, "prom", "up")
+			if mutate != nil {
+				mutate(i, &panels[i])
+			}
+		}
+		return panels
+	}
+	brokenVariables := []spec.Variable{
+		queryVariable("job", "missing", "label_values(job)"),
+		queryVariable("other", "missing", "label_values(other)"),
+	}
+
+	tests := []struct {
+		name      string
+		panels    []spec.Panel
+		variables []spec.Variable
+		mutate    func(*spec.Dashboard)
+		ids       []string
+		want      []wantIssue
+		wantCalls int
+	}{
+		{
+			name: "issues of other panels and unrelated variables are dropped",
+			panels: twelvePanels(func(i int, p *spec.Panel) {
+				if i == 10 {
+					p.Datasource = "missing"
+				}
+			}),
+			variables: []spec.Variable{queryVariable("other", "missing", "label_values(other)")},
+			ids:       []string{"p1"},
+			wantCalls: 1,
+		},
+		{
+			name: "a listed panel keeps its own unresolved variable",
+			panels: twelvePanels(func(i int, p *spec.Panel) {
+				if i == 1 || i == 10 {
+					p.Queries[0].Query = `up{job="$job"}`
+				}
+			}),
+			variables: brokenVariables,
+			ids:       []string{"p1"},
+			want:      []wantIssue{{"/panels/1/queries/0/query", CodeVariableUnresolved, `variable "job" could not be resolved`}},
+		},
+		{
+			name: "a listed panel of two digits does not pull in its prefix sibling",
+			panels: twelvePanels(func(i int, p *spec.Panel) {
+				if i == 1 {
+					p.Datasource = "missing"
+				}
+			}),
+			ids:       []string{"p10"},
+			wantCalls: 1,
+		},
+		{
+			name: "an invalid time range is still reported",
+			panels: twelvePanels(func(i int, p *spec.Panel) {
+				if i == 10 {
+					p.Datasource = "missing"
+				}
+			}),
+			mutate: func(d *spec.Dashboard) { d.Time = spec.TimeRange{From: "now", To: "now"} },
+			ids:    []string{"p1"},
+			want:   []wantIssue{{"/time", CodeTimeRangeInvalid, ""}},
+		},
+		{
+			name:      "ids that match no data panel run nothing",
+			panels:    append(twelvePanels(nil), spec.Panel{ID: "t", Type: spec.Text}),
+			variables: []spec.Variable{queryVariable("job", "prom", "label_values(job)")},
+			ids:       []string{"t", "unknown"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			d := dashboardOf(tt.panels, tt.variables...)
+			if tt.mutate != nil {
+				tt.mutate(d)
+			}
+			issues, err := runner.CheckPanels(t.Context(), d, testNow, datasource.QueryUser{}, tt.ids)
+			if err != nil {
+				t.Fatalf("CheckPanels error: %v", err)
+			}
+			if len(tt.want) == 0 && issues != nil {
+				t.Fatalf("issues = %+v, want nil", issues)
+			}
+			assertIssues(t, issues, tt.want)
+			if got := fake.callCount(); got != tt.wantCalls {
+				t.Fatalf("upstream calls = %d, want %d: %+v", got, tt.wantCalls, fake.recorded())
+			}
+		})
+	}
+}
