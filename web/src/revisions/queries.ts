@@ -161,6 +161,7 @@ export function describeRevisionError(error: unknown): string {
 export function useRequestRevision(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: (input: {
       prompt: string
       baseVersion: number
