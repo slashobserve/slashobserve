@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 const (
@@ -117,9 +118,9 @@ func SortVariableValues(values []string, order string) []string {
 	out := slices.Clone(values)
 	switch order {
 	case "alpha":
-		slices.SortStableFunc(out, strings.Compare)
+		slices.SortStableFunc(out, compareUTF16)
 	case "alphaDesc":
-		slices.SortStableFunc(out, func(a, b string) int { return strings.Compare(b, a) })
+		slices.SortStableFunc(out, func(a, b string) int { return compareUTF16(b, a) })
 	case "num", "numDesc":
 		slices.SortStableFunc(out, func(a, b string) int {
 			na, oka := leadingNumber(a)
@@ -139,6 +140,10 @@ func SortVariableValues(values []string, order string) []string {
 		}
 	}
 	return out
+}
+
+func compareUTF16(a, b string) int {
+	return slices.Compare(utf16.Encode([]rune(a)), utf16.Encode([]rune(b)))
 }
 
 func leadingNumber(s string) (float64, bool) {
