@@ -215,8 +215,20 @@ func TestRequestRunsAndSucceeds(t *testing.T) {
 }
 
 func TestEventsAnnounceEveryStatusChange(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 1)
+	var svc *revisions.Service
+	var d *dbtest.Database
+	var dash pgtype.UUID
+	observeRunning := make(chan struct{})
+	releaseObserve := make(chan struct{})
+	svc, d = newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		if req.Source == revisions.SourceObserve {
+			close(observeRunning)
+			<-releaseObserve
+			saveVersionFor(t, d, dash, req.ID)
+		}
+		return revisions.Result{Version: 2}, nil
+	}))
+	dash = seedDashboard(t, d, 2)
 
 	var mu sync.Mutex
 	var payloads []events.Event
@@ -234,26 +246,52 @@ func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 		})
 	}()
 	<-listening
-
-	rev := submit(t, svc, dash, "go")
-	startWorker(t, svc, d, revisions.WorkerOptions{})
-	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
-	waitFor(t, "three revision.updated events", func() bool {
+	eventsOf := func(id string) []events.Event {
 		mu.Lock()
 		defer mu.Unlock()
-		return len(payloads) == 3
-	})
+		var out []events.Event
+		for _, ev := range payloads {
+			if ev.RevisionID == id {
+				out = append(out, ev)
+			}
+		}
+		return out
+	}
 
-	mu.Lock()
-	defer mu.Unlock()
+	observe, err := svc.SubmitObserve(context.Background(), user, "build a dashboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rev := submit(t, svc, dash, "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	<-observeRunning
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+	waitFor(t, "three revision.updated events", func() bool { return len(eventsOf(rev.ID)) == 3 })
+
+	if got := eventsOf(observe.ID.String()); len(got) != 0 {
+		t.Fatalf("a queued or running observe request sent %+v", got)
+	}
+
+	close(releaseObserve)
+	waitFor(t, "the observe request to succeed", func() bool {
+		row, err := svc.GetByID(context.Background(), observe.ID)
+		return err == nil && row.Status == string(revisions.StatusSucceeded)
+	})
+	waitFor(t, "the observe request's revision.updated event", func() bool { return len(eventsOf(observe.ID.String())) == 1 })
+
+	got := eventsOf(rev.ID)
 	for i, want := range []string{"queued", "running", "succeeded"} {
-		ev := payloads[i]
+		ev := got[i]
 		if ev.Status != want || ev.RevisionID != rev.ID || ev.DashboardID != dash.String() {
 			t.Errorf("event %d = %+v, want status %s", i, ev, want)
 		}
 	}
-	if payloads[2].Version != 2 {
-		t.Errorf("the succeeded event carries version %d, want 2", payloads[2].Version)
+	if got[2].Version != 2 {
+		t.Errorf("the succeeded event carries version %d, want 2", got[2].Version)
+	}
+	observed := eventsOf(observe.ID.String())
+	if len(observed) != 1 || observed[0].Status != "succeeded" || observed[0].DashboardID != dash.String() || observed[0].Version != 2 {
+		t.Errorf("observe request events = %+v, want one succeeded event for the dashboard it created", observed)
 	}
 }
 
