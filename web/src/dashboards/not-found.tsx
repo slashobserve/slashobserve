@@ -41,7 +41,7 @@ export function DashboardNotFound() {
         ]}
       />
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <h1 className="text-2xl font-semibold">Dashboard not found</h1>
+        <h2 className="text-2xl font-semibold">Dashboard not found</h2>
         <p className="text-sm text-muted-foreground">
           It may have been removed, or the link is wrong.
         </p>
