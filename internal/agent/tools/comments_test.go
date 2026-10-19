@@ -163,6 +163,22 @@ func TestCommentItem(t *testing.T) {
 	}
 }
 
+func TestCommentItemAuthorFallsBackToEmail(t *testing.T) {
+	tests := []struct {
+		author dashboards.Author
+		want   string
+	}{
+		{dashboards.Author{Name: "Ada", Email: "ada@example.com"}, "Ada"},
+		{dashboards.Author{Email: "ada@example.com"}, "ada@example.com"},
+		{dashboards.Author{}, ""},
+	}
+	for _, tt := range tests {
+		if got := commentItem(dashboards.Comment{Author: tt.author}).Author; got != tt.want {
+			t.Errorf("author for %+v = %q, want %q", tt.author, got, tt.want)
+		}
+	}
+}
+
 func TestCommentFailure(t *testing.T) {
 	internal := errors.New("database down")
 	tests := []struct {

@@ -68,7 +68,7 @@ func commentItem(c dashboards.Comment) commentOut {
 		PanelPresent:      c.PanelPresent,
 		Version:           c.Version,
 		Status:            c.Status,
-		Author:            c.Author.Name,
+		Author:            authorLabel(c.Author),
 		CreatedAt:         c.CreatedAt.UTC().Format(time.RFC3339),
 		Body:              clip(c.Body, maxCommentOutBytes),
 		BodyTruncated:     len(c.Body) > maxCommentOutBytes,
@@ -81,6 +81,13 @@ func commentItem(c dashboards.Comment) commentOut {
 		out.PanelID = &c.PanelID
 	}
 	return out
+}
+
+func authorLabel(a dashboards.Author) string {
+	if a.Name == "" {
+		return a.Email
+	}
+	return a.Name
 }
 
 func parseCommentID(raw string) (pgtype.UUID, Result, bool) {
