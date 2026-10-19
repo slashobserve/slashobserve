@@ -28,8 +28,8 @@ const (
 	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. Use it to learn real services, routes or pods before filtering on them."
 	descListLabels      = "List label names (or OpenTelemetry attribute keys on ClickHouse) on a datasource, optionally for one metric. Use it to find the dimensions a metric can be grouped by."
 	descListMetrics     = "List the metrics of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by a search string. Use it to find real metric names before writing queries."
-	descQueryInstant    = "Run a PromQL or ClickHouse SQL query at one point in time and get a compact summary (rows or series with min, max, last). Use it to check a stat, table or bar gauge query returns data before saving."
-	descQueryRange      = "Run a PromQL or ClickHouse SQL query over a time range and get a compact summary (series, min, max, last). Use it to check a panel query returns data before saving."
+	descQueryInstant    = "Run a PromQL or ClickHouse SQL query at one point in time and get a compact summary (rows or series with min, max, last). Use it to check a stat, table or bar gauge query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
+	descQueryRange      = "Run a PromQL or ClickHouse SQL query over a time range and get a compact summary (series, min, max, last). Use it to check a panel query returns data before saving. Pass dashboard_title when the query uses $__dashboard."
 	descSampleRows      = "Read a few recent rows from a ClickHouse table. Use it to see real column values, such as log messages or span names, before writing a query."
 	descUpdateDashboard = "Save a new version of an existing dashboard from a full ObserveSpec document. Pass the version you read as parent_version; a newer saved version is reported as a conflict."
 )
@@ -42,6 +42,7 @@ const (
 	propFrom       = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
 	propTo         = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
 	propVariables  = `"variables":{"type":"object","maxProperties":20,"additionalProperties":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"string"}},"description":"Values for the $variables the query references, by variable name."}`
+	propDashTitle  = `"dashboard_title":{"type":"string","maxLength":200,"description":"Title that $__dashboard expands to in the query. Default Untitled dashboard."}`
 	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see get_spec_guide."}`
 	propSummary    = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID     = `"dashboard_id":{"type":"string","description":"Dashboard id."}`
@@ -62,9 +63,9 @@ const (
 
 	schemaLintQuery = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `},"required":["datasource","query"],"additionalProperties":false}`
 
-	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `},"required":["datasource","query"],"additionalProperties":false}`
+	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
-	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `},"required":["datasource","query"],"additionalProperties":false}`
+	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
 	schemaListDashboards = `{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Dashboards per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 

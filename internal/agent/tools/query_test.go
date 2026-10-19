@@ -251,6 +251,55 @@ func TestQueryBoundsThroughCall(t *testing.T) {
 	}
 }
 
+func TestQueryToolsExpandTheDashboardTitleMacro(t *testing.T) {
+	tests := []struct {
+		name  string
+		tool  string
+		input string
+		want  string
+	}{
+		{"range with a title", nameQueryRange, `{"datasource":"fake","query":"up{d=\"$__dashboard\"}","dashboard_title":"Checkout health"}`, "Checkout health"},
+		{"instant with a title", nameQueryInstant, `{"datasource":"fake","query":"up{d=\"$__dashboard\"}","dashboard_title":"Checkout health"}`, "Checkout health"},
+		{"range default", nameQueryRange, `{"datasource":"fake","query":"up{d=\"$__dashboard\"}"}`, defaultDashTitle},
+		{"instant default", nameQueryInstant, `{"datasource":"fake","query":"up{d=\"$__dashboard\"}","dashboard_title":""}`, defaultDashTitle},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var seen datasource.Query
+			ds := &fakeDS{
+				rangeFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+					seen = q
+					return []datasource.Frame{timeNumberFrame(nil, 1)}, nil
+				},
+				instantFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]datasource.Frame, error) {
+					seen = q
+					return []datasource.Frame{timeNumberFrame(nil, 1)}, nil
+				},
+			}
+			res, err := call(t, newTestRegistry(t, ds, nil), tt.tool, tt.input)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v", res, err)
+			}
+			if seen.Dashboard != tt.want {
+				t.Fatalf("the datasource saw dashboard %q, want %q", seen.Dashboard, tt.want)
+			}
+		})
+	}
+}
+
+func TestQueryToolsRefuseAnOversizedDashboardTitle(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	for _, tool := range []string{nameQueryRange, nameQueryInstant} {
+		res, err := call(t, r, tool, `{"datasource":"fake","query":"up","dashboard_title":"`+strings.Repeat("a", maxDashTitleChars+1)+`"}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if code := errorCode(t, res); code != string(queryproxy.CodeInvalidRequest) {
+			t.Fatalf("%s code = %q", tool, code)
+		}
+	}
+}
+
 func manyVariables(n int) string {
 	var parts []string
 	for i := range n {
