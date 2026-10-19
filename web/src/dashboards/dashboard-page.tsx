@@ -14,7 +14,6 @@ import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { panelRefs } from "@/comments/latest-panels"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
-import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FollowUpBar } from "@/revisions/follow-up-bar"
 import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
@@ -22,7 +21,6 @@ import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { panelRenderers } from "@/panels"
 import { hasData } from "@/panels/frames"
-import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -38,6 +36,7 @@ import {
   type LiveStatus,
 } from "./live/use-dashboard-events"
 import { downloadSpec } from "./export-spec"
+import { DashboardLoadError } from "./load-error"
 import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
@@ -392,24 +391,12 @@ function PinnedDashboardPage({
   if (!pinned.data) {
     if (!pinned.isError) return <DashboardPageSkeleton />
     return (
-      <div className="flex min-h-svh flex-col bg-background text-foreground">
-        <DashboardTopRow
-          title="Dashboard"
-          madeBy={null}
-          versionControl={null}
-          controls={[]}
-          editing={null}
-          actions={[<ThemeSwitch key="theme" />]}
-        />
-        <main className="mx-auto w-full max-w-lg p-6">
-          <LoadProblem
-            title={`Could not load version ${version}`}
-            detail={loadProblemText(pinned.error)}
-            retrying={pinned.isFetching}
-            onRetry={() => void pinned.refetch()}
-          />
-        </main>
-      </div>
+      <DashboardLoadError
+        title={`Could not load version ${version}`}
+        error={pinned.error}
+        retrying={pinned.isFetching}
+        onRetry={() => void pinned.refetch()}
+      />
     )
   }
   return (

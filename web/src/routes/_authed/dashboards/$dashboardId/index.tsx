@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
+import { DashboardLoadError } from "@/dashboards/load-error"
 import { DashboardNotFound } from "@/dashboards/not-found"
 import {
   DashboardPage,
@@ -44,10 +46,26 @@ export const Route = createFileRoute("/_authed/dashboards/$dashboardId/")({
     ) {
       return <DashboardNotFound />
     }
-    throw error
+    return <DashboardRouteError error={error} />
   },
   component: DashboardRoute,
 })
+
+function DashboardRouteError({ error }: { error: unknown }) {
+  const router = useRouter()
+  const [retrying, setRetrying] = useState(false)
+  return (
+    <DashboardLoadError
+      title="Could not load the dashboard"
+      error={error}
+      retrying={retrying}
+      onRetry={() => {
+        setRetrying(true)
+        void router.invalidate().finally(() => setRetrying(false))
+      }}
+    />
+  )
+}
 
 function DashboardRoute() {
   const { dashboardId } = Route.useParams()

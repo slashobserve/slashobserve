@@ -334,6 +334,35 @@ test("shows not found for an unknown dashboard", async ({
   consoleErrors.length = 0
 })
 
+test("shows a load problem for a version that fails and retries it", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id, spec } = await createOverview(request)
+  await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
+  await page.route("**/api/v1/dashboards/*/versions/1", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "database unavailable", code: "internal" }),
+    })
+  )
+  await page.goto(`/dashboards/${id}?version=1`)
+  await expect(page.getByText("Could not load the dashboard")).toBeVisible()
+  await expect(page.getByText("Database unavailable.")).toBeVisible()
+  await expect(
+    page.getByRole("navigation", { name: "Breadcrumb" })
+  ).toBeVisible()
+  await expect(page.getByText("Something went wrong")).toHaveCount(0)
+
+  await page.unroute("**/api/v1/dashboards/*/versions/1")
+  await page.getByRole("button", { name: "Retry" }).click()
+  await expect(versionButton(page)).toHaveText("v1 of 2")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
+  consoleErrors.length = 0
+})
+
 test("views an older version and returns to latest", async ({
   page,
   request,
