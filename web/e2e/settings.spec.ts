@@ -106,21 +106,28 @@ test("keeps the row height when the server settings load", async ({ page }) => {
   ).toBeLessThanOrEqual(0.5)
 })
 
-test("aligns the cards with the heading and caps them at 860px", async ({
+test("left-aligns the cards in the scroll area and caps them at 860px", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1800, height: 900 })
   await openSettings(page)
 
+  const main = await page.locator("main").boundingBox()
   const heading = await page
     .getByRole("heading", { level: 1, name: "Settings" })
     .boundingBox()
+  expect(main).not.toBeNull()
   expect(heading).not.toBeNull()
+  const inset = (heading?.x ?? 0) - (main?.x ?? 0)
+  expect(Math.abs(inset - 25)).toBeLessThanOrEqual(1)
+
+  const mainRight = (main?.x ?? 0) + (main?.width ?? 0)
   for (const name of ["Agent", "This server", "Sign-in", "Appearance"]) {
     const box = await card(page, name).boundingBox()
     expect(box).not.toBeNull()
-    expect(Math.abs((box?.x ?? 0) - (heading?.x ?? 0))).toBeLessThanOrEqual(1)
+    expect(Math.abs((box?.x ?? 0) - (main?.x ?? 0) - 25)).toBeLessThanOrEqual(1)
     expect(box?.width).toBeLessThanOrEqual(860)
+    expect(mainRight - ((box?.x ?? 0) + (box?.width ?? 0))).toBeGreaterThan(200)
   }
 })
 
