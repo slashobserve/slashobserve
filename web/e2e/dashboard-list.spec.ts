@@ -38,7 +38,7 @@ test("lists dashboards newest first and opens one", async ({
     title: titleB,
   })
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   const linkA = page.getByRole("link", { name: titleA })
   const linkB = page.getByRole("link", { name: titleB })
   await expect(linkA).toBeVisible()
@@ -70,7 +70,7 @@ test("keeps unbroken titles and tags inside the table on a phone", async ({
     route.fulfill({ json: { dashboards: [row], next_cursor: null } })
   )
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto("/")
+  await page.goto("/dashboards")
   await expect(page.getByRole("link", { name: row.title })).toBeVisible()
   expect(
     await page.evaluate(
@@ -84,7 +84,7 @@ test("shows the empty state", async ({ page }) => {
     (url) => isListRequest(url),
     (route) => route.fulfill({ json: { dashboards: [], next_cursor: null } })
   )
-  await page.goto("/")
+  await page.goto("/dashboards")
   await expect(
     page.getByRole("heading", { level: 1, name: "Dashboards" })
   ).toBeVisible()
@@ -125,7 +125,7 @@ test("loads more pages and moves focus to the first new row", async ({
     })
   )
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   await expect(page.getByRole("link", { name: first.title })).toBeVisible()
   await expect(page.getByText("alpha", { exact: true })).toHaveCount(1)
   await expect(page.getByText("beta", { exact: true })).toHaveCount(1)
@@ -165,7 +165,7 @@ test("keeps Load more focusable and inert while a page loads", async ({
     })
   })
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.focus()
   await page.keyboard.press("Enter")
@@ -197,7 +197,7 @@ test("moves focus to the last row when Load more returns an empty page", async (
     })
   )
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.focus()
   await page.keyboard.press("Enter")
@@ -230,7 +230,7 @@ test("does not steal focus on a later refetch after a failed Load more", async (
     })
   })
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.focus()
   await page.keyboard.press("Enter")
@@ -275,7 +275,7 @@ test("shows a failed Load more next to the button and retries from it", async ({
     return route.fulfill({ json: { dashboards: [second], next_cursor: null } })
   })
 
-  await page.goto("/")
+  await page.goto("/dashboards")
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.click()
 
@@ -310,7 +310,7 @@ test("shows an error with retry", async ({ page, request, consoleErrors }) => {
       json: { error: "boom", code: "internal" },
     })
   )
-  await page.goto("/")
+  await page.goto("/dashboards")
   const alert = page.getByRole("alert")
   await expect(alert).toContainText("boom")
   const retry = page.getByRole("button", { name: "Retry" })
@@ -350,7 +350,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
     return route.fulfill({ json: { dashboards: [], next_cursor: null } })
   })
   const emptyHeading = page.getByRole("heading", { name: "No dashboards yet" })
-  await page.goto("/")
+  await page.goto("/dashboards")
   await expect(emptyHeading).toBeVisible()
 
   mode = "fail"
@@ -360,6 +360,10 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
     dispatchEvent(new PopStateEvent("popstate"))
   })
   await page.getByRole("link", { name: "Back to home" }).click()
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Dashboards" })
+    .click()
   await expect(page.getByRole("alert")).toContainText("boom")
   await expect(emptyHeading).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)

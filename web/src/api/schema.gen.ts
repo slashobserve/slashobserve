@@ -601,7 +601,7 @@ export interface paths {
         };
         /**
          * Tell whether an agent is configured and which provider and model it uses.
-         * @description Clients check this before offering a prompt bar. Without a configured LLM provider `available` is false and `provider` and `model` are null.
+         * @description Clients check this before offering the chat composer. Without a configured LLM provider `available` is false and `provider` and `model` are null.
          */
         get: operations["getAgent"];
         put?: never;

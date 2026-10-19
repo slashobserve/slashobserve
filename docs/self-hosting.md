@@ -30,7 +30,7 @@ Run the demo stack with an Anthropic key so the agent can answer prompts:
     make demo
 
 Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
-Type a prompt such as `checkout health by pod, last 6h` into the prompt bar on the home page.
+Type a prompt such as `checkout health by pod, last 6h` into the chat composer on the home page.
 
 `make demo` builds the server image and starts it with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and a demo shop, and waits until they are healthy.
 It passes `SLASHOBSERVE_LLM_PROVIDER`, `SLASHOBSERVE_LLM_MODEL`, `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_BASE_URL` from your shell to the server container; the other LLM settings are not forwarded.

@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useId } from "react"
 
-import { DashboardList } from "@/dashboards/dashboard-list"
+import { ChatHome } from "@/chat/chat-home"
 import { useDocumentTitle } from "@/lib/document-title"
-import { PromptBar } from "@/observe/prompt-bar"
 
 export const Route = createFileRoute("/_authed/_shell/")({
   staticData: { crumbs: [{ label: "Observe" }] },
@@ -12,19 +10,5 @@ export const Route = createFileRoute("/_authed/_shell/")({
 
 function Home() {
   useDocumentTitle("Observe - SlashObserve")
-  const headingId = useId()
-  return (
-    <>
-      <header className="mb-6 flex flex-col gap-1">
-        <h1 id={headingId} className="text-2xl font-semibold">
-          Dashboards
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Every dashboard, most recently updated first.
-        </p>
-      </header>
-      <PromptBar />
-      <DashboardList labelledBy={headingId} />
-    </>
-  )
+  return <ChatHome />
 }
