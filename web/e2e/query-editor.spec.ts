@@ -221,6 +221,20 @@ test("opens from an old link with the query tab", async ({ page, request }) => {
   await expect(sheet(page).locator(".cm-editor")).toBeVisible()
 })
 
+test("scopes the activity card from an old comments link", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.goto(`/dashboards/${id}?panel=rps&tab=comments`)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity).toBeVisible()
+  await expect(activity.getByLabel("Panel", { exact: true })).toHaveValue("rps")
+  await expect(page).toHaveURL(/panel=rps/)
+  await expect(page).not.toHaveURL(/tab=|edit=/)
+})
+
 test("opens directly from a link", async ({ page, request }) => {
   const { id, spec } = await createOverview(request)
   await page.goto(`/dashboards/${id}?panel=logs&edit=query`)
@@ -705,6 +719,38 @@ test("leaves focus where it is when a newer version arrives inside the sheet", a
   await addVersion(request, id, { ...spec, title: `${spec.title} renamed` }, 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
   await expect(summary).toBeFocused()
+})
+
+test("asks before Edit layout drops an unsaved query draft", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.setViewportSize({ width: 1700, height: 900 })
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  const title = sheet(page).getByRole("textbox", { name: "Title" })
+  await title.fill("Renamed before the layout edit")
+
+  const saveLayout = page.getByRole("button", { name: "Save layout" })
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await expect(discardDialog(page)).toBeVisible()
+  await expect(saveLayout).toHaveCount(0)
+
+  await page.getByRole("button", { name: "Keep editing" }).click()
+  await expect(discardDialog(page)).toHaveCount(0)
+  await expect(saveLayout).toHaveCount(0)
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
+  await expect(title).toHaveValue("Renamed before the layout edit")
+
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await expect(discardDialog(page)).toBeVisible()
+  await page.getByRole("button", { name: "Discard" }).click()
+  await expect(saveLayout).toBeVisible()
+  await expect(sheet(page)).toHaveCount(0)
+  await expect(page).not.toHaveURL(/edit=query/)
 })
 
 test("asks before Back drops a draft made after opening the latest version", async ({

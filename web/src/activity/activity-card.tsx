@@ -16,7 +16,7 @@ import { CardHeader } from "./card-header"
 import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
 import { clientNameFrom } from "./client-name"
-import { EditPane } from "./edit-pane"
+import { EditPane, type EditGuard } from "./edit-pane"
 import { ResizeHandle } from "./resize-handle"
 
 export const activityCardId = "activity-card"
@@ -31,6 +31,7 @@ type Props = {
   madeBy: string | null
   back: string | undefined
   composerRef: Ref<HTMLTextAreaElement>
+  guardRef: Ref<EditGuard>
   onSelectPanel: (panelId: string) => void
   onClose: () => void
 }
@@ -45,6 +46,7 @@ export function ActivityCard({
   madeBy,
   back,
   composerRef,
+  guardRef,
   onSelectPanel,
   onClose,
 }: Props) {
@@ -63,11 +65,14 @@ export function ActivityCard({
   const editing = editingId !== undefined
   const layout = useActivityLayout(editing)
 
-  const firstRun = useRef(true)
+  const shown = useRef<{ panelId: string | undefined; editing: boolean }>({
+    panelId: undefined,
+    editing: false,
+  })
   useEffect(() => {
-    const mounting = firstRun.current
-    firstRun.current = false
-    if (mounting && panelId === undefined && !editing) return
+    const before = shown.current
+    shown.current = { panelId, editing }
+    if (before.panelId === panelId && before.editing === editing) return
     if (card.current?.contains(document.activeElement)) return
     heading.current?.focus()
   }, [panelId, editing])
@@ -141,6 +146,7 @@ export function ActivityCard({
           onSaved={onSaved}
           headingId={headingId}
           headingRef={heading}
+          guardRef={guardRef}
         />
       ) : (
         <>

@@ -164,6 +164,101 @@ test("keeps panel editing reachable", async ({ page, request }) => {
   expect(backBox?.width).toBeLessThan(420)
 })
 
+test("keeps the composer inside the window", async ({ page, request }) => {
+  const { id } = await createPageDashboard(request)
+  for (let index = 1; index <= 20; index++) {
+    await createComment(
+      request,
+      id,
+      1,
+      "rps",
+      `Scroll comment ${index}: the card body scrolls, the composer stays put.`
+    )
+  }
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const activity = page.getByRole("complementary", { name: "Activity" })
+  await expect(activity.getByText(/^Scroll comment 20:/)).toBeVisible()
+  await expect(activity.getByText(/^Scroll comment 1:/)).not.toBeInViewport()
+  const composer = activity.getByRole("textbox", {
+    name: "Comment or request",
+  })
+  const box = await composer.boundingBox()
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(800)
+  const cardBox = await activity.boundingBox()
+  expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThanOrEqual(800)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight
+    )
+  ).toBe(true)
+})
+
+test("clears a posted draft after the dashboard was left", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  let release: () => void = () => undefined
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(`**/api/v1/dashboards/${id}/comments`, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback()
+    await held
+    return route.fallback()
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDashboard(page, id)
+
+  const composer = () =>
+    page
+      .getByRole("complementary", { name: "Activity" })
+      .getByRole("textbox", { name: "Comment or request" })
+  await composer().fill("Posted while leaving")
+  await page.getByRole("button", { name: "Add comment" }).click()
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Dashboards" })
+    .click()
+  await expect(page).toHaveURL("/dashboards")
+
+  const posted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/dashboards/${id}/comments`)
+  )
+  release()
+  expect((await posted).status()).toBe(201)
+
+  await page.goBack()
+  await expect(composer()).toBeVisible()
+  await expect(composer()).toHaveValue("")
+})
+
+test("explains why Edit layout is unavailable while activity is open", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  await page.setViewportSize({ width: 1000, height: 800 })
+  await openDashboard(page, id)
+
+  await moreButton(page).click()
+  const item = page.getByRole("menuitem", { name: /^Edit layout/ })
+  await expect(item).toHaveAttribute("aria-disabled", "true")
+  await expect(item).toContainText("Close activity to edit the layout")
+  await page.keyboard.press("Escape")
+
+  await page.getByRole("button", { name: "Activity", exact: true }).click()
+  await moreButton(page).click()
+  await expect(
+    page.getByRole("menuitem", { name: "Edit layout" })
+  ).not.toHaveAttribute("aria-disabled", "true")
+})
+
 test("resizes the activity card from the keyboard and remembers its width", async ({
   page,
   request,

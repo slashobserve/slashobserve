@@ -1,5 +1,5 @@
-import { useEffect, useSyncExternalStore } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useSyncExternalStore } from "react"
+import type { QueryClient } from "@tanstack/react-query"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
@@ -105,26 +105,29 @@ function postedText(variables: unknown): string | undefined {
   return undefined
 }
 
-// The composer unmounts when the card closes, and a mutation callback passed to mutate() never runs after that.
-// This listens at the page, so a comment or request that finishes after the card closed still empties its draft.
-export function useClearPostedDraft(dashboardId: string) {
-  const queryClient = useQueryClient()
-  useEffect(
-    () =>
-      queryClient.getMutationCache().subscribe((event) => {
-        if (event.type !== "updated" || event.action.type !== "success") return
-        const text = postedText(event.mutation.state.variables)
-        if (text === undefined) return
-        const { drafts, setDraft } = useActivityStore.getState()
-        if (
-          Object.hasOwn(drafts, dashboardId) &&
-          drafts[dashboardId].trim() === text
-        ) {
-          setDraft(dashboardId, "")
-        }
-      }),
-    [queryClient, dashboardId]
-  )
+function postedDashboardId(key: readonly unknown[] | undefined) {
+  if (key?.length !== 3 || key[0] !== "dashboards" || key[2] !== "posts") {
+    return undefined
+  }
+  return typeof key[1] === "string" ? key[1] : undefined
+}
+
+// The composer unmounts when the card closes or the dashboard is left, and a mutation callback passed to mutate() never runs after that.
+// This listens to the mutation cache for the whole app, so a comment or request that finishes later still empties its draft.
+export function watchPostedDrafts(queryClient: QueryClient) {
+  return queryClient.getMutationCache().subscribe((event) => {
+    if (event.type !== "updated" || event.action.type !== "success") return
+    const dashboardId = postedDashboardId(event.mutation.options.mutationKey)
+    const text = postedText(event.mutation.state.variables)
+    if (dashboardId === undefined || text === undefined) return
+    const { drafts, setDraft } = useActivityStore.getState()
+    if (
+      Object.hasOwn(drafts, dashboardId) &&
+      drafts[dashboardId].trim() === text
+    ) {
+      setDraft(dashboardId, "")
+    }
+  })
 }
 
 function subscribeToResize(callback: () => void) {

@@ -22,6 +22,7 @@ import { editLayoutButtonId } from "./edit/layout-store"
 
 type Props = {
   canEditLayout: boolean
+  layoutBlockedByActivity: boolean
   pinned: boolean
   onEditLayout: () => void
   onExport: () => void
@@ -29,6 +30,7 @@ type Props = {
 
 export function MoreMenu({
   canEditLayout,
+  layoutBlockedByActivity,
   pinned,
   onEditLayout,
   onExport,
@@ -64,18 +66,27 @@ export function MoreMenu({
           return (started && idle && findFirstMoveHandle()) || true
         }}
       >
-        {canEditLayout ? (
+        {canEditLayout || layoutBlockedByActivity ? (
           <DropdownMenuItem
-            disabled={pinned}
+            disabled={pinned || !canEditLayout}
             onClick={() => {
               startedLayout.current = true
               onEditLayout()
             }}
           >
             <LayoutGridIcon aria-hidden="true" />
-            {pinned
-              ? "Edit layout (open the latest version first)"
-              : "Edit layout"}
+            {pinned ? (
+              "Edit layout (open the latest version first)"
+            ) : canEditLayout ? (
+              "Edit layout"
+            ) : (
+              <span className="flex flex-col">
+                Edit layout
+                <span className="text-xs text-muted-foreground">
+                  Close activity to edit the layout
+                </span>
+              </span>
+            )}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={onExport}>
