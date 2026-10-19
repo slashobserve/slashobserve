@@ -131,14 +131,14 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, previewInvalidSpec{Error: "the draft panel is not valid", Code: "invalid_spec", Issues: invalid.Issues})
 		return nil, nil, false
 	default:
-		h.previewFail(c, uid, errInternal)
+		h.internalFailure(c, uid, err)
 		return nil, nil, false
 	}
 	original, _ := saved.FindPanel(req.PanelID)
 	entries := d.AllPanels()
 	at := slices.IndexFunc(entries, func(e spec.PanelEntry) bool { return e.Pointer == original.Pointer })
 	if at < 0 {
-		h.previewFail(c, uid, errInternal)
+		h.internalFailure(c, uid, errInternal)
 		return nil, nil, false
 	}
 	draft = entries[at].Panel
@@ -205,9 +205,19 @@ func (r previewRequest) values() url.Values {
 	return q
 }
 
+// A 500 was already logged where it happened (version load, frame conversion, recovered panics, upstream calls), so only 502 and 504 are logged here.
 func (h *Handler) previewFail(c *gin.Context, uid string, err error) {
-	if status, code, _ := queryproxy.Classify(err); status >= http.StatusInternalServerError && !errors.Is(err, errTooLarge) {
-		h.logger.ErrorContext(c.Request.Context(), "draft preview failed", logattrs.Failure(code, err, slog.String("datasource_uid", uid))...)
+	if status, code, _ := queryproxy.Classify(err); status > http.StatusInternalServerError {
+		h.logPreviewFailure(c, uid, code, err)
 	}
 	h.fail(c, err)
+}
+
+func (h *Handler) internalFailure(c *gin.Context, uid string, err error) {
+	h.logPreviewFailure(c, uid, "internal", err)
+	h.fail(c, errInternal)
+}
+
+func (h *Handler) logPreviewFailure(c *gin.Context, uid, code string, err error) {
+	h.logger.ErrorContext(c.Request.Context(), "draft preview failed", logattrs.Failure(code, err, slog.String("datasource_uid", uid))...)
 }

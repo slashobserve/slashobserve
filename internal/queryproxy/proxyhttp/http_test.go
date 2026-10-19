@@ -1205,6 +1205,61 @@ func frameRefs(t *testing.T, body dataResponse) []string {
 	return refs
 }
 
+func TestPreviewLogsEachServerFailureOnce(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		msg    string
+		setup  func(hn *harness)
+	}{
+		{
+			name:   "frame conversion",
+			status: http.StatusInternalServerError,
+			msg:    "convert panel frames",
+			setup: func(hn *harness) {
+				hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+					return []datasource.Frame{{Fields: []datasource.Field{{Name: "Time", Type: datasource.FieldTime, Values: []any{"not a time"}}}}}, nil
+				}
+			},
+		},
+		{
+			name:   "datasource panic",
+			status: http.StatusInternalServerError,
+			msg:    "datasource call panicked",
+			setup:  func(hn *harness) { hn.ds.panicText = map[string]bool{"boom": true} },
+		},
+		{
+			name:   "version load",
+			status: http.StatusInternalServerError,
+			msg:    "load dashboard version",
+			setup:  func(hn *harness) { hn.specs.err = errors.New("storage broke") },
+		},
+		{
+			name:   "unavailable datasource",
+			status: http.StatusBadGateway,
+			msg:    "draft preview failed",
+			setup:  func(hn *harness) { hn.ds.failText = map[string]error{"boom": datasource.ErrUnavailable} },
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hn := newPreviewHarness(t)
+			tc.setup(hn)
+			rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) { p.Queries[0].Query = "boom" })
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d (body %s)", rec.Code, tc.status, rec.Body.String())
+			}
+			logs := hn.logs.String()
+			if got := strings.Count(logs, "level=ERROR"); got != 1 {
+				t.Fatalf("%d error log lines, want 1: %s", got, logs)
+			}
+			if !strings.Contains(logs, "msg=\""+tc.msg+"\"") {
+				t.Fatalf("log lacks %q: %s", tc.msg, logs)
+			}
+		})
+	}
+}
+
 func TestMultiQueryPanelReturnsFramesTaggedByQueryRefInPanelOrder(t *testing.T) {
 	hn := newHarness(t)
 	hn.addPanels(multiQueryPanel("p_multi", spec.Query{Query: "first"}, spec.Query{Query: "second"}))
