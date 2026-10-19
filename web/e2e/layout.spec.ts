@@ -40,6 +40,9 @@ async function startEditing(page: Page) {
   await page.getByRole("button", { name: /^More/ }).click()
   await page.getByRole("menuitem", { name: "Edit layout" }).click()
   await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /^Move or resize / }).first()
+  ).toBeFocused()
 }
 
 function editLayoutButton(page: Page) {
@@ -479,6 +482,15 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await page.goBack()
   await expect(page).toHaveURL(/version=1/)
   await expect(page.getByText("You are viewing version 1.")).toBeVisible()
+  await editLayoutButton(page).click()
+  const edit = page.getByRole("menuitem", {
+    name: "Edit layout (open the latest version first)",
+  })
+  await expect(edit).toBeVisible()
+  await expect(page.getByRole("menu")).toBeFocused()
+  await expect(edit).toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Escape")
+  await expect(edit).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Save layout" })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   await expect(page.getByText("Unsaved changes")).toHaveCount(0)
