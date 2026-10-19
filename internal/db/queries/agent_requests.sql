@@ -83,11 +83,11 @@ WHERE id = @id AND status = 'running' AND attempts = @attempts
 RETURNING *;
 
 -- name: GetAgentRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source <> 'observe';
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id;
 
 -- name: ListAgentRequests :many
 SELECT * FROM agent_requests
-WHERE dashboard_id = @dashboard_id AND source <> 'observe'
+WHERE dashboard_id = @dashboard_id
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY created_at DESC, id DESC
@@ -128,3 +128,16 @@ UPDATE agent_requests
 SET steps = steps || jsonb_build_array(@step::jsonb)
 WHERE id = @id AND status = 'running' AND attempts = @attempts
   AND (SELECT count(*) FROM jsonb_array_elements(steps) AS recorded WHERE (recorded ->> 'attempt')::integer = @attempts) < @max_steps::integer;
+
+-- name: ListAgentRequestsBy :many
+SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
+  r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
+  d.title AS dashboard_title
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id
+  AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
+  AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
+    OR (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT @row_limit;

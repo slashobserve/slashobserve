@@ -9,15 +9,18 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
-	MaxPromptRunes = 4000
-	MaxActive      = 5
-	MaxAttempts    = 2
-	MaxErrorRunes  = 500
+	MaxPromptRunes  = 4000
+	MaxActive       = 5
+	MaxAttempts     = 2
+	MaxErrorRunes   = 500
+	MaxPanelIDRunes = 64
 
 	MaxActiveObservePerPrincipal = 3
 	MaxActiveObserve             = 20
@@ -53,10 +56,21 @@ var (
 	ErrTooManyRequests  = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
 	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound  = errors.New("agent request not found")
+	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
+
+type PanelChecker interface {
+	HasPanel(ctx context.Context, dashboardID pgtype.UUID, version int, panelID string) (bool, error)
+}
+
+type Option func(*Service)
+
+func WithPanels(p PanelChecker) Option {
+	return func(s *Service) { s.panels = p }
+}
 
 type Request struct {
 	ID          string
@@ -111,7 +125,7 @@ type Revision struct {
 	CommentID     string
 	PanelID       string
 	Prompt        string
-	BaseVersion   int
+	BaseVersion   *int
 	Status        Status
 	Attempts      int
 	ResultVersion *int
@@ -130,6 +144,13 @@ func CleanPrompt(s string) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func ValidPanelID(panelID string) error {
+	if n := utf8.RuneCountInString(panelID); n < 1 || n > MaxPanelIDRunes || !utf8.ValidString(panelID) || strings.ContainsRune(panelID, 0) {
+		return fmt.Errorf("panel_id must be 1 to %d characters without NUL", MaxPanelIDRunes)
+	}
+	return nil
 }
 
 func forbiddenRune(r rune) bool {

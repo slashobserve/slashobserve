@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
@@ -67,6 +68,7 @@ type Task struct {
 	Prompt      string
 	DashboardID string
 	PanelID     string
+	Source      revisions.Source
 	RequestID   string
 	Principal   auth.Principal
 	Progress    func(Step)
@@ -211,7 +213,7 @@ func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string
 }
 
 func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.Mode, statuses []datasource.Status, current *revision, out *Outcome) (bool, error) {
-	contextText, err := buildContext(statuses, mode, t.PanelID, current)
+	contextText, err := buildContext(statuses, mode, t.Source, t.PanelID, current)
 	if err != nil {
 		return false, contextError(err)
 	}

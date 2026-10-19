@@ -769,7 +769,8 @@ components:
           format: uuid
         source:
           type: string
-          enum: [comment, prompt]
+          enum: [comment, prompt, observe]
+          description: "`observe` is the new-dashboard request that created the dashboard; it appears once it has succeeded."
         comment_id:
           type: string
           format: uuid
@@ -778,14 +779,15 @@ components:
         panel_id:
           type: string
           nullable: true
-          description: The panel the comment is anchored to; null for a prompt.
+          description: The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard.
         prompt:
           type: string
           description: The follow-up text, or the comment body.
         base_version:
           type: integer
           minimum: 1
-          description: The version the requester was looking at; the agent revises the latest version.
+          nullable: true
+          description: The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version.
         status:
           type: string
           enum: [queued, running, succeeded, failed]
@@ -1010,6 +1012,78 @@ components:
           nullable: true
           maxLength: 64
           description: The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified.
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+    RequestSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source
+        - prompt
+        - status
+        - dashboard_id
+        - dashboard_title
+        - panel_id
+        - result_version
+        - url
+        - error
+        - origin
+        - origin_client
+        - created_at
+        - started_at
+        - finished_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [comment, prompt, observe]
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        dashboard_id:
+          type: string
+          format: uuid
+          nullable: true
+        dashboard_title:
+          type: string
+          nullable: true
+          description: The dashboard's current title; null when the request has no dashboard.
+        panel_id:
+          type: string
+          nullable: true
+        result_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          maxLength: 500
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
         created_at:
           type: string
           format: date-time

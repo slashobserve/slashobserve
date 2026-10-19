@@ -30,10 +30,15 @@ type Service struct {
 	db      *db.DB
 	reviser Reviser
 	logger  *slog.Logger
+	panels  PanelChecker
 }
 
-func NewService(database *db.DB, reviser Reviser, logger *slog.Logger) *Service {
-	return &Service{db: database, reviser: reviser, logger: logger}
+func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
+	s := &Service{db: database, reviser: reviser, logger: logger}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *Service) Available() bool {
@@ -108,7 +113,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	return row, nil
 }
 
-func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
+func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
 	latest, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -118,6 +123,18 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 	case baseVersion != nil && *baseVersion > int(latest):
 		return dbsqlc.AgentRequest{}, ErrDashboardVersionNotFound
 	}
+	if panelID != "" {
+		if s.panels == nil {
+			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: no panel checker configured")
+		}
+		known, err := s.panels.HasPanel(ctx, dashboardID, int(latest), panelID)
+		if err != nil {
+			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: %w", err)
+		}
+		if !known {
+			return dbsqlc.AgentRequest{}, ErrUnknownPanel
+		}
+	}
 	base := int(latest)
 	if baseVersion != nil {
 		base = *baseVersion
@@ -126,6 +143,7 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 		DashboardID: dashboardID,
 		Source:      SourcePrompt,
 		Prompt:      prompt,
+		PanelID:     panelID,
 		BaseVersion: base,
 		By:          by,
 	})
@@ -225,6 +243,37 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 		items[i] = revisionFromRow(r)
 	}
 	return items, next, nil
+}
+
+func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+	after, ok := httpapi.DecodeTimeCursor(cursor)
+	if !ok {
+		return nil, "", ErrInvalidCursor
+	}
+	requesterID, err := db.ParseUUID(by.ID)
+	if err != nil {
+		return nil, "", fmt.Errorf("requester id: %w", err)
+	}
+	params := dbsqlc.ListAgentRequestsByParams{
+		RequestedByKind: string(by.Kind),
+		RequestedByID:   requesterID,
+		Source:          pgtype.Text{String: source, Valid: source != ""},
+		RowLimit:        httpapi.Int32(limit + 1),
+	}
+	if after != nil {
+		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
+		params.CursorID = after.ID
+	}
+	rows, err := s.db.Queries().ListAgentRequestsBy(ctx, params)
+	if err != nil {
+		return nil, "", fmt.Errorf("list agent requests of requester: %w", err)
+	}
+	next := ""
+	if len(rows) > limit {
+		rows = rows[:limit]
+		next = httpapi.EncodeTimeCursor(rows[limit-1].CreatedAt.Time, rows[limit-1].ID.String())
+	}
+	return rows, next, nil
 }
 
 func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
@@ -331,7 +380,7 @@ func (s *Service) existingVersion(ctx context.Context, claimed dbsqlc.AgentReque
 }
 
 func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
-	if row.Source == string(SourceObserve) {
+	if !row.DashboardID.Valid {
 		return nil
 	}
 	ev := events.Event{
@@ -362,7 +411,6 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		DashboardID:  row.DashboardID.String(),
 		Source:       Source(row.Source),
 		Prompt:       row.Prompt,
-		BaseVersion:  int(row.BaseVersion.Int32),
 		Status:       Status(row.Status),
 		Attempts:     int(row.Attempts),
 		Error:        row.Error.String,
@@ -376,6 +424,10 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	}
 	if row.PanelID.Valid {
 		rev.PanelID = row.PanelID.String
+	}
+	if row.BaseVersion.Valid {
+		n := int(row.BaseVersion.Int32)
+		rev.BaseVersion = &n
 	}
 	if row.ResultVersion.Valid {
 		n := int(row.ResultVersion.Int32)

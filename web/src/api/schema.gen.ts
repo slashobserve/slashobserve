@@ -488,12 +488,12 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** List the revision requests of a dashboard, newest first. */
+        /** List the agent requests of a dashboard, newest first, including the new-dashboard request that created it. */
         get: operations["listDashboardRevisions"];
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -549,7 +549,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List the caller's own agent requests, newest first.
+         * @description Only requests the caller made are listed; a user sees their own and a service account its own. `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`) or comment revisions (`comment`). A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them.
+         */
+        get: operations["listObserveRequests"];
         put?: never;
         /**
          * Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.
@@ -910,19 +914,22 @@ export interface components {
             id: string;
             /** Format: uuid */
             dashboard_id: string;
-            /** @enum {string} */
-            source: "comment" | "prompt";
+            /**
+             * @description `observe` is the new-dashboard request that created the dashboard; it appears once it has succeeded.
+             * @enum {string}
+             */
+            source: "comment" | "prompt" | "observe";
             /**
              * Format: uuid
              * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
              */
             comment_id: string | null;
-            /** @description The panel the comment is anchored to; null for a prompt. */
+            /** @description The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard. */
             panel_id: string | null;
             /** @description The follow-up text, or the comment body. */
             prompt: string;
-            /** @description The version the requester was looking at; the agent revises the latest version. */
-            base_version: number;
+            /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
+            base_version: number | null;
             /** @enum {string} */
             status: "queued" | "running" | "succeeded" | "failed";
             attempts: number;
@@ -1019,6 +1026,32 @@ export interface components {
              */
             origin: "web" | "cli" | "mcp" | "api" | null;
             /** @description The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+        };
+        RequestSummary: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            source: "comment" | "prompt" | "observe";
+            prompt: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /** Format: uuid */
+            dashboard_id: string | null;
+            /** @description The dashboard's current title; null when the request has no dashboard. */
+            dashboard_title: string | null;
+            panel_id: string | null;
+            result_version: number | null;
+            url: string | null;
+            error: string | null;
+            /** @enum {string|null} */
+            origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
             /** Format: date-time */
             created_at: string;
@@ -2177,6 +2210,8 @@ export interface operations {
                     prompt: string;
                     /** @description A version that exists on the dashboard. */
                     base_version: number;
+                    /** @description The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard. */
+                    panel_id?: string | null;
                 };
             };
         };
@@ -2196,6 +2231,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+            /** @description The panel does not exist in the latest version (`unknown_panel`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description The dashboard already has 5 revisions queued or running (`too_many_revisions`). */
             429: {
                 headers: {
@@ -2262,6 +2306,36 @@ export interface operations {
                     "application/json": components["schemas"]["AgentInfo"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listObserveRequests: {
+        parameters: {
+            query?: {
+                source?: "observe" | "prompt" | "comment";
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the caller's requests. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        requests: components["schemas"]["RequestSummary"][];
+                        next_cursor: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             500: components["responses"]["Internal"];
         };

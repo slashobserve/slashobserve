@@ -370,7 +370,7 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, maxAttempts in
 }
 
 const getAgentRequest = `-- name: GetAgentRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND source <> 'observe'
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests WHERE id = $1 AND dashboard_id = $2
 `
 
 type GetAgentRequestParams struct {
@@ -504,7 +504,7 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 
 const listAgentRequests = `-- name: ListAgentRequests :many
 SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests
-WHERE dashboard_id = $1 AND source <> 'observe'
+WHERE dashboard_id = $1
   AND ($2::timestamptz IS NULL
     OR (created_at, id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC, id DESC
@@ -557,6 +557,88 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 			&i.RunUsage,
 			&i.Origin,
 			&i.OriginClient,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAgentRequestsBy = `-- name: ListAgentRequestsBy :many
+SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_version, r.error,
+  r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
+  d.title AS dashboard_title
+FROM agent_requests r
+LEFT JOIN dashboards d ON d.id = r.dashboard_id
+WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2
+  AND ($3::text IS NULL OR r.source = $3::text)
+  AND ($4::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($4::timestamptz, $5::uuid))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $6
+`
+
+type ListAgentRequestsByParams struct {
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+	Source          pgtype.Text
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	RowLimit        int32
+}
+
+type ListAgentRequestsByRow struct {
+	ID             pgtype.UUID
+	Source         string
+	Prompt         string
+	DashboardID    pgtype.UUID
+	PanelID        pgtype.Text
+	Status         string
+	ResultVersion  pgtype.Int4
+	Error          pgtype.Text
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	StartedAt      pgtype.Timestamptz
+	FinishedAt     pgtype.Timestamptz
+	DashboardTitle pgtype.Text
+}
+
+func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequestsByParams) ([]ListAgentRequestsByRow, error) {
+	rows, err := q.db.Query(ctx, listAgentRequestsBy,
+		arg.RequestedByKind,
+		arg.RequestedByID,
+		arg.Source,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAgentRequestsByRow
+	for rows.Next() {
+		var i ListAgentRequestsByRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.Prompt,
+			&i.DashboardID,
+			&i.PanelID,
+			&i.Status,
+			&i.ResultVersion,
+			&i.Error,
+			&i.Origin,
+			&i.OriginClient,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.DashboardTitle,
 		); err != nil {
 			return nil, err
 		}

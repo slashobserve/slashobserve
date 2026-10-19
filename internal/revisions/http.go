@@ -28,6 +28,7 @@ const (
 type createRequest struct {
 	Prompt      *string `json:"prompt"`
 	BaseVersion *int    `json:"base_version"`
+	PanelID     *string `json:"panel_id"`
 }
 
 type authorJSON struct {
@@ -44,7 +45,7 @@ type revisionJSON struct {
 	CommentID     *string    `json:"comment_id"`
 	PanelID       *string    `json:"panel_id"`
 	Prompt        string     `json:"prompt"`
-	BaseVersion   int        `json:"base_version"`
+	BaseVersion   *int       `json:"base_version"`
 	Status        Status     `json:"status"`
 	Attempts      int        `json:"attempts"`
 	ResultVersion *int       `json:"result_version"`
@@ -95,11 +96,19 @@ func (s *Service) createRevision(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
 		return
 	}
+	panelID := ""
+	if req.PanelID != nil {
+		panelID = *req.PanelID
+		if err := ValidPanelID(panelID); err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+	}
 	if !s.Available() {
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
 		return
 	}
-	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, prompt, httpapi.Caller(c))
+	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, panelID, prompt, httpapi.Caller(c))
 	if err != nil {
 		s.fail(c, "enqueue revision", err, dashboardAttr(dashboardID))
 		return
@@ -167,6 +176,8 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrUnknownPanel):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.Is(err, ErrTooManyRequests):

@@ -17,6 +17,54 @@ agent:
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observe:
+  get:
+    operationId: listObserveRequests
+    summary: List the caller's own agent requests, newest first.
+    description: >-
+      Only requests the caller made are listed; a user sees their own and a service account its own.
+      `source` narrows the list to new-dashboard requests (`observe`), follow-up prompts (`prompt`) or comment revisions (`comment`).
+      A new-dashboard request that failed has no dashboard and lives only in this list.
+      Progress steps are not included; read `GET /observe/{id}` for them.
+    parameters:
+      - name: source
+        in: query
+        schema:
+          type: string
+          enum: [observe, prompt, comment]
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of the caller's requests.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requests, next_cursor]
+              properties:
+                requests:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/RequestSummary"
+                next_cursor:
+                  type: string
+                  nullable: true
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: createObserveRequest
     summary: Ask the agent to build a new dashboard, or to revise an existing one with a follow-up prompt.

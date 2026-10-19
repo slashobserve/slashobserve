@@ -17,6 +17,7 @@ dashboards-id-revisions:
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
       At most 5 revisions may be queued or running per dashboard.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+      With `panel_id` the agent focuses on that panel.
     requestBody:
       required: true
       content:
@@ -33,6 +34,12 @@ dashboards-id-revisions:
                 minimum: 1
                 maximum: 2147483647
                 description: A version that exists on the dashboard.
+              panel_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+                nullable: true
+                description: The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard.
     responses:
       "202":
         description: The queued revision.
@@ -55,6 +62,12 @@ dashboards-id-revisions:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The panel does not exist in the latest version (`unknown_panel`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "429":
         description: The dashboard already has 5 revisions queued or running (`too_many_revisions`).
         content:
@@ -71,7 +84,7 @@ dashboards-id-revisions:
               $ref: "../openapi.yaml#/components/schemas/Error"
   get:
     operationId: listDashboardRevisions
-    summary: List the revision requests of a dashboard, newest first.
+    summary: List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.
     parameters:
       - name: limit
         in: query

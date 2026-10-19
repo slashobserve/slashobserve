@@ -25,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/llm/replay"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 	"github.com/slashobserve/slashobserve/spec/examples"
 )
@@ -630,6 +631,7 @@ func TestReviseHappyPath(t *testing.T) {
 	}())
 	task := r.reviseTask()
 	task.PanelID = panelID
+	task.Source = revisions.SourceComment
 
 	out, err := r.agent.Run(context.Background(), task)
 	if err != nil {
@@ -668,12 +670,39 @@ func TestReviseCommentOnPanelMissingFromLatestVersion(t *testing.T) {
 	r.tools.onSave("update_dashboard", savedResult(dashID, 4))
 	task := r.reviseTask()
 	task.PanelID = "p_gone"
+	task.Source = revisions.SourceComment
 
 	if _, err := r.agent.Run(context.Background(), task); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.provider.started()[0].Context; !strings.Contains(got, "Panel p_gone from the comment is not in the latest version.") {
 		t.Fatalf("context = %s", got)
+	}
+}
+
+func TestRevisePromptOnAPanelDoesNotCallItAComment(t *testing.T) {
+	for name, c := range map[string]struct {
+		panel string
+		want  string
+	}{
+		"known panel":   {panelID, fmt.Sprintf("The request is about panel %s titled %q.", panelID, panelName)},
+		"missing panel": {"p_gone", "Panel p_gone from the request is not in the latest version."},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRig(t, session(toolTurn(call("c1", "update_dashboard", `{}`))))
+			r.tools.onSave("update_dashboard", savedResult(dashID, 4))
+			task := r.reviseTask()
+			task.PanelID = c.panel
+			task.Source = revisions.SourcePrompt
+
+			if _, err := r.agent.Run(context.Background(), task); err != nil {
+				t.Fatal(err)
+			}
+			got := r.provider.started()[0].Context
+			if !strings.Contains(got, c.want) || strings.Contains(got, "comment") {
+				t.Fatalf("context = %s", got)
+			}
+		})
 	}
 }
 

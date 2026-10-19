@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -27,7 +25,7 @@ const (
 	CommentAll      = "all"
 
 	maxCommentRunes = revisions.MaxPromptRunes
-	maxPanelIDRunes = 64
+	maxPanelIDRunes = revisions.MaxPanelIDRunes
 )
 
 var (
@@ -314,8 +312,8 @@ func panelSet(d *spec.Dashboard) map[string]struct{} {
 }
 
 func checkPanelID(panelID string) error {
-	if n := utf8.RuneCountInString(panelID); n < 1 || n > maxPanelIDRunes || !utf8.ValidString(panelID) || strings.ContainsRune(panelID, 0) {
-		return &InvalidInputError{Message: fmt.Sprintf("panel_id must be 1 to %d characters without NUL", maxPanelIDRunes)}
+	if err := revisions.ValidPanelID(panelID); err != nil {
+		return &InvalidInputError{Message: err.Error()}
 	}
 	return nil
 }
