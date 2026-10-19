@@ -147,9 +147,14 @@ for (const scheme of themes) {
       await loaded
       await expect(versionButton(page)).toHaveText("Live · v3")
 
+      const items = versionMenu(page).getByRole("menuitemradio")
+      await versionButton(page).click()
+      await expect(items.nth(0)).toBeVisible()
+      await page.keyboard.press("Escape")
+      await expect(versionMenu(page)).toBeHidden()
+
       await versionButton(page).focus()
       await page.keyboard.press("Enter")
-      const items = versionMenu(page).getByRole("menuitemradio")
       await expect(items.nth(0)).toBeFocused()
 
       await page.keyboard.press("ArrowDown")
