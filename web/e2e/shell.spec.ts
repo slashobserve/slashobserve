@@ -63,13 +63,31 @@ test("redirects /settings/keys to /keys", async ({ page }) => {
   await expect(page).toHaveURL(/\/keys$/)
 })
 
-test("shows the mark, wordmark and server host", async ({ page }) => {
+test("shows only the wordmark when expanded", async ({ page }) => {
   await page.goto("/")
   const home = page.getByRole("link", { name: "/observe home" })
   await expect(home).toBeVisible()
-  await expect(home).toContainText("/observe")
-  const baseURL = test.info().project.use.baseURL as string
-  await expect(home).toContainText(new URL(baseURL).host)
+  await expect(home).toHaveText("/observe")
+  await expect(home.locator("svg")).toHaveCount(0)
+})
+
+test("shows only the mark when collapsed", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: "Collapse sidebar" }).click()
+  await expectWidth(sidebar(page), 44)
+  const home = page.getByRole("link", { name: "/observe home" })
+  await expect(home).toBeVisible()
+  await expect(home).toHaveText("")
+  await expect(home).toHaveAccessibleName("/observe home")
+  const mark = home.locator("svg")
+  await expect(mark).toHaveCount(1)
+  const markBox = await rect(mark)
+  expect(markBox.width).toBe(20)
+  expect(markBox.height).toBe(20)
+  const icon = await rect(
+    sidebar(page).getByRole("link", { name: "Datasources" }).locator("svg")
+  )
+  expect(markBox.x + markBox.width / 2).toBeCloseTo(icon.x + icon.width / 2, 0)
 })
 
 test("resizes the sidebar from the keyboard and remembers it", async ({
@@ -202,15 +220,71 @@ test("draws the shell in dark mode", async ({ page }) => {
     ) as HTMLElement
     return {
       root: getComputedStyle(root).backgroundColor,
-      main: getComputedStyle(element).backgroundColor,
-      border: getComputedStyle(element).borderTopColor,
+      wrapper: getComputedStyle(element.parentElement as HTMLElement)
+        .backgroundColor,
+      borderWidth: getComputedStyle(element).borderTopWidth,
+      radius: getComputedStyle(element).borderTopLeftRadius,
+      top: element.getBoundingClientRect().top,
+      rightEdge: element.getBoundingClientRect().right === window.innerWidth,
       current: getComputedStyle(current).backgroundColor,
     }
   })
   expect(styles).toEqual({
     root: "rgb(9, 9, 11)",
-    main: "rgb(17, 17, 19)",
-    border: "rgb(42, 42, 46)",
+    wrapper: "rgb(17, 17, 19)",
+    borderWidth: "0px",
+    radius: "0px",
+    top: 0,
+    rightEdge: true,
     current: "rgb(17, 17, 19)",
   })
+})
+
+test("keeps the document from scrolling on a tall or short window", async ({
+  page,
+}) => {
+  for (const height of [900, 380]) {
+    await page.setViewportSize({ width: 1440, height })
+    await page.goto("/settings")
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Settings" })
+    ).toBeVisible()
+    const documentFits = await page.evaluate(
+      () =>
+        (document.scrollingElement as Element).scrollHeight <=
+        window.innerHeight
+    )
+    expect(documentFits, `document fits at height ${height}`).toBe(true)
+    const account = page.getByRole("button", { name: /^Account: / })
+    await expect(account).toBeInViewport()
+  }
+})
+
+test("keeps the top row in view when a mid-width page scrolls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await page.goto("/settings")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Settings" })
+  ).toBeVisible()
+  const scroller = page.getByRole("main").locator("> div").last()
+  await scroller.evaluate((element) =>
+    element.scrollTo(0, element.scrollHeight)
+  )
+  await page.mouse.wheel(0, 2000)
+  await expect(
+    page.getByRole("navigation", { name: "Breadcrumb" })
+  ).toBeInViewport()
+  await expect(
+    page.getByRole("button", { name: "Switch theme" })
+  ).toBeInViewport()
+  const state = await page.evaluate(() => ({
+    documentFits:
+      (document.scrollingElement as Element).scrollHeight <= window.innerHeight,
+    mainTop: (
+      document.querySelector("main") as HTMLElement
+    ).getBoundingClientRect().top,
+  }))
+  expect(state).toEqual({ documentFits: true, mainTop: 0 })
 })
