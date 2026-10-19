@@ -1341,7 +1341,7 @@ revisions_suite() {
   api_token
   local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
   local accepted=0 limited=0 attempt succeeded
-  local pid prid tdid troot treply trid
+  local pid prid tdid troot treply trid tstream="$TMP/sse-thread-revision.txt"
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
@@ -1466,6 +1466,7 @@ revisions_suite() {
   out="$(api POST "/dashboards/$tdid/comments" -d '{"parent_id":"'"$troot"'","body":"Agreed"}')"
   treply="$(comment_ids "$TMP/api.body")"
   [[ "$out" == 201 && -n "$treply" ]] || fail "create the thread reply ($out: $(cat "$TMP/api.body"))"
+  sse_open "$tdid" "$tstream"
   out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"Show this per route","base_version":1,"comment_id":"'"$treply"'"}')"
   if [[ "$out" != 202 ]] || ! grep -q '"source":"comment"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$troot\"" "$TMP/api.body" \
     || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
@@ -1486,6 +1487,8 @@ revisions_suite() {
     fail "an unknown comment_id should answer 404 ($out: $(cat "$TMP/api.body"))"
   fi
   wait_revision "$tdid" "$trid" succeeded 90
+  sse_wait "$tstream" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$tdid\",.*\"comment_id\":\"$troot\",\"panel_id\":\"$panel\",\"status\":\"resolved\"}$" 10
+  sse_close
   out="$(api GET "/dashboards/$tdid/comments?status=resolved")"
   if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
 b=json.load(open(sys.argv[1]))
