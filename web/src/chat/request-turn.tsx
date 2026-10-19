@@ -84,17 +84,23 @@ export function RequestTurn({
 
   const wasActive = useRef(active)
   const dashboardId = request.dashboard_id
+  const status = request.status
   useEffect(() => {
-    if (wasActive.current && !active && dashboardId !== null) {
-      void queryClient.invalidateQueries({
-        queryKey: dashboardKeys.revisions(dashboardId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: dashboardKeys.latest(dashboardId),
-      })
+    if (wasActive.current && !active) {
+      if (status === "succeeded") {
+        void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
+      }
+      if (dashboardId !== null) {
+        void queryClient.invalidateQueries({
+          queryKey: dashboardKeys.revisions(dashboardId),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: dashboardKeys.latest(dashboardId),
+        })
+      }
     }
     wasActive.current = active
-  }, [active, dashboardId, queryClient])
+  }, [active, status, dashboardId, queryClient])
 
   return (
     <section

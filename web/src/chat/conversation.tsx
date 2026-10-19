@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -307,14 +306,6 @@ export function Conversation({ requestId }: { requestId: string }) {
     ...latestDashboardQuery(queryClient, dashboardId ?? ""),
     enabled: dashboardId !== null,
   })
-
-  const rootSucceeded =
-    root.data?.status === "succeeded" && dashboardId !== null
-  useEffect(() => {
-    if (rootSucceeded) {
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
-    }
-  }, [rootSucceeded, queryClient])
 
   const turns = useMemo<Turn[]>(() => {
     if (root.data === undefined) return []
