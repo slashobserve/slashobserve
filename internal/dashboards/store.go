@@ -22,6 +22,9 @@ import (
 const maxEventAuthorNameRunes = 256
 
 const (
+	viaDirect = "direct"
+	viaAgent  = "agent"
+
 	uniqueViolation          = "23505"
 	requestVersionConstraint = "dashboard_versions_agent_request_id_key"
 )
@@ -38,6 +41,13 @@ type Author struct {
 	Email string
 }
 
+type Creator struct {
+	Author       Author
+	Origin       string
+	OriginClient string
+	Via          string
+}
+
 type Dashboard struct {
 	ID            string
 	Title         string
@@ -46,6 +56,7 @@ type Dashboard struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	UpdatedBy     Author
+	Creator       Creator
 }
 
 type VersionMeta struct {
@@ -85,7 +96,26 @@ func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, 
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{Title: in.spec.Title, Tags: tagsOf(in.spec)})
+		authorID, err := db.ParseUUID(in.author.ID)
+		if err != nil {
+			return fmt.Errorf("author id: %w", err)
+		}
+		originKind, originClient := in.origin.Columns()
+		via := viaDirect
+		if in.requestID.Valid {
+			via = viaAgent
+		}
+		row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
+			Title:               in.spec.Title,
+			Tags:                tagsOf(in.spec),
+			CreatedByKind:       in.author.Kind,
+			CreatedByID:         authorID,
+			CreatedByName:       in.author.Name,
+			CreatedByEmail:      pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+			CreatedOrigin:       originKind,
+			CreatedOriginClient: originClient,
+			CreatedVia:          via,
+		})
 		if err != nil {
 			return fmt.Errorf("create dashboard: %w", err)
 		}
@@ -257,8 +287,21 @@ func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]by
 	return raw, nil
 }
 
-func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int) ([]Dashboard, error) {
-	params := dbsqlc.ListDashboardsParams{RowLimit: httpapi.Int32(limit)}
+func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, p ListParams) ([]ListItem, error) {
+	f, err := filterOf(p)
+	if err != nil {
+		return nil, err
+	}
+	params := dbsqlc.ListDashboardsParams{
+		CreatorKind: f.CreatorKind,
+		CreatorID:   f.CreatorID,
+		OnlyAgent:   f.OnlyAgent,
+		OnlyMcp:     f.OnlyMcp,
+		McpClient:   f.McpClient,
+		Datasource:  f.Datasource,
+		Q:           f.Q,
+		RowLimit:    httpapi.Int32(limit),
+	}
 	if after != nil {
 		params.CursorUpdatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID
@@ -267,11 +310,55 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int) 
 	if err != nil {
 		return nil, fmt.Errorf("list dashboards: %w", err)
 	}
-	items := make([]Dashboard, 0, len(rows))
+	items := make([]ListItem, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, dashboardFromRow(r.Dashboard, authorFromRow(r.UpdatedByKind, r.UpdatedByID, r.UpdatedByName, r.UpdatedByEmail)))
+		uids := r.DatasourceUids
+		if uids == nil {
+			uids = []string{}
+		}
+		items = append(items, ListItem{
+			Dashboard:      dashboardFromRow(r.Dashboard, authorFromRow(r.UpdatedByKind, r.UpdatedByID, r.UpdatedByName, r.UpdatedByEmail)),
+			Description:    r.Description,
+			DatasourceUIDs: uids,
+			OpenComments:   int(r.OpenCommentCount),
+		})
 	}
 	return items, nil
+}
+
+func (st store) count(ctx context.Context, p ListParams) (int, error) {
+	f, err := filterOf(p)
+	if err != nil {
+		return 0, err
+	}
+	n, err := st.db.Queries().CountDashboards(ctx, f)
+	if err != nil {
+		return 0, fmt.Errorf("count dashboards: %w", err)
+	}
+	return int(n), nil
+}
+
+func filterOf(p ListParams) (dbsqlc.CountDashboardsParams, error) {
+	f := dbsqlc.CountDashboardsParams{
+		OnlyAgent:  p.MadeBy.AgentOnly,
+		OnlyMcp:    p.MadeBy.MCPOnly,
+		McpClient:  optionalText(p.MadeBy.MCPClient),
+		Datasource: optionalText(p.Datasource),
+		Q:          optionalText(p.Query),
+	}
+	if p.MadeBy.CreatorKind != "" {
+		id, err := db.ParseUUID(p.MadeBy.CreatorID)
+		if err != nil {
+			return f, fmt.Errorf("creator id: %w", err)
+		}
+		f.CreatorKind = pgtype.Text{String: p.MadeBy.CreatorKind, Valid: true}
+		f.CreatorID = id
+	}
+	return f, nil
+}
+
+func optionalText(s string) pgtype.Text {
+	return pgtype.Text{String: s, Valid: s != ""}
 }
 
 func (st store) listVersions(ctx context.Context, id pgtype.UUID, before, limit int) ([]VersionMeta, error) {
@@ -303,6 +390,12 @@ func dashboardFromRow(row dbsqlc.Dashboard, updatedBy Author) Dashboard {
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 		UpdatedAt:     row.UpdatedAt.Time.UTC(),
 		UpdatedBy:     updatedBy,
+		Creator: Creator{
+			Author:       authorFromRow(row.CreatedByKind, row.CreatedByID, row.CreatedByName, row.CreatedByEmail),
+			Origin:       row.CreatedOrigin.String,
+			OriginClient: row.CreatedOriginClient.String,
+			Via:          row.CreatedVia,
+		},
 	}
 }
 

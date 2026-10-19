@@ -15,7 +15,7 @@ const bumpDashboardVersion = `-- name: BumpDashboardVersion :one
 UPDATE dashboards
 SET latest_version = latest_version + 1, title = $1, tags = $2, updated_at = now()
 WHERE id = $3 AND latest_version = $4
-RETURNING id, title, tags, latest_version, created_at, updated_at
+RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via
 `
 
 type BumpDashboardVersionParams struct {
@@ -40,22 +40,92 @@ func (q *Queries) BumpDashboardVersion(ctx context.Context, arg BumpDashboardVer
 		&i.LatestVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.CreatedByEmail,
+		&i.CreatedOrigin,
+		&i.CreatedOriginClient,
+		&i.CreatedVia,
 	)
 	return i, err
 }
 
+const countDashboards = `-- name: CountDashboards :one
+SELECT count(*)
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+WHERE ($1::text IS NULL
+    OR (d.created_by_kind = $1::text AND d.created_by_id = $2::uuid))
+  AND (NOT $3::boolean OR d.created_via = 'agent')
+  AND (NOT $4::boolean OR d.created_origin = 'mcp')
+  AND ($5::text IS NULL OR d.created_origin_client = $5::text)
+  AND ($6::text IS NULL OR v.datasource_uids @> ARRAY[$6::text])
+  AND ($7::text IS NULL
+    OR strpos(lower(d.title), lower($7::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($7::text)) > 0)
+`
+
+type CountDashboardsParams struct {
+	CreatorKind pgtype.Text
+	CreatorID   pgtype.UUID
+	OnlyAgent   bool
+	OnlyMcp     bool
+	McpClient   pgtype.Text
+	Datasource  pgtype.Text
+	Q           pgtype.Text
+}
+
+func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countDashboards,
+		arg.CreatorKind,
+		arg.CreatorID,
+		arg.OnlyAgent,
+		arg.OnlyMcp,
+		arg.McpClient,
+		arg.Datasource,
+		arg.Q,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDashboard = `-- name: CreateDashboard :one
-INSERT INTO dashboards (title, tags, latest_version) VALUES ($1, $2, 1)
-RETURNING id, title, tags, latest_version, created_at, updated_at
+INSERT INTO dashboards (
+  title, tags, latest_version, created_by_kind, created_by_id, created_by_name, created_by_email,
+  created_origin, created_origin_client, created_via
+) VALUES (
+  $1, $2, 1, $3, $4, $5, $6::text,
+  $7::text, $8::text, $9
+)
+RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via
 `
 
 type CreateDashboardParams struct {
-	Title string
-	Tags  []string
+	Title               string
+	Tags                []string
+	CreatedByKind       string
+	CreatedByID         pgtype.UUID
+	CreatedByName       string
+	CreatedByEmail      pgtype.Text
+	CreatedOrigin       pgtype.Text
+	CreatedOriginClient pgtype.Text
+	CreatedVia          string
 }
 
 func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams) (Dashboard, error) {
-	row := q.db.QueryRow(ctx, createDashboard, arg.Title, arg.Tags)
+	row := q.db.QueryRow(ctx, createDashboard,
+		arg.Title,
+		arg.Tags,
+		arg.CreatedByKind,
+		arg.CreatedByID,
+		arg.CreatedByName,
+		arg.CreatedByEmail,
+		arg.CreatedOrigin,
+		arg.CreatedOriginClient,
+		arg.CreatedVia,
+	)
 	var i Dashboard
 	err := row.Scan(
 		&i.ID,
@@ -64,12 +134,19 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 		&i.LatestVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.CreatedByEmail,
+		&i.CreatedOrigin,
+		&i.CreatedOriginClient,
+		&i.CreatedVia,
 	)
 	return i, err
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 WHERE d.id = $1
@@ -90,6 +167,13 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.Dashboard.LatestVersion,
 		&i.Dashboard.CreatedAt,
 		&i.Dashboard.UpdatedAt,
+		&i.Dashboard.CreatedByKind,
+		&i.Dashboard.CreatedByID,
+		&i.Dashboard.CreatedByName,
+		&i.Dashboard.CreatedByEmail,
+		&i.Dashboard.CreatedOrigin,
+		&i.Dashboard.CreatedOriginClient,
+		&i.Dashboard.CreatedVia,
 		&i.DashboardVersion.DashboardID,
 		&i.DashboardVersion.Version,
 		&i.DashboardVersion.ParentVersion,
@@ -104,6 +188,7 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.DashboardVersion.AgentRequestID,
 		&i.DashboardVersion.Origin,
 		&i.DashboardVersion.OriginClient,
+		&i.DashboardVersion.DatasourceUids,
 	)
 	return i, err
 }
@@ -120,7 +205,7 @@ func (q *Queries) GetDashboardLatestVersion(ctx context.Context, id pgtype.UUID)
 }
 
 const getDashboardVersion = `-- name: GetDashboardVersion :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email
 FROM dashboards d
@@ -153,6 +238,13 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.Dashboard.LatestVersion,
 		&i.Dashboard.CreatedAt,
 		&i.Dashboard.UpdatedAt,
+		&i.Dashboard.CreatedByKind,
+		&i.Dashboard.CreatedByID,
+		&i.Dashboard.CreatedByName,
+		&i.Dashboard.CreatedByEmail,
+		&i.Dashboard.CreatedOrigin,
+		&i.Dashboard.CreatedOriginClient,
+		&i.Dashboard.CreatedVia,
 		&i.DashboardVersion.DashboardID,
 		&i.DashboardVersion.Version,
 		&i.DashboardVersion.ParentVersion,
@@ -167,6 +259,7 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.DashboardVersion.AgentRequestID,
 		&i.DashboardVersion.Origin,
 		&i.DashboardVersion.OriginClient,
+		&i.DashboardVersion.DatasourceUids,
 		&i.UpdatedByKind,
 		&i.UpdatedByID,
 		&i.UpdatedByName,
@@ -337,33 +430,67 @@ func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVe
 }
 
 const listDashboards = `-- name: ListDashboards :many
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via,
   v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
-  v.author_name AS updated_by_name, v.author_email AS updated_by_email
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM dashboard_comments c
+    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
-WHERE $1::timestamptz IS NULL
-  OR (d.updated_at, d.id) < ($1::timestamptz, $2::uuid)
+WHERE ($1::timestamptz IS NULL
+    OR (d.updated_at, d.id) < ($1::timestamptz, $2::uuid))
+  AND ($3::text IS NULL
+    OR (d.created_by_kind = $3::text AND d.created_by_id = $4::uuid))
+  AND (NOT $5::boolean OR d.created_via = 'agent')
+  AND (NOT $6::boolean OR d.created_origin = 'mcp')
+  AND ($7::text IS NULL OR d.created_origin_client = $7::text)
+  AND ($8::text IS NULL OR v.datasource_uids @> ARRAY[$8::text])
+  AND ($9::text IS NULL
+    OR strpos(lower(d.title), lower($9::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($9::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $3
+LIMIT $10
 `
 
 type ListDashboardsParams struct {
 	CursorUpdatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
+	CreatorKind     pgtype.Text
+	CreatorID       pgtype.UUID
+	OnlyAgent       bool
+	OnlyMcp         bool
+	McpClient       pgtype.Text
+	Datasource      pgtype.Text
+	Q               pgtype.Text
 	RowLimit        int32
 }
 
 type ListDashboardsRow struct {
-	Dashboard      Dashboard
-	UpdatedByKind  string
-	UpdatedByID    pgtype.UUID
-	UpdatedByName  string
-	UpdatedByEmail pgtype.Text
+	Dashboard        Dashboard
+	UpdatedByKind    string
+	UpdatedByID      pgtype.UUID
+	UpdatedByName    string
+	UpdatedByEmail   pgtype.Text
+	DatasourceUids   []string
+	Description      string
+	OpenCommentCount int64
 }
 
 func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) ([]ListDashboardsRow, error) {
-	rows, err := q.db.Query(ctx, listDashboards, arg.CursorUpdatedAt, arg.CursorID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listDashboards,
+		arg.CursorUpdatedAt,
+		arg.CursorID,
+		arg.CreatorKind,
+		arg.CreatorID,
+		arg.OnlyAgent,
+		arg.OnlyMcp,
+		arg.McpClient,
+		arg.Datasource,
+		arg.Q,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -378,10 +505,20 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 			&i.Dashboard.LatestVersion,
 			&i.Dashboard.CreatedAt,
 			&i.Dashboard.UpdatedAt,
+			&i.Dashboard.CreatedByKind,
+			&i.Dashboard.CreatedByID,
+			&i.Dashboard.CreatedByName,
+			&i.Dashboard.CreatedByEmail,
+			&i.Dashboard.CreatedOrigin,
+			&i.Dashboard.CreatedOriginClient,
+			&i.Dashboard.CreatedVia,
 			&i.UpdatedByKind,
 			&i.UpdatedByID,
 			&i.UpdatedByName,
 			&i.UpdatedByEmail,
+			&i.DatasourceUids,
+			&i.Description,
+			&i.OpenCommentCount,
 		); err != nil {
 			return nil, err
 		}

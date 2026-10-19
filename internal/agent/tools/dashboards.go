@@ -80,14 +80,18 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		list, cursor, err := r.deps.Dashboards.List(ctx, limit, in.Cursor)
+		page, err := r.deps.Dashboards.List(ctx, dashboards.ListParams{Limit: limit, Cursor: in.Cursor})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}
 		if err != nil {
 			return Result{}, err
 		}
-		items, next = r.dashboardItems(list), cursor
+		list := make([]dashboards.Dashboard, len(page.Items))
+		for i, item := range page.Items {
+			list[i] = item.Dashboard
+		}
+		items, next = r.dashboardItems(list), page.NextCursor
 		kept, cut := fit(items, listBudget)
 		if !cut || limit <= 1 {
 			break

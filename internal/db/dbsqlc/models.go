@@ -36,12 +36,19 @@ type AgentRequest struct {
 }
 
 type Dashboard struct {
-	ID            pgtype.UUID
-	Title         string
-	Tags          []string
-	LatestVersion int32
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
+	ID                  pgtype.UUID
+	Title               string
+	Tags                []string
+	LatestVersion       int32
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	CreatedByKind       string
+	CreatedByID         pgtype.UUID
+	CreatedByName       string
+	CreatedByEmail      pgtype.Text
+	CreatedOrigin       pgtype.Text
+	CreatedOriginClient pgtype.Text
+	CreatedVia          string
 }
 
 type DashboardComment struct {
@@ -80,6 +87,7 @@ type DashboardVersion struct {
 	AgentRequestID pgtype.UUID
 	Origin         pgtype.Text
 	OriginClient   pgtype.Text
+	DatasourceUids []string
 }
 
 type Instance struct {

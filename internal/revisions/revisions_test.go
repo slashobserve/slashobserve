@@ -51,11 +51,13 @@ func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *d
 func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 	t.Helper()
 	ctx := context.Background()
-	row, err := d.Queries().CreateDashboard(ctx, dbsqlc.CreateDashboardParams{Title: "t", Tags: []string{}})
+	author, err := db.ParseUUID(userID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	author, err := db.ParseUUID(userID)
+	row, err := d.Queries().CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
+		Title: "t", Tags: []string{}, CreatedByKind: "user", CreatedByID: author, CreatedByName: "Ada", CreatedVia: "direct",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
