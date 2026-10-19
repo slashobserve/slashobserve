@@ -13,6 +13,7 @@ type Props = Pick<
   text: string
   label: string
   children?: React.ReactNode
+  icon?: boolean
   onCopyFailed?: () => void
 }
 
@@ -20,6 +21,7 @@ export function CopyButton({
   text,
   label,
   children,
+  icon = true,
   variant,
   size,
   ref,
@@ -58,11 +60,13 @@ export function CopyButton({
         aria-label={children === undefined ? label : undefined}
         onClick={() => void copy()}
       >
-        {copied ? (
-          <CheckIcon aria-hidden="true" />
-        ) : (
-          <CopyIcon aria-hidden="true" />
-        )}
+        {icon ? (
+          copied ? (
+            <CheckIcon aria-hidden="true" />
+          ) : (
+            <CopyIcon aria-hidden="true" />
+          )
+        ) : null}
         {children === undefined ? null : copied ? "Copied" : children}
       </Button>
       <span role="status" aria-live="polite" className="sr-only">
