@@ -112,20 +112,23 @@ function HistoryRoute() {
   return (
     <>
       <header className="flex items-start justify-between gap-x-6 border-b px-6 py-2.5">
-        <div className="flex min-h-[30px] min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+        <div className="flex min-h-[30px] min-w-0 flex-col items-start gap-1 min-[640px]:flex-row min-[640px]:items-center min-[640px]:gap-2.5">
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId }}
             search={dashboardSearchFromBack(search.back)}
-            className="flex items-center gap-1.5 rounded-sm text-[13px] text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex shrink-0 items-center gap-1.5 rounded-sm text-[13px] text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeftIcon aria-hidden="true" className="size-3.5" />
             Back to dashboard
           </Link>
-          <span aria-hidden="true" className="text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="hidden text-muted-foreground min-[640px]:inline"
+          >
             /
           </span>
-          <h1 className="text-[17px] font-semibold wrap-anywhere">
+          <h1 className="min-w-0 text-[17px] font-semibold wrap-anywhere">
             {title ? `${title}: history` : "History"}
           </h1>
         </div>
