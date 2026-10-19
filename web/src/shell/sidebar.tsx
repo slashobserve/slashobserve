@@ -49,13 +49,12 @@ function HomeLink({ collapsed }: { collapsed: boolean }) {
       aria-label="/observe home"
       aria-current={undefined}
       className={cn(
-        "mb-3.5 flex min-h-[34px] items-center gap-2.5 rounded-control px-2.5 no-underline",
+        "mb-3.5 flex min-h-[34px] items-center rounded-control px-2.5 no-underline",
         focusRing,
         collapsed && "justify-center px-0"
       )}
     >
-      <Mark size={22} />
-      {collapsed ? null : <Wordmark size={14} />}
+      {collapsed ? <Mark size={20} variant="rail" /> : <Wordmark size={17} />}
     </a>
   )
 }
@@ -227,32 +226,33 @@ export function Sidebar() {
       style={{ width: shown, paddingInline: collapsed ? 6 : 10 }}
     >
       <HomeLink collapsed={collapsed} />
-      {renderItems(main)}
-      {collapsed ? (
-        <div
-          role="group"
-          aria-label="Workspace"
-          className="flex flex-col gap-0.5"
-        >
-          <div aria-hidden="true" className="mx-1.5 my-2 h-px bg-border" />
-          {renderItems(workspace)}
-        </div>
-      ) : (
-        <div
-          role="group"
-          aria-labelledby={workspaceId}
-          className="flex flex-col gap-0.5"
-        >
+      <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
+        {renderItems(main)}
+        {collapsed ? (
           <div
-            id={workspaceId}
-            className="px-2.5 pt-3.5 pb-1.5 text-xs text-muted-foreground"
+            role="group"
+            aria-label="Workspace"
+            className="flex flex-col gap-0.5"
           >
-            Workspace
+            <div aria-hidden="true" className="mx-1.5 my-2 h-px bg-border" />
+            {renderItems(workspace)}
           </div>
-          {renderItems(workspace)}
-        </div>
-      )}
-      <span className="flex-1" />
+        ) : (
+          <div
+            role="group"
+            aria-labelledby={workspaceId}
+            className="flex flex-col gap-0.5"
+          >
+            <div
+              id={workspaceId}
+              className="px-2.5 pt-3.5 pb-1.5 text-xs text-muted-foreground"
+            >
+              Workspace
+            </div>
+            {renderItems(workspace)}
+          </div>
+        )}
+      </div>
       <AccountMenu collapsed={collapsed} />
       {collapsed ? null : <ResizeGrip shown={shown} onDrag={setDragWidth} />}
     </nav>
