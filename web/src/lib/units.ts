@@ -1,9 +1,9 @@
-import type { Unit } from "@/spec"
 import { formatDateTime, formatRelative } from "./time"
 
 type Rule =
   | { kind: "plain" }
   | { kind: "append"; suffix: string; multiplier?: number }
+  | { kind: "prefix"; prefix: string }
   | { kind: "scale"; base: 1000 | 1024; suffixes: string[]; start: number }
   | { kind: "short"; suffix: string; steps?: string[] }
   | { kind: "duration"; unitNs: number }
@@ -217,7 +217,7 @@ const scale = (base: 1000 | 1024, suffixes: string[], start = 0): Rule => ({
 })
 const duration = (unitNs: number): Rule => ({ kind: "duration", unitNs })
 
-const rules: Record<Unit, Rule> = {
+const rules = {
   none: { kind: "plain" },
   short: { kind: "short", suffix: "" },
   sishort: { kind: "short", suffix: "", steps: siSteps },
@@ -346,6 +346,41 @@ const rules: Record<Unit, Rule> = {
   lengthkm: spaced("km"),
   massg: spaced("g"),
   masskg: spaced("kg"),
+} satisfies Record<string, Rule>
+
+export type UnitId = keyof typeof rules
+
+export type ParsedUnit =
+  | { kind: "id"; id: UnitId }
+  | { kind: "suffix"; text: string }
+  | { kind: "prefix"; text: string }
+
+const plainUnit: ParsedUnit = { kind: "id", id: "none" }
+
+export function parseUnit(unit: string | undefined): ParsedUnit {
+  if (!unit) return plainUnit
+  if (Object.hasOwn(rules, unit)) return { kind: "id", id: unit as UnitId }
+  if (unit.startsWith("suffix:")) {
+    const text = unit.slice("suffix:".length).trim()
+    return text ? { kind: "suffix", text } : plainUnit
+  }
+  if (unit.startsWith("prefix:")) {
+    const text = unit.slice("prefix:".length)
+    return text ? { kind: "prefix", text } : plainUnit
+  }
+  return plainUnit
+}
+
+function ruleFor(unit: string | undefined): Rule {
+  const parsed = parseUnit(unit)
+  switch (parsed.kind) {
+    case "id":
+      return rules[parsed.id]
+    case "suffix":
+      return { kind: "append", suffix: ` ${parsed.text}` }
+    case "prefix":
+      return { kind: "prefix", prefix: parsed.text }
+  }
 }
 
 function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
@@ -357,6 +392,8 @@ function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
         amount: value * (rule.multiplier ?? 1),
         wrap: (text) => `${text}${rule.suffix}`,
       }
+    case "prefix":
+      return { amount: value, wrap: (text) => `${rule.prefix}${text}` }
     case "scale":
       return placeScaled(value, rule.base, rule.suffixes, rule.start)
     case "short":
@@ -368,13 +405,13 @@ function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
 
 export function formatValue(
   value: number | null | undefined,
-  unit?: Unit,
+  unit?: string,
   decimals?: number
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "-"
   if (value === Infinity) return "+Inf"
   if (value === -Infinity) return "-Inf"
-  const rule = rules[unit ?? "none"]
+  const rule = ruleFor(unit)
   if (rule.kind === "custom") return rule.format(value, decimals)
   const placed = place(value, rule)
   return placed.wrap(formatNumber(placed.amount, decimals))
@@ -384,11 +421,11 @@ const significantFigures = 4
 
 export function commonDecimals(
   values: readonly (number | null | undefined)[],
-  unit?: Unit,
+  unit?: string,
   decimals?: number
 ): number | undefined {
   if (decimals !== undefined) return decimals
-  const rule = rules[unit ?? "none"]
+  const rule = ruleFor(unit)
   if (rule.kind === "custom") return undefined
   let widest: number | undefined
   let largest = 0
@@ -411,8 +448,8 @@ export function commonDecimals(
 const maxOwnDecimals = 8
 const noiseDigits = 12
 
-export function ownDecimals(value: number, unit?: Unit): number | undefined {
-  const rule = rules[unit ?? "none"]
+export function ownDecimals(value: number, unit?: string): number | undefined {
+  const rule = ruleFor(unit)
   if (rule.kind === "custom" || !Number.isFinite(value)) return undefined
   const amount = place(value, rule).amount
   if (!Number.isFinite(amount)) return undefined
@@ -427,7 +464,7 @@ const maxAxisDecimals = 8
 
 export function axisDecimals(
   splits: readonly (number | null | undefined)[],
-  unit?: Unit,
+  unit?: string,
   decimals?: number
 ): number | undefined {
   const base = commonDecimals(splits, unit, decimals)
