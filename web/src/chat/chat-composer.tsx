@@ -184,7 +184,7 @@ export function ChatComposer({
     <div className="w-full">
       <form
         onSubmit={onSubmit}
-        className="flex w-full flex-col rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive"
+        className="flex w-full flex-col rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-aria-invalid:focus-within:border-ring has-aria-invalid:focus-within:ring-ring"
       >
         <label htmlFor={inputId} className="sr-only">
           Message the agent
