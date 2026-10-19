@@ -89,11 +89,19 @@ func (c *client) get(ctx context.Context, path string, query url.Values) ([]byte
 }
 
 func (c *client) post(ctx context.Context, path string, payload any) ([]byte, error) {
+	return c.send(ctx, http.MethodPost, path, payload)
+}
+
+func (c *client) patch(ctx context.Context, path string, payload any) ([]byte, error) {
+	return c.send(ctx, http.MethodPatch, path, payload)
+}
+
+func (c *client) send(ctx context.Context, method, path string, payload any) ([]byte, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("encode the request: %w", err)
 	}
-	return c.do(ctx, http.MethodPost, path, nil, data)
+	return c.do(ctx, method, path, nil, data)
 }
 
 func (c *client) do(ctx context.Context, method, path string, query url.Values, payload []byte) ([]byte, error) {

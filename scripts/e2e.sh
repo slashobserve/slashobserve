@@ -2066,6 +2066,52 @@ strip_final_newline() {
   perl -0pe 's/\n\z//' "$1"
 }
 
+cli_comments_checks() {
+  local did="$1" out cid nil_id=00000000-0000-0000-0000-000000000000
+
+  out="$(api POST "/dashboards/$did/comments" -d '{"version":1,"body":"CLI thread"}')"
+  [[ "$out" == 201 ]] || fail "create a comment for the CLI ($out: $(cat "$TMP/api.body"))"
+  cid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  [[ -n "$cid" ]] || fail "the new comment has no id ($(cat "$TMP/api.body"))"
+
+  cli_run comments list "$did" --json
+  [[ "$CLI_CODE" == 0 ]] || fail "observe comments list --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  python3 -m json.tool <"$TMP/cli.out" >/dev/null || fail "observe comments list --json is not JSON"
+  grep -qF "$cid" "$TMP/cli.out" || fail "observe comments list --json lacks the comment $cid"
+
+  cli_run comments list "$did"
+  cli_expect "observe comments list" 0 "$cid" out
+  grep -F "$cid" "$TMP/cli.out" | grep -qw dashboard || fail "observe comments list should show a whole-dashboard comment as dashboard ($(cat "$TMP/cli.out"))"
+
+  cli_run comments reply "$did" "$cid" Looks good now
+  cli_expect "observe comments reply" 0 "Replied to thread $cid" out
+  out="$(api GET "/dashboards/$did/comments")"
+  if [[ "$out" != 200 ]] || ! grep -q "\"parent_id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"body":"Looks good now"' "$TMP/api.body"; then
+    fail "the reply from observe comments reply is missing ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  cli_run comments resolve "$did" "$cid" --version 1
+  cli_expect "observe comments resolve" 0 "Resolved thread $cid by version 1" out
+  out="$(api GET "/dashboards/$did/comments")"
+  if [[ "$out" != 200 ]] || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
+    fail "the comment resolved by the CLI lacks resolved_by_version 1 ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  cli_run comments list "$did"
+  [[ "$CLI_CODE" == 0 ]] || fail "observe comments list after resolve exits $CLI_CODE ($(cat "$TMP/cli.err"))"
+  if grep -qF "$cid" "$TMP/cli.out"; then
+    fail "observe comments list should hide a resolved thread by default ($(cat "$TMP/cli.out"))"
+  fi
+
+  cli_run comments resolve "$did" not-an-id
+  [[ "$CLI_CODE" == 2 ]] || fail "observe comments resolve with a bad id should exit 2, got $CLI_CODE"
+  cli_run comments resolve "$did" "$cid" --version 0
+  [[ "$CLI_CODE" == 2 ]] || fail "observe comments resolve --version 0 should exit 2, got $CLI_CODE"
+  cli_run comments resolve "$did" "$nil_id"
+  cli_expect "observe comments resolve for an unknown comment" 1 "not_found"
+  pass "observe comments lists, answers and resolves comments, with --json"
+}
+
 cli_saved_key_stays_home() {
   local sink_pid sink_port="" tries
   : >"$TMP/sink.log"
@@ -2140,7 +2186,7 @@ cli_suite() {
   fi
   pass "observe login validates the key, saves it with mode 600 and does not print it"
 
-  cli_run "log volume by service" --timeout 120s
+  cli_run --timeout 120s "log volume by service"
   url="$(cat "$TMP/cli.out")"
   if [[ "$CLI_CODE" != 0 || "$(wc -l <"$TMP/cli.out" | tr -d ' ')" != 1 || ! "$url" =~ ^http://localhost:${PORT}/dashboards/[0-9a-f-]{36}$ ]]; then
     fail "observe with a prompt should print one dashboard address ($CLI_CODE; stdout: $url; stderr: $(cat "$TMP/cli.err"))"
@@ -2148,6 +2194,8 @@ cli_suite() {
   grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
   did="${url##*/}"
   pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
+
+  cli_comments_checks "$did"
 
   command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did/versions/1" >"$TMP/cli.api"
   grep -q '"origin":"cli"' "$TMP/cli.api" || fail "the version the agent saved for a CLI prompt should record the cli origin ($(cat "$TMP/cli.api"))"
@@ -2194,7 +2242,7 @@ cli_suite() {
   cli_expect "observe status" 0 "succeeded" out
   pass "observe --no-wait prints a request id that status --wait and status resolve"
 
-  cli_run "e2e: a slow run that never saves" --timeout 120s
+  cli_run --timeout 120s "e2e: a slow run that never saves"
   cli_expect "a run that never saves" 1 "without saving"
   pass "observe reports a failed agent request and exits 1"
 
