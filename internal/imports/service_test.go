@@ -200,6 +200,14 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 	}
 }
 
+func TestCreateImportedWithoutAHookSavesAndReportsIssues(t *testing.T) {
+	r := newRig(t)
+	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, specWith(brokenQuery), "Imported", pgtype.UUID{}, nil)
+	if err != nil || replayed || ver.Number != 1 || dash.ID == "" || len(issues) == 0 {
+		t.Fatalf("version %d, replayed %t, issues %d, err %v", ver.Number, replayed, len(issues), err)
+	}
+}
+
 func TestCreateImportedStillRejectsAnInvalidSpec(t *testing.T) {
 	r := newRig(t)
 	hook := func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version, []spec.Issue) error {

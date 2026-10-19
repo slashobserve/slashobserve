@@ -112,9 +112,13 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec
 		return Dashboard{}, Version{}, nil, false, err
 	}
 	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)}
-	dash, ver, err := s.store.createWith(ctx, in, func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
-		return hook(ctx, q, dash, ver, issues)
-	})
+	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
+	if hook != nil {
+		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
+			return hook(ctx, q, dash, ver, issues)
+		}
+	}
+	dash, ver, err := s.store.createWith(ctx, in, inTx)
 	if errors.Is(err, errRequestSaved) && requestID.Valid {
 		dash, ver, replayed, err := s.replayedCreate(ctx, requestID)
 		return dash, ver, nil, replayed, err
