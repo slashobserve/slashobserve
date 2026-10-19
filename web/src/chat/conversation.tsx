@@ -40,13 +40,16 @@ function scrollParent(element: HTMLElement): HTMLElement | null {
   return null
 }
 
-function useChatScroll(list: RefObject<HTMLDivElement | null>, target: string) {
+function useChatScroll(
+  list: RefObject<HTMLDivElement | null>,
+  target: string | null
+) {
   const pinned = useRef(false)
   const scroller = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const element = list.current
-    if (element === null) return
+    if (element === null || target === null) return
     const parent = scrollParent(element)
     if (parent === null) return
     scroller.current = parent
@@ -81,17 +84,22 @@ function useChatScroll(list: RefObject<HTMLDivElement | null>, target: string) {
   }
 }
 
-function ConversationSkeleton() {
+function TurnSkeleton() {
   return (
-    <div
-      aria-busy="true"
-      className="mx-auto flex w-full max-w-[760px] flex-col gap-[18px] pt-2"
-    >
+    <div aria-busy="true" className="flex flex-col gap-[18px]">
       <Skeleton className="h-11 w-2/3 self-end rounded-xl" />
       <div className="flex gap-3">
         <Skeleton className="size-[26px] flex-none rounded-[7px]" />
         <Skeleton className="h-[172px] flex-1 rounded-card" />
       </div>
+    </div>
+  )
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-[760px] pt-2">
+      <TurnSkeleton />
     </div>
   )
 }
@@ -148,6 +156,7 @@ type ViewProps = {
   dashboardId: string | null
   dashboardTitle: string | undefined
   turns: Turn[]
+  ready: boolean
   historyFailed: boolean
   retryHistory: () => void
   historyBusy: boolean
@@ -159,6 +168,7 @@ function ConversationView({
   dashboardId,
   dashboardTitle,
   turns,
+  ready,
   historyFailed,
   retryHistory,
   historyBusy,
@@ -167,9 +177,10 @@ function ConversationView({
   const navigate = useNavigate()
   const agent = useAgentInfo()
   const list = useRef<HTMLDivElement>(null)
-  const [initialTarget] = useState(() =>
-    turns.at(-1)?.id === requestId ? "" : requestId
-  )
+  const [initialTarget, setInitialTarget] = useState<string | null>(null)
+  if (ready && initialTarget === null) {
+    setInitialTarget(turns.at(-1)?.id === requestId ? "" : requestId)
+  }
   const pinToEnd = useChatScroll(list, initialTarget)
 
   const root = turns.find((turn) => turn.id === requestId)
@@ -205,14 +216,18 @@ function ConversationView({
             </RetryButton>
           </div>
         ) : null}
-        {turns.map((turn, index) => (
-          <RequestTurn
-            key={turn.id}
-            summary={turn.summary}
-            dashboardTitle={dashboardTitle}
-            loadSteps={index >= loadFrom || turn.id === requestId}
-          />
-        ))}
+        {initialTarget === null ? (
+          <TurnSkeleton />
+        ) : (
+          turns.map((turn, index) => (
+            <RequestTurn
+              key={turn.id}
+              summary={turn.summary}
+              dashboardTitle={dashboardTitle}
+              loadSteps={index >= loadFrom || turn.id === requestId}
+            />
+          ))
+        )}
       </div>
       <div className="sticky -bottom-7 w-full max-w-[760px] bg-background pt-2 pb-2">
         <ChatComposer
@@ -304,21 +319,18 @@ export function Conversation({ requestId }: { requestId: string }) {
     return <ConversationSkeleton />
   }
 
-  if (
-    dashboardId !== null &&
-    revisions.data === undefined &&
-    !revisions.isError
-  ) {
-    return <ConversationSkeleton />
-  }
-
   return (
     <ConversationView
       requestId={requestId}
       dashboardId={dashboardId}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}
-      historyFailed={dashboardId !== null && revisions.data === undefined}
+      ready={
+        dashboardId === null ||
+        revisions.data !== undefined ||
+        revisions.isError
+      }
+      historyFailed={revisions.isError && revisions.data === undefined}
       retryHistory={() => void revisions.refetch()}
       historyBusy={revisions.isFetching}
       onSent={(request) => setSent((previous) => [...previous, request])}

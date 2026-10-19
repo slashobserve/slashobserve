@@ -4,11 +4,13 @@ import { expect, test } from "./fixtures"
 
 const redPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "add a requests by pod panel"
+const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const requestPath = /\/observe\/([0-9a-f-]{36})$/
 const dashboardPath = /\/dashboards\/([0-9a-f-]{36})/
 const requestApi = /\/api\/v1\/observe\/[0-9a-f-]{36}$/
+const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
 const openLink = { name: "Open dashboard (opens in a new tab)" }
 
 type ObserveBody = {
@@ -209,6 +211,15 @@ test("links a failed comment revision back to its dashboard", async ({
 })
 
 test("follows up in the same chat", async ({ page }) => {
+  let openRevisions!: () => void
+  const revisionsGate = new Promise<void>(
+    (resolve) => (openRevisions = resolve)
+  )
+  await page.route(revisionsApi, async (route) => {
+    await revisionsGate
+    await route.continue()
+  })
+
   await page.goto("/")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
   await promptBar.fill(redPrompt)
@@ -216,9 +227,13 @@ test("follows up in the same chat", async ({ page }) => {
 
   await expect(page).toHaveURL(requestPath)
   const conversationUrl = page.url()
+  await expect(promptBar).toBeEnabled({ timeout: 90_000 })
+  await promptBar.fill(draftPrompt)
+  openRevisions()
   await expect(page.getByText("Saved as version 1")).toBeVisible({
     timeout: 90_000,
   })
+  await expect(promptBar).toHaveValue(draftPrompt)
 
   await promptBar.fill(followUpPrompt)
   await promptBar.press("Enter")
