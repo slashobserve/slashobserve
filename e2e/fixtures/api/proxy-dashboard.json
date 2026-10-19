@@ -154,7 +154,7 @@
         "datasource": "ch",
         "queries": [
           {
-            "query": "SELECT $__timeInterval(Timestamp) AS t, count() AS n FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) WHERE $__dateTimeFilter(day, Timestamp) AND $__conditionalAll(ServiceName IN (${services:singlequote}), $services) AND Timestamp >= $__fromTime_ms AND Timestamp <= $__toTime GROUP BY t ORDER BY t LIMIT 100"
+            "query": "SELECT $__timeInterval(Timestamp) AS t, count() AS n FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) WHERE $__dateTimeFilter(day, Timestamp) AND $__conditionalAll(ServiceName IN (${services:singlequote}), $services) AND Timestamp >= $__fromTime_ms AND Timestamp <= $__toTime GROUP BY t ORDER BY t LIMIT 1000"
           }
         ]
       }
