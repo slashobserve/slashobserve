@@ -2500,7 +2500,7 @@ dashboard_list_suite() {
 
   out="$(api GET "/dashboards?datasource=prom&limit=1")"
   [[ "$out" == 200 ]] || fail "list the dashboards that use prom ($out: $(cat "$TMP/api.body"))"
-  want="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total_count"])' "$TMP/api.body")"
+  want="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("total_count", ""))' "$TMP/api.body")"
   [[ -n "$want" ]] || fail "the prom dashboard list has no total_count ($(head -c 300 "$TMP/api.body"))"
   out="$(api GET /datasources)"
   [[ "$out" == 200 ]] || fail "list datasources for their usage ($out: $(cat "$TMP/api.body"))"
