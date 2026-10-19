@@ -175,6 +175,7 @@ export function useCreateComment(id: string) {
 export function useAddComment(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: "always",
     mutationFn: (
       input: { body: string } & (
         { version: number; panelId: string | null } | { parentId: string }
