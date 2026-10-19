@@ -56,7 +56,9 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   }
   const madeBy = firstString(raw.made_by)
   if (madeBy !== undefined && validMadeBy(madeBy)) {
-    search.made_by = madeBy
+    search.made_by = /^(?:user|service_account):/.test(madeBy)
+      ? madeBy.toLowerCase()
+      : madeBy
   }
   const datasource = firstString(raw.datasource)
   if (datasource !== undefined && datasourcePattern.test(datasource)) {

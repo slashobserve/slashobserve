@@ -57,7 +57,6 @@ describe("validateListSearch", () => {
       `mcp:${"a".repeat(64)}`,
       `mcp:${"😀".repeat(64)}`,
       `user:${id}`,
-      `user:${id.toUpperCase()}`,
       `service_account:${id}`,
     ]) {
       expect(validateListSearch({ made_by: value })).toEqual({ made_by: value })
@@ -77,6 +76,20 @@ describe("validateListSearch", () => {
     ]) {
       expect(validateListSearch({ made_by: value })).toEqual({})
     }
+  })
+
+  it("lowercases the id of a person or service account", () => {
+    expect(validateListSearch({ made_by: `user:${id.toUpperCase()}` })).toEqual(
+      {
+        made_by: `user:${id}`,
+      }
+    )
+    expect(
+      validateListSearch({ made_by: `service_account:${id.toUpperCase()}` })
+    ).toEqual({ made_by: `service_account:${id}` })
+    expect(validateListSearch({ made_by: "mcp:Claude-Code" }).made_by).toBe(
+      "mcp:Claude-Code"
+    )
   })
 
   it("holds an MCP client name to what the server accepts", () => {
