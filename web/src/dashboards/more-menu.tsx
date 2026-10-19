@@ -75,18 +75,11 @@ export function MoreMenu({
             }}
           >
             <LayoutGridIcon aria-hidden="true" />
-            {pinned ? (
-              "Edit layout (open the latest version first)"
-            ) : canEditLayout ? (
-              "Edit layout"
-            ) : (
-              <span className="flex flex-col">
-                Edit layout
-                <span className="text-xs text-muted-foreground">
-                  Close activity to edit the layout
-                </span>
-              </span>
-            )}
+            {pinned
+              ? "Edit layout (open the latest version first)"
+              : canEditLayout
+                ? "Edit layout"
+                : "Edit layout (close activity first)"}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={onExport}>

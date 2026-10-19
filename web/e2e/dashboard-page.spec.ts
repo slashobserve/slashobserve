@@ -249,7 +249,7 @@ test("explains why Edit layout is unavailable while activity is open", async ({
   await moreButton(page).click()
   const item = page.getByRole("menuitem", { name: /^Edit layout/ })
   await expect(item).toHaveAttribute("aria-disabled", "true")
-  await expect(item).toContainText("Close activity to edit the layout")
+  await expect(item).toHaveText("Edit layout (close activity first)")
   await page.keyboard.press("Escape")
 
   await page.getByRole("button", { name: "Activity", exact: true }).click()
