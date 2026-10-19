@@ -98,14 +98,18 @@ func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (s
 		case "!=":
 			terms[i] = f.Key + " != " + value
 		case "=~":
-			terms[i] = "match(" + f.Key + ", " + value + ")"
+			terms[i] = "match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
 		case "!~":
-			terms[i] = "NOT match(" + f.Key + ", " + value + ")"
+			terms[i] = "NOT match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
 		default:
 			return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
 		}
 	}
 	return "(" + strings.Join(terms, " AND ") + ")", nil
+}
+
+func anchoredPattern(pattern string) string {
+	return "'^(?:" + sqlStringEscaper.Replace(pattern) + ")$'"
 }
 
 func oddBackslashesBefore(query string, offset int) bool {

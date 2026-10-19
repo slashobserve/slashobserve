@@ -1164,7 +1164,7 @@ func TestRunPanelNewVariableTypesReachTheQuery(t *testing.T) {
 			t.Fatalf("expanded = %q, %v", got, err)
 		}
 		got, err = run(t, "SELECT 1 WHERE $f", map[string]Selection{"f": {Values: []string{"ServiceName|=|cart", "Body|!~|x|y"}}}, f)
-		if err != nil || got != "SELECT 1 WHERE (ServiceName = 'cart' AND NOT match(Body, 'x|y'))" {
+		if err != nil || got != "SELECT 1 WHERE (ServiceName = 'cart' AND NOT match(Body, '^(?:x|y)$'))" {
 			t.Fatalf("expanded = %q, %v", got, err)
 		}
 	})
