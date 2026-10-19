@@ -230,6 +230,7 @@ type ListParams struct {
 	MadeBy     MadeBy
 	Datasource string
 	Query      string
+	SkipTotal  bool
 }
 
 type ListItem struct {
@@ -282,15 +283,20 @@ func (s *Service) List(ctx context.Context, p ListParams) (ListPage, error) {
 	if !ok {
 		return ListPage{}, ErrInvalidCursor
 	}
-	items, err := s.store.list(ctx, after, p.Limit+1, p)
+	filter, err := filterOf(p)
 	if err != nil {
 		return ListPage{}, err
 	}
-	total, err := s.store.count(ctx, p)
+	items, err := s.store.list(ctx, after, p.Limit+1, filter)
 	if err != nil {
 		return ListPage{}, err
 	}
-	page := ListPage{Items: items, Total: total}
+	page := ListPage{Items: items}
+	if !p.SkipTotal {
+		if page.Total, err = s.store.count(ctx, filter); err != nil {
+			return ListPage{}, err
+		}
+	}
 	if len(items) > p.Limit {
 		page.Items = items[:p.Limit]
 		last := page.Items[len(page.Items)-1]

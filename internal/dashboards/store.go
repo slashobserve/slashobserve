@@ -287,11 +287,7 @@ func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]by
 	return raw, nil
 }
 
-func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, p ListParams) ([]ListItem, error) {
-	f, err := filterOf(p)
-	if err != nil {
-		return nil, err
-	}
+func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsParams{
 		CreatorKind: f.CreatorKind,
 		CreatorID:   f.CreatorID,
@@ -326,11 +322,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, 
 	return items, nil
 }
 
-func (st store) count(ctx context.Context, p ListParams) (int, error) {
-	f, err := filterOf(p)
-	if err != nil {
-		return 0, err
-	}
+func (st store) count(ctx context.Context, f dbsqlc.CountDashboardsParams) (int, error) {
 	n, err := st.db.Queries().CountDashboards(ctx, f)
 	if err != nil {
 		return 0, fmt.Errorf("count dashboards: %w", err)
