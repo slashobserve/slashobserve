@@ -108,21 +108,28 @@ func invalidDefault(v Variable) string {
 	}
 	switch v.Type {
 	case QueryVariable, CustomVariable:
-		switch {
-		case v.Default.List && !v.Multi:
-			return fmt.Sprintf("variable %q has an array default but is not multi; give one value or set multi", v.Name)
-		case slices.Contains(v.Default.Values, SelectAll) && !v.IncludeAll:
-			return fmt.Sprintf("variable %q defaults to %s but does not set includeAll", v.Name, SelectAll)
-		case v.Type == CustomVariable:
-			for _, value := range v.Default.Values {
-				if value != SelectAll && !slices.Contains(v.Options, value) {
-					return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
-				}
-			}
-		}
+		return invalidListDefault(v)
 	case IntervalVariable:
 		for _, value := range v.Default.Values {
 			if !slices.Contains(v.Options, value) {
+				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
+			}
+		}
+	}
+	return ""
+}
+
+func invalidListDefault(v Variable) string {
+	switch {
+	case v.Default.List && !v.Multi:
+		return fmt.Sprintf("variable %q has an array default but is not multi; give one value or set multi", v.Name)
+	case slices.Contains(v.Default.Values, SelectAll) && !v.IncludeAll:
+		return fmt.Sprintf("variable %q defaults to %s but does not set includeAll", v.Name, SelectAll)
+	case slices.Contains(v.Default.Values, SelectAll) && len(v.Default.Values) > 1:
+		return fmt.Sprintf("variable %q combines %s with other values in its default; give %s alone or list the values", v.Name, SelectAll, SelectAll)
+	case v.Type == CustomVariable:
+		for _, value := range v.Default.Values {
+			if value != SelectAll && !slices.Contains(v.Options, value) {
 				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
 			}
 		}

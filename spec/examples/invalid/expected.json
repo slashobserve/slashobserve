@@ -36,6 +36,7 @@
     { "file": "semantic/too-many-panels.json", "layer": "semantic", "code": "too_many_panels", "path": "/panels" },
     { "file": "semantic/default-not-multi.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
     { "file": "semantic/default-all-without-include-all.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/default-all-with-other-values.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
     { "file": "semantic/custom-default-not-an-option.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
     { "file": "semantic/invalid-variable-regex.json", "layer": "semantic", "code": "invalid_regex", "path": "/variables/0/regex" },
     { "file": "semantic/adhoc-with-format.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/queries/0/query" }
