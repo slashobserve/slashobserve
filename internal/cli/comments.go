@@ -14,6 +14,10 @@ type commentListOptions struct {
 	panel  string
 }
 
+type commentResolveOptions struct {
+	version int
+}
+
 type comment struct {
 	ID                string  `json:"id"`
 	ParentID          *string `json:"parent_id"`
@@ -39,13 +43,8 @@ func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
 		Short: "List, answer and resolve dashboard comments",
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return usagef("unknown command %q for %s", text(args[0]), cmd.CommandPath())
-			}
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Args:  groupArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(a.commentsListCommand(), a.commentsReplyCommand(), a.commentsResolveCommand())
 	return cmd
@@ -186,7 +185,7 @@ func (a *app) commentsResolveCommand() *cobra.Command {
 		Args:  exactArgs(2, "a dashboard id and a comment id"),
 		RunE:  a.runCommentsResolve,
 	}
-	cmd.Flags().IntVar(&a.resolveVersion, "version", 0, "record the version that fixed the thread")
+	cmd.Flags().IntVar(&a.commentResolve.version, "version", 0, "record the version that fixed the thread")
 	return cmd
 }
 
@@ -201,10 +200,10 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	}
 	payload := map[string]any{"status": "resolved"}
 	if cmd.Flags().Changed("version") {
-		if a.resolveVersion < 1 {
+		if a.commentResolve.version < 1 {
 			return usagef("--version must be 1 or higher")
 		}
-		payload["resolved_by_version"] = a.resolveVersion
+		payload["resolved_by_version"] = a.commentResolve.version
 	}
 	c, err := a.newClient()
 	if err != nil {

@@ -33,7 +33,7 @@ type app struct {
 	versions       pageOptions
 	show           showOptions
 	commentList    commentListOptions
-	resolveVersion int
+	commentResolve commentResolveOptions
 	withToken      bool
 }
 
@@ -104,6 +104,13 @@ func (a *app) versionCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func groupArgs(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return usagef("unknown command %q for %s", text(args[0]), cmd.CommandPath())
+	}
+	return nil
 }
 
 func noArgs(cmd *cobra.Command, args []string) error {
