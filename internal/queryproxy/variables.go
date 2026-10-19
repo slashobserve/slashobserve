@@ -6,6 +6,7 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type parseCache struct {
 	mu      sync.Mutex
 	filters map[string]parsedFilters
 	regexes map[string]*spec.VariableRegex
+	checked map[string]bool
 }
 
 type parsedFilters struct {
@@ -47,7 +49,7 @@ type parsedFilters struct {
 func newVarState() *varState {
 	return &varState{
 		lists:  map[string]allList{},
-		parsed: &parseCache{filters: map[string]parsedFilters{}, regexes: map[string]*spec.VariableRegex{}},
+		parsed: &parseCache{filters: map[string]parsedFilters{}, regexes: map[string]*spec.VariableRegex{}, checked: map[string]bool{}},
 	}
 }
 
@@ -560,6 +562,43 @@ func variableIndex(d *spec.Dashboard, name string) int {
 const maxAdhocFilters = 20
 
 func (r *Runner) checkSelection(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) error {
+	key := selectionKey(d.Variables[idx].Name, sel)
+	if st.parsed.isChecked(key) {
+		return nil
+	}
+	if err := r.checkSelectionUncached(ctx, d, idx, rng, selections, user, st, sel); err != nil {
+		return err
+	}
+	st.parsed.markChecked(key)
+	return nil
+}
+
+func selectionKey(name string, sel Selection) string {
+	var b strings.Builder
+	b.WriteString(strconv.Quote(name))
+	if sel.All {
+		b.WriteString(" all")
+	}
+	for _, value := range sel.Values {
+		b.WriteByte(' ')
+		b.WriteString(strconv.Quote(value))
+	}
+	return b.String()
+}
+
+func (c *parseCache) isChecked(key string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.checked[key]
+}
+
+func (c *parseCache) markChecked(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.checked[key] = true
+}
+
+func (r *Runner) checkSelectionUncached(ctx context.Context, d *spec.Dashboard, idx int, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, sel Selection) error {
 	v := d.Variables[idx]
 	switch {
 	case sel.All:

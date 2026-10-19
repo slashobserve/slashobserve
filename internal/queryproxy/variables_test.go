@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1333,5 +1336,49 @@ func TestDatasourceVariableRegexInterpolatesEarlierVariables(t *testing.T) {
 	got, err := runner.Defaults(t.Context(), d, testRange(), map[string]Selection{"pick": {Values: []string{"prom"}}, "ds": {Values: []string{"prom"}}}, datasource.QueryUser{})
 	if err != nil || !reflect.DeepEqual(got["ds"], Selection{Values: []string{"prom"}}) {
 		t.Fatalf("Defaults = %+v, %v", got, err)
+	}
+}
+
+type typeCountingDatasource struct {
+	*fakeDatasource
+	types atomic.Int64
+}
+
+func (d *typeCountingDatasource) Type() string {
+	d.types.Add(1)
+	return d.fakeDatasource.Type()
+}
+
+func TestChainedDatasourceVariableRegexesAreCheckedOncePerSelection(t *testing.T) {
+	const chain = 20
+	counting := &typeCountingDatasource{fakeDatasource: newFake("prometheus")}
+	reg, err := datasource.NewRegistry(slog.New(slog.DiscardHandler), datasource.Instance{UID: "prom", Datasource: counting})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := NewRunner(reg, discardLogger())
+	variables := make([]spec.Variable, chain)
+	for i := range variables {
+		variables[i] = datasourceVariable("d"+strconv.Itoa(i), spec.Prometheus)
+		if i > 0 {
+			variables[i].Regex = "/^$d" + strconv.Itoa(i-1) + "|.*$/"
+		}
+	}
+	d := dashboardOf([]spec.Panel{panelOf("p0", spec.Timeseries, "prom", `up{job="$d19"}`)}, variables...)
+
+	counting.types.Store(0)
+	start := time.Now()
+	defaults, err := runner.Defaults(t.Context(), d, testRange(), nil, datasource.QueryUser{})
+	if err != nil || len(defaults) != chain {
+		t.Fatalf("Defaults = %v, %v", defaults, err)
+	}
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p0", Range: testRange(), Selections: defaults}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if n := counting.types.Load(); n > 50*chain {
+		t.Fatalf("the datasource list was walked %d times for %d chained variables, want a count that grows with the chain and not exponentially", n, chain)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("Defaults and RunPanel took %v", elapsed)
 	}
 }
