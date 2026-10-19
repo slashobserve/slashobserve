@@ -1,0 +1,441 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 30,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P4F4839B759FB0509"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [
+              {
+                "aggregateType": "sum",
+                "column": "Value"
+              }
+            ],
+            "columns": [
+              {
+                "hint": "time",
+                "name": "EventTime",
+                "type": "DateTime"
+              }
+            ],
+            "database": "default",
+            "filters": [],
+            "groupBy": [
+              "EventTime"
+            ],
+            "limit": 1000,
+            "meta": {},
+            "mode": "trend",
+            "orderBy": [
+              {
+                "dir": "ASC",
+                "name": "EventTime"
+              }
+            ],
+            "queryType": "timeseries",
+            "table": "test_alerts"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P4F4839B759FB0509"
+          },
+          "editorType": "builder",
+          "expand": false,
+          "format": 0,
+          "meta": {
+            "builderOptions": {
+              "database": "default",
+              "fields": [
+                "$__timeInterval(EventTime) as time",
+                "Name"
+              ],
+              "filters": [
+                {
+                  "condition": "AND",
+                  "filterType": "custom",
+                  "key": "$__timeFilter",
+                  "operator": "",
+                  "type": "datetime",
+                  "value": ""
+                }
+              ],
+              "groupBy": [
+                "Name",
+                "time"
+              ],
+              "limit": 100,
+              "metrics": [
+                {
+                  "aggregation": "sum",
+                  "field": "Value"
+                }
+              ],
+              "mode": "aggregate",
+              "orderBy": [
+                {
+                  "dir": "ASC",
+                  "name": "time"
+                }
+              ],
+              "table": "test_alerts"
+            }
+          },
+          "pluginVersion": "4.8.2",
+          "rawSql": "SELECT $__timeInterval(EventTime) as \"time\", EventTime, sum(Value) FROM \"default\".\"test_alerts\" GROUP BY EventTime, time ORDER BY EventTime ASC LIMIT 1000",
+          "refId": "A"
+        }
+      ],
+      "title": "query builder",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P4F4839B759FB0509"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P4F4839B759FB0509"
+          },
+          "editorType": "sql",
+          "expand": false,
+          "format": 0,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [
+                {
+                  "aggregateType": "sum",
+                  "column": "Value"
+                }
+              ],
+              "columns": [
+                {
+                  "hint": "time",
+                  "name": "EventTime",
+                  "type": "DateTime"
+                }
+              ],
+              "database": "default",
+              "filters": [],
+              "groupBy": [
+                "Name"
+              ],
+              "mode": "trend",
+              "orderBy": [],
+              "queryType": "timeseries",
+              "table": "test_alerts"
+            }
+          },
+          "pluginVersion": "4.8.2",
+          "queryType": "timeseries",
+          "rawSql": "SELECT $__timeInterval(EventTime) as time, Name, sum(Value) \r\nFROM default.test_alerts \r\nWHERE $__timeFilter(EventTime) \r\nAND Name IN (${service_name})\r\nGROUP BY Name, time \r\nORDER BY time ASC",
+          "refId": "A"
+        }
+      ],
+      "title": "query editor",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P4F4839B759FB0509"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 5,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "builderOptions": {
+            "database": "default",
+            "fields": [
+              "*"
+            ],
+            "filters": [
+              {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "event_time",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "type": "DateTime",
+                "value": "TODAY"
+              }
+            ],
+            "metrics": [],
+            "mode": "list",
+            "orderBy": [],
+            "table": "test_logs",
+            "timeField": "",
+            "timeFieldType": "datetime"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P4F4839B759FB0509"
+          },
+          "format": 1,
+          "queryType": "builder",
+          "rawSql": "SELECT * FROM default.test_logs WHERE   ( event_time  >= $__fromTime AND event_time <= $__toTime )",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs + query builder",
+      "type": "logs"
+    }
+  ],
+  "preload": false,
+  "refresh": false,
+  "schemaVersion": 40,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": [
+            "test2"
+          ],
+          "value": [
+            "test2"
+          ]
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "P4F4839B759FB0509"
+        },
+        "definition": "SELECT DISTINCT Name FROM default.test_alerts",
+        "includeAll": false,
+        "multi": true,
+        "name": "service_name",
+        "options": [],
+        "query": "SELECT DISTINCT Name FROM default.test_alerts",
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "baseFilters": [],
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "P4F4839B759FB0509"
+        },
+        "filters": [],
+        "name": "adhoc_variable",
+        "type": "adhoc"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "grafana labs dashboard",
+  "uid": "GgMuISkVz",
+  "version": 1,
+  "weekStart": ""
+}
