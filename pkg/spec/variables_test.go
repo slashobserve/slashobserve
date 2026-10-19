@@ -63,9 +63,11 @@ func TestSortVariableValues(t *testing.T) {
 	}{
 		{"alpha", []string{"b", "C", "a"}, []string{"C", "a", "b"}},
 		{"alphaDesc", []string{"b", "C", "a"}, []string{"b", "a", "C"}},
-		{"num", []string{"10", "9", "x", "2.5", "a"}, []string{"2.5", "9", "10", "a", "x"}},
+		{"num", []string{"10", "9", "x", "2.5", "a"}, []string{"x", "a", "2.5", "9", "10"}},
 		{"numDesc", []string{"10", "9", "x", "2.5", "a"}, []string{"10", "9", "2.5", "a", "x"}},
-		{"num", []string{"pod-10", "pod-9", "node"}, []string{"pod-9", "pod-10", "node"}},
+		{"num", []string{"pod-10", "pod-9", "node"}, []string{"node", "pod-9", "pod-10"}},
+		{"numDesc", []string{"pod-10", "pod-9", "node", "app"}, []string{"pod-10", "pod-9", "app", "node"}},
+		{"numDesc", []string{"b1", "a1", "c0"}, []string{"a1", "b1", "c0"}},
 		{"num", []string{"b1", "a1", "c0"}, []string{"c0", "b1", "a1"}},
 		{"", []string{"b", "a"}, []string{"b", "a"}},
 	}

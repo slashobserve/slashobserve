@@ -983,7 +983,7 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 		{"regex drops duplicates", "/^(\\w+)-\\d+$/", "", []string{"web-1", "web-2", "api-1"}, []string{"web", "api"}},
 		{"alpha", "", "alpha", []string{"b", "c", "a"}, []string{"a", "b", "c"}},
 		{"alphaDesc", "", "alphaDesc", []string{"b", "c", "a"}, []string{"c", "b", "a"}},
-		{"num", "", "num", []string{"10", "9", "x"}, []string{"9", "10", "x"}},
+		{"num", "", "num", []string{"10", "9", "x"}, []string{"x", "9", "10"}},
 		{"numDesc", "", "numDesc", []string{"10", "9", "x"}, []string{"10", "9", "x"}},
 		{"regex then sort", "/^web-(.*)$/", "numDesc", []string{"web-1", "web-10", "api-3", "web-2"}, []string{"10", "2", "1"}},
 	}

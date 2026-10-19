@@ -120,23 +120,22 @@ func SortVariableValues(values []string, order string) []string {
 	case "alphaDesc":
 		slices.SortStableFunc(out, func(a, b string) int { return strings.Compare(b, a) })
 	case "num", "numDesc":
-		descending := order == "numDesc"
 		slices.SortStableFunc(out, func(a, b string) int {
 			na, oka := leadingNumber(a)
 			nb, okb := leadingNumber(b)
 			switch {
 			case oka && okb:
-				if descending {
-					return cmp.Compare(nb, na)
-				}
 				return cmp.Compare(na, nb)
 			case oka:
-				return -1
-			case okb:
 				return 1
+			case okb:
+				return -1
 			}
-			return strings.Compare(a, b)
+			return 0
 		})
+		if order == "numDesc" {
+			slices.Reverse(out)
+		}
 	}
 	return out
 }
