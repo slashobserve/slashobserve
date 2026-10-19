@@ -5,17 +5,24 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { Selections } from "@/api/keys"
+import { ActivityCard, activityCardId } from "@/activity/activity-card"
+import {
+  useActivityLayout,
+  useActivityStore,
+  useClearPostedDraft,
+} from "@/activity/activity-store"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
-import { panelRefs } from "@/comments/latest-panels"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Skeleton } from "@/components/ui/skeleton"
-import { FollowUpBar } from "@/revisions/follow-up-bar"
+import { cn } from "@/lib/utils"
 import { useRevisionAppliedToast } from "@/revisions/use-revision-applied-toast"
 import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
@@ -39,7 +46,6 @@ import { downloadSpec } from "./export-spec"
 import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
-import { PanelInspector } from "./panel-inspector"
 import { PanelMenu } from "./panel-menu"
 import {
   asDashboardSpec,
@@ -61,6 +67,13 @@ import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
 import { controlVariables, VariableLoadError } from "./variables"
 
+function pageClass(stacked: boolean) {
+  return cn(
+    "flex flex-wrap bg-background text-foreground",
+    stacked ? "min-h-svh" : "h-svh narrow:h-auto narrow:min-h-svh"
+  )
+}
+
 type PanelContainerProps = {
   dashboardId: string
   version: number
@@ -77,6 +90,9 @@ type PanelContainerProps = {
   editable: boolean
   layoutSession: boolean
   openComments: number
+  highlighted: boolean
+  editingPanel: boolean
+  composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
 const PanelContainer = memo(function PanelContainer({
@@ -95,6 +111,9 @@ const PanelContainer = memo(function PanelContainer({
   editable,
   layoutSession,
   openComments,
+  highlighted,
+  editingPanel,
+  composerRef,
 }: PanelContainerProps) {
   const ref = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
@@ -152,6 +171,8 @@ const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
+        highlighted={highlighted}
+        editing={editingPanel}
         datasourceLabel={panelDatasourceUids(panel).join(", ")}
         badge={
           <PanelCommentBadge
@@ -167,6 +188,7 @@ const PanelContainer = memo(function PanelContainer({
             tableView={tableView}
             onToggleTableView={() => setTableView((current) => !current)}
             inspectable={!layoutSession}
+            composerRef={composerRef}
           />
         }
       >
@@ -249,14 +271,70 @@ function DashboardView({
     }
   }, [spec.title])
 
-  const refs = useMemo(() => panelRefs(spec), [spec])
   const effectiveFrom = search.from ?? spec.time.from
   const effectiveTo = search.to ?? spec.time.to
   const refreshValue = search.refresh ?? spec.refresh ?? "off"
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
-  const activityOpen = search.tab === "comments" && search.panel === undefined
+  const open = useActivityStore((state) => state.open)
+  const setOpen = useActivityStore((state) => state.setOpen)
+  useClearPostedDraft(dashboardId)
+  const editingPanel = search.edit === "query" && search.panel !== undefined
+  const cardVisible = (open || editingPanel) && !editing
+  const cardLayout = useActivityLayout(editingPanel)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const [flashed, setFlashed] = useState<string | null>(null)
+  const flashTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(flashTimer.current), [])
+
+  const layoutEditingWithPanel =
+    editing && (search.panel !== undefined || search.edit !== undefined)
+  useEffect(() => {
+    if (!layoutEditingWithPanel) return
+    setSearch((state) => ({ ...state, panel: undefined, edit: undefined }), {
+      replace: true,
+    })
+  }, [layoutEditingWithPanel, setSearch])
+
+  const closeCard = useCallback(() => {
+    setOpen(false)
+    if (search.panel === undefined && search.edit === undefined) return
+    setSearch((state) => ({ ...state, panel: undefined, edit: undefined }))
+  }, [setOpen, setSearch, search.panel, search.edit])
+
+  const toggleCard = useCallback(() => {
+    if (cardVisible) {
+      closeCard()
+      return
+    }
+    setOpen(true)
+    if (cardLayout.stacked) {
+      requestAnimationFrame(() =>
+        document.getElementById(activityCardId)?.scrollIntoView({
+          block: "nearest",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+        })
+      )
+    }
+  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
+
+  const onSelectPanel = useCallback((id: string) => {
+    document
+      .querySelector(`[data-panel-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({
+        block: "nearest",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      })
+    setFlashed(id)
+    window.clearTimeout(flashTimer.current)
+    flashTimer.current = window.setTimeout(() => setFlashed(null), 2000)
+  }, [])
 
   const controls = [
     <div key="time" className="flex items-center gap-1.5">
@@ -282,21 +360,15 @@ function DashboardView({
     />,
     <ActivityToggle
       key="activity"
-      pressed={activityOpen}
+      pressed={cardVisible}
       openCount={openTotal}
       disabled={editing}
-      onToggle={() =>
-        setSearch((state) => ({
-          ...state,
-          panel: undefined,
-          tab: activityOpen ? undefined : "comments",
-        }))
-      }
+      onToggle={toggleCard}
     />,
   ]
 
   return (
-    <div className="flex h-svh flex-wrap bg-background text-foreground narrow:h-auto narrow:min-h-svh">
+    <div className={pageClass(cardVisible && cardLayout.stacked)}>
       <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
         <DashboardTopRow
           title={spec.title}
@@ -325,12 +397,6 @@ function DashboardView({
           />
         ) : null}
         <VariablesBar states={states} />
-        <FollowUpBar
-          dashboardId={dashboardId}
-          version={version}
-          panels={refs}
-          canAsk={!pinned && !editing}
-        />
         <LayoutAnnouncer />
         <main
           ref={gridBox}
@@ -358,19 +424,29 @@ function DashboardView({
                 editable={editing && canEdit}
                 layoutSession={editing}
                 openComments={openByPanel.get(panel.id) ?? 0}
+                highlighted={panel.id === search.panel || panel.id === flashed}
+                editingPanel={editingPanel && panel.id === search.panel}
+                composerRef={composerRef}
               />
             )}
           />
         </main>
       </div>
-      <PanelInspector
-        spec={spec}
-        dashboardId={dashboardId}
-        version={version}
-        latestVersion={latestVersion}
-        pinned={pinned}
-        suspended={editing}
-      />
+      {cardVisible ? (
+        <ActivityCard
+          dashboardId={dashboardId}
+          apiId={envelope.dashboard.id}
+          spec={spec}
+          version={version}
+          latestVersion={latestVersion}
+          pinned={pinned}
+          madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
+          back={backFromSearch(search)}
+          composerRef={composerRef}
+          onSelectPanel={onSelectPanel}
+          onClose={closeCard}
+        />
+      ) : null}
     </div>
   )
 }
@@ -450,11 +526,10 @@ const skeletonPanels = [
 ]
 
 export function DashboardPageSkeleton() {
+  const open = useActivityStore((state) => state.open)
+  const layout = useActivityLayout(false)
   return (
-    <div
-      className="flex h-svh flex-wrap bg-background text-foreground narrow:h-auto narrow:min-h-svh"
-      aria-busy="true"
-    >
+    <div className={pageClass(open && layout.stacked)} aria-busy="true">
       <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-3 pr-2.5 pb-2.5 pl-4">
           <Skeleton className="h-[30px] w-64 animate-none motion-safe:animate-pulse" />
@@ -477,6 +552,18 @@ export function DashboardPageSkeleton() {
           </div>
         </main>
       </div>
+      {open ? (
+        <div
+          aria-hidden="true"
+          style={{ "--activity-w": `${layout.width}px` } as CSSProperties}
+          className={cn(
+            "rounded-card border",
+            layout.stacked
+              ? "mr-2.5 mb-2.5 ml-4 h-[70svh] flex-[1_1_100%]"
+              : "m-2 ml-0.5 flex-[0_0_var(--activity-w)]"
+          )}
+        />
+      ) : null}
     </div>
   )
 }

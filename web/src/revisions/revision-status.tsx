@@ -75,7 +75,7 @@ export function RevisionStatus({ revision, dashboardId, live = false }: Props) {
               ...search,
               version: created === latestVersion ? undefined : created,
               panel: undefined,
-              tab: undefined,
+              edit: undefined,
             })}
             className="underline underline-offset-3 hover:text-foreground"
           >

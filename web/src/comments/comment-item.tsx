@@ -73,7 +73,7 @@ export function CommentItem({
               version:
                 comment.version === latestVersion ? undefined : comment.version,
               panel: undefined,
-              tab: undefined,
+              edit: undefined,
             })}
             className="underline underline-offset-3 hover:text-foreground"
           >

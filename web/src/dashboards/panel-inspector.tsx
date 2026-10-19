@@ -74,7 +74,7 @@ function leavesDraft(
   const after = validateDashboardSearch(next.search as Record<string, unknown>)
   return (
     before.panel !== after.panel ||
-    after.tab === undefined ||
+    after.edit === undefined ||
     before.version !== after.version
   )
 }
@@ -165,7 +165,7 @@ export function PanelInspector({
   const discarding = useRef(false)
 
   const panelId = search.panel
-  const requested = search.tab !== undefined
+  const requested = search.edit !== undefined
   const open = requested && !suspended
   const titleRef = useRef<HTMLHeadingElement>(null)
   const [lastScope, setLastScope] = useState<"panel" | "dashboard">("panel")
@@ -335,7 +335,7 @@ export function PanelInspector({
         },
       ]
     : []
-  const active = views.find((view) => view.id === search.tab) ?? views[0]
+  const active = views.find((view) => view.id === search.edit) ?? views[0]
 
   const copy = discardCopy(queryDirty, commentDirty)
 

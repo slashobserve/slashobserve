@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ReactNode, RefObject } from "react"
 import {
   ChartLineIcon,
   EllipsisIcon,
@@ -7,6 +7,7 @@ import {
   TableIcon,
 } from "lucide-react"
 
+import { useActivityStore } from "@/activity/activity-store"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,7 +25,11 @@ type Props = {
   tableView: boolean
   onToggleTableView: () => void
   inspectable: boolean
+  composerRef: RefObject<HTMLTextAreaElement | null>
 }
+
+// Only one panel menu is open at a time, and the choice must survive the render that closes it.
+let focusAfterClose: "composer" | "none" | null = null
 
 type MenuItem = {
   id: string
@@ -39,6 +44,7 @@ export function PanelMenu({
   tableView,
   onToggleTableView,
   inspectable,
+  composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const items: MenuItem[] = [
@@ -47,8 +53,11 @@ export function PanelMenu({
       label: inspectable ? "Comment" : "Comment (finish the layout first)",
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
       disabled: !inspectable,
-      onSelect: () =>
-        setSearch((state) => ({ ...state, panel: panel.id, tab: "comments" })),
+      onSelect: () => {
+        focusAfterClose = "composer"
+        useActivityStore.getState().setOpen(true)
+        setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
+      },
     },
   ]
   const data = isDataPanel(panel)
@@ -58,8 +67,11 @@ export function PanelMenu({
       label: inspectable ? "Edit" : "Edit (finish the layout first)",
       icon: <PencilIcon aria-hidden="true" />,
       disabled: !inspectable,
-      onSelect: () =>
-        setSearch((state) => ({ ...state, panel: panel.id, tab: "query" })),
+      onSelect: () => {
+        focusAfterClose = "none"
+        useActivityStore.getState().setOpen(true)
+        setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
+      },
     })
   }
   if (data && panel.type !== "table" && panelRenderers[panel.type]) {
@@ -88,7 +100,16 @@ export function PanelMenu({
       >
         <EllipsisIcon aria-hidden="true" className="size-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-max">
+      <DropdownMenuContent
+        align="end"
+        className="min-w-max"
+        finalFocus={() => {
+          const next = focusAfterClose
+          focusAfterClose = null
+          if (next === "composer") return composerRef.current ?? true
+          return next !== "none"
+        }}
+      >
         {items.map((item) => (
           <DropdownMenuItem
             key={item.id}
