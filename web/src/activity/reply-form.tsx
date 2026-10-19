@@ -12,6 +12,7 @@ import {
 } from "@/revisions/queries"
 
 import type { AgentGate } from "./agent-gate"
+import { closeUnlessBusy, dismissLabel, runReply } from "./reply-flow"
 
 type Props = {
   dashboardId: string
@@ -40,6 +41,7 @@ export function ReplyForm({
   const [replySaved, setReplySaved] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
   const inFlight = useRef(false)
+  const mounted = useRef(false)
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
   const text = body.trim()
@@ -47,8 +49,16 @@ export function ReplyForm({
   const canSend = gate.kind === "allowed"
 
   useEffect(() => {
+    mounted.current = true
     textarea.current?.focus()
+    return () => {
+      mounted.current = false
+    }
   }, [])
+
+  function dismiss() {
+    closeUnlessBusy(busy || inFlight.current, onClose)
+  }
 
   async function postReply(): Promise<boolean> {
     if (replySaved) return true
@@ -67,24 +77,22 @@ export function ReplyForm({
     inFlight.current = true
     setError(null)
     try {
-      if (await postReply()) {
-        if (!sendToAgent) {
-          onClose()
-          return
-        }
-        try {
+      const outcome = await runReply({
+        sendToAgent,
+        postReply,
+        sendRequest: async () => {
           await requestRevision.mutateAsync({
             prompt: text,
             baseVersion: latestVersion,
             commentId: rootId,
           })
-          onClose()
-          return
-        } catch (failure) {
-          setError(`Your reply was saved. ${describeRevisionError(failure)}`)
-        }
-      }
-      textarea.current?.focus()
+        },
+        isOpen: () => mounted.current,
+        onClose,
+        onRequestError: (failure) =>
+          setError(`Your reply was saved. ${describeRevisionError(failure)}`),
+      })
+      if (outcome === "retry") textarea.current?.focus()
     } finally {
       inFlight.current = false
     }
@@ -94,7 +102,7 @@ export function ReplyForm({
     if (event.key === "Escape") {
       event.preventDefault()
       event.stopPropagation()
-      onClose()
+      dismiss()
     } else if (
       event.key === "Enter" &&
       (event.metaKey || event.ctrlKey) &&
@@ -134,13 +142,19 @@ export function ReplyForm({
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {replySaved && !canSend ? (
-          <Button type="button" size="sm" onClick={onClose}>
-            Done
+          <Button type="button" size="sm" onClick={dismiss}>
+            {dismissLabel(replySaved)}
           </Button>
         ) : (
           <>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cancel
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-disabled={busy || undefined}
+              onClick={dismiss}
+            >
+              {dismissLabel(replySaved)}
             </Button>
             <Button
               type="submit"
