@@ -11,7 +11,7 @@ import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 export type Comment = components["schemas"]["Comment"]
@@ -158,7 +158,17 @@ export function useCreateComment(id: string) {
         })
         .then(unwrap)
         .then((body) => body.comment),
-    onSuccess: (comment) => insertComment(queryClient, id, comment),
+    onSuccess: (comment) => {
+      insertComment(queryClient, id, comment)
+      if (comment.revision !== null) {
+        void queryClient.invalidateQueries({
+          queryKey: dashboardKeys.revisions(id),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: observeKeys.mineAll(),
+        })
+      }
+    },
   })
 }
 
