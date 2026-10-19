@@ -33,7 +33,7 @@ function MetaButton({ className, ...props }: ComponentProps<"button">) {
     <button
       type="button"
       className={cn(
-        "rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-50",
         className
       )}
       {...props}
@@ -43,13 +43,15 @@ function MetaButton({ className, ...props }: ComponentProps<"button">) {
 
 function threadVerb(
   panelId: string | null,
-  panelTitle: string | null
-): { verb: string; showPanel: boolean } {
-  if (panelId === null) return { verb: "commented", showPanel: false }
-  if (panelTitle === null) {
-    return { verb: "commented on a removed panel", showPanel: false }
+  panelTitle: string | null,
+  onSelectPanel: (panelId: string) => void
+): { verb: string; panel?: { title: string; onSelect: () => void } } {
+  if (panelId === null) return { verb: "commented" }
+  if (panelTitle === null) return { verb: "commented on a removed panel" }
+  return {
+    verb: "commented on",
+    panel: { title: panelTitle, onSelect: () => onSelectPanel(panelId) },
   }
-  return { verb: "commented on", showPanel: true }
 }
 
 export function ThreadEntry({
@@ -67,9 +69,7 @@ export function ThreadEntry({
   const replyButton = useRef<HTMLButtonElement>(null)
   const setStatus = useSetCommentStatus(dashboardId)
   const resolved = root.status === "resolved"
-  const statusPending =
-    setStatus.isPending && setStatus.variables?.commentId === root.id
-  const { verb, showPanel } = threadVerb(panelId, panelTitle)
+  const { verb, panel } = threadVerb(panelId, panelTitle, onSelectPanel)
 
   function closeReply() {
     setReplying(false)
@@ -106,11 +106,7 @@ export function ThreadEntry({
       avatar={{ kind: "person", name: root.author.name }}
       who={root.author.name}
       verb={verb}
-      panel={
-        showPanel && panelId !== null && panelTitle !== null
-          ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
-          : undefined
-      }
+      panel={panel}
       at={root.created_at}
     >
       <EntryBody>{root.body}</EntryBody>
@@ -124,14 +120,15 @@ export function ThreadEntry({
           Reply
         </MetaButton>
         <MetaButton
-          disabled={statusPending}
-          aria-busy={statusPending || undefined}
-          onClick={() =>
+          aria-disabled={setStatus.isPending || undefined}
+          aria-busy={setStatus.isPending || undefined}
+          onClick={() => {
+            if (setStatus.isPending) return
             setStatus.mutate({
               commentId: root.id,
               status: resolved ? "open" : "resolved",
             })
-          }
+          }}
         >
           {resolved ? "Reopen" : "Resolve"}
         </MetaButton>
