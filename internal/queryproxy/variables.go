@@ -167,10 +167,10 @@ func fixedDefault(v spec.Variable) (Selection, bool) {
 		switch value := declaredValue(v); {
 		case value != "":
 			return Selection{Values: []string{value}}, true
-		case len(v.Options) > 0:
-			return Selection{Values: []string{v.Options[0]}}, true
 		case v.Auto:
 			return Selection{Values: []string{spec.SelectAuto}}, true
+		case len(v.Options) > 0:
+			return Selection{Values: []string{v.Options[0]}}, true
 		}
 	}
 	return Selection{}, false
