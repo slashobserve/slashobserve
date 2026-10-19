@@ -228,6 +228,7 @@ type harness struct {
 	h      *Handler
 	router *gin.Engine
 	ds     *fakeDatasource
+	other  *fakeDatasource
 	specs  *fakeSpecs
 	runner *queryproxy.Runner
 	id     pgtype.UUID
@@ -236,10 +237,38 @@ type harness struct {
 
 func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 	t.Helper()
+	return buildHarness(t, nil, opts...)
+}
+
+func newPreviewHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
+	t.Helper()
+	hn := buildHarness(t, &fakeDatasource{}, opts...)
+	hn.specs.known[specKey{id: hn.id, version: 1}] = previewDashboard()
+	return hn
+}
+
+func previewDashboard() *spec.Dashboard {
+	return &spec.Dashboard{
+		SpecVersion: spec.Version,
+		Title:       "preview",
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
+		Variables:   []spec.Variable{{Name: "job", Type: spec.QueryVariable, Datasource: "prom", Query: "label_values(up, job)"}},
+		Panels: []spec.Panel{
+			{ID: "p_ts", Type: spec.Timeseries, Title: "ts", Datasource: "prom", GridPos: spec.GridPos{W: 12, H: 8}, Queries: []spec.Query{{Query: `up{job="$job"}`}}},
+		},
+	}
+}
+
+func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.RunnerOption) *harness {
+	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(logs, nil))
 	ds := &fakeDatasource{}
-	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: ds})
+	instances := []datasource.Instance{{UID: "prom", Datasource: ds}}
+	if other != nil {
+		instances = append(instances, datasource.Instance{UID: "other", Datasource: other})
+	}
+	registry, err := datasource.NewRegistry(logger, instances...)
 	if err != nil {
 		t.Fatalf("NewRegistry: %v", err)
 	}
@@ -259,10 +288,10 @@ func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
 		if email == "" {
 			email = principal + "@example.com"
 		}
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{ID: principal, Email: email, Name: principal}))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal}))
 	})
 	h.Register(api)
-	return &harness{t: t, h: h, router: router, ds: ds, specs: specs, runner: runner, id: id, logs: logs}
+	return &harness{t: t, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}
 }
 
 func (hn *harness) dashboardPath(suffix string) string {
@@ -304,6 +333,30 @@ func (hn *harness) heldSlots() int {
 		total += n
 	}
 	return total
+}
+
+func (hn *harness) previewAs(kind auth.PrincipalKind, uid string, edit func(*spec.Panel)) *httptest.ResponseRecorder {
+	hn.t.Helper()
+	panel := previewDashboard().Panels[0]
+	if edit != nil {
+		edit(&panel)
+	}
+	body, err := json.Marshal(map[string]any{
+		"dashboard_id": hn.id.String(),
+		"version":      1,
+		"panel_id":     "p_ts",
+		"panel":        panel,
+		"from":         "1760000000123",
+		"to":           "1760021600456",
+		"variables":    map[string][]string{"job": {"api"}},
+	})
+	if err != nil {
+		hn.t.Fatalf("marshal preview body: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datasources/"+uid+"/preview", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Kind", string(kind))
+	return hn.serve(req, "alice")
 }
 
 type errorBody struct {
@@ -374,6 +427,26 @@ func holdPrincipalSlots(t *testing.T, hn *harness, principal string) {
 			t.Fatal("could not fill the principal's slots")
 		}
 		t.Cleanup(release)
+	}
+}
+
+func TestPreviewRefusesAQueryOverridingTheDatasource(t *testing.T) {
+	hn := newPreviewHarness(t)
+	rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) {
+		p.Queries = append(p.Queries, spec.Query{Query: "up", Datasource: "other"})
+	})
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got := decodeError(t, rec).Error; got != "every query of the panel must use datasource prom" {
+		t.Fatalf("message = %q", got)
+	}
+	if ranges, _, _, _ := hn.other.counts(); ranges != 0 {
+		t.Fatalf("the overriding datasource ran %d queries", ranges)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+		t.Fatalf("the path's datasource ran %d queries", ranges)
+	}
+	if held := hn.heldSlots(); held != 0 {
+		t.Fatalf("%d slots still held", held)
 	}
 }
 

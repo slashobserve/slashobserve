@@ -153,8 +153,19 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		return invalidRequest("the panel's id must be " + req.PanelID)
 	case draft.Datasource != uid:
 		return invalidRequest("the panel's datasource must be " + uid)
+	case usesOtherDatasource(draft, uid):
+		return invalidRequest("every query of the panel must use datasource " + uid)
 	}
 	return d, draft, true
+}
+
+func usesOtherDatasource(p *spec.Panel, uid string) bool {
+	for i := range p.Queries {
+		if p.QueryDatasource(i) != uid {
+			return true
+		}
+	}
+	return false
 }
 
 func (r previewRequest) validate() (id pgtype.UUID, message string) {

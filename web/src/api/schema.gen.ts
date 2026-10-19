@@ -2386,7 +2386,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            /** @description The request is malformed or fails validation, the draft is not a data panel, or its id or datasource does not match the request. */
+            /** @description The request is malformed or fails validation, the draft is not a data panel, or its id does not match the request, or its datasource or any query's datasource is not the one in the path. */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -67,7 +67,7 @@ datasources-uid-preview:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelData"
       "400":
-        description: The request is malformed or fails validation, the draft is not a data panel, or its id or datasource does not match the request.
+        description: The request is malformed or fails validation, the draft is not a data panel, or its id does not match the request, or its datasource or any query's datasource is not the one in the path.
         content:
           application/json:
             schema:

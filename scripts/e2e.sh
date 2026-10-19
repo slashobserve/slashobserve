@@ -2315,7 +2315,15 @@ proxy_suite() {
   fi
   preview_body "$id" preview-edited.json
   out="$(preview_as_user ch)"
-  [[ "$out" == 400 ]] || fail "a Prometheus draft previewed on another datasource ($out: $(cat "$TMP/preview.body"))"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/preview.body" || ! grep -q "the panel's datasource must be ch" "$TMP/preview.body"; then
+    fail "a Prometheus draft previewed on another datasource ($out: $(cat "$TMP/preview.body"))"
+  fi
+  preview_body "$id" preview-query-override.json
+  out="$(preview_as_user prom)"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/preview.body" || ! grep -q 'every query of the panel must use datasource prom' "$TMP/preview.body"; then
+    fail "a draft with a query on another datasource ($out: $(cat "$TMP/preview.body"))"
+  fi
+  preview_body "$id" preview-edited.json
   out="$(preview_as_user nope)"
   [[ "$out" == 404 ]] || fail "a draft previewed on an unknown datasource ($out: $(cat "$TMP/preview.body"))"
 
