@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type Check struct {
@@ -59,6 +60,7 @@ func New(opts Options) (http.Handler, error) {
 		opts.Logger.Warn("api contract check enabled")
 	}
 	authenticated := opts.Auth.Mount(apiGroup)
+	authenticated.Use(origin.Middleware)
 	registerDatasourceRoutes(authenticated, opts.Datasources)
 	for _, r := range opts.API {
 		r.Register(authenticated)

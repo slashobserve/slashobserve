@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -66,6 +67,7 @@ type Request struct {
 	BaseVersion int
 	Attempt     int
 	RequestedBy auth.Principal
+	Origin      origin.Origin
 }
 
 type Result struct {
@@ -115,6 +117,8 @@ type Revision struct {
 	ResultVersion *int
 	Error         string
 	RequestedBy   auth.Principal
+	Origin        string
+	OriginClient  string
 	CreatedAt     time.Time
 	StartedAt     *time.Time
 	FinishedAt    *time.Time

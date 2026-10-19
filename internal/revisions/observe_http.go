@@ -61,6 +61,8 @@ type agentRequestJSON struct {
 	Steps         []Step     `json:"steps"`
 	Usage         *Usage     `json:"usage"`
 	RequestedBy   authorJSON `json:"requested_by"`
+	Origin        *string    `json:"origin"`
+	OriginClient  *string    `json:"origin_client"`
 	CreatedAt     string     `json:"created_at"`
 	StartedAt     *string    `json:"started_at"`
 	FinishedAt    *string    `json:"finished_at"`
@@ -174,9 +176,11 @@ func (h *ObserveHandler) view(c *gin.Context, row dbsqlc.AgentRequest) agentRequ
 		RequestedBy: authorJSON{
 			Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: row.RequestedByName, Email: row.RequestedByEmail.String,
 		},
-		CreatedAt:  httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:  formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt: formatOptionalTime(optionalTime(row.FinishedAt)),
+		Origin:       httpapi.OptionalString(row.Origin.String),
+		OriginClient: httpapi.OptionalString(row.OriginClient.String),
+		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
 	}
 	if row.DashboardID.Valid {
 		id := row.DashboardID.String()

@@ -31,6 +31,8 @@ type AgentRequest struct {
 	FinishedAt       pgtype.Timestamptz
 	Steps            []byte
 	RunUsage         []byte
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
 }
 
 type Dashboard struct {
@@ -74,6 +76,8 @@ type DashboardVersion struct {
 	AuthorEmail    pgtype.Text
 	CreatedAt      pgtype.Timestamptz
 	AgentRequestID pgtype.UUID
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
 }
 
 type Instance struct {

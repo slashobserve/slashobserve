@@ -41,6 +41,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/tctest/`: test-only retry around testcontainers starts for the v0.44.0 shared-reaper race; every container start in tests goes through it.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/users/`: the People routes (`GET /api/v1/users`, paged newest first sign-in by `(created_at, id)`, and `DELETE /api/v1/users/{id}/sessions`, which also expires the caller's cookie when they sign themselves out), user principals only (`auth.RequireUser`).
+- `internal/origin/`: the origin of a request (`web`, `cli`, `mcp` or `api`) and the cleaned MCP client name, carried in the context and recorded on versions and agent requests.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
 - `internal/queryproxy/`: panel query runner shared by save validation and the proxy: kind per query (instant flag, else range for timeseries, heatmap, state-timeline and histogram panels), step from maxDataPoints, variable defaults, a 32-call upstream semaphore, one error-to-HTTP mapping.
@@ -95,7 +96,7 @@ Directories are created when their phase starts; this is where things go.
   Every other GET is the SPA: build files from the embedded `webdist`, `/assets/*` cached as immutable, unknown `/api/*` paths get a JSON 404, missing `/assets/*` files and missing top-level names with an extension (like `/robots.txt`) get 404, and every other path gets `index.html`.
   Responses forbid framing (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`).
 - MCP: `/mcp` is mounted through `server.Options.Mounts` outside `/api/v1`, so the API contract check does not cover it.
-  It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB, 429 above 8 in-flight requests per principal and 503 `busy` above 32 in flight across all principals, and keeps no session state.
+  It accepts only `Authorization: Bearer` service-account keys (a session cookie is ignored), refuses an `Origin` other than `SLASHOBSERVE_PUBLIC_URL`, answers 413 above 8 MiB, 429 above 8 in-flight requests per principal and 503 `busy` above 32 in flight across all principals, and keeps no session state (the `Mcp-Session-Id` it sets on `initialize` only carries the client name).
   Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
   Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/keys` (API keys in the sidebar; `/settings/keys` redirects).
 - Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
@@ -106,6 +107,9 @@ Directories are created when their phase starts; this is where things go.
   Errors are `{"error","code"}` and 401s carry `WWW-Authenticate: Bearer`.
   The issuer is the browser-facing URL, and `SLASHOBSERVE_OIDC_INTERNAL_URL` only rewrites the server's back-channel host.
   `GET /api/v1/instance` returns the public and MCP URLs, the issuer URL, the optional provider display name, allowed email domains and session TTL, never a secret or the internal OIDC URL.
+- Origin: every saved version and agent request records `origin` (`web` for a session cookie, `cli` for a bearer key whose `User-Agent` starts with `observe/`, `mcp` for `/mcp`, `api` for any other bearer key) and, for MCP, `origin_client` from the request's `_meta` `io.modelcontextprotocol/clientInfo` or from the `so1.<random>.<base64url name>` `Mcp-Session-Id` label the server sets on `initialize`; names are cleaned and capped at 64 characters, and the client name is never logged.
+  A version saved by the agent records the origin of the request that asked for it, and `agent_request_id` links the two.
+  Origin is a display label and never an access decision; `internal/origin` owns it.
 - Database: Postgres through a pgx v5 pool.
   Migrations are goose SQL files `internal/db/migrations/NNNNN_snake_case.sql` with `-- +goose Up` and `-- +goose Down`, numbered sequentially; never edit a merged migration.
   Migration 10 is a Go migration (`internal/db/specupgrade.go`, registered in `newMigrator`) that rewrites every stored Spec with `spec.Upgrade`; it has no file, so SQL files continue at `00011`, and a file reusing a Go migration's version stops the server at boot.

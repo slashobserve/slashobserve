@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -118,7 +119,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, rawSpec []byte,
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)})
 }
 
 func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -141,7 +142,7 @@ func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID})
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)})
 	if errors.Is(err, errStaleParent) || errors.Is(err, errRequestSaved) {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
@@ -175,7 +176,7 @@ func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if err != nil {
 		return Dashboard{}, Version{}, fmt.Errorf("marshal spec: %w", err)
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by)})
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx)})
 	if errors.Is(err, errStaleParent) {
 		return Dashboard{}, Version{}, s.conflict(ctx, id)
 	}

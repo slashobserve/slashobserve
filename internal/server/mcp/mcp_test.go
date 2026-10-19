@@ -23,6 +23,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -289,8 +290,19 @@ func TestInitializeIsStatelessAndCarriesInstructions(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
-		t.Errorf("stateless server issued a session id %q", id)
+	if id := rec.Header().Get("Mcp-Session-Id"); !strings.HasPrefix(id, "so1.") || !strings.HasSuffix(id, ".dGVzdA") {
+		t.Errorf("session id %q does not carry the client name", id)
+	}
+	unnamed := f.post(rpc(2, "initialize", map[string]any{
+		"protocolVersion": "2025-11-25",
+		"capabilities":    map[string]any{},
+		"clientInfo":      map[string]any{"name": "", "version": "0"},
+	}), nil)
+	if unnamed.Code != http.StatusOK {
+		t.Fatalf("unnamed client status %d: %s", unnamed.Code, unnamed.Body.String())
+	}
+	if id := unnamed.Header().Get("Mcp-Session-Id"); id != "" {
+		t.Errorf("session id %q issued for an unnamed client", id)
 	}
 	var result struct {
 		ProtocolVersion string `json:"protocolVersion"`
@@ -905,4 +917,133 @@ func TestSlowUploadsHoldOnlyThePrincipalSlot(t *testing.T) {
 	if status, body := post("Bearer pool-free"); status != http.StatusOK {
 		t.Errorf("stalled uploads took global slots: %d %s", status, body)
 	}
+}
+
+func TestClientLabelIsNeverLogged(t *testing.T) {
+	const name = "leaky-client-name"
+	label := clientLabel(name)
+	tests := []struct {
+		name string
+		send func(f *fixture) int
+	}{
+		{"GET", func(f *fixture) int {
+			req := httptest.NewRequest(http.MethodGet, "/mcp", nil)
+			req.Header.Set("Authorization", goodKey)
+			req.Header.Set("Accept", "text/event-stream")
+			req.Header.Set("Mcp-Session-Id", label)
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, req)
+			return rec.Code
+		}},
+		{"DELETE", func(f *fixture) int {
+			req := httptest.NewRequest(http.MethodDelete, "/mcp", nil)
+			req.Header.Set("Authorization", goodKey)
+			req.Header.Set("Mcp-Session-Id", label)
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, req)
+			return rec.Code
+		}},
+		{"POST of a client response", func(f *fixture) int {
+			return f.post(`{"jsonrpc":"2.0","id":7,"result":{"ok":true}}`, map[string]string{"Mcp-Session-Id": label}).Code
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prev := slog.Default()
+			t.Cleanup(func() { slog.SetDefault(prev) })
+			shared := &bytes.Buffer{}
+			slog.SetDefault(slog.New(slog.NewTextHandler(&syncWriter{w: shared}, nil)))
+			f := newFixture(t)
+			code := tt.send(f)
+			t.Logf("status %d", code)
+			logs := f.logs.String() + shared.String()
+			for _, leaked := range []string{"so1.", name, "bGVha3ktY2xpZW50LW5hbWU"} {
+				if strings.Contains(logs, leaked) {
+					t.Errorf("logs contain %q: %s", leaked, logs)
+				}
+			}
+		})
+	}
+}
+
+func TestToolCallRecordsTheMCPClient(t *testing.T) {
+	const metaKey = "io.modelcontextprotocol/clientInfo"
+	label := clientLabel("from-label")
+	tests := []struct {
+		name    string
+		meta    map[string]any
+		session string
+		want    string
+	}{
+		{"label only", nil, label, "from-label"},
+		{"meta wins over the label", map[string]any{metaKey: map[string]any{"name": "from-meta", "version": "1"}}, label, "from-meta"},
+		{"meta name cleaned to empty falls back to the label", map[string]any{metaKey: map[string]any{"name": "\u200b\u202e \u0000", "version": "1"}}, label, "from-label"},
+		{"meta name cut to 64 runes", map[string]any{metaKey: map[string]any{"name": strings.Repeat("m", 100), "version": "1"}}, "", strings.Repeat("m", 64)},
+		{"meta without a name and no label", map[string]any{metaKey: map[string]any{"name": " ", "version": "1"}}, "", ""},
+		{"malformed label", nil, "so1.zz.Zm9v", ""},
+		{"neither", nil, "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			var got origin.Origin
+			f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+				got = origin.From(ctx)
+				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+			}
+			params := map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}
+			if tt.meta != nil {
+				params["_meta"] = tt.meta
+			}
+			rec := f.post(rpc(1, "tools/call", params), map[string]string{"Mcp-Session-Id": tt.session})
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			if got.Kind != origin.MCP || got.Client != tt.want {
+				t.Errorf("origin %+v, want mcp client %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInitializeLabelIsOnlyOnASuccessfulInitialize(t *testing.T) {
+	initialize := rpc(1, "initialize", map[string]any{
+		"protocolVersion": "2025-11-25",
+		"capabilities":    map[string]any{},
+		"clientInfo":      map[string]any{"name": "test", "version": "0"},
+	})
+	t.Run("busy server", func(t *testing.T) {
+		f := newFixture(t)
+		h := f.handler.(*handler)
+		h.slots.global = maxTotalInFlight
+		rec := f.post(initialize, nil)
+		assertErrorBody(t, rec, http.StatusServiceUnavailable, "busy")
+		if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
+			t.Errorf("503 carried session id %q", id)
+		}
+	})
+	t.Run("rejected transport request", func(t *testing.T) {
+		f := newFixture(t)
+		rec := f.post(initialize, map[string]string{"Content-Type": "text/plain"})
+		if rec.Code == http.StatusOK {
+			t.Fatalf("text/plain initialize was served: %s", rec.Body.String())
+		}
+		if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
+			t.Errorf("status %d carried session id %q", rec.Code, id)
+		}
+	})
+	t.Run("other methods and batches", func(t *testing.T) {
+		f := newFixture(t)
+		bodies := map[string]string{
+			"initialize named in arguments": rpc(1, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{"q": "initialize"}}),
+			"batch":                         "[" + initialize + "]",
+			"not json":                      "initialize",
+		}
+		for name, body := range bodies {
+			rec := f.post(body, nil)
+			if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
+				t.Errorf("%s: carried session id %q", name, id)
+			}
+		}
+	})
 }

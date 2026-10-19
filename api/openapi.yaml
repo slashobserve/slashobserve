@@ -404,7 +404,7 @@ components:
     VersionMeta:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id]
       properties:
         version:
           type: integer
@@ -424,10 +424,25 @@ components:
         created_at:
           type: string
           format: date-time
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where the save came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. A version saved by the agent records the origin of the request that asked for it. Null for versions saved before origins were recorded. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified.
+        agent_request_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request that saved this version; null for a version saved directly.
     Version:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, spec]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, spec]
       properties:
         version:
           type: integer
@@ -447,6 +462,21 @@ components:
         created_at:
           type: string
           format: date-time
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where the save came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. A version saved by the agent records the origin of the request that asked for it. Null for versions saved before origins were recorded. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified.
+        agent_request_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The agent request that saved this version; null for a version saved directly.
         spec:
           type: object
           additionalProperties: true
@@ -725,6 +755,8 @@ components:
         - result_version
         - error
         - requested_by
+        - origin
+        - origin_client
         - created_at
         - started_at
         - finished_at
@@ -773,6 +805,16 @@ components:
           description: Why the revision failed, set when the status is `failed`.
         requested_by:
           $ref: "#/components/schemas/Author"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified.
         created_at:
           type: string
           format: date-time
@@ -894,6 +936,8 @@ components:
         - steps
         - usage
         - requested_by
+        - origin
+        - origin_client
         - created_at
         - started_at
         - finished_at
@@ -956,6 +1000,16 @@ components:
           description: Tokens, model calls and repair rounds of the attempt that finished the request.
         requested_by:
           $ref: "#/components/schemas/Author"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified.
         created_at:
           type: string
           format: date-time

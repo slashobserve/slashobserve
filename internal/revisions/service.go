@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -80,6 +81,7 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if active >= MaxActive {
 		return dbsqlc.AgentRequest{}, ErrTooManyRevisions
 	}
+	originKind, originClient := origin.From(ctx).Columns()
 	row, err := q.EnqueueAgentRequest(ctx, dbsqlc.EnqueueAgentRequestParams{
 		DashboardID:      p.DashboardID,
 		Source:           string(p.Source),
@@ -91,6 +93,8 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		RequestedByID:    requesterID,
 		RequestedByName:  p.By.Name,
 		RequestedByEmail: pgtype.Text{String: p.By.Email, Valid: p.By.Email != ""},
+		Origin:           originKind,
+		OriginClient:     originClient,
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
@@ -135,6 +139,7 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
+	originKind, originClient := origin.From(ctx).Columns()
 	var row dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := q.LockObserveRequests(ctx); err != nil {
@@ -160,6 +165,8 @@ func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt s
 			RequestedByID:    requesterID,
 			RequestedByName:  by.Name,
 			RequestedByEmail: pgtype.Text{String: by.Email, Valid: by.Email != ""},
+			Origin:           originKind,
+			OriginClient:     originClient,
 		})
 		if err != nil {
 			return fmt.Errorf("enqueue observe request: %w", err)
@@ -351,16 +358,18 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
-		ID:          row.ID.String(),
-		DashboardID: row.DashboardID.String(),
-		Source:      Source(row.Source),
-		Prompt:      row.Prompt,
-		BaseVersion: int(row.BaseVersion.Int32),
-		Status:      Status(row.Status),
-		Attempts:    int(row.Attempts),
-		Error:       row.Error.String,
-		RequestedBy: requesterOf(row),
-		CreatedAt:   row.CreatedAt.Time.UTC(),
+		ID:           row.ID.String(),
+		DashboardID:  row.DashboardID.String(),
+		Source:       Source(row.Source),
+		Prompt:       row.Prompt,
+		BaseVersion:  int(row.BaseVersion.Int32),
+		Status:       Status(row.Status),
+		Attempts:     int(row.Attempts),
+		Error:        row.Error.String,
+		RequestedBy:  requesterOf(row),
+		CreatedAt:    row.CreatedAt.Time.UTC(),
+		Origin:       row.Origin.String,
+		OriginClient: row.OriginClient.String,
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

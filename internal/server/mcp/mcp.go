@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -75,7 +76,9 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		mcpserver.WithStateLess(true),
 		mcpserver.WithDisableStreaming(true),
 		mcpserver.WithDisableLocalhostProtection(true),
+		mcpserver.WithStreamableHTTPLogger(logger),
 		mcpserver.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+			ctx = origin.With(ctx, origin.From(r.Context()))
 			if p, ok := auth.FromContext(r.Context()); ok {
 				return auth.WithPrincipal(ctx, p)
 			}
@@ -114,6 +117,13 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(name, principal, "invalid_arguments", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
+		o := origin.Origin{Kind: origin.MCP, Client: origin.From(ctx).Client}
+		if info := req.Params.Meta.ClientInfo(); info != nil {
+			if name := origin.CleanClient(info.Name); name != "" {
+				o.Client = name
+			}
+		}
+		ctx = origin.With(ctx, o)
 		res, err := h.call(ctx, name, input)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -189,8 +199,14 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.slots.release(key)
+	ctx := origin.With(auth.WithPrincipal(r.Context(), principal),
+		origin.Origin{Kind: origin.MCP, Client: labelClient(r.Header.Get(mcpserver.HeaderKeySessionID))})
+	r = r.Clone(ctx)
+	r.Header.Del(mcpserver.HeaderKeySessionID)
+	var body []byte
 	if r.Body != nil {
-		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
+		var err error
+		body, err = io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			writeError(w, http.StatusRequestEntityTooLarge, "too_large", "request body is too large")
@@ -208,17 +224,70 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.slots.releaseGlobal()
-	h.transport.ServeHTTP(w, r.WithContext(auth.WithPrincipal(r.Context(), principal)))
+	if client := initializeClient(body); client != "" {
+		w = &labelWriter{ResponseWriter: w, label: clientLabel(client)}
+	}
+	h.transport.ServeHTTP(w, r)
 }
 
-func (h *handler) originAllowed(origin string) bool {
-	if origin == "" {
+type labelWriter struct {
+	http.ResponseWriter
+	label       string
+	wroteHeader bool
+}
+
+func (l *labelWriter) WriteHeader(status int) {
+	if !l.wroteHeader {
+		l.wroteHeader = true
+		if status == http.StatusOK {
+			l.Header().Set(mcpserver.HeaderKeySessionID, l.label)
+		}
+	}
+	l.ResponseWriter.WriteHeader(status)
+}
+
+func (l *labelWriter) Write(p []byte) (int, error) {
+	if !l.wroteHeader {
+		l.WriteHeader(http.StatusOK)
+	}
+	return l.ResponseWriter.Write(p)
+}
+
+func (l *labelWriter) Flush() {
+	if !l.wroteHeader {
+		l.WriteHeader(http.StatusOK)
+	}
+	_ = http.NewResponseController(l.ResponseWriter).Flush()
+}
+
+func (l *labelWriter) Unwrap() http.ResponseWriter { return l.ResponseWriter }
+
+func initializeClient(body []byte) string {
+	if !bytes.Contains(body, []byte("initialize")) {
+		return ""
+	}
+	var msg struct {
+		Method string `json:"method"`
+		Params struct {
+			ClientInfo struct {
+				Name string `json:"name"`
+			} `json:"clientInfo"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(body, &msg) != nil || msg.Method != "initialize" {
+		return ""
+	}
+	return origin.CleanClient(msg.Params.ClientInfo.Name)
+}
+
+func (h *handler) originAllowed(header string) bool {
+	if header == "" {
 		return true
 	}
 	if h.origin == nil {
 		return false
 	}
-	u, err := url.Parse(origin)
+	u, err := url.Parse(header)
 	if err != nil || u.Path != "" || u.RawQuery != "" || u.User != nil {
 		return false
 	}

@@ -50,6 +50,8 @@ type revisionJSON struct {
 	ResultVersion *int       `json:"result_version"`
 	Error         *string    `json:"error"`
 	RequestedBy   authorJSON `json:"requested_by"`
+	Origin        *string    `json:"origin"`
+	OriginClient  *string    `json:"origin_client"`
 	CreatedAt     string     `json:"created_at"`
 	StartedAt     *string    `json:"started_at"`
 	FinishedAt    *string    `json:"finished_at"`
@@ -206,6 +208,8 @@ func newRevisionJSON(r Revision) revisionJSON {
 		ResultVersion: r.ResultVersion,
 		Error:         httpapi.OptionalString(r.Error),
 		RequestedBy:   authorJSON{Kind: string(r.RequestedBy.Kind), ID: r.RequestedBy.ID, Name: r.RequestedBy.Name, Email: r.RequestedBy.Email},
+		Origin:        httpapi.OptionalString(r.Origin),
+		OriginClient:  httpapi.OptionalString(r.OriginClient),
 		CreatedAt:     httpapi.FormatTime(r.CreatedAt),
 		StartedAt:     formatOptionalTime(r.StartedAt),
 		FinishedAt:    formatOptionalTime(r.FinishedAt),

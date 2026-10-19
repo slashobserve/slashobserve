@@ -23,12 +23,15 @@ type dashboardJSON struct {
 }
 
 type versionMetaJSON struct {
-	Version       int        `json:"version"`
-	ParentVersion *int       `json:"parent_version"`
-	RestoredFrom  *int       `json:"restored_from"`
-	Summary       string     `json:"summary"`
-	Author        authorJSON `json:"author"`
-	CreatedAt     string     `json:"created_at"`
+	Version        int        `json:"version"`
+	ParentVersion  *int       `json:"parent_version"`
+	RestoredFrom   *int       `json:"restored_from"`
+	Summary        string     `json:"summary"`
+	Author         authorJSON `json:"author"`
+	CreatedAt      string     `json:"created_at"`
+	Origin         *string    `json:"origin"`
+	OriginClient   *string    `json:"origin_client"`
+	AgentRequestID *string    `json:"agent_request_id"`
 }
 
 type versionJSON struct {
@@ -87,12 +90,15 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 
 func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 	return versionMetaJSON{
-		Version:       v.Number,
-		ParentVersion: v.ParentVersion,
-		RestoredFrom:  v.RestoredFrom,
-		Summary:       v.Summary,
-		Author:        newAuthorJSON(v.Author),
-		CreatedAt:     httpapi.FormatTime(v.CreatedAt),
+		Version:        v.Number,
+		ParentVersion:  v.ParentVersion,
+		RestoredFrom:   v.RestoredFrom,
+		Summary:        v.Summary,
+		Author:         newAuthorJSON(v.Author),
+		CreatedAt:      httpapi.FormatTime(v.CreatedAt),
+		Origin:         httpapi.OptionalString(v.Origin),
+		OriginClient:   httpapi.OptionalString(v.OriginClient),
+		AgentRequestID: httpapi.OptionalString(v.AgentRequestID),
 	}
 }
 
