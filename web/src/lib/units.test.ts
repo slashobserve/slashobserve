@@ -5,6 +5,7 @@ import {
   commonDecimals,
   formatAxisValue,
   formatValue as f,
+  parseUnit,
 } from "./units"
 
 describe("formatValue", () => {
@@ -194,5 +195,37 @@ describe("commonDecimals", () => {
     expect(commonDecimals([2.4, 2.45], "reqps", 1)).toBe(1)
     expect(commonDecimals([2.4, 2.45], "bool")).toBeUndefined()
     expect(commonDecimals([1, 2], "dateTimeAsIso")).toBeUndefined()
+  })
+})
+
+describe("custom units", () => {
+  it("formats suffix units with a space before the text", () => {
+    expect(f(12, "suffix:req")).toBe("12 req")
+    expect(f(12.5, "suffix: req", 1)).toBe("12.5 req")
+  })
+
+  it("formats prefix units with the text right before the number", () => {
+    expect(f(3, "prefix:$")).toBe("$3")
+    expect(f(-3, "prefix:$")).toBe("$-3")
+  })
+
+  it("formats unknown units as plain numbers", () => {
+    expect(f(3, "bogus")).toBe("3")
+    expect(f(3, "suffix:")).toBe("3")
+    expect(f(3, "constructor")).toBe("3")
+  })
+
+  it("shares decimals across prefixed values", () => {
+    expect(commonDecimals([2.4, 2.45], "prefix:$")).toBe(2)
+    expect(commonDecimals([2.4, 2.45], "suffix:req")).toBe(2)
+  })
+
+  it("parses ids, custom units and unknown units", () => {
+    expect(parseUnit(undefined)).toEqual({ kind: "id", id: "none" })
+    expect(parseUnit("")).toEqual({ kind: "id", id: "none" })
+    expect(parseUnit("ms")).toEqual({ kind: "id", id: "ms" })
+    expect(parseUnit("suffix: req ")).toEqual({ kind: "suffix", text: "req" })
+    expect(parseUnit("prefix: $")).toEqual({ kind: "prefix", text: " $" })
+    expect(parseUnit("bogus")).toEqual({ kind: "id", id: "none" })
   })
 })
