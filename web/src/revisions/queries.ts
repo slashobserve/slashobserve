@@ -188,6 +188,7 @@ export function useRequestRevision(id: string) {
       void queryClient.invalidateQueries({
         queryKey: dashboardKeys.revisions(id),
       })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
     },
     onError: (error) => {
       if (isAgentUnavailable(error)) markAgentUnavailable(queryClient)
