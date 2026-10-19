@@ -205,6 +205,28 @@ func TestCommentsCommands(t *testing.T) {
 			wantCode: 2,
 			wantErr:  "reply needs text",
 		},
+		{
+			name:    "reply with a help flag as its whole text shows help",
+			args:    []string{"comments", "reply", testDashboard, testThread, "--help"},
+			wantOut: []string{"observe comments reply [flags] <dashboard-id> <comment-id> <text...>"},
+		},
+		{
+			name:    "reply with -h as its whole text shows help",
+			args:    []string{"comments", "reply", testDashboard, testThread, "-h"},
+			wantOut: []string{"observe comments reply [flags] <dashboard-id> <comment-id> <text...>"},
+		},
+		{
+			name:       "resolve with --json reports a version that was not applied",
+			args:       []string{"comments", "resolve", "--json", testDashboard, testThread, "--version", "5"},
+			response:   resolvedV2,
+			wantCode:   1,
+			wantMethod: http.MethodPatch,
+			wantPath:   "/api/v1/dashboards/" + testDashboard + "/comments/" + testThread,
+			wantBody:   `{"resolved_by_version":5,"status":"resolved"}`,
+			wantOut:    []string{`"resolved_by_version":2`},
+			wantNotOut: []string{"Resolved thread"},
+			wantErr:    "thread " + testThread + " is already resolved by version 2; --version was not applied",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -230,7 +252,7 @@ func TestCommentsCommands(t *testing.T) {
 			}
 			if tc.wantMethod == "" {
 				if len(got) != 0 {
-					t.Fatalf("a usage error should send no request, got %v", got)
+					t.Fatalf("expected no request, got %v", got)
 				}
 			} else {
 				if len(got) != 1 {

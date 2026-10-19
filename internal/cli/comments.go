@@ -149,6 +149,10 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if len(args) < 2 {
 		return usagef("%s takes a dashboard id, a comment id and the reply text", cmd.CommandPath())
 	}
+	body := strings.TrimSpace(strings.Join(args[2:], " "))
+	if body == "-h" || body == "--help" {
+		return cmd.Help()
+	}
 	dashboardID, err := parseID(args[0])
 	if err != nil {
 		return err
@@ -157,7 +161,6 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	body := strings.TrimSpace(strings.Join(args[2:], " "))
 	if body == "" {
 		return usagef("reply needs text")
 	}

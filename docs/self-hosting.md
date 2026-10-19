@@ -390,9 +390,10 @@ Comments on a dashboard can be worked from the terminal:
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
 - `bin/observe comments reply <dashboard-id> <comment-id> <text...>` adds a reply to a thread.
   Everything after the two ids is the reply text, so flags such as `--json` or `-q` must come before the ids.
-  The command always prints the thread and the new reply id.
+  Without `--json` it always prints the thread and the new reply id, even with `-q`.
 - `bin/observe comments resolve <dashboard-id> <comment-id>` resolves a thread, and `--version N` records the version that fixed it.
   `-q` hides its confirmation.
+  If the thread was already resolved, `--version` is not applied and the command exits 1.
 
 Add `--json` to any of them to print the API response unchanged.
 
