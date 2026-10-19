@@ -405,6 +405,8 @@ The server exposes its tools to MCP clients over Streamable HTTP at `<public url
 Requests must carry `Authorization: Bearer <key>` with a [service-account key](#service-account-keys).
 Browser sessions are not accepted on `/mcp`.
 The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_URL`, answers `413` above 8 MiB, `429` above 8 concurrent requests per key and `503` above 32 across all keys.
+On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
+Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
 Export the key in the shell that starts your client, so the key never lands in a config file:
 
