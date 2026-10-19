@@ -25,12 +25,12 @@ function isPresent(value: unknown): boolean {
   return value !== null && value !== undefined
 }
 
-function isFiniteNumber(value: unknown): value is number {
+export function isNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value)
 }
 
 function asNumber(value: unknown): number | null {
-  return isFiniteNumber(value) ? value : null
+  return isNumber(value) ? value : null
 }
 
 function sum(numbers: number[]): number {
@@ -62,9 +62,16 @@ function stdDev(numbers: number[]): number {
 
 function delta(numbers: number[]): number {
   let total = 0
+  let previousUp = true
   for (let i = 1; i < numbers.length; i++) {
-    const step = numbers[i] - numbers[i - 1]
-    total += step >= 0 ? step : numbers[i]
+    const previous = numbers[i - 1]
+    const value = numbers[i]
+    if (previous > value) {
+      previousUp = false
+      continue
+    }
+    total += previousUp ? value - previous : value
+    previousUp = true
   }
   return total
 }
@@ -81,9 +88,9 @@ export function reduce(
   values: readonly unknown[],
   reducer: Reducer
 ): number | null {
-  if (values.length === 0) return null
+  if (values.length === 0) return reducer === "count" ? 0 : null
   const present = values.filter(isPresent)
-  const numbers = values.filter(isFiniteNumber)
+  const numbers = values.filter(isNumber)
   switch (reducer) {
     case "last":
       return asNumber(values[values.length - 1])
@@ -120,6 +127,11 @@ export function reduce(
       return numbers[numbers.length - 1] - numbers[0]
     case "stdDev":
       return stdDev(numbers)
+    default: {
+      const unreachable: never = reducer
+      void unreachable
+      return null
+    }
   }
 }
 

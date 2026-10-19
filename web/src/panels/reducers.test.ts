@@ -19,7 +19,7 @@ describe("reduce", () => {
     sum: 6,
     count: 3,
     range: 2,
-    delta: 4,
+    delta: 2,
     diff: 1,
     stdDev: Math.sqrt(2 / 3),
     distinctCount: 3,
@@ -30,9 +30,9 @@ describe("reduce", () => {
     expect(reduce(values, reducer as Reducer)).toBeCloseTo(want ?? 0, 10)
   })
 
-  it("returns null for every reducer on empty input", () => {
+  it("returns 0 for count and null for every other reducer on empty input", () => {
     for (const reducer of Object.keys(reducerLabels) as Reducer[]) {
-      expect(reduce([], reducer)).toBeNull()
+      expect(reduce([], reducer)).toBe(reducer === "count" ? 0 : null)
     }
   })
 
@@ -53,8 +53,17 @@ describe("reduce", () => {
     expect(reduce([4, 1, 3, 2], "median")).toBe(2.5)
   })
 
-  it("adds the new value after a counter reset for delta", () => {
+  it("sums the increases for delta and skips counter resets", () => {
+    expect(reduce([10, 5, 3], "delta")).toBe(0)
     expect(reduce([5, 10, 2, 4], "delta")).toBe(9)
+    expect(reduce([1, 2, 3], "delta")).toBe(2)
+    expect(reduce([7], "delta")).toBe(0)
+    expect(reduce([null, null], "delta")).toBeNull()
+  })
+
+  it("returns null for an unknown reducer id", () => {
+    expect(reduce([1, 2], "nope" as Reducer)).toBeNull()
+    expect(reduce([], "nope" as Reducer)).toBeNull()
   })
 
   it("computes the population standard deviation", () => {
