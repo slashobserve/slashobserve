@@ -6,6 +6,7 @@ import type { Revision } from "@/revisions/queries"
 
 import {
   buildTimeline,
+  currentStep,
   filterTimeline,
   type TimelineEntry,
 } from "./timeline-model"
@@ -408,5 +409,36 @@ describe("filterTimeline", () => {
     expect(keys(filterTimeline(entries, "open", "p1"))).toEqual([
       "thread:open-p1",
     ])
+  })
+})
+
+describe("currentStep", () => {
+  const step = (attempt: number, minutes: number) => ({
+    attempt,
+    at: at(minutes),
+  })
+
+  it("is zero without steps", () => {
+    expect(currentStep([])).toBe(0)
+  })
+
+  it("counts every step of a single attempt", () => {
+    expect(currentStep([step(1, 1), step(1, 2), step(1, 3)])).toBe(3)
+  })
+
+  it("ignores earlier failed attempts", () => {
+    expect(currentStep([step(1, 1), step(1, 2), step(2, 3), step(2, 4)])).toBe(
+      2
+    )
+  })
+
+  it("starts over when a re-claimed run reuses the attempt number", () => {
+    expect(currentStep([step(1, 5), step(1, 6), step(1, 1), step(1, 2)])).toBe(
+      2
+    )
+  })
+
+  it("keeps steps that share a timestamp together", () => {
+    expect(currentStep([step(1, 1), step(1, 1), step(1, 1)])).toBe(3)
   })
 })

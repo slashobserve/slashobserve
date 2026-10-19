@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { observeRequestQuery } from "@/observe/queries"
 
 import { DetailsLink, EntryBody, EntryFrame } from "./entry-frame"
-import type { TimelineEntry } from "./timeline-model"
+import { currentStep, type TimelineEntry } from "./timeline-model"
 
 type Props = {
   entry: Extract<TimelineEntry, { kind: "running" }>
@@ -28,7 +28,7 @@ export function RunningEntry({ entry }: Props) {
           ? idle
             ? "Waiting to start"
             : "Starting"
-          : `${last.message}, step ${steps.length}`}
+          : `${last.message}, step ${currentStep(steps)}`}
       </EntryBody>
       <DetailsLink requestId={request.id} />
     </EntryFrame>

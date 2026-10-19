@@ -1,3 +1,4 @@
+import type { components } from "@/api/schema.gen"
 import { groupThreads, type Thread } from "@/comments/threads"
 import type { Comment } from "@/comments/queries"
 import type { VersionMeta } from "@/history/use-version-history"
@@ -33,6 +34,28 @@ export type TimelineEntry =
       panelId: null
       version: VersionMeta
     }
+
+type StepStamp = Pick<components["schemas"]["AgentStep"], "attempt" | "at">
+
+export function currentStep(steps: readonly StepStamp[]): number {
+  const last = steps.at(-1)
+  if (last === undefined) return 0
+  let first = steps.length - 1
+  while (first > 0) {
+    const step = steps[first - 1]
+    const next = steps[first]
+    if (
+      step === undefined ||
+      next === undefined ||
+      step.attempt !== last.attempt ||
+      timeOf(step.at) > timeOf(next.at)
+    ) {
+      break
+    }
+    first -= 1
+  }
+  return steps.length - first
+}
 
 export type TimelineShow = "everything" | "open" | "changes"
 
