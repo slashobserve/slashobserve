@@ -174,16 +174,18 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 		}
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
 		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
+		listReported := false
 		if err == nil && sel.All {
 			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
 				if guardOnly[v.Name] {
 					issues = append(issues, variableIssue(path, listErr))
+					listReported = true
 				} else {
 					err = listErr
 				}
 			}
 		}
-		if err == nil {
+		if err == nil && !listReported {
 			err = checkSelection(v, sel)
 		}
 		cancel()
