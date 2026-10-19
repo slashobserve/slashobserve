@@ -12,6 +12,18 @@ import (
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
+func wireMessage(t *testing.T, err error) string {
+	t.Helper()
+	if err == nil {
+		return ""
+	}
+	status, code, message := queryproxy.Classify(err)
+	if status != http.StatusBadRequest || code != "invalid_request" {
+		t.Fatalf("Classify = (%d, %q, %q), want a 400 invalid_request", status, code, message)
+	}
+	return message
+}
+
 func TestNamesRequestReportsTheSameMessageForTheSameBadQuery(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -19,17 +31,17 @@ func TestNamesRequestReportsTheSameMessageForTheSameBadQuery(t *testing.T) {
 		allowed []string
 		want    string
 	}{
-		{"several unknown parameters", "zeta=1&alpha=2&mid=3&" + strings.Repeat("x", 500) + "=4", metricsParams, "unknown query parameter"},
-		{"several repeated parameters", "search=a&search=b&limit=1&limit=2", metricsParams, "limit must be given once"},
-		{"unknown sorts before repeated", "search=a&search=b&zzz=1", metricsParams, "search must be given once"},
-		{"repeated sorts before unknown", "aaa=1&search=a&search=b", metricsParams, "unknown query parameter"},
+		{"several unknown parameters", "zeta=1&alpha=2&mid=3&" + strings.Repeat("x", 500) + "=4", metricsParams, "invalid request: unknown query parameter"},
+		{"several repeated parameters", "search=a&search=b&limit=1&limit=2", metricsParams, "invalid request: limit must be given once"},
+		{"unknown sorts before repeated", "search=a&search=b&zzz=1", metricsParams, "invalid request: search must be given once"},
+		{"repeated sorts before unknown", "aaa=1&search=a&search=b", metricsParams, "invalid request: unknown query parameter"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for range 50 {
-				_, message := namesRequest(tt.raw, tt.allowed)
-				if message != tt.want {
-					t.Fatalf("message = %q, want %q", message, tt.want)
+				_, err := namesRequest(tt.raw, tt.allowed)
+				if got := wireMessage(t, err); got != tt.want {
+					t.Fatalf("message = %q, want %q", got, tt.want)
 				}
 			}
 		})
@@ -39,10 +51,10 @@ func TestNamesRequestReportsTheSameMessageForTheSameBadQuery(t *testing.T) {
 func TestNamesRouteAnswersBadParametersWithTheSharedWording(t *testing.T) {
 	hn := newHarness(t)
 	for path, want := range map[string]string{
-		"/api/v1/datasources/prom/metrics?bogus=1&other=2":     "unknown query parameter",
-		"/api/v1/datasources/prom/metrics?search=a&search=b":   "search must be given once",
-		"/api/v1/datasources/prom/labels?table=t&table=u":      "table must be given once",
-		"/api/v1/datasources/prom/labels/service/values?x=%ff": "unknown query parameter",
+		"/api/v1/datasources/prom/metrics?bogus=1&other=2":     "invalid request: unknown query parameter",
+		"/api/v1/datasources/prom/metrics?search=a&search=b":   "invalid request: search must be given once",
+		"/api/v1/datasources/prom/labels?table=t&table=u":      "invalid request: table must be given once",
+		"/api/v1/datasources/prom/labels/service/values?x=%ff": "invalid request: unknown query parameter",
 	} {
 		rec := hn.get(path, "")
 		expectError(t, rec, http.StatusBadRequest, "invalid_request")
@@ -66,6 +78,9 @@ func TestNamesRoutesAnswer429WhenEveryUpstreamSlotStaysHeld(t *testing.T) {
 		expectError(t, rec, http.StatusTooManyRequests, "too_many_requests")
 		if got := rec.Header().Get("Retry-After"); got != "1" {
 			t.Fatalf("%s: Retry-After = %q, want 1", path, got)
+		}
+		if got, want := decodeError(t, rec).Error, "the server is making too many datasource calls right now; try again shortly"; got != want {
+			t.Fatalf("%s: error = %q, want %q", path, got, want)
 		}
 		if elapsed := time.Since(start); elapsed > 5*time.Second {
 			t.Fatalf("%s: answered after %v", path, elapsed)
@@ -94,28 +109,28 @@ func TestNamesRequestParsing(t *testing.T) {
 		{name: "NUL in metric is passed through", raw: "metric=a%00b", allowed: labelsParams, want: queryproxy.NamesRequest{Metric: nul}},
 		{name: "invalid UTF-8 in table is passed through", raw: "table=%ff%fe", allowed: labelsParams, want: queryproxy.NamesRequest{Table: odd}},
 		{name: "NUL in table is passed through", raw: "table=a%00b", allowed: labelsParams, want: queryproxy.NamesRequest{Table: nul}},
-		{name: "metric is unknown for the metrics route", raw: "metric=m", allowed: metricsParams, message: "unknown query parameter"},
-		{name: "table is unknown for the metrics route", raw: "table=t", allowed: metricsParams, message: "unknown query parameter"},
-		{name: "label is a path parameter only", raw: "label=l", allowed: labelsParams, message: "unknown query parameter"},
-		{name: "repeated search", raw: "search=a&search=b", allowed: metricsParams, message: "search must be given once"},
-		{name: "repeated and empty", raw: "search=&search=", allowed: metricsParams, message: "search must be given once"},
-		{name: "malformed query string", raw: "search=%zz", allowed: metricsParams, message: "the query string is malformed"},
+		{name: "metric is unknown for the metrics route", raw: "metric=m", allowed: metricsParams, message: "invalid request: unknown query parameter"},
+		{name: "table is unknown for the metrics route", raw: "table=t", allowed: metricsParams, message: "invalid request: unknown query parameter"},
+		{name: "label is a path parameter only", raw: "label=l", allowed: labelsParams, message: "invalid request: unknown query parameter"},
+		{name: "repeated search", raw: "search=a&search=b", allowed: metricsParams, message: "invalid request: search must be given once"},
+		{name: "repeated and empty", raw: "search=&search=", allowed: metricsParams, message: "invalid request: search must be given once"},
+		{name: "malformed query string", raw: "search=%zz", allowed: metricsParams, message: "invalid request: the query string is malformed"},
 		{name: "limit 500", raw: "limit=500", allowed: metricsParams, want: queryproxy.NamesRequest{Limit: 500}},
-		{name: "limit 0", raw: "limit=0", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "limit -1", raw: "limit=-1", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "limit 501", raw: "limit=501", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "limit with a plus sign", raw: "limit=%2B5", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "limit with a leading zero", raw: "limit=05", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "limit that is not a number", raw: "limit=abc", allowed: metricsParams, message: "limit must be between 1 and 500"},
-		{name: "empty limit", raw: "limit=", allowed: metricsParams, message: "limit must be between 1 and 500"},
+		{name: "limit 0", raw: "limit=0", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "limit -1", raw: "limit=-1", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "limit 501", raw: "limit=501", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "limit with a plus sign", raw: "limit=%2B5", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "limit with a leading zero", raw: "limit=05", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "limit that is not a number", raw: "limit=abc", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
+		{name: "empty limit", raw: "limit=", allowed: metricsParams, message: "invalid request: limit must be between 1 and 500"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, message := namesRequest(tt.raw, tt.allowed)
-			if message != tt.message {
+			got, err := namesRequest(tt.raw, tt.allowed)
+			if message := wireMessage(t, err); message != tt.message {
 				t.Fatalf("message = %q, want %q", message, tt.message)
 			}
-			if message == "" && got != tt.want {
+			if err == nil && got != tt.want {
 				t.Fatalf("request = %#v, want %#v", got, tt.want)
 			}
 		})

@@ -3,7 +3,6 @@ package proxyhttp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"maps"
 	"net/http"
 	"net/url"
@@ -78,9 +77,9 @@ func (h *Handler) names(c *gin.Context, kind datasource.DiscoverKind, allowed []
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 		return queryproxy.Names{}, false
 	}
-	req, message := namesRequest(c.Request.URL.RawQuery, allowed)
-	if message != "" {
-		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
+	req, err := namesRequest(c.Request.URL.RawQuery, allowed)
+	if err != nil {
+		h.fail(c, err)
 		return queryproxy.Names{}, false
 	}
 	req.Datasource, req.Kind, req.Label = uid, kind, label
@@ -93,25 +92,26 @@ func (h *Handler) names(c *gin.Context, kind datasource.DiscoverKind, allowed []
 	case errors.Is(err, queryproxy.ErrUnknownDatasource):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
 	case errors.Is(err, queryproxy.ErrUpstreamBusy):
-		tooManyRequests(c)
+		c.Header("Retry-After", "1")
+		h.fail(c, err)
 	default:
 		h.fail(c, err)
 	}
 	return queryproxy.Names{}, false
 }
 
-func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesRequest, message string) {
+func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesRequest, err error) {
 	query, err := url.ParseQuery(rawQuery)
 	if err != nil {
-		return req, "the query string is malformed"
+		return req, invalidf("the query string is malformed")
 	}
 	for _, name := range slices.Sorted(maps.Keys(query)) {
 		values := query[name]
 		if !slices.Contains(allowed, name) {
-			return req, "unknown query parameter"
+			return req, invalidf("unknown query parameter")
 		}
 		if len(values) != 1 {
-			return req, fmt.Sprintf("%s must be given once", name)
+			return req, invalidf("%s must be given once", name)
 		}
 		switch name {
 		case "search":
@@ -123,10 +123,10 @@ func namesRequest(rawQuery string, allowed []string) (req queryproxy.NamesReques
 		case "limit":
 			n, err := strconv.Atoi(values[0])
 			if err != nil || strconv.Itoa(n) != values[0] || n < 1 || n > queryproxy.MaxNamesLimit {
-				return req, fmt.Sprintf("limit must be between 1 and %d", queryproxy.MaxNamesLimit)
+				return req, invalidf("limit must be between 1 and %d", queryproxy.MaxNamesLimit)
 			}
 			req.Limit = n
 		}
 	}
-	return req, ""
+	return req, nil
 }
