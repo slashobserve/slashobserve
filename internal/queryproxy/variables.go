@@ -204,7 +204,7 @@ func scanQueryUse(text string) queryUse {
 
 func (u *queryUse) add(ref spec.Reference, guard string) {
 	nested := ref.Nested
-	if name := conditionalGuard(ref); name != "" {
+	if name := ref.Guard; name != "" {
 		u.variables[name] = true
 		nested = nested[:len(nested)-1]
 		guard = name
@@ -219,19 +219,6 @@ func (u *queryUse) add(ref spec.Reference, guard string) {
 	for _, n := range nested {
 		u.add(n, guard)
 	}
-}
-
-func conditionalGuard(ref spec.Reference) string {
-	macro, ok := spec.LookupMacro(ref.Name)
-	if !ok || ref.Kind != spec.MacroRef || macro.Args != spec.ConditionAndVariable || len(ref.Nested) == 0 {
-		return ""
-	}
-	args, err := macro.ParseArguments(ref)
-	last := ref.Nested[len(ref.Nested)-1]
-	if err != nil || last.Kind != spec.VariableRef || last.Name != args.Values[1] {
-		return ""
-	}
-	return last.Name
 }
 
 func DashboardUsesUser(d *spec.Dashboard) bool {
