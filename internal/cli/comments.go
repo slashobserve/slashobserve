@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -177,7 +178,11 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	out.line("Replied to %s as %s", commentID, text(created.Comment.ID))
+	thread := commentID
+	if created.Comment.ParentID != nil {
+		thread = *created.Comment.ParentID
+	}
+	out.line("Replied to thread %s as %s", text(thread), text(created.Comment.ID))
 	return nil
 }
 
@@ -219,16 +224,29 @@ func (a *app) runCommentsResolve(cmd *cobra.Command, args []string) error {
 	out := a.output()
 	if a.json {
 		out.body(data)
-		return nil
 	}
 	resolved, err := decode[commentEnvelope](data)
 	if err != nil {
 		return err
 	}
-	if resolved.Comment.ResolvedByVersion != nil {
-		out.confirm("Resolved %s by version %d", text(resolved.Comment.ID), *resolved.Comment.ResolvedByVersion)
+	thread := resolved.Comment
+	if cmd.Flags().Changed("version") && (thread.ResolvedByVersion == nil || *thread.ResolvedByVersion != a.commentResolve.version) {
+		return notAppliedError(thread)
+	}
+	if a.json {
 		return nil
 	}
-	out.confirm("Resolved %s", text(resolved.Comment.ID))
+	if thread.ResolvedByVersion != nil {
+		out.confirm("Resolved thread %s by version %d", text(thread.ID), *thread.ResolvedByVersion)
+		return nil
+	}
+	out.confirm("Resolved thread %s", text(thread.ID))
 	return nil
+}
+
+func notAppliedError(thread comment) error {
+	if thread.ResolvedByVersion == nil {
+		return fmt.Errorf("thread %s is already resolved; --version was not applied", text(thread.ID))
+	}
+	return fmt.Errorf("thread %s is already resolved by version %d; --version was not applied", text(thread.ID), *thread.ResolvedByVersion)
 }

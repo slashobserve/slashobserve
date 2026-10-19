@@ -2081,17 +2081,17 @@ cli_comments_checks() {
 
   cli_run comments list "$did"
   cli_expect "observe comments list" 0 "$cid" out
-  grep -qF dashboard "$TMP/cli.out" || fail "observe comments list should show a whole-dashboard comment as dashboard ($(cat "$TMP/cli.out"))"
+  grep -F "$cid" "$TMP/cli.out" | grep -qw dashboard || fail "observe comments list should show a whole-dashboard comment as dashboard ($(cat "$TMP/cli.out"))"
 
   cli_run comments reply "$did" "$cid" Looks good now
-  cli_expect "observe comments reply" 0 "Replied to $cid" out
+  cli_expect "observe comments reply" 0 "Replied to thread $cid" out
   out="$(api GET "/dashboards/$did/comments")"
   if [[ "$out" != 200 ]] || ! grep -q "\"parent_id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"body":"Looks good now"' "$TMP/api.body"; then
     fail "the reply from observe comments reply is missing ($out: $(cat "$TMP/api.body"))"
   fi
 
   cli_run comments resolve "$did" "$cid" --version 1
-  cli_expect "observe comments resolve" 0 "Resolved $cid by version 1" out
+  cli_expect "observe comments resolve" 0 "Resolved thread $cid by version 1" out
   out="$(api GET "/dashboards/$did/comments")"
   if [[ "$out" != 200 ]] || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
     fail "the comment resolved by the CLI lacks resolved_by_version 1 ($out: $(cat "$TMP/api.body"))"
