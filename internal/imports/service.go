@@ -124,11 +124,15 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 	if err != nil {
 		return Imported{}, fmt.Errorf("marshal imported spec: %w", err)
 	}
+	cols, err := encodeColumns(req, result)
+	if err != nil {
+		return Imported{}, err
+	}
 
 	var inserted dbsqlc.InsertImportRow
 	hook := func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
 		result.Verify(issues)
-		params, err := insertParams(req, result, dash, ver, by)
+		params, err := insertParams(req, cols, result.Report, dash, ver, by)
 		if err != nil {
 			return err
 		}
@@ -283,7 +287,48 @@ func (s *Service) acquire(key string) (func(), bool) {
 	}, true
 }
 
-func insertParams(req Request, result *grafana.Result, dash dashboards.Dashboard, ver dashboards.Version, by auth.Principal) (dbsqlc.InsertImportParams, error) {
+type columns struct {
+	mapping, summary, datasources []byte
+}
+
+func encodeColumns(req Request, result *grafana.Result) (columns, error) {
+	var cols columns
+	var report []byte
+	var issues []spec.Issue
+	for _, column := range []struct {
+		name string
+		from any
+		into *[]byte
+	}{
+		{"mapping", mappingOf(req), &cols.mapping},
+		{"summary", result.Summary, &cols.summary},
+		{"datasources", datasourcesOf(result), &cols.datasources},
+		{"report", result.Report, &report},
+	} {
+		raw, err := json.Marshal(column.from)
+		if err != nil {
+			return columns{}, fmt.Errorf("marshal import %s: %w", column.name, err)
+		}
+		*column.into = raw
+		for _, issue := range dashboards.NULIssues(raw) {
+			issue.Path = "/" + column.name + issue.Path
+			issues = append(issues, issue)
+		}
+	}
+	if len(issues) > 0 {
+		return columns{}, &dashboards.InvalidSpecError{Issues: issues}
+	}
+	return cols, nil
+}
+
+func datasourcesOf(result *grafana.Result) []grafana.SourceDatasource {
+	if result.Datasources == nil {
+		return []grafana.SourceDatasource{}
+	}
+	return result.Datasources
+}
+
+func insertParams(req Request, cols columns, report grafana.Report, dash dashboards.Dashboard, ver dashboards.Version, by auth.Principal) (dbsqlc.InsertImportParams, error) {
 	dashboardID, err := db.ParseUUID(dash.ID)
 	if err != nil {
 		return dbsqlc.InsertImportParams{}, fmt.Errorf("dashboard id: %w", err)
@@ -292,37 +337,26 @@ func insertParams(req Request, result *grafana.Result, dash dashboards.Dashboard
 	if err != nil {
 		return dbsqlc.InsertImportParams{}, fmt.Errorf("author id: %w", err)
 	}
-	datasources := result.Datasources
-	if datasources == nil {
-		datasources = []grafana.SourceDatasource{}
+	rawReport, err := json.Marshal(report)
+	if err != nil {
+		return dbsqlc.InsertImportParams{}, fmt.Errorf("marshal import report: %w", err)
 	}
-	params := dbsqlc.InsertImportParams{
+	return dbsqlc.InsertImportParams{
 		DashboardID:     dashboardID,
 		Version:         httpapi.Int32(ver.Number),
 		Source:          sourceGrafana,
 		ImporterVersion: httpapi.Int32(grafana.ImporterVersion),
 		Original:        req.JSON,
+		Mapping:         cols.mapping,
+		Summary:         cols.summary,
+		Datasources:     cols.datasources,
+		Report:          rawReport,
 		Title:           dash.Title,
 		CreatedByKind:   string(by.Kind),
 		CreatedByID:     authorID,
 		CreatedByName:   by.Name,
 		CreatedByEmail:  pgtype.Text{String: by.Email, Valid: by.Email != ""},
-	}
-	for _, column := range []struct {
-		name string
-		from any
-		into *[]byte
-	}{
-		{"mapping", mappingOf(req), &params.Mapping},
-		{"summary", result.Summary, &params.Summary},
-		{"datasources", datasources, &params.Datasources},
-		{"report", result.Report, &params.Report},
-	} {
-		if *column.into, err = json.Marshal(column.from); err != nil {
-			return dbsqlc.InsertImportParams{}, fmt.Errorf("marshal import %s: %w", column.name, err)
-		}
-	}
-	return params, nil
+	}, nil
 }
 
 func mappingOf(req Request) map[string]string {

@@ -1,6 +1,7 @@
 package imports_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -370,4 +371,39 @@ func TestConcurrentImportsByOnePrincipalAreRefused(t *testing.T) {
 	if _, err := r.imports.Import(t.Context(), robot, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); err != nil {
 		t.Fatalf("the slot was not released: %v", err)
 	}
+}
+
+func assertNothingSaved(t *testing.T, r *rig) {
+	t.Helper()
+	page, err := r.dashboard.List(t.Context(), dashboards.ListParams{Limit: 10})
+	if err != nil || len(page.Items) != 0 {
+		t.Fatalf("dashboards after a refused import: %d, %v", len(page.Items), err)
+	}
+	if metas, _, err := r.imports.List(t.Context(), 0, ""); err != nil || len(metas) != 0 {
+		t.Fatalf("imports after a refused import: %d, %v", len(metas), err)
+	}
+}
+
+func TestImportRefusesANULInTheGrafanaUID(t *testing.T) {
+	r := newRig(t)
+	body := bytes.Replace(grafanaJSON("Shop", "prom", 1), []byte(`"uid":"abc"`), []byte(`"uid":"a\u0000b"`), 1)
+	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	var invalid *dashboards.InvalidSpecError
+	if !errors.As(err, &invalid) || len(invalid.Issues) != 1 || invalid.Issues[0].Path != "/summary/uid" {
+		t.Fatalf("err = %v, want InvalidSpecError at /summary/uid", err)
+	}
+	assertNothingSaved(t, r)
+}
+
+func TestImportRefusesANULInADatasourceName(t *testing.T) {
+	r := newRig(t)
+	body := []byte(`{"title":"Shop","uid":"abc","schemaVersion":39,
+		"__inputs":[{"name":"DS_PROM","label":"Pro\u0000m","pluginId":"prometheus","type":"datasource"}],
+		"panels":[{"id":1,"type":"timeseries","title":"One","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"${DS_PROM}"},"targets":[{"refId":"A","expr":"up"}]}]}`)
+	_, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body, Mapping: map[string]string{"${DS_PROM}": "prom"}})
+	var invalid *dashboards.InvalidSpecError
+	if !errors.As(err, &invalid) || len(invalid.Issues) != 1 || invalid.Issues[0].Path != "/datasources/0/name" {
+		t.Fatalf("err = %v, want InvalidSpecError at /datasources/0/name", err)
+	}
+	assertNothingSaved(t, r)
 }
