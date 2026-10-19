@@ -39,11 +39,12 @@ export function ReplyForm({
   const [error, setError] = useState<string | null>(null)
   const [replySaved, setReplySaved] = useState(false)
   const textarea = useRef<HTMLTextAreaElement>(null)
+  const inFlight = useRef(false)
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
   const text = body.trim()
   const busy = addComment.isPending || requestRevision.isPending
-  const blocked = text === "" || busy
+  const canSend = gate.kind === "allowed"
 
   useEffect(() => {
     textarea.current?.focus()
@@ -61,27 +62,32 @@ export function ReplyForm({
     }
   }
 
-  async function reply() {
-    if (blocked || replySaved) return
+  async function submit(sendToAgent: boolean) {
+    if (inFlight.current || text === "" || (!sendToAgent && replySaved)) return
+    inFlight.current = true
     setError(null)
-    if (await postReply()) onClose()
-  }
-
-  async function sendToAgent() {
-    if (blocked) return
-    setError(null)
-    if (!(await postReply())) return
     try {
-      await requestRevision.mutateAsync({
-        prompt: text,
-        baseVersion: latestVersion,
-        commentId: rootId,
-      })
-    } catch (failure) {
-      setError(`Your reply was saved. ${describeRevisionError(failure)}`)
-      return
+      if (await postReply()) {
+        if (!sendToAgent) {
+          onClose()
+          return
+        }
+        try {
+          await requestRevision.mutateAsync({
+            prompt: text,
+            baseVersion: latestVersion,
+            commentId: rootId,
+          })
+          onClose()
+          return
+        } catch (failure) {
+          setError(`Your reply was saved. ${describeRevisionError(failure)}`)
+        }
+      }
+      textarea.current?.focus()
+    } finally {
+      inFlight.current = false
     }
-    onClose()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLFormElement>) {
@@ -95,7 +101,7 @@ export function ReplyForm({
       !event.nativeEvent.isComposing
     ) {
       event.preventDefault()
-      reply()
+      void submit(false)
     }
   }
 
@@ -105,7 +111,7 @@ export function ReplyForm({
       className="mt-2.5 flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault()
-        reply()
+        void submit(false)
       }}
       onKeyDown={onKeyDown}
     >
@@ -115,7 +121,7 @@ export function ReplyForm({
         rows={2}
         maxLength={maxPromptLength}
         value={body}
-        readOnly={replySaved}
+        readOnly={busy || replySaved}
         onChange={(event) => setBody(event.target.value)}
       />
       {error === null ? null : (
@@ -127,27 +133,37 @@ export function ReplyForm({
         <p className="text-xs text-muted-foreground">{gate.reason}</p>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="outline"
-          size="sm"
-          disabled={blocked || replySaved}
-        >
-          Reply
-        </Button>
-        {gate.kind === "allowed" ? (
-          <Button
-            type="button"
-            size="sm"
-            disabled={blocked}
-            onClick={sendToAgent}
-          >
-            Send to agent
+        {replySaved && !canSend ? (
+          <Button type="button" size="sm" onClick={onClose}>
+            Done
           </Button>
-        ) : null}
+        ) : (
+          <>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={text === "" || replySaved}
+              aria-disabled={busy || undefined}
+            >
+              Reply
+            </Button>
+            {canSend ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={text === ""}
+                aria-disabled={busy || undefined}
+                onClick={() => void submit(true)}
+              >
+                Send to agent
+              </Button>
+            ) : null}
+          </>
+        )}
       </div>
     </form>
   )
