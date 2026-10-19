@@ -67,11 +67,11 @@ func ApplyVariableRegex(re *VariableRegex, values []string) []string {
 		limit = -1
 	}
 	for _, value := range values {
-		matches := re.FindAllStringSubmatch(value, limit)
+		matches := re.FindAllStringSubmatchIndex(value, limit)
 		if len(matches) == 0 {
 			continue
 		}
-		if picked, ok := namedGroup(re, matches); ok {
+		if picked, ok := namedGroup(re, value, matches); ok {
 			add(picked)
 			continue
 		}
@@ -80,21 +80,31 @@ func ApplyVariableRegex(re *VariableRegex, values []string) []string {
 			continue
 		}
 		for _, match := range matches {
-			add(match[1])
+			if picked, ok := capture(value, match, 1); ok {
+				add(picked)
+			}
 		}
 	}
 	return out
 }
 
-func namedGroup(re *VariableRegex, matches [][]string) (string, bool) {
+func capture(value string, match []int, group int) (string, bool) {
+	start, end := match[2*group], match[2*group+1]
+	if start < 0 {
+		return "", false
+	}
+	return value[start:end], true
+}
+
+func namedGroup(re *VariableRegex, value string, matches [][]int) (string, bool) {
 	for _, name := range []string{"value", "text"} {
 		at := re.SubexpIndex(name)
 		if at < 0 {
 			continue
 		}
 		for _, match := range matches {
-			if match[at] != "" {
-				return match[at], true
+			if picked, ok := capture(value, match, at); ok && picked != "" {
+				return picked, true
 			}
 		}
 	}

@@ -28,6 +28,9 @@ func TestApplyVariableRegex(t *testing.T) {
 		{"no global flag takes the first match", "/(\\d+)/", []string{"a1b22", "c3"}, []string{"1", "3"}},
 		{"multiline flag anchors lines", "/^b$/m", []string{"a\nb\nc", "bc"}, []string{"a\nb\nc"}},
 		{"dot all flag", "/a.b/s", []string{"a\nb", "ab"}, []string{"a\nb"}},
+		{"an unmatched named group adds nothing", "/(?<value>a)|b/", []string{"a", "b"}, []string{"a"}},
+		{"an unmatched first group adds nothing", "/(a)|b/", []string{"a", "b"}, []string{"a"}},
+		{"a matched empty group still counts", "/^(a*)b$/", []string{"b", "aab"}, []string{"", "aa"}},
 		{"nothing matches", "nope", []string{"a"}, []string{}},
 	}
 	for _, tc := range cases {
