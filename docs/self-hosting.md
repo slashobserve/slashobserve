@@ -385,6 +385,14 @@ Then give it a prompt:
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
 
+Comments on a dashboard can be worked from the terminal:
+
+- `bin/observe comments list <dashboard-id>` lists open comment threads, oldest first; `--status resolved` or `--status all` widens it, and `--panel <panel-id>` narrows it to one panel.
+- `bin/observe comments reply <dashboard-id> <comment-id> <text...>` adds a reply to a thread.
+- `bin/observe comments resolve <dashboard-id> <comment-id>` resolves a thread, and `--version N` records the version that fixed it.
+
+Add `--json` to any of them to print the API response unchanged.
+
 The CLI reads its settings in this order: flags, the environment, then the saved file.
 
 | Setting | Flag       | Environment variable |
