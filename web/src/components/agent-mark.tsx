@@ -1,3 +1,4 @@
+import { slashPath } from "@/components/brand/mark"
 import { cn } from "@/lib/utils"
 
 type Props = { size?: number; className?: string }
@@ -13,7 +14,7 @@ export function AgentMark({ size = 12, className }: Props) {
       className={cn("block flex-none", className)}
     >
       <path
-        d="M14.6 5.6 9.4 18.4"
+        d={slashPath}
         stroke="currentColor"
         strokeWidth="2.6"
         strokeLinecap="round"
