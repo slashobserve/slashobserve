@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -91,6 +92,37 @@ func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal,
 	if !errors.Is(err, errRequestSaved) {
 		return dash, ver, false, err
 	}
+	return s.replayedCreate(ctx, requestID)
+}
+
+type ImportHook func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version, issues []spec.Issue) error
+
+func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID, hook ImportHook) (Dashboard, Version, []spec.Issue, bool, error) {
+	if requestID.Valid {
+		if dash, ver, found, err := s.createdByRequest(ctx, requestID); err != nil || found {
+			return dash, ver, nil, found, err
+		}
+	}
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
+	if err != nil {
+		return Dashboard{}, Version{}, nil, false, err
+	}
+	issues, err := s.runner.CheckSpec(ctx, parsed, time.Now(), queryproxy.UserFor(by))
+	if err != nil {
+		return Dashboard{}, Version{}, nil, false, err
+	}
+	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)}
+	dash, ver, err := s.store.createWith(ctx, in, func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
+		return hook(ctx, q, dash, ver, issues)
+	})
+	if errors.Is(err, errRequestSaved) && requestID.Valid {
+		dash, ver, replayed, err := s.replayedCreate(ctx, requestID)
+		return dash, ver, nil, replayed, err
+	}
+	return dash, ver, issues, false, err
+}
+
+func (s *Service) replayedCreate(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	dash, ver, found, err := s.createdByRequest(ctx, requestID)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
