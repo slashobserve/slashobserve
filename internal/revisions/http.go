@@ -7,9 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -23,8 +21,6 @@ const (
 	maxRequestBytes = 64 << 10
 	defaultLimit    = 50
 	maxLimit        = 200
-
-	maxPanelIDRunes = 64
 
 	statusClientClosedRequest = 499
 )
@@ -103,8 +99,8 @@ func (s *Service) createRevision(c *gin.Context) {
 	panelID := ""
 	if req.PanelID != nil {
 		panelID = *req.PanelID
-		if n := utf8.RuneCountInString(panelID); n < 1 || n > maxPanelIDRunes || !utf8.ValidString(panelID) || strings.ContainsRune(panelID, 0) {
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("panel_id must be 1 to %d characters without NUL", maxPanelIDRunes))
+		if err := ValidPanelID(panelID); err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 			return
 		}
 	}

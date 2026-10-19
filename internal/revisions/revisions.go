@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	MaxPromptRunes = 4000
-	MaxActive      = 5
-	MaxAttempts    = 2
-	MaxErrorRunes  = 500
+	MaxPromptRunes  = 4000
+	MaxActive       = 5
+	MaxAttempts     = 2
+	MaxErrorRunes   = 500
+	MaxPanelIDRunes = 64
 
 	MaxActiveObservePerPrincipal = 3
 	MaxActiveObserve             = 20
@@ -143,6 +144,13 @@ func CleanPrompt(s string) (string, bool) {
 		return "", false
 	}
 	return s, true
+}
+
+func ValidPanelID(panelID string) error {
+	if n := utf8.RuneCountInString(panelID); n < 1 || n > MaxPanelIDRunes || !utf8.ValidString(panelID) || strings.ContainsRune(panelID, 0) {
+		return fmt.Errorf("panel_id must be 1 to %d characters without NUL", MaxPanelIDRunes)
+	}
+	return nil
 }
 
 func forbiddenRune(r rune) bool {
