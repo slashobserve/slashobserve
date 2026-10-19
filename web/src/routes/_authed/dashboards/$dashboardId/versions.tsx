@@ -112,7 +112,7 @@ function HistoryRoute() {
   return (
     <>
       <header className="flex items-start justify-between gap-x-6 border-b px-6 py-2.5">
-        <div className="flex min-h-[30px] min-w-0 flex-col items-start gap-1 min-[640px]:flex-row min-[640px]:items-center min-[640px]:gap-2.5">
+        <div className="flex min-h-[30px] min-w-0 flex-row items-center gap-2.5 narrow:flex-col narrow:items-start narrow:gap-1">
           <Link
             to="/dashboards/$dashboardId"
             params={{ dashboardId }}
@@ -124,7 +124,7 @@ function HistoryRoute() {
           </Link>
           <span
             aria-hidden="true"
-            className="hidden text-muted-foreground min-[640px]:inline"
+            className="text-muted-foreground narrow:hidden"
           >
             /
           </span>
