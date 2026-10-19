@@ -1,7 +1,9 @@
 package revisions
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -185,13 +187,14 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 }
 
 func successOutcome(suggest bool, result Result) outcome {
-	switch {
-	case !suggest:
+	if !suggest {
 		return outcome{version: &result.Version, usage: result.Usage}
-	case len(result.Suggestion) == 0:
+	}
+	proposed := bytes.TrimSpace(result.Suggestion)
+	if len(proposed) == 0 || proposed[0] != '{' || !json.Valid(proposed) {
 		return outcome{message: noSuggestionMessage, code: "agent_no_suggestion", usage: result.Usage}
 	}
-	return outcome{suggestion: result.Suggestion, usage: result.Usage}
+	return outcome{suggestion: proposed, usage: result.Usage}
 }
 
 func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, beforeRun bool, usage *Usage) (settled, progressed bool) {
