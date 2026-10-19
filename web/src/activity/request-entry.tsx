@@ -17,7 +17,16 @@ type Props = {
 
 export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
   const { request, panelId } = entry
-  const showPanel = panelId !== null && panelTitle !== null
+  const panel =
+    panelId !== null && panelTitle !== null
+      ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
+      : undefined
+  const verb =
+    panelId === null
+      ? "asked the agent"
+      : panel === undefined
+        ? "asked the agent on a removed panel"
+        : "asked the agent on"
 
   let state
   switch (request.status) {
@@ -44,12 +53,8 @@ export function RequestEntry({ entry, panelTitle, onSelectPanel }: Props) {
     <EntryFrame
       avatar={{ kind: "person", name: request.requested_by.name }}
       who={request.requested_by.name}
-      verb={showPanel ? "asked the agent on" : "asked the agent"}
-      panel={
-        showPanel
-          ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
-          : undefined
-      }
+      verb={verb}
+      panel={panel}
       at={request.created_at}
     >
       <EntryBody>{request.prompt}</EntryBody>
