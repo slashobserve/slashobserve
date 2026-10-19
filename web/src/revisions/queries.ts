@@ -161,11 +161,19 @@ export function describeRevisionError(error: unknown): string {
 export function useRequestRevision(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: { prompt: string; baseVersion: number }) =>
+    mutationFn: (input: {
+      prompt: string
+      baseVersion: number
+      panelId?: string | null
+    }) =>
       api
         .POST("/dashboards/{id}/revisions", {
           params: { path: { id } },
-          body: { prompt: input.prompt, base_version: input.baseVersion },
+          body: {
+            prompt: input.prompt,
+            base_version: input.baseVersion,
+            panel_id: input.panelId ?? undefined,
+          },
         })
         .then(unwrap)
         .then((body) => body.revision),

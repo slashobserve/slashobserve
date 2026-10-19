@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { dashboardKeys } from "./keys"
+import { dashboardKeys, observeKeys } from "./keys"
 
 function isPrefix(prefix: readonly unknown[], key: readonly unknown[]) {
   return prefix.every((part, index) => part === key[index])
@@ -53,5 +53,31 @@ describe("dashboardKeys", () => {
     for (const key of keys) {
       expect(isPrefix(dashboardKeys.all, key)).toBe(true)
     }
+  })
+})
+
+describe("filtered dashboard lists", () => {
+  test("every filtered list is under the list key", () => {
+    expect(
+      isPrefix(dashboardKeys.list(), dashboardKeys.filtered({ q: "x" }))
+    ).toBe(true)
+    expect(isPrefix(dashboardKeys.list(), dashboardKeys.filtered({}))).toBe(
+      true
+    )
+  })
+})
+
+describe("observeKeys", () => {
+  test("the caller's requests share the mineAll root", () => {
+    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("all"))).toBe(true)
+    expect(isPrefix(observeKeys.mineAll(), observeKeys.mine("observe"))).toBe(
+      true
+    )
+  })
+
+  test("a single request is not under the caller's requests", () => {
+    expect(isPrefix(observeKeys.mineAll(), observeKeys.request("x"))).toBe(
+      false
+    )
   })
 })
