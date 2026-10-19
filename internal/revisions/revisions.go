@@ -81,8 +81,6 @@ type SpecReader interface {
 	VersionSpec(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error)
 }
 
-type CanonicalCheck func(canonical []byte) []spec.Issue
-
 type DraftError struct {
 	Issues []spec.Issue
 }
@@ -99,11 +97,6 @@ func WithPanels(p PanelChecker) Option {
 
 func WithSpecs(r SpecReader) Option {
 	return func(s *Service) { s.specs = r }
-}
-
-// internal/dashboards imports this package, so the NUL check it owns is passed in rather than imported.
-func WithCanonicalCheck(check CanonicalCheck) Option {
-	return func(s *Service) { s.canonicalCheck = check }
 }
 
 type Request struct {

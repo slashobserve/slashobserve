@@ -128,14 +128,11 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 			Message: fmt.Sprintf("the draft must keep id %q and stay a data or text panel", entry.Panel.ID),
 		}}}
 	}
-	if s.canonicalCheck == nil {
-		return nil
-	}
 	canonical, err := json.Marshal(candidate)
 	if err != nil {
 		return fmt.Errorf("marshal draft dashboard: %w", err)
 	}
-	if issues := s.canonicalCheck(canonical); len(issues) > 0 {
+	if issues := spec.NULIssues(canonical); len(issues) > 0 {
 		return &DraftError{Issues: issues}
 	}
 	return nil
