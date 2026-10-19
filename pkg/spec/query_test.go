@@ -407,6 +407,23 @@ func TestParseConditionalAllIgnoresNestingInCommentsAndStrings(t *testing.T) {
 	})
 }
 
+func TestParseConditionalAllChecksNestingOfAHandBuiltReference(t *testing.T) {
+	macro, ok := spec.LookupMacro("__conditionalAll")
+	if !ok {
+		t.Fatal("__conditionalAll is not a macro")
+	}
+	build := func(args string) spec.Reference {
+		return spec.Reference{Kind: spec.MacroRef, Name: macro.Name, Args: args, HasArgs: true, Start: 0, End: len("$__conditionalAll(" + args + ")")}
+	}
+	if _, err := macro.ParseArguments(build("a = 1 AND $__conditionalAll(b, $x), $y")); err == nil || !strings.Contains(err.Error(), "cannot be nested") {
+		t.Fatalf("got error %v, want a nesting error", err)
+	}
+	got, err := macro.ParseArguments(build("a = 1 /* $__conditionalAll(b, $x) */, $y"))
+	if err != nil || got.Values[1] != "y" || got.ConditionStart != len("$__conditionalAll(") {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}
+
 func TestScanQueryManyClosedConditionalAlls(t *testing.T) {
 	query := strings.Repeat("$__conditionalAll(a = 1, $v) ", 1000)
 	refs, err := spec.ScanQuery(query)

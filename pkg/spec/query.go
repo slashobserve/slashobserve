@@ -284,14 +284,29 @@ func parseConditionAndVariable(m Macro, ref Reference) (MacroArguments, error) {
 	argsStart := ref.Start + 1 + len(ref.Name) + 1
 	conditionAt := len(ref.Args) - len(strings.TrimLeftFunc(ref.Args, unicode.IsSpace))
 	conditionEnd := conditionAt + len(parts[0])
-	opaque := opaqueCursor{s: ref.Args, end: -1}
-	for _, nested := range ref.Nested {
-		at := nested.Start - argsStart
-		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !opaque.contains(at) {
-			return MacroArguments{}, fmt.Errorf("$%s cannot be nested", m.Name)
-		}
+	if err := checkConditionNesting(m, ref, argsStart, conditionAt, conditionEnd, &budget); err != nil {
+		return MacroArguments{}, err
 	}
 	return MacroArguments{Values: []string{parts[0], variable[0].Name}, ConditionStart: argsStart + conditionAt}, nil
+}
+
+func checkConditionNesting(m Macro, ref Reference, argsStart, conditionAt, conditionEnd int, budget *int) error {
+	nestedRefs, origin := ref.Nested, argsStart
+	if nestedRefs == nil && strings.Contains(ref.Args, "$"+m.Name) {
+		rescanned, scanErr := scanQuery(ref.Args, budget, true)
+		if scanErr != nil {
+			return fmt.Errorf("the arguments of $%s: %s", m.Name, scanErr.Error())
+		}
+		nestedRefs, origin = rescanned, 0
+	}
+	opaque := opaqueCursor{s: ref.Args, end: -1}
+	for _, nested := range nestedRefs {
+		at := nested.Start - origin
+		if nested.Kind == MacroRef && nested.Name == m.Name && at >= conditionAt && at < conditionEnd && !opaque.contains(at) {
+			return fmt.Errorf("$%s cannot be nested", m.Name)
+		}
+	}
+	return nil
 }
 
 type opaqueCursor struct {
