@@ -69,6 +69,7 @@ var (
 	ErrDraftTooLarge      = fmt.Errorf("the draft panel is over %d bytes as compact JSON", spec.MaxSuggestedPanelBytes)
 	ErrDraftInvalid       = errors.New("the draft panel is not valid")
 	ErrNotSuggestible     = notSuggestibleError{}
+	ErrDraftBodyTooLarge  = draftBodyTooLargeError{}
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
@@ -97,6 +98,14 @@ func (notSuggestibleError) Error() string {
 }
 
 func (notSuggestibleError) Unwrap() error { return ErrUnknownPanel }
+
+type draftBodyTooLargeError struct{}
+
+func (draftBodyTooLargeError) Error() string {
+	return fmt.Sprintf("the draft panel is over %d bytes", MaxDraftBytes)
+}
+
+func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
 type Option func(*Service)
 

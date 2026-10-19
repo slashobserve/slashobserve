@@ -79,7 +79,7 @@ func (s *Service) checkSuggestion(ctx context.Context, dashboardID pgtype.UUID, 
 		return fmt.Errorf("read version spec: no spec reader configured")
 	}
 	if len(draft) > MaxDraftBytes {
-		return ErrDraftTooLarge
+		return ErrDraftBodyTooLarge
 	}
 	if _, _, err := s.baseVersionFor(ctx, dashboardID, &version); err != nil {
 		return err
