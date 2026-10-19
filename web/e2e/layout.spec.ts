@@ -73,6 +73,12 @@ async function box(locator: Locator) {
   return found
 }
 
+async function expectNoAnimations(locator: Locator) {
+  await expect
+    .poll(() => locator.evaluate((el) => el.getAnimations().length))
+    .toBe(0)
+}
+
 async function dragTo(
   page: Page,
   from: { x: number; y: number },
@@ -238,6 +244,7 @@ test("announces when a key press changes nothing and clears after a mouse drag",
     `${rpsTitle}: column 2, row 1, 12 by 8`
   )
 
+  await expectNoAnimations(gridItem(page, "rps"))
   const resize = await box(
     gridItem(page, "rps").locator(".react-resizable-handle")
   )
