@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -28,10 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-var (
-	ada   = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
-	robot = auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci"}
-)
+var ada = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
 
 const brokenQuery = "broken_metric"
 
@@ -52,7 +48,10 @@ func (promStub) Discover(context.Context, datasource.DiscoverRequest) (*datasour
 	return &datasource.Catalog{}, nil
 }
 
-func (promStub) VariableValues(context.Context, datasource.Query, datasource.TimeRange) ([]string, error) {
+func (promStub) VariableValues(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]string, error) {
+	if strings.Contains(q.Text, brokenQuery) {
+		return nil, errors.New("upstream rejected the query")
+	}
 	return []string{"v"}, nil
 }
 
@@ -74,6 +73,22 @@ func frames(q datasource.Query) ([]datasource.Frame, error) {
 	}}}, nil
 }
 
+type blockingStub struct {
+	promStub
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (b blockingStub) VariableValues(ctx context.Context, q datasource.Query, tr datasource.TimeRange) ([]string, error) {
+	b.entered <- struct{}{}
+	select {
+	case <-b.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	return b.promStub.VariableValues(ctx, q, tr)
+}
+
 type noopReviser struct{}
 
 func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result, error) {
@@ -89,11 +104,16 @@ type rig struct {
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
+	return newRigWith(t, promStub{})
+}
+
+func newRigWith(t *testing.T, ds datasource.Datasource) *rig {
+	t.Helper()
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
 	registry, err := datasource.NewRegistry(logger,
-		datasource.Instance{UID: "prom", Datasource: promStub{}},
-		datasource.Instance{UID: "prom2", Datasource: promStub{}},
+		datasource.Instance{UID: "prom", Datasource: ds},
+		datasource.Instance{UID: "prom2", Datasource: ds},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -113,6 +133,15 @@ func grafanaJSON(title, datasourceUID string, panels int) []byte {
 		items[i] = fmt.Sprintf(`{"id":%d,"type":"timeseries","title":"Panel %d","gridPos":{"x":0,"y":%d,"w":12,"h":8},"datasource":{"type":"prometheus","uid":%q},"targets":[{"refId":"A","expr":"up"}]}`, i+1, i+1, i*8, datasourceUID)
 	}
 	return fmt.Appendf(nil, `{"title":%q,"uid":"abc","schemaVersion":39,"panels":[%s]}`, title, strings.Join(items, ","))
+}
+
+func grafanaWithVariables(title, datasourceUID string, queries ...string) []byte {
+	items := make([]string, len(queries))
+	for i, query := range queries {
+		items[i] = fmt.Sprintf(`{"type":"query","name":"v%d","datasource":{"type":"prometheus","uid":%q},"query":{"query":%q},"refresh":1}`, i, datasourceUID, query)
+	}
+	panel := fmt.Sprintf(`{"id":1,"type":"timeseries","title":"One","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":%q},"targets":[{"refId":"A","expr":"up"}]}`, datasourceUID)
+	return fmt.Appendf(nil, `{"title":%q,"uid":"abc","schemaVersion":39,"templating":{"list":[%s]},"panels":[%s]}`, title, strings.Join(items, ","), panel)
 }
 
 func specWith(query string) []byte {
@@ -342,35 +371,87 @@ func TestAnAgentRequestImportsOnce(t *testing.T) {
 	}
 }
 
-func TestConcurrentImportsByOnePrincipalAreRefused(t *testing.T) {
-	r := newRig(t)
-	const callers = 6
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var saved, busy int
-	for range callers {
-		wg.Add(1)
+func principal(n int) auth.Principal {
+	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", n), Name: fmt.Sprintf("bot-%d", n)}
+}
+
+func TestImportSlotsRefuseAndFree(t *testing.T) {
+	gate := blockingStub{entered: make(chan struct{}, 16), release: make(chan struct{})}
+	r := newRigWith(t, gate)
+	start := func(who auth.Principal) <-chan error {
+		done := make(chan error, 1)
 		go func() {
-			defer wg.Done()
-			_, err := r.imports.Import(t.Context(), robot, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
-			mu.Lock()
-			defer mu.Unlock()
-			switch {
-			case err == nil:
-				saved++
-			case errors.Is(err, imports.ErrBusy):
-				busy++
-			default:
-				t.Errorf("import: %v", err)
-			}
+			_, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")})
+			done <- err
 		}()
+		select {
+		case <-gate.entered:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("import for %s never reached the datasource", who.Name)
+		}
+		return done
 	}
-	wg.Wait()
-	if saved < 1 || saved+busy != callers {
-		t.Fatalf("saved %d, busy %d", saved, busy)
+	refused := func(who auth.Principal) {
+		t.Helper()
+		_, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)})
+		if !errors.Is(err, imports.ErrBusy) {
+			t.Fatalf("import for %s: err = %v, want ErrBusy", who.Name, err)
+		}
 	}
-	if _, err := r.imports.Import(t.Context(), robot, imports.Request{JSON: grafanaJSON("Shop", "prom", 1)}); err != nil {
-		t.Fatalf("the slot was not released: %v", err)
+
+	var running []<-chan error
+	running = append(running, start(principal(0)))
+	refused(principal(0))
+	for i := 1; i < 4; i++ {
+		running = append(running, start(principal(i)))
+	}
+	refused(principal(4))
+	refused(principal(0))
+
+	close(gate.release)
+	for i, done := range running {
+		if err := <-done; err != nil {
+			t.Errorf("import %d: %v", i, err)
+		}
+	}
+	for _, who := range []auth.Principal{principal(0), principal(4)} {
+		if _, err := r.imports.Import(t.Context(), who, imports.Request{JSON: grafanaWithVariables("Shop", "prom", "label_values(up"+who.Name+", pod)")}); err != nil {
+			t.Errorf("import for %s after the slots freed: %v", who.Name, err)
+		}
+	}
+}
+
+func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
+	r := newRig(t)
+	body := grafanaWithVariables("Shop", "prom", "label_values(up, pod)", "label_values("+brokenQuery+", pod)")
+	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Version.Number != 1 || !got.Record.Report.Verified {
+		t.Fatalf("version %d, verified %t", got.Version.Number, got.Record.Report.Verified)
+	}
+	unverifiedNotes := func(notes []grafana.Note) (subjects []string) {
+		for _, n := range notes {
+			if n.Status == "unverified" {
+				subjects = append(subjects, n.Subject)
+			}
+		}
+		return subjects
+	}
+	if subjects := unverifiedNotes(got.Record.Report.Notes); len(subjects) != 1 || subjects[0] != "variable v1" {
+		t.Fatalf("unverified notes on the import: %v", subjects)
+	}
+	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	if err != nil || stored.Version != 1 || !stored.Report.Verified {
+		t.Fatalf("stored version %d, verified %t, err %v", stored.Version, stored.Report.Verified, err)
+	}
+	if subjects := unverifiedNotes(stored.Report.Notes); len(subjects) != 1 || subjects[0] != "variable v1" {
+		t.Fatalf("unverified notes in the stored report: %v", subjects)
+	}
+	metas, _, err := r.imports.List(t.Context(), 0, "")
+	if err != nil || len(metas) != 1 || metas[0].Version != 1 || metas[0].Counts != stored.Report.Counts {
+		t.Fatalf("list: %+v, %v", metas, err)
 	}
 }
 
