@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -408,18 +409,19 @@ func mappingOf(req Request) map[string]string {
 }
 
 func importSummary(title string) string {
+	title = strings.TrimSpace(title)
 	if title == "" {
 		return "Imported from Grafana"
 	}
-	summary := `Imported "` + title + `" from Grafana`
-	if len(summary) <= maxSummaryBytes {
-		return summary
+	const prefix, suffix = `Imported "`, `" from Grafana`
+	if room := maxSummaryBytes - len(prefix) - len(suffix); len(title) > room {
+		cut := room
+		for cut > 0 && !utf8.RuneStart(title[cut]) {
+			cut--
+		}
+		title = title[:cut]
 	}
-	cut := maxSummaryBytes
-	for cut > 0 && !utf8.RuneStart(summary[cut]) {
-		cut--
-	}
-	return summary[:cut]
+	return prefix + title + suffix
 }
 
 func author(kind string, id pgtype.UUID, name string, email pgtype.Text) dashboards.Author {

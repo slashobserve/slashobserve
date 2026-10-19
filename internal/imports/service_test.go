@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -461,5 +462,26 @@ func TestReplayOfADashboardTheAgentCreatedHasNoRecord(t *testing.T) {
 	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
 	if err != nil || !got.Replayed || got.Dashboard.ID != created.ID || got.Record.ID != "" {
 		t.Fatalf("replayed %t, dashboard %q, record %+v, err %v", got.Replayed, got.Dashboard.ID, got.Record, err)
+	}
+}
+
+func TestSummaryKeepsItsFramingForTrimmedAndLongTitles(t *testing.T) {
+	r := newRig(t)
+	long := strings.Repeat("日", 200)
+	for name, c := range map[string]struct{ title, want string }{
+		"padded": {"  Shop  ", `Imported "Shop" from Grafana`},
+		"long":   {long, ""},
+	} {
+		got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON(c.title, "prom", 1)})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		summary := got.Version.Summary
+		if !strings.HasPrefix(summary, `Imported "`) || !strings.HasSuffix(summary, `" from Grafana`) || len(summary) > 500 || !utf8.ValidString(summary) {
+			t.Errorf("%s: summary %q (%d bytes)", name, summary, len(summary))
+		}
+		if c.want != "" && summary != c.want {
+			t.Errorf("%s: summary %q, want %q", name, summary, c.want)
+		}
 	}
 }
