@@ -5,6 +5,7 @@ import {
   commonDecimals,
   formatAxisValue,
   formatValue as f,
+  ownDecimals,
   parseUnit,
 } from "./units"
 
@@ -207,6 +208,12 @@ describe("custom units", () => {
   it("formats prefix units with the text right before the number", () => {
     expect(f(3, "prefix:$")).toBe("$3")
     expect(f(-3, "prefix:$")).toBe("$-3")
+    expect(f(-2.5, "prefix:$", 2)).toBe("$-2.50")
+  })
+
+  it("formats large values with a prefix unit", () => {
+    expect(f(1234567.891, "prefix:$")).toBe("$1,234,567.89")
+    expect(f(1e12, "prefix:$")).toBe("$1,000,000,000,000")
   })
 
   it("formats unknown units as plain numbers", () => {
@@ -218,6 +225,22 @@ describe("custom units", () => {
   it("shares decimals across prefixed values", () => {
     expect(commonDecimals([2.4, 2.45], "prefix:$")).toBe(2)
     expect(commonDecimals([2.4, 2.45], "suffix:req")).toBe(2)
+  })
+
+  it("derives axis decimals for custom units like plain ones", () => {
+    const splits = [0, 0.5, 1, 1.5]
+    expect(axisDecimals(splits, "prefix:$")).toBe(axisDecimals(splits, "none"))
+    expect(axisDecimals(splits, "suffix:req")).toBe(
+      axisDecimals(splits, "none")
+    )
+    expect(axisDecimals([1000, 1000.2], "prefix:$")).toBe(1)
+  })
+
+  it("derives own decimals and axis labels for custom units", () => {
+    expect(ownDecimals(2.5, "prefix:$")).toBe(1)
+    expect(ownDecimals(3, "suffix:req")).toBe(0)
+    expect(formatAxisValue(2.5, "prefix:$", 2)).toBe("$2.50")
+    expect(formatAxisValue(12, "suffix:req")).toBe("12 req")
   })
 
   it("parses ids, custom units and unknown units", () => {
