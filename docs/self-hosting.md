@@ -383,7 +383,6 @@ Then give it a prompt:
     bin/observe "checkout p99 latency, last 6h"
 
 It prints progress and then the dashboard address.
-Put flags such as `--timeout` before the prompt, because every word after the first prompt word is part of the prompt.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
 
 Comments on a dashboard can be worked from the terminal:

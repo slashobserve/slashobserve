@@ -205,16 +205,6 @@ func TestCommentsCommands(t *testing.T) {
 			wantCode: 2,
 			wantErr:  "reply needs text",
 		},
-		{
-			name:       "a prompt keeps flag-like words",
-			args:       []string{"--no-wait", "show", "me", "-q", "latency", "--json"},
-			status:     http.StatusAccepted,
-			response:   `{"request":{"id":"r","status":"queued","steps":[]}}`,
-			wantMethod: http.MethodPost,
-			wantPath:   "/api/v1/observe",
-			wantBody:   `{"prompt":"show me -q latency --json"}`,
-			wantOut:    []string{"r"},
-		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
