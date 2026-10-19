@@ -56,8 +56,8 @@ export function ReplyForm({
     }
   }, [])
 
-  function dismiss() {
-    closeUnlessBusy(busy || inFlight.current, onClose)
+  function dismiss(): boolean {
+    return closeUnlessBusy(busy || inFlight.current, onClose)
   }
 
   async function postReply(): Promise<boolean> {
@@ -100,9 +100,10 @@ export function ReplyForm({
 
   function onKeyDown(event: KeyboardEvent<HTMLFormElement>) {
     if (event.key === "Escape") {
-      event.preventDefault()
-      event.stopPropagation()
-      dismiss()
+      if (dismiss()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
     } else if (
       event.key === "Enter" &&
       (event.metaKey || event.ctrlKey) &&
