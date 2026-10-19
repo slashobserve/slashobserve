@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -19,12 +20,14 @@ const (
 type createCommentRequest struct {
 	Version         *int    `json:"version"`
 	PanelID         *string `json:"panel_id"`
+	ParentID        *string `json:"parent_id"`
 	Body            *string `json:"body"`
 	RequestRevision *bool   `json:"request_revision"`
 }
 
 type setCommentStatusRequest struct {
-	Status *string `json:"status"`
+	Status            *string `json:"status"`
+	ResolvedByVersion *int    `json:"resolved_by_version"`
 }
 
 type commentRevisionJSON struct {
@@ -33,19 +36,21 @@ type commentRevisionJSON struct {
 }
 
 type commentJSON struct {
-	ID           string               `json:"id"`
-	DashboardID  string               `json:"dashboard_id"`
-	Version      int                  `json:"version"`
-	PanelID      string               `json:"panel_id"`
-	Body         string               `json:"body"`
-	Status       string               `json:"status"`
-	Author       authorJSON           `json:"author"`
-	CreatedAt    string               `json:"created_at"`
-	UpdatedAt    string               `json:"updated_at"`
-	ResolvedAt   *string              `json:"resolved_at"`
-	ResolvedBy   *authorJSON          `json:"resolved_by"`
-	PanelPresent bool                 `json:"panel_present"`
-	Revision     *commentRevisionJSON `json:"revision"`
+	ID                string               `json:"id"`
+	DashboardID       string               `json:"dashboard_id"`
+	ParentID          *string              `json:"parent_id"`
+	Version           int                  `json:"version"`
+	PanelID           *string              `json:"panel_id"`
+	Body              string               `json:"body"`
+	Status            string               `json:"status"`
+	Author            authorJSON           `json:"author"`
+	CreatedAt         string               `json:"created_at"`
+	UpdatedAt         string               `json:"updated_at"`
+	ResolvedAt        *string              `json:"resolved_at"`
+	ResolvedBy        *authorJSON          `json:"resolved_by"`
+	ResolvedByVersion *int                 `json:"resolved_by_version"`
+	PanelPresent      bool                 `json:"panel_present"`
+	Revision          *commentRevisionJSON `json:"revision"`
 }
 
 type commentEnvelopeJSON struct {
@@ -73,12 +78,32 @@ func (cm *Comments) createComment(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
-	if req.Version == nil || req.PanelID == nil || req.Body == nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "version, panel_id and body are required")
+	if req.Body == nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "body is required")
 		return
 	}
-	requestRevision := req.RequestRevision == nil || *req.RequestRevision
-	comment, err := cm.Create(c.Request.Context(), httpapi.Caller(c), id, *req.Version, *req.PanelID, *req.Body, requestRevision)
+	requestRevision := req.RequestRevision != nil && *req.RequestRevision
+	in := NewComment{Body: *req.Body, RequestRevision: requestRevision}
+	if req.ParentID != nil {
+		parentID, err := db.ParseUUID(*req.ParentID)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "parent_id must be a UUID")
+			return
+		}
+		if req.Version != nil || req.PanelID != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a reply takes its version and panel from its thread; omit version and panel_id")
+			return
+		}
+		in.ParentID = parentID
+	} else {
+		if req.Version == nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "version is required")
+			return
+		}
+		in.Version = *req.Version
+		in.PanelID = req.PanelID
+	}
+	comment, err := cm.Create(c.Request.Context(), httpapi.Caller(c), id, in)
 	if err != nil {
 		cm.fail(c, "create comment", err)
 		return
@@ -133,7 +158,7 @@ func (cm *Comments) patchComment(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "status is required")
 		return
 	}
-	comment, err := cm.SetStatus(c.Request.Context(), httpapi.Caller(c), id, commentID, *req.Status)
+	comment, err := cm.SetStatus(c.Request.Context(), httpapi.Caller(c), id, commentID, *req.Status, req.ResolvedByVersion)
 	if err != nil {
 		cm.fail(c, "set comment status", err)
 		return
@@ -148,6 +173,8 @@ func (cm *Comments) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
+	case errors.Is(err, ErrUnknownVersion):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_version", err.Error())
 	case errors.Is(err, revisions.ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.As(err, &invalid):
@@ -168,16 +195,18 @@ func nonEmptyQuery(c *gin.Context, name string) (string, bool) {
 
 func newCommentJSON(c Comment) commentJSON {
 	out := commentJSON{
-		ID:           c.ID,
-		DashboardID:  c.DashboardID,
-		Version:      c.Version,
-		PanelID:      c.PanelID,
-		Body:         c.Body,
-		Status:       c.Status,
-		Author:       newAuthorJSON(c.Author),
-		CreatedAt:    httpapi.FormatTime(c.CreatedAt),
-		UpdatedAt:    httpapi.FormatTime(c.UpdatedAt),
-		PanelPresent: c.PanelPresent,
+		ID:                c.ID,
+		DashboardID:       c.DashboardID,
+		ParentID:          httpapi.OptionalString(c.ParentID),
+		Version:           c.Version,
+		PanelID:           httpapi.OptionalString(c.PanelID),
+		Body:              c.Body,
+		Status:            c.Status,
+		Author:            newAuthorJSON(c.Author),
+		CreatedAt:         httpapi.FormatTime(c.CreatedAt),
+		UpdatedAt:         httpapi.FormatTime(c.UpdatedAt),
+		ResolvedByVersion: c.ResolvedByVersion,
+		PanelPresent:      c.PanelPresent,
 	}
 	if c.ResolvedAt != nil {
 		at := httpapi.FormatTime(*c.ResolvedAt)

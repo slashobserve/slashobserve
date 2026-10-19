@@ -525,6 +525,7 @@ components:
       required:
         - id
         - dashboard_id
+        - parent_id
         - version
         - panel_id
         - body
@@ -534,6 +535,7 @@ components:
         - updated_at
         - resolved_at
         - resolved_by
+        - resolved_by_version
         - panel_present
         - revision
       properties:
@@ -543,16 +545,24 @@ components:
         dashboard_id:
           type: string
           format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The thread's first comment, for a reply; null for a thread's first comment.
         version:
           type: integer
           minimum: 1
         panel_id:
           type: string
+          nullable: true
+          description: The panel the thread is on; null for the whole dashboard. A reply has its thread's panel.
         body:
           type: string
         status:
           type: string
           enum: [open, resolved]
+          description: For a reply, the status of its thread.
         author:
           $ref: "#/components/schemas/Author"
         created_at:
@@ -569,9 +579,14 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/Author"
+        resolved_by_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version that fixed the thread, when the resolver named one. Always null on a reply.
         panel_present:
           type: boolean
-          description: Whether the latest version of the dashboard still has the panel the comment is anchored to.
+          description: Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment.
         revision:
           type: object
           nullable: true

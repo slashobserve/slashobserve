@@ -8,13 +8,18 @@ dashboards-id-comments:
         format: uuid
   post:
     operationId: createDashboardComment
-    summary: Comment on one panel of one version of a dashboard.
+    summary: Comment on a panel or the whole dashboard, or reply to a thread.
     description: >-
-      The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel.
+      A comment starts a thread or replies to one.
+      A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment.
+      A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread.
+      Replies are one level deep: replying to a reply attaches the new reply to that reply's thread.
+      A thread's status lives on its first comment and a reply's `status` mirrors it.
       The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text.
       Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused.
-      A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream.
-      When an LLM provider is configured, the comment also queues a revision unless `request_revision` is false; the comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision.
+      A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream.
+      A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision.
+      The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision.
       A succeeded revision does not resolve the comment.
       With no LLM provider configured, no revision is queued and `revision` stays null.
       At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
@@ -25,20 +30,29 @@ dashboards-id-comments:
           schema:
             type: object
             additionalProperties: false
-            required: [version, panel_id, body]
+            required: [body]
             properties:
               request_revision:
                 type: boolean
-                default: true
-                description: Whether to queue an agent revision for the comment, when an agent is configured.
+                default: false
+                description: Whether to queue an agent revision for the comment, when an agent is configured. A reply cannot request one.
               version:
                 type: integer
+                nullable: true
                 minimum: 1
                 maximum: 2147483647
+                description: Required unless `parent_id` is set.
               panel_id:
                 type: string
+                nullable: true
                 minLength: 1
                 maxLength: 64
+                description: The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`.
+              parent_id:
+                type: string
+                nullable: true
+                format: uuid
+                description: The comment to reply to. Not allowed with `version` or `panel_id`.
               body:
                 type: string
     responses:
@@ -61,7 +75,11 @@ dashboards-id-comments:
       "403":
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
-        $ref: "../openapi.yaml#/components/responses/NotFound"
+        description: The dashboard, the version or the comment named by `parent_id` does not exist.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -149,7 +167,9 @@ dashboards-id-comments-commentid:
     summary: Resolve or reopen a comment.
     description: >-
       Setting the status a comment already has answers 200 with the comment unchanged and sends no event.
-      A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, where `author` is the caller who changed the status.
+      A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status.
+      Changing a reply changes its thread and returns the thread's first comment.
+      `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
     requestBody:
       required: true
       content:
@@ -162,6 +182,10 @@ dashboards-id-comments-commentid:
               status:
                 type: string
                 enum: [open, resolved]
+              resolved_by_version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
     responses:
       "200":
         description: The comment with its current status.
@@ -179,5 +203,11 @@ dashboards-id-comments-commentid:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: "`resolved_by_version` is not a version of this dashboard (`unknown_version`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"

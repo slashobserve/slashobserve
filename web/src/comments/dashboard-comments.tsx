@@ -13,7 +13,12 @@ import {
 } from "./comments-tab"
 import { CommentItem } from "./comment-item"
 import { useLatestPanels, type PanelRef } from "./latest-panels"
-import { useComments, type Comment } from "./queries"
+import {
+  isPanelThread,
+  useComments,
+  type Comment,
+  type PanelThread,
+} from "./queries"
 
 type Props = {
   dashboardId: string
@@ -39,11 +44,11 @@ const emptyText: Record<CommentFilter, string> = {
 }
 
 function groupByPanel(
-  comments: Comment[],
+  comments: PanelThread[],
   shown: PanelRef[],
   latest: PanelRef[] | undefined
 ): Group[] {
-  const byPanel = new Map<string, Comment[]>()
+  const byPanel = new Map<string, PanelThread[]>()
   for (const comment of comments) {
     const list = byPanel.get(comment.panel_id)
     if (list) list.push(comment)
@@ -87,10 +92,11 @@ export function DashboardComments({
   const latest = useLatestPanels(dashboardId)
   const [filter, setFilter] = useState<CommentFilter>("open")
 
-  const counts = useMemo(() => countByFilter(comments), [comments])
+  const threads = useMemo(() => comments.filter(isPanelThread), [comments])
+  const counts = useMemo(() => countByFilter(threads), [threads])
   const visible = useMemo(
-    () => comments.filter((comment) => matchesFilter(comment, filter)),
-    [comments, filter]
+    () => threads.filter((comment) => matchesFilter(comment, filter)),
+    [threads, filter]
   )
   const groups = useMemo(
     () => groupByPanel(visible, panels, latest),
