@@ -3,8 +3,8 @@ package grafana
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -133,12 +133,15 @@ func newStyleNodes(items []any, base string) []*panelNode {
 	return nodes
 }
 
+var leadingInteger = regexp.MustCompile(`^\s*[+-]?[0-9]+`)
+
 func legacyPixels(v any) int {
 	switch h := v.(type) {
 	case string:
-		digits := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(h), "px"))
-		if n, err := strconv.Atoi(digits); err == nil {
-			return n
+		if m := leadingInteger.FindString(h); m != "" {
+			if n, err := strconv.Atoi(m); err == nil {
+				return n
+			}
 		}
 	default:
 		if f, ok := asFloat(v); ok {

@@ -11,13 +11,15 @@ func TestLegacyPanelWithoutUsableHeightTakesTheRowHeight(t *testing.T) {
 		{"id":1,"type":"text","span":6,"height":0},
 		{"id":2,"type":"text","span":6,"height":"380px"},
 		{"id":3,"type":"text","span":6},
-		{"id":4,"type":"text","span":6,"height":"tall"}
+		{"id":4,"type":"text","span":6,"height":"tall"},
+		{"id":5,"type":"text","span":6,"height":"114.9px"}
 	]}]}`)
 	want := map[string]spec.GridPos{
 		"p1": {X: 0, Y: 0, W: 12, H: 7},
 		"p2": {X: 12, Y: 0, W: 12, H: 10},
 		"p3": {X: 0, Y: 7, W: 12, H: 7},
 		"p4": {X: 12, Y: 10, W: 12, H: 7},
+		"p5": {X: 0, Y: 14, W: 12, H: 3},
 	}
 	for id, grid := range want {
 		if got := gridOf(t, res, id); got != grid {
