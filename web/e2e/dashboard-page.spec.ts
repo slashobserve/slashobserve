@@ -167,6 +167,10 @@ test("keeps a multi-value variable inside the box on a phone", async ({
   expect((chevron?.x ?? 0) + (chevron?.width ?? 0)).toBeLessThanOrEqual(
     (box?.x ?? 0) + (box?.width ?? 0)
   )
+  expect(chevron?.x).toBeGreaterThanOrEqual(box?.x ?? 0)
+  expect((chevron?.y ?? 0) + (chevron?.height ?? 0)).toBeLessThanOrEqual(
+    (box?.y ?? 0) + (box?.height ?? 0)
+  )
   expect(await noDocumentOverflow(page)).toBe(true)
 })
 
