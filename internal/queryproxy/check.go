@@ -164,12 +164,17 @@ func (r *Runner) checkDatasourceDefault(path string, v spec.Variable) []spec.Iss
 		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
 	case inst.Datasource.Type() != string(v.DatasourceType):
 		return []spec.Issue{issue(path, spec.CodeInvalidDefault, "default %q of variable %q is not a %s datasource", uid, v.Name, v.DatasourceType)}
-	case v.Regex != "" && len(scanQueryUse(v.Regex).variables) == 0:
+	case v.Regex != "" && regexIsStatic(v.Regex):
 		if re, err := spec.CompileVariableRegex(v.Regex); err == nil && !re.MatchString(uid) {
 			return []spec.Issue{issue(path, spec.CodeInvalidDefault, "default %q of variable %q does not match its regex", uid, v.Name)}
 		}
 	}
 	return nil
+}
+
+func regexIsStatic(regex string) bool {
+	refs, err := spec.ScanQuery(regex)
+	return err == nil && !slices.ContainsFunc(refs, func(ref spec.Reference) bool { return ref.Kind == spec.VariableRef })
 }
 
 func (r *Runner) checkRef(path, uid, queryAt, query string, adhoc map[string]bool) []spec.Issue {

@@ -1231,6 +1231,18 @@ func TestCheckSpecNewVariableTypes(t *testing.T) {
 			want:      []wantIssue{{"/variables/0/default", spec.CodeInvalidDefault, "default \"prom\" of variable \"dsv\" does not match its regex"}},
 		},
 		{
+			name:      "datasource variable default is not checked against a regex that references a variable",
+			panels:    panels("up"),
+			variables: []spec.Variable{customVariable("pick", "prom2"), withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/^$pick$/"; return v }(), "prom")},
+			want:      []wantIssue{{"/variables/1", CodeVariableEmpty, ""}},
+		},
+		{
+			name:      "datasource variable default is not checked against a regex that does not scan",
+			panels:    panels("up"),
+			variables: []spec.Variable{withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/${a b}/"; return v }(), "prom")},
+			want:      []wantIssue{{"/variables/0", CodeVariableFailed, ""}},
+		},
+		{
 			name:      "datasource variable default that its regex keeps",
 			panels:    panels("up"),
 			variables: []spec.Variable{withDefault(func() spec.Variable { v := datasourceVariable("dsv", spec.Prometheus); v.Regex = "/^pro/"; return v }(), "prom")},
