@@ -16,14 +16,14 @@ export function PanelCommentBadge({ panelId, title, count, disabled }: Props) {
   return (
     <Button
       variant="ghost"
-      size="sm"
+      className="h-[26px] gap-1 rounded-control bg-muted px-[7px] text-xs"
       disabled={disabled}
       aria-label={`${count} open ${count === 1 ? "comment" : "comments"} on ${title}`}
       onClick={() =>
         setSearch((state) => ({ ...state, panel: panelId, tab: "comments" }))
       }
     >
-      <MessageSquareIcon aria-hidden="true" />
+      <MessageSquareIcon aria-hidden="true" className="size-3" />
       <span className="tabular-nums">{count}</span>
     </Button>
   )

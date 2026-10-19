@@ -22,7 +22,7 @@ import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
-export const panelHeaderHeight = 32
+export const panelHeaderHeight = 39
 export const panelBorderWidth = 1
 
 export function panelBodySize(width: number, height: number) {
@@ -62,6 +62,9 @@ type Props = {
   onRetry?: () => void
   badge?: ReactNode
   menu?: ReactNode
+  datasourceLabel?: string
+  editing?: boolean
+  highlighted?: boolean
   dragHandle?: boolean
   children?: ReactNode
 }
@@ -75,22 +78,31 @@ export function PanelChrome({
   onRetry,
   badge,
   menu,
+  datasourceLabel,
+  editing = false,
+  highlighted = false,
   dragHandle = false,
   children,
 }: Props) {
   const titleId = useId()
   const title = panelTitle(panel)
+  const selected = editing || highlighted
   return (
     <article
       aria-labelledby={titleId}
       aria-busy={state === "loading"}
       data-panel-id={panel.id}
       data-state={state}
-      className="relative flex size-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground"
+      data-highlighted={selected ? "" : undefined}
+      className={cn(
+        "relative flex size-full flex-col overflow-hidden rounded-card border bg-card text-card-foreground",
+        selected &&
+          "border-brand outline outline-1 -outline-offset-1 outline-brand"
+      )}
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-1 pr-1",
+          "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1",
           dragHandle
             ? "panel-drag-handle cursor-grab pl-1 active:cursor-grabbing"
             : "pl-3"
@@ -101,7 +113,7 @@ export function PanelChrome({
         <h2
           id={titleId}
           title={title}
-          className="min-w-0 truncate text-sm font-medium"
+          className="min-w-0 truncate text-[13px] font-semibold"
         >
           {title}
         </h2>
@@ -121,31 +133,38 @@ export function PanelChrome({
             <TooltipContent>{panel.description}</TooltipContent>
           </Tooltip>
         ) : null}
-        <span className="flex-1" />
-        {refreshing ? (
-          <span className="flex items-center text-muted-foreground">
-            <LoaderCircleIcon className="size-3 motion-safe:animate-spin" />
-            <span className="sr-only">Refreshing</span>
+        {datasourceLabel ? (
+          <span className="min-w-0 truncate text-xs text-muted-foreground">
+            {datasourceLabel}
           </span>
         ) : null}
-        {staleError ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`Showing older data: ${errorMessage(staleError)}`}
-                />
-              }
-            >
-              <TriangleAlertIcon className="text-threshold-warning" />
-            </TooltipTrigger>
-            <TooltipContent>{errorMessage(staleError)}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        {badge}
-        {menu}
+        {editing ? <span className="text-xs font-medium">Editing</span> : null}
+        <div className="ml-auto flex items-center gap-0.5">
+          {refreshing ? (
+            <span className="flex items-center text-muted-foreground">
+              <LoaderCircleIcon className="size-3 motion-safe:animate-spin" />
+              <span className="sr-only">Refreshing</span>
+            </span>
+          ) : null}
+          {staleError ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Showing older data: ${errorMessage(staleError)}`}
+                  />
+                }
+              >
+                <TriangleAlertIcon className="text-threshold-warning" />
+              </TooltipTrigger>
+              <TooltipContent>{errorMessage(staleError)}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          {badge}
+          {menu}
+        </div>
       </header>
       <div className="min-h-0 flex-1">
         {state === "loading" ? (

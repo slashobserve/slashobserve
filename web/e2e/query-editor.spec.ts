@@ -52,7 +52,7 @@ function sheet(page: Page) {
 
 async function openFromMenu(page: Page, title: string) {
   await page.getByRole("button", { name: `Panel menu: ${title}` }).click()
-  await page.getByRole("menuitem", { name: "Edit query" }).click()
+  await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
 }
 
 function stallEvents(page: Page) {
@@ -761,7 +761,7 @@ async function nudgeErrorRate(page: Page) {
   await expect(page.getByText("Unsaved changes")).toBeVisible()
 }
 
-test("keeps Edit query disabled while the layout is being edited", async ({
+test("keeps Edit disabled while the layout is being edited", async ({
   page,
   request,
 }) => {
@@ -773,7 +773,7 @@ test("keeps Edit query disabled while the layout is being edited", async ({
   await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
   await expect(
     page.getByRole("menuitem", {
-      name: "Edit query (finish layout first)",
+      name: "Edit (finish the layout first)",
     })
   ).toHaveAttribute("aria-disabled", "true")
   await page.keyboard.press("Escape")

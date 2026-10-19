@@ -91,7 +91,7 @@ function followUpForm(page: Page) {
 
 async function openRpsComments(page: Page) {
   await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
-  await page.getByRole("menuitem", { name: "Comments" }).click()
+  await page.getByRole("menuitem", { name: "Comment" }).click()
   await expect(sheet(page)).toBeVisible()
 }
 

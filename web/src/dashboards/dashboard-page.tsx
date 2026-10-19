@@ -43,6 +43,7 @@ import {
 import { downloadSpec } from "./export-spec"
 import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
+import { panelDatasourceUids } from "./panel-datasources"
 import { PanelInspector } from "./panel-inspector"
 import { PanelMenu } from "./panel-menu"
 import {
@@ -156,6 +157,7 @@ const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
+        datasourceLabel={panelDatasourceUids(panel).join(", ")}
         badge={
           <PanelCommentBadge
             panelId={panel.id}

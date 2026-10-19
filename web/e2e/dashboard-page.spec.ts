@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs"
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { createComment, createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard } from "./dashboards"
+import { expectPanelsReady, openDashboard, panel } from "./dashboards"
 import { signInThroughDex } from "./dex"
 import { expect, test } from "./fixtures"
+
+const rpsTitle = "Checkout requests per second"
 
 const themes = [
   {
@@ -60,6 +62,30 @@ for (const theme of themes) {
       )
       await expect(page.getByText(/made by/)).toHaveCount(0)
     })
+
+    test("draws flat panel cards", async ({ page, request }) => {
+      const { id } = await createPageDashboard(request)
+      await openDashboard(page, id)
+      await expectPanelsReady(page)
+
+      await expect(page.locator("body")).toHaveCSS(
+        "background-color",
+        theme.background
+      )
+      const cards = page.locator("article[data-panel-id]")
+      const count = await cards.count()
+      expect(count).toBeGreaterThan(0)
+      for (let index = 0; index < count; index++) {
+        const card = cards.nth(index)
+        await expect(card).toHaveCSS("border-radius", "10px")
+        await expect(card).toHaveCSS("box-shadow", "none")
+        await expect(card).toHaveCSS("border-top-width", "1px")
+        await expect(card).toHaveCSS("border-top-color", theme.border)
+      }
+      await expect(
+        panel(page, rpsTitle).getByText("prom", { exact: true })
+      ).toBeVisible()
+    })
   })
 }
 
@@ -94,6 +120,11 @@ test("shows the open comment count on the toggle and the panel", async ({
   await expect(toggle).toBeVisible()
   await expect(toggle).toHaveText("1")
   await expect(toggle).toHaveAttribute("aria-pressed", "false")
+  await expect(
+    panel(page, rpsTitle).getByRole("button", {
+      name: `1 open comment on ${rpsTitle}`,
+    })
+  ).toBeVisible()
 })
 
 test("fits a phone", async ({ page, request }) => {

@@ -39,7 +39,7 @@ function composer(page: Page, title = rpsTitle) {
 
 async function openFromMenu(page: Page, title = rpsTitle) {
   await page.getByRole("button", { name: `Panel menu: ${title}` }).click()
-  await page.getByRole("menuitem", { name: "Comments" }).click()
+  await page.getByRole("menuitem", { name: "Comment" }).click()
   await expect(sheet(page)).toBeVisible()
 }
 
@@ -317,7 +317,7 @@ test("keeps comments unavailable while the layout is being edited", async ({
   ).toBeDisabled()
   await page.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
   await expect(
-    page.getByRole("menuitem", { name: "Comments (finish layout first)" })
+    page.getByRole("menuitem", { name: "Comment (finish the layout first)" })
   ).toHaveAttribute("aria-disabled", "true")
 })
 
