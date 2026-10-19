@@ -11,7 +11,7 @@ dashboards-id-suggestions:
     summary: Ask the agent to propose a change to one panel without saving anything.
     description: >-
       The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change.
-      A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it never waits behind or blocks a revision of the dashboard.
+      A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it is exempt from the one-running-per-dashboard rule, so it neither waits behind nor blocks a revision of the dashboard, but it shares the worker pool and can wait for a free worker.
       Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`.
       `version` is the version the proposal is judged inside, and `panel_id` must be a data or text panel of that version.
       The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused.
