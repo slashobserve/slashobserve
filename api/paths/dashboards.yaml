@@ -73,7 +73,7 @@ dashboards:
           maxLength: 64
       - name: q
         in: query
-        description: Case-insensitive text found in the title or the description.
+        description: Case-insensitive text found in the title or the description; leading and trailing whitespace is ignored and a value of only whitespace is rejected.
         schema:
           type: string
           minLength: 1

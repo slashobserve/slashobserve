@@ -116,20 +116,24 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.MadeBy = parsed
 	}
-	if utf8.RuneCountInString(datasource) > maxDatasourceRunes {
+	if !cleanText(datasource) || utf8.RuneCountInString(datasource) > maxDatasourceRunes {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "datasource must be 1 to 64 characters")
 		return params, false
 	}
 	params.Datasource = datasource
 	if query != "" {
-		query = strings.TrimSpace(query)
-		if n := utf8.RuneCountInString(query); n < 1 || n > maxQueryRunes || strings.ContainsRune(query, 0) {
+		trimmed := strings.TrimSpace(query)
+		if !cleanText(query) || utf8.RuneCountInString(query) > maxQueryRunes || trimmed == "" {
 			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be 1 to 200 characters")
 			return params, false
 		}
-		params.Query = query
+		params.Query = trimmed
 	}
 	return params, true
+}
+
+func cleanText(v string) bool {
+	return utf8.ValidString(v) && !strings.ContainsRune(v, 0)
 }
 
 func (s *Service) getDashboard(c *gin.Context) {
