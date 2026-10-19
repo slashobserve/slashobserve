@@ -21,6 +21,9 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 	if err != nil {
 		return nil, err
 	}
+	if q.Format == "table" || q.Format == "logs" {
+		return checkPoints([]datasource.Frame{rs.tableFrame()}, lim)
+	}
 	frames := rs.seriesFrames()
 	if len(frames) > lim.MaxSeries {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "result exceeds %d series", lim.MaxSeries)

@@ -342,7 +342,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	dq := datasource.Query{Text: q.Query, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
+	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
 	if inst.Datasource.Type() == string(spec.Prometheus) {
 		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID); err != nil {
 			return nil, err

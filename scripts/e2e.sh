@@ -2025,6 +2025,22 @@ proxy_suite() {
   fi
   pass "a multi-query panel returns frames tagged by query ref and skips its hidden query"
 
+  out="$(proxy_call GET "$base/panels/p_ch_table/data?$window")"
+  if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
+b=json.load(open(sys.argv[1]))
+frames=b["frames"]
+a=[f for f in frames if f["ref"]=="A"]
+bs=[f for f in frames if f["ref"]=="B"]
+ok=b["meta"]["kind"]=="range" and len(a)==1 and not a[0].get("labels")
+ok=ok and [x["name"] for x in a[0]["fields"]]==["minute","service","c"]
+ok=ok and [x["type"] for x in a[0]["fields"]]==["time","string","number"]
+ok=ok and len(a[0]["fields"][0]["values"])>=2
+ok=ok and len(bs)>=1 and all("service" in (f.get("labels") or {}) and [x["name"] for x in f["fields"]]==["Time","c"] for f in bs)
+sys.exit(0 if ok else 1)' "$TMP/api.body"; then
+    fail "a ClickHouse table-format range query returns its rows as selected ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a ClickHouse table-format range query returns its rows as selected, and the time-series format still splits by service"
+
   # Instant panels floor their range to 5 s, so an end off that grid lets the variable list a service whose only rows lie past the panel's end.
   for _ in $(seq 1 45); do
     to_ms=$((($(date +%s) * 1000 - 30000) / 5000 * 5000))

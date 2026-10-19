@@ -58,6 +58,7 @@ type QueryUser struct {
 
 type Query struct {
 	Text      string
+	Format    string
 	Variables []Variable
 	Filters   []AdhocFilter
 	Limits    Limits
