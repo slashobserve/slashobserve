@@ -137,6 +137,7 @@ export function VariableSelect({ state, onChange }: Props) {
           ) : (
             <ComboboxPrimitive.Trigger
               aria-label={`Show ${label} values`}
+              aria-hidden="true"
               tabIndex={-1}
               className="ml-auto grid shrink-0 place-items-center self-center outline-none"
             >
