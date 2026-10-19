@@ -57,10 +57,15 @@ function useChatScroll(
     const parent = scrollParent(element)
     if (parent === null) return
     scroller.current = parent
+    const atEnd = () =>
+      parent.scrollHeight - parent.scrollTop - parent.clientHeight <=
+      stickThreshold
+    let lastTop = parent.scrollTop
     const measure = () => {
-      pinned.current =
-        parent.scrollHeight - parent.scrollTop - parent.clientHeight <=
-        stickThreshold
+      const top = parent.scrollTop
+      if (atEnd()) pinned.current = true
+      else if (top < lastTop) pinned.current = false
+      lastTop = top
     }
     const section =
       target === "" ? null : document.getElementById(`request-${target}`)
@@ -69,7 +74,8 @@ function useChatScroll(
     } else {
       section.scrollIntoView({ block: "start" })
     }
-    measure()
+    lastTop = parent.scrollTop
+    pinned.current = atEnd()
     parent.addEventListener("scroll", measure, { passive: true })
     let lastTurn = element.lastElementChild
     let lastHeight = lastTurn?.getBoundingClientRect().height ?? 0
@@ -213,6 +219,11 @@ function ConversationView({
     active ? "Observing - SlashObserve" : `${clipped} - SlashObserve`
   )
 
+  function appended(request: ObserveRequest) {
+    pinToEnd()
+    onSent(request)
+  }
+
   const agentOff = agent.data?.available === false
   const hasDashboard = dashboardId !== null
   const waitingForDashboard =
@@ -245,6 +256,7 @@ function ConversationView({
               summary={turn.summary}
               dashboardTitle={dashboardTitle}
               loadSteps={index >= loadFrom || turn.id === requestId}
+              onRetried={appended}
             />
           ))
         )}
@@ -261,8 +273,7 @@ function ConversationView({
           }
           onSent={(request) => {
             if (hasDashboard) {
-              pinToEnd()
-              onSent(request)
+              appended(request)
               return
             }
             return navigate({

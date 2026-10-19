@@ -59,7 +59,13 @@ type FailedRequest = Pick<
   "source" | "dashboard_id" | "prompt" | "error"
 >
 
-export function TurnFailure({ request }: { request: FailedRequest }) {
+export function TurnFailure({
+  request,
+  onRetried,
+}: {
+  request: FailedRequest
+  onRetried: (request: ObserveRequest) => void
+}) {
   const navigate = useNavigate()
   const create = useCreateObserveRequest()
   const [retrying, setRetrying] = useState(false)
@@ -78,6 +84,8 @@ export function TurnFailure({ request }: { request: FailedRequest }) {
           params: { requestId: next.id },
           replace: true,
         })
+      } else {
+        onRetried(next)
       }
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)

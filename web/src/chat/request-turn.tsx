@@ -8,6 +8,7 @@ import { shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
   observeRequestQuery,
+  type ObserveRequest,
   stopsPolling,
   usePollFailures,
 } from "@/observe/queries"
@@ -36,6 +37,7 @@ type Props = {
   summary: TurnSummary
   dashboardTitle?: string
   loadSteps: boolean
+  onRetried: (request: ObserveRequest) => void
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -57,7 +59,12 @@ function Sender({ summary }: { summary: TurnSummary }) {
   )
 }
 
-export function RequestTurn({ summary, dashboardTitle, loadSteps }: Props) {
+export function RequestTurn({
+  summary,
+  dashboardTitle,
+  loadSteps,
+  onRetried,
+}: Props) {
   const queryClient = useQueryClient()
   const [detailsOpen, setDetailsOpen] = useState(false)
   const query = useQuery({
@@ -176,7 +183,7 @@ export function RequestTurn({ summary, dashboardTitle, loadSteps }: Props) {
             </p>
           ) : null}
           {request.status === "failed" ? (
-            <TurnFailure request={request} />
+            <TurnFailure request={request} onRetried={onRetried} />
           ) : null}
           <Link
             to="/observe/$requestId"
