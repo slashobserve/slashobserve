@@ -187,11 +187,16 @@ function ConversationView({
   const navigate = useNavigate()
   const agent = useAgentInfo()
   const list = useRef<HTMLDivElement>(null)
+  const title = useRef<HTMLHeadingElement>(null)
   const [initialTarget, setInitialTarget] = useState<string | null>(null)
   if (ready && initialTarget === null) {
     setInitialTarget(turns.at(-1)?.id === requestId ? "" : requestId)
   }
   const pinToEnd = useChatScroll(list, initialTarget)
+
+  useEffect(() => {
+    title.current?.focus({ preventScroll: true })
+  }, [])
 
   const root = turns.find((turn) => turn.id === requestId)
   const heading = dashboardTitle ?? root?.summary.prompt ?? ""
@@ -213,7 +218,9 @@ function ConversationView({
 
   return (
     <div className="flex min-h-full flex-col items-center">
-      <h1 className="sr-only">{heading}</h1>
+      <h1 ref={title} tabIndex={-1} className="sr-only outline-none">
+        {heading}
+      </h1>
       <div
         ref={list}
         className="flex w-full max-w-[760px] flex-1 flex-col gap-[18px] pt-2 pb-6"
