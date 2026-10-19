@@ -3,6 +3,7 @@ package tctest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,6 +21,50 @@ func (f *fakeContainer) Terminate(context.Context, ...testcontainers.TerminateOp
 }
 
 var errReaperRace = errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: unexpected container status "created"`)
+
+func TestIsReaperRace(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"shared reaper not started yet", errReaperRace, true},
+		{
+			"reaper dies while starting",
+			errors.New(`start postgres: run postgres: generic container: create container: reaper: new reaper: run container: started hook: wait until ready: mapped port: check target: retries: 10, port: "invalid port", last err: unexpected container status "removing": could not start container`),
+			true,
+		},
+		{
+			"reaper exits while starting",
+			errors.New(`create container: reaper: new reaper: run container: started hook: wait until ready: mapped port: check target: retries: 3, port: "invalid port", last err: container exited with code 1: could not start container`),
+			true,
+		},
+		{
+			"reaper failure joined with its termination error",
+			errors.Join(errors.New(`reaper: new reaper: run container: wait until ready: unexpected container status "removing"`), errors.New("terminate: boom")),
+			true,
+		},
+		{
+			"wrapped reaper failure",
+			fmt.Errorf("start clickhouse: %w", errors.New(`reaper: new reaper: run container: unexpected container status "removing"`)),
+			true,
+		},
+		{"reaper cannot be created", errors.New("create container: reaper: new reaper: run container: pull access denied"), false},
+		{"reaper container out of memory", errors.New("reaper: new reaper: run container: wait until ready: container crashed with out-of-memory (OOMKilled)"), false},
+		{"container under test exits", errors.New("start postgres: run postgres: generic container: started hook: wait until ready: container exited with code 1: could not start container"), false},
+		{"container under test is removed", errors.New(`run postgres: wait until ready: mapped port: check target: last err: unexpected container status "removing"`), false},
+		{"reaper connect fails", errors.New("reaper connect: dial tcp: connection refused"), false},
+		{"context cancelled", context.Canceled, false},
+		{"pull failure", errors.New("pull access denied"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isReaperRace(c.err); got != c.want {
+				t.Errorf("isReaperRace(%q) = %t, want %t", c.err, got, c.want)
+			}
+		})
+	}
+}
 
 func TestRetryReturnsOtherErrorsAfterOneCall(t *testing.T) {
 	want := errors.New("pull access denied")
