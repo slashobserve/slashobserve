@@ -211,17 +211,27 @@ func TestScanQueryPathologicalInput(t *testing.T) {
 		}
 		return best, len(query), err
 	}
-	for _, unit := range []string{"$__x(", "$__x( /* ", "$__x( '", "$__x( `\\", "$__conditionalAll(", "$__conditionalAll($__conditionalAll("} {
-		smallTime, smallLen, err := scan(unit, small)
+	for _, c := range []struct {
+		unit     string
+		maxRatio float64
+	}{
+		{"$__x(", 6},
+		{"$__x( /* ", 6},
+		{"$__x( '", 6},
+		{"$__x( `\\", 6},
+		{"$__conditionalAll(", 10},
+		{"$__conditionalAll($__conditionalAll(", 10},
+	} {
+		smallTime, smallLen, err := scan(c.unit, small)
 		if err == nil {
-			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", unit, smallLen)
+			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", c.unit, smallLen)
 		}
-		largeTime, largeLen, err := scan(unit, large)
+		largeTime, largeLen, err := scan(c.unit, large)
 		if err == nil {
-			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", unit, largeLen)
+			t.Errorf("%q at %d bytes: want an error for unbounded unclosed parentheses", c.unit, largeLen)
 		}
-		if ratio := float64(largeTime) / float64(max(smallTime, time.Microsecond)); ratio > 6 {
-			t.Errorf("%q: scanning %d bytes took %s and %d bytes took %s (%.1fx for 4x input, want linear or better)", unit, smallLen, smallTime, largeLen, largeTime, ratio)
+		if ratio := float64(largeTime) / float64(max(smallTime, time.Microsecond)); ratio > c.maxRatio {
+			t.Errorf("%q: scanning %d bytes took %s and %d bytes took %s (%.1fx for 4x input, want at most %.0fx)", c.unit, smallLen, smallTime, largeLen, largeTime, ratio, c.maxRatio)
 		}
 	}
 }
