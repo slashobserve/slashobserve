@@ -196,6 +196,48 @@ test("keeps the composer inside the window", async ({ page, request }) => {
   ).toBe(true)
 })
 
+test("clears a posted draft after the dashboard was left", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createPageDashboard(request)
+  let release: () => void = () => undefined
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route(`**/api/v1/dashboards/${id}/comments`, async (route) => {
+    if (route.request().method() !== "POST") return route.fallback()
+    await held
+    return route.fallback()
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDashboard(page, id)
+
+  const composer = () =>
+    page
+      .getByRole("complementary", { name: "Activity" })
+      .getByRole("textbox", { name: "Comment or request" })
+  await composer().fill("Posted while leaving")
+  await page.getByRole("button", { name: "Add comment" }).click()
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Dashboards" })
+    .click()
+  await expect(page).toHaveURL("/dashboards")
+
+  const posted = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith(`/dashboards/${id}/comments`)
+  )
+  release()
+  expect((await posted).status()).toBe(201)
+
+  await page.goBack()
+  await expect(composer()).toBeVisible()
+  await expect(composer()).toHaveValue("")
+})
+
 test("resizes the activity card from the keyboard and remembers its width", async ({
   page,
   request,

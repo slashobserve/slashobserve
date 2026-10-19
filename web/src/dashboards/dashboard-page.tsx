@@ -13,11 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { Selections } from "@/api/keys"
 import { ActivityCard, activityCardId } from "@/activity/activity-card"
-import {
-  useActivityLayout,
-  useActivityStore,
-  useClearPostedDraft,
-} from "@/activity/activity-store"
+import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
@@ -282,7 +278,6 @@ function DashboardView({
   const pinned = search.version !== undefined
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
-  useClearPostedDraft(dashboardId)
   const editingPanel = search.edit === "query" && search.panel !== undefined
   const cardVisible = (open || editingPanel) && !editing
   const cardLayout = useActivityLayout(editingPanel)

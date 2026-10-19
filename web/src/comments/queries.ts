@@ -175,6 +175,7 @@ export function useCreateComment(id: string) {
 export function useAddComment(id: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: dashboardKeys.posts(id),
     networkMode: "always",
     mutationFn: (
       input: { body: string } & (
