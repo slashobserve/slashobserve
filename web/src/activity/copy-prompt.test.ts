@@ -44,6 +44,9 @@ describe("claudeCodePrompt", () => {
       "Checkout\u202Eevil\u2069 \u200Fhealth",
       "Checkoutevil health",
     ],
+    ["an Arabic letter mark", "Check\u061Cout health", "Checkout health"],
+    ["only hidden characters", " \u202E\u0007\n ", "Untitled dashboard"],
+    ["an empty title", "", "Untitled dashboard"],
     [
       "a control character",
       "Check\u0007out \u0000 health\u007F",

@@ -2,14 +2,16 @@ export function commentsListCommand(dashboardId: string): string {
   return `observe comments list ${dashboardId}`
 }
 
-const hiddenCharacters = /[\p{Cc}\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu
+const hiddenCharacters =
+  /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu
 
 function plainTitle(title: string): string {
-  return title
+  const cleaned = title
     .replace(/\s+/g, " ")
     .replace(hiddenCharacters, "")
     .replace(/ {2,}/g, " ")
     .trim()
+  return cleaned === "" ? "Untitled dashboard" : cleaned
 }
 
 export function claudeCodePrompt(input: {
