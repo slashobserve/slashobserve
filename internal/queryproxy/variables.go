@@ -379,8 +379,6 @@ func (r *Runner) implicitFilters(d *spec.Dashboard, selections map[string]Select
 	return out, nil
 }
 
-var labelNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-
 func parseAdhocFilter(name, dsType, text string) (datasource.AdhocFilter, error) {
 	parts := strings.SplitN(text, "|", 3)
 	if len(parts) != 3 {
@@ -392,7 +390,7 @@ func parseAdhocFilter(name, dsType, text string) (datasource.AdhocFilter, error)
 	default:
 		return datasource.AdhocFilter{}, fmt.Errorf("%w: variable %q has a filter with an operator other than =, !=, =~ or !~", ErrInvalidRequest, name)
 	}
-	validKey := labelNamePattern.MatchString(f.Key)
+	validKey := spec.IsLabelName(f.Key)
 	if dsType == string(spec.ClickHouse) {
 		validKey = spec.IsColumnArg(f.Key)
 	}

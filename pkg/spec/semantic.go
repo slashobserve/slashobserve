@@ -206,6 +206,12 @@ func IsColumnArg(arg string) bool {
 	return columnPattern.MatchString(arg)
 }
 
+var labelNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+func IsLabelName(name string) bool {
+	return labelNamePattern.MatchString(name)
+}
+
 var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/([smhdwMy]))?$`)
 
 type unitBounds struct{ min, max float64 }
