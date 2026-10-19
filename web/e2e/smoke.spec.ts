@@ -5,7 +5,7 @@ test("loads the app shell", async ({ page }) => {
   expect(response?.status()).toBe(200)
   await expect(page).toHaveTitle("Observe - SlashObserve")
   await expect(
-    page.getByRole("heading", { level: 1, name: "Dashboards" })
+    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
   ).toBeVisible()
 })
 
@@ -18,7 +18,7 @@ test("serves deep links through the SPA fallback", async ({ page }) => {
   await page.getByRole("link", { name: "Back to home" }).click()
   await expect(page).toHaveURL("/")
   await expect(
-    page.getByRole("heading", { level: 1, name: "Dashboards" })
+    page.getByRole("heading", { level: 1, name: "What do you want to see?" })
   ).toBeVisible()
 })
 
@@ -30,7 +30,7 @@ test.describe("on a phone", () => {
   }) => {
     await page.goto("/")
     await expect(
-      page.getByRole("heading", { level: 1, name: "Dashboards" })
+      page.getByRole("heading", { level: 1, name: "What do you want to see?" })
     ).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden()
     const clipped = await page
