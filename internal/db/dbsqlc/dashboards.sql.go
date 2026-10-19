@@ -69,7 +69,7 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 WHERE d.id = $1
@@ -102,6 +102,8 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.DashboardVersion.AuthorEmail,
 		&i.DashboardVersion.CreatedAt,
 		&i.DashboardVersion.AgentRequestID,
+		&i.DashboardVersion.Origin,
+		&i.DashboardVersion.OriginClient,
 	)
 	return i, err
 }
@@ -118,7 +120,7 @@ func (q *Queries) GetDashboardLatestVersion(ctx context.Context, id pgtype.UUID)
 }
 
 const getDashboardVersion = `-- name: GetDashboardVersion :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id,
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
   lv.author_name AS updated_by_name, lv.author_email AS updated_by_email
 FROM dashboards d
@@ -163,6 +165,8 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.DashboardVersion.AuthorEmail,
 		&i.DashboardVersion.CreatedAt,
 		&i.DashboardVersion.AgentRequestID,
+		&i.DashboardVersion.Origin,
+		&i.DashboardVersion.OriginClient,
 		&i.UpdatedByKind,
 		&i.UpdatedByID,
 		&i.UpdatedByName,
@@ -190,13 +194,14 @@ func (q *Queries) GetDashboardVersionSpec(ctx context.Context, arg GetDashboardV
 const insertDashboardVersion = `-- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email, agent_request_id
+  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client
 ) VALUES (
   $1, $2, $3, $4, $5, $6,
-  $7, $8, $9, $10, $11
+  $7, $8, $9, $10, $11,
+  $12::text, $13::text
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
 `
 
 type InsertDashboardVersionParams struct {
@@ -211,19 +216,24 @@ type InsertDashboardVersionParams struct {
 	AuthorName     string
 	AuthorEmail    pgtype.Text
 	AgentRequestID pgtype.UUID
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
 }
 
 type InsertDashboardVersionRow struct {
-	DashboardID   pgtype.UUID
-	Version       int32
-	ParentVersion pgtype.Int4
-	RestoredFrom  pgtype.Int4
-	Summary       string
-	AuthorKind    string
-	AuthorID      pgtype.UUID
-	AuthorName    string
-	AuthorEmail   pgtype.Text
-	CreatedAt     pgtype.Timestamptz
+	DashboardID    pgtype.UUID
+	Version        int32
+	ParentVersion  pgtype.Int4
+	RestoredFrom   pgtype.Int4
+	Summary        string
+	AuthorKind     string
+	AuthorID       pgtype.UUID
+	AuthorName     string
+	AuthorEmail    pgtype.Text
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
+	AgentRequestID pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
 }
 
 func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboardVersionParams) (InsertDashboardVersionRow, error) {
@@ -239,6 +249,8 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 		arg.AuthorName,
 		arg.AuthorEmail,
 		arg.AgentRequestID,
+		arg.Origin,
+		arg.OriginClient,
 	)
 	var i InsertDashboardVersionRow
 	err := row.Scan(
@@ -251,6 +263,9 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 		&i.AuthorID,
 		&i.AuthorName,
 		&i.AuthorEmail,
+		&i.Origin,
+		&i.OriginClient,
+		&i.AgentRequestID,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -258,7 +273,7 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 
 const listDashboardVersions = `-- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = $1 AND ($2::int IS NULL OR version < $2::int)
 ORDER BY version DESC
@@ -272,16 +287,19 @@ type ListDashboardVersionsParams struct {
 }
 
 type ListDashboardVersionsRow struct {
-	DashboardID   pgtype.UUID
-	Version       int32
-	ParentVersion pgtype.Int4
-	RestoredFrom  pgtype.Int4
-	Summary       string
-	AuthorKind    string
-	AuthorID      pgtype.UUID
-	AuthorName    string
-	AuthorEmail   pgtype.Text
-	CreatedAt     pgtype.Timestamptz
+	DashboardID    pgtype.UUID
+	Version        int32
+	ParentVersion  pgtype.Int4
+	RestoredFrom   pgtype.Int4
+	Summary        string
+	AuthorKind     string
+	AuthorID       pgtype.UUID
+	AuthorName     string
+	AuthorEmail    pgtype.Text
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
+	AgentRequestID pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
 }
 
 func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVersionsParams) ([]ListDashboardVersionsRow, error) {
@@ -303,6 +321,9 @@ func (q *Queries) ListDashboardVersions(ctx context.Context, arg ListDashboardVe
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorEmail,
+			&i.Origin,
+			&i.OriginClient,
+			&i.AgentRequestID,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

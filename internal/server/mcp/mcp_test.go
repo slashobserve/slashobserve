@@ -289,8 +289,19 @@ func TestInitializeIsStatelessAndCarriesInstructions(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	if id := rec.Header().Get("Mcp-Session-Id"); id != "" {
-		t.Errorf("stateless server issued a session id %q", id)
+	if id := rec.Header().Get("Mcp-Session-Id"); !strings.HasPrefix(id, "so1.") || !strings.HasSuffix(id, ".dGVzdA") {
+		t.Errorf("session id %q does not carry the client name", id)
+	}
+	unnamed := f.post(rpc(2, "initialize", map[string]any{
+		"protocolVersion": "2025-11-25",
+		"capabilities":    map[string]any{},
+		"clientInfo":      map[string]any{"name": "", "version": "0"},
+	}), nil)
+	if unnamed.Code != http.StatusOK {
+		t.Fatalf("unnamed client status %d: %s", unnamed.Code, unnamed.Body.String())
+	}
+	if id := unnamed.Header().Get("Mcp-Session-Id"); id != "" {
+		t.Errorf("session id %q issued for an unnamed client", id)
 	}
 	var result struct {
 		ProtocolVersion string `json:"protocolVersion"`

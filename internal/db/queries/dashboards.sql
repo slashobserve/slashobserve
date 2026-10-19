@@ -5,13 +5,14 @@ RETURNING id, title, tags, latest_version, created_at, updated_at;
 -- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email, agent_request_id
+  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client
 ) VALUES (
   @dashboard_id, @version, @parent_version, @restored_from, @spec, @summary,
-  @author_kind, @author_id, @author_name, @author_email, @agent_request_id
+  @author_kind, @author_id, @author_name, @author_email, @agent_request_id,
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, created_at;
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at;
 
 -- name: BumpDashboardVersion :one
 UPDATE dashboards
@@ -53,7 +54,7 @@ LIMIT @row_limit;
 
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
-  author_kind, author_id, author_name, author_email, created_at
+  author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
 FROM dashboard_versions
 WHERE dashboard_id = @id AND (sqlc.narg('before')::int IS NULL OR version < sqlc.narg('before')::int)
 ORDER BY version DESC

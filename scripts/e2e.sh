@@ -782,7 +782,7 @@ expect_rejected() {
 
 dashboards_suite() {
   api_token
-  local out id evolved_id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found panel_id path
+  local out id evolved_id nil_id=00000000-0000-0000-0000-000000000000 leak ids cursor first_id found panel_id path origin_id
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   if [[ "$out" != 201 ]] || ! grep -q '"version":1' "$TMP/api.body" || ! grep -q '"parent_version":null' "$TMP/api.body"; then
@@ -963,6 +963,23 @@ dashboards_suite() {
     fail "broken variables ($out: $(cat "$TMP/api.body"))"
   fi
   pass "broken variables are reported with the panels that depend on them"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create a dashboard for the api origin ($out: $(cat "$TMP/api.body"))"
+  origin_id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  out="$(api GET "/dashboards/$origin_id/versions/1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"origin":"api"' "$TMP/api.body" || ! grep -q '"origin_client":null' "$TMP/api.body" \
+    || ! grep -q '"agent_request_id":null' "$TMP/api.body"; then
+    fail "a version saved with a bearer key should record the api origin ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(command curl -sS -o "$TMP/web-create.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  [[ "$out" == 201 ]] || fail "create a dashboard through the browser session ($out: $(cat "$TMP/web-create.json"))"
+  origin_id="$(grep -o '"id":"[^"]*"' "$TMP/web-create.json" | head -1 | cut -d'"' -f4)"
+  out="$(api GET "/dashboards/$origin_id/versions/1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"origin":"web"' "$TMP/api.body"; then
+    fail "a version saved through the browser session should record the web origin ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "versions record the web and api origins"
 }
 
 sse_open() {
@@ -1414,7 +1431,7 @@ observe_suite() {
 
   out="$(api POST /observe -d '{"prompt":"demo shop RED metrics by endpoint"}')"
   [[ "$out" == 202 ]] || fail "queue a new dashboard request ($out: $(cat "$TMP/api.body"))"
-  observe_expect "the queued observe request" '"source":"observe"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null'
+  observe_expect "the queued observe request" '"source":"observe"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null' '"origin":"api"'
   id="$(observe_id_of "$TMP/api.body")"
   [[ -n "$id" ]] || fail "the queued observe request has no id ($(cat "$TMP/api.body"))"
   grep -qi "^location: /api/v1/observe/$id" "$TMP/api.headers" || fail "the observe response has no Location header ($(cat "$TMP/api.headers"))"
@@ -1548,7 +1565,7 @@ mcp_expect() {
 
 mcp_suite() {
   api_token
-  local out id name leak
+  local out id name leak label args
   local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_dashboards list_datasources
     list_label_values list_labels list_metrics query_instant query_range sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
@@ -1577,8 +1594,13 @@ mcp_suite() {
   if [[ "$out" != 200 ]] || ! grep -q '"name":"slashobserve"' "$TMP/mcp.body"; then
     fail "MCP initialize ($out: $(cat "$TMP/mcp.body"))"
   fi
-  if grep -qi '^mcp-session-id:' "$TMP/mcp.headers"; then fail "MCP initialize opened a session ($(cat "$TMP/mcp.headers"))"; fi
-  pass "MCP initialize answers without opening a session"
+  grep -Ei '^mcp-session-id: so1\.[0-9a-f]{32}\.ZTJl' "$TMP/mcp.headers" >/dev/null || fail "MCP initialize did not label the client name ($(cat "$TMP/mcp.headers"))"
+  label="$(grep -i '^mcp-session-id:' "$TMP/mcp.headers" | head -1 | cut -d' ' -f2 | tr -d '\r')"
+  out="$(mcp_call 1 initialize '{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"","version":"0"}}' "$TMP/mcp.body")"
+  if [[ "$out" != 200 ]] || grep -qi '^mcp-session-id:' "$TMP/mcp.headers"; then
+    fail "MCP initialize without a client name should answer without a session id ($out: $(cat "$TMP/mcp.headers"))"
+  fi
+  pass "MCP initialize labels the client name in the session id and keeps no session state"
 
   out="$(mcp_call 2 tools/list '{}' "$TMP/mcp.body")"
   [[ "$out" == 200 ]] || fail "MCP tools/list ($out: $(cat "$TMP/mcp.body"))"
@@ -1631,11 +1653,36 @@ mcp_suite() {
   fi
   pass "MCP create_dashboard saves a dashboard attributed to the service account"
 
+  out="$(api GET "/dashboards/$id/versions/1")"
+  if [[ "$out" != 200 ]] || ! grep -q '"origin":"mcp"' "$TMP/api.body" || ! grep -q '"origin_client":null' "$TMP/api.body"; then
+    fail "a version saved over MCP should record the mcp origin ($out: $(cat "$TMP/api.body"))"
+  fi
+
   mcp_tool get_dashboard "{\"dashboard_id\":\"$id\"}"
   mcp_expect "get_dashboard" '"version":1'
   mcp_tool list_dashboards '{}'
   mcp_expect "list_dashboards" "\"id\":\"$id\""
   pass "MCP reads back the dashboard it created"
+
+  args="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["dashboard_id"]=sys.argv[2]; d["parent_version"]=int(sys.argv[3]); print(json.dumps(d))' "$FIXTURES/dashboard-valid.json" "$id" 1)"
+  out="$(mcp_call 5 tools/call "{\"name\":\"update_dashboard\",\"arguments\":$args,\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
+  if [[ "$out" != 200 ]] || grep -q '"isError":true' "$TMP/mcp.body"; then
+    fail "MCP update_dashboard with clientInfo in _meta ($out: $(head -c 1500 "$TMP/mcp.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/versions/2")"
+  if [[ "$out" != 200 ]] || ! grep -q '"origin":"mcp"' "$TMP/api.body" || ! grep -q '"origin_client":"claude-code"' "$TMP/api.body"; then
+    fail "version 2 should record the client name from _meta ($out: $(cat "$TMP/api.body"))"
+  fi
+  args="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); d["dashboard_id"]=sys.argv[2]; d["parent_version"]=int(sys.argv[3]); print(json.dumps(d))' "$FIXTURES/dashboard-valid.json" "$id" 2)"
+  out="$(mcp_call 6 tools/call "{\"name\":\"update_dashboard\",\"arguments\":$args}" "$TMP/mcp.body" -H "Mcp-Session-Id: $label")"
+  if [[ "$out" != 200 ]] || grep -q '"isError":true' "$TMP/mcp.body"; then
+    fail "MCP update_dashboard with a session label ($out: $(head -c 1500 "$TMP/mcp.body"))"
+  fi
+  out="$(api GET "/dashboards/$id/versions/3")"
+  if [[ "$out" != 200 ]] || ! grep -q '"origin_client":"e2e"' "$TMP/api.body"; then
+    fail "version 3 should record the client name from the session label ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "MCP saves record the client name from _meta or from the session label"
 
   mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-failing-query.json")"
   if [[ "$MCP_ERROR" != true ]] || ! grep -q 'query_invalid' "$TMP/mcp.body"; then
@@ -1953,6 +2000,14 @@ cli_suite() {
   grep -qF "save" "$TMP/cli.err" || fail "observe with a prompt printed no progress steps (stderr: $(cat "$TMP/cli.err"))"
   did="${url##*/}"
   pass "observe with a prompt prints only the dashboard address and reports progress on stderr"
+
+  command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/dashboards/$did/versions/1" >"$TMP/cli.api"
+  grep -q '"origin":"cli"' "$TMP/cli.api" || fail "the version the agent saved for a CLI prompt should record the cli origin ($(cat "$TMP/cli.api"))"
+  request_id="$(grep -o '"agent_request_id":"[^"]*"' "$TMP/cli.api" | head -1 | cut -d'"' -f4)"
+  [[ -n "$request_id" ]] || fail "the version the agent saved has no agent_request_id ($(cat "$TMP/cli.api"))"
+  command curl -sS --max-time 10 -H "Authorization: Bearer $API_TOKEN" "$BASE_URL/api/v1/observe/$request_id" >"$TMP/cli.api"
+  grep -q '"origin":"cli"' "$TMP/cli.api" || fail "a CLI prompt should record the cli origin on its request ($(cat "$TMP/cli.api"))"
+  pass "a CLI prompt records the cli origin on the request and on the version the agent saved"
 
   cli_run dashboards list --json
   [[ "$CLI_CODE" == 0 ]] || fail "observe dashboards list --json exits $CLI_CODE ($(cat "$TMP/cli.err"))"

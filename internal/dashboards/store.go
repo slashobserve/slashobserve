@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -48,12 +49,15 @@ type Dashboard struct {
 }
 
 type VersionMeta struct {
-	Number        int
-	ParentVersion *int
-	RestoredFrom  *int
-	Summary       string
-	Author        Author
-	CreatedAt     time.Time
+	Number         int
+	ParentVersion  *int
+	RestoredFrom   *int
+	Summary        string
+	Author         Author
+	CreatedAt      time.Time
+	Origin         string
+	OriginClient   string
+	AgentRequestID string
 }
 
 type Version struct {
@@ -70,6 +74,7 @@ type newVersion struct {
 	summary      string
 	author       Author
 	requestID    pgtype.UUID
+	origin       origin.Origin
 }
 
 type store struct {
@@ -156,6 +161,8 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		AuthorName:     in.author.Name,
 		AuthorEmail:    pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
 		AgentRequestID: in.requestID,
+		Origin:         pgtype.Text{String: string(in.origin.Kind), Valid: in.origin.Kind != ""},
+		OriginClient:   pgtype.Text{String: in.origin.Client, Valid: in.origin.Kind == origin.MCP && in.origin.Client != ""},
 	}
 	if number > 1 {
 		params.ParentVersion = pgtype.Int4{Int32: httpapi.Int32(in.parent), Valid: true}
@@ -167,7 +174,7 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("insert dashboard version: %w", err)
 	}
-	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt)
+	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
 	payload, err := versionEventPayload(in.dashboardID, meta)
 	if err != nil {
 		return VersionMeta{}, fmt.Errorf("marshal event: %w", err)
@@ -277,7 +284,7 @@ func (st store) listVersions(ctx context.Context, id pgtype.UUID, before, limit 
 	}
 	items := make([]VersionMeta, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, metaFromRow(r.Version, r.ParentVersion, r.RestoredFrom, r.Summary, authorFromRow(r.AuthorKind, r.AuthorID, r.AuthorName, r.AuthorEmail), r.CreatedAt))
+		items = append(items, metaFromRow(r.Version, r.ParentVersion, r.RestoredFrom, r.Summary, authorFromRow(r.AuthorKind, r.AuthorID, r.AuthorName, r.AuthorEmail), r.CreatedAt, r.Origin, r.OriginClient, r.AgentRequestID))
 	}
 	return items, nil
 }
@@ -303,19 +310,25 @@ func versionFromRow(row dbsqlc.DashboardVersion) (Version, error) {
 	if err != nil {
 		return Version{}, err
 	}
-	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt)
+	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
 	return Version{VersionMeta: meta, Spec: d}, nil
 }
 
-func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz) VersionMeta {
-	return VersionMeta{
+func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz, originKind, originClient pgtype.Text, agentRequestID pgtype.UUID) VersionMeta {
+	meta := VersionMeta{
 		Number:        int(number),
 		ParentVersion: optionalInt(parent),
 		RestoredFrom:  optionalInt(restored),
 		Summary:       summary,
 		Author:        author,
 		CreatedAt:     createdAt.Time.UTC(),
+		Origin:        originKind.String,
+		OriginClient:  originClient.String,
 	}
+	if agentRequestID.Valid {
+		meta.AgentRequestID = agentRequestID.String()
+	}
+	return meta
 }
 
 func authorFromRow(kind string, id pgtype.UUID, name string, email pgtype.Text) Author {

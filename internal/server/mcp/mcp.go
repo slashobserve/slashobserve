@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -114,6 +115,13 @@ func (h *handler) callTool(name string) mcpserver.ToolHandlerFunc {
 			h.logger.ErrorContext(ctx, "mcp tool arguments not encodable", h.failureAttrs(name, principal, "invalid_arguments", err)...)
 			return mcplib.NewToolResultError(internalErrorMsg), nil
 		}
+		client := ""
+		if info := req.Params.Meta.ClientInfo(); info != nil {
+			client = info.Name
+		} else {
+			client = labelClient(req.Header.Get(mcpserver.HeaderKeySessionID))
+		}
+		ctx = origin.With(ctx, origin.Origin{Kind: origin.MCP, Client: origin.CleanClient(client)})
 		res, err := h.call(ctx, name, input)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -201,6 +209,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
+		if client := initializeClient(body); client != "" {
+			w.Header().Set(mcpserver.HeaderKeySessionID, clientLabel(client))
+		}
 	}
 	if !h.slots.acquireGlobal() {
 		w.Header().Set("Retry-After", "1")
@@ -211,14 +222,29 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.transport.ServeHTTP(w, r.WithContext(auth.WithPrincipal(r.Context(), principal)))
 }
 
-func (h *handler) originAllowed(origin string) bool {
-	if origin == "" {
+func initializeClient(body []byte) string {
+	var msg struct {
+		Method string `json:"method"`
+		Params struct {
+			ClientInfo struct {
+				Name string `json:"name"`
+			} `json:"clientInfo"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(body, &msg) != nil || msg.Method != "initialize" {
+		return ""
+	}
+	return origin.CleanClient(msg.Params.ClientInfo.Name)
+}
+
+func (h *handler) originAllowed(header string) bool {
+	if header == "" {
 		return true
 	}
 	if h.origin == nil {
 		return false
 	}
-	u, err := url.Parse(origin)
+	u, err := url.Parse(header)
 	if err != nil || u.Path != "" || u.RawQuery != "" || u.User != nil {
 		return false
 	}

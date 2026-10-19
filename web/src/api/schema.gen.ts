@@ -738,6 +738,18 @@ export interface components {
             author: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;
+            /**
+             * @description Where the save came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. A version saved by the agent records the origin of the request that asked for it. Null for versions saved before origins were recorded. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request that saved this version; null for a version saved directly.
+             */
+            agent_request_id: string | null;
         };
         Version: {
             version: number;
@@ -747,6 +759,18 @@ export interface components {
             author: components["schemas"]["Author"];
             /** Format: date-time */
             created_at: string;
+            /**
+             * @description Where the save came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. A version saved by the agent records the origin of the request that asked for it. Null for versions saved before origins were recorded. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
+            /**
+             * Format: uuid
+             * @description The agent request that saved this version; null for a version saved directly.
+             */
+            agent_request_id: string | null;
             /** @description The ObserveSpec document, validated against its own schema. */
             spec: {
                 [key: string]: unknown;
@@ -907,6 +931,13 @@ export interface components {
             /** @description Why the revision failed, set when the status is `failed`. */
             error: string | null;
             requested_by: components["schemas"]["Author"];
+            /**
+             * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -982,6 +1013,13 @@ export interface components {
             /** @description Tokens, model calls and repair rounds of the attempt that finished the request. */
             usage: components["schemas"]["AgentUsage"] | null;
             requested_by: components["schemas"]["Author"];
+            /**
+             * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's self-reported `clientInfo.name` (for example `claude-code`), only when `origin` is `mcp`; unverified. */
+            origin_client: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

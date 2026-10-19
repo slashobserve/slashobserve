@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
@@ -206,6 +207,9 @@ func (w *Worker) revise(ctx context.Context, req Request) (result Result, err er
 			result, err = Result{}, errCrashed
 		}
 	}()
+	if req.Origin.Kind != "" {
+		ctx = origin.With(ctx, req.Origin)
+	}
 	return w.service.reviser.Revise(ctx, req)
 }
 
@@ -261,5 +265,6 @@ func requestFrom(row dbsqlc.AgentRequest) Request {
 		BaseVersion: int(row.BaseVersion.Int32),
 		Attempt:     int(row.Attempts),
 		RequestedBy: requesterOf(row),
+		Origin:      origin.Origin{Kind: origin.Kind(row.Origin.String), Client: row.OriginClient.String},
 	}
 }

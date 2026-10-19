@@ -11,10 +11,11 @@ WHERE dashboard_id = @dashboard_id AND status IN ('queued', 'running');
 -- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
-  requested_by_kind, requested_by_id, requested_by_name, requested_by_email
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
 ) VALUES (
   @dashboard_id, @source, sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
-  @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email')
+  @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
 )
 RETURNING *;
 
@@ -109,8 +110,9 @@ WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id
 SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running');
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email)
-VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'))
+INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client)
+VALUES ('observe', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
 RETURNING *;
 
 -- name: GetAgentRequestByID :one
