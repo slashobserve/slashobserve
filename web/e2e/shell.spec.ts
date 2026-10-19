@@ -2,7 +2,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { createDashboard, loadSpec, uniqueTitle } from "./api"
 import { openDashboard } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { expect, tabUntilFocused, test } from "./fixtures"
 
 function sidebar(page: Page) {
   return page.getByRole("navigation", { name: "Main" })
@@ -182,11 +182,7 @@ test("shows focus in brand blue", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/")
   const datasources = sidebar(page).getByRole("link", { name: "Datasources" })
-  for (let presses = 0; presses < 15; presses++) {
-    await page.keyboard.press("Tab")
-    if (await datasources.evaluate((el) => el === document.activeElement)) break
-  }
-  await expect(datasources).toBeFocused()
+  await tabUntilFocused(page, datasources, 15)
   await expect
     .poll(() => datasources.evaluate((el) => getComputedStyle(el).boxShadow))
     .toContain("42, 120, 214")

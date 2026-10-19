@@ -10,7 +10,13 @@ import {
   mutationHeaders,
   uniqueAccountName,
 } from "./api"
-import { expect, failedResourceLogged, test, type Page } from "./fixtures"
+import {
+  expect,
+  failedResourceLogged,
+  tabUntilFocused,
+  test,
+  type Page,
+} from "./fixtures"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -478,12 +484,7 @@ test("works with the keyboard only", async ({ page }) => {
   const name = uniqueAccountName()
   await openKeysPage(page)
   const trigger = newAccountButton(page)
-  for (let presses = 0; presses < 20; presses++) {
-    if (await trigger.evaluate((element) => element === document.activeElement))
-      break
-    await page.keyboard.press("Tab")
-  }
-  await expect(trigger).toBeFocused()
+  await tabUntilFocused(page, trigger, 20)
   await page.keyboard.press("Enter")
 
   const dialog = page.getByRole("dialog")

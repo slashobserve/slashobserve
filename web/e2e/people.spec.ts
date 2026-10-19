@@ -1,6 +1,12 @@
 import type { Route } from "@playwright/test"
 
-import { expect, failedResourceLogged, test, type Page } from "./fixtures"
+import {
+  expect,
+  failedResourceLogged,
+  tabUntilFocused,
+  test,
+  type Page,
+} from "./fixtures"
 
 type Person = {
   id: string
@@ -238,24 +244,52 @@ test("works with the keyboard", async ({ page }) => {
   const trigger = page
     .getByRole("button", { name: /^Sign out .+ everywhere$/ })
     .first()
-  for (let presses = 0; presses < 80; presses++) {
-    if (await trigger.evaluate((el) => el === document.activeElement)) break
-    await page.keyboard.press("Tab")
-  }
-  await expect(trigger).toBeFocused()
+  await tabUntilFocused(page, trigger, 80)
 
   await page.keyboard.press("Enter")
   const dialog = page.getByRole("alertdialog")
   await expect(dialog).toBeVisible()
   const cancel = dialog.getByRole("button", { name: "Cancel" })
-  for (let presses = 0; presses < 4; presses++) {
-    if (await cancel.evaluate((el) => el === document.activeElement)) break
-    await page.keyboard.press("Tab")
-  }
   await expect(cancel).toBeFocused()
+  await page.keyboard.press("Tab")
+  const confirm = dialog.getByRole("button", {
+    name: "Sign out everywhere",
+    exact: true,
+  })
+  await expect(confirm).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(cancel).toBeFocused()
+  await page.keyboard.press("Shift+Tab")
+  await expect(confirm).toBeFocused()
 
   await page.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
+test("signs a person out with the keyboard", async ({ page }) => {
+  await addPeople(page, [priya()])
+  const sent = await mockSignOut(page, priyaId, (route) =>
+    route.fulfill({ status: 204 })
+  )
+  await openPeople(page)
+  const trigger = page.getByRole("button", {
+    name: "Sign out Priya everywhere",
+  })
+  await tabUntilFocused(page, trigger, 80)
+
+  await page.keyboard.press("Enter")
+  const dialog = page.getByRole("alertdialog")
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(
+    dialog.getByRole("button", { name: "Sign out everywhere", exact: true })
+  ).toBeFocused()
+  await page.keyboard.press("Enter")
+
+  await expect(page.getByText("Signed out Priya everywhere")).toBeVisible()
+  await expect(dialog).toBeHidden()
+  expect(sent).toEqual(["DELETE"])
   await expect(trigger).toBeFocused()
 })
 

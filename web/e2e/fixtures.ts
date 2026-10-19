@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from "@playwright/test"
+import { expect, test as base, type Locator, type Page } from "@playwright/test"
 
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: [
@@ -21,6 +21,18 @@ export function failedResourceLogged(consoleErrors: string[], status: string) {
   )
   expect(logged).toHaveLength(1)
   consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
+}
+
+export async function tabUntilFocused(
+  page: Page,
+  locator: Locator,
+  max: number
+) {
+  for (let presses = 0; presses < max; presses++) {
+    if (await locator.evaluate((el) => el === document.activeElement)) break
+    await page.keyboard.press("Tab")
+  }
+  await expect(locator).toBeFocused()
 }
 
 export { expect, type Page }
