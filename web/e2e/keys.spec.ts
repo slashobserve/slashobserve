@@ -139,6 +139,9 @@ test("creates a key for a new service account and shows it once", async ({
     "In 1 year",
     "Never",
   ])
+  await expect(
+    page.getByRole("option", { name: "In 90 days", exact: true })
+  ).toBeFocused()
   await page.keyboard.press("Escape")
   await expect(page.getByRole("listbox")).toBeHidden()
   await panelSubmit(page).click()
@@ -518,6 +521,13 @@ test("works with the keyboard only", async ({ page }) => {
   await expect(account).toBeFocused()
   await page.keyboard.press("Enter")
   await expect(page.getByRole("listbox")).toBeVisible()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.activeElement?.closest('[role="listbox"]') != null
+      )
+    )
+    .toBe(true)
   const create = page.getByRole("option", {
     name: "New service account",
     exact: true,
@@ -550,6 +560,9 @@ test("keeps a Select's Escape inside the panel", async ({ page }) => {
   const expires = aside.getByRole("combobox", { name: "Expires" })
   await expires.click()
   await expect(page.getByRole("listbox")).toBeVisible()
+  await expect(
+    page.getByRole("option", { name: "In 90 days", exact: true })
+  ).toBeFocused()
   await page.keyboard.press("Escape")
   await expect(page.getByRole("listbox")).toBeHidden()
   await expect(aside).toBeVisible()

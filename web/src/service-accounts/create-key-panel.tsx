@@ -73,8 +73,6 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
   const createKey = useCreateKey()
   const ids = useId()
   const newAccountInput = useRef<HTMLInputElement>(null)
-  const accountTrigger = useRef<HTMLButtonElement>(null)
-  const expiresTrigger = useRef<HTMLButtonElement>(null)
 
   const [phase, setPhase] = useState<"form" | "created">("form")
   const [keyName, setKeyName] = useState("")
@@ -243,6 +241,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${ids}-account`}>Service account</Label>
+          {/* No finalFocus ref on these Selects: a ref skips Base UI's moved-focus guard and steals focus from the next Select. */}
           <Select
             items={accountItems}
             value={choice}
@@ -253,7 +252,6 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
           >
             <SelectTrigger
               id={`${ids}-account`}
-              ref={accountTrigger}
               className="w-full"
               aria-busy={loadingAccounts}
               icon={
@@ -267,11 +265,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
             >
               <SelectValue placeholder="Loading service accounts" />
             </SelectTrigger>
-            <SelectContent
-              alignItemWithTrigger={false}
-              align="start"
-              finalFocus={accountTrigger}
-            >
+            <SelectContent alignItemWithTrigger={false} align="start">
               {accountItems.map((item) => (
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
@@ -318,18 +312,10 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
               if (next !== null) setExpiry(next)
             }}
           >
-            <SelectTrigger
-              id={`${ids}-expires`}
-              ref={expiresTrigger}
-              className="w-full"
-            >
+            <SelectTrigger id={`${ids}-expires`} className="w-full">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent
-              alignItemWithTrigger={false}
-              align="start"
-              finalFocus={expiresTrigger}
-            >
+            <SelectContent alignItemWithTrigger={false} align="start">
               {expiryItems.map((item) => (
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
