@@ -20,7 +20,7 @@ var (
 	variableNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,39}$`)
 	intervalPattern     = regexp.MustCompile(`^[1-9][0-9]{0,4}(ms|[smhdwy])$`)
 	legacyReference     = regexp.MustCompile(`\[\[([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?\]\]`)
-	customPair          = regexp.MustCompile(`^\s*(.+?)\s+:\s+(.+?)\s*$`)
+	customPair          = regexp.MustCompile(`^\s*(.+)\s:\s(.+)$`)
 )
 
 var variableSilentKeys = map[string]bool{
@@ -37,7 +37,7 @@ var variableHandledKeys = map[string][]string{
 	"constant":   {"query"},
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
 	"textbox":    {"query"},
-	"datasource": {"query", "regex", "multi", "includeAll", "allValue"},
+	"datasource": {"query", "regex", "multi", "includeAll"},
 	"adhoc":      {"filters", "baseFilters"},
 }
 
@@ -100,15 +100,22 @@ func (c *converter) convertVariables() {
 		c.reportUnhandledKeys(raw, path, subject)
 		c.vars = append(c.vars, &builtVar{v: v, path: path})
 	}
-	c.vars = orderByDependency(c.vars)
+	var pulled []string
+	c.vars, pulled = orderByDependency(c.vars)
+	if len(pulled) > 0 {
+		c.note("variables", "Variables were reordered so that each one comes after the variables its query uses.", pulled...)
+	}
 }
 
-func orderByDependency(vars []*builtVar) []*builtVar {
+func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {
 	byName := map[string]*builtVar{}
-	for _, v := range vars {
+	declared := map[*builtVar]int{}
+	for i, v := range vars {
 		byName[v.v.Name] = v
+		declared[v] = i
 	}
 	var ordered []*builtVar
+	var pulled []string
 	state := map[string]int{}
 	var visit func(v *builtVar)
 	visit = func(v *builtVar) {
@@ -118,9 +125,14 @@ func orderByDependency(vars []*builtVar) []*builtVar {
 		state[v.v.Name] = 1
 		if refs, err := spec.ScanQuery(v.v.Query); err == nil {
 			for _, ref := range spec.FlattenReferences(refs) {
-				if dep, ok := byName[ref.Name]; ok && ref.Kind == spec.VariableRef && dep != v {
-					visit(dep)
+				dep, ok := byName[ref.Name]
+				if !ok || ref.Kind != spec.VariableRef || dep == v {
+					continue
 				}
+				if declared[dep] > declared[v] && state[dep.v.Name] == 0 {
+					pulled = append(pulled, dep.path)
+				}
+				visit(dep)
 			}
 		}
 		state[v.v.Name] = 2
@@ -129,7 +141,7 @@ func orderByDependency(vars []*builtVar) []*builtVar {
 	for _, v := range vars {
 		visit(v)
 	}
-	return ordered
+	return ordered, pulled
 }
 
 func (c *converter) dropVariable(subject, path, reason string) {
@@ -378,7 +390,7 @@ func (c *converter) customVariable(raw map[string]any, path, name string) (spec.
 	for _, part := range splitCustom(asString(raw["query"])) {
 		part = strings.TrimSpace(part)
 		if m := customPair.FindStringSubmatch(part); m != nil {
-			part = m[2]
+			part = strings.TrimSpace(m[2])
 			paired = true
 		}
 		if part != "" {
@@ -553,6 +565,15 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 	}
 	if ref.src.kind == kindClickHouse {
 		c.note(subject, fmt.Sprintf("ClickHouse queries filter by this variable only where they use $%s.", name), path)
+	}
+	var saved []string
+	for _, key := range []string{"filters", "baseFilters"} {
+		if present(raw[key]) {
+			saved = append(saved, path+"."+key)
+		}
+	}
+	if len(saved) > 0 {
+		c.note(subject, "Saved filters are not kept.", saved...)
 	}
 	return spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.uid()}, true
 }
