@@ -14,19 +14,20 @@ import (
 const createComment = `-- name: CreateComment :one
 WITH clock AS (SELECT clock_timestamp() AS at)
 INSERT INTO dashboard_comments (
-  dashboard_id, version, panel_id, body, author_kind, author_id, author_name, author_email, created_at, updated_at
+  dashboard_id, version, panel_id, parent_id, body, author_kind, author_id, author_name, author_email, created_at, updated_at
 )
 SELECT
-  $1::uuid, $2::integer, $3::text, $4::text, $5::text,
-  $6::uuid, $7::text, $8::text, clock.at, clock.at
+  $1::uuid, $2::integer, $3::text, $4::uuid, $5::text, $6::text,
+  $7::uuid, $8::text, $9::text, clock.at, clock.at
 FROM clock
-RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at
+RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version
 `
 
 type CreateCommentParams struct {
 	DashboardID pgtype.UUID
 	Version     int32
-	PanelID     string
+	PanelID     pgtype.Text
+	ParentID    pgtype.UUID
 	Body        string
 	AuthorKind  string
 	AuthorID    pgtype.UUID
@@ -39,6 +40,7 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (D
 		arg.DashboardID,
 		arg.Version,
 		arg.PanelID,
+		arg.ParentID,
 		arg.Body,
 		arg.AuthorKind,
 		arg.AuthorID,
@@ -63,12 +65,14 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (D
 		&i.ResolvedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
 	)
 	return i, err
 }
 
 const getComment = `-- name: GetComment :one
-SELECT id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at FROM dashboard_comments WHERE id = $1 AND dashboard_id = $2
+SELECT id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version FROM dashboard_comments WHERE id = $1 AND dashboard_id = $2
 `
 
 type GetCommentParams struct {
@@ -96,18 +100,22 @@ func (q *Queries) GetComment(ctx context.Context, arg GetCommentParams) (Dashboa
 		&i.ResolvedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
 	)
 	return i, err
 }
 
 const listComments = `-- name: ListComments :many
-SELECT id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at FROM dashboard_comments
-WHERE dashboard_id = $1
-  AND ($2::text IS NULL OR status = $2::text)
-  AND ($3::text IS NULL OR panel_id = $3::text)
+SELECT c.id, c.dashboard_id, c.version, c.panel_id, c.body, c.status, c.author_kind, c.author_id, c.author_name, c.author_email, c.resolved_at, c.resolved_by_kind, c.resolved_by_id, c.resolved_by_name, c.created_at, c.updated_at, c.parent_id, c.resolved_by_version, coalesce(root.status, c.status)::text AS thread_status
+FROM dashboard_comments c
+LEFT JOIN dashboard_comments root ON root.id = c.parent_id
+WHERE c.dashboard_id = $1
+  AND ($2::text IS NULL OR coalesce(root.status, c.status) = $2::text)
+  AND ($3::text IS NULL OR c.panel_id = $3::text)
   AND ($4::timestamptz IS NULL
-    OR (created_at, id) > ($4::timestamptz, $5::uuid))
-ORDER BY created_at, id
+    OR (c.created_at, c.id) > ($4::timestamptz, $5::uuid))
+ORDER BY c.created_at, c.id
 LIMIT $6
 `
 
@@ -120,7 +128,12 @@ type ListCommentsParams struct {
 	RowLimit        int32
 }
 
-func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]DashboardComment, error) {
+type ListCommentsRow struct {
+	DashboardComment DashboardComment
+	ThreadStatus     string
+}
+
+func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]ListCommentsRow, error) {
 	rows, err := q.db.Query(ctx, listComments,
 		arg.DashboardID,
 		arg.Status,
@@ -133,26 +146,29 @@ func (q *Queries) ListComments(ctx context.Context, arg ListCommentsParams) ([]D
 		return nil, err
 	}
 	defer rows.Close()
-	var items []DashboardComment
+	var items []ListCommentsRow
 	for rows.Next() {
-		var i DashboardComment
+		var i ListCommentsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.DashboardID,
-			&i.Version,
-			&i.PanelID,
-			&i.Body,
-			&i.Status,
-			&i.AuthorKind,
-			&i.AuthorID,
-			&i.AuthorName,
-			&i.AuthorEmail,
-			&i.ResolvedAt,
-			&i.ResolvedByKind,
-			&i.ResolvedByID,
-			&i.ResolvedByName,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.DashboardComment.ID,
+			&i.DashboardComment.DashboardID,
+			&i.DashboardComment.Version,
+			&i.DashboardComment.PanelID,
+			&i.DashboardComment.Body,
+			&i.DashboardComment.Status,
+			&i.DashboardComment.AuthorKind,
+			&i.DashboardComment.AuthorID,
+			&i.DashboardComment.AuthorName,
+			&i.DashboardComment.AuthorEmail,
+			&i.DashboardComment.ResolvedAt,
+			&i.DashboardComment.ResolvedByKind,
+			&i.DashboardComment.ResolvedByID,
+			&i.DashboardComment.ResolvedByName,
+			&i.DashboardComment.CreatedAt,
+			&i.DashboardComment.UpdatedAt,
+			&i.DashboardComment.ParentID,
+			&i.DashboardComment.ResolvedByVersion,
+			&i.ThreadStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -171,18 +187,20 @@ SET status = $1::text,
   resolved_by_kind = $2::text,
   resolved_by_id = $3::uuid,
   resolved_by_name = $4::text,
+  resolved_by_version = CASE WHEN $1::text = 'resolved' THEN $5::integer END,
   updated_at = now()
-WHERE id = $5 AND dashboard_id = $6 AND status <> $1::text
-RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at
+WHERE id = $6 AND dashboard_id = $7 AND parent_id IS NULL AND status <> $1::text
+RETURNING id, dashboard_id, version, panel_id, body, status, author_kind, author_id, author_name, author_email, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, created_at, updated_at, parent_id, resolved_by_version
 `
 
 type SetCommentStatusParams struct {
-	Status         string
-	ResolvedByKind pgtype.Text
-	ResolvedByID   pgtype.UUID
-	ResolvedByName pgtype.Text
-	ID             pgtype.UUID
-	DashboardID    pgtype.UUID
+	Status            string
+	ResolvedByKind    pgtype.Text
+	ResolvedByID      pgtype.UUID
+	ResolvedByName    pgtype.Text
+	ResolvedByVersion pgtype.Int4
+	ID                pgtype.UUID
+	DashboardID       pgtype.UUID
 }
 
 func (q *Queries) SetCommentStatus(ctx context.Context, arg SetCommentStatusParams) (DashboardComment, error) {
@@ -191,6 +209,7 @@ func (q *Queries) SetCommentStatus(ctx context.Context, arg SetCommentStatusPara
 		arg.ResolvedByKind,
 		arg.ResolvedByID,
 		arg.ResolvedByName,
+		arg.ResolvedByVersion,
 		arg.ID,
 		arg.DashboardID,
 	)
@@ -212,6 +231,8 @@ func (q *Queries) SetCommentStatus(ctx context.Context, arg SetCommentStatusPara
 		&i.ResolvedByName,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ParentID,
+		&i.ResolvedByVersion,
 	)
 	return i, err
 }

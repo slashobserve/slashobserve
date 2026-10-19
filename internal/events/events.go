@@ -29,4 +29,5 @@ type Event struct {
 	RevisionID    string  `json:"revision_id,omitempty"`
 	PanelID       string  `json:"panel_id,omitempty"`
 	Status        string  `json:"status,omitempty"`
+	ParentID      string  `json:"parent_id,omitempty"`
 }

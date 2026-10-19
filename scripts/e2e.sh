@@ -1056,7 +1056,7 @@ comment_ids() {
 comments_suite() {
   api_token
   local out id panel second_panel cid cid2 cid3 cursor stream="$TMP/sse-comments.txt" updated page_ids
-  local nil_id=00000000-0000-0000-0000-000000000000 other_id
+  local nil_id=00000000-0000-0000-0000-000000000000 other_id cid_other
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   second_panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 2p)"
@@ -1074,6 +1074,7 @@ comments_suite() {
     fail "comment on panel $panel ($out: $(cat "$TMP/api.body"))"
   fi
   cid="$(comment_ids "$TMP/api.body")"
+  cid_other="$cid"
   [[ -n "$cid" ]] || fail "created comment has no id ($(cat "$TMP/api.body"))"
   grep -qi "^location: /api/v1/dashboards/$id/comments/$cid" "$TMP/api.headers" || fail "comment response has no Location header ($(cat "$TMP/api.headers"))"
   sse_wait "$stream" '^event: comment.created$' 10
@@ -1204,6 +1205,90 @@ comments_suite() {
   out="$(api POST "/dashboards/$id/comments" -d "$(comment_body 2 "$panel" 'x')")"
   [[ "$out" == 422 ]] || fail "comment on a panel the newest version dropped ($out: $(cat "$TMP/api.body"))"
   pass "comments stay on the version they were made on and report whether their panel is still present"
+
+  local tid wid rid1 rid2 stream_threads="$TMP/sse-threads.txt"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the threads dashboard ($out: $(cat "$TMP/api.body"))"
+  tid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  sse_open "$tid" "$stream_threads"
+
+  out="$(api POST "/dashboards/$tid/comments" -d '{"version":1,"body":"Whole dashboard note"}')"
+  if [[ "$out" != 201 ]] || ! grep -q '"panel_id":null' "$TMP/api.body" || ! grep -q '"parent_id":null' "$TMP/api.body" \
+    || ! grep -q '"panel_present":true' "$TMP/api.body" || ! grep -q '"revision":null' "$TMP/api.body"; then
+    fail "whole-dashboard comment ($out: $(cat "$TMP/api.body"))"
+  fi
+  wid="$(comment_ids "$TMP/api.body")"
+  [[ -n "$wid" ]] || fail "whole-dashboard comment has no id ($(cat "$TMP/api.body"))"
+  sse_wait "$stream_threads" "^data: {\"type\":\"comment.created\",\"dashboard_id\":\"$tid\",.*\"comment_id\":\"$wid\"" 10
+  if grep "\"comment_id\":\"$wid\"" "$stream_threads" | grep -q '"panel_id"'; then
+    fail "the whole-dashboard comment event carries a panel_id ($(cat "$stream_threads"))"
+  fi
+  pass "a whole-dashboard comment needs no panel and queues no revision by default"
+
+  out="$(api POST "/dashboards/$tid/comments" -d '{"version":1,"panel_id":"'"$panel"'","body":"Thread root"}')"
+  [[ "$out" == 201 ]] || fail "thread root ($out: $(cat "$TMP/api.body"))"
+  cid="$(comment_ids "$TMP/api.body")"
+  out="$(api POST "/dashboards/$tid/comments" -d '{"parent_id":"'"$cid"'","body":"Agreed"}')"
+  if [[ "$out" != 201 ]] || ! grep -q "\"parent_id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"version":1,' "$TMP/api.body" \
+    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"status":"open"' "$TMP/api.body"; then
+    fail "reply to the thread root ($out: $(cat "$TMP/api.body"))"
+  fi
+  rid1="$(comment_ids "$TMP/api.body")"
+  sse_wait "$stream_threads" "^data: {\"type\":\"comment.created\",\"dashboard_id\":\"$tid\",.*\"comment_id\":\"$rid1\",.*\"parent_id\":\"$cid\"" 10
+  out="$(api POST "/dashboards/$tid/comments" -d '{"parent_id":"'"$rid1"'","body":"Me too"}')"
+  if [[ "$out" != 201 ]] || ! grep -q "\"parent_id\":\"$cid\"" "$TMP/api.body" || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
+    fail "reply to a reply ($out: $(cat "$TMP/api.body"))"
+  fi
+  rid2="$(comment_ids "$TMP/api.body")"
+  for bad in '{"parent_id":"'"$cid"'","version":1,"body":"x"}' '{"parent_id":"'"$cid"'","panel_id":"'"$panel"'","body":"x"}' \
+    '{"parent_id":"'"$cid"'","body":"x","request_revision":true}' '{"parent_id":"x","body":"x"}'; do
+    out="$(api POST "/dashboards/$tid/comments" -d "$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "invalid reply ${bad:0:80} should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  out="$(api POST "/dashboards/$tid/comments" -d '{"parent_id":"'"$nil_id"'","body":"x"}')"
+  [[ "$out" == 404 ]] || fail "reply to an unknown comment ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$tid/comments" -d '{"parent_id":"'"$cid_other"'","body":"x"}')"
+  [[ "$out" == 404 ]] || fail "reply to a comment of another dashboard ($out: $(cat "$TMP/api.body"))"
+  pass "replies attach to their thread, one level deep, and inherit its panel"
+
+  out="$(api PATCH "/dashboards/$tid/comments/$rid2" -d '{"status":"resolved","resolved_by_version":1}')"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"parent_id":null' "$TMP/api.body" \
+    || ! grep -q '"status":"resolved"' "$TMP/api.body" || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
+    fail "resolve the thread through a reply ($out: $(cat "$TMP/api.body"))"
+  fi
+  sse_wait "$stream_threads" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$tid\",.*\"comment_id\":\"$cid\"" 10
+  out="$(api GET "/dashboards/$tid/comments?status=resolved")"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  if [[ "$out" != 200 || "$page_ids" != "$cid $rid1 $rid2 " ]] || [[ "$(grep -o '"status":"resolved"' "$TMP/api.body" | wc -l)" -ne 3 ]] \
+    || [[ "$(grep -o '"resolved_by_version":null' "$TMP/api.body" | wc -l)" -ne 2 ]] || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
+    fail "resolved comments of the thread (ids '$page_ids': $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$tid/comments?status=open")"
+  page_ids="$(comment_ids "$TMP/api.body" | tr '\n' ' ')"
+  [[ "$out" == 200 && "$page_ids" == "$wid " ]] || fail "open comments after the thread was resolved (ids '$page_ids': $(cat "$TMP/api.body"))"
+  out="$(api PATCH "/dashboards/$tid/comments/$rid2" -d '{"status":"resolved","resolved_by_version":1}')"
+  if [[ "$out" != 200 ]] || ! grep -q "\"id\":\"$cid\"" "$TMP/api.body" || ! grep -q '"resolved_by_version":1' "$TMP/api.body"; then
+    fail "resolve the thread again ($out: $(cat "$TMP/api.body"))"
+  fi
+  sleep 2
+  updated="$(grep -c '^event: comment.updated$' "$stream_threads" || true)"
+  [[ "$updated" == 1 ]] || fail "resolving a thread twice sent $updated comment.updated events"
+  out="$(api PATCH "/dashboards/$tid/comments/$wid" -d '{"status":"resolved","resolved_by_version":99}')"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"unknown_version"' "$TMP/api.body"; then
+    fail "resolve by an unknown version ($out: $(cat "$TMP/api.body"))"
+  fi
+  for bad in '{"status":"open","resolved_by_version":1}' '{"status":"resolved","resolved_by_version":0}'; do
+    out="$(api PATCH "/dashboards/$tid/comments/$wid" -d "$bad")"
+    [[ "$out" == 400 ]] || fail "$bad should answer 400 ($out: $(cat "$TMP/api.body"))"
+  done
+  out="$(api PATCH "/dashboards/$tid/comments/$cid" -d '{"status":"open"}')"
+  if [[ "$out" != 200 ]] || ! grep -q '"status":"open"' "$TMP/api.body" || ! grep -q '"resolved_by_version":null' "$TMP/api.body"; then
+    fail "reopen the thread ($out: $(cat "$TMP/api.body"))"
+  fi
+  sse_close
+  pass "resolve applies to the whole thread and records the version that fixed it"
 }
 
 revision_id_of() {
@@ -1264,7 +1349,7 @@ revisions_suite() {
   id="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
 
   sse_open "$id" "$stream"
-  out="$(api POST "/dashboards/$id/comments" -d '{"version":1,"panel_id":"'"$panel"'","body":"Show this per route"}')"
+  out="$(api POST "/dashboards/$id/comments" -d '{"version":1,"panel_id":"'"$panel"'","body":"Show this per route","request_revision":true}')"
   if [[ "$out" != 201 ]] || ! grep -q '"revision":{"id":"[^"]*","status":"queued"}' "$TMP/api.body"; then
     fail "a comment queues a revision ($out: $(cat "$TMP/api.body"))"
   fi

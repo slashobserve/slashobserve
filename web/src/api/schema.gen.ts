@@ -352,7 +352,7 @@ export interface paths {
         };
         /**
          * Stream live events for one dashboard as Server-Sent Events.
-         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, never the comment text. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) and `comment_id` (for a revision requested by a comment); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
+         * @description The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`. After that each frame is `event: <type>` with the event JSON as data: `version.created` carries `type`, `dashboard_id`, `version`, `parent_version`, `restored_from` (only when the version is a restore), `summary`, `author` and `created_at`. `comment.created` and `comment.updated` carry `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, never the comment text. `comment.updated` names the thread's first comment. `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) and `comment_id` (for a revision requested by a comment); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two. `event: resync` with data `{"dashboard_id"}` means events may have been missed. A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes. Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored. A caller may hold 20 streams and the process 1000.
          */
         get: operations["streamDashboardEvents"];
         put?: never;
@@ -376,8 +376,8 @@ export interface paths {
         get: operations["listDashboardComments"];
         put?: never;
         /**
-         * Comment on one panel of one version of a dashboard.
-         * @description The comment is anchored to the version and panel id and never moves; `panel_present` on responses says whether the latest version still has that panel. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author` goes to the dashboard's event stream. When an LLM provider is configured, the comment also queues a revision unless `request_revision` is false; the comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. A succeeded revision does not resolve the comment. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * Comment on a panel or the whole dashboard, or reply to a thread.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. A succeeded revision does not resolve the comment. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -404,7 +404,7 @@ export interface paths {
         head?: never;
         /**
          * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `panel_id`, `status` and `author`, where `author` is the caller who changed the status.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it is stored only when the call changes the status to resolved, and reopening clears it.
          */
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
@@ -804,10 +804,19 @@ export interface components {
             id: string;
             /** Format: uuid */
             dashboard_id: string;
+            /**
+             * Format: uuid
+             * @description The thread's first comment, for a reply; null for a thread's first comment.
+             */
+            parent_id: string | null;
             version: number;
-            panel_id: string;
+            /** @description The panel the thread is on; null for the whole dashboard. A reply has its thread's panel. */
+            panel_id: string | null;
             body: string;
-            /** @enum {string} */
+            /**
+             * @description For a reply, the status of its thread.
+             * @enum {string}
+             */
             status: "open" | "resolved";
             author: components["schemas"]["Author"];
             /** Format: date-time */
@@ -817,7 +826,9 @@ export interface components {
             /** Format: date-time */
             resolved_at: string | null;
             resolved_by: components["schemas"]["Author"] | null;
-            /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. */
+            /** @description The version that fixed the thread, when the resolver named one. Always null on a reply. */
+            resolved_by_version: number | null;
+            /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment. */
             panel_present: boolean;
             /** @description The latest revision requested for this comment, or null when none was requested. */
             revision: {
@@ -1906,12 +1917,19 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * @description Whether to queue an agent revision for the comment, when an agent is configured.
-                     * @default true
+                     * @description Whether to queue an agent revision for the comment, when an agent is configured. A reply cannot request one.
+                     * @default false
                      */
                     request_revision?: boolean;
-                    version: number;
-                    panel_id: string;
+                    /** @description Required unless `parent_id` is set. */
+                    version?: number;
+                    /** @description The panel to comment on; absent or null means the whole dashboard. Not allowed with `parent_id`. */
+                    panel_id?: string | null;
+                    /**
+                     * Format: uuid
+                     * @description The comment to reply to. Not allowed with `version` or `panel_id`.
+                     */
+                    parent_id?: string;
                     body: string;
                 };
             };
@@ -1931,7 +1949,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description The dashboard, the version or the comment named by `parent_id` does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The panel id does not exist in that version's Spec (`unknown_panel`). */
             422: {
@@ -1969,6 +1995,7 @@ export interface operations {
                 "application/json": {
                     /** @enum {string} */
                     status: "open" | "resolved";
+                    resolved_by_version?: number;
                 };
             };
         };
@@ -1987,6 +2014,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
+            /** @description `resolved_by_version` is not a version of this dashboard (`unknown_version`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

@@ -246,7 +246,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t, "rps", "errors")
 
-	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "errors", "show this per route", true)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "errors", Body: "show this per route", RequestRevision: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	if err != nil || len(listed) != 1 || listed[0].Revision == nil || listed[0].Revision.ID != rev.ID {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
-	resolved, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), CommentResolved)
+	resolved, err := r.comments.SetStatus(t.Context(), testUser, dash, mustParse(t, comment.ID), CommentResolved, nil)
 	if err != nil || resolved.Revision == nil || resolved.Revision.ID != rev.ID {
 		t.Fatalf("resolved = %+v, err %v", resolved, err)
 	}
@@ -303,7 +303,7 @@ func mustParse(t *testing.T, s string) pgtype.UUID {
 func TestCommentCanOptOutOfARevision(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
-	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "just a note", false)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "rps", Body: "just a note", RequestRevision: false})
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
@@ -315,7 +315,7 @@ func TestCommentCanOptOutOfARevision(t *testing.T) {
 func TestCommentWithoutAnAgentQueuesNothing(t *testing.T) {
 	r := newRig(t, false)
 	dash := r.createDashboard(t)
-	comment, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "anything", true)
+	comment, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "rps", Body: "anything", RequestRevision: true})
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
@@ -328,11 +328,11 @@ func TestCommentIsNotCreatedWhenTheDashboardIsFull(t *testing.T) {
 	r := newRig(t, true)
 	dash := r.createDashboard(t)
 	for i := range revisions.MaxActive {
-		if _, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", fmt.Sprintf("note %d", i), true); err != nil {
+		if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "rps", Body: fmt.Sprintf("note %d", i), RequestRevision: true}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	_, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "one too many", true)
+	_, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "rps", Body: "one too many", RequestRevision: true})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("err = %v", err)
 	}
@@ -340,7 +340,7 @@ func TestCommentIsNotCreatedWhenTheDashboardIsFull(t *testing.T) {
 	if err != nil || len(listed) != revisions.MaxActive {
 		t.Fatalf("%d comments stored, err %v", len(listed), err)
 	}
-	if _, err := r.comments.Create(t.Context(), testUser, dash, 1, "rps", "plain note", false); err != nil {
+	if _, err := r.comments.Create(t.Context(), testUser, dash, NewComment{Version: 1, PanelID: "rps", Body: "plain note", RequestRevision: false}); err != nil {
 		t.Fatalf("a comment that asks for no revision is not capped: %v", err)
 	}
 }

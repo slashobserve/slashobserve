@@ -45,22 +45,24 @@ type Dashboard struct {
 }
 
 type DashboardComment struct {
-	ID             pgtype.UUID
-	DashboardID    pgtype.UUID
-	Version        int32
-	PanelID        string
-	Body           string
-	Status         string
-	AuthorKind     string
-	AuthorID       pgtype.UUID
-	AuthorName     string
-	AuthorEmail    pgtype.Text
-	ResolvedAt     pgtype.Timestamptz
-	ResolvedByKind pgtype.Text
-	ResolvedByID   pgtype.UUID
-	ResolvedByName pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID                pgtype.UUID
+	DashboardID       pgtype.UUID
+	Version           int32
+	PanelID           pgtype.Text
+	Body              string
+	Status            string
+	AuthorKind        string
+	AuthorID          pgtype.UUID
+	AuthorName        string
+	AuthorEmail       pgtype.Text
+	ResolvedAt        pgtype.Timestamptz
+	ResolvedByKind    pgtype.Text
+	ResolvedByID      pgtype.UUID
+	ResolvedByName    pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	ParentID          pgtype.UUID
+	ResolvedByVersion pgtype.Int4
 }
 
 type DashboardVersion struct {

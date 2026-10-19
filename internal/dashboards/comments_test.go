@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -17,10 +19,10 @@ func TestCommentEventPayloadStaysUnderNotifyLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: strings.Repeat("\x01", maxPanelIDRunes), Status: CommentResolved}
+	row := dbsqlc.DashboardComment{ID: id, DashboardID: id, PanelID: pgtype.Text{String: strings.Repeat("\x01", maxPanelIDRunes), Valid: true}, ParentID: id, Status: CommentOpen}
 	actor := Author{Kind: "service_account", ID: id.String(), Name: strings.Repeat("\x01", 100000)}
 	for _, eventType := range []string{events.TypeCommentCreated, events.TypeCommentUpdated} {
-		payload, err := commentEventPayload(eventType, row, actor)
+		payload, err := commentEventPayload(eventType, row, CommentResolved, actor)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -202,12 +202,17 @@ function DashboardView({
     const counts = new Map<string, number>()
     for (const comment of comments) {
       if (comment.status !== "open") continue
+      if (comment.parent_id !== null || comment.panel_id === null) continue
       counts.set(comment.panel_id, (counts.get(comment.panel_id) ?? 0) + 1)
     }
     return counts
   }, [comments])
   const openTotal = useMemo(
-    () => comments.reduce((n, c) => n + (c.status === "open" ? 1 : 0), 0),
+    () =>
+      comments.reduce(
+        (n, c) => n + (c.status === "open" && c.parent_id === null ? 1 : 0),
+        0
+      ),
     [comments]
   )
   const envelopeVersion = envelope.version.version

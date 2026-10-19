@@ -45,6 +45,7 @@ function groupByPanel(
 ): Group[] {
   const byPanel = new Map<string, Comment[]>()
   for (const comment of comments) {
+    if (comment.panel_id === null) continue
     const list = byPanel.get(comment.panel_id)
     if (list) list.push(comment)
     else byPanel.set(comment.panel_id, [comment])
