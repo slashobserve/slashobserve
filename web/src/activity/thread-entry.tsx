@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentProps } from "react"
+import { useCallback, useRef, useState, type ComponentProps } from "react"
 
 import { useSetCommentStatus } from "@/comments/queries"
 import { cn } from "@/lib/utils"
@@ -61,6 +61,13 @@ export function ThreadEntry({
       ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
       : undefined
 
+  const resolveButton = useCallback((node: HTMLButtonElement | null) => {
+    if (node === null) return
+    return () => {
+      if (document.activeElement === node) replyButton.current?.focus()
+    }
+  }, [])
+
   function closeReply() {
     setReplying(false)
     replyButton.current?.focus()
@@ -103,6 +110,7 @@ export function ThreadEntry({
         </MetaButton>
         {canResolveThread(request) ? (
           <MetaButton
+            ref={resolveButton}
             aria-disabled={setStatus.isPending || undefined}
             aria-busy={setStatus.isPending || undefined}
             onClick={() => {
