@@ -259,7 +259,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	}
 	rev := items[0]
 	if rev.ID != comment.Revision.ID || rev.Source != revisions.SourceComment || rev.CommentID != comment.ID || rev.PanelID != "errors" ||
-		rev.Prompt != "show this per route" || rev.BaseVersion != 1 || rev.RequestedBy != testUser {
+		rev.Prompt != "show this per route" || rev.BaseVersion == nil || *rev.BaseVersion != 1 || rev.RequestedBy != testUser {
 		t.Fatalf("revision = %+v", rev)
 	}
 

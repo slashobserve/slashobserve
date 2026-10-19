@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -22,12 +24,15 @@ const (
 	defaultLimit    = 50
 	maxLimit        = 200
 
+	maxPanelIDRunes = 64
+
 	statusClientClosedRequest = 499
 )
 
 type createRequest struct {
 	Prompt      *string `json:"prompt"`
 	BaseVersion *int    `json:"base_version"`
+	PanelID     *string `json:"panel_id"`
 }
 
 type authorJSON struct {
@@ -44,7 +49,7 @@ type revisionJSON struct {
 	CommentID     *string    `json:"comment_id"`
 	PanelID       *string    `json:"panel_id"`
 	Prompt        string     `json:"prompt"`
-	BaseVersion   int        `json:"base_version"`
+	BaseVersion   *int       `json:"base_version"`
 	Status        Status     `json:"status"`
 	Attempts      int        `json:"attempts"`
 	ResultVersion *int       `json:"result_version"`
@@ -95,11 +100,19 @@ func (s *Service) createRevision(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "base_version must be a positive 32-bit integer")
 		return
 	}
+	panelID := ""
+	if req.PanelID != nil {
+		panelID = *req.PanelID
+		if n := utf8.RuneCountInString(panelID); n < 1 || n > maxPanelIDRunes || !utf8.ValidString(panelID) || strings.ContainsRune(panelID, 0) {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", fmt.Sprintf("panel_id must be 1 to %d characters without NUL", maxPanelIDRunes))
+			return
+		}
+	}
 	if !s.Available() {
 		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", "no agent is configured")
 		return
 	}
-	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, prompt, httpapi.Caller(c))
+	row, err := s.SubmitFollowUp(c.Request.Context(), dashboardID, req.BaseVersion, panelID, prompt, httpapi.Caller(c))
 	if err != nil {
 		s.fail(c, "enqueue revision", err, dashboardAttr(dashboardID))
 		return
@@ -167,6 +180,8 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrUnknownPanel):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.Is(err, ErrTooManyRequests):

@@ -1255,6 +1255,7 @@ revisions_suite() {
   api_token
   local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
   local accepted=0 limited=0 attempt succeeded
+  local pid prid
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
@@ -1394,6 +1395,23 @@ revisions_suite() {
     fail "each revision should save exactly one version ($succeeded revisions: $(cat "$TMP/api.body"))"
   fi
   pass "every queued revision saves exactly one version, one at a time per dashboard"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the panel revision dashboard ($out: $(cat "$TMP/api.body"))"
+  pid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":"'"$panel"'"}')"
+  if [[ "$out" != 202 ]] || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body" || ! grep -q '"source":"prompt"' "$TMP/api.body"; then
+    fail "a revision aimed at one panel is queued ($out: $(cat "$TMP/api.body"))"
+  fi
+  prid="$(revision_id_of "$TMP/api.body")"
+  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":"no_such_panel"}')"
+  if [[ "$out" != 422 ]] || ! grep -q '"code":"unknown_panel"' "$TMP/api.body"; then
+    fail "a revision aimed at an unknown panel is refused ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$pid/revisions" -d '{"prompt":"Focus on this panel","base_version":1,"panel_id":""}')"
+  [[ "$out" == 400 ]] || fail "a revision with an empty panel_id should answer 400 ($out: $(cat "$TMP/api.body"))"
+  wait_revision "$pid" "$prid" failed 90
+  pass "a revision can target one panel, and an unknown panel is refused"
 }
 
 observe_id_of() {
@@ -1420,6 +1438,7 @@ observe_expect() {
 observe_suite() {
   api_token
   local out id did fid id2 did2 nil_id=00000000-0000-0000-0000-000000000000 bad attempt accepted_ids=() long_prompt
+  local fpos ipos cursor
   : >"$TMP/observe-bodies.txt"
 
   out="$(api GET /agent)"
@@ -1462,11 +1481,46 @@ observe_suite() {
   out="$(api GET "/dashboards/$did/revisions/$fid")"
   [[ "$out" == 200 ]] || fail "the follow-up is a revision of the dashboard ($out: $(cat "$TMP/api.body"))"
   out="$(api GET "/dashboards/$did/revisions")"
-  if [[ "$out" != 200 ]] || grep -q "$id" "$TMP/api.body" || ! grep -q "$fid" "$TMP/api.body"; then
-    fail "the revisions of the dashboard hold the follow-up but not the observe request ($out: $(cat "$TMP/api.body"))"
+  if [[ "$out" != 200 ]] || ! grep -q "$id" "$TMP/api.body" || ! grep -q "$fid" "$TMP/api.body"; then
+    fail "the revisions of the dashboard hold the follow-up and the observe request ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/dashboards/$did/revisions/$id")"
+  if [[ "$out" != 200 ]] || ! grep -q '"source":"observe"' "$TMP/api.body" || ! grep -q '"base_version":null' "$TMP/api.body"; then
+    fail "the observe request is a revision of its dashboard with no base version ($out: $(cat "$TMP/api.body"))"
   fi
   expect_version_data "$did" 2
-  pass "a follow-up prompt saves version 2 and observe requests stay out of the revisions API"
+  pass "a follow-up prompt saves version 2 and the dashboard's revisions start with the chat request that created it"
+
+  out="$(api GET "/observe?limit=100")"
+  if [[ "$out" != 200 ]] || ! grep -qF "\"id\":\"$fid\"" "$TMP/api.body" || ! grep -qF "\"id\":\"$id\"" "$TMP/api.body" \
+    || ! grep -qF '"dashboard_title":"Demo shop RED metrics"' "$TMP/api.body"; then
+    fail "the observe list holds the follow-up and the chat request with the dashboard title ($out: $(cat "$TMP/api.body"))"
+  fi
+  fpos="$(tr ',' '\n' <"$TMP/api.body" | grep -nF "\"id\":\"$fid\"" | head -1 | cut -d: -f1)"
+  ipos="$(tr ',' '\n' <"$TMP/api.body" | grep -nF "\"id\":\"$id\"" | head -1 | cut -d: -f1)"
+  ((fpos > 0 && fpos < ipos)) || fail "the observe list should show the follow-up before the chat request (positions '$fpos' and '$ipos')"
+  out="$(api GET "/observe?source=observe&limit=100")"
+  if [[ "$out" != 200 ]] || ! grep -qF "\"id\":\"$id\"" "$TMP/api.body" || grep -qF "\"id\":\"$fid\"" "$TMP/api.body"; then
+    fail "the observe list filtered by source=observe ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/observe?limit=1")"
+  cursor="$(grep -o '"next_cursor":"[^"]*"' "$TMP/api.body" | cut -d'"' -f4)"
+  if [[ "$out" != 200 || -z "$cursor" ]]; then
+    fail "the first page of the observe list has a next_cursor ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api GET "/observe?limit=1&cursor=$(urlencode "$cursor")")"
+  [[ "$out" == 200 ]] || fail "follow the observe list cursor ($out: $(cat "$TMP/api.body"))"
+  for bad in source=bogus source= limit=0 limit=101 cursor=%40%40; do
+    out="$(api GET "/observe?$bad")"
+    [[ "$out" == 400 ]] || fail "the observe list with $bad should answer 400 ($out: $(cat "$TMP/api.body"))"
+  done
+  out="$(command curl -sS -o "$TMP/api.body" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/observe?limit=100")"
+  if [[ "$out" != 200 ]] || grep -qF "$id" "$TMP/api.body"; then
+    fail "the browser session must not see another principal's requests ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(command curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/v1/observe")"
+  [[ "$out" == 401 ]] || fail "the observe list without credentials ($out)"
+  pass "the observe list shows only the caller's requests, newest first, with filters and cursors"
 
   out="$(api POST /observe -d '{"prompt":"log volume by service"}')"
   [[ "$out" == 202 ]] || fail "queue the log volume request ($out: $(cat "$TMP/api.body"))"

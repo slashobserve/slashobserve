@@ -16,6 +16,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
+const (
+	defaultObserveLimit = 20
+	maxObserveLimit     = 100
+)
+
 type ObserveOptions struct {
 	Provider     string
 	Model        string
@@ -68,6 +73,29 @@ type agentRequestJSON struct {
 	FinishedAt    *string    `json:"finished_at"`
 }
 
+type requestSummaryJSON struct {
+	ID             string  `json:"id"`
+	Source         Source  `json:"source"`
+	Prompt         string  `json:"prompt"`
+	Status         Status  `json:"status"`
+	DashboardID    *string `json:"dashboard_id"`
+	DashboardTitle *string `json:"dashboard_title"`
+	PanelID        *string `json:"panel_id"`
+	ResultVersion  *int    `json:"result_version"`
+	URL            *string `json:"url"`
+	Error          *string `json:"error"`
+	Origin         *string `json:"origin"`
+	OriginClient   *string `json:"origin_client"`
+	CreatedAt      string  `json:"created_at"`
+	StartedAt      *string `json:"started_at"`
+	FinishedAt     *string `json:"finished_at"`
+}
+
+type requestListJSON struct {
+	Requests   []requestSummaryJSON `json:"requests"`
+	NextCursor *string              `json:"next_cursor"`
+}
+
 type agentRequestEnvelopeJSON struct {
 	Request agentRequestJSON `json:"request"`
 }
@@ -75,6 +103,7 @@ type agentRequestEnvelopeJSON struct {
 func (h *ObserveHandler) Register(api *gin.RouterGroup) {
 	api.GET("/agent", h.getAgent)
 	api.POST("/observe", h.createObserve)
+	api.GET("/observe", h.listObserve)
 	api.GET("/observe/:id", h.getObserve)
 }
 
@@ -136,7 +165,7 @@ func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVe
 	var row dbsqlc.AgentRequest
 	var err error
 	if dashboardID.Valid {
-		row, err = h.service.SubmitFollowUp(c.Request.Context(), dashboardID, baseVersion, prompt, httpapi.Caller(c))
+		row, err = h.service.SubmitFollowUp(c.Request.Context(), dashboardID, baseVersion, "", prompt, httpapi.Caller(c))
 	} else {
 		row, err = h.service.SubmitObserve(c.Request.Context(), httpapi.Caller(c), prompt)
 	}
@@ -149,6 +178,73 @@ func (h *ObserveHandler) enqueue(c *gin.Context, dashboardID pgtype.UUID, baseVe
 		return dbsqlc.AgentRequest{}, false
 	}
 	return row, true
+}
+
+func (h *ObserveHandler) listObserve(c *gin.Context) {
+	limit, ok := httpapi.LimitParam(c, defaultObserveLimit, maxObserveLimit)
+	if !ok {
+		return
+	}
+	source := ""
+	if raw, present := c.GetQuery("source"); present {
+		switch Source(raw) {
+		case SourceObserve, SourcePrompt, SourceComment:
+			source = raw
+		default:
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "source must be observe, prompt or comment")
+			return
+		}
+	}
+	rows, next, err := h.service.ListMine(c.Request.Context(), httpapi.Caller(c), source, limit, c.Query("cursor"))
+	if err != nil {
+		h.service.fail(c, "list agent requests", err, principalAttrs(c)...)
+		return
+	}
+	body := requestListJSON{Requests: make([]requestSummaryJSON, len(rows))}
+	for i, row := range rows {
+		body.Requests[i] = h.summary(row)
+	}
+	if next != "" {
+		body.NextCursor = &next
+	}
+	c.JSON(http.StatusOK, body)
+}
+
+func (h *ObserveHandler) summary(row dbsqlc.ListAgentRequestsByRow) requestSummaryJSON {
+	out := requestSummaryJSON{
+		ID:           row.ID.String(),
+		Source:       Source(row.Source),
+		Prompt:       row.Prompt,
+		Status:       Status(row.Status),
+		PanelID:      optionalText(row.PanelID),
+		Error:        httpapi.OptionalString(row.Error.String),
+		Origin:       httpapi.OptionalString(row.Origin.String),
+		OriginClient: httpapi.OptionalString(row.OriginClient.String),
+		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+	}
+	if row.DashboardID.Valid {
+		id := row.DashboardID.String()
+		out.DashboardID = &id
+		out.DashboardTitle = optionalText(row.DashboardTitle)
+		if out.Status == StatusSucceeded && h.opts.DashboardURL != nil {
+			url := h.opts.DashboardURL(id)
+			out.URL = &url
+		}
+	}
+	if row.ResultVersion.Valid {
+		n := int(row.ResultVersion.Int32)
+		out.ResultVersion = &n
+	}
+	return out
+}
+
+func optionalText(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	return &t.String
 }
 
 func (h *ObserveHandler) getObserve(c *gin.Context) {

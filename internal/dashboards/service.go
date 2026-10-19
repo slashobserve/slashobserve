@@ -199,6 +199,15 @@ func (s *Service) VersionSpec(ctx context.Context, id pgtype.UUID, version int) 
 	return decodeSpec(raw)
 }
 
+func (s *Service) HasPanel(ctx context.Context, id pgtype.UUID, version int, panelID string) (bool, error) {
+	d, err := s.VersionSpec(ctx, id, version)
+	if err != nil {
+		return false, err
+	}
+	_, ok := panelSet(d)[panelID]
+	return ok, nil
+}
+
 func (s *Service) LatestVersion(ctx context.Context, id pgtype.UUID) (int, error) {
 	return s.store.latestVersion(ctx, id)
 }
