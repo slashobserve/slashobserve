@@ -32,7 +32,7 @@ var silentDashboardKeys = map[string]bool{
 	"graphTooltip": true, "fiscalYearStartMonth": true, "liveNow": true,
 	"weekStart": true, "style": true, "iteration": true, "schemaVersion": true,
 	"__inputs": true, "__requires": true, "__elements": true, "timepicker": true,
-	"hideControls": true, "preload": true, "revision": true,
+	"hideControls": true, "preload": true, "revision": true, "sharedCrosshair": true,
 	"title": true, "description": true, "tags": true, "time": true, "refresh": true,
 	"timezone": true, "templating": true, "links": true, "annotations": true,
 	"panels": true, "rows": true,
@@ -193,7 +193,7 @@ func (c *converter) convertTimezone(dash map[string]any) {
 
 func (c *converter) convertLinks(dash map[string]any) {
 	items, _ := asArray(dash["links"])
-	var unsupported, invalid []string
+	var unsupported, invalid, keepTime, includeVars []string
 	for i, item := range items {
 		link, ok := asObject(item)
 		path := fmt.Sprintf("links[%d]", i)
@@ -213,9 +213,21 @@ func (c *converter) convertLinks(dash map[string]any) {
 		}
 		title, _ = cutRunes(title, 200)
 		c.head.Links = append(c.head.Links, spec.Link{Title: title, URL: url, NewTab: truthy(link["targetBlank"])})
+		if truthy(link["keepTime"]) {
+			keepTime = append(keepTime, path+".keepTime")
+		}
+		if truthy(link["includeVars"]) {
+			includeVars = append(includeVars, path+".includeVars")
+		}
 	}
 	if len(unsupported) > 0 {
 		c.note("dashboard links", "Only plain links are supported; links to other dashboards and other kinds are not kept.", unsupported...)
+	}
+	if len(keepTime) > 0 {
+		c.note("dashboard links", "Links do not carry the time range along.", keepTime...)
+	}
+	if len(includeVars) > 0 {
+		c.note("dashboard links", "Links do not carry the variable selections along.", includeVars...)
 	}
 	if len(invalid) > 0 {
 		c.note("dashboard links", "Some links have no address, a very long address or are past the first 20, and are not kept.", invalid...)
