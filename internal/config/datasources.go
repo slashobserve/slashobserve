@@ -59,13 +59,35 @@ type datasourcesFile struct {
 }
 
 type fileDatasource struct {
-	UID         string          `yaml:"uid"`
+	UID         yamlString      `yaml:"uid"`
 	Type        string          `yaml:"type"`
 	Name        string          `yaml:"name"`
-	GrafanaUIDs []string        `yaml:"grafanaUids"`
+	GrafanaUIDs []yamlString    `yaml:"grafanaUids"`
 	Prometheus  *filePrometheus `yaml:"prometheus"`
 	ClickHouse  *fileClickHouse `yaml:"clickhouse"`
 	Limits      fileLimits      `yaml:"limits"`
+}
+
+type yamlString struct {
+	value   string
+	problem string
+}
+
+func (s *yamlString) UnmarshalYAML(unmarshal func(any) error) error {
+	var raw any
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+	switch v := raw.(type) {
+	case nil:
+	case string:
+		s.value = v
+	case map[string]any, map[any]any, []any:
+		s.problem = "must be a string"
+	default:
+		s.problem = "must be a string (quote it)"
+	}
+	return nil
 }
 
 type filePrometheus struct {
@@ -142,35 +164,32 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 	}
 
 	var errs []error
-	seen := map[string]bool{}
-	type aliasOwner struct {
-		uid   string
-		index int
-	}
-	aliasOwners := map[string]aliasOwner{}
+	uids := indexUIDs(*doc.Datasources)
+	aliasOwners := map[string]int{}
 	out := make([]Datasource, 0, len(*doc.Datasources))
 	for i, raw := range *doc.Datasources {
 		entryPath := fmt.Sprintf("datasources[%d]", i)
 		ds, dsErrs := convertDatasource(entryPath, raw, lookup)
+		aliases := convertGrafanaUIDs(entryPath, raw.GrafanaUIDs, &dsErrs)
 		errs = append(errs, dsErrs...)
-		if datasource.ValidUID(raw.UID) {
-			if seen[raw.UID] {
-				errs = append(errs, fmt.Errorf("%s.uid: duplicate %q", entryPath, raw.UID))
-			}
-			seen[raw.UID] = true
+		if uid := raw.UID.value; datasource.ValidUID(uid) && uids.first[uid] != i {
+			errs = append(errs, fmt.Errorf("%s.uid: duplicate %q", entryPath, uid))
 		}
-		for j, alias := range raw.GrafanaUIDs {
-			alias = strings.TrimSpace(alias)
-			if grafanaUIDProblem(alias) != "" {
+		for _, alias := range aliases {
+			aliasPath := fmt.Sprintf("%s.grafanaUids[%d]", entryPath, alias.index)
+			owner, listed := aliasOwners[alias.value]
+			_, isUID := uids.first[alias.value]
+			switch {
+			case alias.value == raw.UID.value:
+			case isUID:
+				errs = append(errs, fmt.Errorf("%s: %q is the uid of datasource %q", aliasPath, alias.value, alias.value))
+				continue
+			case listed:
+				errs = append(errs, fmt.Errorf("%s: %q is already listed by datasource %s", aliasPath, alias.value, uids.label(owner)))
 				continue
 			}
-			owner, taken := aliasOwners[alias]
-			switch {
-			case !taken:
-				aliasOwners[alias] = aliasOwner{uid: raw.UID, index: i}
-			case owner.index != i:
-				errs = append(errs, fmt.Errorf("%s.grafanaUids[%d]: %q is already listed by datasource %q", entryPath, j, alias, owner.uid))
-			}
+			aliasOwners[alias.value] = i
+			ds.GrafanaUIDs = append(ds.GrafanaUIDs, alias.value)
 		}
 		out = append(out, ds)
 	}
@@ -178,6 +197,33 @@ func loadDatasources(path string, lookup func(string) (string, bool)) ([]Datasou
 		return nil, err
 	}
 	return out, nil
+}
+
+type uidIndex struct {
+	first  map[string]int
+	count  map[string]int
+	byItem []string
+}
+
+func indexUIDs(list []fileDatasource) uidIndex {
+	idx := uidIndex{first: map[string]int{}, count: map[string]int{}, byItem: make([]string, len(list))}
+	for i, raw := range list {
+		idx.byItem[i] = raw.UID.value
+		if uid := raw.UID.value; datasource.ValidUID(uid) {
+			if _, taken := idx.first[uid]; !taken {
+				idx.first[uid] = i
+			}
+			idx.count[uid]++
+		}
+	}
+	return idx
+}
+
+func (idx uidIndex) label(i int) string {
+	if uid := idx.byItem[i]; idx.count[uid] == 1 {
+		return fmt.Sprintf("%q", uid)
+	}
+	return fmt.Sprintf("datasources[%d]", i)
 }
 
 func decodeMessage(err error) string {
@@ -204,12 +250,13 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
 
-	ds := Datasource{UID: raw.UID, Type: raw.Type, Name: raw.Name}
-	if !datasource.ValidUID(raw.UID) {
+	ds := Datasource{UID: raw.UID.value, Type: raw.Type, Name: raw.Name}
+	switch {
+	case raw.UID.problem != "":
+		fail("uid", "%s", raw.UID.problem)
+	case !datasource.ValidUID(raw.UID.value):
 		fail("uid", "must match %s", datasource.UIDPattern)
 	}
-
-	ds.GrafanaUIDs = convertGrafanaUIDs(path, raw.GrafanaUIDs, &errs)
 
 	limits, limitErrs := convertLimits(path+".limits", raw.Limits)
 	errs = append(errs, limitErrs...)
@@ -244,15 +291,24 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	return ds, errs
 }
 
-func convertGrafanaUIDs(path string, raw []string, errs *[]error) []string {
+type grafanaAlias struct {
+	index int
+	value string
+}
+
+func convertGrafanaUIDs(path string, raw []yamlString, errs *[]error) []grafanaAlias {
 	if len(raw) > maxGrafanaUIDs {
 		*errs = append(*errs, fmt.Errorf("%s.grafanaUids: at most %d entries", path, maxGrafanaUIDs))
 	}
-	var out []string
+	var out []grafanaAlias
 	seen := map[string]bool{}
-	for j, alias := range raw {
-		alias = strings.TrimSpace(alias)
-		if problem := grafanaUIDProblem(alias); problem != "" {
+	for j, entry := range raw {
+		alias := strings.TrimSpace(entry.value)
+		problem := entry.problem
+		if problem == "" {
+			problem = grafanaUIDProblem(alias)
+		}
+		if problem != "" {
 			*errs = append(*errs, fmt.Errorf("%s.grafanaUids[%d]: %s", path, j, problem))
 			continue
 		}
@@ -261,7 +317,7 @@ func convertGrafanaUIDs(path string, raw []string, errs *[]error) []string {
 			continue
 		}
 		seen[alias] = true
-		out = append(out, alias)
+		out = append(out, grafanaAlias{index: j, value: alias})
 	}
 	return out
 }
@@ -274,9 +330,13 @@ func grafanaUIDProblem(alias string) string {
 		return fmt.Sprintf("must be at most %d bytes", maxGrafanaUIDBytes)
 	case strings.ContainsFunc(alias, unicode.IsControl):
 		return "must not contain control characters"
+	case strings.ContainsFunc(alias, isInvisible):
+		return "must not contain invisible characters"
 	}
 	return ""
 }
+
+func isInvisible(r rune) bool { return unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) }
 
 func convertLimits(path string, raw fileLimits) (datasource.Limits, []error) {
 	var errs []error

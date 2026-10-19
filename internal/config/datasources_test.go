@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,6 +87,23 @@ func TestLoadDatasourcesValid(t *testing.T) {
 	}
 }
 
+func promWithAliases(aliases string) string {
+	return validPrometheus + "    grafanaUids: " + aliases + "\n"
+}
+
+func secondPrometheus(uid, aliases string) string {
+	return fmt.Sprintf("  - uid: %s\n    type: prometheus\n    grafanaUids: %s\n    prometheus:\n      url: http://other:9090\n", uid, aliases)
+}
+
+func errorLines(t *testing.T, content string) []string {
+	t.Helper()
+	_, err := load(t, content, nil)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	return strings.Split(err.Error(), "\n")
+}
+
 func TestLoadDatasourcesStructure(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -112,10 +130,147 @@ func TestLoadDatasourcesStructure(t *testing.T) {
 		{"wrong block", validPrometheus + "    clickhouse:\n      addr: x\n", "datasources[0].clickhouse: not allowed"},
 		{"negative limit", validPrometheus + "    limits:\n      maxRows: -1\n", "datasources[0].limits.maxRows: must not be negative"},
 		{"bad duration", prometheusWith("scrapeInterval: soon"), "datasources[0].prometheus.scrapeInterval: invalid duration"},
+		{"blank alias", promWithAliases(`["  "]`), "datasources[0].grafanaUids[0]: must not be empty"},
+		{"null alias", promWithAliases("[~]"), "datasources[0].grafanaUids[0]: must not be empty"},
+		{"alias over 100 bytes", promWithAliases(`["` + strings.Repeat("a", 101) + `"]`), "datasources[0].grafanaUids[0]: must be at most 100 bytes"},
+		{"alias with control character", promWithAliases(`["a\tb"]`), "datasources[0].grafanaUids[0]: must not contain control characters"},
+		{"alias with zero width space", promWithAliases(`["a\u200Bb"]`), "datasources[0].grafanaUids[0]: must not contain invisible characters"},
+		{"alias with byte order mark", promWithAliases(`["a\uFEFFb"]`), "datasources[0].grafanaUids[0]: must not contain invisible characters"},
+		{"alias with line separator", promWithAliases(`["a\u2028b"]`), "datasources[0].grafanaUids[0]: must not contain invisible characters"},
+		{"alias with paragraph separator", promWithAliases(`["a\u2029b"]`), "datasources[0].grafanaUids[0]: must not contain invisible characters"},
+		{"too many aliases", promWithAliases("[" + manyAliases(21) + "]"), "datasources[0].grafanaUids: at most 20 entries"},
+		{"duplicate alias after trimming", promWithAliases(`[a, " a"]`), `datasources[0].grafanaUids[1]: duplicate "a"`},
+		{"alias owned by another datasource", validPrometheus + secondPrometheus("second", "[a]") + secondPrometheus("third", "[a]"), `datasources[2].grafanaUids[0]: "a" is already listed by datasource "second"`},
+		{"alias owned by a datasource with an invalid uid", "datasources:\n" + secondPrometheus("-bad", "[a]") + secondPrometheus("second", "[a]"), `datasources[1].grafanaUids[0]: "a" is already listed by datasource datasources[0]`},
+		{"alias owned by a datasource with a duplicated uid", validPrometheus + secondPrometheus("prom", "[a]") + secondPrometheus("third", "[a]"), `datasources[2].grafanaUids[0]: "a" is already listed by datasource datasources[1]`},
+		{"alias equal to another datasource uid", validPrometheus + secondPrometheus("second", "[prom]"), `datasources[1].grafanaUids[0]: "prom" is the uid of datasource "prom"`},
+		{"alias equal to a later datasource uid", "datasources:\n" + secondPrometheus("first", "[second]") + secondPrometheus("second", "[]"), `datasources[0].grafanaUids[0]: "second" is the uid of datasource "second"`},
+		{"numeric alias", promWithAliases("[0123]"), "datasources[0].grafanaUids[0]: must be a string (quote it)"},
+		{"boolean alias", promWithAliases("[true]"), "datasources[0].grafanaUids[0]: must be a string (quote it)"},
+		{"nested alias", promWithAliases("[[a]]"), "datasources[0].grafanaUids[0]: must be a string"},
+		{"numeric uid", strings.Replace(validPrometheus, "uid: prom", "uid: 0123", 1), "datasources[0].uid: must be a string (quote it)"},
+		{"boolean uid", strings.Replace(validPrometheus, "uid: prom", "uid: true", 1), "datasources[0].uid: must be a string (quote it)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wantError(t, tt.content, nil, tt.want)
+		})
+	}
+}
+
+func manyAliases(n int) string {
+	names := make([]string, n)
+	for i := range names {
+		names[i] = fmt.Sprintf("g%d", i)
+	}
+	return strings.Join(names, ", ")
+}
+
+func TestGrafanaUIDsAreTrimmedAndKeepCase(t *testing.T) {
+	got, err := load(t, promWithAliases(`[" a ", B]`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"a", "B"}; !slices.Equal(got[0].GrafanaUIDs, want) {
+		t.Fatalf("grafanaUids = %q, want %q", got[0].GrafanaUIDs, want)
+	}
+}
+
+func TestGrafanaUIDLimits(t *testing.T) {
+	longest := strings.Repeat("a", 100)
+	got, err := load(t, promWithAliases(`["`+longest+`"]`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got[0].GrafanaUIDs, []string{longest}) {
+		t.Fatalf("grafanaUids = %q", got[0].GrafanaUIDs)
+	}
+	got, err = load(t, promWithAliases("["+manyAliases(20)+"]"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got[0].GrafanaUIDs) != 20 {
+		t.Fatalf("got %d aliases", len(got[0].GrafanaUIDs))
+	}
+}
+
+func TestGrafanaUIDEqualToOwnUIDIsAllowed(t *testing.T) {
+	got, err := load(t, promWithAliases("[prom]"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got[0].GrafanaUIDs, []string{"prom"}) {
+		t.Fatalf("grafanaUids = %q", got[0].GrafanaUIDs)
+	}
+}
+
+func TestQuotedNumbersAreKeptVerbatim(t *testing.T) {
+	content := strings.Replace(validPrometheus, "uid: prom", `uid: "0123"`, 1) + `    grafanaUids: ["0123", "00012", "0x1F", "1_000", "1.50"]` + "\n"
+	got, err := load(t, content, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].UID != "0123" {
+		t.Fatalf("uid = %q", got[0].UID)
+	}
+	if want := []string{"0123", "00012", "0x1F", "1_000", "1.50"}; !slices.Equal(got[0].GrafanaUIDs, want) {
+		t.Fatalf("grafanaUids = %q, want %q", got[0].GrafanaUIDs, want)
+	}
+}
+
+func TestUnquotedNumbersAreRefusedNotRewritten(t *testing.T) {
+	lines := errorLines(t, promWithAliases("[0123, 00012, 0x1F, 1_000, 1.50]"))
+	if len(lines) != 5 {
+		t.Fatalf("want 5 errors, got %q", lines)
+	}
+	for j, line := range lines {
+		want := fmt.Sprintf("datasources[0].grafanaUids[%d]: must be a string (quote it)", j)
+		if line != want {
+			t.Errorf("line %d = %q, want %q", j, line, want)
+		}
+	}
+	for _, literal := range []string{"0123", "0x1F", "1.50", "1_000"} {
+		lines := errorLines(t, strings.Replace(validPrometheus, "uid: prom", "uid: "+literal, 1))
+		if want := "datasources[0].uid: must be a string (quote it)"; len(lines) != 1 || lines[0] != want {
+			t.Errorf("uid %s: errors = %q, want only %q", literal, lines, want)
+		}
+	}
+}
+
+func TestEachGrafanaUIDEntryReportsOneError(t *testing.T) {
+	lines := errorLines(t, validPrometheus+indent("grafanaUids: [a]", "    ")+secondPrometheus("second", "[a, a]"))
+	if len(lines) != 2 {
+		t.Fatalf("want 2 errors, got %q", lines)
+	}
+	if want := `datasources[1].grafanaUids[1]: duplicate "a"`; lines[0] != want {
+		t.Errorf("first error = %q, want %q", lines[0], want)
+	}
+	if want := `datasources[1].grafanaUids[0]: "a" is already listed by datasource "prom"`; lines[1] != want {
+		t.Errorf("second error = %q, want %q", lines[1], want)
+	}
+}
+
+func TestDeployDatasourceFilesLoad(t *testing.T) {
+	env := map[string]string{"SLASHOBSERVE_CLICKHOUSE_PASSWORD": "pw"}
+	for _, name := range []string{"datasources.yaml", "datasources.e2e.yaml"} {
+		t.Run(name, func(t *testing.T) {
+			got, err := loadDatasources(filepath.Join("..", "..", "deploy", "compose", name), envOf(env))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) == 0 {
+				t.Fatal("expected datasources")
+			}
+			if name != "datasources.e2e.yaml" {
+				return
+			}
+			aliases := map[string][]string{}
+			for _, ds := range got {
+				aliases[ds.UID] = ds.GrafanaUIDs
+			}
+			if !slices.Equal(aliases["prom"], []string{"prometheus"}) || !slices.Equal(aliases["ch"], []string{"clickhouse"}) {
+				t.Fatalf("aliases = %v", aliases)
+			}
 		})
 	}
 }
