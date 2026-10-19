@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -7,14 +7,20 @@ import type { components } from "@/api/schema.gen"
 
 export type DatasourceStatus = components["schemas"]["DatasourceStatus"]
 
+export function datasourcesQuery() {
+  return queryOptions({
+    queryKey: datasourceKeys.list(),
+    queryFn: ({ signal }) => api.GET("/datasources", { signal }).then(unwrap),
+    select: (data) => data.datasources,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+  })
+}
+
 export function useDatasources() {
   return useQuery({
-    queryKey: datasourceKeys.list(),
-    queryFn: ({ signal }) =>
-      api
-        .GET("/datasources", { signal })
-        .then(unwrap)
-        .then((body) => body.datasources),
+    ...datasourcesQuery(),
+    refetchInterval: false,
     staleTime: 60_000,
   })
 }
