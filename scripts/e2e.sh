@@ -1846,6 +1846,16 @@ mcp_suite() {
   mcp_expect "query_instant" '"empty":false'
   pass "MCP runs range and instant queries and returns a summary"
 
+  for _ in $(seq 1 45); do
+    mcp_tool query_range '{"datasource":"ch","query":"SELECT toStartOfMinute(Timestamp) AS minute, ServiceName AS service, count() AS c FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY minute, service ORDER BY minute, service","format":"table","from":"now-15m"}'
+    if [[ "$MCP_ERROR" == false ]] && grep -q '"table"' "$TMP/mcp.body" && grep -q '"name":"minute"' "$TMP/mcp.body"; then break; fi
+    sleep 2
+  done
+  mcp_expect "query_range with format table on ClickHouse" '"table"'
+  mcp_expect "query_range with format table on ClickHouse" '"columns"'
+  mcp_expect "query_range with format table on ClickHouse" '"name":"minute"'
+  pass "MCP query_range with format table keeps ClickHouse rows as a table"
+
   mcp_tool create_dashboard "$(cat "$FIXTURES/dashboard-valid.json")"
   mcp_expect "create_dashboard" '"dashboard_id":"[0-9a-f-]\{36\}"'
   id="$(grep -o '"dashboard_id":"[^"]*"' "$TMP/mcp.body" | head -1 | cut -d'"' -f4)"
@@ -2025,7 +2035,7 @@ first_value() {
 
 proxy_suite() {
   api_token
-  local out id base window stable values_window first_executed service job job_count others leak rows_one rows_all logs_one logs_all now_ms to_ms adhoc
+  local out id base window ch_window stable values_window first_executed service job job_count others leak rows_one rows_all logs_one logs_all now_ms to_ms adhoc
   : >"$TMP/proxy-bodies.txt"
 
   out="$(proxy_call POST /dashboards --data-binary "@$FIXTURES/proxy-dashboard.json")"
@@ -2060,6 +2070,33 @@ proxy_suite() {
     fail "a multi-query panel returns frames tagged by query ref ($out: $(cat "$TMP/api.body"))"
   fi
   pass "a multi-query panel returns frames tagged by query ref and skips its hidden query"
+
+  ch_table_ok() {
+    python3 -c 'import json,sys
+b=json.load(open(sys.argv[1]))
+frames=b["frames"]
+a=[f for f in frames if f["ref"]=="A"]
+bs=[f for f in frames if f["ref"]=="B"]
+ok=b["meta"]["kind"]=="range" and len(a)==1 and not a[0].get("labels")
+ok=ok and [x["name"] for x in a[0]["fields"]]==["minute","service","c"]
+ok=ok and [x["type"] for x in a[0]["fields"]]==["time","string","number"]
+ok=ok and len(a[0]["fields"][0]["values"])>=2
+pairs=list(zip(a[0]["fields"][0]["values"],a[0]["fields"][1]["values"])) if ok else []
+ok=ok and pairs==sorted(pairs)
+ok=ok and len(bs)>=1 and all("service" in (f.get("labels") or {}) and [x["name"] for x in f["fields"]]==["Time","c"] for f in bs)
+sys.exit(0 if ok else 1)' "$TMP/api.body"
+  }
+  for _ in $(seq 1 45); do
+    now_ms=$(($(date +%s) * 1000))
+    ch_window="from=$((now_ms - 900000))&to=$now_ms&max_data_points=60"
+    out="$(proxy_call GET "$base/panels/p_ch_table/data?$ch_window")"
+    if [[ "$out" == 200 ]] && ch_table_ok; then break; fi
+    sleep 2
+  done
+  if [[ "$out" != 200 ]] || ! ch_table_ok; then
+    fail "a ClickHouse table-format range query returns its rows as selected ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a ClickHouse table-format range query returns its rows as selected, and the time-series format still splits by service"
 
   # Instant panels floor their range to 5 s, so an end off that grid lets the variable list a service whose only rows lie past the panel's end.
   for _ in $(seq 1 45); do

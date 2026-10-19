@@ -367,6 +367,79 @@ func TestRangeQuery(t *testing.T) {
 	}
 }
 
+func TestRangeQueryFormat(t *testing.T) {
+	ctx := context.Background()
+	ds := roDS(t)
+	const rowsQuery = "SELECT ServiceName AS service, Timestamp AS ts, Body AS body FROM otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR' AND $__timeFilter(Timestamp) ORDER BY Timestamp DESC"
+	const groupedQuery = "SELECT toStartOfMinute(Timestamp) AS minute, ServiceName AS service, count() AS c, count() * 2 AS d FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY minute, service ORDER BY minute, service"
+	rangeWith := func(t *testing.T, ds *clickhouse.Datasource, format, text string) ([]datasource.Frame, error) {
+		t.Helper()
+		q := query(text)
+		q.Format = format
+		return ds.QueryRange(ctx, q, lastHour(), time.Minute)
+	}
+	for _, format := range []string{"table", "logs"} {
+		t.Run(format+" returns the selected columns and rows", func(t *testing.T) {
+			frames, err := rangeWith(t, ds, format, rowsQuery)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(frames) != 1 || len(frames[0].Labels) != 0 {
+				t.Fatalf("frames = %+v, want one unlabeled frame", frames)
+			}
+			var names []string
+			for _, f := range frames[0].Fields {
+				names = append(names, f.Name)
+			}
+			if !slices.Equal(names, []string{"service", "ts", "body"}) {
+				t.Fatalf("columns = %v, want service, ts, body", names)
+			}
+			if frames[0].Fields[1].Type != datasource.FieldTime {
+				t.Fatalf("ts type = %s, want time", frames[0].Fields[1].Type)
+			}
+			var bodies []any
+			bodies = append(bodies, column(t, frames[0], "body").Values...)
+			if !slices.Equal(bodies, []any{"payment declined", "payment declined", "timeout"}) {
+				t.Fatalf("bodies = %v, want rows in query order", bodies)
+			}
+		})
+	}
+	for _, format := range []string{"", "timeseries", "heatmap"} {
+		t.Run("format "+format+" splits into series", func(t *testing.T) {
+			frames, err := rangeWith(t, ds, format, groupedQuery)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(frames) != 2 {
+				t.Fatalf("frames = %d, want one per service", len(frames))
+			}
+			for _, f := range frames {
+				if f.Labels["service"] == "" || f.Fields[0].Name != "Time" || len(f.Fields) != 3 {
+					t.Fatalf("frame = %+v, want labeled Time/c/d series", f)
+				}
+			}
+		})
+	}
+	t.Run("the raw path counts points as rows", func(t *testing.T) {
+		tight := func(points int) *clickhouse.Datasource {
+			return newDS(t, roUser, roPass, datasource.Limits{MaxPoints: points})
+		}
+		frames, err := rangeWith(t, tight(6), "table", groupedQuery)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := frames[0].Rows(); got != 6 {
+			t.Fatalf("rows = %d, want 6", got)
+		}
+		if _, err := rangeWith(t, tight(5), "table", groupedQuery); !errors.Is(err, datasource.ErrLimitExceeded) {
+			t.Fatalf("err = %v, want ErrLimitExceeded", err)
+		}
+		if _, err := rangeWith(t, tight(6), "", groupedQuery); !errors.Is(err, datasource.ErrLimitExceeded) {
+			t.Fatalf("series err = %v, want ErrLimitExceeded: the split path counts rows times value columns", err)
+		}
+	})
+}
+
 const pluginMacrosQuery = "SELECT count() AS n, $__fromTime AS from_t, $__toTime AS to_t, $__fromTime_ms AS from_ms, $__toTime_ms AS to_ms, $__interval_s AS interval_s, " +
 	"any($__timeInterval(Timestamp)) AS bucket, any($__timeInterval_ms(Timestamp)) AS bucket_ms FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) " +
 	"WHERE $__timeFilter_ms(Timestamp) AND $__dateFilter(day) AND $__dateTimeFilter(day, Timestamp) AND $__dt(day, Timestamp) " +

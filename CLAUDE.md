@@ -49,6 +49,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/queryproxy/proxyhttp/`: the query proxy HTTP handlers (panel data, variable values, datasource lint, draft preview, names), registered as a `server.Registrar`; a subpackage because it reads versions through `internal/dashboards`, which imports `queryproxy`.
 - `internal/ttlcache/`: the byte-bounded TTL LRU and the coalescing call group behind the query proxy's caches.
 - `internal/datasource/{prometheus,clickhouse,macros,provision}`: the datasource core and adapters, query macros, and registry construction from config.
+  A ClickHouse range query with `format` `table` or `logs` returns one frame with the columns and rows as selected; any other format, when the first column is a time column, splits rows into one series per combination of string columns, with that column renamed `Time`.
 - `internal/llm/`: provider-neutral gateway (`Provider` starts a `Session` that owns the native history); adapters `anthropic/`, `openaicompat/`, `replay/`; `providers/` picks one from configuration.
   `e2e/fixtures/llm/` holds the replay fixtures.
 - `internal/dashboards/`: dashboard and version storage, the save validation pipeline and the `/api/v1/dashboards` routes (`Service.Register`).

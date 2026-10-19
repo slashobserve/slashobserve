@@ -50,6 +50,7 @@ const (
 	propTo         = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
 	propVariables  = `"variables":{"type":"object","maxProperties":20,"additionalProperties":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"string"}},"description":"Values for the $variables the query references, by variable name."}`
 	propDashTitle  = `"dashboard_title":{"type":"string","maxLength":200,"description":"Title that $__dashboard expands to in the query. Default Untitled dashboard."}`
+	propFormat     = `"format":{"type":"string","enum":["timeseries","table","heatmap","logs"],"description":"Result shape. On ClickHouse, table and logs keep the rows and columns as selected; otherwise a leading time column is split into one series per combination of string columns. Use the format the panel will have. Default timeseries."}`
 	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see get_spec_guide."}`
 	propSummary    = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID     = `"dashboard_id":{"type":"string","description":"Dashboard id."}`
@@ -71,7 +72,7 @@ const (
 
 	schemaLintQuery = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `},"required":["datasource","query"],"additionalProperties":false}`
 
-	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
+	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propFormat + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 

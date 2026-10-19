@@ -287,6 +287,48 @@ func TestQueryToolsExpandTheDashboardTitleMacro(t *testing.T) {
 	}
 }
 
+func TestQueryRangePassesTheFormatToTheDatasource(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"table", `{"datasource":"fake","query":"SELECT 1","format":"table"}`, "table"},
+		{"logs", `{"datasource":"fake","query":"SELECT 1","format":"logs"}`, "logs"},
+		{"heatmap", `{"datasource":"fake","query":"SELECT 1","format":"heatmap"}`, "heatmap"},
+		{"omitted", `{"datasource":"fake","query":"SELECT 1"}`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var seen datasource.Query
+			ds := &fakeDS{
+				typ: "clickhouse",
+				rangeFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+					seen = q
+					return []datasource.Frame{logTableFrame()}, nil
+				},
+			}
+			res, err := call(t, newTestRegistry(t, ds, nil), nameQueryRange, tt.input)
+			if err != nil || res.IsError {
+				t.Fatalf("res = %#v err = %v", res, err)
+			}
+			if seen.Format != tt.want {
+				t.Fatalf("the datasource saw format %q, want %q", seen.Format, tt.want)
+			}
+		})
+	}
+}
+
+func TestQueryRangeRefusesAnUnknownFormat(t *testing.T) {
+	res, err := call(t, newTestRegistry(t, &fakeDS{}, nil), nameQueryRange, `{"datasource":"fake","query":"up","format":"pie"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := errorCode(t, res); code != string(queryproxy.CodeInvalidRequest) {
+		t.Fatalf("code = %q", code)
+	}
+}
+
 func TestQueryToolsRefuseAnOversizedDashboardTitle(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	for _, tool := range []string{nameQueryRange, nameQueryInstant} {
