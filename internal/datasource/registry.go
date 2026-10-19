@@ -80,6 +80,7 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		if strings.TrimSpace(in.Name) == "" {
 			in.Name = in.UID
 		}
+		in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 		r.instances[in.UID] = in
 	}
 	return r, nil

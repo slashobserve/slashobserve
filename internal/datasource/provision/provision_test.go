@@ -53,6 +53,21 @@ func TestRegistryHandsOutCopiesOfGrafanaUIDs(t *testing.T) {
 	}
 }
 
+func TestRegistryIsNotChangedByMutatingItsInput(t *testing.T) {
+	src := prom("prom", "http://prom:9090")
+	src.GrafanaUIDs = []string{"prometheus"}
+	sources := []config.Datasource{src}
+	registry, err := Build(nil, sources)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = registry.Close() })
+	sources[0].GrafanaUIDs[0] = "changed"
+	if got, _ := registry.Get("prom"); !slices.Equal(got.GrafanaUIDs, []string{"prometheus"}) {
+		t.Fatalf("registry changed: %q", got.GrafanaUIDs)
+	}
+}
+
 func TestBuildEmpty(t *testing.T) {
 	registry, err := Build(nil, nil)
 	if err != nil {
