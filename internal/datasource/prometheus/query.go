@@ -120,10 +120,16 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 	if err != nil {
 		return "", err
 	}
-	if _, err := promParser.ParseExpr(exp.Text); err != nil {
+	text := exp.Text
+	if len(q.Filters) > 0 {
+		if text, err = applyFilters(text, q.Filters); err != nil {
+			return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+		}
+	}
+	if _, err := promParser.ParseExpr(text); err != nil {
 		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
 	}
-	return exp.Text, nil
+	return text, nil
 }
 
 func (d *Datasource) runQuery(ctx context.Context, path string, form url.Values, lim datasource.Limits) ([]datasource.Frame, error) {

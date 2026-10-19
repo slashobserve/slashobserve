@@ -1099,3 +1099,43 @@ func TestConditionalAllErrorOffsetsAreAbsolute(t *testing.T) {
 		})
 	}
 }
+
+func adhoc(name string, filters ...datasource.AdhocFilter) datasource.Variable {
+	return datasource.Variable{Name: name, Adhoc: true, Filters: filters}
+}
+
+func allValue(name, value string) datasource.Variable {
+	return datasource.Variable{Name: name, Values: []string{value}, All: true, AllValue: true}
+}
+
+func TestClickHouseAdhocVariable(t *testing.T) {
+	filter := func(key, op, value string) datasource.AdhocFilter {
+		return datasource.AdhocFilter{Key: key, Op: op, Value: value}
+	}
+	runExpandCases(t, []expandCase{
+		{name: "no filters", d: macros.ClickHouse, query: `SELECT 1 WHERE $f AND a = 1`, env: envWith(adhoc("f")), want: `SELECT 1 WHERE 1 = 1 AND a = 1`},
+		{name: "equal", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("ServiceName", "=", "cart"))), want: `SELECT 1 WHERE (ServiceName = 'cart')`},
+		{name: "not equal", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("ServiceName", "!=", "cart"))), want: `SELECT 1 WHERE (ServiceName != 'cart')`},
+		{name: "regex", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("ServiceName", "=~", "ca.*"))), want: `SELECT 1 WHERE (match(ServiceName, 'ca.*'))`},
+		{name: "not regex", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("ServiceName", "!~", "ca.*"))), want: `SELECT 1 WHERE (NOT match(ServiceName, 'ca.*'))`},
+		{name: "two filters are anded", d: macros.ClickHouse, query: `SELECT 1 WHERE ${f}`, env: envWith(adhoc("f", filter("a", "=", "x"), filter("b", "!=", "y"))), want: `SELECT 1 WHERE (a = 'x' AND b != 'y')`},
+		{name: "quote and backslash in a value", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "=", `it's \`))), want: `SELECT 1 WHERE (a = 'it''s \\')`},
+		{name: "a format is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE ${f:csv}`, env: envWith(adhoc("f")), err: true},
+		{name: "a string is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE a = '$f'`, env: envWith(adhoc("f")), err: true},
+		{name: "a bad column is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a b", "=", "x"))), err: true},
+		{name: "a bad operator is refused", d: macros.ClickHouse, query: `SELECT 1 WHERE $f`, env: envWith(adhoc("f", filter("a", "<", "x"))), err: true},
+		{name: "promql refuses a reference", d: macros.PromQL, query: `up{job="$f"}`, env: envWith(adhoc("f")), err: true},
+	})
+}
+
+func TestAllValueSkipsTheFormat(t *testing.T) {
+	runExpandCases(t, []expandCase{
+		{name: "promql regex matcher", d: macros.PromQL, query: `up{pod=~"$pod"}`, env: envWith(allValue("pod", ".*")), want: `up{pod=~".*"}`},
+		{name: "promql regex matcher with a custom value", d: macros.PromQL, query: `up{pod=~"$pod"}`, env: envWith(allValue("pod", "web-.+")), want: `up{pod=~"web-.+"}`},
+		{name: "promql string is escaped", d: macros.PromQL, query: `up{pod="$pod"}`, env: envWith(allValue("pod", `a"b`)), want: `up{pod="a\"b"}`},
+		{name: "explicit format is ignored", d: macros.PromQL, query: `up{pod=~"${pod:regex}"}`, env: envWith(allValue("pod", ".*")), want: `up{pod=~".*"}`},
+		{name: "clickhouse code takes a safe token", d: macros.ClickHouse, query: `SELECT 1 WHERE svc = $svc`, env: envWith(allValue("svc", "total")), want: `SELECT 1 WHERE svc = total`},
+		{name: "clickhouse code refuses an unsafe value", d: macros.ClickHouse, query: `SELECT 1 WHERE svc = $svc`, env: envWith(allValue("svc", "1 OR 1=1")), err: true},
+		{name: "clickhouse string is escaped", d: macros.ClickHouse, query: `SELECT 1 WHERE svc = '$svc'`, env: envWith(allValue("svc", "it's")), want: `SELECT 1 WHERE svc = 'it\'s'`},
+	})
+}
