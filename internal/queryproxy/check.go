@@ -34,18 +34,41 @@ func (r *Runner) CheckDatasources(d *spec.Dashboard) []spec.Issue {
 }
 
 func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser) ([]spec.Issue, error) {
+	return r.checkSpec(ctx, d, now, user, nil)
+}
+
+func (r *Runner) CheckPanels(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser, ids []string) ([]spec.Issue, error) {
+	only := map[string]bool{}
+	for _, e := range d.DataPanels() {
+		if slices.Contains(ids, e.Panel.ID) {
+			only[e.Pointer] = true
+		}
+	}
+	return r.checkSpec(ctx, d, now, user, only)
+}
+
+func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time, user datasource.QueryUser, only map[string]bool) ([]spec.Issue, error) {
 	canceled := func() bool { return errors.Is(ctx.Err(), context.Canceled) }
 	if canceled() {
 		return nil, context.Canceled
 	}
 
 	issues, badVariables, badQueries := r.checkDatasources(d)
+	finish := func(issues []spec.Issue) []spec.Issue {
+		if only != nil {
+			issues = slices.DeleteFunc(issues, func(i spec.Issue) bool { return !issueInPanels(i, only) })
+		}
+		if len(issues) == 0 {
+			return nil
+		}
+		sortIssues(issues)
+		return issues
+	}
 
 	from, to, err := spec.ResolveTimeRange(d.Time, now)
 	if err != nil {
 		issues = append(issues, spec.Issue{Path: "/time", Code: CodeTimeRangeInvalid, Message: err.Error()})
-		sortIssues(issues)
-		return issues, nil
+		return finish(issues), nil
 	}
 	rng := datasource.TimeRange{From: from, To: to}
 
@@ -66,6 +89,9 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	var group errgroup.Group
 	group.SetLimit(checkPanelParallelism)
 	for i, e := range entries {
+		if only != nil && !only[e.Pointer] {
+			continue
+		}
 		skip := slices.Clone(badQueries[e.Pointer])
 		for j, q := range e.Panel.Queries {
 			if skip[j] {
@@ -92,11 +118,19 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		issues = append(issues, pi...)
 	}
 
-	if len(issues) == 0 {
-		return nil, nil
+	return finish(issues), nil
+}
+
+func issueInPanels(i spec.Issue, only map[string]bool) bool {
+	if i.Path == "/time" {
+		return true
 	}
-	sortIssues(issues)
-	return issues, nil
+	for pointer := range only {
+		if i.Path == pointer || strings.HasPrefix(i.Path, pointer+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {

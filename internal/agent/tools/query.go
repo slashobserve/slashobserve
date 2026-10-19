@@ -19,7 +19,6 @@ import (
 
 const (
 	lintTimeout        = 5 * time.Second
-	queryGrace         = 5 * time.Second
 	maxQueryBytes      = 64 << 10
 	maxQueryDays       = 31
 	maxVariables       = 20
@@ -41,11 +40,7 @@ const (
 	maxDashTitleChars  = 200
 )
 
-var (
-	toolLimits = datasource.Limits{Timeout: 15 * time.Second, MaxSeries: 200, MaxPoints: 100_000, MaxRows: 1000}
-
-	variableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
-)
+var variableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 
 func (r *Registry) queryEntries() []entry {
 	return []entry{
@@ -168,7 +163,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	if !ok {
 		return res, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, toolLimits.Timeout+queryGrace)
+	ctx, cancel := context.WithTimeout(ctx, queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
 	out, err := r.deps.Runner.RunPanel(ctx, queryproxy.Request{
@@ -177,7 +172,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		Range:         rng,
 		Selections:    selections,
 		MaxDataPoints: dataPoints,
-		Limits:        toolLimits,
+		Limits:        queryproxy.DraftLimits,
 		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {
