@@ -63,7 +63,6 @@ func TestCommentThreadConstraints(t *testing.T) {
 		replyCheck     = "dashboard_comments_reply_check"
 		versionCheck   = "dashboard_comments_resolved_by_version_check"
 		versionFkey    = "dashboard_comments_resolved_by_version_fkey"
-		parentFkey     = "dashboard_comments_parent_id_fkey"
 		parentDashFkey = "dashboard_comments_parent_dashboard_fkey"
 		missingParent  = "00000000-0000-4000-8000-0000000000ff"
 	)
@@ -83,7 +82,7 @@ func TestCommentThreadConstraints(t *testing.T) {
 		{"resolved root with a version below its own", commentRow{dashboard: dashboardA, version: 2, panel: "p", status: "resolved", resolved: true, resolvedByVersion: 1}, versionCheck},
 		{"open root with a resolved-by version", commentRow{dashboard: dashboardA, version: 1, panel: "p", status: "open", resolvedByVersion: 2}, versionCheck},
 		{"resolved by a version the dashboard lacks", commentRow{dashboard: dashboardB, version: 1, panel: "p", status: "resolved", resolved: true, resolvedByVersion: 2}, versionFkey},
-		{"reply to an unknown comment", commentRow{dashboard: dashboardA, version: 2, panel: "p", parent: missingParent, status: "open"}, parentFkey},
+		{"reply to an unknown comment", commentRow{dashboard: dashboardA, version: 2, panel: "p", parent: missingParent, status: "open"}, parentDashFkey},
 		{"reply to a comment of another dashboard", commentRow{dashboard: dashboardA, version: 1, panel: "p", parent: rootB, status: "open"}, parentDashFkey},
 	}
 	for _, tt := range tests {

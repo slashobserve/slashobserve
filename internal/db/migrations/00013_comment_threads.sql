@@ -1,6 +1,6 @@
 -- +goose Up
 ALTER TABLE dashboard_comments ALTER COLUMN panel_id DROP NOT NULL;
-ALTER TABLE dashboard_comments ADD COLUMN parent_id UUID REFERENCES dashboard_comments (id) ON DELETE CASCADE;
+ALTER TABLE dashboard_comments ADD COLUMN parent_id UUID;
 ALTER TABLE dashboard_comments ADD CONSTRAINT dashboard_comments_dashboard_id_id_key UNIQUE (dashboard_id, id);
 ALTER TABLE dashboard_comments ADD CONSTRAINT dashboard_comments_parent_dashboard_fkey
   FOREIGN KEY (dashboard_id, parent_id) REFERENCES dashboard_comments (dashboard_id, id) ON DELETE CASCADE;
