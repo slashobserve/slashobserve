@@ -6,9 +6,9 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
   type Ref,
 } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ import { sentence } from "@/observe/queries"
 import {
   describeRevisionError,
   isAgentUnavailable,
-  markAgentUnavailable,
+  maxPromptLength,
   useRequestRevision,
 } from "@/revisions/queries"
 
@@ -39,9 +39,9 @@ type Props = {
   gate: AgentGate
   placeholder: string
   textareaRef?: Ref<HTMLTextAreaElement>
+  notice?: ReactNode
 }
 
-const maxLength = 4000
 const counterThreshold = 3500
 const panelGoneText = "That panel no longer exists. Pick another target."
 const agentGoneText =
@@ -86,35 +86,40 @@ export function ActivityComposer({
   gate,
   placeholder,
   textareaRef,
+  notice,
 }: Props) {
   const counterId = useId()
   const errorId = useId()
-  const queryClient = useQueryClient()
   const addComment = useAddComment(dashboardId)
   const requestRevision = useRequestRevision(dashboardId)
   const field = useRef<HTMLTextAreaElement>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [note, setNote] = useState({ text: "", count: 0 })
 
-  useImperativeHandle(textareaRef, () => field.current as HTMLTextAreaElement)
+  useImperativeHandle(
+    textareaRef,
+    () => field.current as HTMLTextAreaElement,
+    []
+  )
 
   const targetMissing =
     target.kind === "panel" &&
     !panels.some((panel) => panel.id === target.panelId)
+  const targetGone = targetMissing && panels.length > 0
   useEffect(() => {
-    if (targetMissing) onTargetChange({ kind: "dashboard" })
-  }, [targetMissing, onTargetChange])
+    if (targetGone) onTargetChange({ kind: "dashboard" })
+  }, [targetGone, onTargetChange])
 
   const panelId =
     target.kind === "panel" && !targetMissing ? target.panelId : null
   const trimmed = draft.trim()
-  const length = [...draft].length
-  const over = length > maxLength
+  const length = [...trimmed].length
+  const over = length > maxPromptLength
   const showCounter = length >= counterThreshold
   const pendingComment = addComment.isPending
   const pendingRequest = requestRevision.isPending
-  const canSubmit =
-    trimmed !== "" && !over && !pendingComment && !pendingRequest
+  const pending = pendingComment || pendingRequest
+  const emptyOrOver = trimmed === "" || over
 
   function announce(text: string) {
     setNote((current) => ({ text, count: current.count + 1 }))
@@ -126,29 +131,31 @@ export function ActivityComposer({
     field.current?.focus()
   }
 
+  function failed(text: string) {
+    setFailure(text)
+    field.current?.focus()
+  }
+
   function addCommentNow() {
-    if (!canSubmit) return
+    if (emptyOrOver || pending) return
     setFailure(null)
     addComment.mutate(
       { body: trimmed, version: latestVersion, panelId },
       {
         onSuccess: () => succeeded("Comment added"),
-        onError: (error) => setFailure(commentFailureText(error)),
+        onError: (error) => failed(commentFailureText(error)),
       }
     )
   }
 
   function sendToAgent() {
-    if (!canSubmit) return
+    if (emptyOrOver || pending) return
     setFailure(null)
     requestRevision.mutate(
       { prompt: trimmed, baseVersion: latestVersion, panelId },
       {
         onSuccess: () => succeeded("Sent to the agent"),
-        onError: (error) => {
-          if (isAgentUnavailable(error)) markAgentUnavailable(queryClient)
-          setFailure(requestFailureText(error))
-        },
+        onError: (error) => failed(requestFailureText(error)),
       }
     )
   }
@@ -169,8 +176,6 @@ export function ActivityComposer({
     }
   }
 
-  const mac =
-    typeof navigator !== "undefined" && navigator.platform.includes("Mac")
   const describedBy =
     [showCounter ? counterId : null, failure ? errorId : null]
       .filter(Boolean)
@@ -182,8 +187,9 @@ export function ActivityComposer({
       onSubmit={onSubmit}
       className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5"
     >
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        To
+      {notice}
+      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        On
         <select
           value={panelId ?? ""}
           onChange={(event) =>
@@ -193,7 +199,7 @@ export function ActivityComposer({
                 : { kind: "panel", panelId: event.target.value }
             )
           }
-          className="h-[26px] max-w-[240px] rounded-control border bg-background px-1.5 text-xs text-foreground"
+          className="h-[26px] max-w-[240px] rounded-[5px] border bg-background px-1.5 text-xs text-foreground"
         >
           <option value="">The whole dashboard</option>
           {panels.map((panel) => (
@@ -211,7 +217,8 @@ export function ActivityComposer({
         placeholder={placeholder}
         rows={3}
         value={draft}
-        className="field-sizing-content max-h-40 min-h-16 resize-none text-[13px]"
+        readOnly={pending}
+        className="field-sizing-fixed max-h-64 min-h-16 resize-y px-3 py-2.5 text-sm"
         onChange={(event) => {
           onDraftChange(event.target.value)
           if (failure) setFailure(null)
@@ -221,43 +228,37 @@ export function ActivityComposer({
       {showCounter ? (
         <span
           id={counterId}
-          aria-live="polite"
           className={cn(
             "text-xs text-muted-foreground tabular-nums",
             over && "text-status-critical"
           )}
         >
           {over
-            ? `${length - maxLength} ${plural(length - maxLength)} over`
-            : `${maxLength - length} ${plural(maxLength - length)} left`}
+            ? `${length - maxPromptLength} ${plural(length - maxPromptLength)} over`
+            : `${maxPromptLength - length} ${plural(maxPromptLength - length)} left`}
         </span>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground narrow:hidden">
-          {mac ? "⌘ Enter to add" : "Ctrl+Enter to add"}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={emptyOrOver}
+          aria-disabled={pending || undefined}
+          aria-busy={pendingComment || undefined}
+        >
+          Add comment
+        </Button>
+        {gate.kind === "allowed" ? (
           <Button
-            type="submit"
-            variant="outline"
-            className="h-[30px]"
-            disabled={!canSubmit}
-            aria-busy={pendingComment || undefined}
+            type="button"
+            disabled={emptyOrOver}
+            aria-disabled={pending || undefined}
+            aria-busy={pendingRequest || undefined}
+            onClick={sendToAgent}
           >
-            Add comment
+            Send to agent
           </Button>
-          {gate.kind === "allowed" ? (
-            <Button
-              type="button"
-              className="h-[30px]"
-              disabled={!canSubmit}
-              aria-busy={pendingRequest || undefined}
-              onClick={sendToAgent}
-            >
-              Send to agent
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
       {gate.kind === "blocked" ? (
         <p className="text-xs text-muted-foreground">{gate.reason}</p>
