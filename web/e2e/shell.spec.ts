@@ -228,6 +228,7 @@ test("draws the shell in dark mode", async ({ page }) => {
       top: element.getBoundingClientRect().top,
       rightEdge: element.getBoundingClientRect().right === window.innerWidth,
       current: getComputedStyle(current).backgroundColor,
+      currentBorder: getComputedStyle(current).borderTopColor,
     }
   })
   expect(styles).toEqual({
@@ -238,6 +239,7 @@ test("draws the shell in dark mode", async ({ page }) => {
     top: 0,
     rightEdge: true,
     current: "rgb(17, 17, 19)",
+    currentBorder: "rgba(0, 0, 0, 0)",
   })
 })
 

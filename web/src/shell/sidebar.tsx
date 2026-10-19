@@ -74,7 +74,7 @@ function NavLink({
     activeOptions: { exact: true },
     "aria-current": active ? ("page" as const) : undefined,
     className: cn(
-      "flex h-8 items-center gap-2.5 rounded-[7px] border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:border-border aria-[current=page]:bg-background",
+      "flex h-8 items-center gap-2.5 rounded-[7px] border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-background aria-[current=page]:bg-background",
       focusRing,
       collapsed && "justify-center px-0"
     ),
