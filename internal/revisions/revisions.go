@@ -57,6 +57,7 @@ var (
 	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
 	ErrRequestNotFound  = errors.New("agent request not found")
 	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
+	ErrCommentNotFound  = errors.New("comment not found")
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")

@@ -1341,7 +1341,7 @@ revisions_suite() {
   api_token
   local out id id2 panel rid rid2 rid3 cid page_ids stream="$TMP/sse-revisions.txt" nil_id=00000000-0000-0000-0000-000000000000
   local accepted=0 limited=0 attempt succeeded
-  local pid prid
+  local pid prid tdid troot treply trid tstream="$TMP/sse-thread-revision.txt"
 
   panel="$(sed -n 's/^ *"id": *"\([^"]*\)".*/\1/p' "$FIXTURES/dashboard-valid.json" | sed -n 1p)"
   [[ -n "$panel" ]] || fail "dashboard-valid.json has no panel id"
@@ -1377,10 +1377,11 @@ revisions_suite() {
     fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/comments")"
-  if [[ "$out" != 200 ]] || ! grep -q "\"revision\":{\"id\":\"$rid\",\"status\":\"succeeded\"}" "$TMP/api.body" || ! grep -q '"status":"open"' "$TMP/api.body"; then
-    fail "the comment keeps its revision and stays open ($out: $(cat "$TMP/api.body"))"
+  if [[ "$out" != 200 ]] || ! grep -q "\"revision\":{\"id\":\"$rid\",\"status\":\"succeeded\"}" "$TMP/api.body" || ! grep -q '"status":"resolved"' "$TMP/api.body" || ! grep -q '"resolved_by_version":2' "$TMP/api.body" \
+    || grep -q '"status":"open"' "$TMP/api.body"; then
+    fail "the comment keeps its revision and is resolved by version 2 ($out: $(cat "$TMP/api.body"))"
   fi
-  pass "the revision records its result, author and comment, and the comment stays open"
+  pass "the revision records its result, author and comment, and the comment is resolved by version 2"
 
   out="$(api POST "/dashboards/$id/revisions" -d '{"prompt":"  Add a p99 latency panel ","base_version":2}')"
   if [[ "$out" != 202 ]] || ! grep -q '"status":"queued"' "$TMP/api.body" || ! grep -q '"source":"prompt"' "$TMP/api.body" \
@@ -1455,6 +1456,47 @@ revisions_suite() {
   out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"prompt":"x","base_version":1}' "$BASE_URL/api/v1/dashboards/$id/revisions")"
   [[ "$out" == 401 ]] || fail "revision without a token ($out)"
   pass "revision requests refuse invalid bodies, unknown versions and dashboards, bad paging and anonymous callers"
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the thread revision dashboard ($out: $(cat "$TMP/api.body"))"
+  tdid="$(grep -o '"id":"[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4)"
+  out="$(api POST "/dashboards/$tdid/comments" -d '{"version":1,"panel_id":"'"$panel"'","body":"Split this by route"}')"
+  troot="$(comment_ids "$TMP/api.body")"
+  [[ "$out" == 201 && -n "$troot" ]] || fail "create the thread root ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$tdid/comments" -d '{"parent_id":"'"$troot"'","body":"Agreed"}')"
+  treply="$(comment_ids "$TMP/api.body")"
+  [[ "$out" == 201 && -n "$treply" ]] || fail "create the thread reply ($out: $(cat "$TMP/api.body"))"
+  sse_open "$tdid" "$tstream"
+  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"Show this per route","base_version":1,"comment_id":"'"$treply"'"}')"
+  if [[ "$out" != 202 ]] || ! grep -q '"source":"comment"' "$TMP/api.body" || ! grep -q "\"comment_id\":\"$troot\"" "$TMP/api.body" \
+    || ! grep -q "\"panel_id\":\"$panel\"" "$TMP/api.body"; then
+    fail "a request sent from a reply is queued against the thread's root ($out: $(cat "$TMP/api.body"))"
+  fi
+  trid="$(grep -o '"revision":{"id":"[^"]*"' "$TMP/api.body" | cut -d'"' -f6)"
+  [[ -n "$trid" ]] || fail "the thread request has no id ($(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"'"$treply"'","panel_id":"'"$panel"'"}')"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+    fail "comment_id with panel_id should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"nope"}')"
+  if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+    fail "a malformed comment_id should be rejected with 400 ($out: $(cat "$TMP/api.body"))"
+  fi
+  out="$(api POST "/dashboards/$tdid/revisions" -d '{"prompt":"x","base_version":1,"comment_id":"'"$nil_id"'"}')"
+  if [[ "$out" != 404 ]] || ! grep -q '"code":"not_found"' "$TMP/api.body"; then
+    fail "an unknown comment_id should answer 404 ($out: $(cat "$TMP/api.body"))"
+  fi
+  wait_revision "$tdid" "$trid" succeeded 90
+  sse_wait "$tstream" "^data: {\"type\":\"comment.updated\",\"dashboard_id\":\"$tdid\",.*\"comment_id\":\"$troot\",\"panel_id\":\"$panel\",\"status\":\"resolved\"}$" 10
+  sse_close
+  out="$(api GET "/dashboards/$tdid/comments?status=resolved")"
+  if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
+b=json.load(open(sys.argv[1]))
+c=[x for x in b["comments"] if x["id"]==sys.argv[2]]
+sys.exit(0 if len(c)==1 and c[0]["status"]=="resolved" and c[0]["resolved_by_version"]==2 else 1)' "$TMP/api.body" "$troot"; then
+    fail "the thread should be resolved by version 2 ($out: $(cat "$TMP/api.body"))"
+  fi
+  pass "a request sent from a comment thread resolves the thread with the version it saved"
 
   out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
   [[ "$out" == 201 ]] || fail "create the revision cap dashboard ($out: $(cat "$TMP/api.body"))"

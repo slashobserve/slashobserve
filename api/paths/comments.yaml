@@ -20,7 +20,7 @@ dashboards-id-comments:
       A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream.
       A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision.
       The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision.
-      A succeeded revision does not resolve the comment.
+      When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved.
       With no LLM provider configured, no revision is queued and `revision` stays null.
       At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
     requestBody:
@@ -167,7 +167,7 @@ dashboards-id-comments-commentid:
     summary: Resolve or reopen a comment.
     description: >-
       Setting the status a comment already has answers 200 with the comment unchanged and sends no event.
-      A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status.
+      A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester.
       Changing a reply changes its thread and returns the thread's first comment.
       `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
     requestBody:

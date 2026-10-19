@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	uniqueViolationCode   = "23505"
-	runningDashboardIndex = "agent_requests_running_dashboard_idx"
+	uniqueViolationCode     = "23505"
+	runningDashboardIndex   = "agent_requests_running_dashboard_idx"
+	maxEventAuthorNameRunes = 256
 )
 
 type Service struct {
@@ -113,21 +114,34 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	return row, nil
 }
 
-func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	latest, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
+func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int) (latest, base int, err error) {
+	v, err := s.db.Queries().GetDashboardLatestVersion(ctx, dashboardID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+		return 0, 0, ErrDashboardNotFound
 	case err != nil:
-		return dbsqlc.AgentRequest{}, fmt.Errorf("read latest dashboard version: %w", err)
-	case baseVersion != nil && *baseVersion > int(latest):
-		return dbsqlc.AgentRequest{}, ErrDashboardVersionNotFound
+		return 0, 0, fmt.Errorf("read latest dashboard version: %w", err)
+	case baseVersion != nil && *baseVersion > int(v):
+		return 0, 0, ErrDashboardVersionNotFound
+	}
+	latest = int(v)
+	base = latest
+	if baseVersion != nil {
+		base = *baseVersion
+	}
+	return latest, base, nil
+}
+
+func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	latest, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	if panelID != "" {
 		if s.panels == nil {
 			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: no panel checker configured")
 		}
-		known, err := s.panels.HasPanel(ctx, dashboardID, int(latest), panelID)
+		known, err := s.panels.HasPanel(ctx, dashboardID, latest, panelID)
 		if err != nil {
 			return dbsqlc.AgentRequest{}, fmt.Errorf("check panel: %w", err)
 		}
@@ -135,15 +149,34 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 			return dbsqlc.AgentRequest{}, ErrUnknownPanel
 		}
 	}
-	base := int(latest)
-	if baseVersion != nil {
-		base = *baseVersion
-	}
 	return s.Submit(ctx, EnqueueParams{
 		DashboardID: dashboardID,
 		Source:      SourcePrompt,
 		Prompt:      prompt,
 		PanelID:     panelID,
+		BaseVersion: base,
+		By:          by,
+	})
+}
+
+func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pgtype.UUID, baseVersion *int, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	_, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	root, err := s.db.Queries().GetCommentThreadRoot(ctx, dbsqlc.GetCommentThreadRootParams{ID: commentID, DashboardID: dashboardID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.AgentRequest{}, ErrCommentNotFound
+	}
+	if err != nil {
+		return dbsqlc.AgentRequest{}, fmt.Errorf("read comment thread: %w", err)
+	}
+	return s.Submit(ctx, EnqueueParams{
+		DashboardID: dashboardID,
+		Source:      SourceComment,
+		CommentID:   root.ID,
+		Prompt:      prompt,
+		PanelID:     root.PanelID.String,
 		BaseVersion: base,
 		By:          by,
 	})
@@ -279,7 +312,7 @@ func (s *Service) ListMine(ctx context.Context, by auth.Principal, source string
 func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) {
 	var claimed dbsqlc.AgentRequest
 	found := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		if err := q.LockAgentRequestClaims(ctx); err != nil {
 			return fmt.Errorf("lock agent request claims: %w", err)
 		}
@@ -290,6 +323,9 @@ func (s *Service) claim(ctx context.Context) (dbsqlc.AgentRequest, bool, error) 
 		for _, row := range exhausted {
 			if err := notifyRevision(ctx, q, row); err != nil {
 				return err
+			}
+			if row.Status == string(StatusSucceeded) {
+				s.resolveThread(ctx, savepoint, row)
 			}
 		}
 		row, err := q.ClaimAgentRequest(ctx, MaxAttempts)
@@ -328,7 +364,7 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 		}
 	}
 	finished := false
-	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	err := s.db.InTxWithSavepoints(ctx, func(q *dbsqlc.Queries, savepoint db.Savepoint) error {
 		var row dbsqlc.AgentRequest
 		var err error
 		if o.version != nil {
@@ -347,7 +383,13 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 			return fmt.Errorf("finish agent request: %w", err)
 		}
 		finished = true
-		return notifyRevision(ctx, q, row)
+		if err := notifyRevision(ctx, q, row); err != nil {
+			return err
+		}
+		if o.version != nil {
+			s.resolveThread(ctx, savepoint, row)
+		}
+		return nil
 	})
 	return finished, err
 }
@@ -403,6 +445,56 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 		return fmt.Errorf("notify event: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) resolveThread(ctx context.Context, savepoint db.Savepoint, row dbsqlc.AgentRequest) {
+	err := savepoint(func(q *dbsqlc.Queries) error { return resolveThreadOf(ctx, q, row) })
+	if err != nil {
+		s.logger.WarnContext(ctx, "resolve comment thread of a succeeded agent request", logattrs.Failure("agent_request_thread_resolve_failed", err, slog.String("agent_request_id", row.ID.String()))...)
+	}
+}
+
+func resolveThreadOf(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
+	if !row.CommentID.Valid || !row.DashboardID.Valid || !row.ResultVersion.Valid {
+		return nil
+	}
+	root, err := q.ResolveThreadForAgentRequest(ctx, dbsqlc.ResolveThreadForAgentRequestParams{
+		ID:                row.CommentID,
+		DashboardID:       row.DashboardID,
+		ResolvedByKind:    row.RequestedByKind,
+		ResolvedByID:      row.RequestedByID,
+		ResolvedByName:    row.RequestedByName,
+		ResolvedByVersion: row.ResultVersion.Int32,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("resolve comment thread: %w", err)
+	}
+	ev := events.Event{
+		Type:        events.TypeCommentUpdated,
+		DashboardID: root.DashboardID.String(),
+		CommentID:   root.ID.String(),
+		PanelID:     root.PanelID.String,
+		Status:      root.Status,
+		Author:      &events.Author{Kind: row.RequestedByKind, ID: row.RequestedByID.String(), Name: capEventAuthorName(row.RequestedByName)},
+	}
+	payload, err := json.Marshal(ev)
+	if err != nil {
+		return fmt.Errorf("marshal event: %w", err)
+	}
+	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: events.Channel, Payload: string(payload)}); err != nil {
+		return fmt.Errorf("notify event: %w", err)
+	}
+	return nil
+}
+
+func capEventAuthorName(name string) string {
+	if r := []rune(name); len(r) > maxEventAuthorNameRunes {
+		return string(r[:maxEventAuthorNameRunes])
+	}
+	return name
 }
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {

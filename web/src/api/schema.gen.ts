@@ -380,7 +380,7 @@ export interface paths {
         put?: never;
         /**
          * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. A succeeded revision does not resolve the comment. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -407,7 +407,7 @@ export interface paths {
         head?: never;
         /**
          * Resolve or reopen a comment.
-         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
+         * @description Setting the status a comment already has answers 200 with the comment unchanged and sends no event. A real change sends `comment.updated` with `type`, `dashboard_id`, `comment_id`, `status` and `author` (plus `panel_id` for a comment on a panel), where `author` is the caller who changed the status or, when an agent request resolves the thread, its requester. Changing a reply changes its thread and returns the thread's first comment. `resolved_by_version` names the version that fixed the thread; it must be at least the version the thread is on (400) and at most the dashboard's latest version (422), it is stored only when the call changes the status to resolved, and reopening clears it.
          */
         patch: operations["setDashboardCommentStatus"];
         trace?: never;
@@ -496,7 +496,7 @@ export interface paths {
         put?: never;
         /**
          * Ask the agent to revise a dashboard with a follow-up prompt.
-         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel.
+         * @description The request is queued and answers 202 at once; the agent saves the result as a new version of the dashboard. Watch the dashboard's event stream for `revision.updated` and `version.created` (the version arrives first, then `revision.updated` with status `succeeded`; do not depend on their order), or poll the revision. The agent revises the latest version of the dashboard; `base_version` is the version the caller was looking at and only gives the agent context. The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused. At most 5 revisions may be queued or running per dashboard. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`. With `panel_id` the agent focuses on that panel. With `comment_id` the request is about a comment thread; on success the thread is resolved with the saved version.
          */
         post: operations["createDashboardRevision"];
         delete?: never;
@@ -865,7 +865,7 @@ export interface components {
             /** Format: date-time */
             resolved_at: string | null;
             resolved_by: components["schemas"]["Author"] | null;
-            /** @description The version that fixed the thread, when the resolver named one. Always null on a reply. */
+            /** @description The version that fixed the thread, when the resolver named one. Also set by the server when an agent request sent from the thread succeeds. Always null on a reply. */
             resolved_by_version: number | null;
             /** @description Whether the latest version of the dashboard still has the panel the comment is anchored to. Always true for a whole-dashboard comment. */
             panel_present: boolean;
@@ -2294,6 +2294,11 @@ export interface operations {
                     base_version: number;
                     /** @description The panel the prompt is about; it must exist in the latest version. Omit it or send null for the whole dashboard. */
                     panel_id?: string | null;
+                    /**
+                     * Format: uuid
+                     * @description A comment or reply whose thread the agent should address; the request takes the thread's panel, so do not send panel_id with it. When the request succeeds, the server resolves the thread with resolved_by_version set to the saved version, unless it is already resolved.
+                     */
+                    comment_id?: string | null;
                 };
             };
         };
@@ -2311,7 +2316,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description The dashboard or the version does not exist, or `comment_id` names no comment on this dashboard. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The panel does not exist in the latest version (`unknown_panel`). */
             422: {

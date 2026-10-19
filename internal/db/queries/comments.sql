@@ -41,3 +41,20 @@ SET status = @status::text,
   updated_at = now()
 WHERE id = @id AND dashboard_id = @dashboard_id AND parent_id IS NULL AND status <> @status::text
 RETURNING *;
+
+-- name: GetCommentThreadRoot :one
+SELECT root.* FROM dashboard_comments c
+JOIN dashboard_comments root ON root.id = coalesce(c.parent_id, c.id)
+WHERE c.id = @id AND c.dashboard_id = @dashboard_id;
+
+-- name: ResolveThreadForAgentRequest :one
+UPDATE dashboard_comments
+SET status = 'resolved',
+  resolved_at = now(),
+  resolved_by_kind = @resolved_by_kind::text,
+  resolved_by_id = @resolved_by_id::uuid,
+  resolved_by_name = @resolved_by_name::text,
+  resolved_by_version = @resolved_by_version::integer,
+  updated_at = now()
+WHERE id = @id AND dashboard_id = @dashboard_id AND parent_id IS NULL AND status = 'open'
+RETURNING *;
