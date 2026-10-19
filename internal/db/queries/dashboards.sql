@@ -1,6 +1,12 @@
 -- name: CreateDashboard :one
-INSERT INTO dashboards (title, tags, latest_version) VALUES (@title, @tags, 1)
-RETURNING id, title, tags, latest_version, created_at, updated_at;
+INSERT INTO dashboards (
+  title, tags, latest_version, created_by_kind, created_by_id, created_by_name, created_by_email,
+  created_origin, created_origin_client, created_via
+) VALUES (
+  @title, @tags, 1, @created_by_kind, @created_by_id, @created_by_name, sqlc.narg('created_by_email')::text,
+  sqlc.narg('created_origin')::text, sqlc.narg('created_origin_client')::text, @created_via
+)
+RETURNING *;
 
 -- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
@@ -18,7 +24,7 @@ RETURNING dashboard_id, version, parent_version, restored_from, summary,
 UPDATE dashboards
 SET latest_version = latest_version + 1, title = @title, tags = @tags, updated_at = now()
 WHERE id = @id AND latest_version = @expected_version
-RETURNING id, title, tags, latest_version, created_at, updated_at;
+RETURNING *;
 
 -- name: GetDashboardLatestVersion :one
 SELECT latest_version FROM dashboards WHERE id = $1;
@@ -44,13 +50,40 @@ SELECT spec FROM dashboard_versions WHERE dashboard_id = @id AND version = @vers
 -- name: ListDashboards :many
 SELECT sqlc.embed(d),
   v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
-  v.author_name AS updated_by_name, v.author_email AS updated_by_email
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM dashboard_comments c
+    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
-WHERE sqlc.narg('cursor_updated_at')::timestamptz IS NULL
-  OR (d.updated_at, d.id) < (sqlc.narg('cursor_updated_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+WHERE (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
+    OR (d.updated_at, d.id) < (sqlc.narg('cursor_updated_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+  AND (sqlc.narg('creator_kind')::text IS NULL
+    OR (d.created_by_kind = sqlc.narg('creator_kind')::text AND d.created_by_id = sqlc.narg('creator_id')::uuid))
+  AND (NOT @only_agent::boolean OR d.created_via = 'agent')
+  AND (NOT @only_mcp::boolean OR d.created_origin = 'mcp')
+  AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
+  AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
+  AND (sqlc.narg('q')::text IS NULL
+    OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
 LIMIT @row_limit;
+
+-- name: CountDashboards :one
+SELECT count(*)
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+WHERE (sqlc.narg('creator_kind')::text IS NULL
+    OR (d.created_by_kind = sqlc.narg('creator_kind')::text AND d.created_by_id = sqlc.narg('creator_id')::uuid))
+  AND (NOT @only_agent::boolean OR d.created_via = 'agent')
+  AND (NOT @only_mcp::boolean OR d.created_origin = 'mcp')
+  AND (sqlc.narg('mcp_client')::text IS NULL OR d.created_origin_client = sqlc.narg('mcp_client')::text)
+  AND (sqlc.narg('datasource')::text IS NULL OR v.datasource_uids @> ARRAY[sqlc.narg('datasource')::text])
+  AND (sqlc.narg('q')::text IS NULL
+    OR strpos(lower(d.title), lower(sqlc.narg('q')::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower(sqlc.narg('q')::text)) > 0);
 
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,

@@ -46,6 +46,7 @@ dashboards:
   get:
     operationId: listDashboards
     summary: List dashboards, most recently updated first.
+    description: Filters combine with AND; `total_count` counts all matches regardless of the cursor.
     parameters:
       - name: limit
         in: query
@@ -58,6 +59,25 @@ dashboards:
         in: query
         schema:
           type: string
+      - name: made_by
+        in: query
+        description: "Who made the dashboard: `me` (the caller), `user:<uuid>`, `service_account:<uuid>`, `agent` (saved by the agent), `mcp` (any MCP client) or `mcp:<client>` (one MCP client by name)."
+        schema:
+          type: string
+      - name: datasource
+        in: query
+        description: A datasource uid; only dashboards whose latest version uses it.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: q
+        in: query
+        description: Case-insensitive text found in the title or the description; leading and trailing whitespace is ignored and a value of only whitespace is rejected.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
     responses:
       "200":
         description: One page of dashboards.
@@ -66,15 +86,18 @@ dashboards:
             schema:
               type: object
               additionalProperties: false
-              required: [dashboards, next_cursor]
+              required: [dashboards, next_cursor, total_count]
               properties:
                 dashboards:
                   type: array
                   items:
-                    $ref: "../openapi.yaml#/components/schemas/DashboardSummary"
+                    $ref: "../openapi.yaml#/components/schemas/DashboardListItem"
                 next_cursor:
                   type: string
                   nullable: true
+                total_count:
+                  type: integer
+                  minimum: 0
       "400":
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":

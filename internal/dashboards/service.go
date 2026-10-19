@@ -216,21 +216,93 @@ func (s *Service) LatestVersion(ctx context.Context, id pgtype.UUID) (int, error
 	return s.store.latestVersion(ctx, id)
 }
 
-func (s *Service) List(ctx context.Context, limit int, cursor string) ([]Dashboard, string, error) {
-	after, ok := httpapi.DecodeTimeCursor(cursor)
+type MadeBy struct {
+	CreatorKind string
+	CreatorID   string
+	AgentOnly   bool
+	MCPOnly     bool
+	MCPClient   string
+}
+
+type ListParams struct {
+	Limit      int
+	Cursor     string
+	MadeBy     MadeBy
+	Datasource string
+	Query      string
+	SkipTotal  bool
+}
+
+type ListItem struct {
+	Dashboard
+	Description    string
+	DatasourceUIDs []string
+	OpenComments   int
+}
+
+type ListPage struct {
+	Items      []ListItem
+	NextCursor string
+	Total      int
+}
+
+const madeByMessage = "made_by must be me, agent, mcp, mcp:<client>, user:<id> or service_account:<id>"
+
+func ParseMadeBy(raw string, caller auth.Principal) (MadeBy, error) {
+	invalid := &InvalidInputError{Message: madeByMessage}
+	switch raw {
+	case "me":
+		return MadeBy{CreatorKind: string(caller.Kind), CreatorID: caller.ID}, nil
+	case "agent":
+		return MadeBy{AgentOnly: true}, nil
+	case "mcp":
+		return MadeBy{MCPOnly: true}, nil
+	}
+	kind, value, found := strings.Cut(raw, ":")
+	if !found {
+		return MadeBy{}, invalid
+	}
+	switch kind {
+	case "mcp":
+		if n := utf8.RuneCountInString(value); n < 1 || n > origin.MaxClientRunes || origin.CleanClient(value) != value {
+			return MadeBy{}, invalid
+		}
+		return MadeBy{MCPOnly: true, MCPClient: value}, nil
+	case string(auth.KindUser), string(auth.KindServiceAccount):
+		id, err := db.ParseUUID(value)
+		if err != nil {
+			return MadeBy{}, invalid
+		}
+		return MadeBy{CreatorKind: kind, CreatorID: id.String()}, nil
+	}
+	return MadeBy{}, invalid
+}
+
+func (s *Service) List(ctx context.Context, p ListParams) (ListPage, error) {
+	after, ok := httpapi.DecodeTimeCursor(p.Cursor)
 	if !ok {
-		return nil, "", ErrInvalidCursor
+		return ListPage{}, ErrInvalidCursor
 	}
-	items, err := s.store.list(ctx, after, limit+1)
+	filter, err := filterOf(p)
 	if err != nil {
-		return nil, "", err
+		return ListPage{}, err
 	}
-	if len(items) <= limit {
-		return items, "", nil
+	items, err := s.store.list(ctx, after, p.Limit+1, filter)
+	if err != nil {
+		return ListPage{}, err
 	}
-	items = items[:limit]
-	last := items[len(items)-1]
-	return items, httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID), nil
+	page := ListPage{Items: items}
+	if !p.SkipTotal {
+		if page.Total, err = s.store.count(ctx, filter); err != nil {
+			return ListPage{}, err
+		}
+	}
+	if len(items) > p.Limit {
+		page.Items = items[:p.Limit]
+		last := page.Items[len(page.Items)-1]
+		page.NextCursor = httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+	}
+	return page, nil
 }
 
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {

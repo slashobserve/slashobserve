@@ -12,14 +12,36 @@ type authorJSON struct {
 	Email string `json:"email,omitempty"`
 }
 
+type creatorJSON struct {
+	Author       authorJSON `json:"author"`
+	Origin       *string    `json:"origin"`
+	OriginClient *string    `json:"origin_client"`
+	Via          string     `json:"via"`
+}
+
 type dashboardJSON struct {
-	ID            string     `json:"id"`
-	Title         string     `json:"title"`
-	Tags          []string   `json:"tags"`
-	LatestVersion int        `json:"latest_version"`
-	CreatedAt     string     `json:"created_at"`
-	UpdatedAt     string     `json:"updated_at"`
-	UpdatedBy     authorJSON `json:"updated_by"`
+	ID            string      `json:"id"`
+	Title         string      `json:"title"`
+	Tags          []string    `json:"tags"`
+	LatestVersion int         `json:"latest_version"`
+	CreatedAt     string      `json:"created_at"`
+	UpdatedAt     string      `json:"updated_at"`
+	UpdatedBy     authorJSON  `json:"updated_by"`
+	Creator       creatorJSON `json:"creator"`
+}
+
+type dashboardListItemJSON struct {
+	ID               string      `json:"id"`
+	Title            string      `json:"title"`
+	Description      *string     `json:"description"`
+	Tags             []string    `json:"tags"`
+	LatestVersion    int         `json:"latest_version"`
+	CreatedAt        string      `json:"created_at"`
+	UpdatedAt        string      `json:"updated_at"`
+	UpdatedBy        authorJSON  `json:"updated_by"`
+	Creator          creatorJSON `json:"creator"`
+	DatasourceUIDs   []string    `json:"datasource_uids"`
+	OpenCommentCount int         `json:"open_comment_count"`
 }
 
 type versionMetaJSON struct {
@@ -45,8 +67,9 @@ type dashboardVersionJSON struct {
 }
 
 type dashboardListJSON struct {
-	Dashboards []dashboardJSON `json:"dashboards"`
-	NextCursor *string         `json:"next_cursor"`
+	Dashboards []dashboardListItemJSON `json:"dashboards"`
+	NextCursor *string                 `json:"next_cursor"`
+	TotalCount int                     `json:"total_count"`
 }
 
 type versionListJSON struct {
@@ -85,6 +108,33 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		CreatedAt:     httpapi.FormatTime(d.CreatedAt),
 		UpdatedAt:     httpapi.FormatTime(d.UpdatedAt),
 		UpdatedBy:     newAuthorJSON(d.UpdatedBy),
+		Creator:       newCreatorJSON(d.Creator),
+	}
+}
+
+func newCreatorJSON(c Creator) creatorJSON {
+	return creatorJSON{
+		Author:       newAuthorJSON(c.Author),
+		Origin:       httpapi.OptionalString(c.Origin),
+		OriginClient: httpapi.OptionalString(c.OriginClient),
+		Via:          c.Via,
+	}
+}
+
+func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
+	d := item.Dashboard
+	return dashboardListItemJSON{
+		ID:               d.ID,
+		Title:            d.Title,
+		Description:      httpapi.OptionalString(item.Description),
+		Tags:             d.Tags,
+		LatestVersion:    d.LatestVersion,
+		CreatedAt:        httpapi.FormatTime(d.CreatedAt),
+		UpdatedAt:        httpapi.FormatTime(d.UpdatedAt),
+		UpdatedBy:        newAuthorJSON(d.UpdatedBy),
+		Creator:          newCreatorJSON(d.Creator),
+		DatasourceUIDs:   item.DatasourceUIDs,
+		OpenCommentCount: item.OpenComments,
 	}
 }
 

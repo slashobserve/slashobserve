@@ -376,10 +376,32 @@ components:
           type: string
         email:
           type: string
+    Creator:
+      type: object
+      additionalProperties: false
+      required: [author, origin, origin_client, via]
+      description: Who made version 1 of the dashboard. It never changes.
+      properties:
+        author:
+          $ref: "#/components/schemas/Author"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where version 1 came from; null for dashboards created before origins were recorded. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's name when `origin` is `mcp`, else null.
+        via:
+          type: string
+          enum: [direct, agent]
+          description: "`agent` when the agent saved version 1; `author` is then the person or key that asked."
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator]
       properties:
         id:
           type: string
@@ -401,6 +423,48 @@ components:
           format: date-time
         updated_by:
           $ref: "#/components/schemas/Author"
+        creator:
+          $ref: "#/components/schemas/Creator"
+    DashboardListItem:
+      type: object
+      additionalProperties: false
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+          description: The latest version's Spec description; null when it has none.
+        tags:
+          type: array
+          items:
+            type: string
+        latest_version:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          $ref: "#/components/schemas/Author"
+        creator:
+          $ref: "#/components/schemas/Creator"
+        datasource_uids:
+          type: array
+          items:
+            type: string
+          description: The distinct datasource uids the latest version uses, sorted.
+        open_comment_count:
+          type: integer
+          minimum: 0
+          description: Open comment threads on the dashboard; replies are not counted.
     VersionMeta:
       type: object
       additionalProperties: false

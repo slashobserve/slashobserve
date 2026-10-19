@@ -226,7 +226,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List dashboards, most recently updated first. */
+        /**
+         * List dashboards, most recently updated first.
+         * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor.
+         */
         get: operations["listDashboards"];
         put?: never;
         /** Create a dashboard from a Spec, validating it and running every panel query. */
@@ -722,6 +725,22 @@ export interface components {
             name: string;
             email?: string;
         };
+        /** @description Who made version 1 of the dashboard. It never changes. */
+        Creator: {
+            author: components["schemas"]["Author"];
+            /**
+             * @description Where version 1 came from; null for dashboards created before origins were recorded. A label only, never used for access decisions.
+             * @enum {string|null}
+             */
+            origin: "web" | "cli" | "mcp" | "api" | null;
+            /** @description The MCP client's name when `origin` is `mcp`, else null. */
+            origin_client: string | null;
+            /**
+             * @description `agent` when the agent saved version 1; `author` is then the person or key that asked.
+             * @enum {string}
+             */
+            via: "direct" | "agent";
+        };
         DashboardSummary: {
             /** Format: uuid */
             id: string;
@@ -733,6 +752,26 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
             updated_by: components["schemas"]["Author"];
+            creator: components["schemas"]["Creator"];
+        };
+        DashboardListItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description The latest version's Spec description; null when it has none. */
+            description: string | null;
+            tags: string[];
+            latest_version: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            updated_by: components["schemas"]["Author"];
+            creator: components["schemas"]["Creator"];
+            /** @description The distinct datasource uids the latest version uses, sorted. */
+            datasource_uids: string[];
+            /** @description Open comment threads on the dashboard; replies are not counted. */
+            open_comment_count: number;
         };
         VersionMeta: {
             version: number;
@@ -1552,6 +1591,12 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description Who made the dashboard: `me` (the caller), `user:<uuid>`, `service_account:<uuid>`, `agent` (saved by the agent), `mcp` (any MCP client) or `mcp:<client>` (one MCP client by name). */
+                made_by?: string;
+                /** @description A datasource uid; only dashboards whose latest version uses it. */
+                datasource?: string;
+                /** @description Case-insensitive text found in the title or the description; leading and trailing whitespace is ignored and a value of only whitespace is rejected. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -1566,8 +1611,9 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        dashboards: components["schemas"]["DashboardSummary"][];
+                        dashboards: components["schemas"]["DashboardListItem"][];
                         next_cursor: string | null;
+                        total_count: number;
                     };
                 };
             };

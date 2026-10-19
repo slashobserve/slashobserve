@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,6 +23,9 @@ const (
 	maxBodyBytes = spec.MaxBytes + 64<<10
 	defaultLimit = 50
 	maxLimit     = 200
+
+	maxDatasourceRunes = 64
+	maxQueryRunes      = 200
 
 	statusClientClosedRequest = 499
 )
@@ -72,16 +77,63 @@ func (s *Service) listDashboards(c *gin.Context) {
 	if !ok {
 		return
 	}
-	items, next, err := s.List(c.Request.Context(), limit, c.Query("cursor"))
+	params, ok := s.listFilters(c)
+	if !ok {
+		return
+	}
+	params.Limit, params.Cursor = limit, c.Query("cursor")
+	page, err := s.List(c.Request.Context(), params)
 	if err != nil {
 		s.fail(c, "list dashboards", err)
 		return
 	}
-	body := dashboardListJSON{Dashboards: make([]dashboardJSON, 0, len(items)), NextCursor: httpapi.OptionalString(next)}
-	for _, d := range items {
-		body.Dashboards = append(body.Dashboards, newDashboardJSON(d))
+	body := dashboardListJSON{Dashboards: make([]dashboardListItemJSON, 0, len(page.Items)), NextCursor: httpapi.OptionalString(page.NextCursor), TotalCount: page.Total}
+	for _, item := range page.Items {
+		body.Dashboards = append(body.Dashboards, newDashboardListItemJSON(item))
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
+	var params ListParams
+	madeBy, ok := nonEmptyQuery(c, "made_by")
+	if !ok {
+		return params, false
+	}
+	datasource, ok := nonEmptyQuery(c, "datasource")
+	if !ok {
+		return params, false
+	}
+	query, ok := nonEmptyQuery(c, "q")
+	if !ok {
+		return params, false
+	}
+	if madeBy != "" {
+		parsed, err := ParseMadeBy(madeBy, httpapi.Caller(c))
+		if err != nil {
+			s.fail(c, "list dashboards", err)
+			return params, false
+		}
+		params.MadeBy = parsed
+	}
+	if !cleanText(datasource) || utf8.RuneCountInString(datasource) > maxDatasourceRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "datasource must be 1 to 64 characters")
+		return params, false
+	}
+	params.Datasource = datasource
+	if query != "" {
+		trimmed := strings.TrimSpace(query)
+		if !cleanText(query) || utf8.RuneCountInString(query) > maxQueryRunes || trimmed == "" {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "q must be 1 to 200 characters")
+			return params, false
+		}
+		params.Query = trimmed
+	}
+	return params, true
+}
+
+func cleanText(v string) bool {
+	return utf8.ValidString(v) && !strings.ContainsRune(v, 0)
 }
 
 func (s *Service) getDashboard(c *gin.Context) {
@@ -218,6 +270,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	ctx := c.Request.Context()
 	var conflict *ConflictError
 	var invalid *InvalidSpecError
+	var invalidInput *InvalidInputError
 	switch {
 	case errors.Is(err, context.Canceled):
 		s.logger.DebugContext(ctx, action+": client went away")
@@ -228,6 +281,8 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
 	case errors.As(err, &invalid):
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, invalidSpecJSON{Error: "spec is invalid", Code: "invalid_spec", Issues: invalid.Issues})
+	case errors.As(err, &invalidInput):
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidInput.Message)
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:

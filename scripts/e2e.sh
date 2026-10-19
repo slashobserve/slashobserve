@@ -680,6 +680,7 @@ suite() {
   mcp_suite
   proxy_suite
   cli_suite
+  dashboard_list_suite
   evals_smoke_suite
   people_suite
   check_api_contract
@@ -2350,6 +2351,110 @@ if len(admin) != 1:
     sys.exit("expected one admin entry, found %d" % len(admin))
 print(admin[0][sys.argv[2]])
 ' "$1" "$2"
+}
+
+dashboard_item_of() {
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(next(x for x in d["dashboards"] if x["id"]==sys.argv[2])))' "$1" "$2"
+}
+
+first_json_string() {
+  { grep -o "\"$2\":\"[^\"]*\"" "$1" || true; } | head -1 | cut -d'"' -f4
+}
+
+dashboard_list_suite() {
+  api_token
+  local out d_api d_web d_mcp root resolved_root admin_id item cursor bad want long_q
+
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create the api dashboard for the list ($out: $(cat "$TMP/api.body"))"
+  d_api="$(first_json_string "$TMP/api.body" id)"
+  out="$(command curl -sS -o "$TMP/list-web.json" -w '%{http_code}' -b "$TMP/api-jar" -H "Origin: $BASE_URL" -H 'Content-Type: application/json' -X POST --data-binary "@$FIXTURES/dashboard-valid.json" "$BASE_URL/api/v1/dashboards")"
+  [[ "$out" == 201 ]] || fail "create the web dashboard for the list ($out: $(cat "$TMP/list-web.json"))"
+  d_web="$(first_json_string "$TMP/list-web.json" id)"
+  out="$(mcp_call 21 tools/call "{\"name\":\"create_dashboard\",\"arguments\":$(cat "$FIXTURES/dashboard-valid.json"),\"_meta\":{\"io.modelcontextprotocol/clientInfo\":{\"name\":\"claude-code\",\"version\":\"9\"}}}" "$TMP/mcp.body")"
+  if [[ "$out" != 200 ]] || grep -q '"isError":true' "$TMP/mcp.body"; then
+    fail "create the MCP dashboard for the list ($out: $(head -c 1500 "$TMP/mcp.body"))"
+  fi
+  d_mcp="$(first_json_string "$TMP/mcp.body" dashboard_id)"
+  [[ -n "$d_api" && -n "$d_web" && -n "$d_mcp" ]] || fail "the list dashboards have no ids (api '$d_api', web '$d_web', mcp '$d_mcp')"
+
+  out="$(api POST "/dashboards/$d_api/comments" -d '{"version":1,"body":"root"}')"
+  [[ "$out" == 201 ]] || fail "open a thread on the api dashboard ($out: $(cat "$TMP/api.body"))"
+  root="$(first_json_string "$TMP/api.body" id)"
+  [[ -n "$root" ]] || fail "the opened thread has no id ($(head -c 500 "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$d_api/comments" -d '{"parent_id":"'"$root"'","body":"reply"}')"
+  [[ "$out" == 201 ]] || fail "reply in the thread ($out: $(cat "$TMP/api.body"))"
+  out="$(api POST "/dashboards/$d_api/comments" -d '{"version":1,"body":"resolved root"}')"
+  [[ "$out" == 201 ]] || fail "open a second thread on the api dashboard ($out: $(cat "$TMP/api.body"))"
+  resolved_root="$(first_json_string "$TMP/api.body" id)"
+  [[ -n "$resolved_root" ]] || fail "the second thread has no id ($(head -c 500 "$TMP/api.body"))"
+  out="$(api PATCH "/dashboards/$d_api/comments/$resolved_root" -d '{"status":"resolved"}')"
+  [[ "$out" == 200 ]] || fail "resolve the second thread ($out: $(cat "$TMP/api.body"))"
+
+  out="$(api GET "/dashboards?made_by=me&limit=200")"
+  [[ "$out" == 200 ]] || fail "list dashboards made by me ($out: $(cat "$TMP/api.body"))"
+  grep -q "\"id\":\"$d_api\"" "$TMP/api.body" || fail "made_by=me should list the api dashboard ($(head -c 1500 "$TMP/api.body"))"
+  ! grep -q "\"id\":\"$d_web\"" "$TMP/api.body" || fail "made_by=me should not list a dashboard a person made"
+  item="$(dashboard_item_of "$TMP/api.body" "$d_api")"
+  for want in '"datasource_uids": ["ch", "prom"]' '"open_comment_count": 1' '"via": "direct"' '"origin": "api"'; do
+    grep -qF -- "$want" <<<"$item" || fail "the api dashboard's list item should contain $want ($item)"
+  done
+  python3 -c 'import json,sys; n=json.load(open(sys.argv[1]))["total_count"]; sys.exit(0 if isinstance(n, int) and n >= 2 else 1)' "$TMP/api.body" \
+    || fail "total_count should be a number of at least 2 ($(head -c 300 "$TMP/api.body"))"
+
+  out="$(command curl -sS -o "$TMP/list-me.json" -w '%{http_code}' -b "$TMP/api-jar" "$BASE_URL/api/v1/me")"
+  [[ "$out" == 200 ]] || fail "/api/v1/me for the list ($out: $(cat "$TMP/list-me.json"))"
+  admin_id="$(first_json_string "$TMP/list-me.json" id)"
+  [[ -n "$admin_id" ]] || fail "/api/v1/me has no id ($(head -c 500 "$TMP/list-me.json"))"
+  out="$(api GET "/dashboards?made_by=user:$admin_id&limit=200")"
+  [[ "$out" == 200 ]] || fail "list dashboards made by the admin user ($out: $(cat "$TMP/api.body"))"
+  grep -q "\"id\":\"$d_web\"" "$TMP/api.body" || fail "made_by=user:<id> should list the web dashboard"
+  ! grep -q "\"id\":\"$d_api\"" "$TMP/api.body" || fail "made_by=user:<id> should not list the api dashboard"
+
+  out="$(api GET "/dashboards?made_by=mcp:claude-code&limit=200")"
+  [[ "$out" == 200 ]] || fail "list dashboards made by claude-code ($out: $(cat "$TMP/api.body"))"
+  grep -q "\"id\":\"$d_mcp\"" "$TMP/api.body" || fail "made_by=mcp:claude-code should list the MCP dashboard"
+  ! grep -q "\"id\":\"$d_api\"" "$TMP/api.body" || fail "made_by=mcp:claude-code should not list the api dashboard"
+  out="$(api GET "/dashboards?made_by=mcp&limit=200")"
+  [[ "$out" == 200 ]] && grep -q "\"id\":\"$d_mcp\"" "$TMP/api.body" || fail "made_by=mcp should list the MCP dashboard ($out)"
+  out="$(api GET "/dashboards/$d_mcp")"
+  python3 -c 'import json,sys; c=json.load(open(sys.argv[1]))["dashboard"]["creator"]; sys.exit(0 if (c["origin"], c["origin_client"], c["via"]) == ("mcp", "claude-code", "direct") else 1)' "$TMP/api.body" \
+    || fail "the MCP dashboard's creator should carry the origin and client ($out: $(head -c 1500 "$TMP/api.body"))"
+
+  out="$(api GET "/dashboards?made_by=agent&limit=200")"
+  [[ "$out" == 200 ]] || fail "list dashboards made by the agent ($out: $(cat "$TMP/api.body"))"
+  grep -qF '"title":"Demo shop RED metrics"' "$TMP/api.body" || fail "made_by=agent should list the observe dashboard ($(head -c 1500 "$TMP/api.body"))"
+  ! grep -qF '"via":"direct"' "$TMP/api.body" || fail "made_by=agent should list no direct dashboard"
+
+  out="$(api GET "/dashboards?datasource=ch&limit=200")"
+  [[ "$out" == 200 ]] && grep -q "\"id\":\"$d_api\"" "$TMP/api.body" || fail "datasource=ch should list the api dashboard ($out: $(head -c 1500 "$TMP/api.body"))"
+  out="$(api GET "/dashboards?datasource=nope-uid")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"dashboards":[]' "$TMP/api.body" || ! grep -qF '"total_count":0' "$TMP/api.body"; then
+    fail "an unused datasource should match nothing ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  out="$(api GET "/dashboards?q=demo%20SHOP%20red&limit=200")"
+  [[ "$out" == 200 ]] && grep -qF '"title":"Demo shop RED metrics"' "$TMP/api.body" || fail "q should match a title case-insensitively ($out: $(head -c 1500 "$TMP/api.body"))"
+  out="$(api GET "/dashboards?q=zzzz-no-match")"
+  if [[ "$out" != 200 ]] || ! grep -qF '"total_count":0' "$TMP/api.body"; then
+    fail "q should match nothing ($out: $(cat "$TMP/api.body"))"
+  fi
+
+  out="$(api GET "/dashboards?made_by=me&limit=1")"
+  python3 -c 'import json,sys; sys.exit(0 if isinstance(json.load(open(sys.argv[1]))["next_cursor"], str) else 1)' "$TMP/api.body" \
+    || fail "a page of one should have a next_cursor ($out: $(cat "$TMP/api.body"))"
+  cursor="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["next_cursor"])' "$TMP/api.body")"
+  out="$(api GET "/dashboards?made_by=me&limit=1&cursor=$cursor")"
+  [[ "$out" == 200 ]] || fail "the second page of the list ($out: $(cat "$TMP/api.body"))"
+
+  long_q="%20$(printf 'a%.0s' {1..200})"
+  for bad in 'made_by=bogus' 'made_by=user:x' 'made_by=mcp:' 'made_by=' 'datasource=' 'q=' 'q=%20' 'q=%FF' 'datasource=%00' "q=$long_q"; do
+    out="$(api GET "/dashboards?$bad")"
+    if [[ "$out" != 400 ]] || ! grep -q '"code":"invalid_request"' "$TMP/api.body"; then
+      fail "list dashboards with $bad should be a 400 ($out: $(cat "$TMP/api.body"))"
+    fi
+  done
+  pass "the dashboard list reports creator, datasources and open threads, and filters by maker, datasource and text"
 }
 
 people_suite() {

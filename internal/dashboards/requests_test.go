@@ -78,7 +78,7 @@ func newRig(t *testing.T, agent bool) *rig {
 	t.Helper()
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
-	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: fakeDatasource{}})
+	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: fakeDatasource{}}, datasource.Instance{UID: "ch", Datasource: fakeDatasource{}})
 	if err != nil {
 		t.Fatal(err)
 	}

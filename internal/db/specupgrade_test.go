@@ -55,6 +55,12 @@ VALUES ($1::uuid, $2, CASE WHEN $2 = 1 THEN NULL ELSE $2 - 1 END, $3::jsonb, 'se
 
 func seedDashboard(t *testing.T, d *dbtest.Database, dashboardID string, latestVersion int) {
 	t.Helper()
+	d.Exec(t, `INSERT INTO dashboards (id, title, latest_version, created_by_kind, created_by_id, created_by_name, created_via)
+VALUES ($1::uuid, 'T', $2, 'user', gen_random_uuid(), 'seed', 'direct')`, dashboardID, latestVersion)
+}
+
+func seedLegacyDashboard(t *testing.T, d *dbtest.Database, dashboardID string, latestVersion int) {
+	t.Helper()
 	d.Exec(t, `INSERT INTO dashboards (id, title, latest_version) VALUES ($1::uuid, 'T', $2)`, dashboardID, latestVersion)
 }
 
@@ -307,7 +313,7 @@ func TestEvolveMigrationThroughTheProvider(t *testing.T) {
 	if err := d.MigrateUpTo(ctx, 9); err != nil {
 		t.Fatal(err)
 	}
-	seedDashboard(t, d, dashboardA, len(legacyNames))
+	seedLegacyDashboard(t, d, dashboardA, len(legacyNames))
 	for i, name := range legacyNames {
 		seedVersion(t, d, dashboardA, i+1, readUpgradeFile(t, "legacy/"+name))
 	}
