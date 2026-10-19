@@ -119,6 +119,7 @@ export function VersionMenu({
   const history = useVersionHistory(dashboardId)
   const button = useRef<HTMLButtonElement>(null)
   const headingId = useId()
+  const reasonId = useId()
   const latest = Math.max(
     dashboardLatest,
     history.data?.pages[0]?.versions[0]?.version ?? 0
@@ -191,13 +192,17 @@ export function VersionMenu({
             <span>{latest} saved</span>
           </div>
           {editing ? (
-            <p className="px-3 pb-1.5 text-xs text-muted-foreground">
+            <p
+              id={reasonId}
+              className="px-3 pb-1.5 text-xs text-muted-foreground"
+            >
               Save or cancel your layout changes to switch versions.
             </p>
           ) : null}
           <DropdownMenuRadioGroup
             value={String(version)}
             disabled={editing}
+            aria-describedby={editing ? reasonId : undefined}
             onValueChange={(value) => {
               const next = Number(value) === latest ? 0 : Number(value)
               if (next === shown) return
