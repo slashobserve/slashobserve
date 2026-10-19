@@ -32,6 +32,17 @@ function moveHandle(page: Page, title: string) {
   return page.getByRole("button", { name: `Move or resize ${title}` })
 }
 
+function versionButton(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("button", { name: /^Version \d/ })
+}
+
+async function openLatest(page: Page) {
+  await versionButton(page).click()
+  await page.getByRole("menuitemradio", { name: /Latest/ }).click()
+}
+
 function liveRegion(page: Page) {
   return page.locator('div[aria-live="polite"].sr-only')
 }
@@ -151,7 +162,7 @@ test("drags and resizes a panel and saves a new version", async ({
   await saveLayout(page, "Move panels")
   await expect(page.getByText("Saved version 2")).toBeVisible()
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
-  await expect(page.getByText("v2", { exact: true })).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/v2$/)
 
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(2)
@@ -477,7 +488,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   const { id, spec } = await createOverview(request)
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id, "?version=1")
-  await page.getByRole("button", { name: "Back to latest" }).click()
+  await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expectPanelsReady(page)
   await startEditing(page)
@@ -488,7 +499,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
 
   await page.goBack()
   await expect(page).toHaveURL(/version=1/)
-  await expect(page.getByText("You are viewing version 1.")).toBeVisible()
+  await expect(versionButton(page)).toHaveText("v1 of 2")
   await editLayoutButton(page).click()
   const edit = page.getByRole("menuitem", {
     name: "Edit layout (open the latest version first)",
@@ -502,7 +513,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0)
   await expect(page.getByText("Unsaved changes")).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Back to latest" }).click()
+  await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expect(page.getByRole("button", { name: "Save layout" })).toBeEnabled()
   await expect(page.getByText("Unsaved changes")).toBeVisible()

@@ -43,10 +43,14 @@ async function openFromMenu(page: Page, title = rpsTitle) {
   await expect(sheet(page)).toBeVisible()
 }
 
+function versionButton(page: Page) {
+  return page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("button", { name: /^Version \d/ })
+}
+
 async function waitForLive(page: Page) {
-  await expect(
-    page.getByRole("status").filter({ hasText: /^Live$/ })
-  ).toBeVisible()
+  await expect(versionButton(page)).toHaveText(/^Live · v\d+$/)
 }
 
 test("comments on a panel", async ({ page, request }) => {
