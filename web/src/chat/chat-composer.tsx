@@ -212,8 +212,7 @@ export function ChatComposer({
           value={prompt}
           rows={rows}
           placeholder={placeholder}
-          disabled={agentPending}
-          readOnly={busy}
+          readOnly={submitting || creating}
           aria-invalid={notice?.invalid === true}
           aria-describedby={describedBy}
           enterKeyHint={coarse ? "enter" : "send"}
@@ -244,8 +243,8 @@ export function ChatComposer({
               type="submit"
               size="icon"
               aria-label="Send"
-              aria-busy={busy}
-              disabled={busy}
+              aria-busy={submitting || creating}
+              disabled={submitting || creating}
               focusableWhenDisabled
               className="size-8"
             >
