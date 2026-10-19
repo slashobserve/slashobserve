@@ -120,7 +120,7 @@ func newNames(req NamesRequest, cat *datasource.Catalog, limit int) Names {
 		Values:     append([]string{}, cat.Values...),
 	}
 	for _, m := range cat.Metrics {
-		m.Help = clipBytes(m.Help, maxHelpBytes)
+		m.Help = ClipBytes(m.Help, maxHelpBytes)
 		out.Metrics = append(out.Metrics, m)
 	}
 	out.Metrics, out.Truncated = truncate(out.Metrics, limit, out.Truncated)
@@ -136,7 +136,7 @@ func truncate[T any](items []T, limit int, already bool) ([]T, bool) {
 	return items[:limit], true
 }
 
-func clipBytes(s string, n int) string {
+func ClipBytes(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
