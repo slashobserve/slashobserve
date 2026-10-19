@@ -2025,8 +2025,8 @@ proxy_suite() {
   fi
   pass "a multi-query panel returns frames tagged by query ref and skips its hidden query"
 
-  out="$(proxy_call GET "$base/panels/p_ch_table/data?$window")"
-  if [[ "$out" != 200 ]] || ! python3 -c 'import json,sys
+  ch_table_ok() {
+    python3 -c 'import json,sys
 b=json.load(open(sys.argv[1]))
 frames=b["frames"]
 a=[f for f in frames if f["ref"]=="A"]
@@ -2035,8 +2035,19 @@ ok=b["meta"]["kind"]=="range" and len(a)==1 and not a[0].get("labels")
 ok=ok and [x["name"] for x in a[0]["fields"]]==["minute","service","c"]
 ok=ok and [x["type"] for x in a[0]["fields"]]==["time","string","number"]
 ok=ok and len(a[0]["fields"][0]["values"])>=2
+pairs=list(zip(a[0]["fields"][0]["values"],a[0]["fields"][1]["values"])) if ok else []
+ok=ok and pairs==sorted(pairs)
 ok=ok and len(bs)>=1 and all("service" in (f.get("labels") or {}) and [x["name"] for x in f["fields"]]==["Time","c"] for f in bs)
-sys.exit(0 if ok else 1)' "$TMP/api.body"; then
+sys.exit(0 if ok else 1)' "$TMP/api.body"
+  }
+  for _ in $(seq 1 45); do
+    now_ms=$(($(date +%s) * 1000))
+    window="from=$((now_ms - 900000))&to=$now_ms&max_data_points=60"
+    out="$(proxy_call GET "$base/panels/p_ch_table/data?$window")"
+    if [[ "$out" == 200 ]] && ch_table_ok; then break; fi
+    sleep 2
+  done
+  if [[ "$out" != 200 ]] || ! ch_table_ok; then
     fail "a ClickHouse table-format range query returns its rows as selected ($out: $(cat "$TMP/api.body"))"
   fi
   pass "a ClickHouse table-format range query returns its rows as selected, and the time-series format still splits by service"
