@@ -35,6 +35,37 @@
         "query": "SELECT DISTINCT ServiceName FROM otel_logs WHERE $__timeFilter(Timestamp)",
         "multi": true,
         "includeAll": true
+      },
+      {
+        "name": "const",
+        "type": "constant",
+        "value": "shop"
+      },
+      {
+        "name": "tb",
+        "type": "textbox",
+        "default": "hello"
+      },
+      {
+        "name": "iv",
+        "type": "interval",
+        "options": ["1m", "5m"],
+        "auto": true
+      },
+      {
+        "name": "dsv",
+        "type": "datasource",
+        "datasourceType": "clickhouse"
+      },
+      {
+        "name": "chf",
+        "type": "adhoc",
+        "datasource": "ch"
+      },
+      {
+        "name": "pf",
+        "type": "adhoc",
+        "datasource": "prom"
       }
     ],
     "panels": [
@@ -156,6 +187,28 @@
           {
             "query": "SELECT $__timeInterval(Timestamp) AS t, count() AS n FROM (SELECT toDate(Timestamp) AS day, Timestamp, ServiceName FROM otel_logs) WHERE $__dateTimeFilter(day, Timestamp) AND $__conditionalAll(ServiceName IN (${services:singlequote}), $services) AND Timestamp >= $__fromTime_ms AND Timestamp <= $__toTime GROUP BY t ORDER BY t LIMIT 1000"
           }
+        ]
+      },
+      {
+        "id": "p_vars",
+        "type": "table",
+        "title": "New variable types",
+        "gridPos": { "x": 0, "y": 40, "w": 12, "h": 8 },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT ${const:sqlstring} AS c, ${tb:sqlstring} AS tb, ${iv:sqlstring} AS iv, ${dsv:sqlstring} AS ds, count() AS n FROM otel_logs WHERE $chf AND $__timeFilter(Timestamp)"
+          }
+        ]
+      },
+      {
+        "id": "p_adhoc",
+        "type": "table",
+        "title": "Adhoc filter on Prometheus",
+        "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
+        "datasource": "prom",
+        "queries": [
+          { "query": "count by (job) (up)" }
         ]
       }
     ]

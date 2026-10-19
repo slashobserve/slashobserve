@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1432,5 +1433,82 @@ func TestPerPrincipalScopeSurvivesAnEvictedAndReloadedVersion(t *testing.T) {
 	}
 	if hn.specs.lookups() == loads {
 		t.Fatal("the version was not reloaded, so the test did not evict it")
+	}
+}
+
+func (hn *harness) addVariables(variables ...spec.Variable) {
+	d := hn.specs.known[specKey{id: hn.id, version: 1}]
+	d.Variables = append(d.Variables, variables...)
+}
+
+func TestValuesOfTheNewVariableTypes(t *testing.T) {
+	hn := newHarness(t)
+	hn.addVariables(
+		spec.Variable{Name: "const", Type: spec.ConstantVariable, Value: "shop"},
+		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: []string{"1m", "5m"}, Auto: true},
+		spec.Variable{Name: "dsv", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus},
+		spec.Variable{Name: "tb", Type: spec.TextboxVariable},
+		spec.Variable{Name: "pf", Type: spec.AdhocVariable, Datasource: "prom"},
+	)
+	for name, want := range map[string]string{
+		"const": "shop",
+		"iv":    "$__auto,1m,5m",
+		"dsv":   "prom",
+		"tb":    "",
+	} {
+		rec := hn.get(hn.valuesPath(name, window), "")
+		body := decodeValues(t, rec)
+		if got := strings.Join(body.Values, ","); got != want || body.Cached {
+			t.Errorf("%s values = %+v (%s), want %q", name, body, rec.Body.String(), want)
+		}
+	}
+	if rec := hn.get(hn.valuesPath("tb", window), ""); !strings.Contains(rec.Body.String(), `"values":[]`) {
+		t.Errorf("textbox body = %s, want an empty array", rec.Body.String())
+	}
+	rec := hn.get(hn.valuesPath("pf", window), "")
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if !strings.Contains(rec.Body.String(), "has no value list") {
+		t.Errorf("adhoc body = %s", rec.Body.String())
+	}
+}
+
+func TestPanelDataWithTheNewVariableTypes(t *testing.T) {
+	hn := newHarness(t)
+	hn.addVariables(
+		spec.Variable{Name: "const", Type: spec.ConstantVariable, Value: "shop"},
+		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: []string{"1m", "5m"}, Auto: true},
+		spec.Variable{Name: "tb", Type: spec.TextboxVariable},
+		spec.Variable{Name: "pf", Type: spec.AdhocVariable, Datasource: "prom"},
+	)
+	hn.addPanels(spec.Panel{ID: "p_vars", Type: spec.Timeseries, Title: "vars", Datasource: "prom", Queries: []spec.Query{{Query: `up{app="$const", i="$iv", t="$tb"}`}}})
+	path := func(query string) string { return hn.dataPath("p_vars", window+"&"+query) }
+
+	if rec := hn.get(path("var-job=api"), ""); rec.Code != http.StatusOK {
+		t.Fatalf("defaults: status %d body %s", rec.Code, rec.Body.String())
+	}
+	if text := hn.ds.lastQuery().Text; text != `up{app="$const", i="$iv", t="$tb"}` || len(hn.ds.lastQuery().Filters) != 0 {
+		t.Fatalf("default query = %+v", hn.ds.lastQuery())
+	}
+
+	rec := hn.get(path("var-job=api&var-iv=%24__auto&var-tb=&var-pf=job%7C%3D%7Capi&var-pf=pod%7C!~%7Cweb-.*"), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("selections: status %d body %s", rec.Code, rec.Body.String())
+	}
+	want := []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}, {Key: "pod", Op: "!~", Value: "web-.*"}}
+	if got := hn.ds.lastQuery().Filters; !reflect.DeepEqual(got, want) {
+		t.Fatalf("filters = %+v, want %+v", got, want)
+	}
+
+	for name, query := range map[string]string{
+		"constant other value": "var-const=other",
+		"interval not offered": "var-iv=10m",
+		"textbox twice":        "var-tb=a&var-tb=b",
+		"adhoc bad key":        "var-pf=Bad%20Key%7C%3D%7Cx",
+		"adhoc bad operator":   "var-pf=job%7C%3C%7Cx",
+		"adhoc All":            "var-pf=%24__all",
+	} {
+		t.Run(name, func(t *testing.T) {
+			expectError(t, hn.get(path("var-job=api&"+query), ""), http.StatusBadRequest, "invalid_request")
+		})
 	}
 }

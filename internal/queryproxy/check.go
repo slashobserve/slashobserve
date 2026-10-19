@@ -1,6 +1,7 @@
 package queryproxy
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -52,8 +53,8 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	defer cancel()
 
 	phase, cancelPhase := context.WithTimeout(budget, checkVariablePhase)
-	lists := map[string]allList{}
-	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, user, lists, guardOnlyVariables(d))
+	st := newVarState()
+	selections, failed, variableIssues := r.checkVariables(phase, d, rng, badVariables, user, st, guardOnlyVariables(d))
 	cancelPhase()
 	issues = append(issues, variableIssues...)
 	if canceled() {
@@ -79,7 +80,7 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			continue
 		}
 		group.Go(func() error {
-			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, user, maps.Clone(lists), skip)...)
+			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, user, st.fork(), skip)...)
 			return nil
 		})
 	}
@@ -101,11 +102,14 @@ func (r *Runner) CheckSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVariables []bool, badQueries map[string][]bool) {
 	badVariables = make([]bool, len(d.Variables))
 	badQueries = map[string][]bool{}
-	for i, v := range d.Variables {
-		if v.Type != spec.QueryVariable || v.Datasource == "" {
-			continue
+	adhoc := map[string]bool{}
+	for _, v := range d.Variables {
+		if v.Type == spec.AdhocVariable {
+			adhoc[v.Name] = true
 		}
-		found := r.checkRef(itemPath("variables", i)+"/datasource", v.Datasource, itemPath("variables", i)+"/query", v.Query)
+	}
+	for i, v := range d.Variables {
+		found := r.checkVariableDatasource(i, v)
 		badVariables[i] = len(found) > 0
 		issues = append(issues, found...)
 	}
@@ -117,7 +121,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 			if q.Datasource != "" {
 				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
 			}
-			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query)
+			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
 			bad[j] = len(found) > 0
 			if q.Datasource == "" && len(found) == 1 && found[0].Path == base {
 				if panelDatasourceReported {
@@ -132,7 +136,48 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 	return issues, badVariables, badQueries
 }
 
-func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
+func (r *Runner) checkVariableDatasource(i int, v spec.Variable) []spec.Issue {
+	path := itemPath("variables", i)
+	switch v.Type {
+	case spec.QueryVariable:
+		if v.Datasource != "" {
+			return r.checkRef(path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
+		}
+	case spec.AdhocVariable:
+		if _, err := r.instance(v.Datasource); err != nil {
+			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
+		}
+	case spec.DatasourceVariable:
+		return r.checkDatasourceDefault(path+"/default", v)
+	}
+	return nil
+}
+
+func (r *Runner) checkDatasourceDefault(path string, v spec.Variable) []spec.Issue {
+	uid := declaredValue(v)
+	if uid == "" {
+		return nil
+	}
+	inst, err := r.instance(uid)
+	switch {
+	case err != nil:
+		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
+	case inst.Datasource.Type() != string(v.DatasourceType):
+		return []spec.Issue{issue(path, spec.CodeInvalidDefault, "default %q of variable %q is not a %s datasource", uid, v.Name, v.DatasourceType)}
+	case v.Regex != "" && regexIsStatic(v.Regex):
+		if re, err := spec.CompileVariableRegex(v.Regex); err == nil && !re.MatchString(uid) {
+			return []spec.Issue{issue(path, spec.CodeInvalidDefault, "default %q of variable %q does not match its regex", uid, v.Name)}
+		}
+	}
+	return nil
+}
+
+func regexIsStatic(regex string) bool {
+	refs, err := spec.ScanQuery(regex)
+	return err == nil && !slices.ContainsFunc(refs, func(ref spec.Reference) bool { return ref.Kind == spec.VariableRef })
+}
+
+func (r *Runner) checkRef(path, uid, queryAt, query string, adhoc map[string]bool) []spec.Issue {
 	inst, err := r.instance(uid)
 	if errors.Is(err, ErrUnknownDatasource) {
 		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
@@ -146,6 +191,10 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	var issues []spec.Issue
 	reported := map[string]bool{}
 	for _, ref := range spec.FlattenReferences(refs) {
+		if ref.Kind == spec.VariableRef && adhoc[ref.Name] && dsType == string(spec.Prometheus) && !reported["$"+ref.Name] {
+			reported["$"+ref.Name] = true
+			issues = append(issues, issue(queryAt, spec.CodeInvalidReference, "adhoc variable %q applies to every query on its datasource and cannot be referenced", ref.Name))
+		}
 		if ref.Kind != spec.MacroRef || reported[ref.Name] {
 			continue
 		}
@@ -158,7 +207,7 @@ func (r *Runner) checkRef(path, uid, queryAt, query string) []spec.Issue {
 	return issues
 }
 
-func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, user datasource.QueryUser, lists map[string]allList, guardOnly map[string]bool) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
+func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng datasource.TimeRange, bad []bool, user datasource.QueryUser, st *varState, guardOnly map[string]bool) (selections map[string]Selection, failed map[string]bool, issues []spec.Issue) {
 	selections = make(map[string]Selection, len(d.Variables))
 	failed = map[string]bool{}
 	for i, v := range d.Variables {
@@ -167,16 +216,22 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			continue
 		}
 		path := itemPath("variables", i)
-		if name := failedReference(v.Query, failed); name != "" {
+		if name := cmp.Or(failedReference(v.Query, failed), failedReference(v.Regex, failed)); name != "" {
 			failed[v.Name] = true
 			issues = append(issues, issue(path, CodeVariableUnresolved, "variable %q could not be resolved", name))
 			continue
 		}
 		vctx, cancel := context.WithTimeout(ctx, checkVariableBudget)
-		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, lists)
+		sel, err := r.defaultSelection(vctx, d, i, rng, selections, user, st)
 		listReported := false
 		if err == nil && sel.All {
-			if _, listErr := r.allValues(vctx, d, i, rng, selections, user, lists); listErr != nil {
+			var listErr error
+			if v.AllValue == "" {
+				_, listErr = r.allValues(vctx, d, i, rng, selections, user, st)
+			} else {
+				_, listErr = r.resolveValues(vctx, d, i, rng, selections, user, st)
+			}
+			if listErr != nil {
 				if guardOnly[v.Name] {
 					issues = append(issues, variableIssue(path, listErr))
 					listReported = true
@@ -186,7 +241,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			}
 		}
 		if err == nil && !listReported {
-			err = checkSelection(v, sel)
+			err = r.checkSelection(vctx, d, i, rng, selections, user, st, sel)
 		}
 		cancel()
 		if err != nil {
@@ -207,7 +262,7 @@ func variableIssue(path string, err error) spec.Issue {
 	return issue(path, spec.IssueCode(code), "%s", message)
 }
 
-func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, lists map[string]allList, skip []bool) []spec.Issue {
+func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, skip []bool) []spec.Issue {
 	ctx, cancel := context.WithTimeout(ctx, checkPanelDeadline(skip))
 	defer cancel()
 	maxDataPoints := checkMaxDataPoints
@@ -224,7 +279,7 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 		IncludeHidden: true,
 		User:          user,
 		skip:          skip,
-	}, lists, false)
+	}, st, false)
 	if err != nil {
 		_, code, message := Classify(err)
 		return []spec.Issue{issue(queryPath(e.Pointer, 0), spec.IssueCode(code), "%s", message)}

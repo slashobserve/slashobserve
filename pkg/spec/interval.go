@@ -35,3 +35,25 @@ func ParseInterval(s string) (time.Duration, error) {
 	}
 	return time.Duration(n) * unit, nil
 }
+
+var formatUnits = []struct {
+	suffix string
+	size   time.Duration
+}{
+	{"y", intervalUnits["y"]},
+	{"w", intervalUnits["w"]},
+	{"d", intervalUnits["d"]},
+	{"h", intervalUnits["h"]},
+	{"m", intervalUnits["m"]},
+	{"s", intervalUnits["s"]},
+	{"ms", intervalUnits["ms"]},
+}
+
+func FormatInterval(d time.Duration) string {
+	for _, u := range formatUnits {
+		if d >= u.size && d%u.size == 0 {
+			return strconv.FormatInt(int64(d/u.size), 10) + u.suffix
+		}
+	}
+	return strconv.FormatInt(d.Milliseconds(), 10) + "ms"
+}

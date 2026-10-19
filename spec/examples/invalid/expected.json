@@ -33,6 +33,12 @@
     { "file": "semantic/duplicate-query-ref.json", "layer": "semantic", "code": "duplicate_query_ref", "path": "/panels/0/queries/1/ref" },
     { "file": "semantic/unknown-query-ref.json", "layer": "semantic", "code": "unknown_query_ref", "path": "/panels/0/overrides/0/match/query" },
     { "file": "semantic/override-empty-array.json", "layer": "semantic", "code": "schema", "path": "/panels/0/overrides/0/mappings" },
-    { "file": "semantic/too-many-panels.json", "layer": "semantic", "code": "too_many_panels", "path": "/panels" }
+    { "file": "semantic/too-many-panels.json", "layer": "semantic", "code": "too_many_panels", "path": "/panels" },
+    { "file": "semantic/default-not-multi.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/default-all-without-include-all.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/default-all-with-other-values.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/custom-default-not-an-option.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/invalid-variable-regex.json", "layer": "semantic", "code": "invalid_regex", "path": "/variables/0/regex" },
+    { "file": "semantic/adhoc-with-format.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/queries/0/query" }
   ]
 }

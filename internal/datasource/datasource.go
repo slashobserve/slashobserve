@@ -36,10 +36,17 @@ func validYear(t time.Time) bool {
 	return y >= 1 && y <= 9999
 }
 
+type AdhocFilter struct {
+	Key, Op, Value string
+}
+
 type Variable struct {
-	Name   string
-	Values []string
-	All    bool
+	Name     string
+	Values   []string
+	All      bool
+	AllValue bool
+	Adhoc    bool
+	Filters  []AdhocFilter
 }
 
 type QueryUser struct {
@@ -52,6 +59,7 @@ type QueryUser struct {
 type Query struct {
 	Text      string
 	Variables []Variable
+	Filters   []AdhocFilter
 	Limits    Limits
 	Dashboard string
 	User      QueryUser

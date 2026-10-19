@@ -454,3 +454,53 @@ func TestDiscoverMetricsTargetsFirstMissingMetadata(t *testing.T) {
 		t.Errorf("%d metrics carry metadata, want 5 to 11 (series such as up have none)", typed)
 	}
 }
+
+func TestAdhocFiltersReachEverySelector(t *testing.T) {
+	ds, rec := recordingDS(t)
+	ctx := context.Background()
+	now := time.Now()
+	r := datasource.TimeRange{From: now.Add(-time.Hour), To: now}
+	filters := []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}, {Key: "pod", Op: "!~", Value: "web-.*"}}
+	text := `sum by (job) (rate(x[5m])) / on() group_left count(y)`
+	if _, err := ds.QueryInstant(ctx, datasource.Query{Text: text, Filters: filters}, r); err != nil {
+		t.Fatalf("QueryInstant: %v", err)
+	}
+	got := rec.to("/api/v1/query")[0].form.Get("query")
+	for _, want := range []string{`x{job="api",pod!~"web-.*"}[5m]`, `y{job="api",pod!~"web-.*"}`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("query = %q, want it to contain %q", got, want)
+		}
+	}
+	if _, err := ds.QueryRange(ctx, datasource.Query{Text: "up", Filters: filters[:1]}, r, time.Minute); err != nil {
+		t.Fatalf("QueryRange: %v", err)
+	}
+	if got := rec.to("/api/v1/query_range")[0].form.Get("query"); got != `up{job="api"}` {
+		t.Errorf("range query = %q, want up{job=\"api\"}", got)
+	}
+}
+
+func TestQueryWithoutFiltersIsSentUnchanged(t *testing.T) {
+	ds, rec := recordingDS(t)
+	now := time.Now()
+	r := datasource.TimeRange{From: now.Add(-time.Hour), To: now}
+	if _, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `up{job="a"}   `}, r); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.to("/api/v1/query")[0].form.Get("query"); got != `up{job="a"}   ` {
+		t.Errorf("query = %q, want it unchanged", got)
+	}
+}
+
+func TestAdhocFilterWithABadRegexIsInvalid(t *testing.T) {
+	ds, rec := recordingDS(t)
+	now := time.Now()
+	r := datasource.TimeRange{From: now.Add(-time.Hour), To: now}
+	filters := []datasource.AdhocFilter{{Key: "job", Op: "=~", Value: "a("}}
+	_, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "up", Filters: filters}, r)
+	if !errors.Is(err, datasource.ErrInvalidQuery) {
+		t.Fatalf("err = %v, want ErrInvalidQuery", err)
+	}
+	if n := len(rec.all()); n != 0 {
+		t.Errorf("%d upstream requests, want none", n)
+	}
+}

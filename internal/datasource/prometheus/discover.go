@@ -14,6 +14,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -26,7 +27,6 @@ const (
 )
 
 var (
-	labelNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	labelValuesQuery = regexp.MustCompile(`(?s)^label_values\s*\((.*)\)$`)
 )
 
@@ -165,7 +165,7 @@ func filterSortLimit(values []string, search string, limit int) []string {
 }
 
 func validateLabel(label string) error {
-	if !labelNamePattern.MatchString(label) {
+	if !spec.IsLabelName(label) {
 		return datasource.Errorf(datasource.ErrInvalidQuery, "label must match [A-Za-z_][A-Za-z0-9_]*")
 	}
 	return nil

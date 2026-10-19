@@ -25,21 +25,37 @@ var (
 	sqlStringEscaper   = strings.NewReplacer(`\`, `\\`, `'`, `''`)
 )
 
-func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []datasource.Variable) (string, error) {
+func checkVariablePlace(query string, ref spec.Reference, c ctx) error {
 	if c.kind == ctxQuotedIdent {
-		return "", refErrorf(ref, "variable %s is not allowed in a quoted identifier", refLabel(ref))
+		return refErrorf(ref, "variable %s is not allowed in a quoted identifier", refLabel(ref))
 	}
 	if c.kind == ctxString && c.quote != '`' && oddBackslashesBefore(query, ref.Start) {
-		return "", refErrorf(ref, "variable %s must not follow an escaping backslash", refLabel(ref))
+		return refErrorf(ref, "variable %s must not follow an escaping backslash", refLabel(ref))
 	}
 	if ref.Format != "" && !slices.Contains(spec.VariableFormats(), ref.Format) {
-		return "", refErrorf(ref, "unknown format %q for variable %s", ref.Format, refLabel(ref))
+		return refErrorf(ref, "unknown format %q for variable %s", ref.Format, refLabel(ref))
+	}
+	return nil
+}
+
+func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []datasource.Variable) (string, error) {
+	if err := checkVariablePlace(query, ref, c); err != nil {
+		return "", err
 	}
 	idx := slices.IndexFunc(vars, func(v datasource.Variable) bool { return v.Name == ref.Name })
 	if idx < 0 {
 		return "", refErrorf(ref, "unknown variable %s", refLabel(ref))
 	}
 	v := vars[idx]
+	if v.Adhoc {
+		return expandAdhoc(d, ref, c, v)
+	}
+	if v.AllValue {
+		if len(v.Values) != 1 || hasControlByte(v.Values[0]) {
+			return "", refErrorf(ref, "variable %s has an invalid allValue", refLabel(ref))
+		}
+		return escapeForContext(d, ref, c, "raw", v.Values[0], v.Values)
+	}
 	if !v.All && len(v.Values) == 0 {
 		return "", refErrorf(ref, "no value selected for %s", refLabel(ref))
 	}
@@ -56,6 +72,44 @@ func expandVariable(d Dialect, query string, ref spec.Reference, c ctx, vars []d
 		return "", err
 	}
 	return escapeForContext(d, ref, c, format, text, v.Values)
+}
+
+func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (string, error) {
+	switch {
+	case d == PromQL:
+		return "", refErrorf(ref, "adhoc variable %s applies to every query on its datasource and cannot be referenced", refLabel(ref))
+	case c.kind != ctxCode:
+		return "", refErrorf(ref, "adhoc variable %s is only allowed in code", refLabel(ref))
+	case ref.Format != "":
+		return "", refErrorf(ref, "adhoc variable %s takes no format", refLabel(ref))
+	}
+	if len(v.Filters) == 0 {
+		return "1 = 1", nil
+	}
+	terms := make([]string, len(v.Filters))
+	for i, f := range v.Filters {
+		if !spec.IsColumnArg(f.Key) || hasControlByte(f.Value) {
+			return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
+		}
+		value := "'" + sqlStringEscaper.Replace(f.Value) + "'"
+		switch f.Op {
+		case "=":
+			terms[i] = f.Key + " = " + value
+		case "!=":
+			terms[i] = f.Key + " != " + value
+		case "=~":
+			terms[i] = "match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
+		case "!~":
+			terms[i] = "NOT match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
+		default:
+			return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
+		}
+	}
+	return "(" + strings.Join(terms, " AND ") + ")", nil
+}
+
+func anchoredPattern(pattern string) string {
+	return "'^(?s:" + sqlStringEscaper.Replace(pattern) + ")$'"
 }
 
 func oddBackslashesBefore(query string, offset int) bool {

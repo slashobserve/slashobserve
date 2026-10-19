@@ -17,6 +17,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkPanelCount(d)...)
 	issues = append(issues, checkDuplicatePanelIDs(entries)...)
 	issues = append(issues, checkDuplicateVariableNames(d.Variables)...)
+	issues = append(issues, checkVariableDefinitions(d.Variables)...)
 	issues = append(issues, checkGridOverflow(entries)...)
 	issues = append(issues, checkGridOverlap(d)...)
 	issues = append(issues, checkTime(d.Time)...)
@@ -76,6 +77,64 @@ func checkDuplicateVariableNames(vars []Variable) []Issue {
 		})
 	}
 	return issues
+}
+
+func checkVariableDefinitions(vars []Variable) []Issue {
+	var issues []Issue
+	for i, v := range vars {
+		if v.Regex != "" {
+			if _, err := CompileVariableRegex(v.Regex); err != nil {
+				issues = append(issues, Issue{
+					Path:    pointer("variables", strconv.Itoa(i), "regex"),
+					Code:    CodeInvalidRegex,
+					Message: fmt.Sprintf("variable %q: %s", v.Name, err),
+				})
+			}
+		}
+		if message := invalidDefault(v); message != "" {
+			issues = append(issues, Issue{
+				Path:    pointer("variables", strconv.Itoa(i), "default"),
+				Code:    CodeInvalidDefault,
+				Message: message,
+			})
+		}
+	}
+	return issues
+}
+
+func invalidDefault(v Variable) string {
+	if v.Default == nil {
+		return ""
+	}
+	switch v.Type {
+	case QueryVariable, CustomVariable:
+		return invalidListDefault(v)
+	case IntervalVariable:
+		for _, value := range v.Default.Values {
+			if !slices.Contains(v.Options, value) {
+				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
+			}
+		}
+	}
+	return ""
+}
+
+func invalidListDefault(v Variable) string {
+	switch {
+	case v.Default.List && !v.Multi:
+		return fmt.Sprintf("variable %q has an array default but is not multi; give one value or set multi", v.Name)
+	case slices.Contains(v.Default.Values, SelectAll) && !v.IncludeAll:
+		return fmt.Sprintf("variable %q defaults to %s but does not set includeAll", v.Name, SelectAll)
+	case slices.Contains(v.Default.Values, SelectAll) && len(v.Default.Values) > 1:
+		return fmt.Sprintf("variable %q combines %s with other values in its default; give %s alone or list the values", v.Name, SelectAll, SelectAll)
+	case v.Type == CustomVariable:
+		for _, value := range v.Default.Values {
+			if value != SelectAll && !slices.Contains(v.Options, value) {
+				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
+			}
+		}
+	}
+	return ""
 }
 
 func checkGridOverflow(entries []PanelEntry) []Issue {
@@ -145,6 +204,12 @@ var columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za
 
 func IsColumnArg(arg string) bool {
 	return columnPattern.MatchString(arg)
+}
+
+var labelNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+func IsLabelName(name string) bool {
+	return labelNamePattern.MatchString(name)
 }
 
 var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/([smhdwMy]))?$`)
@@ -481,22 +546,27 @@ func checkRepeat(d *Dashboard, entries []PanelEntry) []Issue {
 }
 
 type refChecker struct {
-	declared map[string]int
+	declared     map[string]int
+	adhoc        map[string]bool
+	fromVariable bool
 }
 
 func newRefChecker(vars []Variable) refChecker {
 	declared := map[string]int{}
+	adhoc := map[string]bool{}
 	for i, v := range vars {
 		if _, ok := declared[v.Name]; !ok {
 			declared[v.Name] = i
+			adhoc[v.Name] = v.Type == AdhocVariable
 		}
 	}
-	return refChecker{declared: declared}
+	return refChecker{declared: declared, adhoc: adhoc}
 }
 
 func checkVariableQueries(vars []Variable) []Issue {
 	var issues []Issue
 	rc := newRefChecker(vars)
+	rc.fromVariable = true
 	for i, v := range vars {
 		if v.Type != QueryVariable {
 			continue
@@ -552,6 +622,10 @@ func (rc refChecker) checkVariableRef(ref Reference, visible int) *Issue {
 		return &Issue{Code: CodeUnknownVariable, Message: fmt.Sprintf("query references undeclared variable %q; declare it in variables or remove the reference", ref.Name)}
 	case idx >= visible:
 		return &Issue{Code: CodeVariableOrder, Message: fmt.Sprintf("query references variable %q declared at %s; a variable query can only reference variables declared before it", ref.Name, pointer("variables", strconv.Itoa(idx)))}
+	case rc.adhoc[ref.Name] && rc.fromVariable:
+		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("a variable query cannot use adhoc variable %q", ref.Name)}
+	case rc.adhoc[ref.Name] && ref.Format != "":
+		return &Issue{Code: CodeInvalidReference, Message: fmt.Sprintf("adhoc variable %q takes no format", ref.Name)}
 	case ref.Format != "" && !slices.Contains(VariableFormats(), ref.Format):
 		return unknownFormatIssue(ref)
 	}

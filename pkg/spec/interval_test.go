@@ -31,3 +31,29 @@ func TestParseInterval(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatInterval(t *testing.T) {
+	cases := map[time.Duration]string{
+		90 * time.Second:             "90s",
+		5 * time.Minute:              "5m",
+		time.Hour:                    "1h",
+		24 * time.Hour:               "1d",
+		7 * 24 * time.Hour:           "1w",
+		14 * 24 * time.Hour:          "2w",
+		30 * 24 * time.Hour:          "30d",
+		365 * 24 * time.Hour:         "1y",
+		400 * 24 * time.Hour:         "400d",
+		150 * time.Millisecond:       "150ms",
+		10 * time.Millisecond:        "10ms",
+		1500 * time.Millisecond:      "1500ms",
+		2*time.Hour + 30*time.Minute: "150m",
+	}
+	for in, want := range cases {
+		if got := spec.FormatInterval(in); got != want {
+			t.Errorf("FormatInterval(%v) = %q, want %q", in, got, want)
+		}
+		if parsed, err := spec.ParseInterval(want); err != nil || parsed != in {
+			t.Errorf("ParseInterval(%q) = %v, %v; want %v", want, parsed, err, in)
+		}
+	}
+}
