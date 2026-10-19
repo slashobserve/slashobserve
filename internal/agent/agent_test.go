@@ -208,6 +208,10 @@ func (d *fakeDashboards) Get(_ context.Context, id pgtype.UUID) (dashboards.Dash
 		dashboards.Version{VersionMeta: dashboards.VersionMeta{Number: d.number}, Spec: d.spec}, nil
 }
 
+func (d *fakeDashboards) GetVersion(ctx context.Context, id pgtype.UUID, _ int) (dashboards.Dashboard, dashboards.Version, error) {
+	return d.Get(ctx, id)
+}
+
 func (d *fakeDashboards) setNumber(n int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

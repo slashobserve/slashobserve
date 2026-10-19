@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -38,6 +39,8 @@ var (
 	ErrConflict        = errors.New("the dashboard changed twice while the agent was revising it")
 	ErrInvalidTask     = errors.New("invalid agent task")
 	ErrTooLarge        = errors.New("the dashboard is too large for the agent to revise")
+	ErrNoSuggestion    = errors.New("the model finished without proposing a panel")
+	ErrDraftInvalid    = errors.New("the draft panel is not valid")
 	errModelCall       = errors.New("model call failed")
 )
 
@@ -50,6 +53,7 @@ type ToolSet interface {
 
 type DashboardReader interface {
 	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
+	GetVersion(ctx context.Context, id pgtype.UUID, version int) (dashboards.Dashboard, dashboards.Version, error)
 }
 
 type DatasourceHealth interface {
@@ -71,6 +75,9 @@ type Task struct {
 	Source      revisions.Source
 	RequestID   string
 	Principal   auth.Principal
+	Suggest     bool
+	BaseVersion int
+	Draft       json.RawMessage
 	Progress    func(Step)
 }
 
@@ -86,6 +93,7 @@ type Step struct {
 type Outcome struct {
 	DashboardID  string
 	Version      int
+	Suggestion   json.RawMessage
 	Replayed     bool
 	RepairRounds int
 	Usage        llm.Usage
@@ -134,10 +142,17 @@ func (a *Agent) Run(ctx context.Context, t Task) (Outcome, error) {
 }
 
 func modeOf(t Task) tools.Mode {
+	if t.Suggest {
+		return tools.ModeSuggest
+	}
 	if t.DashboardID == "" {
 		return tools.ModeCreate
 	}
 	return tools.ModeRevise
+}
+
+func incompleteSuggestion(t Task) bool {
+	return t.Suggest && (t.DashboardID == "" || t.PanelID == "" || t.BaseVersion < 1)
 }
 
 func validateTask(t Task) (prompt string, id pgtype.UUID, err error) {
@@ -153,6 +168,8 @@ func validateTask(t Task) (prompt string, id pgtype.UUID, err error) {
 		return "", id, fmt.Errorf("%w: a panel needs a dashboard", ErrInvalidTask)
 	case t.PanelID != "" && !panelIDPattern.MatchString(t.PanelID):
 		return "", id, fmt.Errorf("%w: the panel id is not valid", ErrInvalidTask)
+	case incompleteSuggestion(t):
+		return "", id, fmt.Errorf("%w: a suggestion needs a dashboard, a panel and a base version", ErrInvalidTask)
 	}
 	if t.DashboardID != "" {
 		if id, err = db.ParseUUID(t.DashboardID); err != nil {
@@ -175,8 +192,14 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 	}
 	for restarts := 0; ; restarts++ {
 		var current *revision
-		if mode == tools.ModeRevise {
+		switch mode {
+		case tools.ModeRevise:
 			if current, err = a.loadLatest(ctx, dashboardUUID, t.RequestID); err != nil {
+				return err
+			}
+			out.DashboardID = current.dashboardID
+		case tools.ModeSuggest:
+			if current, err = a.loadBase(ctx, dashboardUUID, t); err != nil {
 				return err
 			}
 			out.DashboardID = current.dashboardID
@@ -196,6 +219,27 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 
 func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string) (*revision, error) {
 	dash, ver, err := a.dashboards.Get(ctx, id)
+	return a.loaded(ctx, dash, ver, err, requestID, "latest version has no spec")
+}
+
+func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision, error) {
+	dash, ver, err := a.dashboards.GetVersion(ctx, id, t.BaseVersion)
+	rev, err := a.loaded(ctx, dash, ver, err, t.RequestID, "base version has no spec")
+	if err != nil {
+		return nil, err
+	}
+	if len(t.Draft) > 0 {
+		if rev.spec, err = spec.WithPanel(rev.spec, t.PanelID, t.Draft); err != nil {
+			return nil, ErrDraftInvalid
+		}
+	}
+	if _, ok := rev.spec.FindPanel(t.PanelID); !ok {
+		return nil, ErrDraftInvalid
+	}
+	return rev, nil
+}
+
+func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashboards.Version, err error, requestID, noSpec string) (*revision, error) {
 	switch {
 	case errors.Is(err, dashboards.ErrNotFound):
 		return nil, dashboards.ErrNotFound
@@ -209,7 +253,7 @@ func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string
 		}, logattrs.Safe(err)...)...)
 		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: err}
 	case ver.Spec == nil:
-		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: errors.New("latest version has no spec")}
+		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: errors.New(noSpec)}
 	}
 	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec}, nil
 }
@@ -219,11 +263,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 	if err != nil {
 		return false, contextError(err)
 	}
-	run := tools.Run{Mode: mode, RequestID: t.RequestID}
-	if current != nil {
-		run.DashboardID = current.dashboardID
-		run.ParentVersion = current.number
-	}
+	run := runScope(t, mode, current)
 	ctx = tools.WithRun(ctx, run)
 	ctx = llm.WithAgentRequestID(ctx, t.RequestID)
 	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
@@ -233,6 +273,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 	if err != nil {
 		return false, providerError(ctx, err)
 	}
+	noResult := noResultError(mode)
 	var results []llm.ToolResult
 	for modelCall := 1; modelCall <= maxModelCalls; modelCall++ {
 		turn, err := chat.Next(ctx, results)
@@ -244,16 +285,19 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 			return false, ErrRefused
 		}
 		if turn.Stop == llm.StopMaxTokens {
-			return false, fmt.Errorf("%w after reaching max tokens", ErrNoSave)
+			return false, fmt.Errorf("%w after reaching max tokens", noResult)
 		}
 		if len(turn.ToolCalls) == 0 {
-			return false, ErrNoSave
+			return false, noResult
 		}
 		var outcome turnOutcome
 		if results, outcome, err = state.executeTurn(ctx, turn.ToolCalls, modelCall == maxModelCalls); err != nil {
 			return false, err
 		}
 		switch {
+		case outcome.suggestion != nil:
+			out.Suggestion = outcome.suggestion
+			return false, nil
 		case outcome.saved != nil:
 			out.DashboardID = outcome.saved.dashboardID
 			out.Version = outcome.saved.version
@@ -268,6 +312,27 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 		}
 	}
 	return false, ErrTurnLimit
+}
+
+func runScope(t Task, mode tools.Mode, current *revision) tools.Run {
+	run := tools.Run{Mode: mode, RequestID: t.RequestID}
+	if current == nil {
+		return run
+	}
+	run.DashboardID = current.dashboardID
+	run.ParentVersion = current.number
+	if mode == tools.ModeSuggest {
+		run.PanelID = t.PanelID
+		run.Base = current.spec
+	}
+	return run
+}
+
+func noResultError(mode tools.Mode) error {
+	if mode == tools.ModeSuggest {
+		return ErrNoSuggestion
+	}
+	return ErrNoSave
 }
 
 func contextError(err error) error {
@@ -332,6 +397,10 @@ func errorKind(err error) string {
 		return "deadline_exceeded"
 	case errors.Is(err, ErrNoSave):
 		return "no_save"
+	case errors.Is(err, ErrNoSuggestion):
+		return "no_suggestion"
+	case errors.Is(err, ErrDraftInvalid):
+		return "draft_invalid"
 	case errors.Is(err, ErrRepairExhausted):
 		return "repair_exhausted"
 	case errors.Is(err, ErrTurnLimit):

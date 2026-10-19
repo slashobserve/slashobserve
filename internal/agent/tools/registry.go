@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -83,8 +84,9 @@ type Deps struct {
 type Mode string
 
 const (
-	ModeCreate Mode = "create"
-	ModeRevise Mode = "revise"
+	ModeCreate  Mode = "create"
+	ModeRevise  Mode = "revise"
+	ModeSuggest Mode = "suggest"
 )
 
 type Run struct {
@@ -92,6 +94,8 @@ type Run struct {
 	DashboardID   string
 	ParentVersion int
 	RequestID     string
+	PanelID       string
+	Base          *spec.Dashboard
 }
 
 type runKey struct{}

@@ -64,6 +64,7 @@ type savedVersion struct {
 
 type turnOutcome struct {
 	saved      *savedVersion
+	suggestion json.RawMessage
 	conflict   bool
 	notFound   bool
 	rejected   bool
@@ -245,11 +246,13 @@ func (s *runState) internal(ctx context.Context, slot callSlot) error {
 }
 
 type saveBody struct {
-	Code          string `json:"code"`
-	DashboardID   string `json:"dashboard_id"`
-	Version       int    `json:"version"`
-	LatestVersion int    `json:"latest_version"`
-	Replayed      *bool  `json:"replayed"`
+	Code          string          `json:"code"`
+	DashboardID   string          `json:"dashboard_id"`
+	Version       int             `json:"version"`
+	LatestVersion int             `json:"latest_version"`
+	Replayed      *bool           `json:"replayed"`
+	Suggested     bool            `json:"suggested"`
+	Panel         json.RawMessage `json:"panel"`
 	Issues        []struct {
 		Code string `json:"code"`
 	} `json:"issues"`
@@ -261,6 +264,12 @@ func (s *runState) classifySave(ctx context.Context, slot callSlot) (turnOutcome
 		return turnOutcome{}, s.malformed(ctx, slot)
 	}
 	if !slot.result.IsError {
+		if s.mode == tools.ModeSuggest {
+			if !body.Suggested || len(body.Panel) == 0 {
+				return turnOutcome{}, s.malformed(ctx, slot)
+			}
+			return turnOutcome{suggestion: body.Panel}, nil
+		}
 		if body.DashboardID == "" || body.Version < 1 {
 			return turnOutcome{}, s.malformed(ctx, slot)
 		}

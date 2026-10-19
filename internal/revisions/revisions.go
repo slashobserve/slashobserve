@@ -2,6 +2,7 @@ package revisions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,6 +38,7 @@ const (
 	SourceComment Source = "comment"
 	SourcePrompt  Source = "prompt"
 	SourceObserve Source = "observe"
+	SourceSuggest Source = "suggest"
 )
 
 type Status string
@@ -80,14 +82,16 @@ type Request struct {
 	Prompt      string
 	PanelID     string
 	BaseVersion int
+	Draft       json.RawMessage
 	Attempt     int
 	RequestedBy auth.Principal
 	Origin      origin.Origin
 }
 
 type Result struct {
-	Version int
-	Usage   *Usage
+	Version    int
+	Suggestion json.RawMessage
+	Usage      *Usage
 }
 
 type Usage struct {

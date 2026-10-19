@@ -266,6 +266,9 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		return res, nil
 	}
 	if scoped {
+		if run.Mode == ModeSuggest {
+			return invalid("this run proposes a change to panel %s; it cannot create dashboards", run.PanelID), nil
+		}
 		if _, err := validateRun(run); err != nil {
 			return Result{}, err
 		}
@@ -300,6 +303,9 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	}
 	if res, ok := checkSpecPresent(in.Spec); !ok {
 		return res, nil
+	}
+	if scoped && run.Mode == ModeSuggest {
+		return r.suggestPanel(ctx, principal, run, in.Spec)
 	}
 	target, res, ok, err := updateTarget(in, run, scoped)
 	if err != nil {
