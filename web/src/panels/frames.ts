@@ -34,8 +34,10 @@ export function seriesLabel(
         (key) => `${key}="${escapeLabelValue(frame.labels?.[key] ?? "")}"`
       )
       label = `${frame.name ?? ""}{${pairs.join(", ")}}`
+    } else if (frame.name !== undefined) {
+      label = frame.name
     } else {
-      label = frame.name ?? field.name
+      return field.name
     }
   }
   return numberFieldCount > 1 ? `${label} ${field.name}` : label

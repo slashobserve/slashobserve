@@ -54,6 +54,17 @@ describe("seriesLabel", () => {
     expect(seriesLabel(bare, bare.fields[0], undefined, 1)).toBe("time")
   })
 
+  it("names an unlabelled, unnamed frame's number fields by their own name", () => {
+    const wide = frame({
+      fields: [
+        { name: "a", type: "number", values: [1] },
+        { name: "b", type: "number", values: [2] },
+      ],
+    })
+    expect(seriesLabel(wide, wide.fields[0], undefined, 2)).toBe("a")
+    expect(seriesLabel(wide, wide.fields[1], undefined, 2)).toBe("b")
+  })
+
   it("appends the field name when a frame has several number fields", () => {
     expect(seriesLabel(f, f.fields[1], "{{pod}}", 2)).toBe("checkout-0 value")
   })
