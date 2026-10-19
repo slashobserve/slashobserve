@@ -260,7 +260,7 @@ function ConversationView({
           ))
         )}
       </div>
-      <div className="sticky -bottom-7 w-full max-w-[760px] bg-background pt-2 pb-2">
+      <div className="sticky -bottom-7 w-full max-w-[760px] bg-background pt-2 pb-1">
         <ChatComposer
           rows={2}
           disabled={waitingForDashboard}
