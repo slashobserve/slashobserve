@@ -37,14 +37,24 @@ export function RetryButton({
   )
 }
 
-export function OpenDashboardLink({ dashboardId }: { dashboardId: string }) {
+export function OpenDashboardLink({
+  dashboardId,
+  variant,
+}: {
+  dashboardId: string
+  variant: "primary" | "outline"
+}) {
   return (
     <Link
       to="/dashboards/$dashboardId"
       params={{ dashboardId }}
       target="_blank"
       rel="noopener"
-      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+      className={cn(
+        buttonVariants(
+          variant === "primary" ? {} : { variant: "outline", size: "sm" }
+        )
+      )}
     >
       Open dashboard
       <ArrowUpRightIcon aria-hidden="true" className="size-[13px]" />
@@ -120,7 +130,10 @@ export function TurnFailure({
               </RetryButton>
             ) : null}
             {request.dashboard_id !== null ? (
-              <OpenDashboardLink dashboardId={request.dashboard_id} />
+              <OpenDashboardLink
+                dashboardId={request.dashboard_id}
+                variant="outline"
+              />
             ) : null}
           </div>
         ) : null}

@@ -1,17 +1,15 @@
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
-import { ArrowUpRightIcon } from "lucide-react"
 
 import { useNow } from "@/components/relative-time"
 import { StatusIcon } from "@/components/status-label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { buttonVariants } from "@/components/ui/button"
 import { asDashboardSpec, dashboardVersionQuery } from "@/dashboards/queries"
 import { panelDatasourceUids } from "@/dashboards/panel-datasources"
 import { formatShortRelative } from "@/lib/time"
-import { cn } from "@/lib/utils"
 import { joinNames, lowerFirst } from "@/observe/conversation"
 import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
+
+import { OpenDashboardLink } from "./turn-failure"
 
 const thumbnailCount = 4
 
@@ -116,17 +114,7 @@ export function ResultCard({ dashboardId, version, finishedAt }: Props) {
             {hint}
           </span>
         </div>
-        <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId }}
-          target="_blank"
-          rel="noopener"
-          className={cn(buttonVariants())}
-        >
-          Open dashboard
-          <ArrowUpRightIcon aria-hidden="true" className="size-[13px]" />
-          <span className="sr-only"> (opens in a new tab)</span>
-        </Link>
+        <OpenDashboardLink dashboardId={dashboardId} variant="primary" />
       </div>
       <div className="flex items-center gap-1.5 border-t px-3.5 py-[9px] text-xs text-muted-foreground">
         <StatusIcon tone="ok" />
