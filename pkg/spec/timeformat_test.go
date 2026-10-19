@@ -123,7 +123,7 @@ func TestInvalidTimeMacroFormats(t *testing.T) {
 			}
 		})
 	}
-	if !spec.ValidTimeMacroFormat("date:" + strings.Repeat("YYYY-", 12)+"YYYY") {
+	if !spec.ValidTimeMacroFormat("date:" + strings.Repeat("YYYY-", 12) + "YYYY") {
 		t.Fatal("a 64 byte pattern must be valid")
 	}
 }
