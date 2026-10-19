@@ -488,6 +488,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         const finish = await holdRequestsRunning(page)
 
         const thread = entryWith(page, "Can we see p99 too?")
+        const promptEntries = entryWith(page, p99Prompt).filter({
+          hasNot: page.getByText("Version 2", { exact: true }),
+        })
         await thread.getByRole("button", { name: "Reply", exact: true }).click()
         const form = thread.getByRole("form", { name: "Reply to this comment" })
         await form.getByRole("textbox", { name: "Reply" }).fill(p99Prompt)
@@ -495,13 +498,18 @@ for (const colorScheme of ["light", "dark"] as const) {
 
         await expect(form).toHaveCount(0)
         await expect(thread.getByText("Sent to the agent")).toBeVisible()
-        await expect(entryWith(page, p99Prompt)).toHaveCount(1)
+        await expect(promptEntries).toHaveCount(1)
 
         finish()
         await expect(thread.getByText("Resolved by version 2")).toBeVisible({
           timeout: agentTimeout,
         })
-        await expect(entryWith(page, p99Prompt)).toHaveCount(1)
+        await expect(promptEntries).toHaveCount(1)
+        await expect(
+          entryWith(page, p99Prompt).filter({
+            has: page.getByText("Version 2", { exact: true }),
+          })
+        ).toHaveCount(1)
       })
 
       test("shows a failed agent request", async ({ page, request }) => {
