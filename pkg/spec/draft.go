@@ -16,39 +16,29 @@ func WithPanel(d *Dashboard, panelID string, panel json.RawMessage) (*Dashboard,
 	if !ok {
 		return nil, fmt.Errorf("%w: %q", ErrNoPanel, panelID)
 	}
-	base, err := json.Marshal(d)
-	if err != nil {
-		return nil, err
+	if issues := byteIssues(panel, strings.Count(entry.Pointer, "/")); len(issues) > 0 {
+		for i := range issues {
+			issues[i].Path = entry.Pointer + issues[i].Path
+		}
+		return nil, newValidationError(issues)
 	}
-	tree, err := decodeNumbers(base)
-	if err != nil {
-		return nil, err
+	dec := json.NewDecoder(bytes.NewReader(panel))
+	dec.UseNumber()
+	var draft any
+	if err := dec.Decode(&draft); err != nil {
+		return nil, newValidationError([]Issue{{Path: entry.Pointer, Code: CodeSchema, Message: "the panel is not valid JSON"}})
 	}
-	draft, err := decodeNumbers(panel)
-	if err != nil {
-		return nil, &ValidationError{Issues: []Issue{{Path: entry.Pointer, Code: CodeSchema, Message: "the panel is not valid JSON"}}}
-	}
+	tree := decodeTree(d)
 	if err := replaceAt(tree, entry.Pointer, draft); err != nil {
 		return nil, err
 	}
-	out, err := json.Marshal(tree)
-	if err != nil {
+	var out bytes.Buffer
+	enc := json.NewEncoder(&out)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(tree); err != nil {
 		return nil, err
 	}
-	return Parse(out)
-}
-
-func decodeNumbers(data []byte) (any, error) {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	var v any
-	if err := dec.Decode(&v); err != nil {
-		return nil, err
-	}
-	if _, err := dec.Token(); err == nil {
-		return nil, errors.New("spec: trailing data after JSON value")
-	}
-	return v, nil
+	return Parse(out.Bytes())
 }
 
 func replaceAt(root any, ptr string, value any) error {
