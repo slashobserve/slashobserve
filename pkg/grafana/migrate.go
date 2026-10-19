@@ -14,6 +14,10 @@ const (
 	legacyMinHeight    = 90
 	legacyHeightStep   = 38
 	legacyColumnFactor = gridColumns / 12
+
+	defaultPanelWidth  = 6
+	defaultPanelHeight = 3
+	gridSanityLimit    = 1e9
 )
 
 type gridPos struct{ x, y, w, h int }
@@ -29,7 +33,6 @@ type panelNode struct {
 	title      string
 	grafanaID  *int
 	pos        gridPos
-	hasPos     bool
 	moved      bool
 	children   []*panelNode
 	parent     *panelNode
@@ -72,23 +75,20 @@ func newNode(raw map[string]any, path string) *panelNode {
 	if id, ok := asInt(raw["id"]); ok {
 		n.grafanaID = &id
 	}
-	n.pos, n.hasPos = parseGridPos(raw["gridPos"])
+	n.pos = parseGridPos(raw["gridPos"])
 	return n
 }
 
-func parseGridPos(v any) (gridPos, bool) {
-	m, ok := asObject(v)
-	if !ok {
-		return gridPos{}, false
-	}
+func parseGridPos(v any) gridPos {
+	m, _ := asObject(v)
 	read := func(key string, fallback int) int {
 		f, ok := asFloat(m[key])
 		if !ok {
 			return fallback
 		}
-		return int(math.Floor(f))
+		return int(math.Floor(min(max(f, -gridSanityLimit), gridSanityLimit)))
 	}
-	return gridPos{x: read("x", 0), y: read("y", 0), w: read("w", 12), h: read("h", 8)}, true
+	return gridPos{x: read("x", 0), y: read("y", 0), w: read("w", defaultPanelWidth), h: read("h", defaultPanelHeight)}
 }
 
 func buildNodes(d map[string]any) ([]*panelNode, bool) {
@@ -207,7 +207,6 @@ func (b *legacyBuilder) addRow(row map[string]any, path string) {
 			title:      asString(row["title"]),
 			grafanaID:  &id,
 			pos:        gridPos{x: 0, y: b.y, w: gridColumns, h: 1},
-			hasPos:     true,
 		}
 		b.out = append(b.out, rowNode)
 		b.y++
@@ -243,7 +242,6 @@ func (b *legacyBuilder) addPanels(row map[string]any, path string, rowNode *pane
 			lineHeight = 0
 		}
 		n.pos = gridPos{x: x, y: b.y + packed, w: w, h: h}
-		n.hasPos = true
 		x += w
 		lineHeight = max(lineHeight, h)
 		if rowNode != nil && collapsed {
