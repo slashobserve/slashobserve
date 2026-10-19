@@ -16,7 +16,20 @@ var (
 	ErrTimeout        = errors.New("query timed out")
 	ErrUnavailable    = errors.New("datasource unavailable")
 	ErrNotFound       = errors.New("not found")
+
+	ErrNotReadOnly = refine(ErrForbiddenQuery)
+	ErrUnsafeGrant = refine(ErrForbiddenQuery)
+	ErrAuthFailed  = refine(ErrUnavailable)
 )
+
+// refinedKind reads and matches as its parent, so it adds a distinguishable kind without changing any error text.
+type refinedKind struct{ parent error }
+
+func refine(parent error) error { return &refinedKind{parent: parent} }
+
+func (k *refinedKind) Error() string { return k.parent.Error() }
+
+func (k *refinedKind) Unwrap() error { return k.parent }
 
 type UpstreamError struct {
 	Kind    error

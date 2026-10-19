@@ -193,10 +193,16 @@ func healthMessage(err error) string {
 	switch {
 	case errors.Is(err, ErrTimeout), errors.Is(err, context.DeadlineExceeded):
 		return "Timed out waiting for the datasource"
+	case errors.Is(err, ErrAuthFailed):
+		return "The datasource refused the credentials"
 	case errors.Is(err, ErrUnavailable):
 		return "The datasource is not answering"
+	case errors.Is(err, ErrNotReadOnly):
+		return "The ClickHouse user must be readonly = 2"
+	case errors.Is(err, ErrUnsafeGrant):
+		return "The ClickHouse user holds a grant that reaches outside systems; revoke it"
 	case errors.Is(err, ErrForbiddenQuery):
-		return "The datasource user is not set up as read-only"
+		return "The datasource refused the health check"
 	case errors.Is(err, ErrLimitExceeded):
 		return "The health check hit a datasource limit"
 	case errors.Is(err, ErrInvalidQuery):

@@ -196,8 +196,8 @@ func TestCheckHealth(t *testing.T) {
 		wrong := "not-the-password"
 		ds := newDS(t, func(o *prometheus.Options) { o.BasicAuthPassword = datasource.NewSecret(wrong) })
 		err := ds.CheckHealth(ctx)
-		if !errors.Is(err, datasource.ErrUnavailable) {
-			t.Fatalf("want ErrUnavailable, got %v", err)
+		if !errors.Is(err, datasource.ErrAuthFailed) || !errors.Is(err, datasource.ErrUnavailable) {
+			t.Fatalf("want ErrAuthFailed, got %v", err)
 		}
 		hasNone(t, err.Error(), env.host, env.port, "http", wrong, env.password)
 	})

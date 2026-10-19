@@ -32,7 +32,10 @@ func TestHealthMessageNeverCarriesTheDatasourceAddress(t *testing.T) {
 		{"transport failure", transport, "The health check failed"},
 		{"unavailable", datasource.Errorf(datasource.ErrUnavailable, "upstream %s unreachable", address), "The datasource is not answering"},
 		{"timeout", datasource.Errorf(datasource.ErrTimeout, "%s timed out", address), "Timed out waiting for the datasource"},
-		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "user bob at %s", address), "The datasource user is not set up as read-only"},
+		{"forbidden", datasource.Errorf(datasource.ErrForbiddenQuery, "user bob at %s", address), "The datasource refused the health check"},
+		{"not read-only", datasource.Errorf(datasource.ErrNotReadOnly, "user bob at %s", address), "The ClickHouse user must be readonly = 2"},
+		{"unsafe grant", datasource.Errorf(datasource.ErrUnsafeGrant, "user bob at %s holds FILE", address), "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
+		{"auth failed", datasource.Errorf(datasource.ErrAuthFailed, "user bob at %s refused", address), "The datasource refused the credentials"},
 		{"limit", datasource.Errorf(datasource.ErrLimitExceeded, "%s sent too much", address), "The health check hit a datasource limit"},
 		{"invalid", datasource.Errorf(datasource.ErrInvalidQuery, "%s rejected", address), "The datasource rejected the health check"},
 		{"deadline", fmt.Errorf("%s: %w", address, context.DeadlineExceeded), "Timed out waiting for the datasource"},
@@ -85,5 +88,30 @@ func TestHealthReportsACancelledRequestWithoutWaitingForTheCheck(t *testing.T) {
 	statuses := registry.Health(ctx)
 	if len(statuses) != 1 || statuses[0].Healthy || statuses[0].Message != "The health check was cancelled" {
 		t.Fatalf("statuses = %+v", statuses)
+	}
+}
+
+func TestRefinedKindsKeepTheirParentKind(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		parent error
+	}{
+		{"not read-only", datasource.Errorf(datasource.ErrNotReadOnly, "x"), datasource.ErrForbiddenQuery},
+		{"unsafe grant", datasource.Errorf(datasource.ErrUnsafeGrant, "x"), datasource.ErrForbiddenQuery},
+		{"auth failed", datasource.Errorf(datasource.ErrAuthFailed, "x"), datasource.ErrUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !errors.Is(tt.err, tt.parent) {
+				t.Errorf("%v should match %v", tt.err, tt.parent)
+			}
+			if got, want := tt.err.Error(), tt.parent.Error()+": x"; got != want {
+				t.Errorf("text = %q, want %q", got, want)
+			}
+		})
+	}
+	if errors.Is(datasource.Errorf(datasource.ErrNotReadOnly, "x"), datasource.ErrUnsafeGrant) {
+		t.Error("refined kinds should stay distinct from each other")
 	}
 }
