@@ -109,7 +109,7 @@ func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (s
 }
 
 func anchoredPattern(pattern string) string {
-	return "'^(?:" + sqlStringEscaper.Replace(pattern) + ")$'"
+	return "'^(?s:" + sqlStringEscaper.Replace(pattern) + ")$'"
 }
 
 func oddBackslashesBefore(query string, offset int) bool {
