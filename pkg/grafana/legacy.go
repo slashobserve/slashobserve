@@ -21,7 +21,7 @@ var (
 		"avg": "mean", "current": "lastNotNull", "max": "max", "min": "min", "total": "sum",
 		"first": "first", "delta": "delta", "diff": "diff", "range": "range",
 	}
-	thresholdColorModes = map[string]string{"critical": "critical", "warning": "warning", "ok": "ok"}
+	thresholdColorModes = map[string]string{"critical": "red", "warning": "orange", "ok": "green"}
 )
 
 func legacyPlaceholderReason(n *panelNode) string {

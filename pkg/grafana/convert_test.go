@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -74,6 +75,36 @@ func TestSinglestatColorModeSurvivesTheDisplayStep(t *testing.T) {
 			panel, _ := singlestatPanel(t, tc.members)
 			if got := displayOf(t, panel).ColorMode; got != tc.want {
 				t.Fatalf("colorMode = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func thresholdText(steps []spec.Threshold) []string {
+	out := make([]string, len(steps))
+	for i, step := range steps {
+		out[i] = step.Color
+		if step.Value != nil {
+			out[i] += fmt.Sprintf("@%g", *step.Value)
+		}
+	}
+	return out
+}
+
+func TestLegacyGraphThresholdsKeepTheirColorMode(t *testing.T) {
+	cases := []struct{ mode, want string }{
+		{"critical", "critical@80"},
+		{"warning", "warning@80"},
+		{"ok", "ok@80"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.mode, func(t *testing.T) {
+			panel, line := graphPanel(t, `"thresholds":[{"colorMode":"`+tc.mode+`","op":"gt","value":80,"fill":true,"line":true}]`)
+			if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{tc.want}) {
+				t.Fatalf("thresholds = %v, want [%s]", got, tc.want)
+			}
+			if len(line.Paths) != 0 {
+				t.Fatalf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 			}
 		})
 	}
