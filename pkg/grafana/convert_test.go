@@ -374,15 +374,21 @@ func TestLegacyGraphThresholdsKeepTheirOrderBelowTheFirstValue(t *testing.T) {
 
 func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 	const colors = `"colors":["#299c46","rgba(237, 129, 40, 0.89)","#d44a3a"]`
+	defaults := []string{"ok", "critical@80"}
 	cases := []struct {
 		name, members string
 		want          []string
 	}{
 		{"two levels", colors + `,"thresholds":"50,80"`, []string{"ok", "warning@50", "critical@80"}},
 		{"one level", colors + `,"thresholds":"50"`, []string{"ok", "warning@50"}},
-		{"empty levels leave the default thresholds", colors + `,"thresholds":""`, []string{}},
-		{"blank levels leave the default thresholds", colors + `,"thresholds":"  "`, []string{}},
-		{"missing levels leave the default thresholds", colors, []string{}},
+		{"empty levels without a color mode write none", colors + `,"thresholds":""`, []string{}},
+		{"blank levels without a color mode write none", colors + `,"thresholds":"  "`, []string{}},
+		{"missing levels without a color mode write none", colors, []string{}},
+		{"empty levels with colored values get Grafana's defaults", colors + `,"thresholds":"","colorValue":true`, defaults},
+		{"blank levels with a colored background get Grafana's defaults", colors + `,"thresholds":"  ","colorBackground":true`, defaults},
+		{"missing levels with colored values get Grafana's defaults", colors + `,"colorValue":true`, defaults},
+		{"levels win over the defaults", colors + `,"thresholds":"50,80","colorValue":true`, []string{"ok", "warning@50", "critical@80"}},
+		{"colored values without colors write none", `"thresholds":"","colorValue":true`, []string{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

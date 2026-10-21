@@ -479,11 +479,21 @@ func (b *panelBuild) singlestatReducer(d *spec.Display) {
 	d.Reduce = reducer
 }
 
+func grafanaStatThresholds() []spec.Threshold {
+	return []spec.Threshold{{Color: "ok"}, {Value: ptr(80.0), Color: "critical"}}
+}
+
 func (b *panelBuild) singlestatThresholds(p *spec.FieldProps) {
 	text := strings.TrimSpace(asString(b.raw["thresholds"]))
 	colors := stringList(b.raw["colors"])
 	b.consume("thresholds", "colors")
-	if len(colors) == 0 || text == "" {
+	if len(colors) == 0 {
+		return
+	}
+	if text == "" {
+		if truthy(b.raw["colorValue"]) || truthy(b.raw["colorBackground"]) {
+			p.Thresholds = grafanaStatThresholds()
+		}
 		return
 	}
 	levels := strings.Split(text, ",")
