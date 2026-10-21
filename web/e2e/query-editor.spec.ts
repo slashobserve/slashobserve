@@ -1023,6 +1023,23 @@ test("moves focus to the previous query or Add query after removing a query", as
   ).toBeFocused()
 })
 
+test("does not count whitespace in a legend as a change", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, "Checkout error rate")
+
+  await sheet(page).getByRole("textbox", { name: "Legend" }).fill("   ")
+
+  await expect(sheet(page).getByText("No changes")).toBeVisible()
+  await expect(sheet(page).getByText("Changed", { exact: true })).toHaveCount(0)
+  await expect(
+    sheet(page).getByRole("button", { name: saveVersionButton })
+  ).toBeDisabled()
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })

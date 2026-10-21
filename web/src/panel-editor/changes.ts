@@ -1,5 +1,5 @@
 import { joinNames } from "@/observe/conversation"
-import { queryRef, type PanelQuery, type Threshold } from "@/spec"
+import { isDataPanel, queryRef, type PanelQuery, type Threshold } from "@/spec"
 
 import { sameJson, type EditablePanel } from "./draft"
 
@@ -98,8 +98,26 @@ function withoutRef(query: PanelQuery): Fields {
   return rest
 }
 
+export function normaliseQuery(query: PanelQuery): PanelQuery {
+  const next = { ...query }
+  const legend = next.legend?.trim()
+  if (legend) next.legend = legend
+  else delete next.legend
+  return next
+}
+
+export function normalisePanel(panel: EditablePanel): EditablePanel {
+  const next = structuredClone(panel)
+  if (next.title !== undefined) next.title = next.title.trim()
+  if (isDataPanel(next)) next.queries = next.queries.map(normaliseQuery)
+  return next
+}
+
 export function queryChanged(base: PanelQuery, draft: PanelQuery): boolean {
-  return !sameJson(withoutRef(base), withoutRef(draft))
+  return !sameJson(
+    withoutRef(normaliseQuery(base)),
+    withoutRef(normaliseQuery(draft))
+  )
 }
 
 function sameQueries(a: unknown, b: unknown): boolean {
@@ -153,7 +171,9 @@ function queryChanges(base: Fields, draft: Fields): Change[] {
     if (!sameJson(before.query, query.query)) {
       changes.push({ key: `queries.${ref}.query`, label: name })
     }
-    if (!sameJson(before.legend, query.legend)) {
+    if (
+      !sameJson(normaliseQuery(before).legend, normaliseQuery(query).legend)
+    ) {
       changes.push({
         key: `queries.${ref}.legend`,
         label: single ? "legend" : `legend ${ref}`,

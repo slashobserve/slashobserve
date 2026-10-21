@@ -31,6 +31,7 @@ import { AskAgent } from "./ask-agent"
 import {
   changeSummary,
   defaultSaveSummary,
+  normalisePanel,
   panelChanges,
   rebasePanel,
 } from "./changes"
@@ -79,19 +80,6 @@ const readOnlyAskReason = "Open the latest version to ask the agent."
 function focusIsFree() {
   const active = document.activeElement
   return !active || active === document.body
-}
-
-function normalise(panel: EditablePanel): EditablePanel {
-  const next = structuredClone(panel)
-  if (next.title !== undefined) next.title = next.title.trim()
-  if (isDataPanel(next)) {
-    for (const query of next.queries) {
-      const legend = query.legend?.trim()
-      if (legend) query.legend = legend
-      else delete query.legend
-    }
-  }
-  return next
 }
 
 function leaveJson(leave: () => void) {
@@ -218,7 +206,7 @@ export default function PanelEditor({
       setProblem({ kind: "gone" })
       return
     }
-    const normalised = normalise(panelToSave)
+    const normalised = normalisePanel(panelToSave)
     const parsed = parsePanelJson(
       JSON.stringify(normalised),
       source,

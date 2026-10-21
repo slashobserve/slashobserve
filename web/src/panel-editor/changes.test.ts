@@ -5,6 +5,7 @@ import type { DataPanel, TextPanel } from "@/spec"
 import {
   changeSummary,
   defaultSaveSummary,
+  normalisePanel,
   panelChanges,
   queryChanged,
   rebasePanel,
@@ -127,6 +128,19 @@ describe("panelChanges", () => {
 
   it("ignores surrounding whitespace in the title", () => {
     expect(labels(panel(), panel({ title: "  Requests " }))).toEqual([])
+  })
+
+  it("ignores surrounding whitespace in a legend and an empty legend", () => {
+    const base = panel({ queries: [{ query: "up", legend: "x" }] })
+    expect(
+      labels(base, panel({ queries: [{ query: "up", legend: " x " }] }))
+    ).toEqual([])
+    expect(
+      labels(panel(), panel({ queries: [{ query: "up", legend: "  " }] }))
+    ).toEqual([])
+    expect(
+      labels(base, panel({ queries: [{ query: "up", legend: " " }] }))
+    ).toEqual(["legend"])
   })
 
   it("names a valueless extra step as a threshold change", () => {
@@ -319,6 +333,70 @@ describe("queryChanged", () => {
     expect(queryChanged({ query: "a" }, { query: "a", legend: "x" })).toBe(true)
     expect(queryChanged({ query: "a" }, { query: "a", hide: true })).toBe(true)
   })
+
+  it("reads a legend the way a save does", () => {
+    expect(queryChanged({ query: "a" }, { query: "a", legend: "  " })).toBe(
+      false
+    )
+    expect(
+      queryChanged({ query: "a", legend: "x" }, { query: "a", legend: " x " })
+    ).toBe(false)
+    expect(
+      queryChanged({ query: "a", legend: "x" }, { query: "a", legend: "  " })
+    ).toBe(true)
+  })
+})
+
+describe("normalisePanel", () => {
+  it("trims the title and every legend and drops an empty legend", () => {
+    const result = normalisePanel(
+      panel({
+        title: "  CPU ",
+        queries: [
+          { query: " up ", legend: "  {{pod}} " },
+          { ref: "B", query: "b", legend: "   " },
+          { ref: "C", query: "c", legend: "" },
+        ],
+      })
+    ) as DataPanel
+    expect(result.title).toBe("CPU")
+    expect(result.queries).toEqual([
+      { query: " up ", legend: "{{pod}}" },
+      { ref: "B", query: "b" },
+      { ref: "C", query: "c" },
+    ])
+  })
+
+  it("keeps a panel without a title without one", () => {
+    const untitled: Partial<DataPanel> = panel()
+    delete untitled.title
+    expect("title" in normalisePanel(untitled as DataPanel)).toBe(false)
+  })
+
+  it("trims the title of a text panel and leaves its content", () => {
+    const text: TextPanel = {
+      id: "t",
+      type: "text",
+      title: " Notes ",
+      gridPos,
+      content: " keep ",
+    }
+    expect(normalisePanel(text)).toEqual({
+      ...text,
+      title: "Notes",
+      content: " keep ",
+    })
+  })
+
+  it("does not change its input", () => {
+    const input = panel({
+      title: " CPU ",
+      queries: [{ query: "up", legend: " x " }],
+    })
+    normalisePanel(input)
+    expect(input.title).toBe(" CPU ")
+    expect(input.queries[0].legend).toBe(" x ")
+  })
 })
 
 describe("panelChanges against the JSON", () => {
@@ -357,6 +435,9 @@ describe("panelChanges against the JSON", () => {
     (p) => (p.queries[0] = { ...p.queries[0], ref: "A" }),
     (p) => (p.queries[1] = { query: "b" }),
     (p) => (p.queries[0] = { ...p.queries[0], legend: "x" }),
+    (p) => (p.queries[0] = { ...p.queries[0], legend: " x " }),
+    (p) => (p.queries[1] = { ...p.queries[1], legend: "  " }),
+    (p) => (p.queries[1] = { ...p.queries[1], legend: "" }),
     (p) => p.queries.push({ ref: "C", query: "c" }),
     (p) => p.queries.length > 1 && p.queries.pop(),
     (p) => p.thresholds?.push({ color: "critical" }),
@@ -378,12 +459,12 @@ describe("panelChanges against the JSON", () => {
   const normalized = (p: DataPanel) => ({
     ...p,
     title: p.title.trim(),
-    queries: p.queries.map((query, index) => ({
-      ...query,
-      ref: query.ref ?? String.fromCharCode(65 + index),
+    queries: p.queries.map(({ legend, ...rest }, index) => ({
+      ...rest,
+      ...(legend?.trim() ? { legend: legend.trim() } : {}),
+      ref: rest.ref ?? String.fromCharCode(65 + index),
     })),
   })
-
   function mutated(next: () => number, count: number): DataPanel {
     const result = start()
     for (let i = 0; i < count; i++) {
