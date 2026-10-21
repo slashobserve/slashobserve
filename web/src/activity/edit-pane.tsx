@@ -173,8 +173,12 @@ export function EditPane({
 
   const leave = useCallback(
     (kind: Leave) => {
-      if (unsaved.current) setConfirm(kind)
-      else run(kind)
+      const proceed = () => {
+        if (unsaved.current) setConfirm(kind)
+        else run(kind)
+      }
+      if (viewGuard.current) viewGuard.current.guardLeave(proceed)
+      else proceed()
     },
     [run]
   )

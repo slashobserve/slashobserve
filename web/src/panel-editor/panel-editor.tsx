@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useImperativeHandle,
@@ -43,7 +44,7 @@ import {
   type EditablePanel,
 } from "./draft"
 import { EditorFooter } from "./editor-footer"
-import { JsonView } from "./json-view"
+import { JsonView, type LeaveGuard } from "./json-view"
 import { MetricsBrowser } from "./metrics-browser"
 import { parsePanelJson, withPanel } from "./panel-json"
 import { PreviewSection } from "./preview-section"
@@ -59,7 +60,10 @@ import { SettingsColumn } from "./settings-column"
 
 export type EditorView = "editor" | "json"
 
-export type ViewGuard = { request: (view: EditorView) => void }
+export type ViewGuard = {
+  request: (view: EditorView) => void
+  guardLeave: (leave: () => void) => void
+}
 
 type Props = {
   dashboardId: string
@@ -87,9 +91,7 @@ function focusIsFree() {
   return !active || active === document.body
 }
 
-function leaveJson(leave: () => void) {
-  leave()
-}
+const leaveNow: LeaveGuard = (leave) => leave()
 
 export default function PanelEditor({
   dashboardId,
@@ -129,6 +131,7 @@ export default function PanelEditor({
   const [applying, setApplying] = useState(false)
   const [focusFirstQuery, setFocusFirstQuery] = useState(view === "editor")
   const editorRefs = useRef<(CodeEditorHandle | null)[]>([])
+  const jsonGuard = useRef<LeaveGuard>(leaveNow)
   const noticeRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -143,17 +146,16 @@ export default function PanelEditor({
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange(false), [onDirtyChange])
 
-  useImperativeHandle(
-    viewGuardRef,
-    () => ({
+  useImperativeHandle(viewGuardRef, () => {
+    const guarded = (leave: () => void) =>
+      view === "json" ? jsonGuard.current(leave) : leave()
+    return {
       request: (next) => {
-        if (next === view) return
-        if (view === "json") leaveJson(() => onViewChange(next))
-        else onViewChange(next)
+        if (next !== view) guarded(() => onViewChange(next))
       },
-    }),
-    [view, onViewChange]
-  )
+      guardLeave: guarded,
+    }
+  }, [view, onViewChange])
 
   const saving = save.isPending || save.isSuccess
   const newer = saving
@@ -320,6 +322,10 @@ export default function PanelEditor({
     else submit(spec, draft.baseVersion, draft.panel)
   }
 
+  const registerJsonGuard = useCallback((guard: LeaveGuard) => {
+    jsonGuard.current = guard
+  }, [])
+
   const data = isDataPanel(current) ? current : null
   const active = data?.queries[Math.min(activeQuery, data.queries.length - 1)]
   const activeUid = active?.datasource ?? data?.datasource ?? ""
@@ -416,7 +422,7 @@ export default function PanelEditor({
             dispatch={dispatch}
             readOnly={readOnly}
             onValidityChange={setJsonValid}
-            onLeaveRequest={leaveJson}
+            onLeaveRequest={registerJsonGuard}
           />
         )}
       </div>
