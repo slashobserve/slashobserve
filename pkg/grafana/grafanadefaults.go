@@ -1,0 +1,254 @@
+package grafana
+
+import (
+	"encoding/json"
+	"reflect"
+	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
+)
+
+const (
+	genericPartialReason = "Some Grafana options of this panel are not supported yet."
+	legendTableReason    = "Legend tables are not supported; the legend is a plain list."
+)
+
+var grafanaDefaults = map[string]any{
+	"fieldConfig.defaults.custom.lineWidth":              1,
+	"fieldConfig.defaults.custom.fillOpacity":            0,
+	"fieldConfig.defaults.custom.gradientMode":           "none",
+	"fieldConfig.defaults.custom.showPoints":             "auto",
+	"fieldConfig.defaults.custom.pointSize":              5,
+	"fieldConfig.defaults.custom.spanNulls":              false,
+	"fieldConfig.defaults.custom.insertNulls":            false,
+	"fieldConfig.defaults.custom.lineInterpolation":      "linear",
+	"fieldConfig.defaults.custom.barAlignment":           0,
+	"fieldConfig.defaults.custom.axisPlacement":          "auto",
+	"fieldConfig.defaults.custom.axisLabel":              "",
+	"fieldConfig.defaults.custom.axisCenteredZero":       false,
+	"fieldConfig.defaults.custom.axisColorMode":          "text",
+	"fieldConfig.defaults.custom.axisBorderShow":         false,
+	"fieldConfig.defaults.custom.scaleDistribution.type": "linear",
+	"fieldConfig.defaults.custom.hideFrom.legend":        false,
+	"fieldConfig.defaults.custom.hideFrom.tooltip":       false,
+	"fieldConfig.defaults.custom.hideFrom.viz":           false,
+	"fieldConfig.defaults.custom.stacking.mode":          "none",
+	"fieldConfig.defaults.custom.stacking.group":         "A",
+	"fieldConfig.defaults.custom.thresholdsStyle.mode":   "off",
+	"fieldConfig.defaults.custom.drawStyle":              "line",
+	"fieldConfig.defaults.custom.lineStyle.fill":         "solid",
+	"fieldConfig.defaults.custom.align":                  "auto",
+	"fieldConfig.defaults.custom.cellOptions.type":       "auto",
+	"fieldConfig.defaults.custom.inspect":                false,
+	"fieldConfig.defaults.custom.filterable":             false,
+	"options.tooltip.mode":                               "single",
+	"options.tooltip.sort":                               "none",
+	"options.tooltip.hideZeros":                          false,
+	"options.legend.showLegend":                          true,
+	"options.legend.displayMode":                         "list",
+	"options.legend.placement":                           "bottom",
+	"options.legend.calcs":                               []any{},
+	"options.reduceOptions.values":                       false,
+	"options.reduceOptions.fields":                       "",
+	"options.reduceOptions.calcs":                        []any{"lastNotNull"},
+	"options.text":                                       map[string]any{},
+	"options.justifyMode":                                "auto",
+	"options.wideLayout":                                 true,
+	"options.showPercentChange":                          false,
+	"options.percentChangeColorMode":                     "standard",
+	"options.sizing":                                     "auto",
+	"options.maxVizHeight":                               300,
+	"options.namePlacement":                              "auto",
+	"options.valueMode":                                  "color",
+	"options.showUnfilled":                               true,
+	"options.cellHeight":                                 "sm",
+	"options.showHeader":                                 true,
+	"options.footer.show":                                false,
+	"options.footer.reducer":                             []any{"sum"},
+	"options.footer.countRows":                           false,
+	"options.footer.fields":                              "",
+	"options.colorMode":                                  "value",
+	"options.graphMode":                                  "area",
+	"options.textMode":                                   "auto",
+	"options.orientation":                                "auto",
+	"options.showThresholdLabels":                        false,
+	"options.showThresholdMarkers":                       true,
+	"options.dedupStrategy":                              "none",
+	"options.enableLogDetails":                           true,
+	"options.prettifyLogMessage":                         false,
+	"options.showCommonLabels":                           false,
+	"options.showLabels":                                 false,
+	"options.showTime":                                   false,
+	"options.wrapLogMessage":                             false,
+	"options.sortOrder":                                  "Descending",
+	"options.mergeValues":                                true,
+	"options.showValue":                                  "auto",
+	"options.rowHeight":                                  0.9,
+	"options.alignValue":                                 "left",
+	"options.pieType":                                    "pie",
+	"options.displayLabels":                              []any{},
+	"options.code.language":                              "plaintext",
+	"options.code.showLineNumbers":                       false,
+	"options.code.showMiniMap":                           false,
+	"fieldConfig.defaults.custom.barWidthFactor":         0.6,
+	"fieldConfig.defaults.custom.showValues":             false,
+	"renderer":                                           "flot",
+	"fillGradient":                                       0,
+	"linewidth":                                          1,
+	"hiddenSeries":                                       false,
+	"dashLength":                                         10,
+	"spaceLength":                                        10,
+	"points":                                             false,
+	"stack":                                              false,
+	"percentage":                                         false,
+	"nullPointMode":                                      "null",
+	"steppedLine":                                        false,
+	"tooltip.value_type":                                 "individual",
+	"tooltip.sort":                                       0,
+	"xaxis.show":                                         true,
+	"xaxis.mode":                                         "time",
+	"yaxis.align":                                        false,
+	"options.alertThreshold":                             true,
+}
+
+var typeDefaults = map[spec.PanelType]map[string]any{
+	spec.Gauge: {
+		"options.minVizHeight": 75,
+		"options.minVizWidth":  75,
+	},
+	spec.BarGauge: {
+		"options.minVizHeight": 16,
+		"options.minVizWidth":  8,
+		"options.displayMode":  "gradient",
+	},
+	spec.Text: {
+		"options.mode": "markdown",
+	},
+}
+
+var partialReasons = map[string]string{
+	"fieldConfig.defaults.custom.gradientMode":      "Gradient fill is not part of the SlashObserve look.",
+	"fieldConfig.defaults.custom.lineInterpolation": "Smoothed or stepped lines are drawn straight.",
+	"fieldConfig.defaults.custom.scaleDistribution": "Logarithmic axes are not supported yet.",
+	"fieldConfig.defaults.custom.transform":         "Negative-Y series are drawn as positive.",
+	"fieldConfig.overrides":                         "Some overrides use matchers or properties that are not supported yet.",
+	"transformations":                               "Some transformations are not supported yet.",
+	"options.displayMode":                           "Bar styles are drawn in the SlashObserve style.",
+	"options.legend.displayMode":                    legendTableReason,
+	"options.legend.asTable":                        legendTableReason,
+	"legend.alignAsTable":                           legendTableReason,
+	"options.minVizHeight":                          "Size limits are not kept.",
+	"options.minVizWidth":                           "Size limits are not kept.",
+	"options.showThresholdLabels":                   "Threshold labels are not shown.",
+	"fieldConfig.defaults.color":                    "This color scheme is not supported yet; series use the default palette.",
+}
+
+type cosmeticOption struct {
+	values []any
+	why    string
+}
+
+var cosmeticOptions = map[string]cosmeticOption{
+	"fieldConfig.defaults.custom.showPoints": {
+		values: []any{"never"},
+		why:    "timeseries marks only isolated samples (points.show is false with an isolatedPoints filter), never one marker per sample",
+	},
+	"fieldConfig.defaults.custom.lineWidth": {
+		values: []any{2},
+		why:    "timeseries draws every series line 2px wide",
+	},
+	"linewidth": {
+		values: []any{2},
+		why:    "timeseries draws every series line 2px wide",
+	},
+	"fieldConfig.defaults.custom.minWidth": {
+		why: "table columns are sized by the browser from their content and have no minimum width",
+	},
+	"options.tooltip.sort": {
+		values: []any{"desc"},
+		why:    "the timeseries tooltip always lists its rows by descending value",
+	},
+	"options.legend.width": {
+		why: "the timeseries legend is a wrapping strip under the plot and has no width",
+	},
+	"legend.sideWidth": {
+		why: "the timeseries legend is a wrapping strip under the plot and has no width",
+	},
+	"fieldConfig.defaults.custom.width": {
+		why: "table columns are sized by the browser from their content and have no fixed width",
+	},
+	"options.justifyMode": {
+		values: []any{"center"},
+		why:    "stat tiles always center their value and text",
+	},
+	"fieldConfig.overrides[].__systemRef": {
+		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",
+	},
+}
+
+func isCosmetic(path string, value any) bool {
+	option, ok := cosmeticOptions[normalizePath(path)]
+	if !ok {
+		return false
+	}
+	return len(option.values) == 0 || slices.ContainsFunc(option.values, func(v any) bool { return sameJSON(value, v) })
+}
+
+var indexPattern = regexp.MustCompile(`\[[0-9]+\]`)
+
+func normalizePath(path string) string {
+	return indexPattern.ReplaceAllString(path, "[]")
+}
+
+func partialReason(path string) string {
+	normalized := normalizePath(path)
+	for normalized != "" {
+		if reason, ok := partialReasons[normalized]; ok {
+			return reason
+		}
+		cut := strings.LastIndexAny(normalized, ".[")
+		if cut < 0 {
+			break
+		}
+		normalized = normalized[:cut]
+	}
+	return genericPartialReason
+}
+
+func isGrafanaDefault(typ spec.PanelType, path string, value any) bool {
+	normalized := normalizePath(path)
+	if def, ok := typeDefaults[typ][normalized]; ok {
+		return sameJSON(value, def)
+	}
+	def, ok := grafanaDefaults[normalized]
+	return ok && sameJSON(value, def)
+}
+
+func sameJSON(a, b any) bool {
+	return reflect.DeepEqual(canonicalJSON(a), canonicalJSON(b))
+}
+
+func canonicalJSON(v any) any {
+	switch x := v.(type) {
+	case json.Number:
+		f, _ := x.Float64()
+		return f
+	case int:
+		return float64(x)
+	case []any:
+		out := make([]any, len(x))
+		for i, item := range x {
+			out[i] = canonicalJSON(item)
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, item := range x {
+			out[k] = canonicalJSON(item)
+		}
+		return out
+	}
+	return v
+}
