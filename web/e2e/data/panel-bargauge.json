@@ -1,0 +1,37 @@
+{
+  "specVersion": "0",
+  "title": "E2E bar gauge panels",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": "bg_h",
+      "type": "bargauge",
+      "title": "Pods horizontal",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total[5m]))",
+          "legend": "{{pod}}"
+        }
+      ],
+      "min": 0,
+      "display": { "orientation": "horizontal", "reduce": "max" }
+    },
+    {
+      "id": "bg_v",
+      "type": "bargauge",
+      "title": "Services vertical",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (service) (rate(http_requests_total[5m]))",
+          "legend": "{{service}}"
+        }
+      ],
+      "display": { "orientation": "vertical" },
+      "overrides": [{ "match": { "fieldType": "number" }, "color": "info" }]
+    }
+  ]
+}
