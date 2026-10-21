@@ -5,9 +5,33 @@ import {
   commonDecimals,
   formatAxisValue,
   formatValue as f,
+  formatValueParts,
   ownDecimals,
   parseUnit,
 } from "./units"
+
+describe("formatValueParts", () => {
+  it.each([
+    ["reqps", 12.5, ["", "12.5", " req/s"]],
+    ["percent", 42, ["", "42", "%"]],
+    ["prefix:$", 3, ["$", "3", ""]],
+    ["bytes", 1536, ["", "1.5", " KiB"]],
+    ["short", 1234567, ["", "1.23", " Mil"]],
+    ["none", 7, ["", "7", ""]],
+    ["dtdurations", 3723, ["", "1h 2m 3s", ""]],
+  ])("splits %s into prefix, amount and suffix", (unit, value, parts) => {
+    const { prefix, amount, suffix } = formatValueParts(value, unit)
+    expect([prefix, amount, suffix]).toEqual(parts)
+  })
+
+  it("keeps an absent value whole", () => {
+    expect(formatValueParts(null, "reqps")).toEqual({
+      prefix: "",
+      amount: "-",
+      suffix: "",
+    })
+  })
+})
 
 describe("formatValue", () => {
   it("formats the reference examples", () => {
