@@ -111,7 +111,9 @@ func (b *panelBuild) legendPlacement(fallback string) string {
 
 func displayTimeseries(b *panelBuild) {
 	d := b.disp()
-	d.Legend = b.legendPlacement("")
+	if placement := b.legendPlacement(""); placement != "" {
+		d.Legend = placement
+	}
 	if v, ok := b.value("options.legend.calcs"); ok {
 		d.LegendValues = b.legendValues(v)
 	}
@@ -148,6 +150,7 @@ func displayStat(b *panelBuild) {
 	d := b.disp()
 	b.reduceOption(d)
 	switch mode := b.enumOption("options.colorMode", "value", "background", "background_solid", "none"); mode {
+	case "":
 	case "background_solid":
 		d.ColorMode = "background"
 	default:
