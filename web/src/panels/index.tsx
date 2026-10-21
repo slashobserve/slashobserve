@@ -40,6 +40,11 @@ for (const manifest of rendererManifests.values()) {
   else dataRenderers[manifest.type] = lazy(guardLoad(manifest.load))
 }
 
+export function preloadRenderer(type: string) {
+  const manifest = rendererManifests.get(type)
+  if (manifest?.supported) manifest.load().catch(() => undefined)
+}
+
 export function isRenderable(type: string): boolean {
   return rendererManifests.get(type)?.supported === true
 }
