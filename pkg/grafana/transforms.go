@@ -3,6 +3,7 @@ package grafana
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
 	"slices"
@@ -20,10 +21,14 @@ const (
 	maxReducers       = 10
 )
 
-var reducerIDs = []string{
-	"last", "lastNotNull", "first", "firstNotNull", "min", "max", "mean", "median", "sum",
-	"count", "range", "delta", "diff", "stdDev", "distinctCount", "changeCount",
+var reducerNames = map[string]string{
+	"last": "Last", "lastNotNull": "Last *", "first": "First", "firstNotNull": "First *",
+	"min": "Min", "max": "Max", "mean": "Mean", "median": "Median", "sum": "Total",
+	"count": "Count", "range": "Range", "delta": "Delta", "diff": "Difference",
+	"stdDev": "StdDev", "distinctCount": "Distinct Count", "changeCount": "Change Count",
 }
+
+var reducerIDs = slices.Sorted(maps.Keys(reducerNames))
 
 var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/]\s*\S+\s*$`)
 
@@ -251,11 +256,7 @@ func operandText(v any) string {
 
 func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
 	t := spec.Transform{Type: "calculateField"}
-	mode := asString(opts["mode"])
-	defaulted := mode == ""
-	if defaulted {
-		mode = "reduceRow"
-	}
+	mode := cmp.Or(asString(opts["mode"]), "reduceRow")
 	var fallback string
 	switch mode {
 	case "binary":
@@ -272,10 +273,7 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 			b.partial(path+".options.reduce", "")
 			return t, false
 		}
-		t.ReduceRow, fallback = reducer, reducer
-		if defaulted && reducer == "sum" {
-			fallback = "Total"
-		}
+		t.ReduceRow, fallback = reducer, reducerNames[reducer]
 		if present(reduce["include"]) {
 			b.partial(path+".options.reduce.include", "")
 		}

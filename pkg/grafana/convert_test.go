@@ -373,6 +373,18 @@ func TestCalculateFieldDefaultsToTotalOfTheRow(t *testing.T) {
 		{"empty options", `{"id":"calculateField","options":{}}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Total"}},
 		{"alias only", `{"id":"calculateField","options":{"alias":"Sum of all"}}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Sum of all"}},
 		{"reducer without mode", `{"id":"calculateField","options":{"reduce":{"reducer":"max"},"alias":"Peak"}}`, spec.Transform{Type: "calculateField", ReduceRow: "max", Alias: "Peak"}},
+		{"explicit reduceRow without reducer", `{"id":"calculateField","options":{"mode":"reduceRow"}}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Total"}},
+		{"explicit reduceRow mean", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"mean"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "mean", Alias: "Mean"}},
+		{"explicit reduceRow max", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"max"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "max", Alias: "Max"}},
+		{"explicit reduceRow min", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"min"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "min", Alias: "Min"}},
+		{"explicit reduceRow lastNotNull", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"lastNotNull"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "lastNotNull", Alias: "Last *"}},
+		{"explicit reduceRow last", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"last"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "last", Alias: "Last"}},
+		{"explicit reduceRow firstNotNull", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"firstNotNull"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "firstNotNull", Alias: "First *"}},
+		{"explicit reduceRow first", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"first"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "first", Alias: "First"}},
+		{"explicit reduceRow count", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"count"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "count", Alias: "Count"}},
+		{"explicit reduceRow diff", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"diff"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "diff", Alias: "Difference"}},
+		{"explicit reduceRow stdDev", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"stdDev"}}}`, spec.Transform{Type: "calculateField", ReduceRow: "stdDev", Alias: "StdDev"}},
+		{"explicit reduceRow keeps the alias", `{"id":"calculateField","options":{"mode":"reduceRow","reduce":{"reducer":"mean"},"alias":"Average"}}`, spec.Transform{Type: "calculateField", ReduceRow: "mean", Alias: "Average"}},
 		{"binary mode stays binary", `{"id":"calculateField","options":{"mode":"binary","binary":{"left":"a","operator":"+","right":"b"},"alias":"ab"}}`, spec.Transform{Type: "calculateField", Expr: "a + b", Alias: "ab"}},
 	}
 	for _, tc := range cases {
