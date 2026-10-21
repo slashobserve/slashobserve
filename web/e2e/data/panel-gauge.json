@@ -1,0 +1,42 @@
+{
+  "specVersion": "0",
+  "title": "E2E gauge panels",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": "g_err",
+      "type": "gauge",
+      "title": "Error percent",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "100 * (1 - sum(rate(http_requests_total{status!~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])))"
+        }
+      ],
+      "unit": "percent",
+      "min": 0,
+      "max": 100,
+      "thresholds": [
+        { "color": "ok" },
+        { "value": 1, "color": "warning" },
+        { "value": 5, "color": "critical" }
+      ]
+    },
+    {
+      "id": "g_pods",
+      "type": "gauge",
+      "title": "Requests by pod",
+      "gridPos": { "x": 8, "y": 0, "w": 16, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total[5m]))",
+          "legend": "{{pod}}"
+        }
+      ],
+      "unit": "reqps",
+      "display": { "thresholdMarkers": false }
+    }
+  ]
+}
