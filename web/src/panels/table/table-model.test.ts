@@ -119,6 +119,27 @@ describe("table columns", () => {
       expect(model.footer).toEqual([{ label: "Total", cells: [null, "3"] }])
     })
 
+    it("heads the column with the display name of the queries that show it", () => {
+      const { model } = build(frames(), {
+        overrides: [
+          ...hideA.overrides,
+          { match: { query: "B" }, displayName: "Req" },
+        ],
+      })
+      expect(labels(model)).toEqual(["Query", "Req"])
+    })
+
+    it("keeps a label column only while a query that shows it feeds it", () => {
+      const labelled = order.map((ref) =>
+        frame([time, number([1])], {
+          ref,
+          labels: ref === "A" ? { pod: "a0" } : { svc: "s" },
+        })
+      )
+      const { model } = build(labelled, hideA)
+      expect(labels(model)).toEqual(["svc", "Value"])
+    })
+
     it("drops the column once every query hides it", () => {
       const { model } = build(frames(), {
         overrides: [{ match: { field: "n" }, hidden: true }],
@@ -426,18 +447,15 @@ describe("table rows from several queries", () => {
   ])(
     "keeps the shared decimals of a unit when another query fixes its own (%s)",
     (_, order) => {
-      const values: Record<string, number> = { A: 1.23456, B: 5 }
+      const values: Record<string, number> = { A: 1.23456, B: 5000 }
       const { cell } = build(
         order.map((ref) => frame([number([values[ref]], "n")], { ref })),
-        {
-          unit: "s",
-          overrides: [{ match: { query: "B" }, decimals: 0 }],
-        }
+        { overrides: [{ match: { query: "B" }, decimals: 0 }] }
       )
       const a = order.indexOf("A")
       const b = order.indexOf("B")
-      expect(cell("n", a).text).toBe("1.23 s")
-      expect(cell("n", b).text).toBe("5 s")
+      expect(cell("n", a).text).toBe("1.23")
+      expect(cell("n", b).text).toBe("5,000")
     }
   )
 

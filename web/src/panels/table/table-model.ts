@@ -244,14 +244,23 @@ function rangeOf(
   return { fieldMin: min, fieldMax: max }
 }
 
+function isShown(
+  { frame, field }: ColumnSource,
+  fields: FieldResolver
+): boolean {
+  return !fields.configFor(frame, field).hidden
+}
+
 function headerOf(draft: Draft, fields: FieldResolver): string {
   if (!draft.headFromConfig) return draft.name
   const names = new Set(
-    draft.feeders.map(({ frame, field }) =>
-      fields.configFor(frame, field).displayName === undefined
-        ? field.name
-        : fields.displayName(frame, field)
-    )
+    draft.feeders
+      .filter((feeder) => isShown(feeder, fields))
+      .map(({ frame, field }) =>
+        fields.configFor(frame, field).displayName === undefined
+          ? field.name
+          : fields.displayName(frame, field)
+      )
   )
   return names.size === 1 ? [...names][0] : draft.name
 }
@@ -260,9 +269,7 @@ function shownSource(
   draft: Draft,
   fields: FieldResolver
 ): ColumnSource | undefined {
-  return draft.feeders.find(
-    ({ frame, field }) => !fields.configFor(frame, field).hidden
-  )
+  return draft.feeders.find((feeder) => isShown(feeder, fields))
 }
 
 function decimalsByUnit(
