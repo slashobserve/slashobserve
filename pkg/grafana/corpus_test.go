@@ -27,6 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
+	minimumFull   = 16.5
 	maxLinePaths  = 100
 	tooManyPanels = "too_many_panels"
 )
@@ -605,6 +606,9 @@ func TestCorpusRatio(t *testing.T) {
 	t.Logf("failed files: %s", strings.Join(failed, " "))
 	if (imported+partial)*100 < total*minimumRatio {
 		t.Errorf("imported or partial is %.1f%% of %d panels, the gate is %d%%", percent(imported+partial, total), total, minimumRatio)
+	}
+	if percent(imported, total) < minimumFull {
+		t.Errorf("fully imported is %.1f%% of %d panels, the floor is %.1f%%", percent(imported, total), total, minimumFull)
 	}
 }
 
