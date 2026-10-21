@@ -6,9 +6,11 @@ import {
   changeSummary,
   defaultSaveSummary,
   panelChanges,
+  queryChanged,
   rebasePanel,
   type Change,
 } from "./changes"
+import { sameJson } from "./draft"
 
 const gridPos = { x: 0, y: 0, w: 6, h: 4 }
 
@@ -127,6 +129,67 @@ describe("panelChanges", () => {
     expect(labels(panel(), panel({ title: "  Requests " }))).toEqual([])
   })
 
+  it("names a valueless extra step as a threshold change", () => {
+    const base = panel({
+      thresholds: [{ color: "ok" }, { value: 80, color: "warning" }],
+    })
+    const draft = panel({
+      thresholds: [
+        { color: "ok" },
+        { value: 80, color: "warning" },
+        { color: "critical" },
+      ],
+    })
+    expect(panelChanges(base, draft)).toEqual([
+      { key: "thresholds", label: "thresholds" },
+    ])
+  })
+
+  it("names only the base color when the first step changes color", () => {
+    const base = panel({
+      thresholds: [{ color: "ok" }, { value: 80, color: "warning" }],
+    })
+    const draft = panel({
+      thresholds: [{ color: "critical" }, { value: 80, color: "warning" }],
+    })
+    expect(labels(base, draft)).toEqual(["base color"])
+  })
+
+  it("treats a first step that has a value like any other step", () => {
+    const base = panel({ thresholds: [{ value: 10, color: "ok" }] })
+    const draft = panel({ thresholds: [{ value: 20, color: "ok" }] })
+    expect(labels(base, draft)).toEqual(["ok threshold"])
+  })
+
+  it("ignores an explicit ref that equals the default", () => {
+    const base = panel({ queries: [{ query: "a" }, { query: "b" }] })
+    const draft = panel({
+      queries: [
+        { ref: "A", query: "a" },
+        { ref: "B", query: "b" },
+      ],
+    })
+    expect(panelChanges(base, draft)).toEqual([])
+  })
+
+  it("reports queries that only swapped their refs", () => {
+    const base = panel({
+      queries: [
+        { ref: "A", query: "up" },
+        { ref: "B", query: "up" },
+      ],
+    })
+    const draft = panel({
+      queries: [
+        { ref: "B", query: "up" },
+        { ref: "A", query: "up" },
+      ],
+    })
+    expect(panelChanges(base, draft)).toEqual([
+      { key: "queries", label: "queries" },
+    ])
+  })
+
   it("reports the canvas case as two changes", () => {
     const base = panel({
       thresholds: [{ color: "ok" }, { value: 80, color: "warning" }],
@@ -217,6 +280,18 @@ describe("panelChanges", () => {
     }
   })
 
+  it("falls back to the key for a key named like an Object member", () => {
+    const draft = { ...panel(), constructor: 1 } as unknown as DataPanel
+    expect(panelChanges(panel(), draft)).toEqual([
+      { key: "constructor", label: "constructor" },
+    ])
+    expect(
+      panelChanges(panel(), panel({ display: { constructor: 1 } })).map(
+        (change) => change.label
+      )
+    ).toEqual(["constructor"])
+  })
+
   it("labels other top-level keys in sorted order and falls back to the key", () => {
     const draft = {
       ...panel(),
@@ -231,6 +306,102 @@ describe("panelChanges", () => {
       "futureKey",
       "time shift",
     ])
+  })
+})
+
+describe("queryChanged", () => {
+  it("ignores the ref, which matching queries share anyway", () => {
+    expect(queryChanged({ query: "a" }, { ref: "A", query: "a" })).toBe(false)
+  })
+
+  it("sees a change to any other field", () => {
+    expect(queryChanged({ query: "a" }, { query: "b" })).toBe(true)
+    expect(queryChanged({ query: "a" }, { query: "a", legend: "x" })).toBe(true)
+    expect(queryChanged({ query: "a" }, { query: "a", hide: true })).toBe(true)
+  })
+})
+
+describe("panelChanges against the JSON", () => {
+  function random(seed: number) {
+    let state = seed
+    return () => {
+      state = (state + 0x6d2b79f5) | 0
+      let t = Math.imul(state ^ (state >>> 15), 1 | state)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+
+  const start = (): DataPanel =>
+    panel({
+      title: "CPU",
+      unit: "percent",
+      queries: [{ query: "a" }, { ref: "B", query: "b" }],
+      thresholds: [
+        { color: "ok" },
+        { value: 50, color: "warning" },
+        { value: 80, color: "#ff0000" },
+      ],
+      display: { legend: "bottom", tooltip: "all" },
+    } as Partial<DataPanel>)
+
+  const mutations: ((p: DataPanel) => void)[] = [
+    (p) => (p.title = `${p.title} `),
+    (p) => (p.title = ` ${p.title}`),
+    (p) => (p.title = "Other"),
+    (p) => (p.unit = "bytes"),
+    (p) => delete p.unit,
+    (p) => (p.type = "stat"),
+    (p) => (p.datasource = "other"),
+    (p) => (p.queries = p.queries.slice().reverse()),
+    (p) => (p.queries[0] = { ...p.queries[0], ref: "A" }),
+    (p) => (p.queries[1] = { query: "b" }),
+    (p) => (p.queries[0] = { ...p.queries[0], legend: "x" }),
+    (p) => p.queries.push({ ref: "C", query: "c" }),
+    (p) => p.queries.pop(),
+    (p) => p.thresholds?.push({ color: "critical" }),
+    (p) => p.thresholds?.push({ value: 90, color: "critical" }),
+    (p) => p.thresholds?.reverse(),
+    (p) => delete p.thresholds,
+    (p) => (p.thresholds = []),
+    (p) => (p.thresholds = [{ color: "info" }]),
+    (p) => (p.thresholds = [{ value: 5, color: "info" }]),
+    (p) => p.thresholds && (p.thresholds[1] = { value: 51, color: "warning" }),
+    (p) => p.thresholds && (p.thresholds[2] = { value: 80, color: "#00ff00" }),
+    (p) => (p.display = { ...p.display, legend: "right" }),
+    (p) => delete p.display,
+    (p) => (p.display = {}),
+    (p) => (p.description = "d"),
+    (p) => (p.decimals = 2),
+  ]
+
+  const normalized = (p: DataPanel) => ({
+    ...p,
+    title: p.title.trim(),
+    queries: p.queries.map((query, index) => ({
+      ...query,
+      ref: query.ref ?? String.fromCharCode(65 + index),
+    })),
+  })
+
+  it("is empty exactly when the panels are the same JSON apart from title trimming and default refs", () => {
+    const next = random(156)
+    const seen = { same: 0, different: 0 }
+    for (let round = 0; round < 3000; round++) {
+      const draft = start()
+      const count = Math.floor(next() * 4)
+      for (let i = 0; i < count; i++) {
+        mutations[Math.floor(next() * mutations.length)](draft)
+      }
+      const same = sameJson(normalized(start()), normalized(draft))
+      seen[same ? "same" : "different"]++
+      expect(
+        panelChanges(start(), draft).length === 0,
+        JSON.stringify(draft)
+      ).toBe(same)
+    }
+    expect(seen.same).toBeGreaterThan(100)
+    expect(seen.different).toBeGreaterThan(100)
   })
 })
 
@@ -288,6 +459,25 @@ describe("rebasePanel", () => {
     const result = rebasePanel(base, draft, latest)
     expect("unit" in result).toBe(false)
     expect(result.title).toBe("Theirs")
+  })
+
+  it("treats a title that only gained whitespace as unchanged", () => {
+    const base = panel({ title: "CPU" })
+    const draft = panel({ title: "CPU ", unit: "bytes" })
+    const latest = panel({ title: "CPU usage" })
+    expect(labels(base, draft)).toEqual(["unit"])
+    const result = rebasePanel(base, draft, latest)
+    expect(result.title).toBe("CPU usage")
+    expect((result as DataPanel).unit).toBe("bytes")
+  })
+
+  it("keeps the latest queries when the draft only made refs explicit", () => {
+    const base = panel({ queries: [{ query: "a" }] })
+    const draft = panel({ queries: [{ ref: "A", query: "a" }], unit: "bytes" })
+    const latest = panel({ queries: [{ query: "a2" }] })
+    expect((rebasePanel(base, draft, latest) as DataPanel).queries).toEqual([
+      { query: "a2" },
+    ])
   })
 
   it("does not change the inputs", () => {

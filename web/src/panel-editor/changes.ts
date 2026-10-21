@@ -92,6 +92,45 @@ function queriesOf(panel: Fields): PanelQuery[] {
   return Array.isArray(panel.queries) ? (panel.queries as PanelQuery[]) : []
 }
 
+function withoutRef(query: PanelQuery): Fields {
+  const rest: Fields = { ...query }
+  delete rest.ref
+  return rest
+}
+
+export function queryChanged(base: PanelQuery, draft: PanelQuery): boolean {
+  return !sameJson(withoutRef(base), withoutRef(draft))
+}
+
+function sameQueries(a: unknown, b: unknown): boolean {
+  if (!Array.isArray(a) || !Array.isArray(b)) return sameJson(a, b)
+  const before = a as PanelQuery[]
+  const after = b as PanelQuery[]
+  return (
+    before.length === after.length &&
+    before.every(
+      (query, index) =>
+        queryRef(query, index) === queryRef(after[index], index) &&
+        !queryChanged(query, after[index])
+    )
+  )
+}
+
+const sameValueOf = new Map<string, (a: unknown, b: unknown) => boolean>([
+  ["title", (a, b) => sameJson(trimmed(a), trimmed(b))],
+  ["queries", sameQueries],
+])
+
+function changedTopKeys(base: Fields, draft: Fields): string[] {
+  return sortedUnion(base, draft).filter(
+    (key) => !(sameValueOf.get(key) ?? sameJson)(base[key], draft[key])
+  )
+}
+
+function orKey(key: string, changes: Change[]): Change[] {
+  return changes.length > 0 ? changes : [{ key, label: key }]
+}
+
 function queryChanges(base: Fields, draft: Fields): Change[] {
   const baseQueries = queriesOf(base)
   const draftQueries = queriesOf(draft)
@@ -127,8 +166,8 @@ function queryChanges(base: Fields, draft: Fields): Change[] {
       })
     }
     const options = (value: PanelQuery) => {
-      const rest: Fields = { ...value }
-      for (const key of ["ref", "query", "legend", "datasource"]) {
+      const rest = withoutRef(value)
+      for (const key of ["query", "legend", "datasource"]) {
         delete rest[key]
       }
       return rest
@@ -210,7 +249,12 @@ export function panelChanges(
 ): Change[] {
   const before: Fields = { ...base }
   const after: Fields = { ...draft }
-  const changes = queryChanges(before, after)
+  const changed = new Set(changedTopKeys(before, after))
+  const changes: Change[] = []
+
+  if (changed.has("queries")) {
+    changes.push(...orKey("queries", queryChanges(before, after)))
+  }
 
   const simple: [string, string][] = [
     ["datasource", "datasource"],
@@ -220,17 +264,18 @@ export function panelChanges(
     ["content", "content"],
   ]
   for (const [key, label] of simple) {
-    const normalize = key === "title" ? trimmed : (value: unknown) => value
-    if (!sameJson(normalize(before[key]), normalize(after[key]))) {
-      changes.push({ key, label })
-    }
+    if (changed.has(key)) changes.push({ key, label })
   }
 
-  changes.push(...thresholdChanges(before, after))
-  changes.push(...displayChanges(before, after))
+  if (changed.has("thresholds")) {
+    changes.push(...orKey("thresholds", thresholdChanges(before, after)))
+  }
+  if (changed.has("display")) {
+    changes.push(...orKey("display", displayChanges(before, after)))
+  }
 
-  for (const key of sortedUnion(before, after)) {
-    if (!coveredKeys.has(key) && !sameJson(before[key], after[key])) {
+  for (const key of changed) {
+    if (!coveredKeys.has(key)) {
       changes.push({ key, label: labelFor(fieldLabels, key) })
     }
   }
@@ -270,8 +315,7 @@ export function rebasePanel(
   const before: Fields = { ...base }
   const after: Fields = { ...draft }
   const result: Fields = { ...structuredClone(latest) }
-  for (const key of sortedUnion(before, after)) {
-    if (sameJson(before[key], after[key])) continue
+  for (const key of changedTopKeys(before, after)) {
     if (Object.hasOwn(after, key)) result[key] = structuredClone(after[key])
     else delete result[key]
   }
