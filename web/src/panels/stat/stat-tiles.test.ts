@@ -103,7 +103,7 @@ describe("statTiles", () => {
   it.each([
     ["reqps", 256, "256", "req/s"],
     ["bytes", 1536, "1.5", "KiB"],
-    ["percent", 42, "42%", ""],
+    ["percent", 42, "42", "%"],
     ["prefix:$", 3, "$3", ""],
     ["short", 7, "7", ""],
   ])("splits the %s unit from the amount", (unit, value, amount, suffix) => {

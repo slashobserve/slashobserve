@@ -91,6 +91,7 @@ export const StatPanel: PanelRenderer = ({
     [tiles, display.colorMode, theme]
   )
   const background = display.colorMode === "background"
+  const anyFilled = background && tiles.some((tile) => tile.color !== null)
   const textMode = display.textMode
   const showText = textMode !== "none"
   const nameAsValue = textMode === "name"
@@ -99,7 +100,7 @@ export const StatPanel: PanelRenderer = ({
 
   return (
     <div
-      className={cn("grid gap-2 overflow-auto", background && "p-2 pt-0")}
+      className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
       style={{ width, height, ...gridFor(display.orientation) }}
     >
       {tiles.map((tile, index) => {
@@ -168,13 +169,13 @@ export const StatPanel: PanelRenderer = ({
               </span>
             ) : null}
             {showText ? (
-              <div className="flex shrink-0 items-baseline gap-1.5 px-3">
+              <div className="flex shrink-0 items-baseline gap-1.5 px-3 leading-none">
                 {linkedPrimary ? (
                   <a
                     {...anchorProps(linkedPrimary)}
                     data-stat-value=""
                     title={linkedPrimary.title}
-                    aria-label={`${primary}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
+                    aria-label={`${primary}${unit ? ` ${unit}` : ""}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
                     className={cn(
                       valueClass,
                       "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"

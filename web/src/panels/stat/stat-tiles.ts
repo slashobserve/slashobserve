@@ -1,8 +1,9 @@
-import { commonDecimals } from "@/lib/units"
+import { commonDecimals, formatValueParts } from "@/lib/units"
 import type { WireField } from "@/panels/frames"
 import {
   displayValue,
   fieldRange,
+  type DisplayValue,
   type FieldResolver,
 } from "@/panels/field-config"
 import { reduce } from "@/panels/reducers"
@@ -38,13 +39,19 @@ export type StatTile = {
   links: Link[]
 }
 
-const trailingUnit = /^(-?[\d.,]+) (\D+)$/
-
-function splitUnit(text: string, mapped: boolean) {
-  const match = mapped ? null : trailingUnit.exec(text)
-  return match
-    ? { amount: match[1], unit: match[2] }
-    : { amount: text, unit: "" }
+function amountAndUnit(
+  shown: DisplayValue,
+  unit: string | undefined,
+  decimals: number | undefined
+) {
+  if (shown.mapped || shown.numeric === null) {
+    return { amount: shown.text, unit: "" }
+  }
+  const parts = formatValueParts(shown.numeric, unit, decimals)
+  return {
+    amount: `${parts.prefix}${parts.amount}`,
+    unit: parts.suffix.trim(),
+  }
 }
 
 function sparkline(frame: PreparedFrame, field: WireField): [number, number][] {
@@ -110,7 +117,7 @@ export function statTiles(
       labels: frame.labels,
       value,
       text: shown.text,
-      ...splitUnit(shown.text, shown.mapped),
+      ...amountAndUnit(shown, config.unit, config.decimals ?? decimals),
       color: shown.color,
       threshold: shown.threshold,
       points: sparkline(frame, field),
