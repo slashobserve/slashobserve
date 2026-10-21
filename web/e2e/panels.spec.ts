@@ -11,9 +11,15 @@ import { expect, test } from "./fixtures"
 
 const rpsTitle = "Checkout requests per second"
 
-async function createOverview(request: APIRequestContext) {
+async function createOverview(request: APIRequestContext, tooltip?: "all") {
   const spec = loadSpec("overview")
   spec.title = uniqueTitle("E2E panels")
+  if (tooltip) {
+    const rps = (spec.panels as Record<string, unknown>[]).find(
+      (panel) => panel.id === "rps"
+    )
+    rps!.display = { tooltip }
+  }
   const { id } = await createDashboard(request, spec)
   return id
 }
@@ -93,7 +99,7 @@ test("shows a crosshair tooltip and toggles series", async ({
   page,
   request,
 }) => {
-  const id = await createOverview(request)
+  const id = await createOverview(request, "all")
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
@@ -135,6 +141,7 @@ test("keeps the tooltip inside a short panel with many series", async ({
         },
       ],
       unit: "reqps",
+      display: { tooltip: "all" },
     },
   ]
   const { id } = await createDashboard(request, spec)
