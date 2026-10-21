@@ -285,3 +285,74 @@ func TestRegexPatternsArriveVerbatim(t *testing.T) {
 		})
 	}
 }
+
+func statWithSteps(t *testing.T, steps string) spec.Panel {
+	t.Helper()
+	panel, _ := convertedPanel(t, panelDoc("stat", upTarget+`,"fieldConfig":{"defaults":{"thresholds":{"mode":"absolute","steps":[`+steps+`]}},"overrides":[]}`))
+	return panel
+}
+
+func TestFirstThresholdStepIsTheBaseWhateverItsValue(t *testing.T) {
+	cases := []struct{ name, steps string }{
+		{"null base", `{"color":"green","value":null},{"color":"red","value":80}`},
+		{"base with a value", `{"color":"green","value":10},{"color":"red","value":80}`},
+		{"unsorted", `{"color":"red","value":80},{"color":"green","value":10}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := thresholdText(statWithSteps(t, tc.steps).Thresholds)
+			if want := []string{"ok", "critical@80"}; !slices.Equal(got, want) {
+				t.Fatalf("thresholds = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestLegacyGraphThresholdsKeepTheirOrderBelowTheFirstValue(t *testing.T) {
+	panel, _ := graphPanel(t, `"thresholds":[
+		{"colorMode":"warning","op":"gt","value":50},
+		{"colorMode":"critical","op":"gt","value":90}]`)
+	if got, want := thresholdText(panel.Thresholds), []string{"warning@50", "critical@90"}; !slices.Equal(got, want) {
+		t.Fatalf("thresholds = %v, want %v", got, want)
+	}
+}
+
+func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
+	const colors = `"colors":["#299c46","rgba(237, 129, 40, 0.89)","#d44a3a"]`
+	cases := []struct {
+		name, members string
+		want          []string
+	}{
+		{"two levels", colors + `,"thresholds":"50,80"`, []string{"ok", "warning@50", "critical@80"}},
+		{"empty levels keep the first color as the base", colors + `,"thresholds":""`, []string{"ok"}},
+		{"missing levels keep the first color as the base", colors, []string{"ok"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, _ := singlestatPanel(t, tc.members)
+			if got := thresholdText(panel.Thresholds); !slices.Equal(got, tc.want) {
+				t.Fatalf("thresholds = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSinglestatWithoutASparklineShowsNoGraph(t *testing.T) {
+	cases := []struct {
+		name, members string
+		wantGraph     bool
+	}{
+		{"no sparkline key", `"valueName":"avg"`, false},
+		{"sparkline off", `"sparkline":{"show":false}`, false},
+		{"sparkline on", `"sparkline":{"show":true}`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, _ := singlestatPanel(t, tc.members)
+			graph := panel.Display == nil || panel.Display.Graph == nil || *panel.Display.Graph
+			if graph != tc.wantGraph {
+				t.Fatalf("graph = %v, want %v (display %+v)", graph, tc.wantGraph, panel.Display)
+			}
+		})
+	}
+}

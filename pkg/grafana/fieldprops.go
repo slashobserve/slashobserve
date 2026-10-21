@@ -313,6 +313,9 @@ func (b *panelBuild) thresholdSteps(raw any, s propSite) []spec.Threshold {
 
 func (b *panelBuild) finishThresholds(steps []thresholdStep, path func(int) string) []spec.Threshold {
 	slices.SortStableFunc(steps, compareSteps)
+	if len(steps) > 0 {
+		steps[0].value = nil
+	}
 	var out []spec.Threshold
 	var last *float64
 	for k, step := range steps {

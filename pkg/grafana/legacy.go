@@ -239,7 +239,7 @@ func (b *panelBuild) graphLegendAndTooltip() {
 func (b *panelBuild) graphThresholds(p *spec.FieldProps) {
 	items, _ := asArray(b.raw["thresholds"])
 	b.consume("thresholds")
-	var steps []thresholdStep
+	steps := []thresholdStep{{index: -1, color: "transparent"}}
 	for i, item := range items {
 		t, _ := asObject(item)
 		path := fmt.Sprintf("thresholds[%d]", i)
@@ -250,7 +250,7 @@ func (b *panelBuild) graphThresholds(p *spec.FieldProps) {
 		}
 		steps = append(steps, thresholdStep{index: i, value: &value, color: legacyThresholdColor(t)})
 	}
-	if len(steps) == 0 {
+	if len(steps) == 1 {
 		return
 	}
 	p.Thresholds = b.finishThresholds(steps, func(i int) string { return fmt.Sprintf("thresholds[%d]", i) })
@@ -480,10 +480,13 @@ func (b *panelBuild) singlestatThresholds(p *spec.FieldProps) {
 	text := strings.TrimSpace(asString(b.raw["thresholds"]))
 	colors := stringList(b.raw["colors"])
 	b.consume("thresholds", "colors")
-	if text == "" || len(colors) == 0 {
+	if len(colors) == 0 {
 		return
 	}
-	levels := strings.Split(text, ",")
+	var levels []string
+	if text != "" {
+		levels = strings.Split(text, ",")
+	}
 	var steps []thresholdStep
 	for i, color := range colors {
 		step := thresholdStep{index: i, color: color}
@@ -516,10 +519,9 @@ func (b *panelBuild) singlestatColors(d *spec.Display) {
 	default:
 		d.ColorMode = "none"
 	}
-	if sparkline, ok := asObject(b.raw["sparkline"]); ok {
-		graph := flagOr(sparkline, "show", false)
-		d.Graph = &graph
-	}
+	sparkline, _ := asObject(b.raw["sparkline"])
+	graph := flagOr(sparkline, "show", false)
+	d.Graph = &graph
 }
 
 func (b *panelBuild) singlestatMappings(p *spec.FieldProps) {
