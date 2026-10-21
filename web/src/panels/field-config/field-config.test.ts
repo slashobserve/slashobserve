@@ -243,6 +243,16 @@ describe("field config resolution", () => {
     )
   })
 
+  it("keeps a label token that names an inherited property as written", () => {
+    const f = frame([time, value()], { labels: { pod: "a" } })
+    const resolver = createFieldResolver(
+      panel({ displayName: "${__field.labels.constructor}" })
+    )
+    expect(resolver.displayName(f, f.fields[1])).toBe(
+      "${__field.labels.constructor}"
+    )
+  })
+
   it("lets an override set the display name", () => {
     const f = frame([time, value()], { labels: { pod: "a" } })
     const resolver = createFieldResolver(

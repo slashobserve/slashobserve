@@ -75,6 +75,18 @@ describe("link interpolation", () => {
     )
   })
 
+  it("keeps the token when the row index is out of range", () => {
+    const frame: WireFrame = {
+      ref: "A",
+      fields: [{ name: "route", type: "string", values: ["/a", "/b"] }],
+    }
+    for (const index of [2, -1]) {
+      expect(
+        href("/r?x=${__data.fields.route}", { row: { frame, index } })
+      ).toBe("/r?x=${__data.fields.route}")
+    }
+  })
+
   it("reads a field of the row by its display name", () => {
     const frame: WireFrame = {
       ref: "A",
@@ -148,6 +160,11 @@ describe("link safety", () => {
     expect(href("JaVaScRiPt:alert(1)")).toBeUndefined()
     expect(href(" java\tscript:alert(1)")).toBeUndefined()
     expect(href("data:text/html,x")).toBeUndefined()
+  })
+
+  it("drops a URL that cannot be parsed instead of throwing", () => {
+    expect(() => href("http://[")).not.toThrow()
+    expect(href("http://[")).toBeUndefined()
   })
 
   it("drops a URL whose variable builds a javascript scheme", () => {
