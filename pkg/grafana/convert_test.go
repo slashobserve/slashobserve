@@ -499,3 +499,56 @@ func TestPlainLegendOptionsReportNothing(t *testing.T) {
 		})
 	}
 }
+
+func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
+	series := func(custom, options string) string {
+		return panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{"custom":{`+custom+`}},"overrides":[]},"options":{`+options+`}`)
+	}
+	override := func(typ, property string) string {
+		return panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"unit","value":"bytes"},`+property+`]}]}`)
+	}
+	cases := []struct {
+		name, doc string
+		silent    bool
+	}{
+		{"points never", series(`"showPoints":"never"`, ""), true},
+		{"points always", series(`"showPoints":"always"`, ""), false},
+		{"line width 2", series(`"lineWidth":2`, ""), true},
+		{"line width 3", series(`"lineWidth":3`, ""), false},
+		{"tooltip sorted descending", series("", `"tooltip":{"mode":"single","sort":"desc"}`), true},
+		{"tooltip sorted ascending", series("", `"tooltip":{"mode":"single","sort":"asc"}`), false},
+		{"legend width", series("", `"legend":{"displayMode":"list","placement":"right","width":300}`), true},
+		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
+		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), false},
+		{"stat centered", panelDoc("stat", upTarget+`,"options":{"justifyMode":"center"}`), true},
+		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
+		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
+		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},
+		{"legacy legend width", panelDoc("graph", upTarget+`,"legend":{"show":true,"rightSide":true,"sideWidth":350}`), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := convertedPanel(t, tc.doc)
+			if quiet := line.Status == statusImported && len(line.Paths) == 0; quiet != tc.silent {
+				t.Fatalf("status %s, paths %v, want silent = %v", line.Status, line.Paths, tc.silent)
+			}
+		})
+	}
+}
+
+func TestOptionsThatChangeMeaningAreAlwaysReported(t *testing.T) {
+	cases := []struct{ name, doc string }{
+		{"span nulls", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{"custom":{"spanNulls":true}},"overrides":[]}`)},
+		{"cumulative tooltip values", panelDoc("graph", upTarget+`,"tooltip":{"shared":true,"value_type":"cumulative"}`)},
+		{"negative-Y transform", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.transform","value":"negative-Y"}]}]}`)},
+		{"query interval", panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up","interval":"$interval"}]`)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := convertedPanel(t, tc.doc)
+			if line.Status != statusPartial || len(line.Paths) == 0 {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+		})
+	}
+}

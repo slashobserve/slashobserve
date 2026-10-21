@@ -350,7 +350,7 @@ func (b *panelBuild) leaf(path string, v any) {
 			return
 		}
 	}
-	if b.isConsumed(path) || isGrafanaDefault(b.typ, path, v) {
+	if b.isConsumed(path) || isGrafanaDefault(b.typ, path, v) || isCosmetic(path, v) {
 		return
 	}
 	b.partial(path, "")

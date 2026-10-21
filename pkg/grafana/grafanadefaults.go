@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -142,6 +143,50 @@ var partialReasons = map[string]string{
 	"options.minVizWidth":                           "Size limits are not kept.",
 	"options.showThresholdLabels":                   "Threshold labels are not shown.",
 	"fieldConfig.defaults.color":                    "This color scheme is not supported yet; series use the default palette.",
+}
+
+type cosmeticOption struct {
+	values []any
+	why    string
+}
+
+var cosmeticOptions = map[string]cosmeticOption{
+	"fieldConfig.defaults.custom.showPoints": {
+		values: []any{"never"},
+		why:    "timeseries marks only isolated samples (points.show is false with an isolatedPoints filter), never one marker per sample",
+	},
+	"fieldConfig.defaults.custom.lineWidth": {
+		values: []any{2},
+		why:    "timeseries draws every series line 2px wide",
+	},
+	"options.tooltip.sort": {
+		values: []any{"desc"},
+		why:    "the timeseries tooltip always lists its rows by descending value",
+	},
+	"options.legend.width": {
+		why: "the timeseries legend is a wrapping strip under the plot and has no width",
+	},
+	"legend.sideWidth": {
+		why: "the timeseries legend is a wrapping strip under the plot and has no width",
+	},
+	"fieldConfig.defaults.custom.width": {
+		why: "table columns are sized by the browser from their content and have no fixed width",
+	},
+	"options.justifyMode": {
+		values: []any{"center"},
+		why:    "stat tiles always center their value and text",
+	},
+	"fieldConfig.overrides[].__systemRef": {
+		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",
+	},
+}
+
+func isCosmetic(path string, value any) bool {
+	option, ok := cosmeticOptions[normalizePath(path)]
+	if !ok {
+		return false
+	}
+	return len(option.values) == 0 || slices.ContainsFunc(option.values, func(v any) bool { return sameJSON(value, v) })
 }
 
 var indexPattern = regexp.MustCompile(`\[[0-9]+\]`)

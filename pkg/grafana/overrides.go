@@ -68,8 +68,13 @@ func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path str
 		report: fmt.Sprintf("%s.properties[%d]", path, j),
 		whole:  true,
 	}
-	handler, ok := propHandlers[asString(prop["id"])]
+	id := asString(prop["id"])
+	handler, ok := propHandlers[id]
 	if !ok {
+		if isCosmetic("fieldConfig.defaults."+id, prop["value"]) {
+			b.consume(site.report)
+			return
+		}
 		b.partial(site.report, "")
 		return
 	}
