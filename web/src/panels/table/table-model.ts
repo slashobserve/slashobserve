@@ -63,7 +63,8 @@ type Draft = {
   name: string
   type: ColumnType
   source: ColumnSource
-  contributors: ColumnSource[]
+  feeders: ColumnSource[]
+  headFromConfig: boolean
 }
 
 type Built = { drafts: Draft[]; rows: TableRow[] }
@@ -97,7 +98,11 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
           name: "Query",
           type: "string",
           source: { frame: frames[0], field: stringField("Query") },
-          contributors: [],
+          headFromConfig: false,
+          feeders: frames.map((frame) => ({
+            frame,
+            field: stringField("Query"),
+          })),
         },
       ]
     : []
@@ -118,12 +123,13 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
           name: field.name,
           type: field.type,
           source: { frame, field },
-          contributors: [],
+          headFromConfig: true,
+          feeders: [],
         }
         byKey.set(key, draft)
         drafts.push(draft)
       }
-      draft.contributors.push({ frame, field })
+      draft.feeders.push({ frame, field })
       return key
     })
     const count = Math.max(0, ...frame.fields.map((f) => f.values.length))
@@ -162,7 +168,10 @@ function labeledTable(frames: PreparedFrame[]): Built {
     name: key,
     type: "string",
     source: { frame, field: stringField(key) },
-    contributors: [],
+    headFromConfig: false,
+    feeders: frames
+      .filter((candidate) => Object.hasOwn(candidate.labels ?? {}, key))
+      .map((candidate) => ({ frame: candidate, field: stringField(key) })),
   }))
   const valueDrafts = new Map<string, Draft>()
   for (const frame of frames) {
@@ -175,12 +184,13 @@ function labeledTable(frames: PreparedFrame[]): Built {
           name: field.name,
           type: field.type,
           source: { frame, field },
-          contributors: [],
+          headFromConfig: true,
+          feeders: [],
         }
         valueDrafts.set(field.name, draft)
         drafts.push(draft)
       }
-      draft.contributors.push({ frame, field })
+      draft.feeders.push({ frame, field })
     }
   }
   const rows = frames.map((frame, frameIndex): TableRow => {
@@ -235,14 +245,24 @@ function rangeOf(
 }
 
 function headerOf(draft: Draft, fields: FieldResolver): string {
+  if (!draft.headFromConfig) return draft.name
   const names = new Set(
-    draft.contributors.map(({ frame, field }) =>
+    draft.feeders.map(({ frame, field }) =>
       fields.configFor(frame, field).displayName === undefined
         ? field.name
         : fields.displayName(frame, field)
     )
   )
   return names.size === 1 ? [...names][0] : draft.name
+}
+
+function shownSource(
+  draft: Draft,
+  fields: FieldResolver
+): ColumnSource | undefined {
+  return draft.feeders.find(
+    ({ frame, field }) => !fields.configFor(frame, field).hidden
+  )
 }
 
 function decimalsByUnit(
@@ -303,16 +323,17 @@ export function tableModel(
   const columns: TableColumn[] = []
   const columnValues: unknown[][] = []
   for (const draft of drafts) {
-    const { frame, field } = draft.source
+    const source = shownSource(draft, fields)
+    if (!source) continue
+    const { frame, field } = source
     const config = fields.configFor(frame, field)
-    if (config.hidden) continue
     const values = rows.map((row) => row.values[draft.key])
     const column: TableColumn = {
       key: draft.key,
       label: headerOf(draft, fields),
       type: draft.type,
       config,
-      source: draft.source,
+      source,
       decimals: new Map(),
       range: rangeOf(field, values),
     }

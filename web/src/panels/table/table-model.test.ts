@@ -99,6 +99,34 @@ describe("table columns", () => {
     expect(labels(model)).toEqual(["route", "n"])
   })
 
+  describe.each([
+    ["A then B", ["A", "B"]],
+    ["B then A", ["B", "A"]],
+  ])("with query A hidden (%s)", (_, order) => {
+    const frames = () =>
+      order.map((ref) => frame([number([ref === "A" ? 1 : 2], "n")], { ref }))
+    const hideA = {
+      overrides: [{ match: { query: "A" }, hidden: true, decimals: 3 }],
+    }
+
+    it("keeps a column another query still shows", () => {
+      const { model } = build(frames(), hideA)
+      expect(labels(model)).toEqual(["Query", "n"])
+    })
+
+    it("takes the footer config of the query that shows the column", () => {
+      const { model } = build(frames(), hideA, { footer: ["sum"] })
+      expect(model.footer).toEqual([{ label: "Total", cells: [null, "3"] }])
+    })
+
+    it("drops the column once every query hides it", () => {
+      const { model } = build(frames(), {
+        overrides: [{ match: { field: "n" }, hidden: true }],
+      })
+      expect(labels(model)).toEqual(["Query"])
+    })
+  })
+
   it("heads an unlabeled column with its display name when the config sets one", () => {
     const { model } = build([frame([text(["x"], "route"), number([1], "n")])], {
       overrides: [{ match: { field: "n" }, displayName: "Requests" }],
