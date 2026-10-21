@@ -85,7 +85,7 @@ export function nextRef(queries: readonly PanelQuery[]): string {
   }
 }
 
-function withPanel(state: EditorDraft, panel: EditablePanel): EditorDraft {
+function withDraftPanel(state: EditorDraft, panel: EditablePanel): EditorDraft {
   return { ...state, panel }
 }
 
@@ -96,7 +96,7 @@ function editData(
   if (!isDataPanel(state.panel)) return state
   const panel = structuredClone(state.panel)
   edit(panel)
-  return withPanel(state, panel)
+  return withDraftPanel(state, panel)
 }
 
 function editQuery(
@@ -120,9 +120,7 @@ function addQuery(panel: DataPanel) {
 
 function removeQuery(panel: DataPanel, index: number) {
   panel.queries.forEach((query, i) => {
-    if (i > index && query.ref === undefined) {
-      query.ref = queryRef(query, i)
-    }
+    if (i > index) query.ref = queryRef(query, i)
   })
   panel.queries.splice(index, 1)
 }
@@ -130,7 +128,7 @@ function removeQuery(panel: DataPanel, index: number) {
 function setDisplay(panel: DataPanel, key: string, value: unknown) {
   const display: Record<string, unknown> = { ...panel.display }
   if (value === undefined) delete display[key]
-  else display[key] = value
+  else display[key] = structuredClone(value)
   if (Object.keys(display).length === 0) delete panel.display
   else panel.display = display
 }
@@ -203,7 +201,7 @@ export function draftReducer(
     case "setTitle": {
       const panel = structuredClone(state.panel)
       panel.title = action.title
-      return withPanel(state, panel)
+      return withDraftPanel(state, panel)
     }
     case "setDisplay":
       return editData(state, (panel) =>
@@ -213,12 +211,12 @@ export function draftReducer(
       if (state.panel.type !== "text") return state
       const panel = structuredClone(state.panel)
       panel.content = action.content
-      return withPanel(state, panel)
+      return withDraftPanel(state, panel)
     }
     case "replace":
-      return withPanel(state, structuredClone(action.panel))
+      return withDraftPanel(state, structuredClone(action.panel))
     case "reset":
-      return withPanel(state, structuredClone(state.base))
+      return withDraftPanel(state, structuredClone(state.base))
     case "rebase":
       return startDraft(action.version, action.panel)
   }

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import type { DataPanel, PanelQuery, TextPanel } from "@/spec"
+import {
+  dataPanelTypes,
+  type DataPanel,
+  type PanelQuery,
+  type TextPanel,
+} from "@/spec"
+
+import schemaText from "../../../spec/schema/observespec.v0.json?raw"
 
 import {
   displayKeysFor,
@@ -276,6 +283,17 @@ describe("setThresholds", () => {
     expect((state.panel as DataPanel).thresholds).toEqual(steps)
   })
 
+  it("stores a copy, so editing the caller's steps leaves the draft alone", () => {
+    const given = [{ color: "ok" }, { value: 80, color: "warning" }]
+    const state = apply(dataPanel(), {
+      type: "setThresholds",
+      thresholds: given,
+    })
+    given[1].value = 99
+    given.push({ value: 100, color: "critical" })
+    expect((state.panel as DataPanel).thresholds).toEqual(steps)
+  })
+
   it("removes thresholds for null and for an empty list", () => {
     const withSteps = apply(dataPanel({ thresholds: steps }))
     for (const thresholds of [null, []]) {
@@ -308,6 +326,19 @@ describe("setDisplay", () => {
       value: "all",
     })
     expect((state.panel as DataPanel).display).toEqual({ tooltip: "all" })
+  })
+
+  it("stores a copy, so editing the caller's value leaves the draft alone", () => {
+    const given = ["mean", "max"]
+    const state = apply(dataPanel(), {
+      type: "setDisplay",
+      key: "legendValues",
+      value: given,
+    })
+    given.push("min")
+    expect((state.panel as DataPanel).display).toEqual({
+      legendValues: ["mean", "max"],
+    })
   })
 
   it("removes an emptied display object", () => {
@@ -416,12 +447,37 @@ describe("immutability", () => {
 })
 
 describe("displayKeysFor", () => {
-  it("lists the display keys of the schema per type", () => {
-    expect(displayKeysFor("timeseries")).toEqual([
-      "legend",
-      "legendValues",
-      "tooltip",
-    ])
-    expect(displayKeysFor("logs")).toEqual(["wrap", "showTime", "order"])
+  type Schema = {
+    $defs: {
+      dataPanel: {
+        allOf: {
+          if?: { properties: { type: { const: string } } }
+          then?: { properties: { display: { properties: object } } }
+        }[]
+      }
+    }
+  }
+  const schema = JSON.parse(schemaText) as Schema
+  const schemaKeys = new Map(
+    schema.$defs.dataPanel.allOf.flatMap((rule) =>
+      rule.if && rule.then
+        ? [
+            [
+              rule.if.properties.type.const,
+              Object.keys(rule.then.properties.display.properties).sort(),
+            ] as const,
+          ]
+        : []
+    )
+  )
+
+  it("lists the display keys of the schema for all ten panel types", () => {
+    expect(dataPanelTypes).toHaveLength(10)
+    expect([...schemaKeys.keys()].sort()).toEqual([...dataPanelTypes].sort())
+    for (const type of dataPanelTypes) {
+      expect([...displayKeysFor(type)].sort(), type).toEqual(
+        schemaKeys.get(type)
+      )
+    }
   })
 })
