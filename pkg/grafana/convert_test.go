@@ -440,6 +440,14 @@ func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 	}
 }
 
+func TestUnknownReducerLeavesTheStatPartial(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"options":{"reduceOptions":{"calcs":["bogus"]}}`))
+	const reason = "The reducer bogus is not supported yet."
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.reduceOptions.calcs"}) || !slices.Equal(line.Reasons, []string{reason}) {
+		t.Fatalf("status %s, paths %v, reasons %v, want partial with %q", line.Status, line.Paths, line.Reasons, reason)
+	}
+}
+
 func TestSinglestatWithoutASparklineShowsNoGraph(t *testing.T) {
 	cases := []struct {
 		name, members string
