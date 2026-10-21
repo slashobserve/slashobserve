@@ -21,11 +21,18 @@ type Args = {
   enabled: boolean
 }
 
+const rangePanelTypes: readonly string[] = [
+  "timeseries",
+  "heatmap",
+  "state-timeline",
+  "histogram",
+]
+
 export function maxDataPointsFor(
   panel: Panel,
   pixelWidth: number
 ): number | undefined {
-  if (panel.type !== "timeseries") return undefined
+  if (!rangePanelTypes.includes(panel.type)) return undefined
   const bucketed = Math.ceil(pixelWidth / 100) * 100
   return Math.min(Math.max(bucketed, 100), 1100)
 }

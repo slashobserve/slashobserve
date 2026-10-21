@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { panelRenderers } from "@/panels"
+import { isRenderable } from "@/panels"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { useSetDashboardSearch } from "./search"
@@ -74,7 +74,7 @@ export function PanelMenu({
       },
     })
   }
-  if (data && panel.type !== "table" && panelRenderers[panel.type]) {
+  if (data && panel.type !== "table" && isRenderable(panel.type)) {
     items.push({
       id: "table-view",
       label: tableView ? "View as chart" : "View as table",

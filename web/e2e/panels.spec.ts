@@ -342,3 +342,60 @@ test("labels each query's series with its own legend", async ({
   await expect(legendButton(two, "all")).toBeVisible()
   await expect(legendButton(two, "job")).toBeVisible()
 })
+
+async function createLinks(request: APIRequestContext) {
+  const spec = loadSpec("links")
+  spec.title = uniqueTitle("E2E links")
+  const { id } = await createDashboard(request, spec)
+  return id
+}
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test.describe(`links in ${colorScheme}`, () => {
+    test.use({ colorScheme })
+
+    test("shows panel links with variables and drops unsafe ones", async ({
+      page,
+      request,
+    }) => {
+      const id = await createLinks(request)
+      await openDashboard(page, id)
+      const rps = panel(page, rpsTitle)
+      await expect(rps).toHaveAttribute("data-state", "ready")
+
+      await rps
+        .getByRole("button", { name: `Panel links: ${rpsTitle}` })
+        .click()
+      await expect(
+        page.getByRole("menuitem", { name: "Explore prod" })
+      ).toHaveAttribute("href", /\/dashboards\?q=prod$/)
+      await expect(page.getByRole("menuitem", { name: "Bad" })).toHaveCount(0)
+    })
+
+    test("shows dashboard links", async ({ page, request }) => {
+      const id = await createLinks(request)
+      await openDashboard(page, id)
+      const link = page
+        .getByRole("navigation", { name: "Dashboard links" })
+        .getByRole("link", { name: "Runbook" })
+      await expect(link).toHaveAttribute("target", "_blank")
+      await expect(link).toHaveAttribute("href", /env=prod/)
+    })
+
+    test("shows the panel's noValue text when a query returns nothing", async ({
+      page,
+      request,
+    }) => {
+      const id = await createLinks(request)
+      await page.route("**/panels/p_none/data**", async (route) => {
+        const response = await route.fetch()
+        const body = (await response.json()) as Record<string, unknown>
+        await route.fulfill({ response, json: { ...body, frames: [] } })
+      })
+      await openDashboard(page, id)
+      const empty = panel(page, "Nothing here")
+      await expect(empty).toHaveAttribute("data-state", "empty")
+      await expect(empty.getByText("Nothing yet")).toBeVisible()
+    })
+  })
+}

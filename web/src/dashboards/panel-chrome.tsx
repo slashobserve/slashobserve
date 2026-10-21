@@ -1,13 +1,21 @@
 import { useId, type ReactNode } from "react"
 import {
   CircleAlertIcon,
+  ExternalLinkIcon,
   InfoIcon,
+  LinkIcon,
   LoaderCircleIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -15,8 +23,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { panelTitle, type LayoutPanel } from "@/spec"
+import type { ResolvedLink } from "@/panels/field-config"
+import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
+import { anchorProps } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { VariableLoadError } from "./variables"
 
@@ -61,6 +71,7 @@ type Props = {
   staleError?: unknown
   onRetry?: () => void
   badge?: ReactNode
+  links?: ResolvedLink[]
   menu?: ReactNode
   datasourceLabel?: string
   editing?: boolean
@@ -77,6 +88,7 @@ export function PanelChrome({
   staleError,
   onRetry,
   badge,
+  links = [],
   menu,
   datasourceLabel,
   editing = false,
@@ -165,6 +177,36 @@ export function PanelChrome({
             </Tooltip>
           ) : null}
           {badge}
+          {links.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground"
+                    aria-label={`Panel links: ${title}`}
+                  />
+                }
+              >
+                <LinkIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-max">
+                {links.map((link, index) => (
+                  <DropdownMenuItem
+                    key={`${index}:${link.href}`}
+                    render={<a {...anchorProps(link)} />}
+                    className="justify-between gap-3"
+                  >
+                    {link.title}
+                    {link.newTab ? (
+                      <ExternalLinkIcon aria-hidden="true" className="size-3" />
+                    ) : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
           {menu}
         </div>
       </header>
@@ -176,7 +218,7 @@ export function PanelChrome({
         ) : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
-            No data
+            {isDataPanel(panel) ? (panel.noValue ?? "No data") : "No data"}
           </div>
         ) : null}
         {state === "error" ? (

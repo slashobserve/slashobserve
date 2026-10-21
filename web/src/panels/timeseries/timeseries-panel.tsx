@@ -21,7 +21,7 @@ import {
   type SeriesStyle,
 } from "../colors"
 import { legendFor } from "../frames"
-import { TablePanel } from "../table-panel"
+import { TablePanel } from "../table/table-panel"
 import { thresholdColor } from "../thresholds"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { alignFrames, type AlignedFrames } from "./align"
@@ -420,3 +420,5 @@ export const TimeseriesPanel: PanelRenderer = (props) => {
   }
   return <TimeseriesChart {...props} aligned={aligned} />
 }
+
+export default TimeseriesPanel

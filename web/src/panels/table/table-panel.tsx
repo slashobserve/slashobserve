@@ -12,8 +12,8 @@ import { formatTimeValue } from "@/lib/time"
 import { commonDecimals, formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
-import { toTable, type TableColumn } from "./frames"
-import type { PanelRenderer } from "./types"
+import { toTable, type TableColumn } from "../frames"
+import type { PanelRenderer } from "../types"
 
 const maxRows = 1000
 
@@ -167,3 +167,5 @@ export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
     </div>
   )
 }
+
+export default TablePanel

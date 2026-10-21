@@ -2,9 +2,9 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { firstNumberSeries, legendFor } from "./frames"
-import { thresholdFor, thresholdIcons } from "./thresholds"
-import type { PanelRenderer } from "./types"
+import { firstNumberSeries, legendFor } from "../frames"
+import { thresholdFor, thresholdIcons } from "../thresholds"
+import type { PanelRenderer } from "../types"
 
 export const BargaugePanel: PanelRenderer = ({
   panel,
@@ -110,3 +110,5 @@ export const BargaugePanel: PanelRenderer = ({
     </div>
   )
 }
+
+export default BargaugePanel
