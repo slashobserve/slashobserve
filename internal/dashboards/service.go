@@ -83,7 +83,7 @@ func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal,
 		dash, ver, err := s.Create(ctx, by, rawSpec, summary)
 		return dash, ver, false, err
 	}
-	if dash, ver, found, err := s.createdByRequest(ctx, requestID); err != nil || found {
+	if dash, ver, found, err := s.CreatedByRequest(ctx, requestID); err != nil || found {
 		return dash, ver, found, err
 	}
 	dash, ver, err := s.create(ctx, by, rawSpec, summary, requestID)
@@ -97,7 +97,7 @@ type ImportHook func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver
 
 func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID, hook ImportHook) (Dashboard, Version, []spec.Issue, bool, error) {
 	if requestID.Valid {
-		if dash, ver, found, err := s.createdByRequest(ctx, requestID); err != nil || found {
+		if dash, ver, found, err := s.CreatedByRequest(ctx, requestID); err != nil || found {
 			return dash, ver, nil, found, err
 		}
 	}
@@ -125,7 +125,7 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec
 }
 
 func (s *Service) replayedCreate(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	dash, ver, found, err := s.createdByRequest(ctx, requestID)
+	dash, ver, found, err := s.CreatedByRequest(ctx, requestID)
 	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
@@ -136,10 +136,6 @@ func (s *Service) replayedCreate(ctx context.Context, requestID pgtype.UUID) (Da
 }
 
 func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
-	return s.createdByRequest(ctx, requestID)
-}
-
-func (s *Service) createdByRequest(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	dash, ver, found, err := s.store.savedByRequest(ctx, requestID, pgtype.UUID{})
 	if err != nil || !found {
 		return Dashboard{}, Version{}, false, err
