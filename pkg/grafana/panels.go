@@ -92,9 +92,16 @@ func (l *issueLog) report() (paths, reasons []string) {
 	paths = append([]string{}, l.paths...)
 	reasons = append([]string{}, l.reasons...)
 	if len(l.omitted) > 0 {
-		reasons = append(reasons, fmt.Sprintf("+%d more options were not imported", len(l.omitted)))
+		reasons = append(reasons, notImportedReason(len(l.omitted), "option", "options"))
 	}
 	return paths, reasons
+}
+
+func notImportedReason(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 more %s was not imported.", one)
+	}
+	return fmt.Sprintf("%d more %s were not imported.", n, many)
 }
 
 type builtPanel struct {
@@ -234,11 +241,11 @@ func placeholderPanel(n *panelNode, reason string) *builtPanel {
 		line.Paths = append(line.Paths, "gridPos")
 	}
 	targets, _ := asArray(n.raw["targets"])
-	if len(targets) > maxPanelPaths {
+	if unlisted := visibleBeyondPathCap(targets); unlisted > 0 {
 		line.Paths = append(line.Paths, "targets")
-		line.Reasons = append(line.Reasons, unlistedQueriesReason(len(targets)-maxPanelPaths))
-		targets = targets[:maxPanelPaths]
+		line.Reasons = append(line.Reasons, unlistedQueriesReason(unlisted))
 	}
+	targets = targets[:min(len(targets), maxPanelPaths)]
 	for _, item := range targets {
 		target, _ := asObject(item)
 		line.Queries = append(line.Queries, QueryLine{

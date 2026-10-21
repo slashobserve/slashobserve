@@ -225,7 +225,7 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 	if line.Status != statusPartial || len(line.Paths) != 100 {
 		t.Fatalf("status %s with %d paths, want partial with the cap of 100", line.Status, len(line.Paths))
 	}
-	if want := fmt.Sprintf("+%d more options were not imported", leaves+1); !slices.Contains(line.Reasons, want) {
+	if want := fmt.Sprintf("%d more options were not imported.", leaves+1); !slices.Contains(line.Reasons, want) {
 		t.Fatalf("reasons = %v, want %q: the override past the cap is one path reported twice", line.Reasons, want)
 	}
 	if len(line.Reasons) != 2 {
@@ -235,17 +235,22 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 
 func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 	empty := func(n int) string { return strings.Repeat("{},", n) }
+	hidden := func(n int) string { return strings.Repeat(`{"hide":true},`, n) }
 	const million = 1_000_000
 	const hundredThousand = 100_000
 	cases := []struct {
 		name, typ, list string
 		targets         int
 		wantUp          bool
-		wantUnlisted    int
+		wantReason      string
 	}{
-		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, million - 101},
-		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
-		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
+		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, fmt.Sprintf("%d more queries were not imported.", million-101)},
+		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"one visible target past the cap", "timeseries", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
+		{"one visible target past the cap of a placeholder panel", "barchart", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
+		{"hidden targets past the cap are not counted", "timeseries", `[{"refId":"Z","expr":"up","noSuchKey":1},` + empty(99) + hidden(4) + `{"hide":true}]`, 105, true, ""},
+		{"hidden targets past the cap of a placeholder panel are not counted", "barchart", "[" + empty(100) + hidden(4) + `{"hide":true}]`, 105, false, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,15 +263,12 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 			if len(line.Queries) > 100 {
 				t.Fatalf("the panel lists %d queries, want at most 100", len(line.Queries))
 			}
+			if len(line.Paths) > 100 {
+				t.Fatalf("the panel lists %d paths, want at most 100", len(line.Paths))
+			}
 			report, err := json.Marshal(res.Report)
 			if err != nil || len(report) > 100_000 {
 				t.Fatalf("the report takes %d bytes (err %v), want at most 100000", len(report), err)
-			}
-			if !slices.Contains(line.Paths, "targets") {
-				t.Fatalf("paths = %v, want the rest reported once on targets", line.Paths)
-			}
-			if want := fmt.Sprintf("%d more queries were not imported.", tc.wantUnlisted); !slices.Contains(line.Reasons, want) {
-				t.Fatalf("reasons = %v, want %q", line.Reasons, want)
 			}
 			if tc.wantUp {
 				entry, _ := res.Spec.FindPanel("p1")
@@ -274,6 +276,23 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 				if len(queries) != 1 || queries[0].Query != "up" || queries[0].Ref != "Z" {
 					t.Fatalf("queries = %+v, want the one valid target kept with its ref", queries)
 				}
+			}
+			if tc.wantReason == "" {
+				for _, reason := range line.Reasons {
+					if strings.Contains(reason, "more ") {
+						t.Fatalf("reasons = %v, want no count of hidden targets", line.Reasons)
+					}
+				}
+				if slices.Contains(line.Paths, "targets") {
+					t.Fatalf("paths = %v, want no path for hidden targets", line.Paths)
+				}
+				return
+			}
+			if !slices.Contains(line.Paths, "targets") {
+				t.Fatalf("paths = %v, want the rest reported once on targets", line.Paths)
+			}
+			if !slices.Contains(line.Reasons, tc.wantReason) {
+				t.Fatalf("reasons = %v, want %q", line.Reasons, tc.wantReason)
 			}
 		})
 	}
