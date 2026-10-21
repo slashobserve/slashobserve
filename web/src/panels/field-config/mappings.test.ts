@@ -54,6 +54,16 @@ describe("value mappings", () => {
     expect(show(50, mappings)).toMatchObject({ text: "50", mapped: false })
   })
 
+  it("maps a number-like string into a range as parseFloat reads it", () => {
+    const mappings: Mapping[] = [{ range: [500, 599], text: "server error" }]
+    expect(show("503", mappings)).toMatchObject({
+      text: "server error",
+      mapped: true,
+    })
+    expect(show("404", mappings).mapped).toBe(false)
+    expect(show("abc", mappings)).toMatchObject({ text: "abc", mapped: false })
+  })
+
   it("matches a regex and substitutes capture groups", () => {
     const mappings: Mapping[] = [{ regex: "(\\d+)ms", text: "$1 millis" }]
     expect(show("42ms", mappings)).toMatchObject({

@@ -21,6 +21,13 @@ function parsedNumber(text: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function rangeNumber(value: unknown): number | null {
+  if (isFiniteNumber(value)) return value
+  if (typeof value !== "string") return null
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function specialKindOf(value: unknown): SpecialKind | null {
   if (value === null || value === undefined) return "null"
   if (typeof value === "number" && Number.isNaN(value)) return "nan"
@@ -43,10 +50,11 @@ function matchesRange(
   mapping: Extract<Mapping, { range: unknown[] }>,
   value: unknown
 ) {
-  if (!isFiniteNumber(value)) return false
+  const number = rangeNumber(value)
+  if (number === null) return false
   const [from, to] = mapping.range
-  if (isFiniteNumber(from) && value < from) return false
-  if (isFiniteNumber(to) && value > to) return false
+  if (isFiniteNumber(from) && number < from) return false
+  if (isFiniteNumber(to) && number > to) return false
   return true
 }
 
