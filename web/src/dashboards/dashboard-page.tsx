@@ -25,7 +25,7 @@ import { madeByBreadcrumb } from "@/lib/origin"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
-import { panelHasData } from "@/panels/transforms"
+import { panelHasData } from "@/panels/panel-has-data"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -152,17 +152,18 @@ const PanelContainer = memo(function PanelContainer({
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
   })
 
-  const populated = useMemo(
-    () =>
-      dataPanel !== undefined &&
-      query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames),
-    [dataPanel, query.data]
-  )
-
   const fields = useMemo(
     () => (dataPanel ? createFieldResolver(dataPanel) : undefined),
     [dataPanel]
+  )
+
+  const populated = useMemo(
+    () =>
+      dataPanel !== undefined &&
+      fields !== undefined &&
+      query.data !== undefined &&
+      panelHasData(dataPanel, query.data.frames, fields),
+    [dataPanel, fields, query.data]
   )
   const links = useMemo(
     () =>
