@@ -21,7 +21,6 @@ func (b *panelBuild) convertOverrides() {
 	items, _ := asArray(lookupValue(b.raw, "fieldConfig.overrides"))
 	for i, item := range items {
 		path := fmt.Sprintf("fieldConfig.overrides[%d]", i)
-		b.consume(path)
 		override, ok := b.convertOverride(item, path)
 		if ok {
 			b.addOverride(override, path)
@@ -48,6 +47,7 @@ func (b *panelBuild) convertOverride(item any, path string) (spec.Override, bool
 		b.partial(path, "")
 		return spec.Override{}, false
 	}
+	b.consume(path+".matcher.id", path+".matcher.options")
 	var props spec.FieldProps
 	properties, _ := asArray(raw["properties"])
 	for j, item := range properties {
@@ -62,6 +62,7 @@ func (b *panelBuild) convertOverride(item any, path string) (spec.Override, bool
 
 func (b *panelBuild) overrideProperty(props *spec.FieldProps, item any, path string, j int) {
 	prop, _ := asObject(item)
+	b.consume(fmt.Sprintf("%s.properties[%d].id", path, j))
 	site := propSite{
 		value:  fmt.Sprintf("%s.properties[%d].value", path, j),
 		report: fmt.Sprintf("%s.properties[%d]", path, j),

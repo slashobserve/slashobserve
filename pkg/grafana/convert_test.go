@@ -384,3 +384,42 @@ func TestCalculateFieldDefaultsToTotalOfTheRow(t *testing.T) {
 		})
 	}
 }
+
+func TestOverrideKeysWithoutAConversionAreReported(t *testing.T) {
+	override := func(members string) string {
+		return `"fieldConfig":{"defaults":{},"overrides":[{` + members + `}]}`
+	}
+	const matcher = `"matcher":{"id":"byName","options":"errors"}`
+	const unit = `"properties":[{"id":"unit","value":"bytes"}]`
+	cases := []struct {
+		name, members, path string
+	}{
+		{"override key", matcher + `,` + unit + `,"description":"kept by hand"`, "fieldConfig.overrides[0].description"},
+		{"matcher key", `"matcher":{"id":"byName","options":"errors","scope":"series"},` + unit, "fieldConfig.overrides[0].matcher.scope"},
+		{"property key", matcher + `,"properties":[{"id":"unit","value":"bytes","description":"x"}]`, "fieldConfig.overrides[0].properties[0].description"},
+		{"value key", matcher + `,"properties":[{"id":"custom.lineStyle","value":{"fill":"dash","dash":[10,10],"extra":true}}]`, "fieldConfig.overrides[0].properties[0].value.extra"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("timeseries", upTarget+","+override(tc.members)))
+			if len(panel.Overrides) != 1 {
+				t.Fatalf("overrides = %+v, want the convertible part kept", panel.Overrides)
+			}
+			if line.Status != statusPartial || !slices.Equal(line.Paths, []string{tc.path}) {
+				t.Fatalf("status %s, paths %v, want exactly %s", line.Status, line.Paths, tc.path)
+			}
+		})
+	}
+}
+
+func TestFullyConvertedOverrideReportsNothing(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[
+		{"matcher":{"id":"byName","options":"errors"},"properties":[
+			{"id":"unit","value":"bytes"},{"id":"color","value":{"mode":"fixed","fixedColor":"red"}},
+			{"id":"custom.lineStyle","value":{"fill":"dash","dash":[10,10]}},
+			{"id":"custom.hideFrom","value":{"legend":false,"tooltip":false,"viz":true}},
+			{"id":"thresholds","value":{"mode":"absolute","steps":[{"color":"green","value":null}]}}]}]}`))
+	if line.Status != statusImported || len(line.Paths) != 0 {
+		t.Fatalf("status %s, paths %v, reasons %v", line.Status, line.Paths, line.Reasons)
+	}
+}
