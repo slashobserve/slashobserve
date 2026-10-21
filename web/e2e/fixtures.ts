@@ -2,12 +2,16 @@ import { expect, test as base, type Locator, type Page } from "@playwright/test"
 
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: [
-    async ({ page }, use) => {
+    async ({ context }, use) => {
       const errors: string[] = []
-      page.on("console", (message) => {
-        if (message.type() === "error") errors.push(message.text())
-      })
-      page.on("pageerror", (error) => errors.push(error.message))
+      const watch = (page: Page) => {
+        page.on("console", (message) => {
+          if (message.type() === "error") errors.push(message.text())
+        })
+        page.on("pageerror", (error) => errors.push(error.message))
+      }
+      context.pages().forEach(watch)
+      context.on("page", watch)
       await use(errors)
       expect(errors, "browser console errors").toEqual([])
     },
