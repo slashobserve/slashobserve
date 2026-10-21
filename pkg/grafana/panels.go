@@ -72,9 +72,6 @@ func (l *issueLog) mark() issueMark {
 }
 
 func (l *issueLog) rollBack(m issueMark) {
-	for _, path := range l.paths[m.paths:] {
-		delete(l.listed, path)
-	}
 	for _, reason := range l.reasons[m.reasons:] {
 		delete(l.reasonSet, reason)
 	}
