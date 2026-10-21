@@ -19,7 +19,7 @@ import {
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
-import type { LinkScope, ResolvedLink } from "../field-config"
+import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
@@ -76,19 +76,19 @@ function MoreLinks({ links }: { links: ResolvedLink[] }) {
 function BodyCell({
   column,
   row,
+  fields,
   scope,
 }: {
   column: TableColumn
   row: ModelRow
+  fields: FieldResolver
   scope: LinkScope
 }) {
   const value = row.values[column.key]
-  const cell = cellOf(column, value)
-  const [first, ...more] = cellLinks(column, row, cell, scope)
+  const cell = cellOf(fields, column, row)
+  const [first, ...more] = cellLinks(fields, column, row, cell, scope)
   const Icon =
-    cell.word && cell.level && cell.level !== "base"
-      ? thresholdIcons[cell.level]
-      : null
+    cell.level && cell.level !== "base" ? thresholdIcons[cell.level] : null
   const content = (
     <>
       {Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null}
@@ -228,9 +228,9 @@ export const TablePanel: PanelRenderer = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {visible.map((row, index) => (
+          {visible.map((row) => (
             <TableRow
-              key={index}
+              key={row.key}
               className="[contain-intrinsic-size:auto_33px] [content-visibility:auto]"
             >
               {model.columns.map((column) => (
@@ -238,6 +238,7 @@ export const TablePanel: PanelRenderer = ({
                   key={column.key}
                   column={column}
                   row={row}
+                  fields={fields}
                   scope={links}
                 />
               ))}

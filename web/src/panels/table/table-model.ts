@@ -26,12 +26,21 @@ export type TableColumn = {
   type: ColumnType
   config: FieldConfig
   source: ColumnSource
-  options: DisplayOptions
-  colored: boolean
+  decimals: Map<string | undefined, number | undefined>
+  range: Pick<DisplayOptions, "fieldMin" | "fieldMax">
 }
 
 export type RowAt = { frame: PreparedFrame; index: number }
-export type TableRow = { values: Record<string, unknown>; at: RowAt }
+export type RowSource = {
+  frame: PreparedFrame
+  fields: Record<string, PreparedField>
+}
+export type TableRow = {
+  key: string
+  values: Record<string, unknown>
+  at: RowAt
+  source: RowSource
+}
 export type FooterRow = { label: string; cells: (string | null)[] }
 export type TableModel = {
   columns: TableColumn[]
@@ -39,18 +48,22 @@ export type TableModel = {
   footer: FooterRow[]
 }
 
-export type Cell = {
-  text: string
-  color: string | null
-  level: ThresholdLevel | null
-  word: string
-}
+export type Cell = { text: string } & (
+  | { color: null; level: null; word: "" }
+  | { color: string; level: "base"; word: "" }
+  | {
+      color: string
+      level: Exclude<ThresholdLevel, "base">
+      word: string
+    }
+)
 
 type Draft = {
   key: string
   name: string
   type: ColumnType
   source: ColumnSource
+  contributors: ColumnSource[]
 }
 
 type Built = { drafts: Draft[]; rows: TableRow[] }
@@ -84,26 +97,33 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
           name: "Query",
           type: "string",
           source: { frame: frames[0], field: stringField("Query") },
+          contributors: [],
         },
       ]
     : []
-  const known = new Set(drafts.map((draft) => draft.key))
+  const byKey = new Map(drafts.map((draft) => [draft.key, draft]))
   const rows: TableRow[] = []
-  for (const frame of frames) {
+  frames.forEach((frame, frameIndex) => {
     const used = new Set<string>()
+    const sourceFields: Record<string, PreparedField> = {}
     const keys = frame.fields.map((field, index) => {
       let key = `field:${field.name}`
       if (used.has(key)) key = `${key}#${index}`
       used.add(key)
-      if (!known.has(key)) {
-        known.add(key)
-        drafts.push({
+      sourceFields[key] = field
+      let draft = byKey.get(key)
+      if (!draft) {
+        draft = {
           key,
           name: field.name,
           type: field.type,
           source: { frame, field },
-        })
+          contributors: [],
+        }
+        byKey.set(key, draft)
+        drafts.push(draft)
       }
+      draft.contributors.push({ frame, field })
       return key
     })
     const count = Math.max(0, ...frame.fields.map((f) => f.values.length))
@@ -114,9 +134,14 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
       frame.fields.forEach((field, at) => {
         values[keys[at]] = field.values[index] ?? null
       })
-      rows.push({ values, at: { frame, index } })
+      rows.push({
+        key: `${frameIndex}:${index}`,
+        values,
+        at: { frame, index },
+        source: { frame, fields: sourceFields },
+      })
     }
-  }
+  })
   for (const row of rows) {
     for (const draft of drafts) row.values[draft.key] ??= null
   }
@@ -137,23 +162,31 @@ function labeledTable(frames: PreparedFrame[]): Built {
     name: key,
     type: "string",
     source: { frame, field: stringField(key) },
+    contributors: [],
   }))
-  const seen = new Set<string>()
+  const valueDrafts = new Map<string, Draft>()
   for (const frame of frames) {
     for (const field of frame.fields) {
-      if (field.type === "time" || seen.has(field.name)) continue
-      seen.add(field.name)
-      drafts.push({
-        key: `field:${field.name}`,
-        name: field.name,
-        type: field.type,
-        source: { frame, field },
-      })
+      if (field.type === "time") continue
+      let draft = valueDrafts.get(field.name)
+      if (!draft) {
+        draft = {
+          key: `field:${field.name}`,
+          name: field.name,
+          type: field.type,
+          source: { frame, field },
+          contributors: [],
+        }
+        valueDrafts.set(field.name, draft)
+        drafts.push(draft)
+      }
+      draft.contributors.push({ frame, field })
     }
   }
-  const rows = frames.map((frame): TableRow => {
+  const rows = frames.map((frame, frameIndex): TableRow => {
     const values: Record<string, unknown> = {}
     const rowFields: PreparedField[] = []
+    const sourceFields: Record<string, PreparedField> = {}
     for (const key of labelNames) {
       const value = frame.labels?.[key] ?? null
       values[`label:${key}`] = value
@@ -163,10 +196,16 @@ function labeledTable(frames: PreparedFrame[]): Built {
       if (field.type === "time") continue
       const value = lastValue(field) ?? null
       values[`field:${field.name}`] = value
+      sourceFields[`field:${field.name}`] = field
       rowFields.push({ ...field, values: [value] })
     }
     for (const draft of drafts) values[draft.key] ??= null
-    return { values, at: { frame: { ...frame, fields: rowFields }, index: 0 } }
+    return {
+      key: String(frameIndex),
+      values,
+      at: { frame: { ...frame, fields: rowFields }, index: 0 },
+      source: { frame, fields: sourceFields },
+    }
   })
   return { drafts, rows }
 }
@@ -178,21 +217,57 @@ function isColored(config: FieldConfig): boolean {
   )
 }
 
-function optionsFor(
-  draft: Draft,
-  config: FieldConfig,
+export function configAt(
+  fields: FieldResolver,
+  column: Pick<TableColumn, "key" | "config">,
+  row: TableRow
+): FieldConfig {
+  const field = row.source.fields[column.key]
+  return field ? fields.configFor(row.source.frame, field) : column.config
+}
+
+function rangeOf(
+  field: PreparedField,
   values: unknown[]
-): DisplayOptions {
-  if (draft.type !== "number") return {}
-  const numbers = values.map((value) =>
-    typeof value === "number" ? value : null
+): TableColumn["range"] {
+  const { min, max } = fieldRange({ ...field, values })
+  return { fieldMin: min, fieldMax: max }
+}
+
+function headerOf(draft: Draft, fields: FieldResolver): string {
+  const names = new Set(
+    draft.contributors.map(({ frame, field }) =>
+      fields.configFor(frame, field).displayName === undefined
+        ? field.name
+        : fields.displayName(frame, field)
+    )
   )
-  const { min, max } = fieldRange({ ...draft.source.field, values })
-  return {
-    decimals: commonDecimals(numbers, config.unit, config.decimals),
-    fieldMin: min,
-    fieldMax: max,
+  return names.size === 1 ? [...names][0] : draft.name
+}
+
+function decimalsByUnit(
+  fields: FieldResolver,
+  column: TableColumn,
+  rows: TableRow[]
+): TableColumn["decimals"] {
+  const groups = new Map<string | undefined, (number | null)[]>()
+  const decimals = new Map<string | undefined, number | undefined>()
+  for (const row of rows) {
+    const { unit, decimals: fixed } = configAt(fields, column, row)
+    const value = row.values[column.key]
+    const numbers = groups.get(unit) ?? []
+    numbers.push(typeof value === "number" ? value : null)
+    groups.set(unit, numbers)
+    decimals.set(unit, fixed)
   }
+  for (const [unit, numbers] of groups) {
+    decimals.set(unit, commonDecimals(numbers, unit, decimals.get(unit)))
+  }
+  return decimals
+}
+
+function optionsAt(column: TableColumn, config: FieldConfig): DisplayOptions {
+  return { ...column.range, decimals: column.decimals.get(config.unit) }
 }
 
 function footerReducers(display: Record<string, unknown>): Reducer[] {
@@ -214,7 +289,8 @@ function footerText(
     const counted = { ...column.config, unit: undefined, mappings: [] }
     return displayValue(reduced, { ...counted, decimals: 0 }).text
   }
-  return displayValue(reduced, column.config, column.options).text
+  return displayValue(reduced, column.config, optionsAt(column, column.config))
+    .text
 }
 
 export function tableModel(
@@ -233,18 +309,19 @@ export function tableModel(
     const config = fields.configFor(frame, field)
     if (config.hidden) continue
     const values = rows.map((row) => row.values[draft.key])
-    columns.push({
+    const column: TableColumn = {
       key: draft.key,
-      label:
-        config.displayName === undefined
-          ? draft.name
-          : fields.displayName(frame, field),
+      label: headerOf(draft, fields),
       type: draft.type,
       config,
       source: draft.source,
-      options: optionsFor(draft, config, values),
-      colored: isColored(config),
-    })
+      decimals: new Map(),
+      range: rangeOf(field, values),
+    }
+    if (draft.type === "number") {
+      column.decimals = decimalsByUnit(fields, column, rows)
+    }
+    columns.push(column)
     columnValues.push(values)
   }
   const footer = footerReducers(display).map((reducer) => ({
@@ -260,43 +337,51 @@ export function tableModel(
 
 const plain: Cell = { text: "", color: null, level: null, word: "" }
 
-export function cellOf(column: TableColumn, value: unknown): Cell {
+export function cellOf(
+  fields: FieldResolver,
+  column: TableColumn,
+  row: TableRow
+): Cell {
+  const value = row.values[column.key]
   if (column.type === "time" && typeof value === "number") {
     return { ...plain, text: formatTimeValue(String(value)) }
   }
   if (typeof value === "object" && value !== null) {
     return { ...plain, text: JSON.stringify(value) }
   }
-  const shown = displayValue(value, column.config, column.options)
-  if (!column.colored || shown.color === null) {
+  const config = configAt(fields, column, row)
+  const shown = displayValue(value, config, optionsAt(column, config))
+  if (!isColored(config) || shown.color === null) {
     return { ...plain, text: shown.text }
   }
   const { threshold } = shown
-  const byThreshold =
-    threshold.level !== "base" && threshold.color === shown.color
-  return {
-    text: shown.text,
-    color: shown.color,
-    level: byThreshold ? threshold.level : "base",
-    word: byThreshold ? threshold.label : "",
+  if (threshold.level !== "base" && threshold.color === shown.color) {
+    return {
+      text: shown.text,
+      color: shown.color,
+      level: threshold.level,
+      word: threshold.label,
+    }
   }
+  return { text: shown.text, color: shown.color, level: "base", word: "" }
 }
 
 export function cellLinks(
+  fields: FieldResolver,
   column: TableColumn,
   row: TableRow,
   cell: Cell,
   scope: LinkScope
 ): ResolvedLink[] {
-  const links = column.config.links.filter(isDataLink)
+  const links = configAt(fields, column, row).links.filter(isDataLink)
   if (links.length === 0) return []
-  const { frame } = row.at
-  const field = column.source.field
+  const { frame } = row.source
+  const field = row.source.fields[column.key] ?? column.source.field
   const full: LinkScope = {
     ...scope,
     row: row.at,
     labels: frame.labels,
-    seriesName: scope.fields?.seriesName(frame, field),
+    seriesName: fields.seriesName(frame, field),
     fieldName: field.name,
     value: row.values[column.key],
     valueText: cell.text,
