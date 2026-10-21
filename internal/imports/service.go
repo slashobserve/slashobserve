@@ -148,6 +148,7 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 	var inserted dbsqlc.InsertImportRow
 	hook := func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
 		result.Verify(issues)
+		replaceNULInReasons(&result.Report)
 		params, err := insertParams(req, cols, result.Report, dash, ver, by)
 		if err != nil {
 			return err
@@ -352,6 +353,18 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 		return columns{}, &dashboards.InvalidSpecError{Issues: issues}
 	}
 	return cols, nil
+}
+
+func replaceNULInReasons(report *grafana.Report) {
+	clean := func(s string) string { return strings.ReplaceAll(s, "\x00", "\uFFFD") }
+	for i := range report.Panels {
+		for j, reason := range report.Panels[i].Reasons {
+			report.Panels[i].Reasons[j] = clean(reason)
+		}
+	}
+	for i := range report.Notes {
+		report.Notes[i].Reason = clean(report.Notes[i].Reason)
+	}
 }
 
 func insertParams(req Request, cols columns, report grafana.Report, dash dashboards.Dashboard, ver dashboards.Version, by auth.Principal) (dbsqlc.InsertImportParams, error) {

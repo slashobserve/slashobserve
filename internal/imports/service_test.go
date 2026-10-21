@@ -73,6 +73,15 @@ func frames(q datasource.Query) ([]datasource.Frame, error) {
 	}}}, nil
 }
 
+type nulErrorStub struct{ promStub }
+
+func (nulErrorStub) VariableValues(_ context.Context, q datasource.Query, _ datasource.TimeRange) ([]string, error) {
+	if strings.Contains(q.Text, brokenQuery) {
+		return nil, fmt.Errorf("%w: bad label a\x00b", datasource.ErrInvalidQuery)
+	}
+	return []string{"v"}, nil
+}
+
 type blockingStub struct {
 	promStub
 	entered chan struct{}
@@ -452,6 +461,34 @@ func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
 	metas, _, err := r.imports.List(t.Context(), 0, "")
 	if err != nil || len(metas) != 1 || metas[0].Version != 1 || metas[0].Counts != stored.Report.Counts {
 		t.Fatalf("list: %+v, %v", metas, err)
+	}
+}
+
+func TestAnImportReplacesANULFromADatasourceErrorInTheReason(t *testing.T) {
+	r := newRigWith(t, nulErrorStub{})
+	body := grafanaWithVariables("Shop", "prom", "label_values("+brokenQuery+", pod)")
+	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "bad label a\uFFFDb"
+	reasonOf := func(report grafana.Report) string {
+		for _, n := range report.Notes {
+			if n.Subject == "variable v0" {
+				return n.Reason
+			}
+		}
+		return ""
+	}
+	if reason := reasonOf(got.Record.Report); !strings.Contains(reason, want) || strings.ContainsRune(reason, 0) {
+		t.Fatalf("reason on the import = %q, want it to hold %q", reason, want)
+	}
+	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reason := reasonOf(stored.Report); !strings.Contains(reason, want) {
+		t.Fatalf("stored reason = %q, want it to hold %q", reason, want)
 	}
 }
 
