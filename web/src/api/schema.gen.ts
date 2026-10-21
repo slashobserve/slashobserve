@@ -758,7 +758,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a Grafana dashboard without saving it or running any query.
-         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
+         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
          */
         post: operations["previewImport"];
         delete?: never;
@@ -3294,6 +3294,15 @@ export interface operations {
             413: components["responses"]["TooLarge"];
             /** @description The JSON is not a Grafana dashboard the importer accepts (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`) or the mapping is wrong (`invalid_mapping`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller already has 2 previews in flight, or the instance has 4 (`too_many_imports`). */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

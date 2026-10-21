@@ -291,7 +291,7 @@ func TestAFailingHookRollsTheSaveBack(t *testing.T) {
 
 func TestPreviewWritesNothing(t *testing.T) {
 	r := newRig(t)
-	result, err := r.imports.Preview(t.Context(), imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
+	result, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestPreviewWritesNothing(t *testing.T) {
 
 func TestPreviewReturnsInputErrors(t *testing.T) {
 	r := newRig(t)
-	_, err := r.imports.Preview(t.Context(), imports.Request{JSON: []byte(`not json`)})
+	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: []byte(`not json`)})
 	var input *grafana.InputError
 	if !errors.As(err, &input) {
 		t.Fatalf("err = %v, want InputError", err)
@@ -597,7 +597,7 @@ func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	r := newRig(t)
 	var input *grafana.InputError
-	_, err := r.imports.Preview(t.Context(), imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
+	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
 	if !errors.As(err, &input) || input.Code != "too_large" {
 		t.Fatalf("large body: err = %v, want InputError too_large", err)
 	}
@@ -605,7 +605,7 @@ func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	for i := range imports.MaxMappingEntries + 1 {
 		mapping[fmt.Sprintf("key%d", i)] = "prom"
 	}
-	_, err = r.imports.Preview(t.Context(), imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
+	_, err = r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
 	if !errors.As(err, &input) || input.Code != "invalid_mapping" {
 		t.Fatalf("large mapping: err = %v, want InputError invalid_mapping", err)
 	}

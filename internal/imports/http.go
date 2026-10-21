@@ -158,7 +158,7 @@ func (h *Handler) preview(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.svc.Preview(c.Request.Context(), req)
+	result, err := h.svc.Preview(c.Request.Context(), httpapi.Caller(c), req)
 	if err != nil {
 		h.fail(c, "preview import", err)
 		return

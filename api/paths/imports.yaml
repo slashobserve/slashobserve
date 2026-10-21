@@ -7,6 +7,7 @@ imports-preview:
       `ready` is false while a source datasource has no match; `spec` is then null.
       `report.verified` is always false because no query runs.
       A body above 8 MiB answers 413 `too_large`.
+      A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`.
       A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
     requestBody:
       required: true
@@ -29,6 +30,12 @@ imports-preview:
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
         description: The JSON is not a Grafana dashboard the importer accepts (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`) or the mapping is wrong (`invalid_mapping`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "429":
+        description: The caller already has 2 previews in flight, or the instance has 4 (`too_many_imports`).
         content:
           application/json:
             schema:
