@@ -1099,6 +1099,17 @@ PY
   [[ "$out" == 200 ]] && import_check "d['ready'] is True" || fail "a valid dashboard padded to 6.5 MB should preview ($out: $(head -c 300 "$TMP/api.body"))"
   pass "a valid dashboard of about 6.5 MB previews, so the body bound sits above the import limit"
 
+  python3 - "$demo" "$TMP/import-nul-uid.json" <<'PY'
+import json, sys
+dashboard = json.load(open(sys.argv[1]))
+dashboard["uid"] = "a\x00b"
+json.dump({"json": json.dumps(dashboard)}, open(sys.argv[2], "w"))
+PY
+  out="$(api POST /imports --data-binary "@$TMP/import-nul-uid.json")"
+  [[ "$out" == 422 ]] && import_check "d['code'] == 'invalid_spec' and [i['path'] for i in d['issues']] == ['/summary/uid']" \
+    || fail "a Grafana uid with a NUL character should be refused as an invalid spec ($out: $(head -c 400 "$TMP/api.body"))"
+  pass "an import whose Grafana uid holds a NUL character is refused with invalid_spec at /summary/uid"
+
   out="$(command curl -sS --max-time 10 -o "$TMP/api.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"json": "{}"}' "$BASE_URL/api/v1/imports/preview")"
   [[ "$out" == 401 ]] || fail "an unauthenticated preview should be refused ($out)"
   pass "previewing without signing in is refused"
