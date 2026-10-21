@@ -444,11 +444,14 @@ func (b *panelBuild) assignQueries() {
 		line := &b.lines[bq.index]
 		line.Ref = ptr(refs[k])
 		line.Datasource = ptr(bq.src.uid())
-		if bq.refID != "" {
+		if bq.refID == "" {
+			continue
+		}
+		if _, mapped := b.refs[bq.refID]; !mapped {
 			b.refs[bq.refID] = refs[k]
-			if refs[k] != bq.refID {
-				line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s -> %s", bq.refID, refs[k]))
-			}
+		}
+		if refs[k] != bq.refID {
+			line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s -> %s", bq.refID, refs[k]))
 		}
 	}
 }

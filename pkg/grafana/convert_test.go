@@ -181,3 +181,20 @@ func TestTimeGroupIntervalUnitsAreNotGuessedFromTheirPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestOverrideByRefIDFollowsTheFirstQueryOfADuplicatedRefID(t *testing.T) {
+	panel, line := convertedPanel(t, panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up"},{"refId":"A","expr":"down"}],
+		"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byFrameRefID","options":"A"},"properties":[{"id":"unit","value":"bytes"}]}]}`))
+	if len(panel.Overrides) != 1 {
+		t.Fatalf("overrides = %+v", panel.Overrides)
+	}
+	ref := panel.Overrides[0].Match.Query
+	for i := range panel.Queries {
+		if panel.QueryRef(i) == ref && panel.Queries[i].Query != "up" {
+			t.Fatalf("the override targets %s, which runs %q, want the first query", ref, panel.Queries[i].Query)
+		}
+	}
+	if !slices.Contains(line.Queries[1].Rewrites, "refId A -> B") {
+		t.Fatalf("rewrites of the second query = %v", line.Queries[1].Rewrites)
+	}
+}
