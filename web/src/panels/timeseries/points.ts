@@ -1,23 +1,32 @@
 import type uPlot from "uplot"
 
+function nearestPresent(
+  values: ArrayLike<number | null | undefined>,
+  start: number,
+  step: 1 | -1
+): number | null | undefined {
+  for (let at = start; at >= 0 && at < values.length; at += step) {
+    const value = values[at]
+    if (value !== undefined) return value
+  }
+  return undefined
+}
+
 export function isolatedIndices(
   values: ArrayLike<number | null | undefined>,
   from: number,
   to: number
 ): number[] {
-  const present: number[] = []
-  for (let index = 0; index < values.length; index++) {
-    if (values[index] !== undefined) present.push(index)
-  }
-  const joined = (index: number | undefined) =>
-    index !== undefined && typeof values[index] === "number"
   const indices: number[] = []
-  present.forEach((index, position) => {
-    if (index < from || index > to || typeof values[index] !== "number") return
-    if (!joined(present[position - 1]) && !joined(present[position + 1])) {
+  const last = Math.min(to, values.length - 1)
+  for (let index = Math.max(from, 0); index <= last; index++) {
+    if (typeof values[index] !== "number") continue
+    const before = nearestPresent(values, index - 1, -1)
+    const after = nearestPresent(values, index + 1, 1)
+    if (typeof before !== "number" && typeof after !== "number") {
       indices.push(index)
     }
-  })
+  }
   return indices
 }
 
