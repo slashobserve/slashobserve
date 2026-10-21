@@ -325,7 +325,7 @@ export function tableModel(
   const footer = footerReducers(display).map((reducer) => ({
     label: reducerLabels[reducer],
     cells: columns.map((column, index) =>
-      column.type === "number"
+      column.type === "number" && column.decimals.size <= 1
         ? footerText(column, columnValues[index], reducer)
         : null
     ),

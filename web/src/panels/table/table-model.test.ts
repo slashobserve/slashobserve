@@ -175,6 +175,21 @@ describe("table footer", () => {
     ])
   })
 
+  it("leaves the footer empty over a column that mixes units", () => {
+    const { model } = build(
+      [
+        frame([number([90], "n")], { ref: "A" }),
+        frame([number([2048], "n")], { ref: "B" }),
+      ],
+      {
+        unit: "s",
+        overrides: [{ match: { query: "B" }, unit: "bytes" }],
+      },
+      { footer: ["sum"] }
+    )
+    expect(model.footer).toEqual([{ label: "Total", cells: [null, null] }])
+  })
+
   it("counts rows without the column unit", () => {
     const { model } = build(
       [
