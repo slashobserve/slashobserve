@@ -2,6 +2,7 @@ import { lazy, type LazyExoticComponent } from "react"
 
 import type { DataPanelType } from "@/spec"
 
+import { guardLoad } from "./renderer-load"
 import type {
   PanelRenderer,
   RendererManifest,
@@ -35,8 +36,8 @@ export const staticRenderers: Partial<
 for (const manifest of rendererManifests.values()) {
   if (!manifest.supported) continue
   if (isStaticPanel(manifest))
-    staticRenderers[manifest.type] = lazy(manifest.load)
-  else dataRenderers[manifest.type] = lazy(manifest.load)
+    staticRenderers[manifest.type] = lazy(guardLoad(manifest.load))
+  else dataRenderers[manifest.type] = lazy(guardLoad(manifest.load))
 }
 
 export function isRenderable(type: string): boolean {

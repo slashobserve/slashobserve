@@ -198,6 +198,44 @@ test("switches between chart and table view", async ({ page, request }) => {
   await expect(rps.locator("canvas")).toHaveCount(1)
 })
 
+test("keeps other panels working when a renderer chunk fails and reloads on retry", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E chunk failure")
+  spec.panels = spec.panels.filter((item) => item.type !== "table")
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+
+  const chunk = "**/assets/table-panel-*.js"
+  await page.route(chunk, (route) => route.abort())
+  const rps = panel(page, rpsTitle)
+  await rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
+  await page.getByRole("menuitem", { name: "View as table" }).click()
+  await expect(rps.getByText("Could not load this panel")).toBeVisible()
+
+  const stat = panel(page, "Checkout error rate")
+  await expect(stat).toHaveAttribute("data-state", "ready")
+  await expect(stat.getByText(/%$/)).toBeVisible()
+  await expect(panel(page, "Requests by pod").getByRole("meter")).toHaveCount(2)
+
+  await page.unroute(chunk)
+  await Promise.all([
+    page.waitForEvent("load"),
+    rps.getByRole("button", { name: "Retry" }).click(),
+  ])
+  await expectPanelsReady(page)
+  await panel(page, rpsTitle)
+    .getByRole("button", { name: `Panel menu: ${rpsTitle}` })
+    .click()
+  await page.getByRole("menuitem", { name: "View as table" }).click()
+  await expect(
+    panel(page, rpsTitle).getByRole("columnheader", { name: "pod" })
+  ).toBeVisible()
+})
+
 test("renders in dark mode without leaking canvases", async ({
   page,
   request,

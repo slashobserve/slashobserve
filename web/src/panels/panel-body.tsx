@@ -7,6 +7,7 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 import { createFieldResolver, type FieldResolver } from "./field-config"
 import { dataRenderers, staticRenderers } from "./index"
 import { PanelSkeleton } from "./panel-skeleton"
+import { RendererBoundary } from "./renderer-boundary"
 import { prepareFrames } from "./transforms"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
@@ -78,27 +79,30 @@ export function PanelBody({
     () => linkScopeFor({ vars, from, to, fields, meta: data.meta }),
     [vars, from, to, fields, data.meta]
   )
-  const Renderer = dataRenderers[asTable ? "table" : panel.type]
+  const type = asTable ? "table" : panel.type
+  const Renderer = dataRenderers[type]
   return (
-    <Suspense fallback={<PanelSkeleton />}>
-      {Renderer ? (
-        <Renderer
-          panel={panel}
-          frames={frames}
-          fields={fields}
-          display={display}
-          meta={data.meta}
-          width={width}
-          height={height}
-          syncKey={syncKey}
-          onTimeRangeSelect={onTimeRangeSelect}
-          links={links}
-          ghostFrames={ghostFrames}
-        />
-      ) : (
-        <Unsupported />
-      )}
-    </Suspense>
+    <RendererBoundary key={type}>
+      <Suspense fallback={<PanelSkeleton />}>
+        {Renderer ? (
+          <Renderer
+            panel={panel}
+            frames={frames}
+            fields={fields}
+            display={display}
+            meta={data.meta}
+            width={width}
+            height={height}
+            syncKey={syncKey}
+            onTimeRangeSelect={onTimeRangeSelect}
+            links={links}
+            ghostFrames={ghostFrames}
+          />
+        ) : (
+          <Unsupported />
+        )}
+      </Suspense>
+    </RendererBoundary>
   )
 }
 
@@ -110,12 +114,14 @@ export function StaticPanelBody({
 }: StaticPanelProps) {
   const Renderer = staticRenderers[panel.type]
   return (
-    <Suspense fallback={<PanelSkeleton />}>
-      {Renderer ? (
-        <Renderer panel={panel} width={width} height={height} vars={vars} />
-      ) : (
-        <Unsupported />
-      )}
-    </Suspense>
+    <RendererBoundary>
+      <Suspense fallback={<PanelSkeleton />}>
+        {Renderer ? (
+          <Renderer panel={panel} width={width} height={height} vars={vars} />
+        ) : (
+          <Unsupported />
+        )}
+      </Suspense>
+    </RendererBoundary>
   )
 }

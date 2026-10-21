@@ -1,6 +1,5 @@
 import { useId, type ReactNode } from "react"
 import {
-  CircleAlertIcon,
   ExternalLinkIcon,
   InfoIcon,
   LinkIcon,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { ResolvedLink } from "@/panels/field-config"
+import { errorMessage, PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -57,10 +57,6 @@ export function errorTitle(error: unknown): string {
     return errorTitles[error.code]
   }
   return "Panel failed to load"
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error"
 }
 
 type Props = {
@@ -218,19 +214,11 @@ export function PanelChrome({
           </div>
         ) : null}
         {state === "error" ? (
-          <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
-            <CircleAlertIcon className="size-5 text-destructive" />
-            <p className="text-sm font-medium">{errorTitle(error)}</p>
-            {errorMessage(error).toLowerCase() !==
-            errorTitle(error).toLowerCase() ? (
-              <p className="line-clamp-3 text-xs text-muted-foreground">
-                {errorMessage(error)}
-              </p>
-            ) : null}
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              Retry
-            </Button>
-          </div>
+          <PanelErrorState
+            title={errorTitle(error)}
+            error={error}
+            onRetry={onRetry}
+          />
         ) : null}
         {state === "unsupported" ? (
           <div className="flex size-full items-center justify-center p-3 text-center text-sm text-muted-foreground">
