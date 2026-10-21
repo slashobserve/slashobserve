@@ -88,6 +88,16 @@ export function plotStateFor(
   }
 }
 
+export function ghostsDrawn(
+  series: readonly Pick<ChartSeries, "axis" | "stack">[],
+  ghosts: readonly Cell[][]
+): Cell[][] {
+  const percent = series.some(
+    ({ axis, stack }) => axis === "left" && stack === "percent"
+  )
+  return percent ? [] : [...ghosts]
+}
+
 export function thresholdsFor(
   series: readonly Pick<ChartSeries, "axis" | "config">[],
   left: AxisSettings | undefined,

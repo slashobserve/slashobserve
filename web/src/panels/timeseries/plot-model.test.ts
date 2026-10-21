@@ -6,6 +6,7 @@ import type { FieldConfig } from "../field-config"
 import {
   bandBase,
   chartSeries,
+  ghostsDrawn,
   nearestSpan,
   plotStateFor,
   thresholdsFor,
@@ -125,6 +126,32 @@ describe("plotStateFor", () => {
       [11, 11],
     ])
     expect(state.bands).toEqual([{ series: [3, 2] }])
+  })
+})
+
+describe("ghostsDrawn", () => {
+  const ghosts = [[1, 2]]
+
+  it("keeps the saved lines on a normal left axis", () => {
+    expect(ghostsDrawn([series("a", [1])], ghosts)).toEqual(ghosts)
+    expect(
+      ghostsDrawn([series("a", [1], { stack: "normal" })], ghosts)
+    ).toEqual(ghosts)
+  })
+
+  it("drops them when the left axis is percent-stacked", () => {
+    expect(
+      ghostsDrawn([series("a", [1], { stack: "percent" })], ghosts)
+    ).toEqual([])
+  })
+
+  it("keeps them when only a right axis is percent-stacked", () => {
+    expect(
+      ghostsDrawn(
+        [series("a", [1], { stack: "percent", axis: "right" })],
+        ghosts
+      )
+    ).toEqual(ghosts)
   })
 })
 

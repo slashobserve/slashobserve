@@ -23,6 +23,7 @@ import { LegendTable } from "./legend-table"
 import {
   chartSeries,
   configuredKeys,
+  ghostsDrawn,
   plotStateFor,
   thresholdsFor,
   type ChartSeries,
@@ -393,10 +394,15 @@ function TimeseriesChart({
     .map((entry) => `${entry.key}\u0001${entry.label}`)
     .join("\u0000")
 
+  const ghosts = useMemo(
+    () => ghostsDrawn(series, aligned.ghosts),
+    [series, aligned.ghosts]
+  )
+
   const { state, entries } = useMemo(() => {
     const { state, below, stacked } = plotStateFor(
       aligned.xs,
-      aligned.ghosts,
+      ghosts,
       series,
       hidden
     )
@@ -414,9 +420,9 @@ function TimeseriesChart({
         below: below[index],
       })),
     }
-  }, [aligned, series, hidden])
+  }, [aligned.xs, ghosts, series, hidden])
 
-  const model = modelFor(panel, series, aligned.ghosts.length, options.tooltip)
+  const model = modelFor(panel, series, ghosts.length, options.tooltip)
 
   const cells = useMemo(() => {
     const columns = reducers.map((reducer) =>
@@ -484,7 +490,7 @@ function TimeseriesChart({
     syncKey,
     configsKey,
     displayKey,
-    aligned.ghosts.length,
+    ghosts.length,
     panel.unit,
     panel.decimals,
     panel.min,
@@ -496,7 +502,7 @@ function TimeseriesChart({
   useLayoutEffect(() => {
     const plot = plotRef.current
     if (!plot || appliedRef.current === state) return
-    const first = 1 + aligned.ghosts.length
+    const first = 1 + ghosts.length
     plot.batch(() => {
       series.forEach((entry, index) => {
         const show = !state.hidden.has(entry.key)
@@ -509,7 +515,7 @@ function TimeseriesChart({
       plot.setData(state.data)
     })
     appliedRef.current = state
-  }, [state, series, aligned.ghosts.length])
+  }, [state, series, ghosts.length])
 
   useLayoutEffect(() => {
     const plot = plotRef.current
@@ -559,7 +565,7 @@ function TimeseriesChart({
         aria-label={`${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`}
         data-axes={axisNames.join(" ")}
         data-series={series.length}
-        data-ghosts={aligned.ghosts.length}
+        data-ghosts={ghosts.length}
         data-stack={firstStackMode(series)}
         className="ts-chart shrink-0 overflow-hidden"
         style={{ width: chartWidth, height: chartHeight }}
