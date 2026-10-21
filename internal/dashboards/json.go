@@ -61,7 +61,7 @@ type versionJSON struct {
 	Spec *spec.Dashboard `json:"spec"`
 }
 
-type dashboardVersionJSON struct {
+type DashboardVersionJSON struct {
 	Dashboard dashboardJSON `json:"dashboard"`
 	Version   versionJSON   `json:"version"`
 }
@@ -146,8 +146,8 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 	}
 }
 
-func newDashboardVersionJSON(d Dashboard, v Version) dashboardVersionJSON {
-	return dashboardVersionJSON{
+func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {
+	return DashboardVersionJSON{
 		Dashboard: newDashboardJSON(d),
 		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec},
 	}

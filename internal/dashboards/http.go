@@ -69,7 +69,7 @@ func (s *Service) createDashboard(c *gin.Context) {
 		return
 	}
 	c.Header("Location", "/api/v1/dashboards/"+dash.ID)
-	c.JSON(http.StatusCreated, newDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusCreated, NewDashboardVersionJSON(dash, ver))
 }
 
 func (s *Service) listDashboards(c *gin.Context) {
@@ -146,7 +146,7 @@ func (s *Service) getDashboard(c *gin.Context) {
 		s.fail(c, "get dashboard", err)
 		return
 	}
-	c.JSON(http.StatusOK, newDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 
 func (s *Service) listVersions(c *gin.Context) {
@@ -184,7 +184,7 @@ func (s *Service) getVersion(c *gin.Context) {
 		s.fail(c, "get dashboard version", err)
 		return
 	}
-	c.JSON(http.StatusOK, newDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 
 func (s *Service) addVersion(c *gin.Context) {
@@ -209,7 +209,7 @@ func (s *Service) addVersion(c *gin.Context) {
 		s.fail(c, "add dashboard version", err)
 		return
 	}
-	body := newDashboardVersionJSON(dash, ver)
+	body := NewDashboardVersionJSON(dash, ver)
 	if replayed {
 		c.Header("Idempotent-Replay", "true")
 		c.JSON(http.StatusOK, body)
@@ -242,7 +242,7 @@ func (s *Service) restoreVersion(c *gin.Context) {
 		return
 	}
 	c.Header("Location", versionLocation(dash.ID, ver.Number))
-	c.JSON(http.StatusCreated, newDashboardVersionJSON(dash, ver))
+	c.JSON(http.StatusCreated, NewDashboardVersionJSON(dash, ver))
 }
 
 func (s *Service) diff(c *gin.Context) {

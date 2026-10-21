@@ -56,6 +56,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/httpapi/`: the HTTP helpers shared by `internal/dashboards` and `internal/revisions` (error responses, the 422 `invalid_spec` body, body decoding, path and limit parameters, time formatting, the `(time, id)` cursor codec).
 - `internal/events/`: the event payload, the `slashobserve_events` Postgres channel name shared by publishers and the SSE stream, and the `Broker` that fans notifications out to subscribers; `internal/events/stream/` serves them over SSE.
 - `internal/revisions/`: the durable agent request queue (`agent_requests`), its in-process workers, the `Reviser` contract the agent implements (`agent.Reviser`) and the `/api/v1/dashboards/{id}/revisions` routes.
+- `internal/imports/`: Grafana imports (`imports` table): preview, the tolerant first save through `dashboards.Service.CreateImported`, the list and the per-dashboard record, with 1 import in flight per principal and 4 per instance (`ErrBusy`); `original` is stored once and never selected.
 - `internal/agent/tools/`: the only place agent tools are defined (17 tools, sorted, constant schemas; 14 for the built-in agent, since `MCPOnly` tools are left out of what `agent.New` sends to the model); `Call` returns a tool error the model can fix or an internal error; ad-hoc queries run through the panel runner with tool limits.
 - `internal/agent/`: the loop (discover, draft, lint, save, up to 3 repairs; a successful save ends the run); a run's only product is a Spec saved through `internal/agent/tools`; a revise conflict restarts once from the latest version.
   In suggest mode (a `suggest` agent request) the run's only product is one proposed panel: `update_dashboard` places the panel with the run's id into the requested version (with the user's draft), validates it with `spec.Parse` and the save rules for that panel, and returns it without saving; write tools other than that refuse.
@@ -367,6 +368,9 @@ Directories are created when their phase starts; this is where things go.
 - Tools are defined once in `internal/agent/tools`; MCP and the built-in agent share them, except the comment tools, which are MCP-only.
 - The agent's text output is discarded; only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
 - The agent never creates or edits placeholder panels; they come from Grafana imports.
+- Imports are the one tolerant save: `POST /api/v1/imports` saves version 1 even when queries fail and marks those panels unverified in the stored report.
+  Every later save of that dashboard, including the agent's, runs every query as usual.
+  The original Grafana JSON is stored in `imports.original` and is never returned by the API or shown to the agent.
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.
 

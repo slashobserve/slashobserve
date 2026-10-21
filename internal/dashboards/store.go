@@ -93,6 +93,10 @@ type store struct {
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
+	return st.createWith(ctx, in, nil)
+}
+
+func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error) (Dashboard, Version, error) {
 	var dash Dashboard
 	var ver Version
 	err := st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
@@ -125,7 +129,10 @@ func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, 
 			return err
 		}
 		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec}
-		return nil
+		if inTx == nil {
+			return nil
+		}
+		return inTx(q, dash, ver)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == requestVersionConstraint {
