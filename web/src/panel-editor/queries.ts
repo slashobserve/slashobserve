@@ -14,9 +14,11 @@ import {
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
+import { sentence } from "@/observe/queries"
 import type { DataPanel } from "@/spec"
 
 import { stableJson, type EditablePanel } from "./draft"
+import { missingPanelMessage } from "./panel-json"
 
 export type Suggestion = components["schemas"]["Suggestion"]
 
@@ -192,7 +194,11 @@ export function suggestionQuery(dashboardId: string, suggestionId: string) {
         .then((found) => found.suggestion),
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      return status === "succeeded" || status === "failed" ? false : 1000
+      if (status === "succeeded" || status === "failed") return false
+      if (query.state.status === "error" && !isRetryable(query.state.error)) {
+        return false
+      }
+      return 1000
     },
     staleTime: 0,
     retry: (count, error) => count < 3 && isRetryable(error),
@@ -214,7 +220,7 @@ export function describeSuggestionError(error: unknown): string {
     return "Your draft is not valid yet. Fix it before asking the agent."
   }
   if (error.status === 422 && error.code === "unknown_panel") {
-    return "This panel is not in the version you are editing."
+    return missingPanelMessage
   }
-  return error.message
+  return sentence(error.message)
 }
