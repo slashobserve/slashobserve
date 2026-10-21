@@ -230,6 +230,52 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 	}
 }
 
+func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
+	empty := func(n int) string { return strings.Repeat("{},", n) }
+	const million = 1_000_000
+	const hundredThousand = 100_000
+	cases := []struct {
+		name, typ, list string
+		targets         int
+		wantUp          bool
+		wantUnlisted    int
+	}{
+		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, million - 101},
+		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
+		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			start := time.Now()
+			res := convertDoc(t, panelDoc(tc.typ, `"targets":`+tc.list))
+			if elapsed := time.Since(start); elapsed > 20*time.Second {
+				t.Fatalf("converting %d targets took %s", tc.targets, elapsed)
+			}
+			line := panelLine(t, res, "p1")
+			if len(line.Queries) > 100 {
+				t.Fatalf("the panel lists %d queries, want at most 100", len(line.Queries))
+			}
+			report, err := json.Marshal(res.Report)
+			if err != nil || len(report) > 100_000 {
+				t.Fatalf("the report takes %d bytes (err %v), want at most 100000", len(report), err)
+			}
+			if !slices.Contains(line.Paths, "targets") {
+				t.Fatalf("paths = %v, want the rest reported once on targets", line.Paths)
+			}
+			if want := fmt.Sprintf("%d more queries were not imported.", tc.wantUnlisted); !slices.Contains(line.Reasons, want) {
+				t.Fatalf("reasons = %v, want %q", line.Reasons, want)
+			}
+			if tc.wantUp {
+				entry, _ := res.Spec.FindPanel("p1")
+				queries := entry.Panel.Queries
+				if len(queries) != 1 || queries[0].Query != "up" || queries[0].Ref != "Z" {
+					t.Fatalf("queries = %+v, want the one valid target kept with its ref", queries)
+				}
+			}
+		})
+	}
+}
+
 func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
 	longLegend := strings.Repeat("l", 250)
 	panel, line := convertedPanel(t, panelDoc("timeseries", `"targets":[

@@ -39,12 +39,13 @@ type issueLog struct {
 	listed    map[string]bool
 	dropped   map[string]bool
 	reasonSet map[string]bool
+	limit     int
 }
 
 type issueMark struct{ paths, omitted, reasons int }
 
 func newIssueLog() *issueLog {
-	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}}
+	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}, limit: maxPanelPaths}
 }
 
 func (l *issueLog) add(path, reason string) {
@@ -52,7 +53,7 @@ func (l *issueLog) add(path, reason string) {
 	case l.listed[path]:
 	case l.dropped[path]:
 		return
-	case len(l.paths) >= maxPanelPaths:
+	case len(l.paths) >= l.limit:
 		l.dropped[path] = true
 		l.omitted = append(l.omitted, path)
 		return
@@ -122,6 +123,7 @@ type panelBuild struct {
 	issues           *issueLog
 	built            []*builtQuery
 	lines            []QueryLine
+	unlisted         int
 	refs             map[string]string
 	thresholdsMatter bool
 	display          *spec.Display
@@ -232,6 +234,11 @@ func placeholderPanel(n *panelNode, reason string) *builtPanel {
 		line.Paths = append(line.Paths, "gridPos")
 	}
 	targets, _ := asArray(n.raw["targets"])
+	if len(targets) > maxPanelPaths {
+		line.Paths = append(line.Paths, "targets")
+		line.Reasons = append(line.Reasons, unlistedQueriesReason(len(targets)-maxPanelPaths))
+		targets = targets[:maxPanelPaths]
+	}
 	for _, item := range targets {
 		target, _ := asObject(item)
 		line.Queries = append(line.Queries, QueryLine{

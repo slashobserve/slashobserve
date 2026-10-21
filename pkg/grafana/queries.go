@@ -38,7 +38,6 @@ type targetBuild struct {
 	b        *panelBuild
 	t        map[string]any
 	path     string
-	line     *QueryLine
 	src      *sourceDS
 	used     map[string]bool
 	rewrites []string
@@ -75,11 +74,15 @@ func (c *converter) declaredVariables() map[string]bool {
 
 func (b *panelBuild) convertQueries() {
 	items, _ := asArray(b.raw["targets"])
-	b.lines = make([]QueryLine, len(items))
+	b.lines = make([]QueryLine, min(len(items), maxPanelPaths))
 	declared := b.c.declaredVariables()
+	overflow := len(items) > len(b.lines)
+	if overflow {
+		b.issues.limit--
+	}
 	for i, item := range items {
 		target, _ := asObject(item)
-		b.lines[i] = QueryLine{RefID: asString(target["refId"]), Rewrites: []string{}}
+		*b.lineFor(i) = QueryLine{RefID: asString(target["refId"]), Rewrites: []string{}}
 		if len(b.built) >= maxPanelQueries {
 			b.dropTarget(i, target, fmt.Sprintf("A panel holds at most %d queries.", maxPanelQueries))
 			continue
@@ -88,7 +91,7 @@ func (b *panelBuild) convertQueries() {
 		if i < len(b.n.ds.targets) {
 			ref = b.n.ds.targets[i]
 		}
-		tb := &targetBuild{b: b, t: target, path: fmt.Sprintf("targets[%d]", i), line: &b.lines[i], used: map[string]bool{}}
+		tb := &targetBuild{b: b, t: target, path: fmt.Sprintf("targets[%d]", i), used: map[string]bool{}}
 		mark := b.issues.mark()
 		q, reason := tb.convert(ref, declared)
 		if reason != "" {
@@ -97,14 +100,39 @@ func (b *panelBuild) convertQueries() {
 			continue
 		}
 		tb.reportUnconsumed()
-		b.lines[i].Rewrites = append(b.lines[i].Rewrites, tb.rewrites...)
+		line := b.lineFor(i)
+		line.Rewrites = append(line.Rewrites, tb.rewrites...)
 		b.built = append(b.built, &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src})
+	}
+	if overflow {
+		b.issues.limit++
+	}
+	if b.unlisted > 0 {
+		b.partial("targets", unlistedQueriesReason(b.unlisted))
 	}
 }
 
+func unlistedQueriesReason(n int) string {
+	return fmt.Sprintf("%d more queries were not imported.", n)
+}
+
+func (b *panelBuild) lineFor(i int) *QueryLine {
+	if i < len(b.lines) {
+		return &b.lines[i]
+	}
+	return &QueryLine{}
+}
+
 func (b *panelBuild) dropTarget(i int, target map[string]any, reason string) {
+	hidden := truthy(target["hide"])
+	if i >= len(b.lines) {
+		if !hidden {
+			b.unlisted++
+		}
+		return
+	}
 	b.lines[i].Dropped = ptr(reason)
-	if !truthy(target["hide"]) {
+	if !hidden {
 		b.partial(fmt.Sprintf("targets[%d]", i), reason)
 	}
 }
@@ -441,7 +469,7 @@ func (b *panelBuild) assignQueries() {
 			q.Datasource = uid
 		}
 		b.panel.Queries = append(b.panel.Queries, q)
-		line := &b.lines[bq.index]
+		line := b.lineFor(bq.index)
 		line.Ref = ptr(refs[k])
 		line.Datasource = ptr(bq.src.uid())
 		if bq.refID == "" {
