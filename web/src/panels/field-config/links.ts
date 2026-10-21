@@ -37,6 +37,14 @@ const allLabel = "All"
 
 const identity: Encode = (text) => text
 
+const strictEscapes = /[!'()*]/g
+
+const encodeStrict: Encode = (text) =>
+  encodeURIComponent(text).replace(
+    strictEscapes,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  )
+
 export function isDataLink(link: Link): boolean {
   return dataTokens.some(
     (marker) => link.url.includes(marker) || link.title.includes(marker)
@@ -110,7 +118,7 @@ function formatValues(
     case "text":
       return values.join(" + ")
     case "percentencode":
-      return encodeURIComponent(values.join(","))
+      return encodeStrict(values.join(","))
     default:
       return encode(values.join(","))
   }

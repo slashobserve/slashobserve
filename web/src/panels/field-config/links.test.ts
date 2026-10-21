@@ -140,6 +140,19 @@ describe("link interpolation", () => {
     expect(href("/d?x=${pod:nope}", { vars })).toBe("/d?x=${pod:nope}")
   })
 
+  it("escapes the characters Grafana escapes when percent encoding", () => {
+    const vars = { pod: ["foo()bar", "it's!*"] }
+    expect(href("/d?x=${pod:percentencode}&y=1", { vars })).toBe(
+      "/d?x=foo%28%29bar%2Cit%27s%21%2A&y=1"
+    )
+  })
+
+  it("percent encodes a link made of one token", () => {
+    expect(href("${pod:percentencode}", { vars: { pod: ["a b"] } })).toBe(
+      "a%20b"
+    )
+  })
+
   it("formats a data field of the row", () => {
     const frame: WireFrame = {
       ref: "A",
