@@ -1,0 +1,61 @@
+{
+  "specVersion": "0",
+  "title": "E2E text panels",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "env",
+      "label": "Environment",
+      "type": "custom",
+      "options": ["prod", "staging"]
+    }
+  ],
+  "panels": [
+    {
+      "id": "st_rate",
+      "type": "stat",
+      "title": "Request rate",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum(rate(http_requests_total[5m]))"
+        }
+      ],
+      "unit": "reqps"
+    },
+    {
+      "id": "tx_md",
+      "type": "text",
+      "title": "Notes",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 12,
+        "h": 10
+      },
+      "content": "# Runbook for ${env}\n\n- Check [the checkout docs](https://example.com/docs)\n- Open [the dashboards](/dashboards)\n- [bad link](javascript:alert(1))\n\n| Pod | Owner |\n| --- | --- |\n| checkout-0 | payments |\n\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n\n`code`"
+    },
+    {
+      "id": "ph_bar",
+      "type": "placeholder",
+      "title": "Requests by country",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "reason": "Grafana panel type barchart is not supported yet.",
+      "sourceType": "barchart"
+    }
+  ]
+}

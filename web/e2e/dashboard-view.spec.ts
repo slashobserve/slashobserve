@@ -469,7 +469,7 @@ test("falls back to a single column on narrow screens", async ({
   expect(xs.size).toBe(1)
 })
 
-test("renders row children and marks panels it cannot show yet", async ({
+test("renders row children, text and placeholder panels", async ({
   page,
   request,
 }) => {
@@ -478,18 +478,24 @@ test("renders row children and marks panels it cannot show yet", async ({
   const { id } = await createDashboard(request, spec)
   await openDashboard(page, id)
 
+  const topLevel = spec.panels
+  const children = topLevel.flatMap(
+    (item) => (item.panels as Array<Record<string, unknown>> | undefined) ?? []
+  )
+  const note = topLevel.find((item) => item.id === "p_note")
+  const world = children.find((item) => item.id === "p_world")
+  const firstWords = String(note?.content).split(" ").slice(0, 3).join(" ")
+
   const article = (panelId: string) =>
     page.locator(`article[data-panel-id="${panelId}"]`)
   await article("p_up").scrollIntoViewIfNeeded()
   await expect(article("p_up")).toHaveAttribute("data-state", "ready", {
     timeout: 30_000,
   })
-  for (const panelId of ["p_note", "p_world"]) {
-    await expect(article(panelId)).toHaveAttribute("data-state", "unsupported")
-    await expect(article(panelId)).toContainText(
-      "This panel type is not shown yet."
-    )
-  }
+  await expect(article("p_note")).toHaveAttribute("data-state", "ready")
+  await expect(article("p_note")).toContainText(firstWords)
+  await expect(article("p_world")).toHaveAttribute("data-state", "ready")
+  await expect(article("p_world")).toContainText(String(world?.reason))
   await expect(article("r_prom")).toHaveCount(0)
   await expect(
     page.getByRole("heading", { name: "Prometheus", level: 2 })
