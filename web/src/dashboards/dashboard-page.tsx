@@ -24,9 +24,8 @@ import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
-import { hasData } from "@/panels/frames"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
-import { prepareFrames } from "@/panels/transforms"
+import { panelHasData } from "@/panels/transforms"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -157,7 +156,7 @@ const PanelContainer = memo(function PanelContainer({
     () =>
       dataPanel !== undefined &&
       query.data !== undefined &&
-      hasData(prepareFrames(dataPanel, query.data.frames)),
+      panelHasData(dataPanel, query.data.frames),
     [dataPanel, query.data]
   )
 

@@ -1,6 +1,7 @@
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
+import { hasData } from "../frames"
 import { calculateField } from "./calculate"
 import { filterFieldsByName } from "./filter"
 import { applyQueryFormats } from "./format"
@@ -62,4 +63,8 @@ export function prepareFrames(
     applyQueryFormats(panel, stampLegends(panel, frames)),
     panel.transform
   )
+}
+
+export function panelHasData(panel: DataPanel, frames: WireFrame[]): boolean {
+  return hasData(prepareFrames(panel, frames))
 }

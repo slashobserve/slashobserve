@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
-import type { WireField } from "../frames"
+import { hasData, type WireField } from "../frames"
 import {
   applyTransforms,
+  panelHasData,
   prepareFrames,
   seriesName,
   type PreparedFrame,
@@ -1071,5 +1072,26 @@ describe("empty input", () => {
       expect(() => run([], transform)).not.toThrow()
       expect(() => run([empty], transform)).not.toThrow()
     }
+  })
+})
+
+describe("panelHasData", () => {
+  const input = frame([time([1, 2]), num("Value", [1, 2])])
+
+  it("is true when the prepared frames hold a value", () => {
+    expect(panelHasData(panel([{}]), [input])).toBe(true)
+  })
+
+  it("is false when a transform leaves no value field, though the raw frames have data", () => {
+    const filtered = panel(
+      [{}],
+      [{ type: "filterFieldsByName", include: ["missing"] }]
+    )
+    expect(hasData([input])).toBe(true)
+    expect(panelHasData(filtered, [input])).toBe(false)
+  })
+
+  it("is false for frames without a value", () => {
+    expect(panelHasData(panel([{}]), [])).toBe(false)
   })
 })
