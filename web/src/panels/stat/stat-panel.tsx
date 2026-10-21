@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react"
-import { LinkIcon } from "lucide-react"
+import { CircleIcon, LinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -104,10 +104,6 @@ export const StatPanel: PanelRenderer = ({
     >
       {tiles.map((tile, index) => {
         const filled = background && tile.color !== null
-        const Icon =
-          tile.threshold.level === "base"
-            ? null
-            : thresholdIcons[tile.threshold.level]
         const aria = tiles.length > 1 ? tile.name : panel.title
         const line = lines[index]
         const drawn = line.length > 0
@@ -129,6 +125,12 @@ export const StatPanel: PanelRenderer = ({
         const linkedPrimary = showText ? dataLinks[0] : undefined
         const menuLinks = showText ? dataLinks.slice(1) : dataLinks
         const thresholdColor = display.colorMode === "value" ? tile.color : null
+        const Icon =
+          tile.threshold.level !== "base"
+            ? thresholdIcons[tile.threshold.level]
+            : thresholdColor
+              ? CircleIcon
+              : null
         const sparkStroke = filled
           ? "currentColor"
           : (thresholdColor ?? "var(--series-1)")
@@ -209,6 +211,9 @@ export const StatPanel: PanelRenderer = ({
                 <Icon
                   className="size-[13px]"
                   strokeWidth={2.4}
+                  fill={
+                    tile.threshold.level === "base" ? "currentColor" : "none"
+                  }
                   aria-hidden="true"
                   data-stat-icon=""
                   style={{ color: thresholdColor ?? undefined }}

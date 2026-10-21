@@ -100,16 +100,20 @@ for (const colorScheme of ["light", "dark"] as const) {
       ).toBeGreaterThanOrEqual(4.5)
     })
 
-    test("maps a value to text kept in the foreground color", async ({
+    test("maps a value to text in the foreground color and a colored icon", async ({
       page,
       request,
     }) => {
       await openStats(page, request)
 
-      const up = tiles(page, "Mapped").getByText("Up", { exact: true })
+      const mapped = tiles(page, "Mapped")
+      const up = mapped.getByText("Up", { exact: true })
       await expect(up).toBeVisible()
       expect(await style(up, "color")).toBe(
         await tokenColor(page, "--foreground")
+      )
+      expect(await style(mapped.locator("[data-stat-icon]"), "color")).toBe(
+        await tokenColor(page, "--threshold-ok")
       )
     })
 
