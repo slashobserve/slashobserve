@@ -5,6 +5,7 @@ import type { Threshold } from "@/spec"
 
 import type { LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
+import { bandBase, nearestSpan, thresholdValueAt } from "./plot-model"
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
 
@@ -55,12 +56,6 @@ function moreLine(count: number): HTMLElement {
   return more
 }
 
-function distanceTo(top: number, a: number, b: number): number {
-  const lo = Math.min(a, b)
-  const hi = Math.max(a, b)
-  return top < lo ? lo - top : top > hi ? top - hi : 0
-}
-
 function nearestRow(
   u: uPlot,
   rows: Row[],
@@ -69,25 +64,15 @@ function nearestRow(
   idx: number,
   top: number
 ): Row {
-  let best = rows[0]
-  let bestDistance = Infinity
-  for (const row of rows) {
+  const spans = rows.map((row): [number, number] => {
     const entry = entries[row.index]
     const drawn = u.data[first + row.index][idx] as number
-    const lowerAt = entry.below === null ? null : first + entry.below
-    const base =
-      lowerAt !== null ? (u.data[lowerAt][idx] ?? 0) : entry.stacked ? 0 : drawn
-    const distance = distanceTo(
-      top,
-      u.valToPos(drawn, entry.scale),
-      u.valToPos(base, entry.scale)
-    )
-    if (distance < bestDistance) {
-      best = row
-      bestDistance = distance
-    }
-  }
-  return best
+    const lower =
+      entry.below === null ? null : { drawn: u.data[first + entry.below][idx] }
+    const base = bandBase(drawn, entry.stacked, lower)
+    return [u.valToPos(drawn, entry.scale), u.valToPos(base, entry.scale)]
+  })
+  return rows[nearestSpan(spans, top)]
 }
 
 export function tooltipPlugin(
@@ -254,10 +239,7 @@ export function thresholdsPlugin(
         ctx.setLineDash([4 * ratio, 4 * ratio])
         thresholds.forEach((threshold, index) => {
           if (threshold.value === undefined) return
-          const at =
-            mode === "percentage"
-              ? min + (threshold.value / 100) * (max - min)
-              : threshold.value
+          const at = thresholdValueAt(threshold.value, mode, min, max)
           if (at < min || at > max) return
           const y = Math.round(u.valToPos(at, "y", true))
           ctx.strokeStyle = colors[index]

@@ -55,6 +55,15 @@ export function seriesStyles(
   })
 }
 
+export function fillPercent(style: DrawStyle, fill: number): number {
+  if (style === "bars") return fill || 100
+  return style === "line" ? fill : 0
+}
+
+export function fillStyle(stroke: string, percent: number): string {
+  return `color-mix(in oklab, ${stroke} ${percent}%, transparent)`
+}
+
 export const scaleOf: Record<AxisKey, string> = {
   left: "y",
   right: "y2",

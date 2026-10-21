@@ -8,9 +8,9 @@ import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 import { axisDecimals, formatAxisValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
-import type { DataPanel, Threshold } from "@/spec"
+import type { DataPanel } from "@/spec"
 
-import { assignSlots, readChartColors, resolveColor } from "../colors"
+import { readChartColors, resolveColor } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
 import { reduce } from "../reducers"
@@ -20,23 +20,31 @@ import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
 import { Legend, type LegendItem } from "./legend"
 import { LegendTable } from "./legend-table"
+import {
+  chartSeries,
+  configuredKeys,
+  plotStateFor,
+  thresholdsFor,
+  type ChartSeries,
+  type PlotState,
+  type ThresholdLines,
+} from "./plot-model"
 import { thresholdsPlugin, tooltipPlugin, type TooltipSeries } from "./plugins"
 import { isolatedPoints } from "./points"
 import {
   axesInUse,
   axisRange,
+  fillPercent,
+  fillStyle,
   firstStackMode,
   formatTogether,
   scaleOf,
-  seriesStyles,
   timeseriesDisplay,
   type AxesInUse,
   type AxisKey,
   type AxisSettings,
-  type StyledSeries,
 } from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
-import { stackSeries, type Cell } from "./stack"
 import "./timeseries.css"
 
 const legendShare = 0.4
@@ -49,17 +57,6 @@ const ghostDash = [2, 3]
 const rightLegendMin = 160
 const rightLegendMax = 280
 const rightLegendShare = 0.3
-
-type ChartSeries = StyledSeries & {
-  values: Cell[]
-  config: FieldConfig
-}
-
-type PlotState = {
-  data: uPlot.AlignedData
-  bands: uPlot.Band[]
-  hidden: ReadonlySet<string>
-}
 
 type Latest = {
   state: PlotState
@@ -75,7 +72,7 @@ type Model = {
   axes: AxesInUse
   panelAxis: AxisSettings
   ghostCount: number
-  thresholds: { list: Threshold[]; mode: FieldConfig["thresholdMode"] } | null
+  thresholds: ThresholdLines | null
   tooltip: "single" | "all" | "hidden"
 }
 
@@ -108,15 +105,12 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
       : seconds
   })
 
-function fillStyle(stroke: string, fill: number): string {
-  return `color-mix(in oklab, ${stroke} ${fill}%, transparent)`
-}
-
 function seriesOptions(
   entry: ChartSeries,
   hidden: ReadonlySet<string>
 ): uPlot.Series {
   const stroke = resolveColor(entry.color)
+  const fill = fillPercent(entry.style, entry.fill)
   const base = {
     label: entry.label,
     scale: scaleOf[entry.axis],
@@ -129,7 +123,7 @@ function seriesOptions(
     return {
       ...base,
       width: 1,
-      fill: fillStyle(stroke, entry.fill || 100),
+      fill: fillStyle(stroke, fill),
       paths: uPlot.paths.bars!({ size: barSize }),
       points: { show: false },
     }
@@ -145,7 +139,7 @@ function seriesOptions(
   return {
     ...base,
     width: 2,
-    ...(entry.fill > 0 ? { fill: fillStyle(stroke, entry.fill) } : {}),
+    ...(fill > 0 ? { fill: fillStyle(stroke, fill) } : {}),
     points: {
       show: false,
       filter: isolatedPoints,
@@ -321,15 +315,6 @@ function modelFor(
     panel,
     ghostCount
   )
-  const firstLeft = series.find(({ axis }) => axis === "left")
-  let thresholds: Model["thresholds"] = null
-  if (axes.left && !axes.left.percent) {
-    const list = firstLeft ? firstLeft.config.thresholds : panel.thresholds
-    const mode = firstLeft
-      ? firstLeft.config.thresholdMode
-      : (panel.thresholdMode ?? "absolute")
-    if (list) thresholds = { list, mode }
-  }
   return {
     series,
     axes,
@@ -341,36 +326,8 @@ function modelFor(
       percent: false,
     },
     ghostCount,
-    thresholds,
+    thresholds: thresholdsFor(series, axes.left, panel),
     tooltip,
-  }
-}
-
-function plotStateFor(
-  aligned: AlignedFrames,
-  series: ChartSeries[],
-  hidden: ReadonlySet<string>
-): { state: PlotState; below: (number | null)[]; stacked: boolean[] } {
-  const modes = series.map(({ key, stack }) =>
-    hidden.has(key) ? "none" : stack
-  )
-  const axes = series.map(({ axis }) => axis)
-  const { drawn, below } = stackSeries(
-    series.map(({ values }) => values),
-    modes,
-    axes
-  )
-  const first = 1 + aligned.ghosts.length
-  return {
-    state: {
-      data: [aligned.xs, ...aligned.ghosts, ...drawn],
-      bands: below.flatMap((lower, index) =>
-        lower === null ? [] : [{ series: [first + index, first + lower] }]
-      ),
-      hidden,
-    },
-    below,
-    stacked: modes.map((mode) => mode !== "none"),
   }
 }
 
@@ -407,30 +364,13 @@ function TimeseriesChart({
   const { slots, hidden: storedHidden } = stored ?? emptySeriesState
 
   const keys = useMemo(
-    () =>
-      aligned.series.flatMap((series, index) =>
-        configs[index].hidden ? [] : [series.key]
-      ),
+    () => configuredKeys(aligned.series, configs),
     [aligned.series, configs]
   )
-  const series = useMemo(() => {
-    const styles = seriesStyles(
-      aligned.series,
-      configs,
-      assignSlots(slots, keys)
-    )
-    return styles.flatMap((style, index) =>
-      style.hidden
-        ? []
-        : [
-            {
-              ...style,
-              values: aligned.series[index].values,
-              config: configs[index],
-            },
-          ]
-    )
-  }, [aligned.series, configs, slots, keys])
+  const series = useMemo(
+    () => chartSeries(aligned.series, configs, slots),
+    [aligned.series, configs, slots]
+  )
 
   const legendShown = series.length > 1 && options.legend !== "hidden"
   const placement = options.legend === "right" ? "right" : "bottom"
@@ -454,7 +394,12 @@ function TimeseriesChart({
     .join("\u0000")
 
   const { state, entries } = useMemo(() => {
-    const { state, below, stacked } = plotStateFor(aligned, series, hidden)
+    const { state, below, stacked } = plotStateFor(
+      aligned.xs,
+      aligned.ghosts,
+      series,
+      hidden
+    )
     return {
       state,
       entries: series.map((entry, index): TooltipSeries => ({

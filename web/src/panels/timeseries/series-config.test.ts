@@ -4,6 +4,8 @@ import type { FieldConfig } from "../field-config"
 import {
   axesInUse,
   axisRange,
+  fillPercent,
+  fillStyle,
   firstStackMode,
   formatTogether,
   seriesStyles,
@@ -66,6 +68,28 @@ describe("seriesStyles", () => {
   it("marks configured hidden series", () => {
     const [style] = seriesStyles(aligned, [config({ hidden: true })], new Map())
     expect(style.hidden).toBe(true)
+  })
+})
+
+describe("fillPercent", () => {
+  it("draws bars at full opacity when the fill is 0", () => {
+    expect(fillPercent("bars", 0)).toBe(100)
+    expect(fillPercent("bars", 40)).toBe(40)
+  })
+
+  it("leaves a line unfilled at 0 and fills it at the given opacity", () => {
+    expect(fillPercent("line", 0)).toBe(0)
+    expect(fillPercent("line", 30)).toBe(30)
+  })
+
+  it("never fills points", () => {
+    expect(fillPercent("points", 60)).toBe(0)
+  })
+
+  it("mixes the stroke with transparent at that opacity", () => {
+    expect(fillStyle("red", 30)).toBe(
+      "color-mix(in oklab, red 30%, transparent)"
+    )
   })
 })
 
