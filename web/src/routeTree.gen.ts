@@ -12,16 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
-import { Route as AuthedShellIndexRouteImport } from './routes/_authed/_shell/index'
+import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
+import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shell/_chat/index'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
-import { Route as AuthedShellObserveRequestIdRouteImport } from './routes/_authed/_shell/observe/$requestId'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
 import { Route as AuthedShellSettingsKeysRouteImport } from './routes/_authed/_shell/settings/keys'
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
+import { Route as AuthedShellChatObserveRequestIdRouteImport } from './routes/_authed/_shell/_chat/observe/$requestId'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -36,9 +37,8 @@ const AuthedShellRoute = AuthedShellRouteImport.update({
   id: '/_shell',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedShellIndexRoute = AuthedShellIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
+  id: '/_chat',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellDatasourcesRoute = AuthedShellDatasourcesRouteImport.update({
@@ -56,16 +56,15 @@ const AuthedShellPeopleRoute = AuthedShellPeopleRouteImport.update({
   path: '/people',
   getParentRoute: () => AuthedShellRoute,
 } as any)
+const AuthedShellChatIndexRoute = AuthedShellChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedShellChatRoute,
+} as any)
 const AuthedShellDashboardsIndexRoute =
   AuthedShellDashboardsIndexRouteImport.update({
     id: '/dashboards/',
     path: '/dashboards/',
-    getParentRoute: () => AuthedShellRoute,
-  } as any)
-const AuthedShellObserveRequestIdRoute =
-  AuthedShellObserveRequestIdRouteImport.update({
-    id: '/observe/$requestId',
-    path: '/observe/$requestId',
     getParentRoute: () => AuthedShellRoute,
   } as any)
 const AuthedShellSettingsIndexRoute =
@@ -91,48 +90,55 @@ const AuthedDashboardsDashboardIdVersionsRoute =
     path: '/dashboards/$dashboardId/versions',
     getParentRoute: () => AuthedRoute,
   } as any)
+const AuthedShellChatObserveRequestIdRoute =
+  AuthedShellChatObserveRequestIdRouteImport.update({
+    id: '/observe/$requestId',
+    path: '/observe/$requestId',
+    getParentRoute: () => AuthedShellChatRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthedShellIndexRoute
+  '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
-  '/observe/$requestId': typeof AuthedShellObserveRequestIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/settings/': typeof AuthedShellSettingsIndexRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
+  '/observe/$requestId': typeof AuthedShellChatObserveRequestIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthedShellIndexRoute
+  '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
-  '/observe/$requestId': typeof AuthedShellObserveRequestIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
   '/settings': typeof AuthedShellSettingsIndexRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
+  '/observe/$requestId': typeof AuthedShellChatObserveRequestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
+  '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
-  '/_authed/_shell/': typeof AuthedShellIndexRoute
-  '/_authed/_shell/observe/$requestId': typeof AuthedShellObserveRequestIdRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/_authed/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
+  '/_authed/_shell/_chat/': typeof AuthedShellChatIndexRoute
   '/_authed/_shell/dashboards/': typeof AuthedShellDashboardsIndexRoute
   '/_authed/_shell/settings/': typeof AuthedShellSettingsIndexRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
+  '/_authed/_shell/_chat/observe/$requestId': typeof AuthedShellChatObserveRequestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,12 +148,12 @@ export interface FileRouteTypes {
     | '/datasources'
     | '/keys'
     | '/people'
-    | '/observe/$requestId'
     | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards/'
     | '/settings/'
     | '/dashboards/$dashboardId/'
+    | '/observe/$requestId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,27 +161,28 @@ export interface FileRouteTypes {
     | '/datasources'
     | '/keys'
     | '/people'
-    | '/observe/$requestId'
     | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards'
     | '/settings'
     | '/dashboards/$dashboardId'
+    | '/observe/$requestId'
   id:
     | '__root__'
     | '/_authed'
     | '/login'
     | '/_authed/_shell'
+    | '/_authed/_shell/_chat'
     | '/_authed/_shell/datasources'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
-    | '/_authed/_shell/'
-    | '/_authed/_shell/observe/$requestId'
     | '/_authed/_shell/settings/keys'
     | '/_authed/dashboards/$dashboardId/versions'
+    | '/_authed/_shell/_chat/'
     | '/_authed/_shell/dashboards/'
     | '/_authed/_shell/settings/'
     | '/_authed/dashboards/$dashboardId/'
+    | '/_authed/_shell/_chat/observe/$requestId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -206,11 +213,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/_shell/': {
-      id: '/_authed/_shell/'
-      path: '/'
+    '/_authed/_shell/_chat': {
+      id: '/_authed/_shell/_chat'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof AuthedShellIndexRouteImport
+      preLoaderRoute: typeof AuthedShellChatRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/datasources': {
@@ -234,18 +241,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellPeopleRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/_chat/': {
+      id: '/_authed/_shell/_chat/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedShellChatIndexRouteImport
+      parentRoute: typeof AuthedShellChatRoute
+    }
     '/_authed/_shell/dashboards/': {
       id: '/_authed/_shell/dashboards/'
       path: '/dashboards'
       fullPath: '/dashboards/'
       preLoaderRoute: typeof AuthedShellDashboardsIndexRouteImport
-      parentRoute: typeof AuthedShellRoute
-    }
-    '/_authed/_shell/observe/$requestId': {
-      id: '/_authed/_shell/observe/$requestId'
-      path: '/observe/$requestId'
-      fullPath: '/observe/$requestId'
-      preLoaderRoute: typeof AuthedShellObserveRequestIdRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/settings/': {
@@ -276,26 +283,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedDashboardsDashboardIdVersionsRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/_shell/_chat/observe/$requestId': {
+      id: '/_authed/_shell/_chat/observe/$requestId'
+      path: '/observe/$requestId'
+      fullPath: '/observe/$requestId'
+      preLoaderRoute: typeof AuthedShellChatObserveRequestIdRouteImport
+      parentRoute: typeof AuthedShellChatRoute
+    }
   }
 }
 
+interface AuthedShellChatRouteChildren {
+  AuthedShellChatIndexRoute: typeof AuthedShellChatIndexRoute
+  AuthedShellChatObserveRequestIdRoute: typeof AuthedShellChatObserveRequestIdRoute
+}
+
+const AuthedShellChatRouteChildren: AuthedShellChatRouteChildren = {
+  AuthedShellChatIndexRoute: AuthedShellChatIndexRoute,
+  AuthedShellChatObserveRequestIdRoute: AuthedShellChatObserveRequestIdRoute,
+}
+
+const AuthedShellChatRouteWithChildren = AuthedShellChatRoute._addFileChildren(
+  AuthedShellChatRouteChildren,
+)
+
 interface AuthedShellRouteChildren {
+  AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
-  AuthedShellIndexRoute: typeof AuthedShellIndexRoute
-  AuthedShellObserveRequestIdRoute: typeof AuthedShellObserveRequestIdRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
 }
 
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
+  AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
-  AuthedShellIndexRoute: AuthedShellIndexRoute,
-  AuthedShellObserveRequestIdRoute: AuthedShellObserveRequestIdRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
