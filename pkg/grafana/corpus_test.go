@@ -181,13 +181,38 @@ func decodeDashboard(t *testing.T, raw []byte) map[string]any {
 
 func isRow(p map[string]any) bool { return p["type"] == "row" }
 
+func truthy(v any) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case float64:
+		return x != 0
+	}
+	return false
+}
+
+func present(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return false
+	case string:
+		return x != ""
+	case bool:
+		return x
+	case []any:
+		return len(x) > 0
+	case map[string]any:
+		return len(x) > 0
+	}
+	return true
+}
+
 func isClone(p map[string]any) bool {
-	return p["repeatPanelId"] != nil || p["repeatRowId"] != nil || p["repeatedByRow"] == true
+	return p["repeatPanelId"] != nil || p["repeatRowId"] != nil || truthy(p["repeatedByRow"])
 }
 
 func isLegacyCloneRow(row map[string]any) bool {
-	_, repeats := row["repeat"]
-	return isClone(row) || (row["repeatIteration"] != nil && !repeats)
+	return isClone(row) || (row["repeatIteration"] != nil && !present(row["repeat"]))
 }
 
 func gridCoordinate(p map[string]any, key string) float64 {
@@ -220,7 +245,7 @@ func expectedPanels(t *testing.T, raw []byte) []sourcePanel {
 	var out []sourcePanel
 	inCloneRow := false
 	for _, n := range tops {
-		collapsed := n.raw["collapsed"] == true
+		collapsed := truthy(n.raw["collapsed"])
 		if isRow(n.raw) {
 			inCloneRow = isClone(n.raw) && !collapsed
 			if isClone(n.raw) || !collapsed {
@@ -437,8 +462,18 @@ func checkQueryText(t *testing.T, f corpusFile, res *grafana.Result) {
 			continue
 		}
 		targets := p.targets()
+		kept := 0
 		for i, ql := range line.Queries {
-			if ql.Dropped != nil || ql.Ref == nil {
+			if (ql.Ref == nil) == (ql.Dropped == nil) {
+				t.Errorf("%s: query line %d (refId %q) must have exactly one of ref and dropped", p.path, i, ql.RefID)
+				continue
+			}
+			if ql.Dropped != nil {
+				continue
+			}
+			kept++
+			if i >= len(targets) {
+				t.Errorf("%s: query line %d has no Grafana target", p.path, i)
 				continue
 			}
 			text, found := specQueryText(entry.Panel, *ql.Ref)
@@ -450,6 +485,9 @@ func checkQueryText(t *testing.T, f corpusFile, res *grafana.Result) {
 			if !slices.Contains(sourceQueryTexts(targets[i]), got) {
 				t.Errorf("%s targets[%d]: Spec query %q with rewrites %q undone does not equal the Grafana text", p.path, i, text, ql.Rewrites)
 			}
+		}
+		if kept != len(entry.Panel.Queries) {
+			t.Errorf("%s: %d kept query lines, want the %d Spec queries", p.path, kept, len(entry.Panel.Queries))
 		}
 	}
 }
