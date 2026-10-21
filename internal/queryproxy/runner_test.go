@@ -467,7 +467,7 @@ func TestUpstreamSemaphoreWaitHonorsContext(t *testing.T) {
 				return ctx, func() { time.Sleep(20 * time.Millisecond); cancel() }
 			},
 			wantErr:    context.Canceled,
-			wantStatus: statusClientGone,
+			wantStatus: statusCanceled,
 			wantCode:   "canceled",
 		},
 		{

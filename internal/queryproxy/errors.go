@@ -46,7 +46,7 @@ const (
 	queryTimeoutMessage = "query timed out"
 	canceledMessage     = "request canceled"
 	upstreamBusyMessage = "the server is making too many datasource calls right now; try again shortly"
-	statusClientGone    = 0
+	statusCanceled      = 0
 )
 
 func Classify(err error) (status int, code, message string) {
@@ -55,7 +55,7 @@ func Classify(err error) (status int, code, message string) {
 	}
 	switch {
 	case errors.Is(err, context.Canceled):
-		return statusClientGone, string(CodeCanceled), canceledMessage
+		return statusCanceled, string(CodeCanceled), canceledMessage
 	case errors.Is(err, ErrInvalidRequest):
 		return http.StatusBadRequest, string(CodeInvalidRequest), err.Error()
 	case errors.Is(err, datasource.ErrInvalidQuery):
