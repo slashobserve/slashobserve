@@ -491,6 +491,20 @@ How Cursor expands environment variables inside `headers` is defined by Cursor, 
 
 If your Cursor version cannot expand variables there, put the key in the file only for a user-level `~/.cursor/mcp.json` that is never committed.
 
+## Import Grafana dashboards
+
+You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
+All three call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, and `POST /api/v1/imports/preview` shows the result first without saving anything.
+The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
+
+Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](#datasources-file).
+An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
+
+An import can be at most 8 MiB.
+It saves the dashboard as version 1 and runs every query once.
+Failing queries mark their panels unverified in the import report instead of failing the import; later saves of the dashboard run every query as usual.
+The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
+
 ## Upgrades and backups
 
 ### Back up Postgres

@@ -22,6 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -233,6 +234,7 @@ func run() error {
 		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
+			imports.NewHandler(imports.New(database, dashboardsService, registry, logger)),
 			stream.NewHandler(broker, dashboardsService, authService, logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,

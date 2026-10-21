@@ -44,6 +44,8 @@ paths:
     $ref: "./paths/dashboards.yaml#/dashboards-id-versions-version-restore"
   /dashboards/{id}/diff:
     $ref: "./paths/dashboards.yaml#/dashboards-id-diff"
+  /dashboards/{id}/import:
+    $ref: "./paths/imports.yaml#/dashboards-id-import"
   /dashboards/{id}/events:
     $ref: "./paths/events.yaml#/dashboards-id-events"
   /dashboards/{id}/comments:
@@ -78,6 +80,10 @@ paths:
     $ref: "./paths/observe.yaml#/observe"
   /observe/{id}:
     $ref: "./paths/observe.yaml#/observe-id"
+  /imports/preview:
+    $ref: "./paths/imports.yaml#/imports-preview"
+  /imports:
+    $ref: "./paths/imports.yaml#/imports"
 components:
   securitySchemes:
     sessionCookie:
@@ -1299,6 +1305,323 @@ components:
       properties:
         request:
           $ref: "#/components/schemas/AgentRequest"
+    ImportRequest:
+      type: object
+      additionalProperties: false
+      required: [json]
+      properties:
+        json:
+          type: string
+          minLength: 1
+          description: The Grafana dashboard JSON text, exactly as pasted or uploaded.
+        mapping:
+          type: object
+          nullable: true
+          maxProperties: 50
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Source datasource key to our datasource uid; keys and values are 1 to 200 bytes.
+    ImportSummary:
+      type: object
+      additionalProperties: false
+      required: [format, title, uid, schema_version, bytes, panels, rows, variables]
+      properties:
+        format:
+          type: string
+          enum: [classic, export, api]
+        title:
+          type: string
+        uid:
+          type: string
+        schema_version:
+          type: integer
+          minimum: 0
+        bytes:
+          type: integer
+          minimum: 0
+        panels:
+          type: integer
+          minimum: 0
+        rows:
+          type: integer
+          minimum: 0
+        variables:
+          type: integer
+          minimum: 0
+    ImportSourceDatasource:
+      type: object
+      additionalProperties: false
+      required: [key, name, type, kind, panels, match, matched_by, candidates]
+      properties:
+        key:
+          type: string
+          description: How the dashboard refers to the datasource (a uid, a name or an `${DS_...}` input).
+        name:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+          description: The Grafana datasource type.
+        kind:
+          type: string
+          nullable: true
+          description: Our datasource type it needs (`prometheus` or `clickhouse`); null for a built-in datasource.
+        panels:
+          type: integer
+          minimum: 0
+        match:
+          type: string
+          nullable: true
+          description: The uid of our datasource it will use; null while unmatched.
+        matched_by:
+          type: string
+          enum: [mapping, uid, alias, only]
+          nullable: true
+        candidates:
+          type: array
+          items:
+            type: string
+          description: The uids of ours of the same kind.
+    ImportQueryLine:
+      type: object
+      additionalProperties: false
+      required: [ref_id, ref, datasource, rewrites, dropped]
+      properties:
+        ref_id:
+          type: string
+        ref:
+          type: string
+          nullable: true
+        datasource:
+          type: string
+          nullable: true
+        rewrites:
+          type: array
+          items:
+            type: string
+        dropped:
+          type: string
+          nullable: true
+    ImportPanelLine:
+      type: object
+      additionalProperties: false
+      required: [panel_id, grafana_id, grafana_path, title, type, source_type, row, status, reasons, paths, queries]
+      properties:
+        panel_id:
+          type: string
+        grafana_id:
+          type: integer
+          nullable: true
+        grafana_path:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        source_type:
+          type: string
+        row:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [imported, partial, placeholder, unverified]
+        reasons:
+          type: array
+          items:
+            type: string
+        paths:
+          type: array
+          items:
+            type: string
+        queries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportQueryLine"
+    ImportNote:
+      type: object
+      additionalProperties: false
+      required: [subject, status, reason, paths]
+      properties:
+        subject:
+          type: string
+        status:
+          type: string
+          enum: [imported, partial, placeholder, unverified]
+        reason:
+          type: string
+        paths:
+          type: array
+          items:
+            type: string
+    ImportCounts:
+      type: object
+      additionalProperties: false
+      required: [total, imported, partial, placeholder, unverified]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        imported:
+          type: integer
+          minimum: 0
+        partial:
+          type: integer
+          minimum: 0
+        placeholder:
+          type: integer
+          minimum: 0
+        unverified:
+          type: integer
+          minimum: 0
+    ImportReport:
+      type: object
+      additionalProperties: false
+      required: [importer_version, verified, counts, panels, notes]
+      properties:
+        importer_version:
+          type: integer
+          minimum: 1
+        verified:
+          type: boolean
+          description: True once every query ran at save time; always false in a preview.
+        counts:
+          $ref: "#/components/schemas/ImportCounts"
+        panels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportPanelLine"
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportNote"
+    ImportPreview:
+      type: object
+      additionalProperties: false
+      required: [summary, datasources, ready, report, spec]
+      properties:
+        summary:
+          $ref: "#/components/schemas/ImportSummary"
+        datasources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSourceDatasource"
+        ready:
+          type: boolean
+          description: True when every source datasource has a match, so the import can be saved.
+        report:
+          $ref: "#/components/schemas/ImportReport"
+        spec:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: The converted ObserveSpec document; null when `ready` is false.
+    ImportRecord:
+      type: object
+      additionalProperties: false
+      required: [id, dashboard_id, version, source, importer_version, title, mapping, summary, datasources, report, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+          description: The dashboard version the import produced.
+        source:
+          type: string
+          enum: [grafana]
+        importer_version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+        summary:
+          $ref: "#/components/schemas/ImportSummary"
+        datasources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSourceDatasource"
+        report:
+          $ref: "#/components/schemas/ImportReport"
+        created_by:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+    ImportMeta:
+      type: object
+      additionalProperties: false
+      required: [id, dashboard_id, version, importer_version, title, counts, created_by, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        importer_version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        counts:
+          $ref: "#/components/schemas/ImportCounts"
+        created_by:
+          $ref: "#/components/schemas/Author"
+        created_at:
+          type: string
+          format: date-time
+    ImportList:
+      type: object
+      additionalProperties: false
+      required: [imports, next_cursor]
+      properties:
+        imports:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportMeta"
+        next_cursor:
+          type: string
+          nullable: true
+    ImportedDashboard:
+      type: object
+      additionalProperties: false
+      required: [dashboard, version, import]
+      properties:
+        dashboard:
+          $ref: "#/components/schemas/DashboardSummary"
+        version:
+          $ref: "#/components/schemas/Version"
+        import:
+          $ref: "#/components/schemas/ImportRecord"
+    DatasourcesUnresolved:
+      type: object
+      additionalProperties: false
+      required: [error, code, datasources]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [datasources_unresolved]
+        datasources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportSourceDatasource"
   responses:
     BadRequest:
       description: The request is malformed or fails validation.
