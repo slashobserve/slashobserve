@@ -5,7 +5,6 @@ export type MatchSubject = {
   frame: PreparedFrame
   field: PreparedField
   seriesName: string
-  displayName: string
 }
 
 export type Matcher = (subject: MatchSubject) => boolean
@@ -28,8 +27,7 @@ export function compileMatch(match: Match): Matcher {
   }
   if ("field" in match) {
     const name = match.field
-    return ({ field, displayName }) =>
-      field.name === name || displayName === name
+    return ({ field, seriesName }) => field.name === name || seriesName === name
   }
   if ("fieldType" in match) {
     const type = match.fieldType

@@ -123,23 +123,38 @@ describe("field config resolution", () => {
     expect(resolver.configFor(f, f.fields[1]).unit).toBeUndefined()
   })
 
-  it("matches field by name or by display name", () => {
-    const f = frame([time, value("Value")], { labels: { pod: "a" } })
+  it("matches field by name or by series name", () => {
+    const f = frame([time, value("Value")], {
+      name: "up",
+      labels: { pod: "a" },
+    })
     const byName = createFieldResolver(
       panel({ overrides: [{ match: { field: "Value" }, unit: "ms" }] })
     )
-    const byDisplayName = createFieldResolver(
-      panel({
-        displayName: "Pod ${__field.labels.pod}",
-        overrides: [{ match: { field: "Pod a" }, unit: "ms" }],
-      })
+    const bySeriesName = createFieldResolver(
+      panel({ overrides: [{ match: { field: 'up{pod="a"}' }, unit: "ms" }] })
     )
     const miss = createFieldResolver(
       panel({ overrides: [{ match: { field: "Nope" }, unit: "ms" }] })
     )
     expect(byName.configFor(f, f.fields[1]).unit).toBe("ms")
-    expect(byDisplayName.configFor(f, f.fields[1]).unit).toBe("ms")
+    expect(bySeriesName.configFor(f, f.fields[1]).unit).toBe("ms")
     expect(miss.configFor(f, f.fields[1]).unit).toBeUndefined()
+  })
+
+  it("matches field before the panel display name renames it", () => {
+    const f = frame([time, value()], { name: "up", labels: { pod: "a" } })
+    const resolver = createFieldResolver(
+      panel({
+        displayName: "${__field.labels.pod}",
+        overrides: [
+          { match: { field: 'up{pod="a"}' }, unit: "ms" },
+          { match: { field: "a" }, unit: "s" },
+        ],
+      })
+    )
+    expect(resolver.displayName(f, f.fields[1])).toBe("a")
+    expect(resolver.configFor(f, f.fields[1]).unit).toBe("ms")
   })
 
   it("matches fieldType, mapping bool to boolean and never matching other", () => {
