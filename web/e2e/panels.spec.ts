@@ -86,7 +86,7 @@ test("draws every panel type with data", async ({ page, request }) => {
   }
 
   const logs = panel(page, "Log rows by service")
-  expect(await logs.getByRole("row").count()).toBeGreaterThan(1)
+  await expect(logs.getByRole("row").nth(1)).toBeVisible()
 })
 
 test("shows a crosshair tooltip and toggles series", async ({
