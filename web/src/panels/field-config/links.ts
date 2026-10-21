@@ -54,11 +54,14 @@ export function isDataLink(link: Link): boolean {
 function rowValue(scope: LinkScope, name: string): string | null {
   const { row } = scope
   if (!row) return null
-  const field = row.frame.fields.find(
-    (candidate) =>
-      matchesName(row.frame, candidate, name) ||
-      scope.fields?.displayName(row.frame, candidate) === name
-  )
+  const { fields } = row.frame
+  const field =
+    fields.find((candidate) => candidate.name === name) ??
+    fields.find(
+      (candidate) =>
+        matchesName(row.frame, candidate, name) ||
+        scope.fields?.displayName(row.frame, candidate) === name
+    )
   if (!field || row.index < 0 || row.index >= field.values.length) return null
   const value = field.values[row.index]
   return value === null || value === undefined ? "" : String(value)

@@ -116,6 +116,20 @@ describe("link interpolation", () => {
     ).toBe("/r?x=${__data.fields.Pod web}")
   })
 
+  it("prefers a field named like the token over another field's display name", () => {
+    const frame: WireFrame = {
+      ref: "A",
+      fields: [
+        { name: "Value", type: "number", values: [7, 9] },
+        { name: "route", type: "string", values: ["/a", "/b"] },
+      ],
+    }
+    const fields = createFieldResolver({ displayName: "route" } as DataPanel)
+    expect(
+      href("/r?x=${__data.fields.route}", { row: { frame, index: 1 }, fields })
+    ).toBe("/r?x=%2Fb")
+  })
+
   it("fills the value, series and field tokens", () => {
     const url =
       "/v?raw=${__value.raw}&text=${__value.text}&s=${__series.name}&f=${__field.name}"
