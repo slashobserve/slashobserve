@@ -16,6 +16,7 @@ The product brief lives outside this repository, at `../docs/BRIEF.md` in the Sl
 | `make lint` | golangci-lint (config verify, format diff, run), `sqlc diff`, web typecheck, Spec drift and fixture parity check, web API type drift check (`api:check`), ESLint, Prettier check. |
 | `make ci` | `lint`, `test`, `tidy-check` (`go mod tidy -diff` for the root module and `demo/shop`), `build`: what the CI `check` job runs. |
 | `make generate` | Regenerate sqlc code, the web Spec types/validator and the web API types (`web/src/api/schema.gen.ts`) after editing migrations, queries, the schema or `api/`. |
+| `make golden` | Rewrite the `pkg/grafana` corpus goldens (`go test ./pkg/grafana -run TestCorpusGoldens -update`). |
 | `make demo` / `make demo-down` | Run the full demo stack in `deploy/compose` and stop it: the app on http://localhost:8080, Prometheus on http://localhost:9090 and the shop fault API on http://localhost:8081, with Dex, Postgres, ClickHouse, the OTel Collector, node-exporter, cAdvisor and the shop behind them. |
 | `make demo-reset` | Stop the demo stack and drop its volumes, so the 26 hour request and latency backfill runs again on the next `make demo`. |
 | `make demo-fault TYPE=errors\|latency PCT=N` | Inject a fault into the `checkout-0` pod through the shop fault API. |
@@ -75,6 +76,8 @@ Directories are created when their phase starts; this is where things go.
 - `pkg/grafana/`: the Grafana importer (pure: no network, no database): `Detect`, `Convert` (Spec, source datasources with matches, report) and `Result.Verify`; `testdata/corpus/` holds the golden corpus with its sources and licences.
   A Grafana option is handled in this order: converted when the Spec has the field; else silent only when it equals a Grafana default (`grafanaDefaults`) or is listed in `cosmeticOptions` with the renderer behaviour that makes it invisible; else reported as a path.
   A datasource variable is one dashboard note, never a panel path, and a panel lists at most 100 paths.
+  Goldens are reviewed diffs: run `make golden`, read every changed golden, and say in the commit message which converter rule changed them.
+  `TestCorpusRatio` holds the gate: at least 90% of corpus panels are imported or partial.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.

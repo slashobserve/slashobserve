@@ -1,0 +1,221 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Stat panels",
+    "uid": "ce5y2zqopdwqoa",
+    "schema_version": 40,
+    "bytes": 9027,
+    "panels": 3,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "P7E099F39B84EA795",
+      "name": null,
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 3,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 3,
+      "imported": 0,
+      "partial": 3,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Single stat panel #403",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Stat panel",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Stat panel",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Stat panels",
+    "description": "https://github.com/Altinity/clickhouse-grafana/issues/403",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p1",
+        "type": "stat",
+        "title": "Single stat panel #403",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/403",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    1 AS t,\n    concat('Category ', toString(cat)) AS cat,\n    count(idx) AS errors\nFROM (\n    SELECT\n        rand() % 4 + 1 AS cat, /* Random category */\n        rand() % 100 AS idx   /* Random idx values */\n    FROM numbers(1000)        /* More rows for higher variability */\n) subquery\nGROUP BY t, cat limit 1"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "textMode": "valueAndName"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Stat panel",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/403",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    1 AS t,\n    concat('Category ', toString(cat)) AS cat,\n    count(idx) AS errors\nFROM (\n    SELECT\n        rand() % 10 + 1 AS cat, /* Random category */\n        rand() % 100 AS idx   /* Random idx values */\n    FROM numbers(1000)        /* More rows for higher variability */\n) subquery\nGROUP BY t, cat"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "textMode": "valueAndName"
+        }
+      },
+      {
+        "id": "p3",
+        "type": "stat",
+        "title": "Stat panel",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/403",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    1 AS t,\n    concat('Category ', toString(cat)) AS cat,\n    count(idx) AS errors\nFROM (\n    SELECT\n        rand() % 4 + 1 AS cat, /* Random category */\n        rand() % 100 AS idx   /* Random idx values */\n    FROM numbers(1000)        /* More rows for higher variability */\n) subquery\nGROUP BY t, cat"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "textMode": "valueAndName",
+          "orientation": "horizontal"
+        }
+      }
+    ]
+  }
+}

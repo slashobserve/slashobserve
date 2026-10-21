@@ -1,0 +1,402 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Grafana Overview",
+    "uid": "6be0s85Mk",
+    "schema_version": 41,
+    "bytes": 13319,
+    "panels": 5,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 5,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 5,
+      "imported": 3,
+      "partial": 2,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[0]",
+        "title": "Firing Alerts",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[1]",
+        "title": "Dashboards",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[2]",
+        "title": "Build Info",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[3]",
+        "title": "RPS",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[4]",
+        "title": "Request Latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "targets[2].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Grafana Overview",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(grafana_build_info, job)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(grafana_build_info, instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p6",
+        "type": "stat",
+        "title": "Firing Alerts",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "grafana_alerting_result_total{job=~\"$job\", instance=~\"$instance\", state=\"alerting\"}",
+            "instant": true,
+            "interval": "1m"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "noValue": "0",
+        "display": {
+          "reduce": "mean"
+        }
+      },
+      {
+        "id": "p8",
+        "type": "stat",
+        "title": "Dashboards",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(grafana_stat_totals_dashboard{job=~\"$job\", instance=~\"$instance\"})",
+            "interval": "1m"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "reduce": "mean"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "table",
+        "title": "Build Info",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 5
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "grafana_build_info{job=~\"$job\", instance=~\"$instance\"}",
+            "instant": true,
+            "interval": "1m"
+          }
+        ],
+        "transform": [
+          {
+            "type": "merge"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Value",
+              "branch",
+              "container",
+              "goversion",
+              "namespace",
+              "pod",
+              "revision"
+            ],
+            "order": [
+              "job",
+              "instance",
+              "edition",
+              "version",
+              "branch",
+              "revision",
+              "goversion",
+              "Time",
+              "container",
+              "namespace",
+              "pod",
+              "Value"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "RPS",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (status_code) (irate(grafana_http_request_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[1m])) ",
+            "legend": "{{status_code}}",
+            "interval": "1m"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 10,
+        "stack": "normal",
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "Request Latency",
+        "gridPos": {
+          "x": 12,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(irate(grafana_http_request_duration_seconds_bucket{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) by (le)) * 1",
+            "legend": "99th Percentile",
+            "interval": "1m"
+          },
+          {
+            "query": "histogram_quantile(0.50, sum(irate(grafana_http_request_duration_seconds_bucket{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) by (le)) * 1",
+            "legend": "50th Percentile",
+            "interval": "1m"
+          },
+          {
+            "query": "sum(irate(grafana_http_request_duration_seconds_sum{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) * 1 / sum(irate(grafana_http_request_duration_seconds_count{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval]))",
+            "legend": "Average",
+            "interval": "1m"
+          }
+        ],
+        "unit": "ms",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "$timeFilterMs and $timeSeriesMs",
+    "uid": "iVjWIx97k",
+    "schema_version": 27,
+    "bytes": 4779,
+    "panels": 1,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "clickhouse",
+      "name": "clickhouse",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 1,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 1,
+      "imported": 0,
+      "partial": 1,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "$timeSeriesMs and $timeFIlterMs",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Alerts are not supported yet."
+        ],
+        "paths": [
+          "alert"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeriesMs -> $__timeInterval_ms(d)",
+              "$table -> default.test_datetime64",
+              "$timeFilterMs -> $__timeFilter_ms(d)"
+            ],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "$timeFilterMs and $timeSeriesMs",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "$timeSeriesMs and $timeFIlterMs",
+        "description": "fix https://github.com/Altinity/clickhouse-grafana/issues/344 and https://github.com/Altinity/clickhouse-grafana/issues/398",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    $__timeInterval_ms(d) as t,\n    count()\nFROM default.test_datetime64\n\nWHERE $__timeFilter_ms(d)\n\nGROUP BY t\n\nORDER BY t\n"
+          }
+        ],
+        "unit": "short",
+        "thresholds": [
+          {
+            "value": 0,
+            "color": "critical"
+          }
+        ],
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      }
+    ]
+  }
+}

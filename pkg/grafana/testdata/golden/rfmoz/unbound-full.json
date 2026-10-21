@@ -1,0 +1,2502 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Unbound Full",
+    "uid": "9FQf4fEWz",
+    "schema_version": 41,
+    "bytes": 113978,
+    "panels": 35,
+    "rows": 7,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 35,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 35,
+      "imported": 0,
+      "partial": 35,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[1]",
+        "title": "Queries by type",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[2]",
+        "title": "Answers by response code",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[3]",
+        "title": "Cache hits / misses - stacked",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[4]",
+        "title": "Total queries by thread - stacked",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p46",
+        "grafana_id": 46,
+        "grafana_path": "panels[5]",
+        "title": "Response time",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "cards.cardPadding",
+          "color.cardColor",
+          "color.colorScale",
+          "color.colorScheme",
+          "color.exponent",
+          "color.mode",
+          "dataFormat",
+          "hideZeroBuckets",
+          "highlightCards",
+          "legend.show",
+          "options.calculation.xBuckets.mode",
+          "options.calculation.yBuckets.mode",
+          "options.cellGap",
+          "options.cellValues.decimals",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.showValue",
+          "options.tooltip.show",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.decimals",
+          "options.yAxis.min",
+          "options.yAxis.reverse",
+          "options.yAxis.unit",
+          "reverseYBuckets",
+          "tooltip.show",
+          "tooltip.showHistogram",
+          "xAxis.show",
+          "yAxis.decimals",
+          "yAxis.format",
+          "yAxis.logBase",
+          "yAxis.min",
+          "yAxis.show",
+          "yBucketBound"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[6]",
+        "title": "Memory used by caches",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Principal",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[7].panels[0]",
+        "title": "Queries by flag",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[7].panels[1]",
+        "title": "Queries by protocol in / out",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p84",
+        "grafana_id": 84,
+        "grafana_path": "panels[7].panels[2]",
+        "title": "Queries by class",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[7].panels[3]",
+        "title": "Queries by opcode",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p72",
+        "grafana_id": 72,
+        "grafana_path": "panels[7].panels[4]",
+        "title": "Queries by method",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p83",
+        "grafana_id": 83,
+        "grafana_path": "panels[7].panels[5]",
+        "title": "Queries by IPv6",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p90",
+        "grafana_id": 90,
+        "grafana_path": "panels[7].panels[6]",
+        "title": "Queries by DoQ (QUIC)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p91",
+        "grafana_id": 91,
+        "grafana_path": "panels[7].panels[7]",
+        "title": "DNS Cookies",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Queries detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p80",
+        "grafana_id": 80,
+        "grafana_path": "panels[8].panels[0]",
+        "title": "Answers bogus",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Answers detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p85",
+        "grafana_id": 85,
+        "grafana_path": "panels[8].panels[1]",
+        "title": "Answers secure",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Answers detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p92",
+        "grafana_id": 92,
+        "grafana_path": "panels[8].panels[2]",
+        "title": "DNSSEC Signature Validations",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Answers detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p70",
+        "grafana_id": 70,
+        "grafana_path": "panels[9].panels[0]",
+        "title": "Cached messages / rrset",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cache",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[9].panels[1]",
+        "title": "Cache prefetches - stacked",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cache",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p93",
+        "grafana_id": 93,
+        "grafana_path": "panels[9].panels[2]",
+        "title": "Infra Cache Entries",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cache",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p97",
+        "grafana_id": 97,
+        "grafana_path": "panels[9].panels[3]",
+        "title": "Cache Collisions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cache",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p55",
+        "grafana_id": 55,
+        "grafana_path": "panels[10].panels[0]",
+        "title": "Request list size",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Request list",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p57",
+        "grafana_id": 57,
+        "grafana_path": "panels[10].panels[1]",
+        "title": "Request list issues",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Request list",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p94",
+        "grafana_id": 94,
+        "grafana_path": "panels[10].panels[2]",
+        "title": "Queries Discarded / Limited",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Request list",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[11].panels[0]",
+        "title": "Memory used by modules",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p69",
+        "grafana_id": 69,
+        "grafana_path": "panels[11].panels[1]",
+        "title": "Memory used by DoH buffers",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p95",
+        "grafana_id": 95,
+        "grafana_path": "panels[11].panels[2]",
+        "title": "Memory used by DoQ buffers",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p96",
+        "grafana_id": 96,
+        "grafana_path": "panels[11].panels[3]",
+        "title": "Total Memory (sbrk)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p68",
+        "grafana_id": 68,
+        "grafana_path": "panels[12].panels[0]",
+        "title": "Expired entries - stacked",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[12].panels[1]",
+        "title": "Replies sent to recursive queries - stacked",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p76",
+        "grafana_id": 76,
+        "grafana_path": "panels[12].panels[2]",
+        "title": "Queries / Replies refused by access control",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p74",
+        "grafana_id": 74,
+        "grafana_path": "panels[12].panels[3]",
+        "title": "Recursive processing time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p71",
+        "grafana_id": 71,
+        "grafana_path": "panels[12].panels[4]",
+        "title": "NSEC responses",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p88",
+        "grafana_id": 88,
+        "grafana_path": "panels[12].panels[5]",
+        "title": "Uptime",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p89",
+        "grafana_id": 89,
+        "grafana_path": "panels[12].panels[6]",
+        "title": "RPZ Actions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Unbound Full",
+    "description": "Unbound DNS resolver metrics",
+    "tags": [
+      "unbound",
+      "dns",
+      "servers"
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(unbound_up, instance)",
+        "refresh": "timeRange"
+      }
+    ],
+    "links": [
+      {
+        "title": "GitHub",
+        "url": "https://github.com/rfmoz/grafana-dashboards",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p65",
+        "type": "row",
+        "title": "Principal",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "Queries by type",
+            "description": "Number of queries with a given query type",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_types_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p40",
+            "type": "timeseries",
+            "title": "Answers by response code",
+            "description": "Number of answers to queries, from cache or from recursion, by response code",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_answer_rcodes_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{rcode}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "NXDOMAIN"
+                },
+                "color": "#FA6400"
+              },
+              {
+                "match": {
+                  "series": "SERVFAIL"
+                },
+                "color": "#C4162A"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "Cache hits / misses - stacked",
+            "description": "Number of queries that were successfully answered using a cache lookup.\n\nNumber of cache queries that needed recursive processing.",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(rate(unbound_cache_misses_total{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "misses"
+              },
+              {
+                "ref": "A",
+                "query": "sum(rate(unbound_cache_hits_total{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "hits"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "hits"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "series": "misses"
+                },
+                "color": "#F2495C"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Total queries by thread - stacked",
+            "description": "Number of queries handled by each worker thread",
+            "gridPos": {
+              "x": 12,
+              "y": 12,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_queries_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "thread {{thread}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p46",
+            "type": "heatmap",
+            "title": "Response time",
+            "description": "Query response time in seconds",
+            "gridPos": {
+              "x": 0,
+              "y": 23,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_response_time_seconds_bucket{instance=\"$instance\",le=~\"3.2e-05|6.4e-05|0.000128|0.000256|0.000512|0.001024|0.002048|0.004096|0.008192|0.016384|0.032768|0.065536|0.131072|0.262144|0.524288|1|2|4|8|16|32|64\"}[$__rate_interval])",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ]
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "Memory used by caches",
+            "description": "Memory in use by caches, in bytes",
+            "gridPos": {
+              "x": 12,
+              "y": 23,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_memory_caches_bytes{instance=\"$instance\"}",
+                "legend": "{{cache}}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p82",
+        "type": "row",
+        "title": "Queries detail",
+        "gridPos": {
+          "x": 0,
+          "y": 34,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Queries by flag",
+            "description": "Number of queries that had a given flag set in the header",
+            "gridPos": {
+              "x": 0,
+              "y": 35,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_flags_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{flag}}"
+              },
+              {
+                "query": "rate(unbound_query_edns_present_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "EDNS OPT"
+              },
+              {
+                "query": "rate(unbound_query_edns_DO_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "DO (DNSSEC OK)"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "timeseries",
+            "title": "Queries by protocol in / out",
+            "description": "Number of queries that the Unbound server made using TCP outgoing towards other servers.\n\nNumber of queries that the Unbound server made using UDP outgoing towards other servers.\n\nNumber of queries that were made using TCP towards the Unbound server, including DoT and DoH queries.",
+            "gridPos": {
+              "x": 12,
+              "y": 35,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "rate(unbound_query_tcpout_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "TCP out"
+              },
+              {
+                "ref": "C",
+                "query": "rate(unbound_query_udpout_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "UDP out"
+              },
+              {
+                "ref": "A",
+                "query": "rate(unbound_query_tcp_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "TCP in"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p84",
+            "type": "timeseries",
+            "title": "Queries by class",
+            "description": "Number of queries with a given query class.",
+            "gridPos": {
+              "x": 0,
+              "y": 46,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_classes_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{class}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p38",
+            "type": "timeseries",
+            "title": "Queries by opcode",
+            "description": "Number of queries with a given query opcode.",
+            "gridPos": {
+              "x": 12,
+              "y": 46,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "rate(unbound_query_opcodes_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{opcode}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p72",
+            "type": "timeseries",
+            "title": "Queries by method",
+            "description": "Number of DoH queries that were made towards the Unbound server.\n\nNumber of queries that were made using TCP TLS towards the Unbound server, including DoT and DoH queries.\n\nNumber of queries that were made using TCP TLS Resume towards the Unbound server.",
+            "gridPos": {
+              "x": 0,
+              "y": 57,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_https_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "HTTPS"
+              },
+              {
+                "ref": "D",
+                "query": "rate(unbound_query_tls_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "TLS"
+              },
+              {
+                "ref": "B",
+                "query": "rate(unbound_query_tls_resume_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "TLS Resume"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p83",
+            "type": "timeseries",
+            "title": "Queries by IPv6",
+            "description": "Number of queries that were made using IPv6 towards the Unbound server.",
+            "gridPos": {
+              "x": 12,
+              "y": 57,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(unbound_query_ipv6_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "IPv6"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p90",
+            "type": "timeseries",
+            "title": "Queries by DoQ (QUIC)",
+            "description": "Number of DNS-over-QUIC (DoQ) queries performed towards the Unbound server.",
+            "gridPos": {
+              "x": 0,
+              "y": 68,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_quic_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "QUIC"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p91",
+            "type": "timeseries",
+            "title": "DNS Cookies",
+            "description": "Number of queries with DNS cookies: client, valid, and invalid.",
+            "gridPos": {
+              "x": 12,
+              "y": 68,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_queries_cookie_client_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Client cookie"
+              },
+              {
+                "query": "rate(unbound_queries_cookie_valid_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Valid cookie"
+              },
+              {
+                "query": "rate(unbound_queries_cookie_invalid_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Invalid cookie"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p87",
+        "type": "row",
+        "title": "Answers detail",
+        "gridPos": {
+          "x": 0,
+          "y": 35,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p80",
+            "type": "timeseries",
+            "title": "Answers bogus",
+            "description": "Number of rrsets marked bogus by the validator.\n\nNumber of answers that were bogus.",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_answers_bogus{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Bogus"
+              },
+              {
+                "ref": "D",
+                "query": "rate(unbound_rrset_bogus_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "RRset bogus"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p85",
+            "type": "timeseries",
+            "title": "Answers secure",
+            "description": "Number of answers that were secure.",
+            "gridPos": {
+              "x": 12,
+              "y": 36,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "rate(unbound_answers_secure_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Secure"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p92",
+            "type": "timeseries",
+            "title": "DNSSEC Signature Validations",
+            "description": "Number of DNSSEC signature validation operations performed by the validator module.",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_signature_validations{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Validations"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p59",
+        "type": "row",
+        "title": "Cache",
+        "gridPos": {
+          "x": 0,
+          "y": 36,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p70",
+            "type": "timeseries",
+            "title": "Cached messages / rrset",
+            "description": "Number of Messages cached.\n\nNumber of rrset cached.",
+            "gridPos": {
+              "x": 0,
+              "y": 37,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_msg_cache_count{instance=\"$instance\"}",
+                "legend": "messages"
+              },
+              {
+                "query": "unbound_rrset_cache_count{instance=\"$instance\"}",
+                "legend": "rrset"
+              }
+            ],
+            "unit": "none",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Cache prefetches - stacked",
+            "description": "Number of cache prefetches performed.",
+            "gridPos": {
+              "x": 12,
+              "y": 37,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_prefetches_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "thread {{thread}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p93",
+            "type": "timeseries",
+            "title": "Infra Cache Entries",
+            "description": "Number of entries in the infrastructure cache.",
+            "gridPos": {
+              "x": 0,
+              "y": 48,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_infra_cache_count{instance=\"$instance\"}",
+                "legend": "Infra cache"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p97",
+            "type": "timeseries",
+            "title": "Cache Collisions",
+            "description": "Maximum number of hashtable collisions in message and rrset caches.",
+            "gridPos": {
+              "x": 12,
+              "y": 48,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_msg_cache_max_collisions_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "msg cache"
+              },
+              {
+                "query": "rate(unbound_rrset_cache_max_collisions_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "rrset cache"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p54",
+        "type": "row",
+        "title": "Request list",
+        "gridPos": {
+          "x": 0,
+          "y": 37,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p55",
+            "type": "timeseries",
+            "title": "Request list size",
+            "description": "Current size of the request list",
+            "gridPos": {
+              "x": 0,
+              "y": 38,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(unbound_request_list_current_all{instance=\"$instance\"})",
+                "legend": "including internally generated queries"
+              },
+              {
+                "query": "sum(unbound_request_list_current_user{instance=\"$instance\"})",
+                "legend": "only counting the requests from client queries"
+              },
+              {
+                "query": "sum(unbound_request_list_current_replies{instance=\"$instance\"})",
+                "legend": "replies waiting"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p57",
+            "type": "timeseries",
+            "title": "Request list issues",
+            "description": "Unexpected events over request list",
+            "gridPos": {
+              "x": 12,
+              "y": 38,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(unbound_request_list_overwritten_total{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "requests in the request list that were overwritten by newer entries"
+              },
+              {
+                "query": "sum(rate(unbound_request_list_exceeded_total{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "queries that were dropped because the request list was full"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p94",
+            "type": "timeseries",
+            "title": "Queries Discarded / Limited",
+            "description": "Number of queries removed due to discard-timeout, replyaddr limits, or wait-limit.",
+            "gridPos": {
+              "x": 0,
+              "y": 49,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(unbound_queries_discard_timeout{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "Discard timeout"
+              },
+              {
+                "query": "sum(rate(unbound_queries_replyaddr_limit{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "Replyaddr limit"
+              },
+              {
+                "query": "sum(rate(unbound_queries_wait_limit{instance=\"$instance\"}[$__rate_interval]))",
+                "legend": "Wait limit"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p79",
+        "type": "row",
+        "title": "Memory",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Memory used by modules",
+            "description": "Memory in use by modules",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_memory_modules_bytes{instance=\"$instance\"}",
+                "legend": "{{module}}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p69",
+            "type": "timeseries",
+            "title": "Memory used by DoH buffers",
+            "description": "Memory used by DoH buffers, in bytes",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_memory_doh_bytes{buffer=\"query_buffer\",instance=\"$instance\"}",
+                "legend": "query buffer"
+              },
+              {
+                "query": "unbound_memory_doh_bytes{buffer=\"response_buffer\",instance=\"$instance\"}",
+                "legend": "response buffer"
+              }
+            ],
+            "unit": "bytes",
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p95",
+            "type": "timeseries",
+            "title": "Memory used by DoQ buffers",
+            "description": "Memory used by DNS-over-QUIC buffers, in bytes.",
+            "gridPos": {
+              "x": 0,
+              "y": 50,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_memory_doq_bytes{instance=\"$instance\"}",
+                "legend": "DoQ memory"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p96",
+            "type": "timeseries",
+            "title": "Total Memory (sbrk)",
+            "description": "Memory allocated through sbrk, in bytes.",
+            "gridPos": {
+              "x": 12,
+              "y": 50,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_memory_sbrk_bytes{instance=\"$instance\"}",
+                "legend": "sbrk"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p67",
+        "type": "row",
+        "title": "Misc",
+        "gridPos": {
+          "x": 0,
+          "y": 39,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p68",
+            "type": "timeseries",
+            "title": "Expired entries - stacked",
+            "description": "Number of expired entries served",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_expired_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "thread {{thread}}"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p75",
+            "type": "timeseries",
+            "title": "Replies sent to recursive queries - stacked",
+            "description": "Number of replies sent to queries that needed recursive processing",
+            "gridPos": {
+              "x": 12,
+              "y": 40,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_recursive_replies_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "thread {{thread}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p76",
+            "type": "timeseries",
+            "title": "Queries / Replies refused by access control",
+            "description": "Number of queries that were refused or dropped because they failed the access control settings.\n\nNumber of replies that were unwanted or unsolicited.",
+            "gridPos": {
+              "x": 0,
+              "y": 51,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_unwanted_queries_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "queries"
+              },
+              {
+                "query": "rate(unbound_unwanted_replies_total{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "replies"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p74",
+            "type": "timeseries",
+            "title": "Recursive processing time",
+            "description": "Average time it took to answer queries that needed recursive processing (does not include in-cache requests).\n\nThe median of the time it took to answer queries that needed recursive processing.",
+            "gridPos": {
+              "x": 12,
+              "y": 51,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_recursion_time_seconds_avg{instance=\"$instance\"}",
+                "legend": "average"
+              },
+              {
+                "query": "unbound_recursion_time_seconds_median{instance=\"$instance\"}",
+                "legend": "median"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p71",
+            "type": "timeseries",
+            "title": "NSEC responses",
+            "description": "Number of queries that the Unbound server generated response using Aggressive NSEC.",
+            "gridPos": {
+              "x": 0,
+              "y": 62,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_query_aggressive_nsec{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "Aggressive NSEC"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p88",
+            "type": "timeseries",
+            "title": "Uptime",
+            "description": "Uptime since server boot in seconds.",
+            "gridPos": {
+              "x": 12,
+              "y": 62,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "unbound_time_up_seconds_total{instance=\"$instance\"}",
+                "legend": "Uptime"
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p89",
+            "type": "timeseries",
+            "title": "RPZ Actions",
+            "description": "Number of triggered Response Policy Zone actions, by type.",
+            "gridPos": {
+              "x": 0,
+              "y": 73,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(unbound_rpz_action_count{instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "last"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

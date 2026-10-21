@@ -1,0 +1,618 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Node Exporter / USE Method / Node",
+    "uid": "fac67cfbe174d3ef53eb473d73d9212f",
+    "schema_version": 39,
+    "bytes": 13509,
+    "panels": 9,
+    "rows": 5,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 9,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 9,
+      "imported": 6,
+      "partial": 3,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "CPU Utilisation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "CPU",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "CPU Saturation (Load1 per CPU)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "CPU",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Utilisation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Memory Saturation (Major Page Faults)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "partial",
+        "reasons": [
+          "Unit rds is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Network Utilisation (Bytes Receive/Transmit)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Network Saturation (Drops Receive/Transmit)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Disk IO Utilisation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk IO",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Disk IO Saturation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk IO",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Disk Space Utilisation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Space",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Node Exporter / USE Method / Node",
+    "tags": [
+      "node-exporter-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "hide": "variable",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_time_seconds, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_exporter_build_info{job=\"node-exporter\", cluster=~\"$cluster\"}, instance)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "CPU",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "CPU Utilisation",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_cpu_utilisation:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Utilisation"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "CPU Saturation (Load1 per CPU)",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_load1_per_cpu:ratio{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Saturation"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Memory",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Memory Utilisation",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_memory_utilisation:ratio{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Utilisation"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "Memory Saturation (Major Page Faults)",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_vmstat_pgmajfault:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Major page Faults"
+              }
+            ],
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Network Utilisation (Bytes Receive/Transmit)",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_network_receive_bytes_physical:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Receive"
+              },
+              {
+                "query": "instance:node_network_transmit_bytes_physical:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Transmit"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "Network Saturation (Drops Receive/Transmit)",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance:node_network_receive_drop_physical:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Receive"
+              },
+              {
+                "query": "instance:node_network_transmit_drop_physical:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "Transmit"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Disk IO",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Disk IO Utilisation",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance_device:node_disk_io_time_seconds:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Disk IO Saturation",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "instance_device:node_disk_io_time_weighted_seconds:rate5m{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"} != 0",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "row",
+        "title": "Disk Space",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Disk Space Utilisation",
+            "gridPos": {
+              "x": 0,
+              "y": 33,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sort_desc(1 -\n  (\n    max without (mountpoint, fstype) (node_filesystem_avail_bytes{job=\"node-exporter\", fstype!=\"\", instance=\"$instance\", cluster=~\"$cluster\"})\n    /\n    max without (mountpoint, fstype) (node_filesystem_size_bytes{job=\"node-exporter\", fstype!=\"\", instance=\"$instance\", cluster=~\"$cluster\"})\n  ) != 0\n)\n",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

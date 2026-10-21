@@ -1,0 +1,3891 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "NFS",
+    "uid": "vfsuyqfSk",
+    "schema_version": 41,
+    "bytes": 120975,
+    "panels": 27,
+    "rows": 7,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 27,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 27,
+      "imported": 0,
+      "partial": 27,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p243",
+        "grafana_id": 243,
+        "grafana_path": "panels[1]",
+        "title": "NFS Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p246",
+        "grafana_id": 246,
+        "grafana_path": "panels[2]",
+        "title": "NFSd Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p244",
+        "grafana_id": 244,
+        "grafana_path": "panels[3]",
+        "title": "NFS Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p247",
+        "grafana_id": 247,
+        "grafana_path": "panels[4]",
+        "title": "NFSd Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p249",
+        "grafana_id": 249,
+        "grafana_path": "panels[5]",
+        "title": "NFS RPC",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p257",
+        "grafana_id": 257,
+        "grafana_path": "panels[6]",
+        "title": "NFSd RPC",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p248",
+        "grafana_id": 248,
+        "grafana_path": "panels[7]",
+        "title": "NFSd Disk Read / Write",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p245",
+        "grafana_id": 245,
+        "grafana_path": "panels[8]",
+        "title": "NFSd File Handles",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p250",
+        "grafana_id": 250,
+        "grafana_path": "panels[9]",
+        "title": "NFSd Cache",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p258",
+        "grafana_id": 258,
+        "grafana_path": "panels[10]",
+        "title": "NFSd Server Threads",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p241",
+        "grafana_id": 241,
+        "grafana_path": "panels[11].panels[0]",
+        "title": "NFS v2 NFS Procedures Invoked 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v2 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p242",
+        "grafana_id": 242,
+        "grafana_path": "panels[11].panels[1]",
+        "title": "NFS v2 NFS Procedures Invoked 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v2 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "R",
+            "ref": "R",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p256",
+        "grafana_id": 256,
+        "grafana_path": "panels[12].panels[0]",
+        "title": "NFSd v2 NFSd Requests by Method 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v2 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p259",
+        "grafana_id": 259,
+        "grafana_path": "panels[12].panels[1]",
+        "title": "NFSd v2 NFSd Requests by Method 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v2 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [
+              "refId I -> A"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p233",
+        "grafana_id": 233,
+        "grafana_path": "panels[13].panels[0]",
+        "title": "NFS v3 NFS Procedures Invoked 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v3 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p234",
+        "grafana_id": 234,
+        "grafana_path": "panels[13].panels[1]",
+        "title": "NFS v3 NFS Procedures Invoked 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v3 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "R",
+            "ref": "R",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p251",
+        "grafana_id": 251,
+        "grafana_path": "panels[14].panels[0]",
+        "title": "NFSd v3 NFSd Requests by Method 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v3 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p252",
+        "grafana_id": 252,
+        "grafana_path": "panels[14].panels[1]",
+        "title": "NFSd v3 NFSd Requests by Method 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v3 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "R",
+            "ref": "R",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p235",
+        "grafana_id": 235,
+        "grafana_path": "panels[15].panels[0]",
+        "title": "NFS v4 NFS Procedures Invoked 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p236",
+        "grafana_id": 236,
+        "grafana_path": "panels[15].panels[1]",
+        "title": "NFS v4 NFS Procedures Invoked 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p237",
+        "grafana_id": 237,
+        "grafana_path": "panels[15].panels[2]",
+        "title": "NFS v4 NFS Procedures Invoked 3",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p238",
+        "grafana_id": 238,
+        "grafana_path": "panels[15].panels[3]",
+        "title": "NFS v4 NFS Procedures Invoked 4",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p239",
+        "grafana_id": 239,
+        "grafana_path": "panels[15].panels[4]",
+        "title": "NFS v4 NFS Procedures Invoked 5",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p240",
+        "grafana_id": 240,
+        "grafana_path": "panels[15].panels[5]",
+        "title": "NFS v4 NFS Procedures Invoked 6",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFS v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "T",
+            "ref": "T",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p253",
+        "grafana_id": 253,
+        "grafana_path": "panels[16].panels[0]",
+        "title": "NFSd v4 NFSd Requests by Method 1",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p254",
+        "grafana_id": 254,
+        "grafana_path": "panels[16].panels[1]",
+        "title": "NFSd v4 NFSd Requests by Method 2",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Q",
+            "ref": "Q",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "S",
+            "ref": "S",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "U",
+            "ref": "U",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p255",
+        "grafana_id": 255,
+        "grafana_path": "panels[16].panels[2]",
+        "title": "NFSd v4 NFSd Requests by Method 3",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "NFSd v4 Detail",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "L",
+            "ref": "L",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "J",
+            "ref": "J",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "K",
+            "ref": "K",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "M",
+            "ref": "M",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "N",
+            "ref": "N",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable node",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable port",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "NFS",
+    "tags": [
+      "nfs"
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "label": "Job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_boot_time_seconds, job)",
+        "sort": "alpha"
+      },
+      {
+        "name": "node",
+        "label": "Host:",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_boot_time_seconds{job=~\"$job\"}, instance)",
+        "regex": "/([^:]+):.*/",
+        "sort": "alpha"
+      },
+      {
+        "name": "port",
+        "label": "Port",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_boot_time_seconds{instance=~\"$node:(.*)\"}, instance)",
+        "regex": "/[^:]+:(.*)/",
+        "sort": "num"
+      }
+    ],
+    "links": [
+      {
+        "title": "GitHub",
+        "url": "https://github.com/rfmoz/grafana-dashboards",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p260",
+        "type": "row",
+        "title": "NFS",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p243",
+            "type": "timeseries",
+            "title": "NFS Connections",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfs_connections_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFS TCP connections/s",
+                "interval": "240s"
+              }
+            ],
+            "unit": "cps",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p246",
+            "type": "timeseries",
+            "title": "NFSd Connections",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_connections_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd TCP connections/s",
+                "interval": "240s"
+              }
+            ],
+            "unit": "cps",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p244",
+            "type": "timeseries",
+            "title": "NFS Packets",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "O",
+                "query": "rate(node_nfs_packets_total{protocol=\"tcp\",instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "TCP - NFS network packets (sent+received)",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_packets_total{protocol=\"udp\",instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "UDP - NFS network packets (sent+received)",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p247",
+            "type": "timeseries",
+            "title": "NFSd Packets",
+            "gridPos": {
+              "x": 12,
+              "y": 12,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "O",
+                "query": "rate(node_nfsd_packets_total{proto=\"tcp\",instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "TCP - NFSd network packets (sent+received)",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_packets_total{proto=\"udp\",instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "UDP - NFSd network packets (sent+received)",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p249",
+            "type": "timeseries",
+            "title": "NFS RPC",
+            "gridPos": {
+              "x": 0,
+              "y": 23,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfs_rpc_authentication_refreshes_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "Number of RPC authentication refreshes performed",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_rpc_retransmissions_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "Number of RPC retransmissions performed",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfs_rpcs_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "Total number of RPCs performed",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p257",
+            "type": "timeseries",
+            "title": "NFSd RPC",
+            "gridPos": {
+              "x": 12,
+              "y": 23,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_rpc_errors_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ error }} - NFSd RPC errors",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_server_rpcs_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd RPCs",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p248",
+            "type": "timeseries",
+            "title": "NFSd Disk Read / Write",
+            "gridPos": {
+              "x": 0,
+              "y": 34,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "O",
+                "query": "rate(node_nfsd_disk_bytes_read_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd bytes read",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_disk_bytes_written_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd bytes written",
+                "interval": "240s"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p245",
+            "type": "timeseries",
+            "title": "NFSd File Handles",
+            "gridPos": {
+              "x": 12,
+              "y": 34,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_file_handles_stale_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd stale file handles",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p250",
+            "type": "timeseries",
+            "title": "NFSd Cache",
+            "gridPos": {
+              "x": 0,
+              "y": 45,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_read_ahead_cache_not_found_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd read ahead cache not found",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_reply_cache_hits_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd Reply Cache hits (client lost server response)",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfsd_reply_cache_misses_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd Reply Cache misses (idempotent operations)",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_reply_cache_nocache_total{instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "NFSd Reply Cache non-idempotent operations (rename/delete/…)",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p258",
+            "type": "timeseries",
+            "title": "NFSd Server Threads",
+            "gridPos": {
+              "x": 12,
+              "y": 45,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "node_nfsd_server_threads{instance=~\"$node:$port\",job=~\"$job\"}",
+                "legend": "NFSd kernel threads that are running",
+                "interval": "240s"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p261",
+        "type": "row",
+        "title": "NFS v2 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 56,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p241",
+            "type": "timeseries",
+            "title": "NFS v2 NFS Procedures Invoked 1",
+            "gridPos": {
+              "x": 0,
+              "y": 57,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfs_requests_total{method='Create',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='FsStat',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='GetAttr',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Link',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Lookup',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='MkDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Null',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Read',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='ReadDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p242",
+            "type": "timeseries",
+            "title": "NFS v2 NFS Procedures Invoked 2",
+            "gridPos": {
+              "x": 0,
+              "y": 67,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "J",
+                "query": "rate(node_nfs_requests_total{method='ReadLink',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "K",
+                "query": "rate(node_nfs_requests_total{method='Remove',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='Rename',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='RmDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='Root',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "O",
+                "query": "rate(node_nfs_requests_total{method='SetAttr',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='SymLink',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='WrCache',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "R",
+                "query": "rate(node_nfs_requests_total{method='Write',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p262",
+        "type": "row",
+        "title": "NFSd v2 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 57,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p256",
+            "type": "timeseries",
+            "title": "NFSd v2 NFSd Requests by Method 1",
+            "gridPos": {
+              "x": 0,
+              "y": 58,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfsd_requests_total{method='Create',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='FsStat',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='GetAttr',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Link',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Lookup',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='MkDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Read',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='ReadDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p259",
+            "type": "timeseries",
+            "title": "NFSd v2 NFSd Requests by Method 2",
+            "gridPos": {
+              "x": 0,
+              "y": 68,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "I",
+                "query": "rate(node_nfsd_requests_total{method='ReadLink',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "J",
+                "query": "rate(node_nfsd_requests_total{method='Remove',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "K",
+                "query": "rate(node_nfsd_requests_total{method='Rename',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "L",
+                "query": "rate(node_nfsd_requests_total{method='RmDir',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfsd_requests_total{method='Root',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfsd_requests_total{method='SetAttr',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "O",
+                "query": "rate(node_nfsd_requests_total{method='SymLink',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfsd_requests_total{method='Write',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_requests_total{method='WrCache',proto='2',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p263",
+        "type": "row",
+        "title": "NFS v3 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 58,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p233",
+            "type": "timeseries",
+            "title": "NFS v3 NFS Procedures Invoked 1",
+            "gridPos": {
+              "x": 0,
+              "y": 59,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfs_requests_total{method='Access',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Commit',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Create',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='FsInfo',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='FsStat',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='GetAttr',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Link',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Lookup',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='MkDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='MkNod',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Null',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p234",
+            "type": "timeseries",
+            "title": "NFS v3 NFS Procedures Invoked 2",
+            "gridPos": {
+              "x": 0,
+              "y": 69,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='PathConf',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='Read',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='ReadDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "O",
+                "query": "rate(node_nfs_requests_total{method='ReadDirPlus',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='ReadLink',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='Rename',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "R",
+                "query": "rate(node_nfs_requests_total{method='RmDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='SetAttr',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='SymLink',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='Write',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_requests_total{method='Remove',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p264",
+        "type": "row",
+        "title": "NFSd v3 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 59,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p251",
+            "type": "timeseries",
+            "title": "NFSd v3 NFSd Requests by Method 1",
+            "gridPos": {
+              "x": 0,
+              "y": 60,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfsd_requests_total{method='Access',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Commit',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Create',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='FsInfo',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='FsStat',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='GetAttr',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Link',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Lookup',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='MkDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='MkNod',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='PathConf',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p252",
+            "type": "timeseries",
+            "title": "NFSd v3 NFSd Requests by Method 2",
+            "gridPos": {
+              "x": 0,
+              "y": 70,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfsd_requests_total{method='Read',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfsd_requests_total{method='ReadDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfsd_requests_total{method='ReadDirPlus',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "O",
+                "query": "rate(node_nfsd_requests_total{method='ReadLink',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfsd_requests_total{method='Remove',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfsd_requests_total{method='Rename',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "R",
+                "query": "rate(node_nfsd_requests_total{method='RmDir',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfsd_requests_total{method='SetAttr',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfsd_requests_total{method='SymLink',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfsd_requests_total{method='Write',proto='3',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p265",
+        "type": "row",
+        "title": "NFS v4 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 60,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p235",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 1",
+            "gridPos": {
+              "x": 0,
+              "y": 61,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfs_requests_total{method='Access',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Commit',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='Create',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfs_requests_total{method='FsInfo',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "F",
+                "query": "rate(node_nfs_requests_total{method='GetAttr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "G",
+                "query": "rate(node_nfs_requests_total{method='Link',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "H",
+                "query": "rate(node_nfs_requests_total{method='Lookup',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "K",
+                "query": "rate(node_nfs_requests_total{method='Null',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "E",
+                "query": "rate(node_nfs_requests_total{method='Allocate',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "I",
+                "query": "rate(node_nfs_requests_total{method='BindConnToSession',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "J",
+                "query": "rate(node_nfs_requests_total{method='Clone',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p236",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 2",
+            "gridPos": {
+              "x": 0,
+              "y": 71,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='PathConf',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='Read',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='ReadDir',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='ReadLink',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='Rename',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='Setattr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='SymLink',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='Write',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_requests_total{method='Close',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfs_requests_total{method='CreateSession',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "C",
+                "query": "rate(node_nfs_requests_total{method='Remove',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p237",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 3",
+            "gridPos": {
+              "x": 0,
+              "y": 81,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='DeAllocate',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='DelegReturn',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='DestroyClientID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='DestroySession',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='ExchangeID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='FreeStateID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='FsLocations',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='FsidPresent',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_requests_total{method='GetACL',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfs_requests_total{method='GetDeviceInfo',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p238",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 4",
+            "gridPos": {
+              "x": 0,
+              "y": 91,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='GetDeviceList',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='GetLeaseTime',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='LayoutCommit',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='LayoutGet',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='LayoutReturn',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='LayoutStats',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='Lock',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='Lockt',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_requests_total{method='Locku',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfs_requests_total{method='Lookup',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p239",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 5",
+            "gridPos": {
+              "x": 0,
+              "y": 101,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='LookupRoot',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='Open',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='OpenConfirmt',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='OpenDowngrade',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='OpenNoattr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='ReclaimComplete',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='ReleaseLockowner',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='Renew',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfs_requests_total{method='Secinfo',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfs_requests_total{method='SecinfoNoName',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p240",
+            "type": "timeseries",
+            "title": "NFS v4 NFS Procedures Invoked 6",
+            "gridPos": {
+              "x": 0,
+              "y": 111,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfs_requests_total{method='Seek',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfs_requests_total{method='Sequence',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "N",
+                "query": "rate(node_nfs_requests_total{method='ServerCaps',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfs_requests_total{method='SetACL',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfs_requests_total{method='SetClientID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfs_requests_total{method='SetClientIDConfirm',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "T",
+                "query": "rate(node_nfs_requests_total{method='StatFs',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfs_requests_total{method='TestStateID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p266",
+        "type": "row",
+        "title": "NFSd v4 Detail",
+        "gridPos": {
+          "x": 0,
+          "y": 61,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p253",
+            "type": "timeseries",
+            "title": "NFSd v4 NFSd Requests by Method 1",
+            "gridPos": {
+              "x": 0,
+              "y": 62,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_nfsd_requests_total{method='Access',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Commit',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Create',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "F",
+                "query": "rate(node_nfsd_requests_total{method='GetAttr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "G",
+                "query": "rate(node_nfsd_requests_total{method='Link',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "H",
+                "query": "rate(node_nfsd_requests_total{method='Lookup',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "D",
+                "query": "rate(node_nfsd_requests_total{method='Close',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "E",
+                "query": "rate(node_nfsd_requests_total{method='DelegPurge',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='DelegReturn',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='GetFH',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p254",
+            "type": "timeseries",
+            "title": "NFSd v4 NFSd Requests by Method 2",
+            "gridPos": {
+              "x": 0,
+              "y": 72,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfsd_requests_total{method='Read',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "M",
+                "query": "rate(node_nfsd_requests_total{method='ReadDir',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "O",
+                "query": "rate(node_nfsd_requests_total{method='ReadLink',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "rate(node_nfsd_requests_total{method='Remove',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "Q",
+                "query": "rate(node_nfsd_requests_total{method='Rename',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "S",
+                "query": "rate(node_nfsd_requests_total{method='SetAttr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "U",
+                "query": "rate(node_nfsd_requests_total{method='Write',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_requests_total{method='Lock',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfsd_requests_total{method='Lockt',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_requests_total{method='Locku',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p255",
+            "type": "timeseries",
+            "title": "NFSd v4 NFSd Requests by Method 3",
+            "gridPos": {
+              "x": 0,
+              "y": 82,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "L",
+                "query": "rate(node_nfsd_requests_total{method='LookupRoot',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "rate(node_nfsd_requests_total{method='Nverify',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "B",
+                "query": "rate(node_nfsd_requests_total{method='Open',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "C",
+                "query": "rate(node_nfsd_requests_total{method='OpenAttr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "D",
+                "query": "rate(node_nfsd_requests_total{method='OpenConfirm',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "E",
+                "query": "rate(node_nfsd_requests_total{method='OpenDgrd',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "F",
+                "query": "rate(node_nfsd_requests_total{method='PutFH',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "G",
+                "query": "rate(node_nfsd_requests_total{method='RelLockOwner',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "H",
+                "query": "rate(node_nfsd_requests_total{method='Renew',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "I",
+                "query": "rate(node_nfsd_requests_total{method='RestoreFH',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "J",
+                "query": "rate(node_nfsd_requests_total{method='SaveFH',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "ref": "K",
+                "query": "rate(node_nfsd_requests_total{method='SecInfo',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='Verify',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='SetClientID',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='SetClientIDConfirm',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_nfsd_requests_total{method='WdelegGetattr',proto='4',instance=~\"$node:$port\",job=~\"$job\"}[$__rate_interval])",
+                "legend": "{{ method }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "fill": 20,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

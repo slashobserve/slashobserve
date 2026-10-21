@@ -1,0 +1,575 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "clickhouse dashboard",
+    "uid": "DnOcQSGGz",
+    "schema_version": 26,
+    "bytes": 46724,
+    "panels": 11,
+    "rows": 0,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "clickhouse",
+      "name": "clickhouse",
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 11,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 11,
+      "imported": 3,
+      "partial": 0,
+      "placeholder": 8,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "Array template variable",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[1]",
+        "title": "remote and array",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[2]",
+        "title": "cluster and array",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[3]",
+        "title": "Repeated ${repeated_service}",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[5]",
+        "title": "merge() table function",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(event_time)",
+              "$timeFilter -> $__timeFilter(event_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[6]",
+        "title": "subquery example",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(event_time)",
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[7]",
+        "title": "multi-value variable",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(event_time)",
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[8]",
+        "title": "turn off skip_comments example",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[9]",
+        "title": "$rate + from in field name example",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[10]",
+        "title": "$rateColumns + subquery",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[11]",
+        "title": "$columns + ARRAY JOIN",
+        "type": "placeholder",
+        "source_type": "graph",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable remote_host",
+        "status": "partial",
+        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
+        "paths": [
+          "templating.list[1].refresh"
+        ]
+      },
+      {
+        "subject": "variable cluster_name",
+        "status": "partial",
+        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
+        "paths": [
+          "templating.list[2].refresh"
+        ]
+      },
+      {
+        "subject": "variable adhoc",
+        "status": "partial",
+        "reason": "ClickHouse queries filter by this variable only where they use $adhoc.",
+        "paths": [
+          "templating.list[4]"
+        ]
+      },
+      {
+        "subject": "variable adhoc",
+        "status": "partial",
+        "reason": "Saved filters are not kept.",
+        "paths": [
+          "templating.list[4].filters"
+        ]
+      },
+      {
+        "subject": "repeated panels",
+        "status": "partial",
+        "reason": "Grafana saved copies of repeated panels and rows; SlashObserve repeats them from their variable, so only the original is imported.",
+        "paths": [
+          "panels[4]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "clickhouse dashboard",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "array_var",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT [service_name, ' test array'] FROM default.test_grafana",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "remote_host",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT concat(host_name, ':', toString(port)) AS remote_host FROM system.clusters",
+        "default": "localhost:9000"
+      },
+      {
+        "name": "cluster_name",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT cluster FROM system.clusters",
+        "default": "test_shard_localhost"
+      },
+      {
+        "name": "repeated_service",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT service_name FROM default.test_grafana",
+        "multi": true,
+        "includeAll": true,
+        "default": [
+          "postgresql",
+          "mysql"
+        ]
+      },
+      {
+        "name": "adhoc",
+        "type": "adhoc",
+        "datasource": "ch"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p2",
+        "type": "placeholder",
+        "title": "Array template variable",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p3",
+        "type": "placeholder",
+        "title": "remote and array",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p4",
+        "type": "placeholder",
+        "title": "cluster and array",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p5",
+        "type": "placeholder",
+        "title": "Repeated ${repeated_service}",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 12,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "merge() table function",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 8,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\r\n    $__timeInterval(event_time) AS t,\r\n    service_name,\r\n    _table,\r\n    count() c\r\nFROM merge('default','^test_grafana$')\r\nWHERE service_name IN (${repeated_service}) AND $__timeFilter(event_time)\r\nGROUP BY t, service_name, _table\r\nORDER BY t\r\n"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "timeseries",
+        "title": "subquery example",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/127",
+        "gridPos": {
+          "x": 8,
+          "y": 18,
+          "w": 8,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT * FROM (\r\n  SELECT\r\n      $__timeInterval(event_time) as t,\r\n      count() as c\r\n  FROM default.test_grafana\r\n  WHERE $__timeFilter(event_time)\r\n  GROUP BY t\r\n)\r\nORDER BY t"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p12",
+        "type": "timeseries",
+        "title": "multi-value variable",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/252",
+        "gridPos": {
+          "x": 16,
+          "y": 9,
+          "w": 8,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT * FROM (\r\n  SELECT\r\n      $__timeInterval(event_time) as t,\r\n      count() as c\r\n  FROM default.test_grafana\r\n  WHERE service_name IN ($repeated_service) AND $__timeFilter(event_time)\r\n  GROUP BY t\r\n)\r\nORDER BY t"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p16",
+        "type": "placeholder",
+        "title": "turn off skip_comments example",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/265",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p14",
+        "type": "placeholder",
+        "title": "$rate + from in field name example",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/256",
+        "gridPos": {
+          "x": 8,
+          "y": 27,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p18",
+        "type": "placeholder",
+        "title": "$rateColumns + subquery",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/276",
+        "gridPos": {
+          "x": 16,
+          "y": 18,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      },
+      {
+        "id": "p20",
+        "type": "placeholder",
+        "title": "$columns + ARRAY JOIN",
+        "description": "see https://github.com/Altinity/clickhouse-grafana/issues/284",
+        "gridPos": {
+          "x": 8,
+          "y": 36,
+          "w": 8,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $columns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "graph"
+      }
+    ]
+  }
+}

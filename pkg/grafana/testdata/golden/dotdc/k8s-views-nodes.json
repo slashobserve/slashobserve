@@ -1,0 +1,2453 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Kubernetes / Views / Nodes",
+    "uid": "k8s_views_nodes",
+    "schema_version": 39,
+    "bytes": 101675,
+    "panels": 35,
+    "rows": 6,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 35,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 35,
+      "imported": 1,
+      "partial": 34,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[1]",
+        "title": "CPU  Usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[2]",
+        "title": "RAM Usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[3]",
+        "title": "Pods on node",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "List of pods on node ($node)",
+        "type": "table",
+        "source_type": "table",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "transformations[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[5]",
+        "title": "CPU Used",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[6]",
+        "title": "CPU Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[7]",
+        "title": "RAM Used",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[8]",
+        "title": "RAM Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[9]",
+        "title": "uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[11]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[12]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "targets[2].interval",
+          "targets[2].exemplar",
+          "targets[3].interval",
+          "targets[3].exemplar",
+          "targets[4].interval",
+          "targets[4].exemplar",
+          "targets[5].interval",
+          "targets[5].exemplar",
+          "targets[6].interval",
+          "targets[6].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[13]",
+        "title": "CPU usage by Pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[14]",
+        "title": "Memory usage by Pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p66",
+        "grafana_id": 66,
+        "grafana_path": "panels[15]",
+        "title": "Number of CPU Core Throttled",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p48",
+        "grafana_id": 48,
+        "grafana_path": "panels[17]",
+        "title": "System Load",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "targets[2].interval",
+          "targets[2].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p46",
+        "grafana_id": 46,
+        "grafana_path": "panels[18]",
+        "title": "Context Switches & Interrupts",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p49",
+        "grafana_id": 49,
+        "grafana_path": "panels[19]",
+        "title": "File Descriptors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p50",
+        "grafana_id": 50,
+        "grafana_path": "panels[20]",
+        "title": "Time Sync",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[22]",
+        "title": "Network usage (bytes/s)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[23]",
+        "title": "Network errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p62",
+        "grafana_id": 62,
+        "grafana_path": "panels[24]",
+        "title": "Network usage (packet/s)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p64",
+        "grafana_id": 64,
+        "grafana_path": "panels[25]",
+        "title": "Network total drops",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[26]",
+        "title": "TCP Currently Established",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p63",
+        "grafana_id": 63,
+        "grafana_path": "panels[27]",
+        "title": "NF Conntrack",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[29]",
+        "title": "Persistent Volumes - Usage in %",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Kubernetes Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[30]",
+        "title": "Persistent Volumes - Usage in GB",
+        "type": "table",
+        "source_type": "table",
+        "row": "Kubernetes Storage",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.color",
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[31]",
+        "title": "Persistent Volumes - Inodes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Kubernetes Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[33]",
+        "title": "FS usage in %",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p59",
+        "grafana_id": 59,
+        "grafana_path": "panels[34]",
+        "title": "FS inode usage in %",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p52",
+        "grafana_id": 52,
+        "grafana_path": "panels[35]",
+        "title": "Reads by disk (bytes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p57",
+        "grafana_id": 57,
+        "grafana_path": "panels[36]",
+        "title": "Writes by disk (bytes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[37]",
+        "title": "Completed reads by disk",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Unit read/s is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[38]",
+        "title": "Completed writes by disk",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Unit write/s is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p58",
+        "grafana_id": 58,
+        "grafana_path": "panels[39]",
+        "title": "Disk(s) io/s",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Unit io/s is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p55",
+        "grafana_id": 55,
+        "grafana_path": "panels[40]",
+        "title": "FS - Device Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Storage",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable node",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[4].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Views / Nodes",
+    "description": "This is a modern 'Nodes View' dashboard for your Kubernetes cluster(s). Made for kube-prometheus-stack and take advantage of the latest Grafana features. GitHub repository: https://github.com/dotdc/grafana-dashboards-kubernetes",
+    "tags": [
+      "kubernetes",
+      "prometheus"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info,cluster)",
+        "sort": "alpha"
+      },
+      {
+        "name": "resolution",
+        "type": "custom",
+        "options": [
+          "1s",
+          "15s",
+          "30s",
+          "1m",
+          "3m",
+          "5m"
+        ],
+        "default": "30s"
+      },
+      {
+        "name": "node",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info{cluster=\"$cluster\"}, node)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "instance",
+        "hide": "variable",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_uname_info{nodename=~\"(?i:($node)(\\\\.[a-z0-9.-]+)?)\", cluster=\"$cluster\"}, instance)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p40",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p7",
+            "type": "gauge",
+            "title": "CPU  Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "avg(sum by (cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])))",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 50,
+                "color": "warning"
+              },
+              {
+                "value": 70,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage"
+          },
+          {
+            "id": "p13",
+            "type": "gauge",
+            "title": "RAM Usage",
+            "gridPos": {
+              "x": 4,
+              "y": 1,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemAvailable_bytes{instance=\"$instance\", cluster=\"$cluster\"}) / sum(node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 50,
+                "color": "warning"
+              },
+              {
+                "value": 70,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage"
+          },
+          {
+            "id": "p24",
+            "type": "stat",
+            "title": "Pods on node",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(kube_pod_info{node=\"$node\", cluster=\"$cluster\"})"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "info"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "graph": false,
+              "textMode": "value"
+            }
+          },
+          {
+            "id": "p5",
+            "type": "table",
+            "title": "List of pods on node ($node)",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_info{node=\"$node\", cluster=\"$cluster\"}",
+                "format": "table"
+              }
+            ],
+            "links": [
+              {
+                "title": "Pod details",
+                "url": "/d/k8s_views_pods/kubernetes-views-pods?${datasource:queryparam}&var-namespace=${__data.fields.namespace}&${cluster:queryparam}&var-pod=${__data.fields.pod}&${resolution:queryparam}&${__url_time_range}",
+                "newTab": true
+              }
+            ],
+            "transform": [
+              {
+                "type": "organize",
+                "exclude": [
+                  "Time",
+                  "Value",
+                  "__name__",
+                  "container",
+                  "created_by_name",
+                  "endpoint",
+                  "env",
+                  "host_ip",
+                  "host_network",
+                  "instance",
+                  "job",
+                  "node",
+                  "project",
+                  "prometheus_replica",
+                  "service",
+                  "uid"
+                ],
+                "order": [
+                  "pod",
+                  "namespace",
+                  "created_by_kind",
+                  "pod_ip",
+                  "priority_class",
+                  "host_ip",
+                  "Time",
+                  "__name__",
+                  "container",
+                  "created_by_name",
+                  "endpoint",
+                  "env",
+                  "host_network",
+                  "instance",
+                  "job",
+                  "node",
+                  "project",
+                  "prometheus_replica",
+                  "service",
+                  "uid",
+                  "Value"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "p9",
+            "type": "stat",
+            "title": "CPU Used",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 2,
+              "h": 3
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "decimals": 3,
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "colorMode": "none",
+              "graph": false
+            }
+          },
+          {
+            "id": "p11",
+            "type": "stat",
+            "title": "CPU Total",
+            "gridPos": {
+              "x": 2,
+              "y": 9,
+              "w": 2,
+              "h": 3
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(machine_cpu_cores{node=\"$node\", cluster=\"$cluster\"})"
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "colorMode": "none",
+              "graph": false
+            }
+          },
+          {
+            "id": "p15",
+            "type": "stat",
+            "title": "RAM Used",
+            "gridPos": {
+              "x": 4,
+              "y": 9,
+              "w": 2,
+              "h": 3
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemAvailable_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
+                "instant": true
+              }
+            ],
+            "unit": "bytes",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "colorMode": "none",
+              "graph": false
+            }
+          },
+          {
+            "id": "p17",
+            "type": "stat",
+            "title": "RAM Total",
+            "gridPos": {
+              "x": 6,
+              "y": 9,
+              "w": 2,
+              "h": 3
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(machine_memory_bytes{node=\"$node\", cluster=\"$cluster\"})"
+              }
+            ],
+            "unit": "bytes",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "colorMode": "none",
+              "graph": false
+            }
+          },
+          {
+            "id": "p18",
+            "type": "stat",
+            "title": "uptime",
+            "gridPos": {
+              "x": 8,
+              "y": 9,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(node_time_seconds{instance=\"$instance\", cluster=\"$cluster\"} - node_boot_time_seconds{instance=\"$instance\", cluster=\"$cluster\"})"
+              }
+            ],
+            "unit": "s",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 25228800,
+                "color": "warning"
+              },
+              {
+                "value": 31536000,
+                "color": "critical"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "graph": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "p38",
+        "type": "row",
+        "title": "Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 13,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) * 100) by (mode)",
+                "legend": "{{ mode }}"
+              }
+            ],
+            "unit": "percent",
+            "max": 100,
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 12,
+              "y": 13,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"} - (node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"} + node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
+                "legend": "RAM Used"
+              },
+              {
+                "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "RAM Total"
+              },
+              {
+                "query": "node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "RAM Cache"
+              },
+              {
+                "query": "node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "RAM Buffer"
+              },
+              {
+                "query": "node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "RAM Free"
+              },
+              {
+                "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_SwapFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "SWAP Used"
+              },
+              {
+                "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "SWAP Total"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "CPU usage by Pod",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{node=\"$node\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "display": {
+              "legend": "right"
+            }
+          },
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "Memory usage by Pod",
+            "gridPos": {
+              "x": 12,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{node=\"$node\", image!=\"\", cluster=\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 25,
+            "display": {
+              "legend": "right"
+            }
+          },
+          {
+            "id": "p66",
+            "type": "timeseries",
+            "title": "Number of CPU Core Throttled",
+            "description": "Number of times a CPU core has been throttled on an instance.",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_cpu_core_throttles_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Nb of cpu core throttles"
+              }
+            ],
+            "unit": "none",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p44",
+        "type": "row",
+        "title": "System",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p48",
+            "type": "timeseries",
+            "title": "System Load",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_load1{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "1m"
+              },
+              {
+                "query": "node_load5{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "5m"
+              },
+              {
+                "query": "node_load15{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "15m"
+              }
+            ],
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p46",
+            "type": "timeseries",
+            "title": "Context Switches & Interrupts",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_context_switches_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "Context switches"
+              },
+              {
+                "query": "rate(node_intr_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "Interrupts"
+              }
+            ],
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p49",
+            "type": "timeseries",
+            "title": "File Descriptors",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_filefd_maximum{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "Maximum file descriptors"
+              },
+              {
+                "query": "node_filefd_allocated{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "Allocated file descriptors"
+              }
+            ],
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p50",
+            "type": "timeseries",
+            "title": "Time Sync",
+            "gridPos": {
+              "x": 12,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_timex_estimated_error_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "Estimated error in seconds"
+              },
+              {
+                "query": "node_timex_maxerror_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "Maximum error in seconds"
+              }
+            ],
+            "unit": "s",
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p36",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 55,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Network usage (bytes/s)",
+            "gridPos": {
+              "x": 0,
+              "y": 56,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_network_receive_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "In"
+              },
+              {
+                "query": "- sum(rate(node_network_transmit_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Out"
+              }
+            ],
+            "unit": "binBps",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Network errors",
+            "gridPos": {
+              "x": 12,
+              "y": 56,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_network_receive_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "In"
+              },
+              {
+                "query": "- sum(rate(node_network_transmit_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Out"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p62",
+            "type": "timeseries",
+            "title": "Network usage (packet/s)",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_network_receive_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "In"
+              },
+              {
+                "query": "- sum(rate(node_network_transmit_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Out"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p64",
+            "type": "timeseries",
+            "title": "Network total drops",
+            "gridPos": {
+              "x": 12,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(node_network_receive_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "In"
+              },
+              {
+                "query": "- sum(rate(node_network_transmit_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Out"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "TCP Currently Established",
+            "gridPos": {
+              "x": 0,
+              "y": 72,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_netstat_Tcp_CurrEstab{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "TCP Currently Established"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p63",
+            "type": "timeseries",
+            "title": "NF Conntrack",
+            "gridPos": {
+              "x": 12,
+              "y": 72,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_nf_conntrack_entries{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "NF Conntrack entries"
+              },
+              {
+                "query": "node_nf_conntrack_entries_limit{instance=\"$instance\", cluster=\"$cluster\"}",
+                "legend": "NF Conntrack limit"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "NF Conntrack limit"
+                },
+                "color": "#F2495C"
+              }
+            ],
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p54",
+        "type": "row",
+        "title": "Kubernetes Storage",
+        "gridPos": {
+          "x": 0,
+          "y": 80,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "Persistent Volumes - Usage in %",
+            "gridPos": {
+              "x": 0,
+              "y": 81,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max(kubelet_volume_stats_used_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace) / max(kubelet_volume_stats_capacity_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}"
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "table",
+            "title": "Persistent Volumes - Usage in GB",
+            "gridPos": {
+              "x": 12,
+              "y": 81,
+              "w": 12,
+              "h": 16
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max(kubelet_volume_stats_used_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "format": "table"
+              },
+              {
+                "query": "max(kubelet_volume_stats_capacity_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "format": "table"
+              }
+            ],
+            "unit": "bytes",
+            "transform": [
+              {
+                "type": "joinByField",
+                "field": "persistentvolumeclaim"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "Value #A (lastNotNull)": "Used",
+                  "Value #B (lastNotNull)": "Total",
+                  "persistentvolumeclaim": "Persistent Volume Claim"
+                }
+              }
+            ]
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Persistent Volumes - Inodes",
+            "gridPos": {
+              "x": 0,
+              "y": 89,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(kubelet_volume_stats_inodes_used{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) / sum(kubelet_volume_stats_inodes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) * 100",
+                "legend": "{{ persistentvolumeclaim }}"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p42",
+        "type": "row",
+        "title": "Node Storage",
+        "gridPos": {
+          "x": 0,
+          "y": 97,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p33",
+            "type": "timeseries",
+            "title": "FS usage in %",
+            "gridPos": {
+              "x": 0,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "100 - ((node_filesystem_avail_bytes{instance=\"$instance\", cluster=\"$cluster\"} * 100) / node_filesystem_size_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
+                "legend": "{{ mountpoint }}"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p59",
+            "type": "timeseries",
+            "title": "FS inode usage in %",
+            "gridPos": {
+              "x": 12,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "100 - (node_filesystem_files_free{instance=\"$instance\", cluster=\"$cluster\"} / node_filesystem_files{instance=\"$instance\", cluster=\"$cluster\"} * 100)",
+                "legend": "{{ mountpoint }}"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p52",
+            "type": "timeseries",
+            "title": "Reads by disk (bytes)",
+            "gridPos": {
+              "x": 0,
+              "y": 106,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_read_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p57",
+            "type": "timeseries",
+            "title": "Writes by disk (bytes)",
+            "gridPos": {
+              "x": 12,
+              "y": 106,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_written_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p51",
+            "type": "timeseries",
+            "title": "Completed reads by disk",
+            "gridPos": {
+              "x": 0,
+              "y": 114,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_reads_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "{{device}}"
+              }
+            ],
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p56",
+            "type": "timeseries",
+            "title": "Completed writes by disk",
+            "gridPos": {
+              "x": 12,
+              "y": 114,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_writes_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+                "legend": "{{device}}"
+              }
+            ],
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p58",
+            "type": "timeseries",
+            "title": "Disk(s) io/s",
+            "gridPos": {
+              "x": 0,
+              "y": 122,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_io_now{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) ",
+                "legend": "{{device}}"
+              }
+            ],
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p55",
+            "type": "timeseries",
+            "title": "FS - Device Errors",
+            "gridPos": {
+              "x": 12,
+              "y": 122,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(node_filesystem_device_error{instance=\"$instance\", cluster=\"$cluster\"}) by (mountpoint)",
+                "legend": "{{ mountpoint }}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

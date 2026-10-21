@@ -1,0 +1,788 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Kubernetes / System / API Server",
+    "uid": "k8s_system_apisrv",
+    "schema_version": 38,
+    "bytes": 35161,
+    "panels": 12,
+    "rows": 0,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 12,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 12,
+      "imported": 0,
+      "partial": 12,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[0]",
+        "title": "API Server - Health Status",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[1]",
+        "title": "Deprecated Kubernetes Resources",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "transformations[0]",
+          "transformations[3]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[2]",
+        "title": "API Server - HTTP Requests by code",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[3]",
+        "title": "API Server - HTTP Requests by verb",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p53",
+        "grafana_id": 53,
+        "grafana_path": "panels[4]",
+        "title": "API Server - HTTP Requests Latency by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p54",
+        "grafana_id": 54,
+        "grafana_path": "panels[5]",
+        "title": "API Server - HTTP Requests Latency by verb",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p50",
+        "grafana_id": 50,
+        "grafana_path": "panels[6]",
+        "title": "API Server - Errors by Instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[7]",
+        "title": "API Server - Errors by verb",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[8]",
+        "title": "API Server - Stacked HTTP Requests by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[9]",
+        "title": "API Server - Work Queue by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p47",
+        "grafana_id": 47,
+        "grafana_path": "panels[10]",
+        "title": "API Server - CPU Usage by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p48",
+        "grafana_id": 48,
+        "grafana_path": "panels[11]",
+        "title": "API Server - Memory Usage by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / System / API Server",
+    "description": "This is a modern API Server dashboard for your Kubernetes cluster(s). Made for kube-prometheus-stack and take advantage of the latest Grafana features. GitHub repository: https://github.com/dotdc/grafana-dashboards-kubernetes",
+    "tags": [
+      "kubernetes",
+      "prometheus"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info,cluster)",
+        "sort": "alpha"
+      },
+      {
+        "name": "resolution",
+        "type": "custom",
+        "options": [
+          "1s",
+          "15s",
+          "30s",
+          "1m",
+          "3m",
+          "5m"
+        ],
+        "default": "30s"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(apiserver_request_total{cluster=\"$cluster\"}, job)",
+        "sort": "alpha",
+        "multi": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p42",
+        "type": "stat",
+        "title": "API Server - Health Status",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "up{cluster=~\"$cluster\", job=~\"$job\"}",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "critical"
+          },
+          {
+            "value": 1,
+            "color": "ok"
+          }
+        ],
+        "mappings": [
+          {
+            "value": "0",
+            "text": "DOWN"
+          },
+          {
+            "value": "1",
+            "text": "UP"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "graph": false,
+          "textMode": "valueAndName",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p60",
+        "type": "table",
+        "title": "Deprecated Kubernetes Resources",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apiserver_requested_deprecated_apis{cluster=~\"$cluster\"}"
+          }
+        ],
+        "transform": [
+          {
+            "type": "merge"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Value",
+              "job"
+            ],
+            "order": [
+              "namespace",
+              "group",
+              "version",
+              "resource",
+              "removed_release",
+              "job",
+              "Time",
+              "Value"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p38",
+        "type": "timeseries",
+        "title": "API Server - HTTP Requests by code",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (code) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
+            "legend": "{{ code }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p39",
+        "type": "timeseries",
+        "title": "API Server - HTTP Requests by verb",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (verb) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
+            "legend": "{{ verb}}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p53",
+        "type": "timeseries",
+        "title": "API Server - HTTP Requests Latency by instance",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "ms",
+        "fill": 25
+      },
+      {
+        "id": "p54",
+        "type": "timeseries",
+        "title": "API Server - HTTP Requests Latency by verb",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)",
+            "legend": "{{ verb }}"
+          }
+        ],
+        "unit": "ms",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p50",
+        "type": "timeseries",
+        "title": "API Server - Errors by Instance",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by(instance) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(instance) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25
+      },
+      {
+        "id": "p51",
+        "type": "timeseries",
+        "title": "API Server - Errors by verb",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by(verb) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(verb) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
+            "legend": "{{ verb }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p40",
+        "type": "timeseries",
+        "title": "API Server - Stacked HTTP Requests by instance",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval])) by (instance)",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "stack": "normal"
+      },
+      {
+        "id": "p56",
+        "type": "timeseries",
+        "title": "API Server - Work Queue by instance",
+        "gridPos": {
+          "x": 12,
+          "y": 32,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(workqueue_depth{cluster=~\"$cluster\", job=~\"$job\"}) by (instance)",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25
+      },
+      {
+        "id": "p47",
+        "type": "timeseries",
+        "title": "API Server - CPU Usage by instance",
+        "gridPos": {
+          "x": 0,
+          "y": 40,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "percent",
+        "decimals": 2,
+        "fill": 25
+      },
+      {
+        "id": "p48",
+        "type": "timeseries",
+        "title": "API Server - Memory Usage by instance",
+        "gridPos": {
+          "x": 12,
+          "y": 40,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\"}",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 25
+      }
+    ]
+  }
+}

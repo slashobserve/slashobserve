@@ -1,0 +1,1053 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "ClickHouse - Cluster Analysis",
+    "uid": "_hAsuzBnz",
+    "schema_version": 36,
+    "bytes": 43348,
+    "panels": 13,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 13,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 13,
+      "imported": 1,
+      "partial": 12,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "transformations[0]",
+          "options.justifyMode",
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[1]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[2]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[3]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[4]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[5]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[6]",
+        "title": "Cluster Overview",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.overrides[1].properties[0]",
+          "fieldConfig.overrides[1].properties[1]",
+          "fieldConfig.overrides[2].properties[0]",
+          "fieldConfig.overrides[2].properties[1]",
+          "fieldConfig.overrides[3].properties[0]",
+          "fieldConfig.overrides[4].properties[0]",
+          "fieldConfig.defaults.custom.align"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[7]",
+        "title": "Merge progress per table",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "options.reduceOptions.values",
+          "options.displayMode",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[8]",
+        "title": "Current merges",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[4]",
+          "fieldConfig.defaults.custom.align"
+        ],
+        "queries": [
+          {
+            "ref_id": "Merges",
+            "ref": "Merges",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[9]",
+        "title": "Mutations parts remaining",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "options.reduceOptions.values",
+          "options.displayMode",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[10]",
+        "title": "Current mutations",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[4]",
+          "fieldConfig.overrides[3].properties[1]",
+          "fieldConfig.overrides[4].properties[2]",
+          "transformations[1]",
+          "fieldConfig.defaults.custom.align"
+        ],
+        "queries": [
+          {
+            "ref_id": "Merges",
+            "ref": "Merges",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[11]",
+        "title": "Replicated tables by delay",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Bar styles are drawn in the SlashObserve style.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "options.displayMode",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[12]",
+        "title": "Replicated tables by delay",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable database",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable filters",
+        "status": "partial",
+        "reason": "ClickHouse queries filter by this variable only where they use $filters.",
+        "paths": [
+          "templating.list[2]"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "ClickHouse - Cluster Analysis",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "ClickHouse instance",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      },
+      {
+        "name": "database",
+        "label": "Database",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT name FROM system.databases;",
+        "includeAll": true
+      },
+      {
+        "name": "filters",
+        "type": "adhoc",
+        "datasource": "ch"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Panel 2",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT version()",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "Version"
+            },
+            "unit": "string"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "version()": "Version"
+            }
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Panel 4",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT uptime() as uptime",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "uptime"
+            },
+            "unit": "s"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "uptime": "Server uptime"
+            }
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "stat",
+        "title": "Panel 6",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() as \"Number of databases\" FROM system.databases WHERE name IN (${database:singlequote})",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "stat",
+        "title": "Panel 7",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() as \"Number of tables\" FROM system.tables WHERE database IN (${database:singlequote})",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p8",
+        "type": "stat",
+        "title": "Panel 8",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT sum(total_rows) as \"Number of rows\" FROM system.tables WHERE database IN (${database:singlequote});",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p9",
+        "type": "stat",
+        "title": "Panel 9",
+        "gridPos": {
+          "x": 20,
+          "y": 0,
+          "w": 4,
+          "h": 5
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() as \"Number of columns\" FROM system.columns WHERE database IN (${database:singlequote});",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p20",
+        "type": "table",
+        "title": "Cluster Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT cluster, shard_num, replica_num, host_name, host_address, port, is_local, errors_count, slowdowns_count FROM system.clusters;\n",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Is local"
+            },
+            "mappings": [
+              {
+                "value": "0",
+                "text": "remote",
+                "color": "critical"
+              },
+              {
+                "value": "1",
+                "text": "local",
+                "color": "ok"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "cluster": "Cluster",
+              "errors_count": "Errors count",
+              "host_address": "Host address",
+              "host_name": "Host name",
+              "is_local": "Is local",
+              "port": "Port",
+              "replica_num": "Replicated number",
+              "shard_num": "Shard number",
+              "slowdowns_count": "Slowdowns count"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "bargauge",
+        "title": "Merge progress per table",
+        "gridPos": {
+          "x": 0,
+          "y": 15,
+          "w": 5,
+          "h": 7
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, round(100 * progress, 1) \"progress\" FROM system.merges WHERE database IN (${database:singlequote}) ORDER BY progress DESC LIMIT 5;\n",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "thresholdMode": "percentage",
+        "overrides": [
+          {
+            "match": {
+              "series": "progress"
+            },
+            "unit": "percent"
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p11",
+        "type": "table",
+        "title": "Current merges",
+        "gridPos": {
+          "x": 5,
+          "y": 15,
+          "w": 19,
+          "h": 7
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "ref": "Merges",
+            "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, round(elapsed, 1) \"elapsed\", round(100 * progress, 1) \"progress\", is_mutation, partition_id, result_part_path, source_part_paths, num_parts, formatReadableSize(total_size_bytes_compressed) \"total_size_compressed\", formatReadableSize(bytes_read_uncompressed) \"read_uncompressed\", formatReadableSize(bytes_written_uncompressed) \"written_uncompressed\", columns_written, formatReadableSize(memory_usage) \"memory_usage\", thread_id FROM system.merges WHERE database IN (${database:singlequote});",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Elapsed"
+            },
+            "unit": "s"
+          },
+          {
+            "match": {
+              "field": "Mutation"
+            },
+            "unit": "bool",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0,
+                "color": "critical"
+              },
+              {
+                "value": 1,
+                "color": "ok"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "partition_id",
+              "read_uncompressed",
+              "source_part_paths",
+              "thread_id",
+              "written_uncompressed"
+            ],
+            "rename": {
+              "columns_written": "Columns written",
+              "database": "Database",
+              "db_table": "Table",
+              "elapsed": "Elapsed",
+              "is_mutation": "Mutation",
+              "memory_usage": "Memory usage",
+              "num_parts": "Num parts",
+              "partition_id": "Partition id",
+              "progress": "Progress",
+              "result_part_path": "Target path",
+              "table": "Table",
+              "total_size_compressed": "Compressed size"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "bargauge",
+        "title": "Mutations parts remaining",
+        "gridPos": {
+          "x": 0,
+          "y": 22,
+          "w": 5,
+          "h": 7
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(database, '.', table, ' - ', mutation_id) as db_table, length(parts_to_do_names) as parts_remaining FROM system.mutations WHERE parts_remaining > 0 AND database IN (${database:singlequote}) ORDER BY parts_remaining DESC;",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "thresholdMode": "percentage",
+        "overrides": [
+          {
+            "match": {
+              "series": "parts_remaining"
+            },
+            "min": 0
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p15",
+        "type": "table",
+        "title": "Current mutations",
+        "gridPos": {
+          "x": 5,
+          "y": 22,
+          "w": 19,
+          "h": 7
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "ref": "Merges",
+            "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, mutation_id, command, create_time, parts_to_do_names, is_done, latest_failed_part, if(latest_fail_time = '1970-01-01 00:00:00', 'success', 'failure') as success, if(latest_fail_time = '1970-01-01 00:00:00', '-', CAST(latest_fail_time, 'String')) as fail_time, latest_fail_reason FROM system.mutations WHERE database IN (${database:singlequote}) ORDER BY is_done ASC, create_time DESC LIMIT 10",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Is completed"
+            },
+            "unit": "bool",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0,
+                "color": "warning"
+              },
+              {
+                "value": 1,
+                "color": "ok"
+              }
+            ]
+          },
+          {
+            "match": {
+              "field": "Result"
+            },
+            "mappings": [
+              {
+                "value": "success",
+                "text": "success",
+                "color": "ok"
+              },
+              {
+                "value": "failure",
+                "text": "failure",
+                "color": "critical"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "latest_failed_part",
+              "partition_id",
+              "parts_to_do_names",
+              "read_uncompressed",
+              "source_part_paths",
+              "thread_id",
+              "written_uncompressed"
+            ],
+            "rename": {
+              "columns_written": "Columns written",
+              "command": "Command",
+              "create_time": "Create time",
+              "database": "Database",
+              "db_table": "Table",
+              "elapsed": "Elapsed",
+              "fail_time": "Fail time",
+              "is_done": "Is completed",
+              "is_mutation": "Mutation",
+              "latest_fail_reason": "Reason",
+              "latest_fail_time": "Fail time",
+              "memory_usage": "Memory usage",
+              "mutation_id": "Mutation id",
+              "num_parts": "Num parts",
+              "partition_id": "Partition id",
+              "parts_to_do_names": "Pending parts",
+              "progress": "Progress",
+              "result_part_path": "Target path",
+              "success": "Result",
+              "table": "Table",
+              "total_size_compressed": "Compressed size"
+            },
+            "order": [
+              "db_table",
+              "mutation_id",
+              "create_time",
+              "is_done",
+              "success",
+              "command",
+              "latest_fail_reason",
+              "parts_to_do_names",
+              "latest_failed_part",
+              "fail_time"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p18",
+        "type": "bargauge",
+        "title": "Replicated tables by delay",
+        "gridPos": {
+          "x": 0,
+          "y": 29,
+          "w": 5,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, queue_size FROM system.replicas WHERE database IN (${database:singlequote}) ORDER BY absolute_delay DESC LIMIT 10",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "absolute_delay": "Delay",
+              "db_table": "Table",
+              "inserts_in_queue": "Inserts in queue",
+              "is_leader": "Leader",
+              "is_readonly": "Readonly",
+              "merges_in_queue": "Merges in queue",
+              "queue_size": "Queue size"
+            }
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p17",
+        "type": "table",
+        "title": "Replicated tables by delay",
+        "gridPos": {
+          "x": 5,
+          "y": 29,
+          "w": 19,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, is_leader, is_readonly, absolute_delay, queue_size, inserts_in_queue, merges_in_queue FROM system.replicas WHERE database IN (${database:singlequote}) ORDER BY absolute_delay DESC LIMIT 10",
+            "format": "table"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "absolute_delay": "Delay",
+              "db_table": "Table",
+              "inserts_in_queue": "Inserts in queue",
+              "is_leader": "Leader",
+              "is_readonly": "Readonly",
+              "merges_in_queue": "Merges in queue",
+              "queue_size": "Queue size"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

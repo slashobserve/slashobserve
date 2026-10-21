@@ -1,0 +1,888 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Prometheus / Remote Write",
+    "uid": "cb079f93-fde4-41f0-862b-d4301d7c1c56",
+    "schema_version": 39,
+    "bytes": 19316,
+    "panels": 15,
+    "rows": 6,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 15,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 15,
+      "imported": 0,
+      "partial": 15,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Highest Enqueued Timestamp vs. Highest Timestamp Sent",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Timestamps",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Rate[5m]",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Timestamps",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Rate, in vs. succeeded or dropped [5m]",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Samples",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Current Shards",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shards",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Max Shards",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shards",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Min Shards",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shards",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Desired Shards",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shards",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Shard Capacity",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shard Details",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "Pending Samples",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Shard Details",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[14]",
+        "title": "TSDB Current Segment",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Segments",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[15]",
+        "title": "Remote Write Current Segment",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Segments",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[17]",
+        "title": "Dropped Samples",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc. Rates",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[18]",
+        "title": "Failed Samples",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc. Rates",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[19]",
+        "title": "Retried Samples",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc. Rates",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[20]",
+        "title": "Enqueue Retries",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Misc. Rates",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable url",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Prometheus / Remote Write",
+    "tags": [
+      "prometheus-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info, cluster)",
+        "refresh": "timeRange",
+        "includeAll": true
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info{cluster=~\"$cluster\"}, instance)",
+        "refresh": "timeRange",
+        "includeAll": true
+      },
+      {
+        "name": "url",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\"}, url)",
+        "refresh": "timeRange",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Timestamps",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Highest Enqueued Timestamp vs. Highest Timestamp Sent",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(\n  prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n-\n  prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n)\n",
+                "legend": "{{cluster}}::{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Rate[5m]",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "clamp_min(\n  rate(prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n-\n  rate(prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n, 0)\n",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Samples",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Rate, in vs. succeeded or dropped [5m]",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(\n  prometheus_remote_storage_samples_in_total{cluster=~\"$cluster\", instance=~\"$instance\"}[5m])\n-\n  ignoring(remote_name, url) group_right(instance) (rate(prometheus_remote_storage_succeeded_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n-\n  (rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Shards",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Current Shards",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Max Shards",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_shards_max{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "Min Shards",
+            "gridPos": {
+              "x": 8,
+              "y": 24,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_shards_min{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Desired Shards",
+            "gridPos": {
+              "x": 16,
+              "y": 24,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_shards_desired{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p11",
+        "type": "row",
+        "title": "Shard Details",
+        "gridPos": {
+          "x": 0,
+          "y": 31,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Shard Capacity",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_shard_capacity{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "Pending Samples",
+            "gridPos": {
+              "x": 12,
+              "y": 32,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_remote_storage_pending_samples{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"} or prometheus_remote_storage_samples_pending{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "Segments",
+        "gridPos": {
+          "x": 0,
+          "y": 39,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "TSDB Current Segment",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_tsdb_wal_segment_current{cluster=~\"$cluster\", instance=~\"$instance\"}",
+                "legend": "{{cluster}}:{{instance}}"
+              }
+            ],
+            "unit": "none"
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Remote Write Current Segment",
+            "gridPos": {
+              "x": 12,
+              "y": 40,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_wal_watcher_current_segment{cluster=~\"$cluster\", instance=~\"$instance\"}",
+                "legend": "{{cluster}}:{{instance}} {{consumer}}"
+              }
+            ],
+            "unit": "none"
+          }
+        ]
+      },
+      {
+        "id": "p17",
+        "type": "row",
+        "title": "Misc. Rates",
+        "gridPos": {
+          "x": 0,
+          "y": 47,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Dropped Samples",
+            "gridPos": {
+              "x": 0,
+              "y": 48,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ]
+          },
+          {
+            "id": "p19",
+            "type": "timeseries",
+            "title": "Failed Samples",
+            "gridPos": {
+              "x": 6,
+              "y": 48,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_remote_storage_failed_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_failed_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ]
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Retried Samples",
+            "gridPos": {
+              "x": 12,
+              "y": 48,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_remote_storage_retried_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_retried_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ]
+          },
+          {
+            "id": "p21",
+            "type": "timeseries",
+            "title": "Enqueue Retries",
+            "gridPos": {
+              "x": 18,
+              "y": 48,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_remote_storage_enqueue_retries_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

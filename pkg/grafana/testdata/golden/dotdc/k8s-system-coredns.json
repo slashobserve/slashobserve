@@ -1,0 +1,968 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Kubernetes / System / CoreDNS",
+    "uid": "k8s_system_coredns",
+    "schema_version": 39,
+    "bytes": 40135,
+    "panels": 14,
+    "rows": 0,
+    "variables": 6
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 14,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 14,
+      "imported": 0,
+      "partial": 14,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[0]",
+        "title": "CoreDNS - Health Status",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[1]",
+        "title": "CoreDNS - CPU Usage by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[2]",
+        "title": "CoreDNS - Memory Usage by instance",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[3]",
+        "title": "CoreDNS - Total DNS Requests ($protocol)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[4]",
+        "title": "CoreDNS - Average Packet Size  ($protocol)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[5]",
+        "title": "CoreDNS - Requests by type",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[6]",
+        "title": "CoreDNS - Requests by return code",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[7]",
+        "title": "CoreDNS - Total Forward Requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[8]",
+        "title": "CoreDNS - DNS Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[9]",
+        "title": "CoreDNS - Cache Hits / Misses",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[10]",
+        "title": "CoreDNS - Cache Size",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[11]",
+        "title": "CoreDNS - DNS request duration",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[12]",
+        "title": "CoreDNS - DNS request size",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[13]",
+        "title": "CoreDNS - DNS response size",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable protocol",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[5].datasource"
+        ]
+      },
+      {
+        "subject": "variables",
+        "status": "partial",
+        "reason": "Variables were reordered so that each one comes after the variables its query uses.",
+        "paths": [
+          "templating.list[2]",
+          "templating.list[3]",
+          "templating.list[4]",
+          "templating.list[5]"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / System / CoreDNS",
+    "description": "This is a modern CoreDNS dashboard for your Kubernetes cluster(s). Made for kube-prometheus-stack and take advantage of the latest Grafana features. GitHub repository: https://github.com/dotdc/grafana-dashboards-kubernetes",
+    "tags": [
+      "kubernetes",
+      "prometheus"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info,cluster)",
+        "sort": "alpha"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(coredns_build_info{cluster=\"$cluster\"},job)",
+        "sort": "alpha",
+        "multi": true,
+        "default": [
+          "coredns"
+        ]
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"$job\", cluster=\"$cluster\"},instance)",
+        "sort": "alpha",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "protocol",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(coredns_dns_requests_total{cluster=\"$cluster\"}, proto)",
+        "sort": "alpha",
+        "allValue": "udp,tcp",
+        "default": "udp"
+      },
+      {
+        "name": "resolution",
+        "type": "custom",
+        "options": [
+          "1s",
+          "15s",
+          "30s",
+          "1m",
+          "3m",
+          "5m"
+        ],
+        "default": "30s"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p25",
+        "type": "stat",
+        "title": "CoreDNS - Health Status",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "up{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "critical"
+          },
+          {
+            "value": 1,
+            "color": "ok"
+          }
+        ],
+        "mappings": [
+          {
+            "value": "0",
+            "text": "DOWN"
+          },
+          {
+            "value": "1",
+            "text": "UP"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "graph": false,
+          "textMode": "valueAndName",
+          "orientation": "vertical"
+        }
+      },
+      {
+        "id": "p19",
+        "type": "timeseries",
+        "title": "CoreDNS - CPU Usage by instance",
+        "gridPos": {
+          "x": 0,
+          "y": 3,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 2,
+        "fill": 25
+      },
+      {
+        "id": "p21",
+        "type": "timeseries",
+        "title": "CoreDNS - Memory Usage by instance",
+        "gridPos": {
+          "x": 12,
+          "y": 3,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", cluster=~\"$cluster\"}",
+            "legend": "{{ instance }}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 25
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "CoreDNS - Total DNS Requests ($protocol)",
+        "gridPos": {
+          "x": 0,
+          "y": 11,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_dns_requests_total{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))",
+            "legend": "total $protocol requests"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "legend": "hidden",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "CoreDNS - Average Packet Size  ($protocol)",
+        "gridPos": {
+          "x": 12,
+          "y": 11,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_dns_request_size_bytes_sum{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (proto) / sum(rate(coredns_dns_request_size_bytes_count{instance=~\"$instance\",proto=\"$protocol\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (proto)",
+            "legend": "average $protocol packet size"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 25,
+        "display": {
+          "legend": "hidden",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "CoreDNS - Requests by type",
+        "gridPos": {
+          "x": 0,
+          "y": 19,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_dns_requests_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
+            "legend": "{{ type }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "CoreDNS - Requests by return code",
+        "gridPos": {
+          "x": 12,
+          "y": 19,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_dns_responses_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (rcode)",
+            "legend": "{{ rcode }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p23",
+        "type": "timeseries",
+        "title": "CoreDNS - Total Forward Requests",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name=\"forward\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))",
+            "legend": "total forward requests"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "legend": "hidden",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p13",
+        "type": "timeseries",
+        "title": "CoreDNS - DNS Errors",
+        "gridPos": {
+          "x": 12,
+          "y": 27,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name=\"forward\", rcode=~\"SERVFAIL|REFUSED\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (rcode)",
+            "legend": "{{ rcode }}"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p17",
+        "type": "timeseries",
+        "title": "CoreDNS - Cache Hits / Misses",
+        "gridPos": {
+          "x": 0,
+          "y": 35,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(coredns_cache_hits_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
+            "legend": "{{ type }}"
+          },
+          {
+            "query": "sum(rate(coredns_cache_misses_total{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (type)",
+            "legend": "misses"
+          }
+        ],
+        "unit": "short",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p15",
+        "type": "timeseries",
+        "title": "CoreDNS - Cache Size",
+        "gridPos": {
+          "x": 12,
+          "y": 35,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(coredns_cache_entries{cluster=~\"$cluster\", job=~\"$job\"}) by (type)",
+            "legend": "{{ type }}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 25,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p27",
+        "type": "heatmap",
+        "title": "CoreDNS - DNS request duration",
+        "gridPos": {
+          "x": 0,
+          "y": 43,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(increase(coredns_dns_request_duration_seconds_bucket{instance=~\"$instance\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (le)",
+            "legend": "{{le}}",
+            "format": "heatmap"
+          }
+        ]
+      },
+      {
+        "id": "p28",
+        "type": "heatmap",
+        "title": "CoreDNS - DNS request size",
+        "gridPos": {
+          "x": 12,
+          "y": 43,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(increase(coredns_dns_request_size_bytes_bucket{instance=~\"$instance\", le!=\"0\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (le)",
+            "legend": "{{le}}",
+            "format": "heatmap"
+          }
+        ]
+      },
+      {
+        "id": "p29",
+        "type": "heatmap",
+        "title": "CoreDNS - DNS response size",
+        "gridPos": {
+          "x": 0,
+          "y": 53,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(increase(coredns_dns_response_size_bytes_bucket{instance=~\"$instance\", le!=\"0\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (le)",
+            "legend": "{{le}}",
+            "format": "heatmap"
+          }
+        ]
+      }
+    ]
+  }
+}

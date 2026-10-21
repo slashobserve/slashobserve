@@ -1,0 +1,111 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Interval variables dashboard",
+    "uid": "Ob-wMInMz",
+    "schema_version": 25,
+    "bytes": 4909,
+    "panels": 1,
+    "rows": 0,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "clickhouse",
+      "name": "clickhouse",
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 1,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 1,
+      "imported": 1,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "$custom_interval test",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(d)",
+              "$table -> default.test_interval",
+              "$timeFilter -> $__timeFilter(d)"
+            ],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable custom_interval",
+        "status": "partial",
+        "reason": "Grafana never refreshes this variable's values; SlashObserve loads them with the dashboard.",
+        "paths": [
+          "templating.list[0].refresh"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Interval variables dashboard",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "custom_interval",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT (arrayJoin(variable) as x).1 AS __text, x.2 AS __value\nFROM (\n  SELECT\n    arrayMap((x, y) -> (x, y),\n        splitByChar(',', '1m,10m,30m,1h,6h,12h,1d,7d,14d,30d'),\n        splitByChar(',', '60,600,1800,3600,21600,43200,86400,604800,1209600,2592000')\n    ) AS variable\n)",
+        "default": "1800"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p2",
+        "type": "table",
+        "title": "$custom_interval test",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\r\n    $__timeInterval(d) as t,\r\n    count(x) * $custom_interval\r\nFROM default.test_interval t\r\nwhere $__timeFilter(d)\r\nGROUP BY t\r\nORDER BY t"
+          }
+        ]
+      }
+    ]
+  }
+}

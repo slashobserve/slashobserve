@@ -1,0 +1,403 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Alertmanager / Overview",
+    "uid": "alertmanager-overview",
+    "schema_version": 39,
+    "bytes": 9236,
+    "panels": 4,
+    "rows": 2,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 4,
+      "imported": 0,
+      "partial": 4,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Alerts",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerts",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Alerts receive rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerts",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor",
+          "targets[1].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "$integration: Notifications Send Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Notifications",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor",
+          "targets[1].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "$integration: Notification Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Notifications",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor",
+          "targets[1].intervalFactor",
+          "targets[2].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable namespace",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable service",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable integration",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Alertmanager / Overview",
+    "tags": [
+      "alertmanager-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data Source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "namespace",
+        "label": "namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(alertmanager_alerts, namespace)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "service",
+        "label": "service",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(alertmanager_alerts, service)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "integration",
+        "hide": "variable",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(alertmanager_notifications_total{integration=~\".*\"}, integration)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Alerts",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Alerts",
+            "description": "current set of alerts stored in the Alertmanager",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(alertmanager_alerts{namespace=~\"$namespace\",service=~\"$service\"}) by (namespace,service,instance)",
+                "legend": "{{instance}}"
+              }
+            ],
+            "unit": "none",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Alerts receive rate",
+            "description": "rate of successful and invalid alerts received by the Alertmanager",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(alertmanager_alerts_received_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)",
+                "legend": "{{instance}} Received"
+              },
+              {
+                "query": "sum(rate(alertmanager_alerts_invalid_total{namespace=~\"$namespace\",service=~\"$service\"}[$__rate_interval])) by (namespace,service,instance)",
+                "legend": "{{instance}} Invalid"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Notifications",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "$integration: Notifications Send Rate",
+            "description": "rate of successful and invalid notifications sent by the Alertmanager",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(alertmanager_notifications_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)",
+                "legend": "{{instance}} Total"
+              },
+              {
+                "query": "sum(rate(alertmanager_notifications_failed_total{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (integration,namespace,service,instance)",
+                "legend": "{{instance}} Failed"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "repeat": "integration",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "$integration: Notification Duration",
+            "description": "latency of notifications sent by the Alertmanager",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n",
+                "legend": "{{instance}} 99th Percentile"
+              },
+              {
+                "query": "histogram_quantile(0.50,\n  sum(rate(alertmanager_notification_latency_seconds_bucket{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (le,namespace,service,instance)\n)\n",
+                "legend": "{{instance}} Median"
+              },
+              {
+                "query": "sum(rate(alertmanager_notification_latency_seconds_sum{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n/\nsum(rate(alertmanager_notification_latency_seconds_count{namespace=~\"$namespace\",service=~\"$service\", integration=\"$integration\"}[$__rate_interval])) by (namespace,service,instance)\n",
+                "legend": "{{instance}} Average"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "stack": "normal",
+            "repeat": "integration",
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

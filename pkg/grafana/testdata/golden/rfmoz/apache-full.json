@@ -1,0 +1,1284 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Apache Full",
+    "uid": "apache-http",
+    "schema_version": 41,
+    "bytes": 49502,
+    "panels": 17,
+    "rows": 2,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "DS_PROMETHEUS",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 17,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 17,
+      "imported": 2,
+      "partial": 15,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Version",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.text.titleSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[3]",
+        "title": "CPU Load",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Up / Down",
+        "type": "state-timeline",
+        "source_type": "state-timeline",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.lineWidth",
+          "options.legend.placement"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[4]",
+        "title": "Requests / Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[5]",
+        "title": "Average Response Time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[7]",
+        "title": "Workers",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[6]",
+        "title": "Scoreboard",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[9].panels[0]",
+        "title": "Proxy Balancer Requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Balancer",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[9].panels[1]",
+        "title": "Proxy Balancer Active Requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Balancer",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[9].panels[2]",
+        "title": "Proxy Balancer Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Balancer",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[9].panels[3]",
+        "title": "Proxy Balancer Status",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Balancer",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[10].panels[0]",
+        "title": "Processes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Server Status",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10].panels[1]",
+        "title": "Server Load Average",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Server Status",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[10].panels[2]",
+        "title": "CPU Time (User / System)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Server Status",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[10].panels[3]",
+        "title": "Restart Generations",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Server Status",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Apache Full",
+    "tags": [
+      "apache"
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "label": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(apache_up, job)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+"
+      },
+      {
+        "name": "instance",
+        "label": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(apache_up{job=\"$job\"}, instance)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      }
+    ],
+    "links": [
+      {
+        "title": "GitHub",
+        "url": "https://github.com/rfmoz/grafana-dashboards",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "stat",
+        "title": "Uptime",
+        "description": "Current uptime of the Apache server.",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_uptime_seconds_total{job=\"$job\", instance=\"$instance\"}",
+            "interval": "240s"
+          }
+        ],
+        "unit": "s",
+        "decimals": 1,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "colorMode": "none",
+          "graph": false,
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Version",
+        "description": "Apache server version and MPM module.",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_info{job=\"$job\", instance=\"$instance\"}",
+            "legend": "{{ version }}",
+            "instant": true,
+            "interval": "240s"
+          }
+        ],
+        "unit": "none",
+        "decimals": 1,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "colorMode": "none",
+          "graph": false,
+          "textMode": "name",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p19",
+        "type": "stat",
+        "title": "CPU Load",
+        "description": "Current percentage of CPU used by Apache workers.",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_cpuload{job=\"$job\", instance=\"$instance\"}",
+            "instant": true
+          }
+        ],
+        "unit": "percent",
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 75,
+            "color": "warning"
+          },
+          {
+            "value": 90,
+            "color": "critical"
+          }
+        ],
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "graph": false
+        }
+      },
+      {
+        "id": "p3",
+        "type": "state-timeline",
+        "title": "Up / Down",
+        "description": "Whether the Apache server is reachable.",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_up{job=\"$job\", instance=\"$instance\"}",
+            "legend": "Apache up",
+            "interval": "240s"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "mappings": [
+          {
+            "value": "1",
+            "text": "Up",
+            "color": "ok"
+          },
+          {
+            "value": "0",
+            "text": "Down",
+            "color": "critical"
+          }
+        ],
+        "fill": 70,
+        "display": {
+          "mergeValues": false,
+          "showValues": "never"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "Requests / Traffic",
+        "description": "Request rate and bytes sent per second.",
+        "gridPos": {
+          "x": 0,
+          "y": 3,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(apache_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
+            "legend": "Calls",
+            "interval": "240s"
+          },
+          {
+            "query": "rate(apache_sent_kilobytes_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval]) * 1000",
+            "legend": "Bytes sent"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 10,
+        "overrides": [
+          {
+            "match": {
+              "series": "Bytes sent"
+            },
+            "unit": "Bps",
+            "style": "bars",
+            "axis": "right"
+          }
+        ],
+        "display": {
+          "legendValues": [
+            "mean",
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p5",
+        "type": "timeseries",
+        "title": "Average Response Time",
+        "description": "Average response time per request.",
+        "gridPos": {
+          "x": 12,
+          "y": 3,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "increase(apache_duration_ms_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])/increase(apache_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
+            "legend": "Average response time",
+            "interval": "240s"
+          }
+        ],
+        "unit": "ms",
+        "fill": 10,
+        "display": {
+          "legendValues": [
+            "mean",
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "Workers",
+        "description": "Number of busy and idle Apache workers.",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_workers{job=\"$job\", instance=\"$instance\"}\n",
+            "legend": "{{ state }}",
+            "interval": "240s"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "stack": "normal",
+        "display": {
+          "legendValues": [
+            "mean",
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "Connections",
+        "description": "Current Apache connections by state.",
+        "gridPos": {
+          "x": 12,
+          "y": 10,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_connections{job=\"$job\", instance=\"$instance\", state=\"total\"}",
+            "legend": "Total"
+          },
+          {
+            "query": "apache_connections{job=\"$job\", instance=\"$instance\", state=\"writing\"}",
+            "legend": "Writing"
+          },
+          {
+            "query": "apache_connections{job=\"$job\", instance=\"$instance\", state=\"keepalive\"}",
+            "legend": "Keepalive"
+          },
+          {
+            "query": "apache_connections{job=\"$job\", instance=\"$instance\", state=\"closing\"}",
+            "legend": "Closing"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "legendValues": [
+            "mean",
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "timeseries",
+        "title": "Scoreboard",
+        "description": "Current state of each Apache slot (idle, read, reply, keepalive, etc.).",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apache_scoreboard{job=\"$job\", instance=\"$instance\"}",
+            "legend": "{{ state }}",
+            "interval": "240s"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "stack": "normal",
+        "display": {
+          "legendValues": [
+            "mean",
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "Proxy Balancer",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "Proxy Balancer Requests",
+            "description": "Request rate per proxy balancer worker.",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(apache_proxy_balancer_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
+                "legend": "{{balancer}} / {{worker}}"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Proxy Balancer Active Requests",
+            "description": "Number of active requests per proxy balancer worker.",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "apache_proxy_balancer_busy{job=\"$job\", instance=\"$instance\"}",
+                "legend": "{{balancer}} / {{worker}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p17",
+            "type": "timeseries",
+            "title": "Proxy Balancer Traffic",
+            "description": "Request and response throughput per proxy balancer worker.",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(apache_proxy_balancer_request_kbytes_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval]) * 1024",
+                "legend": "{{balancer}} / {{worker}} - Request"
+              },
+              {
+                "query": "rate(apache_proxy_balancer_response_kbytes_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval]) * 1024",
+                "legend": "{{balancer}} / {{worker}} - Response"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Proxy Balancer Status",
+            "description": "Status of each proxy balancer worker.",
+            "gridPos": {
+              "x": 12,
+              "y": 36,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "apache_proxy_balancer_status{job=\"$job\", instance=\"$instance\"}",
+                "legend": "{{balancer}} / {{worker}} - {{status}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p20",
+        "type": "row",
+        "title": "Server Status",
+        "gridPos": {
+          "x": 0,
+          "y": 25,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Processes",
+            "description": "Apache process count including stopping processes.",
+            "gridPos": {
+              "x": 0,
+              "y": 26,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "apache_processes{job=\"$job\", instance=\"$instance\", state=\"all\"}",
+                "legend": "All"
+              },
+              {
+                "query": "apache_processes{job=\"$job\", instance=\"$instance\", state=\"stopping\"}",
+                "legend": "Stopping"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Server Load Average",
+            "description": "Apache server load average over 1, 5 and 15 minutes.",
+            "gridPos": {
+              "x": 12,
+              "y": 26,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "apache_load{job=\"$job\", instance=\"$instance\", interval=\"1\"}",
+                "legend": "1m"
+              },
+              {
+                "query": "apache_load{job=\"$job\", instance=\"$instance\", interval=\"5\"}",
+                "legend": "5m"
+              },
+              {
+                "query": "apache_load{job=\"$job\", instance=\"$instance\", interval=\"15\"}",
+                "legend": "15m"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "CPU Time (User / System)",
+            "description": "CPU time consumed by Apache, split by user and system.",
+            "gridPos": {
+              "x": 0,
+              "y": 37,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(apache_cpu_time_ms_total{job=\"$job\", instance=\"$instance\", type=\"user\"}[$__rate_interval])",
+                "legend": "User"
+              },
+              {
+                "query": "rate(apache_cpu_time_ms_total{job=\"$job\", instance=\"$instance\", type=\"system\"}[$__rate_interval])",
+                "legend": "System"
+              }
+            ],
+            "unit": "ms",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "Restart Generations",
+            "description": "Apache config and MPM restart generation counters. Increments on graceful restart.",
+            "gridPos": {
+              "x": 12,
+              "y": 37,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "apache_generation{job=\"$job\", instance=\"$instance\", type=\"config\"}",
+                "legend": "Config generation"
+              },
+              {
+                "query": "apache_generation{job=\"$job\", instance=\"$instance\", type=\"mpm\"}",
+                "legend": "MPM generation"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

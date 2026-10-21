@@ -1,0 +1,676 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Node Exporter / Nodes",
+    "uid": "7d57716318ee0dddbac5a7f451fb7753",
+    "schema_version": 39,
+    "bytes": 18230,
+    "panels": 8,
+    "rows": 4,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 8,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 8,
+      "imported": 6,
+      "partial": 2,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "CPU",
+        "status": "partial",
+        "reasons": [
+          "The resolution factor of this query is not supported yet."
+        ],
+        "paths": [
+          "targets[0].intervalFactor"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Load Average",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "CPU",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Memory Usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Memory",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Disk I/O",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Disk Space Usage",
+        "type": "table",
+        "source_type": "table",
+        "row": "Disk",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[1]",
+          "transformations[0]",
+          "transformations[2].options.binary",
+          "transformations[3].options.binary"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Network Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Network Transmitted",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Node Exporter / Nodes",
+    "tags": [
+      "node-exporter-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster",
+        "hide": "variable",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_uname_info{job=\"node-exporter\", sysname!=\"Darwin\"}, cluster)",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_uname_info{job=\"node-exporter\", cluster=~\"$cluster\", sysname!=\"Darwin\"}, instance)",
+        "refresh": "timeRange"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "CPU",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(\n  (1 - sum without (mode) (rate(node_cpu_seconds_total{job=\"node-exporter\", mode=~\"idle|iowait|steal\", instance=\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])))\n/ ignoring(cpu) group_left\n  count without (cpu, mode) (node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\", instance=\"$instance\", cluster=~\"$cluster\"})\n)\n",
+                "legend": "{{cpu}}"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Load Average",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_load1{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "1m load average"
+              },
+              {
+                "query": "node_load5{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "5m load average"
+              },
+              {
+                "query": "node_load15{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "15m load average"
+              },
+              {
+                "query": "count(node_cpu_seconds_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", mode=\"idle\"})",
+                "legend": "logical cores"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Memory",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 18,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(\n  node_memory_MemTotal_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_MemFree_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_Buffers_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_Cached_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n)\n",
+                "legend": "memory used"
+              },
+              {
+                "query": "node_memory_Buffers_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "memory buffers"
+              },
+              {
+                "query": "node_memory_Cached_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "memory cached"
+              },
+              {
+                "query": "node_memory_MemFree_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
+                "legend": "memory free"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p6",
+            "type": "gauge",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 18,
+              "y": 9,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "100 -\n(\n  avg(node_memory_MemAvailable_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}) /\n  avg(node_memory_MemTotal_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"})\n* 100\n)\n"
+              }
+            ],
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "row",
+        "title": "Disk",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Disk I/O",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_read_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])",
+                "legend": "{{device}} read"
+              },
+              {
+                "query": "rate(node_disk_written_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])",
+                "legend": "{{device}} written"
+              },
+              {
+                "query": "rate(node_disk_io_time_seconds_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])",
+                "legend": "{{device}} io time"
+              }
+            ],
+            "min": 0,
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/ read| written/"
+                },
+                "unit": "Bps"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/ io time/"
+                },
+                "unit": "percentunit"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p9",
+            "type": "table",
+            "title": "Disk Space Usage",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max by (mountpoint) (node_filesystem_size_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", fstype!=\"\", mountpoint!=\"\"})\n",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "max by (mountpoint) (node_filesystem_avail_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", fstype!=\"\", mountpoint!=\"\"})\n",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "decbytes",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Used, %"
+                },
+                "unit": "percentunit",
+                "min": 0,
+                "max": 1
+              }
+            ],
+            "transform": [
+              {
+                "type": "merge"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "Value #A (lastNotNull)": "Size",
+                  "Value #B (lastNotNull)": "Available",
+                  "mountpoint": "Mounted on"
+                }
+              },
+              {
+                "type": "sortBy",
+                "field": "Mounted on"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Network Received",
+            "description": "Network received (bits/s)",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_network_receive_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device!=\"lo\"}[$__rate_interval]) * 8",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "bps",
+            "min": 0,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Network Transmitted",
+            "description": "Network transmitted (bits/s)",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_network_transmit_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device!=\"lo\"}[$__rate_interval]) * 8",
+                "legend": "{{device}}"
+              }
+            ],
+            "unit": "bps",
+            "min": 0,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

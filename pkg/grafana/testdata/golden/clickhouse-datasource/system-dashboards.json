@@ -1,0 +1,1826 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Advanced ClickHouse Monitoring Dashboard",
+    "uid": "",
+    "schema_version": 39,
+    "bytes": 137967,
+    "panels": 46,
+    "rows": 2,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "${the_datasource}",
+      "name": "The Datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 46,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 46,
+      "imported": 46,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[1]",
+        "title": "Queries/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[2]",
+        "title": "CPU Usage (cores)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[3]",
+        "title": "Queries Running",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[4]",
+        "title": "Merges Running",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[5]",
+        "title": "Selected Bytes/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[6]",
+        "title": "IO Wait",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[7]",
+        "title": "CPU Wait",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[8]",
+        "title": "OS CPU Usage (Userspace)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[9]",
+        "title": "OS CPU Usage (Kernel)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[10]",
+        "title": "Read From Disk",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[11]",
+        "title": "Read From Filesystem",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[12]",
+        "title": "Memory (tracked)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[13]",
+        "title": "Load Average (15 minutes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[14]",
+        "title": "Selected Rows/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[15]",
+        "title": "Inserted Rows/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[16]",
+        "title": "Total MergeTree Parts",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[17]",
+        "title": "Max Parts For Partition",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[18]",
+        "title": "Concurrent network connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[20]",
+        "title": "Queries/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[21]",
+        "title": "CPU Usage (cores)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[22]",
+        "title": "Queries Running",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[23]",
+        "title": "Merges Running",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[24]",
+        "title": "Selected Bytes/second",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[25]",
+        "title": "IO Wait (local fs)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[26]",
+        "title": "S3 read wait",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[27]",
+        "title": "S3 read errors/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[28]",
+        "title": "CPU Wait",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[29]",
+        "title": "OS CPU Usage (Userspace, normalized)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[30]",
+        "title": "OS CPU Usage (Kernel, normalized)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[31]",
+        "title": "Read From Disk (bytes/sec)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[32]",
+        "title": "Read From Filesystem (bytes/sec)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[33]",
+        "title": "Memory (tracked, bytes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[34]",
+        "title": "Load Average (15 minutes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[35]",
+        "title": "Selected Rows/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[36]",
+        "title": "Inserted Rows/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[37]",
+        "title": "Total MergeTree Parts",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[38]",
+        "title": "Max Parts For Partition",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[39]",
+        "title": "Read From S3 (bytes/sec)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[40]",
+        "title": "Filesystem Cache Size",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[41]",
+        "title": "Disk S3 write req/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[42]",
+        "title": "Disk S3 read req/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[43]",
+        "title": "FS cache hit rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p43",
+        "grafana_id": 43,
+        "grafana_path": "panels[44]",
+        "title": "Page cache hit rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p44",
+        "grafana_id": 44,
+        "grafana_path": "panels[45]",
+        "title": "Network receive bytes/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p45",
+        "grafana_id": 45,
+        "grafana_path": "panels[46]",
+        "title": "Network send bytes/sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p46",
+        "grafana_id": 46,
+        "grafana_path": "panels[47]",
+        "title": "Concurrent network connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cloud overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Advanced ClickHouse Monitoring Dashboard",
+    "description": "Similar to the monitoring dashboard that is built in to ClickHouse.",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "pn1",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p1",
+            "type": "timeseries",
+            "title": "Queries/second",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_Query)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "CPU Usage (cores)",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSCPUVirtualTimeMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Queries Running",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_Query)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Merges Running",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_Merge)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Selected Bytes/second",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_SelectedBytes)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "IO Wait",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSIOWaitMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "CPU Wait",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSCPUWaitMicroseconds) / 1000000\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "OS CPU Usage (Userspace)",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'OSUserTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "OS CPU Usage (Kernel)",
+            "gridPos": {
+              "x": 0,
+              "y": 33,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'OSSystemTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Read From Disk",
+            "gridPos": {
+              "x": 12,
+              "y": 33,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSReadBytes)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Read From Filesystem",
+            "gridPos": {
+              "x": 0,
+              "y": 41,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_OSReadChars)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Memory (tracked)",
+            "gridPos": {
+              "x": 12,
+              "y": 41,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(CurrentMetric_MemoryTracking)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "Load Average (15 minutes)",
+            "gridPos": {
+              "x": 0,
+              "y": 49,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'LoadAverage15'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Selected Rows/second",
+            "gridPos": {
+              "x": 12,
+              "y": 49,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_SelectedRows)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "Inserted Rows/second",
+            "gridPos": {
+              "x": 0,
+              "y": 57,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(ProfileEvent_InsertedRows)\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Total MergeTree Parts",
+            "gridPos": {
+              "x": 12,
+              "y": 57,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'TotalPartsOfMergeTreeTables'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p17",
+            "type": "timeseries",
+            "title": "Max Parts For Partition",
+            "gridPos": {
+              "x": 0,
+              "y": 65,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM merge('system', '^asynchronous_metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time) AND metric = 'MaxPartCountForPartition'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          },
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Concurrent network connections",
+            "gridPos": {
+              "x": 12,
+              "y": 65,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n    sum(CurrentMetric_TCPConnection) AS TCP_Connections,\n    sum(CurrentMetric_MySQLConnection) AS MySQL_Connections,\n    sum(CurrentMetric_HTTPConnection) AS HTTP_Connections\nFROM merge('system', '^metric_log')\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pn2",
+        "type": "row",
+        "title": "Cloud overview",
+        "gridPos": {
+          "x": 0,
+          "y": 73,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p19",
+            "type": "timeseries",
+            "title": "Queries/second",
+            "gridPos": {
+              "x": 0,
+              "y": 74,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_Query) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "CPU Usage (cores)",
+            "gridPos": {
+              "x": 12,
+              "y": 74,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(metric) / 1000000\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSCPUVirtualTimeMicroseconds) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time) GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p21",
+            "type": "timeseries",
+            "title": "Queries Running",
+            "gridPos": {
+              "x": 0,
+              "y": 82,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_Query) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p22",
+            "type": "timeseries",
+            "title": "Merges Running",
+            "gridPos": {
+              "x": 12,
+              "y": 82,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_Merge) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p23",
+            "type": "timeseries",
+            "title": "Selected Bytes/second",
+            "gridPos": {
+              "x": 0,
+              "y": 90,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_SelectedBytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p24",
+            "type": "timeseries",
+            "title": "IO Wait (local fs)",
+            "gridPos": {
+              "x": 12,
+              "y": 90,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSIOWaitMicroseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p25",
+            "type": "timeseries",
+            "title": "S3 read wait",
+            "gridPos": {
+              "x": 0,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3Microseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "S3 read errors/sec",
+            "gridPos": {
+              "x": 12,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3RequestsErrors) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p27",
+            "type": "timeseries",
+            "title": "CPU Wait",
+            "gridPos": {
+              "x": 0,
+              "y": 106,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSCPUWaitMicroseconds) / 1000000 AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "OS CPU Usage (Userspace, normalized)",
+            "gridPos": {
+              "x": 12,
+              "y": 106,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'OSUserTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "OS CPU Usage (Kernel, normalized)",
+            "gridPos": {
+              "x": 0,
+              "y": 114,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'OSSystemTimeNormalized'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "Read From Disk (bytes/sec)",
+            "gridPos": {
+              "x": 12,
+              "y": 114,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSReadBytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "Read From Filesystem (bytes/sec)",
+            "gridPos": {
+              "x": 0,
+              "y": 122,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_OSReadChars) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Memory (tracked, bytes)",
+            "gridPos": {
+              "x": 12,
+              "y": 122,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_MemoryTracking) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p33",
+            "type": "timeseries",
+            "title": "Load Average (15 minutes)",
+            "gridPos": {
+              "x": 0,
+              "y": 130,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric = 'LoadAverage15'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Selected Rows/sec",
+            "gridPos": {
+              "x": 12,
+              "y": 130,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_SelectedRows) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "Inserted Rows/sec",
+            "gridPos": {
+              "x": 0,
+              "y": 138,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_InsertedRows) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "Total MergeTree Parts",
+            "gridPos": {
+              "x": 12,
+              "y": 138,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'TotalPartsOfMergeTreeTables'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Max Parts For Partition",
+            "gridPos": {
+              "x": 0,
+              "y": 146,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(value)\nFROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\nWHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\nAND metric = 'MaxPartCountForPartition'\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p38",
+            "type": "timeseries",
+            "title": "Read From S3 (bytes/sec)",
+            "gridPos": {
+              "x": 12,
+              "y": 146,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_ReadBufferFromS3Bytes) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p39",
+            "type": "timeseries",
+            "title": "Filesystem Cache Size",
+            "gridPos": {
+              "x": 0,
+              "y": 154,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(CurrentMetric_FilesystemCacheSize) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p40",
+            "type": "timeseries",
+            "title": "Disk S3 write req/sec",
+            "gridPos": {
+              "x": 12,
+              "y": 154,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_DiskS3PutObject + ProfileEvent_DiskS3UploadPart + ProfileEvent_DiskS3CreateMultipartUpload + ProfileEvent_DiskS3CompleteMultipartUpload) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p41",
+            "type": "timeseries",
+            "title": "Disk S3 read req/sec",
+            "gridPos": {
+              "x": 0,
+              "y": 162,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_DiskS3GetObject + ProfileEvent_DiskS3HeadObject + ProfileEvent_DiskS3ListObjects) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p42",
+            "type": "timeseries",
+            "title": "FS cache hit rate",
+            "gridPos": {
+              "x": 12,
+              "y": 162,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, sum(ProfileEvent_CachedReadBufferReadFromCacheBytes) / (sum(ProfileEvent_CachedReadBufferReadFromCacheBytes) + sum(ProfileEvent_CachedReadBufferReadFromSourceBytes)) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p43",
+            "type": "timeseries",
+            "title": "Page cache hit rate",
+            "gridPos": {
+              "x": 0,
+              "y": 170,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT \n  toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t,\n  avg(metric)\nFROM (\n  SELECT event_time, greatest(0, (sum(ProfileEvent_OSReadChars) - sum(ProfileEvent_OSReadBytes)) / (sum(ProfileEvent_OSReadChars) + sum(ProfileEvent_ReadBufferFromS3Bytes))) AS metric \n  FROM clusterAllReplicas(default, merge('system', '^metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p44",
+            "type": "timeseries",
+            "title": "Network receive bytes/sec",
+            "gridPos": {
+              "x": 12,
+              "y": 170,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric LIKE 'NetworkReceiveBytes%'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p45",
+            "type": "timeseries",
+            "title": "Network send bytes/sec",
+            "gridPos": {
+              "x": 0,
+              "y": 178,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, avg(value)\nFROM (\n  SELECT event_time, sum(value) AS value\n  FROM clusterAllReplicas(default, merge('system', '^asynchronous_metric_log'))\n  WHERE $__dateFilter(event_date) AND $__timeFilter(event_time)\n    AND metric LIKE 'NetworkSendBytes%'\n  GROUP BY event_time)\nGROUP BY t\nORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          },
+          {
+            "id": "p46",
+            "type": "timeseries",
+            "title": "Concurrent network connections",
+            "gridPos": {
+              "x": 12,
+              "y": 178,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(event_time, INTERVAL $__interval_s SECOND) AS t, max(TCP_Connections), max(MySQL_Connections), max(HTTP_Connections) FROM (SELECT event_time, sum(CurrentMetric_TCPConnection) AS TCP_Connections, sum(CurrentMetric_MySQLConnection) AS MySQL_Connections, sum(CurrentMetric_HTTPConnection) AS HTTP_Connections FROM clusterAllReplicas(default, merge('system', '^metric_log')) WHERE $__dateFilter(event_date) AND $__timeFilter(event_time) GROUP BY event_time) GROUP BY t ORDER BY t WITH FILL STEP $__interval_s SETTINGS skip_unavailable_shards = 1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

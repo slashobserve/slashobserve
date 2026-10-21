@@ -1,0 +1,199 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "table examples dashboard",
+    "uid": "bwewNfGGz",
+    "schema_version": 40,
+    "bytes": 7451,
+    "panels": 2,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "clickhouse",
+      "name": "clickhouse",
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 2,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 2,
+      "imported": 0,
+      "partial": 2,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "Table DateTime",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Unit time: YYYY-MM-DD HH:mm:ss is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[1].properties[0]",
+          "fontSize",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName",
+          "showHeader",
+          "sort.col",
+          "sort.desc",
+          "styles[0].alias",
+          "styles[0].align",
+          "styles[0].dateFormat",
+          "styles[0].pattern",
+          "styles[0].type",
+          "styles[1].align",
+          "styles[1].colors",
+          "styles[1].decimals",
+          "styles[1].pattern",
+          "styles[1].type",
+          "styles[1].unit",
+          "transform"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[1]",
+        "title": "Table UInt64 as number",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Unit time: YYYY-MM-DD HH:mm:ss is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[1].properties[0]",
+          "fontSize",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName",
+          "showHeader",
+          "sort.col",
+          "sort.desc",
+          "styles[0].alias",
+          "styles[0].align",
+          "styles[0].dateFormat",
+          "styles[0].pattern",
+          "styles[0].type",
+          "styles[1].align",
+          "styles[1].colors",
+          "styles[1].decimals",
+          "styles[1].pattern",
+          "styles[1].type",
+          "styles[1].unit",
+          "transform"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "table examples dashboard",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p2",
+        "type": "table",
+        "title": "Table DateTime",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    toUInt64(event_time)*1000 as t_local,\n    event_time as t_orig,\n    count() c,\n    sum(too_big_value) s\nFROM default.test_grafana\nWHERE $__timeFilter(event_time)\nGROUP BY t_local, t_orig\nORDER BY t_local",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "s"
+            },
+            "decimals": 3
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "table",
+        "title": "Table UInt64 as number",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    event_time as t_orig,\n    toUInt64(rand64() % 1000) AS t_UInt64\nFROM default.test_grafana\nWHERE $__timeFilter(event_time)",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "s"
+            },
+            "decimals": 3
+          }
+        ]
+      }
+    ]
+  }
+}

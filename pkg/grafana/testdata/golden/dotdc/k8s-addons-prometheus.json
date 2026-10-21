@@ -1,0 +1,1933 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Prometheus",
+    "uid": "k8s_addons_prometheus",
+    "schema_version": 38,
+    "bytes": 79994,
+    "panels": 27,
+    "rows": 6,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 27,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 27,
+      "imported": 3,
+      "partial": 24,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p78",
+        "grafana_id": 78,
+        "grafana_path": "panels[1]",
+        "title": "Prometheus version",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p92",
+        "grafana_id": 92,
+        "grafana_path": "panels[2]",
+        "title": "Instance Down",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p72",
+        "grafana_id": 72,
+        "grafana_path": "panels[3]",
+        "title": "TSDB Head Series",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "partial",
+        "reasons": [
+          "The threshold color \"text\" is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.thresholds.steps[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p94",
+        "grafana_id": 94,
+        "grafana_path": "panels[4]",
+        "title": "Discovered Targets",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p93",
+        "grafana_id": 93,
+        "grafana_path": "panels[6]",
+        "title": "Liveness by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p96",
+        "grafana_id": 96,
+        "grafana_path": "panels[7]",
+        "title": "Config - Last Successful Reload by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p74",
+        "grafana_id": 74,
+        "grafana_path": "panels[8]",
+        "title": "Target Scrapes Errors by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p84",
+        "grafana_id": 84,
+        "grafana_path": "panels[9]",
+        "title": "Number of Targets by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[10]",
+        "title": "Target Sync by pod, scrape_job",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p85",
+        "grafana_id": 85,
+        "grafana_path": "panels[11]",
+        "title": "Average Scrape Interval by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p59",
+        "grafana_id": 59,
+        "grafana_path": "panels[13]",
+        "title": "TSDB Head Series & Chunks by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[14]",
+        "title": "TSDB Head samples appended - rate by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p101",
+        "grafana_id": 101,
+        "grafana_path": "panels[15]",
+        "title": "TSDB Blocks Loaded by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p102",
+        "grafana_id": 102,
+        "grafana_path": "panels[16]",
+        "title": "TSDB Rate of Compactions by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p90",
+        "grafana_id": 90,
+        "grafana_path": "panels[17]",
+        "title": "TSDB Reload Failures by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p95",
+        "grafana_id": 95,
+        "grafana_path": "panels[18]",
+        "title": "TSDB Created & Deleted series by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[19]",
+        "title": "Engine Query Count by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p86",
+        "grafana_id": 86,
+        "grafana_path": "panels[20]",
+        "title": "Engine Query Duration by pod, slice",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Prometheus TSDB / Query Engine",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[22]",
+        "title": "CPU Usage by pod, container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[23]",
+        "title": "Memory Usage by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p62",
+        "grafana_id": 62,
+        "grafana_path": "panels[25]",
+        "title": "Persistent Volumes - Capacity and usage in %",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Storage",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p87",
+        "grafana_id": 87,
+        "grafana_path": "panels[26]",
+        "title": "Persistent Volumes - Capacity and usage in bytes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Storage",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p68",
+        "grafana_id": 68,
+        "grafana_path": "panels[27]",
+        "title": "Persistent Volumes - Inodes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Storage",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[29]",
+        "title": "Network - Bandwidth by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[30]",
+        "title": "Network - Packets rate by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[31]",
+        "title": "Network - Packets Dropped by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[32]",
+        "title": "Network - Errors by pod",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable pod",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Prometheus",
+    "description": "This is a modern 'Prometheus' dashboard for your Kubernetes cluster(s). Made for kube-prometheus-stack and take advantage of the latest Grafana features. GitHub repository: https://github.com/dotdc/grafana-dashboards-kubernetes",
+    "tags": [
+      "kubernetes",
+      "prometheus"
+    ],
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info,cluster)",
+        "sort": "alpha"
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info{cluster=\"$cluster\"}, pod)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "resolution",
+        "type": "custom",
+        "options": [
+          "1s",
+          "15s",
+          "30s",
+          "1m",
+          "3m",
+          "5m"
+        ],
+        "default": "30s"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p89",
+        "type": "row",
+        "title": "Information",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p78",
+            "type": "stat",
+            "title": "Prometheus version",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_build_info{pod=~\"$pod\", cluster=~\"$cluster\"}",
+                "legend": "{{ version }}",
+                "instant": true
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "warning"
+              }
+            ],
+            "noValue": "?",
+            "display": {
+              "reduce": "last",
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p92",
+            "type": "stat",
+            "title": "Instance Down",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "up{pod=~\"$pod\", cluster=~\"$cluster\"} < 1",
+                "legend": "__auto",
+                "instant": true
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "reduce": "last",
+              "graph": false,
+              "textMode": "value"
+            }
+          },
+          {
+            "id": "p72",
+            "type": "stat",
+            "title": "TSDB Head Series",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_tsdb_head_series{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "__auto"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "textMode": "value"
+            }
+          },
+          {
+            "id": "p94",
+            "type": "stat",
+            "title": "Discovered Targets",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_sd_discovered_targets{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "__auto",
+                "instant": true
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "info"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "reduce": "last",
+              "graph": false,
+              "textMode": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p64",
+        "type": "row",
+        "title": "Prometheus",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p93",
+            "type": "timeseries",
+            "title": "Liveness by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "up{pod=~\"$pod\", cluster=~\"$cluster\"}",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p96",
+            "type": "timeseries",
+            "title": "Config - Last Successful Reload by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_config_last_reload_successful{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p74",
+            "type": "timeseries",
+            "title": "Target Scrapes Errors by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_target_scrapes_exceeded_body_size_limit_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Exceeded body size limit"
+              },
+              {
+                "query": "sum(rate(prometheus_target_scrapes_exceeded_sample_limit_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Exceeded sample limit"
+              },
+              {
+                "query": "sum(rate(prometheus_target_scrapes_sample_duplicate_timestamp_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Duplicate timestamp"
+              },
+              {
+                "query": "sum(rate(prometheus_target_scrapes_sample_out_of_bounds_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Sample out of bounds"
+              },
+              {
+                "query": "sum(rate(prometheus_target_scrapes_sample_out_of_order_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Sample out of order"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p84",
+            "type": "timeseries",
+            "title": "Number of Targets by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_sd_discovered_targets{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p75",
+            "type": "timeseries",
+            "title": "Target Sync by pod, scrape_job",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_target_sync_length_seconds_sum{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod, scrape_job) * 1000",
+                "legend": "{{ pod }} - {{ scrape_job }}"
+              }
+            ],
+            "unit": "ms",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p85",
+            "type": "timeseries",
+            "title": "Average Scrape Interval by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "round(sum(rate(prometheus_target_interval_length_seconds_sum{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval]) / rate(prometheus_target_interval_length_seconds_count{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod))",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "s",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p98",
+        "type": "row",
+        "title": "Prometheus TSDB / Query Engine",
+        "gridPos": {
+          "x": 0,
+          "y": 30,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p59",
+            "type": "timeseries",
+            "title": "TSDB Head Series & Chunks by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 31,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_tsdb_head_series{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }} - Head Series"
+              },
+              {
+                "query": "sum(prometheus_tsdb_head_chunks{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }} - Head Chunks"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "TSDB Head samples appended - rate by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 31,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_tsdb_head_samples_appended_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p101",
+            "type": "timeseries",
+            "title": "TSDB Blocks Loaded by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(prometheus_tsdb_blocks_loaded{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod)",
+                "legend": "{{ pod }} - Head Series"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p102",
+            "type": "timeseries",
+            "title": "TSDB Rate of Compactions by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_tsdb_compactions_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Total Compactions"
+              },
+              {
+                "query": "sum(rate(prometheus_tsdb_compactions_triggered_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Triggered Compactions"
+              },
+              {
+                "query": "sum(rate(prometheus_tsdb_compactions_skipped_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Skipped Compactions"
+              },
+              {
+                "query": "sum(rate(prometheus_tsdb_compactions_failed_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Failed Compactions"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p90",
+            "type": "timeseries",
+            "title": "TSDB Reload Failures by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_tsdb_reloads_failures_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p95",
+            "type": "timeseries",
+            "title": "TSDB Created & Deleted series by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_tsdb_head_series_created_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Created series"
+              },
+              {
+                "query": "sum(rate(prometheus_tsdb_head_series_removed_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Deleted series"
+              }
+            ],
+            "unit": "short",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "timeseries",
+            "title": "Engine Query Count by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 55,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_engine_query_duration_seconds_count{pod=~\"$pod\", slice=\"inner_eval\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }}"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p86",
+            "type": "timeseries",
+            "title": "Engine Query Duration by pod, slice",
+            "gridPos": {
+              "x": 12,
+              "y": 55,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max(prometheus_engine_query_duration_seconds{pod=~\"$pod\", cluster=~\"$cluster\"}) by (pod, slice) * 1000",
+                "legend": "{{ pod }} - {{ slice }}"
+              }
+            ],
+            "unit": "ms",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p47",
+        "type": "row",
+        "title": "Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 63,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "CPU Usage by pod, container",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$pod\", image!=\"\", container!=\"\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod, container)",
+                "legend": "{{ pod }} - {{ container }}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 4,
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "limit"
+                },
+                "color": "#F2495C",
+                "fill": 0
+              }
+            ],
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p51",
+            "type": "timeseries",
+            "title": "Memory Usage by container",
+            "gridPos": {
+              "x": 12,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{pod=~\"$pod\", image!=\"\", container!=\"\", cluster=~\"$cluster\"}) by (pod, container)",
+                "legend": "{{ pod }} - {{ container }}"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p66",
+        "type": "row",
+        "title": "Storage",
+        "gridPos": {
+          "x": 0,
+          "y": 72,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p62",
+            "type": "timeseries",
+            "title": "Persistent Volumes - Capacity and usage in %",
+            "gridPos": {
+              "x": 0,
+              "y": 73,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max(kubelet_volume_stats_used_bytes{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim, namespace) / max(kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p87",
+            "type": "timeseries",
+            "title": "Persistent Volumes - Capacity and usage in bytes",
+            "gridPos": {
+              "x": 12,
+              "y": 73,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max(kubelet_volume_stats_used_bytes{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Used"
+              },
+              {
+                "query": "max(kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim, namespace)",
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }} - Capacity"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p68",
+            "type": "timeseries",
+            "title": "Persistent Volumes - Inodes",
+            "gridPos": {
+              "x": 0,
+              "y": 81,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "1 - (sum(kubelet_volume_stats_inodes_used{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim) / sum(kubelet_volume_stats_inodes{persistentvolumeclaim=~\".*prom.*\", cluster=~\"$cluster\"}) by (persistentvolumeclaim))",
+                "legend": "{{ persistentvolumeclaim }}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p45",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 89,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "Network - Bandwidth by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 90,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_bytes_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_bytes_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Transmitted"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Network - Packets rate by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 90,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_packets_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_packets_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "Network - Packets Dropped by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_packets_dropped_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_packets_dropped_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Network - Errors by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 98,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_errors_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_errors_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
+                "legend": "{{ pod }} - Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
