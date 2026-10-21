@@ -12,6 +12,19 @@ import {
   type LegendItem,
   type LegendPlacement,
 } from "./legend"
+import type { TextMeasure } from "./legend-width"
+
+let measureContext: CanvasRenderingContext2D | null = null
+
+export function legendTextMeasure(rem: number): TextMeasure {
+  measureContext ??= document.createElement("canvas").getContext("2d")
+  const context = measureContext!
+  const family = getComputedStyle(document.documentElement).fontFamily
+  return (text, weight) => {
+    context.font = `${weight} ${0.75 * rem}px ${family}`
+    return context.measureText(text).width
+  }
+}
 
 type Props = {
   ref?: Ref<HTMLDivElement>

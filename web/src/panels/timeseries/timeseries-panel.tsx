@@ -13,12 +13,14 @@ import type { DataPanel } from "@/spec"
 import { readChartColors, resolveColor } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
+import { reducerLabels } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
-import { Legend, type LegendItem } from "./legend"
-import { LegendTable } from "./legend-table"
+import { Legend, rootFontSize, type LegendItem } from "./legend"
+import { LegendTable, legendTextMeasure } from "./legend-table"
+import { legendTableWidth, rightLegendWidth } from "./legend-width"
 import {
   chartSeries,
   configuredKeys,
@@ -54,9 +56,6 @@ const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const barSize: [number, number] = [0.6, 64]
 const pointSize = 4
 const ghostDash = [2, 3]
-const rightLegendMin = 160
-const rightLegendMax = 280
-const rightLegendShare = 0.3
 
 type Latest = {
   state: PlotState
@@ -377,13 +376,20 @@ function TimeseriesChart({
     () => visibleSeries(storedHidden, keys, legendShown),
     [storedHidden, keys, legendShown]
   )
-  const legendWidth =
-    legendShown && placement === "right"
-      ? Math.min(
-          rightLegendMax,
-          Math.max(rightLegendMin, width * rightLegendShare)
-        )
-      : 0
+  const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
+  const rightLegend = legendShown && placement === "right"
+  const tableWidth = useMemo(() => {
+    if (!rightLegend || reducers.length === 0) return null
+    const rem = rootFontSize()
+    return legendTableWidth(
+      series.map(({ label }) => label),
+      reducers.map((reducer) => reducerLabels[reducer]),
+      cells,
+      legendTextMeasure(rem),
+      rem
+    )
+  }, [rightLegend, series, reducers, cells])
+  const legendWidth = rightLegend ? rightLegendWidth(tableWidth, width) : 0
   const chartWidth = width - legendWidth
   const bottomLegend = legendShown && placement === "bottom"
   const chartHeight = Math.max(0, height - (bottomLegend ? legendHeight : 0))
@@ -421,8 +427,6 @@ function TimeseriesChart({
   }, [aligned.xs, ghosts, series, hidden])
 
   const model = modelFor(panel, series, ghosts.length, options.tooltip)
-
-  const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
 
   const latest = useRef<Latest>({
     state,
