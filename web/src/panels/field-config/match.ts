@@ -24,10 +24,7 @@ export function compileMatch(match: Match): Matcher {
   if ("seriesRegex" in match) {
     const pattern = compileNamePattern(match.seriesRegex)
     if (!pattern) return never
-    return ({ seriesName }) => {
-      pattern.lastIndex = 0
-      return pattern.test(seriesName)
-    }
+    return ({ seriesName }) => pattern.test(seriesName)
   }
   if ("field" in match) {
     const name = match.field

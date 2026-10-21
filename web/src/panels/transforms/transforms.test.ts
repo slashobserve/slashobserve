@@ -791,6 +791,7 @@ describe("filterFieldsByName", () => {
     expect(kept("/CPU/i")).toEqual(["cpu", "cpu_usage"])
     expect(kept("/^CPU$/i")).toEqual(["cpu"])
     expect(kept("/cpu/g")).toEqual(["cpu", "cpu_usage"])
+    expect(kept("/cpu/y")).toEqual(["cpu", "cpu_usage"])
   })
 
   it("matches nothing for an invalid pattern", () => {

@@ -106,6 +106,15 @@ describe("field config resolution", () => {
     expect(slashed.configFor(f, f.fields[1]).unit).toBe("s")
   })
 
+  it("matches seriesRegex written with the sticky flag on every field", () => {
+    const f = frame([time, value("a"), value("b")], { name: "cpu" })
+    const resolver = createFieldResolver(
+      panel({ overrides: [{ match: { seriesRegex: "/cpu/y" }, unit: "s" }] })
+    )
+    expect(resolver.configFor(f, f.fields[1]).unit).toBe("s")
+    expect(resolver.configFor(f, f.fields[2]).unit).toBe("s")
+  })
+
   it("never matches an invalid seriesRegex", () => {
     const f = frame([time, value()], { name: "cpu" })
     const resolver = createFieldResolver(

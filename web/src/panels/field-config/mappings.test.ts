@@ -68,6 +68,15 @@ describe("value mappings", () => {
     expect(show("a42", [{ regex: "/\\d+/", text: "n" }]).mapped).toBe(true)
   })
 
+  it("maps the same value every time with a sticky regex", () => {
+    const mappings: Mapping[] = [{ regex: "/up/y", text: "Up" }]
+    expect([1, 2, 3].map(() => show("up", mappings).text)).toEqual([
+      "Up",
+      "Up",
+      "Up",
+    ])
+  })
+
   it("never matches an invalid regex", () => {
     expect(show("a", [{ regex: "(", text: "x" }]).mapped).toBe(false)
   })

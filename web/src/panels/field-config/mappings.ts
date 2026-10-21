@@ -74,7 +74,6 @@ export function matchMapping(
       const pattern = patternOf(mapping, mapping.regex)
       const source = String(value)
       if (pattern && pattern.test(source)) {
-        pattern.lastIndex = 0
         return {
           mapping,
           text:
