@@ -423,3 +423,31 @@ func TestFullyConvertedOverrideReportsNothing(t *testing.T) {
 		t.Fatalf("status %s, paths %v, reasons %v", line.Status, line.Paths, line.Reasons)
 	}
 }
+
+func TestDatasourceVariableIsNotedOnceForTheDashboardNotPerPanel(t *testing.T) {
+	panels := make([]string, 3)
+	for i := range panels {
+		panels[i] = fmt.Sprintf(`{"id":%d,"type":"stat","title":"P%d","gridPos":{"x":%d,"y":0,"w":8,"h":4},"datasource":{"type":"prometheus","uid":"${ds}"},"targets":[{"refId":"A","expr":"up"}]}`, i+1, i+1, i*8)
+	}
+	doc := `{"title":"T","schemaVersion":39,"templating":{"list":[{"name":"ds","type":"datasource","query":"prometheus","current":{"text":"prom","value":"prom"}}]},"panels":[` + strings.Join(panels, ",") + `]}`
+	res := convertDoc(t, doc)
+
+	want := "Datasource variable $ds now uses prom."
+	var notes []Note
+	for _, note := range res.Report.Notes {
+		if note.Reason == want {
+			notes = append(notes, note)
+		}
+	}
+	if len(notes) != 1 || notes[0].Subject != "variable ds" || notes[0].Status != statusPartial {
+		t.Fatalf("notes = %+v, want one note %q", res.Report.Notes, want)
+	}
+	for _, line := range res.Report.Panels {
+		if line.Status != statusImported || len(line.Paths) != 0 || len(line.Reasons) != 0 {
+			t.Fatalf("panel %s = %+v, want imported with nothing reported", line.PanelID, line)
+		}
+	}
+	if entry, ok := res.Spec.FindPanel("p1"); !ok || entry.Panel.Datasource != "prom" {
+		t.Fatalf("p1 = %+v, want datasource prom", entry.Panel)
+	}
+}

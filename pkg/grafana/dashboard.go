@@ -50,6 +50,7 @@ type converter struct {
 	noRepeat    map[string]bool
 	repeatNoted map[string]bool
 	staleRows   []string
+	dsNoted     map[*sourceDS]bool
 }
 
 func Convert(raw []byte, opts Options) (*Result, error) {
@@ -61,7 +62,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	if err := reg.resolve(opts); err != nil {
 		return nil, err
 	}
-	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}}
+	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}, dsNoted: map[*sourceDS]bool{}}
 	c.convertHead()
 	c.convertVariables()
 	c.convertPanels()

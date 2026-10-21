@@ -457,19 +457,24 @@ func (b *panelBuild) assignQueries() {
 }
 
 func (b *panelBuild) datasourceVariables() {
-	seen := map[*sourceDS]bool{}
 	for _, bq := range b.built {
-		if !bq.src.variable || seen[bq.src] {
-			continue
+		if bq.src.variable {
+			b.c.noteDatasourceVariable(bq.src)
 		}
-		seen[bq.src] = true
-		name := strip(bq.src.key)
-		if bq.src.match == "" {
-			b.partial("datasource", fmt.Sprintf("This panel uses datasource variable $%s, which has no match yet.", name))
-			continue
-		}
-		b.partial("datasource", fmt.Sprintf("This panel uses datasource variable $%s; it now uses %s.", name, bq.src.match))
 	}
+}
+
+func (c *converter) noteDatasourceVariable(src *sourceDS) {
+	if c.dsNoted[src] {
+		return
+	}
+	c.dsNoted[src] = true
+	name := strip(src.key)
+	if src.match == "" {
+		c.note("variable "+name, fmt.Sprintf("Datasource variable $%s has no match yet.", name))
+		return
+	}
+	c.note("variable "+name, fmt.Sprintf("Datasource variable $%s now uses %s.", name, src.match))
 }
 
 var altinityDropped = map[string]bool{
