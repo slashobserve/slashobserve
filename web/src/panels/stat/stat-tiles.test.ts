@@ -5,7 +5,7 @@ import type { WireField } from "@/panels/frames"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
-import { statDisplay, statTiles } from "./stat-tiles"
+import { statTiles } from "./stat-tiles"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -118,35 +118,5 @@ describe("statTiles", () => {
       displayName: "pod ${__field.labels.pod}",
     })
     expect(tile.name).toBe("pod web-0")
-  })
-})
-
-describe("statDisplay", () => {
-  it("falls back to the defaults for missing or unknown values", () => {
-    expect(statDisplay({ reduce: "nope", colorMode: 3 })).toEqual({
-      reduce: "lastNotNull",
-      colorMode: "value",
-      graph: true,
-      orientation: "auto",
-      textMode: undefined,
-    })
-  })
-
-  it("keeps valid values", () => {
-    expect(
-      statDisplay({
-        reduce: "max",
-        colorMode: "background",
-        graph: false,
-        orientation: "horizontal",
-        textMode: "valueAndName",
-      })
-    ).toEqual({
-      reduce: "max",
-      colorMode: "background",
-      graph: false,
-      orientation: "horizontal",
-      textMode: "valueAndName",
-    })
   })
 })

@@ -17,7 +17,7 @@ import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "./contrast"
 import { Sparkline } from "./sparkline"
-import { statDisplay, statTiles } from "./stat-tiles"
+import { statTiles, type StatDisplay } from "./stat-tiles"
 
 const charWidth = 0.62
 const sparklineHeight = "min(40cqh, max(0px, calc(100cqh - 60px)))"
@@ -62,7 +62,7 @@ export const StatPanel: PanelRenderer = ({
   links,
 }) => {
   useRerenderOnThemeChange()
-  const display = useMemo(() => statDisplay(rawDisplay), [rawDisplay])
+  const display = rawDisplay as StatDisplay
   const tiles = useMemo(
     () => statTiles(frames, fields, display, panel.unit),
     [frames, fields, display, panel.unit]

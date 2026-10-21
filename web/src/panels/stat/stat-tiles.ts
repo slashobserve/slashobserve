@@ -5,7 +5,7 @@ import {
   fieldRange,
   type FieldResolver,
 } from "@/panels/field-config"
-import { reduce, reducerLabels } from "@/panels/reducers"
+import { reduce } from "@/panels/reducers"
 import type { ThresholdState } from "@/panels/thresholds"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { Link, Reducer } from "@/spec"
@@ -19,7 +19,7 @@ export type StatDisplay = {
   colorMode: ColorMode
   graph: boolean
   orientation: Orientation
-  textMode: TextMode | undefined
+  textMode?: TextMode
 }
 
 export type StatTile = {
@@ -34,32 +34,6 @@ export type StatTile = {
   threshold: ThresholdState
   points: [number, number][]
   links: Link[]
-}
-
-function oneOf<T extends string>(
-  value: unknown,
-  allowed: readonly T[]
-): T | undefined {
-  return allowed.find((candidate) => candidate === value)
-}
-
-const reducers = Object.keys(reducerLabels) as Reducer[]
-
-export function statDisplay(display: Record<string, unknown>): StatDisplay {
-  return {
-    reduce: oneOf(display.reduce, reducers) ?? "lastNotNull",
-    colorMode:
-      oneOf(display.colorMode, ["value", "background", "none"]) ?? "value",
-    graph: display.graph !== false,
-    orientation:
-      oneOf(display.orientation, ["auto", "horizontal", "vertical"]) ?? "auto",
-    textMode: oneOf(display.textMode, [
-      "value",
-      "name",
-      "valueAndName",
-      "none",
-    ]),
-  }
 }
 
 function sparkline(frame: PreparedFrame, field: WireField): [number, number][] {
