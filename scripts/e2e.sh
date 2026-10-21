@@ -1018,13 +1018,15 @@ import_body() {
 }
 
 import_check() {
-  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if eval(sys.argv[2]) else 1)' "${2:-$TMP/api.body}" "$1"
+  local expr="$1" file="${2:-$TMP/api.body}"
+  shift "$(($# < 2 ? $# : 2))"
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); a=sys.argv[3:]; sys.exit(0 if eval(sys.argv[2]) else 1)' "$file" "$expr" "$@"
 }
 
 expect_import_error() {
   local path="$1" body="$2" status="$3" code="$4" out
   out="$(api POST "$path" --data "$body")"
-  if [[ "$out" != "$status" ]] || ! import_check "d['code'] == '$code'"; then
+  if [[ "$out" != "$status" ]] || ! import_check "d['code'] == a[0]" "$TMP/api.body" "$code"; then
     fail "POST $path with $body should answer $status $code ($out: $(head -c 300 "$TMP/api.body"))"
   fi
 }
@@ -1183,11 +1185,11 @@ PY
 
   out="$(api GET "/imports?limit=1")"
   [[ "$out" == 200 ]] || fail "list imports ($out: $(head -c 300 "$TMP/api.body"))"
-  import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == '$unverified_id' and d['imports'][0]['counts']['unverified'] == 1 and isinstance(d['next_cursor'], str)" \
+  import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == a[0] and d['imports'][0]['counts']['unverified'] == 1 and isinstance(d['next_cursor'], str)" "$TMP/api.body" "$unverified_id" \
     || fail "the first page should hold the newest import and a cursor ($(head -c 600 "$TMP/api.body"))"
   cursor="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["next_cursor"])' "$TMP/api.body")"
   out="$(api GET "/imports?limit=1&cursor=$cursor")"
-  [[ "$out" == 200 ]] && import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == '$demo_id'" \
+  [[ "$out" == 200 ]] && import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == a[0]" "$TMP/api.body" "$demo_id" \
     || fail "the next page should hold the previous import ($out: $(head -c 600 "$TMP/api.body"))"
   for query in "limit=0" "cursor=%21%21%21"; do
     out="$(api GET "/imports?$query")"
