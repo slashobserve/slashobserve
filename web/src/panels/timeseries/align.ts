@@ -1,10 +1,11 @@
 import { qualifyCollidingLabels, seriesKey, uniqueKey } from "../frames"
 import type { PreparedField, PreparedFrame } from "../transforms"
+import type { Cell } from "./stack"
 
 export type AlignedSeries = {
   key: string
   label: string
-  values: (number | null)[]
+  values: Cell[]
   frame: PreparedFrame
   field: PreparedField
 }
@@ -12,7 +13,7 @@ export type AlignedSeries = {
 export type AlignedFrames = {
   xs: number[]
   series: AlignedSeries[]
-  ghosts: (number | null)[][]
+  ghosts: Cell[][]
 }
 
 type Column = {
@@ -55,8 +56,8 @@ export function alignFrames(
   const sorted = [...timestamps].sort((a, b) => a - b)
   const index = new Map(sorted.map((ms, position) => [ms, position]))
 
-  function alignColumn({ field, times }: Column): (number | null)[] {
-    const aligned: (number | null)[] = new Array(sorted.length).fill(null)
+  function alignColumn({ field, times }: Column): Cell[] {
+    const aligned: Cell[] = new Array(sorted.length).fill(undefined)
     times.forEach((ms, row) => {
       const position = typeof ms === "number" ? index.get(ms) : undefined
       if (position !== undefined)

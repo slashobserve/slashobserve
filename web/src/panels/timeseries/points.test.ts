@@ -29,6 +29,13 @@ describe("isolatedIndices", () => {
     expect(isolatedIndices([1, 2, 3], 2, 2)).toEqual([])
   })
 
+  it("joins samples across an unmatched slot but not across a gap", () => {
+    expect(isolatedIndices([1, undefined, 2], 0, 2)).toEqual([])
+    expect(isolatedIndices([null, 5, undefined, 6, null], 0, 4)).toEqual([])
+    expect(isolatedIndices([null, 5, undefined, null], 0, 3)).toEqual([1])
+    expect(isolatedIndices([undefined, 5, undefined], 0, 2)).toEqual([1])
+  })
+
   it("returns nothing for empty data", () => {
     expect(isolatedIndices([], 0, 0)).toEqual([])
     expect(isolatedIndices([null, null], 0, 1)).toEqual([])

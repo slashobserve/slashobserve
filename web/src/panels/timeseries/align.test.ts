@@ -83,7 +83,56 @@ describe("alignFrames", () => {
       ghost
     )
     expect(aligned.xs).toEqual([1, 1.5, 2])
-    expect(aligned.series.map((s) => s.values)).toEqual([[1, null, 2]])
-    expect(aligned.ghosts).toEqual([[null, 7, 8]])
+    expect(aligned.series.map((s) => s.values)).toEqual([[1, undefined, 2]])
+    expect(aligned.ghosts).toEqual([[undefined, 7, 8]])
+  })
+
+  it("keeps a real null as a gap and an unmatched slot as undefined", () => {
+    const withGap = {
+      ref: "A",
+      labels: { pod: "x" },
+      fields: [
+        { name: "time", type: "time", values: [1000, 2000, 3000] },
+        { name: "value", type: "number", values: [1, null, 3] },
+      ],
+    } as WireFrame
+    const sparse = {
+      ref: "B",
+      labels: { pod: "y" },
+      fields: [
+        { name: "time", type: "time", values: [1000, 3000] },
+        { name: "value", type: "number", values: [4, 6] },
+      ],
+    } as WireFrame
+    const aligned = align([withGap, sparse])
+    expect(aligned.series.map((s) => s.values)).toEqual([
+      [1, null, 3],
+      [4, undefined, 6],
+    ])
+  })
+
+  it("leaves a hole where one query has a different step", () => {
+    const fast = {
+      ref: "A",
+      labels: { pod: "x" },
+      fields: [
+        { name: "time", type: "time", values: [1000, 2000, 3000, 4000] },
+        { name: "value", type: "number", values: [1, 2, 3, 4] },
+      ],
+    } as WireFrame
+    const slow = {
+      ref: "B",
+      labels: { pod: "y" },
+      fields: [
+        { name: "time", type: "time", values: [1000, 3000] },
+        { name: "value", type: "number", values: [10, 30] },
+      ],
+    } as WireFrame
+    const aligned = align([fast, slow])
+    expect(aligned.xs).toEqual([1, 2, 3, 4])
+    expect(aligned.series.map((s) => s.values)).toEqual([
+      [1, 2, 3, 4],
+      [10, undefined, 30, undefined],
+    ])
   })
 })

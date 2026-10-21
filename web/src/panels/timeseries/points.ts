@@ -5,17 +5,19 @@ export function isolatedIndices(
   from: number,
   to: number
 ): number[] {
+  const present: number[] = []
+  for (let index = 0; index < values.length; index++) {
+    if (values[index] !== undefined) present.push(index)
+  }
+  const joined = (index: number | undefined) =>
+    index !== undefined && typeof values[index] === "number"
   const indices: number[] = []
-  const last = Math.min(to, values.length - 1)
-  for (let index = Math.max(from, 0); index <= last; index++) {
-    if (
-      values[index] != null &&
-      values[index - 1] == null &&
-      values[index + 1] == null
-    ) {
+  present.forEach((index, position) => {
+    if (index < from || index > to || typeof values[index] !== "number") return
+    if (!joined(present[position - 1]) && !joined(present[position + 1])) {
       indices.push(index)
     }
-  }
+  })
   return indices
 }
 

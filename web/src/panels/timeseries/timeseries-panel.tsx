@@ -36,7 +36,7 @@ import {
   type StyledSeries,
 } from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
-import { stackSeries } from "./stack"
+import { stackSeries, type Cell } from "./stack"
 import "./timeseries.css"
 
 const legendShare = 0.4
@@ -51,7 +51,7 @@ const rightLegendMax = 280
 const rightLegendShare = 0.3
 
 type ChartSeries = StyledSeries & {
-  values: (number | null)[]
+  values: Cell[]
   config: FieldConfig
 }
 

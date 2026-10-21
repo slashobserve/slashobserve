@@ -6,6 +6,7 @@ import type { Threshold } from "@/spec"
 import type { LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { formatTogether, type DrawStyle } from "./series-config"
+import type { Cell } from "./stack"
 
 const maxTooltipRows = 10
 const tooltipGap = 12
@@ -18,7 +19,7 @@ export type TooltipSeries = {
   style: DrawStyle
   scale: string
   config: FieldConfig
-  values: (number | null)[]
+  values: Cell[]
   stacked: boolean
   below: number | null
 }
