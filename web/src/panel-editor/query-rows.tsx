@@ -82,10 +82,18 @@ export function QueryRows({
 }: Props) {
   const count = isDataPanel(draft) ? draft.queries.length : 0
   const focusNew = useRef(false)
+  const removedAt = useRef<number | null>(null)
+  const addButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    if (!focusNew.current) return
-    focusNew.current = false
-    editorRefs.current[count - 1]?.focusAt(0)
+    if (focusNew.current) {
+      focusNew.current = false
+      editorRefs.current[count - 1]?.focusAt(0)
+    }
+    const removed = removedAt.current
+    if (removed === null) return
+    removedAt.current = null
+    if (removed > 0) editorRefs.current[removed - 1]?.focusAt(0)
+    else addButton.current?.focus()
   }, [count, editorRefs])
 
   if (!isDataPanel(draft)) {
@@ -127,7 +135,10 @@ export function QueryRows({
             onDatasourceChange={(uid) =>
               dispatch({ type: "setQueryDatasource", index, uid })
             }
-            onRemove={() => dispatch({ type: "removeQuery", index })}
+            onRemove={() => {
+              removedAt.current = index
+              dispatch({ type: "removeQuery", index })
+            }}
             onFocus={() => onActiveChange(index)}
             editorRef={(handle) => {
               editorRefs.current[index] = handle
@@ -137,6 +148,7 @@ export function QueryRows({
       })}
       {beforeAdd}
       <Button
+        ref={addButton}
         variant="ghost"
         size="sm"
         className="self-start px-0 text-muted-foreground hover:bg-transparent dark:hover:bg-transparent"

@@ -1002,6 +1002,27 @@ async function addSecondQuery(page: Page) {
   await expect(queryEditor(page, "B")).toBeFocused()
 }
 
+test("moves focus to the previous query or Add query after removing a query", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+
+  await addSecondQuery(page)
+  await sheet(page).getByRole("button", { name: "Remove query B" }).click()
+  await expect(queryEditor(page, "B")).toHaveCount(0)
+  await expect(queryEditor(page, "A")).toBeFocused()
+
+  await addSecondQuery(page)
+  await sheet(page).getByRole("button", { name: "Remove query A" }).click()
+  await expect(queryEditor(page, "A")).toHaveCount(0)
+  await expect(
+    sheet(page).getByRole("button", { name: "Add query" })
+  ).toBeFocused()
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
