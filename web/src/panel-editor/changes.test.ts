@@ -358,7 +358,7 @@ describe("panelChanges against the JSON", () => {
     (p) => (p.queries[1] = { query: "b" }),
     (p) => (p.queries[0] = { ...p.queries[0], legend: "x" }),
     (p) => p.queries.push({ ref: "C", query: "c" }),
-    (p) => p.queries.pop(),
+    (p) => p.queries.length > 1 && p.queries.pop(),
     (p) => p.thresholds?.push({ color: "critical" }),
     (p) => p.thresholds?.push({ value: 90, color: "critical" }),
     (p) => p.thresholds?.reverse(),
