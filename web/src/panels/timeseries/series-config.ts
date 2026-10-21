@@ -125,8 +125,7 @@ export function firstStackMode(
   return series.find(({ stack }) => stack !== "none")?.stack ?? "none"
 }
 
-function autoRange(min: number | null, max: number | null): [number, number] {
-  if (min == null || max == null || !Number.isFinite(min + max)) return [0, 1]
+function autoRange(min: number, max: number): [number, number] {
   if (min >= 0) {
     if (max <= 0) return [0, 1]
     return [0, max + max * 0.05]
@@ -135,12 +134,9 @@ function autoRange(min: number | null, max: number | null): [number, number] {
   return [min - pad, max + pad]
 }
 
-function percentRange(
-  min: number | null,
-  max: number | null
-): [number, number] {
-  const lo = min !== null && min < 0 ? -1 : 0
-  const hi = max !== null && max > 0 ? 1 : lo === -1 ? 0 : 1
+function percentRange(min: number, max: number): [number, number] {
+  const lo = min < 0 ? -1 : 0
+  const hi = max > 0 ? 1 : lo === -1 ? 0 : 1
   return [lo, hi]
 }
 
@@ -148,7 +144,8 @@ export function axisRange(
   axis: AxisSettings,
   min: number | null,
   max: number | null
-): [number, number] {
+): [number, number] | [null, null] {
+  if (min === null || max === null) return [null, null]
   if (axis.percent) return percentRange(min, max)
   const [autoMin, autoMax] = autoRange(min, max)
   const lo = axis.min ?? autoMin

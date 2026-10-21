@@ -141,13 +141,21 @@ describe("axisRange", () => {
 
   it("fixes a percent axis to 0..1", () => {
     expect(axisRange({ percent: true }, 0.2, 1)).toEqual([0, 1])
-    expect(axisRange({ percent: true }, null, null)).toEqual([0, 1])
   })
 
   it("lets a percent axis reach minus one when a negative group is drawn", () => {
     expect(axisRange({ percent: true }, -1, 1)).toEqual([-1, 1])
     expect(axisRange({ percent: true }, -1, 0)).toEqual([-1, 0])
     expect(axisRange({ percent: true }, -0.25, 0.75)).toEqual([-1, 1])
+  })
+
+  it("has no range for an axis none of whose series is drawn", () => {
+    expect(axisRange({ percent: false }, null, null)).toEqual([null, null])
+    expect(axisRange({ percent: false, min: 0, max: 10 }, null, null)).toEqual([
+      null,
+      null,
+    ])
+    expect(axisRange({ percent: true }, null, null)).toEqual([null, null])
   })
 
   it("widens a collapsed range", () => {
