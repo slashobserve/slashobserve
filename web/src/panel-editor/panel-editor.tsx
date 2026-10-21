@@ -25,7 +25,7 @@ import {
 } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
-import { findPanel, isDataPanel, type Dashboard } from "@/spec"
+import { findPanel, isDataPanel, queryRef, type Dashboard } from "@/spec"
 
 import { AskAgent } from "./ask-agent"
 import {
@@ -49,7 +49,12 @@ import { parsePanelJson, withPanel } from "./panel-json"
 import { PreviewSection } from "./preview-section"
 import { maxQueryLength } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
-import { SaveProblem, rejectedQueryLines, type Problem } from "./save-problem"
+import {
+  SaveProblem,
+  rejectedQueryLines,
+  showsProblem,
+  type Problem,
+} from "./save-problem"
 import { SettingsColumn } from "./settings-column"
 
 export type EditorView = "editor" | "json"
@@ -172,7 +177,7 @@ export default function PanelEditor({
 
   const issuesByQuery = useMemo(() => rejectedQueryLines(problem), [problem])
   useEffect(() => {
-    if (Object.keys(issuesByQuery).length === 0) return
+    if (issuesByQuery.size === 0) return
     bodyRef.current
       ?.querySelector('[role="alert"]')
       ?.scrollIntoView({ block: "nearest" })
@@ -254,6 +259,9 @@ export default function PanelEditor({
                 kind: "rejected",
                 issues: error.issues,
                 pointer: entry.pointer,
+                refs: isDataPanel(normalised)
+                  ? normalised.queries.map(queryRef)
+                  : [],
               })
               return
             }
@@ -412,7 +420,7 @@ export default function PanelEditor({
           />
         )}
       </div>
-      {readOnly || (newer === 0 && problem === null) ? null : (
+      {readOnly || (newer === 0 && !showsProblem(problem)) ? null : (
         <div className="flex max-h-[40%] flex-col gap-2 overflow-auto px-4 pb-3">
           {newer > 0 ? (
             <Alert

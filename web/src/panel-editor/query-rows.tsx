@@ -26,7 +26,7 @@ type Props = {
   base: EditablePanel
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
-  issuesByQuery: Record<number, string[]>
+  issuesByQuery: ReadonlyMap<string, string[]>
   onActiveChange: (index: number) => void
   focusFirst: boolean
   editorRefs: RefObject<(CodeEditorHandle | null)[]>
@@ -124,7 +124,7 @@ export function QueryRows({
             baseQuery={baseByRef.get(ref)}
             panelDatasource={draft.datasource}
             readOnly={readOnly}
-            issues={issuesByQuery[index] ?? noIssues}
+            issues={issuesByQuery.get(ref) ?? noIssues}
             canRemove={!readOnly && draft.queries.length > 1}
             onChange={(text) =>
               dispatch({ type: "setQuery", index, query: text })

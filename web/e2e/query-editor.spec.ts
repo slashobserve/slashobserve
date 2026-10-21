@@ -179,18 +179,44 @@ test("rejects a query the server cannot run", async ({
   await openDashboard(page, id)
   await openFromMenu(page, rpsTitle)
 
+  await replaceQuery(page, "sum(rate(")
+  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+
+  await expect(
+    sheet(page)
+      .getByRole("group", { name: "Query A" })
+      .getByRole("alert")
+      .filter({ hasText: "parse error: unclosed left parenthesis" })
+  ).toBeVisible()
+  await expect(sheet(page).getByText("This panel was rejected:")).toHaveCount(0)
+  await expect(sheet(page)).toBeVisible()
+  expect((await getDashboard(request, id)).latestVersion).toBe(1)
+  expectLoggedOnce(consoleErrors, 422)
+})
+
+test("rejects a query that returns no data as a problem of the panel", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+
   await replaceQuery(page, 'up{job="does-not-exist"}')
   await sheet(page).getByRole("button", { name: saveVersionButton }).click()
 
-  await expect(sheet(page).getByRole("alert").first()).toBeVisible()
-  await expect(sheet(page)).toBeVisible()
-  expect((await getDashboard(request, id)).latestVersion).toBe(1)
-
-  const rejected = consoleErrors.filter((message) =>
-    message.includes("status of 422")
+  const rejected = sheet(page)
+    .getByRole("alert")
+    .filter({ hasText: "This panel was rejected:" })
+  await expect(rejected).toContainText(
+    "query returned no data for the dashboard's default time range and variable values"
   )
-  expect(rejected).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(rejected[0]), 1)
+  await expect(
+    sheet(page).getByRole("group", { name: "Query A" }).getByRole("alert")
+  ).toHaveCount(0)
+  expect((await getDashboard(request, id)).latestVersion).toBe(1)
+  expectLoggedOnce(consoleErrors, 422)
 })
 
 test("closes with Escape and returns focus", async ({ page, request }) => {
@@ -700,6 +726,36 @@ test("lists each rejected query issue once and the transient line once", async (
     sheet(page).getByRole("button", { name: "Try again" })
   ).toBeVisible()
   expectLoggedOnce(consoleErrors, 422)
+})
+
+test("keeps a rejected query's message on its own row when another row is removed", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await addSecondQuery(page)
+  await page.keyboard.insertText("count(up)")
+
+  await mockSaveResponse(page, [
+    {
+      path: "/panels/0/queries/1/query",
+      code: "query_invalid",
+      message: "parse error at char 3",
+    },
+  ])
+  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+  const rowB = sheet(page).getByRole("group", { name: "Query B" })
+  await expect(rowB.getByRole("alert")).toHaveText("parse error at char 3")
+  expectLoggedOnce(consoleErrors, 422)
+
+  await sheet(page).getByRole("button", { name: "Remove query A" }).click()
+  await expect(sheet(page).getByRole("group", { name: "Query A" })).toHaveCount(
+    0
+  )
+  await expect(rowB.getByRole("alert")).toHaveText("parse error at char 3")
 })
 
 test("applies to the newer version when Try again follows a transient error", async ({

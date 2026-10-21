@@ -12,27 +12,31 @@ const unknownDatasourceText =
 export type Problem =
   | { kind: "conflict"; latest: number }
   | { kind: "gone" }
-  | { kind: "rejected"; issues: ApiIssue[]; pointer: string }
+  | { kind: "rejected"; issues: ApiIssue[]; pointer: string; refs: string[] }
   | { kind: "transient" }
   | { kind: "invalid"; issues: JsonIssue[] }
   | { kind: "clash"; version: number; issues: JsonIssue[] }
   | { kind: "failed"; message: string }
 
 type Rejected = {
-  byQuery: Record<number, ApiIssue[]>
+  byQuery: Map<string, ApiIssue[]>
   panel: ApiIssue[]
   dashboard: ApiIssue[]
 }
 
-function splitRejected(issues: ApiIssue[], pointer: string): Rejected {
+export function splitRejected(
+  issues: ApiIssue[],
+  pointer: string,
+  refs: readonly string[]
+): Rejected {
   const queries = `${pointer}/queries/`
   const own = `${pointer}/`
-  const out: Rejected = { byQuery: {}, panel: [], dashboard: [] }
+  const out: Rejected = { byQuery: new Map(), panel: [], dashboard: [] }
   for (const issue of issues.filter((item) => !isTransient(item))) {
     if (issue.path.startsWith(queries)) {
-      const index = Number(issue.path.slice(queries.length).split("/")[0])
-      if (Number.isInteger(index)) {
-        out.byQuery[index] = [...(out.byQuery[index] ?? []), issue]
+      const ref = refs[Number(issue.path.slice(queries.length).split("/")[0])]
+      if (ref !== undefined) {
+        out.byQuery.set(ref, [...(out.byQuery.get(ref) ?? []), issue])
         continue
       }
     }
@@ -47,15 +51,38 @@ function splitRejected(issues: ApiIssue[], pointer: string): Rejected {
 
 export function rejectedQueryLines(
   problem: Problem | null
-): Record<number, string[]> {
-  if (problem?.kind !== "rejected") return {}
-  const { byQuery } = splitRejected(problem.issues, problem.pointer)
-  return Object.fromEntries(
-    Object.entries(byQuery).map(([index, issues]) => [
-      index,
+): Map<string, string[]> {
+  if (problem?.kind !== "rejected") return new Map()
+  const { byQuery } = splitRejected(
+    problem.issues,
+    problem.pointer,
+    problem.refs
+  )
+  return new Map(
+    [...byQuery].map(([ref, issues]) => [
+      ref,
       issueLines(issues, transientText, unknownDatasourceText),
     ])
   )
+}
+
+function onlyInRows(problem: Extract<Problem, { kind: "rejected" }>): boolean {
+  const { byQuery, panel, dashboard } = splitRejected(
+    problem.issues,
+    problem.pointer,
+    problem.refs
+  )
+  return (
+    !problem.issues.some(isTransient) &&
+    byQuery.size > 0 &&
+    panel.length === 0 &&
+    dashboard.length === 0
+  )
+}
+
+export function showsProblem(problem: Problem | null): boolean {
+  if (problem === null || problem.kind === "conflict") return false
+  return problem.kind !== "rejected" || !onlyInRows(problem)
 }
 
 function IssueList({ lines }: { lines: string[] }) {
@@ -130,7 +157,8 @@ export function SaveProblem({
   if (problem.kind === "rejected") {
     const { byQuery, panel, dashboard } = splitRejected(
       problem.issues,
-      problem.pointer
+      problem.pointer,
+      problem.refs
     )
     const retryable = problem.issues.some(isTransient)
     const panelLines = issueLines(panel, transientText, unknownDatasourceText)
@@ -142,15 +170,19 @@ export function SaveProblem({
       transientText,
       unknownDatasourceText
     )
-    const inRows = Object.keys(byQuery).length > 0
-    if (!retryable && !inRows && panel.length === 0 && dashboard.length === 0) {
+    if (
+      !retryable &&
+      byQuery.size === 0 &&
+      panel.length === 0 &&
+      dashboard.length === 0
+    ) {
       return (
         <Alert variant="destructive">
           <AlertDescription>This panel was rejected.</AlertDescription>
         </Alert>
       )
     }
-    if (!retryable && panel.length === 0 && dashboard.length === 0) return null
+    if (onlyInRows(problem)) return null
     return (
       <Alert variant="destructive">
         <AlertDescription className="flex flex-wrap items-start justify-between gap-3 text-pretty [&_p:not(:last-child)]:mb-0">

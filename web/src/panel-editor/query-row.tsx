@@ -143,7 +143,11 @@ export function QueryRow({
   const tooLong = [...query.query].length > maxQueryLength
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      role="group"
+      aria-label={`Query ${refName}`}
+      className="flex flex-col gap-1.5"
+    >
       <div className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
         <span className="font-medium">Query {refName}</span>
         <DatasourceSelect
