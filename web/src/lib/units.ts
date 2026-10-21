@@ -57,7 +57,7 @@ function formatNumber(value: number, decimals?: number): string {
   return format.format(value)
 }
 
-type Placed = { amount: number; wrap: (text: string) => string }
+type Placed = { amount: number; prefix?: string; suffix?: string }
 
 function placeScaled(
   value: number,
@@ -72,10 +72,7 @@ function placeScaled(
     step++
   }
   const suffix = suffixes[step]
-  return {
-    amount: current,
-    wrap: (text) => (suffix ? `${text} ${suffix}` : text),
-  }
+  return { amount: current, suffix: suffix ? ` ${suffix}` : "" }
 }
 
 function placeShort(value: number, steps: string[], tail: string): Placed {
@@ -85,8 +82,8 @@ function placeShort(value: number, steps: string[], tail: string): Placed {
     current /= 1000
     step++
   }
-  const prefix = steps[step] ? ` ${steps[step]}` : ""
-  return { amount: current, wrap: (text) => `${text}${prefix}${tail}` }
+  const magnitude = steps[step] ? ` ${steps[step]}` : ""
+  return { amount: current, suffix: `${magnitude}${tail}` }
 }
 
 function pad(value: number, width = 2): string {
@@ -97,11 +94,11 @@ function placeDuration(value: number, unitNs: number): Placed {
   const ns = value * unitNs
   if (ns === 0) {
     const native = durationSteps.findLast((step) => step.ns <= unitNs)
-    return { amount: 0, wrap: (text) => `${text} ${native?.label ?? "ns"}` }
+    return { amount: 0, suffix: ` ${native?.label ?? "ns"}` }
   }
   const abs = Math.abs(ns)
   const step = durationSteps.findLast((s) => abs >= s.ns) ?? durationSteps[0]
-  return { amount: ns / step.ns, wrap: (text) => `${text} ${step.label}` }
+  return { amount: ns / step.ns, suffix: ` ${step.label}` }
 }
 
 const humanDurationParts = [
@@ -386,14 +383,14 @@ function ruleFor(unit: string | undefined): Rule {
 function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
   switch (rule.kind) {
     case "plain":
-      return { amount: value, wrap: (text) => text }
+      return { amount: value }
     case "append":
       return {
         amount: value * (rule.multiplier ?? 1),
-        wrap: (text) => `${text}${rule.suffix}`,
+        suffix: rule.suffix,
       }
     case "prefix":
-      return { amount: value, wrap: (text) => `${rule.prefix}${text}` }
+      return { amount: value, prefix: rule.prefix }
     case "scale":
       return placeScaled(value, rule.base, rule.suffixes, rule.start)
     case "short":
@@ -403,18 +400,36 @@ function place(value: number, rule: Exclude<Rule, { kind: "custom" }>): Placed {
   }
 }
 
+export type ValueParts = { prefix: string; amount: string; suffix: string }
+
+export function formatValueParts(
+  value: number | null | undefined,
+  unit?: string,
+  decimals?: number
+): ValueParts {
+  const whole = (amount: string) => ({ prefix: "", amount, suffix: "" })
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return whole("-")
+  }
+  if (value === Infinity) return whole("+Inf")
+  if (value === -Infinity) return whole("-Inf")
+  const rule = ruleFor(unit)
+  if (rule.kind === "custom") return whole(rule.format(value, decimals))
+  const placed = place(value, rule)
+  return {
+    prefix: placed.prefix ?? "",
+    amount: formatNumber(placed.amount, decimals),
+    suffix: placed.suffix ?? "",
+  }
+}
+
 export function formatValue(
   value: number | null | undefined,
   unit?: string,
   decimals?: number
 ): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return "-"
-  if (value === Infinity) return "+Inf"
-  if (value === -Infinity) return "-Inf"
-  const rule = ruleFor(unit)
-  if (rule.kind === "custom") return rule.format(value, decimals)
-  const placed = place(value, rule)
-  return placed.wrap(formatNumber(placed.amount, decimals))
+  const { prefix, amount, suffix } = formatValueParts(value, unit, decimals)
+  return `${prefix}${amount}${suffix}`
 }
 
 const significantFigures = 4
