@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
-import { isRenderable } from "@/panels"
+import { isRenderable, isStaticPanel } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { hasData } from "@/panels/frames"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
@@ -247,9 +247,7 @@ const PanelContainer = memo(function PanelContainer({
             asTable={tableView}
           />
         ) : null}
-        {!dataPanel &&
-        supported &&
-        (panel.type === "text" || panel.type === "placeholder") ? (
+        {isStaticPanel(panel) && supported ? (
           <StaticPanelBody
             panel={panel}
             width={body.width}
