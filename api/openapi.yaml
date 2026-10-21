@@ -68,6 +68,10 @@ paths:
     $ref: "./paths/revisions.yaml#/dashboards-id-revisions"
   /dashboards/{id}/revisions/{revision_id}:
     $ref: "./paths/revisions.yaml#/dashboards-id-revisions-revisionid"
+  /dashboards/{id}/suggestions:
+    $ref: "./paths/suggestions.yaml#/dashboards-id-suggestions"
+  /dashboards/{id}/suggestions/{suggestion_id}:
+    $ref: "./paths/suggestions.yaml#/dashboards-id-suggestions-suggestionid"
   /agent:
     $ref: "./paths/observe.yaml#/agent"
   /observe:
@@ -943,6 +947,91 @@ components:
       properties:
         revision:
           $ref: "#/components/schemas/Revision"
+    SuggestionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [suggestion]
+      properties:
+        suggestion:
+          $ref: "#/components/schemas/Suggestion"
+    Suggestion:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - dashboard_id
+        - panel_id
+        - base_version
+        - prompt
+        - status
+        - steps
+        - panel
+        - error
+        - requested_by
+        - origin
+        - origin_client
+        - created_at
+        - started_at
+        - finished_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        dashboard_id:
+          type: string
+          format: uuid
+        panel_id:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: The panel the agent was asked to change.
+        base_version:
+          type: integer
+          minimum: 1
+          description: The version the proposal is judged inside.
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        steps:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AgentStep"
+        panel:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: The proposed panel, set only when the status is `succeeded`. It is not saved anywhere; the client decides whether to apply it.
+        error:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Why the suggestion failed, set only when the status is `failed`.
+        requested_by:
+          $ref: "#/components/schemas/Author"
+        origin:
+          type: string
+          enum: [web, cli, mcp, api]
+          nullable: true
+          description: Where the request came from. A label only, never used for access decisions.
+        origin_client:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: The MCP client's self-reported `clientInfo.name`, only when `origin` is `mcp`; unverified.
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
     AgentInfo:
       type: object
       additionalProperties: false

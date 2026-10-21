@@ -1,0 +1,129 @@
+dashboards-id-suggestions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: createPanelSuggestion
+    summary: Ask the agent to propose a change to one panel without saving anything.
+    description: >-
+      The request is queued and answers 202 at once; the agent proposes one panel and saves nothing, so the dashboard and its versions never change.
+      A suggestion is private to the caller: only the caller can read it, it never appears in revisions, the observe list or the activity timeline, it sends no events, and it is exempt from the one-running-per-dashboard rule, so it neither waits behind nor blocks a revision of the dashboard, but it shares the worker pool and can wait for a free worker.
+      Poll `GET /dashboards/{id}/suggestions/{suggestion_id}` every second until the status is `succeeded` or `failed`.
+      `version` is the version the proposal is judged inside, and `panel_id` must be a data or text panel of that version.
+      The prompt is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text; control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters, are refused.
+      `panel` is the editor's current draft of the panel, optional; it is placed into the version at the panel's position and validated there with the Spec rules before anything is queued, must keep the id `panel_id` and stay a data or text panel, must not contain the NUL character and may be at most 63 KiB as compact JSON once placed (a request body over 96 KiB is refused).
+      The proposed panel is validated inside the base version with the user's draft, and its queries run with the save rules before the suggestion succeeds.
+      A caller may have 2 suggestions queued or running and the instance 10.
+      Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [version, panel_id, prompt]
+            properties:
+              version:
+                type: integer
+                minimum: 1
+                maximum: 2147483647
+                description: A version that exists on the dashboard.
+              panel_id:
+                type: string
+                minLength: 1
+                maxLength: 64
+              prompt:
+                type: string
+              panel:
+                type: object
+                additionalProperties: true
+                nullable: true
+                description: The editor's current draft of the panel. Omit it or send null to start from the stored panel.
+    responses:
+      "202":
+        description: The queued suggestion.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SuggestionEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        description: The dashboard or the version does not exist.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The panel is not a data or text panel of that version (`unknown_panel`), or the draft fails inside the version (`invalid_spec`, with `issues`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/ValidationError"
+      "429":
+        description: The caller already has 2 suggestions queued or running (`too_many_suggestions`), or 10 are queued or running across the instance (`agent_busy`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: No LLM provider is configured (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+dashboards-id-suggestions-suggestionid:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    - name: suggestion_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getPanelSuggestion
+    summary: Read one panel suggestion.
+    description: >-
+      Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404.
+      `panel` is set only when the status is `succeeded` and `error` only when it is `failed`.
+      Poll every second until the status is `succeeded` or `failed`; suggestions send no events.
+    responses:
+      "200":
+        description: The suggestion with its current status and progress steps.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SuggestionEnvelope"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +27,6 @@ import (
 
 const (
 	maxSummaryLength     = 500
-	maxNulIssues         = 50
 	maxInt32             = math.MaxInt32
 	defaultCreateSummary = "Create dashboard"
 )
@@ -442,62 +440,10 @@ func parseSpec(raw []byte) (*spec.Dashboard, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal spec: %w", err)
 	}
-	if issues := NULIssues(canonical); len(issues) > 0 {
+	if issues := spec.NULIssues(canonical); len(issues) > 0 {
 		return nil, nil, &InvalidSpecError{Issues: issues}
 	}
 	return parsed, canonical, nil
-}
-
-func NULIssues(canonical []byte) []spec.Issue {
-	dec := json.NewDecoder(bytes.NewReader(canonical))
-	dec.UseNumber()
-	var tree any
-	if err := dec.Decode(&tree); err != nil {
-		return nil
-	}
-	var issues []spec.Issue
-	walkStrings(tree, "", func(pointer, kind string) bool {
-		issues = append(issues, spec.Issue{Path: pointer, Code: spec.CodeSchema, Message: kind + " must not contain the NUL character"})
-		return len(issues) < maxNulIssues
-	})
-	return issues
-}
-
-func walkStrings(node any, pointer string, report func(pointer, kind string) bool) bool {
-	switch v := node.(type) {
-	case string:
-		if strings.ContainsRune(v, 0) {
-			return report(pointer, "value")
-		}
-	case []any:
-		for i, child := range v {
-			if !walkStrings(child, pointer+"/"+strconv.Itoa(i), report) {
-				return false
-			}
-		}
-	case map[string]any:
-		keys := make([]string, 0, len(v))
-		for k := range v {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
-		for _, k := range keys {
-			childPointer := pointer + "/" + escapePointer(k)
-			if strings.ContainsRune(k, 0) && !report(childPointer, "property name") {
-				return false
-			}
-			if !walkStrings(v[k], childPointer, report) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-var pointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
-
-func escapePointer(s string) string {
-	return pointerEscaper.Replace(s)
 }
 
 func asInvalidSpec(err error) error {
