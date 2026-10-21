@@ -6,8 +6,10 @@ type SpecialKind = Extract<Mapping, { special: unknown }>["special"]
 
 const compiled = new WeakMap<Mapping, RegExp | null>()
 
-function patternOf(mapping: Mapping, pattern: string): RegExp | null {
-  if (!compiled.has(mapping)) compiled.set(mapping, compileNamePattern(pattern))
+function patternOf(mapping: Extract<Mapping, { regex: string }>) {
+  if (!compiled.has(mapping)) {
+    compiled.set(mapping, compileNamePattern(mapping.regex))
+  }
   return compiled.get(mapping) ?? null
 }
 
@@ -79,7 +81,7 @@ export function matchMapping(
     } else if ("range" in mapping) {
       if (matchesRange(mapping, value)) return { mapping, text: mapping.text }
     } else if ("regex" in mapping) {
-      const pattern = patternOf(mapping, mapping.regex)
+      const pattern = patternOf(mapping)
       const source = String(value)
       if (pattern && pattern.test(source)) {
         return {
