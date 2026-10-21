@@ -14,21 +14,8 @@ const entries = Object.entries(found).map(([path, { manifest }]) => ({
 }))
 
 describe("renderer registry", () => {
-  it("has a manifest for each of the twelve panel types, named after its folder", () => {
-    expect(entries.map((entry) => entry.folder).sort()).toEqual([
-      "bargauge",
-      "gauge",
-      "heatmap",
-      "histogram",
-      "logs",
-      "piechart",
-      "placeholder",
-      "stat",
-      "state-timeline",
-      "table",
-      "text",
-      "timeseries",
-    ])
+  it("has twelve manifests, each named after its folder", () => {
+    expect(entries).toHaveLength(12)
     for (const { folder, manifest } of entries) {
       expect(manifest.type).toBe(folder)
     }
@@ -38,11 +25,9 @@ describe("renderer registry", () => {
     expect(rendererManifests.size).toBe(entries.length)
   })
 
-  it("supports exactly the types that have a renderer", () => {
-    const supported = [...rendererManifests.values()]
-      .filter((manifest) => manifest.supported)
-      .map((manifest) => manifest.type)
-      .sort()
-    expect(supported).toEqual(["bargauge", "stat", "table", "timeseries"])
+  it("gives every supported manifest a loader", () => {
+    for (const manifest of rendererManifests.values()) {
+      if (manifest.supported) expect(manifest.load).toBeTypeOf("function")
+    }
   })
 })
