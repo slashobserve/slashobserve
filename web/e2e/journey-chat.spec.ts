@@ -8,7 +8,8 @@ const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
 const followUpPrompt = "Show this per route"
 const requestPath = /\/observe\/([0-9a-f-]{36})$/
-const dashboardPath = /\/dashboards\/[0-9a-f-]{36}$/
+const dashboardTitle = "Demo shop RED metrics"
+const refinedDashboardTitle = "E2E dashboard"
 
 function turnWith(page: Page, prompt: string) {
   return page
@@ -36,11 +37,18 @@ for (const colorScheme of ["light", "dark"] as const) {
       page,
     }) => {
       let firstId = ""
+      let dashboardId = ""
       const firstTurn = turnWith(page, askPrompt)
       const secondTurn = turnWith(page, followUpPrompt)
 
       await test.step("ask", async () => {
         await page.goto("/")
+        await expect(
+          page.getByRole("heading", {
+            level: 1,
+            name: "What do you want to see?",
+          })
+        ).toBeVisible()
         await composer(page).fill(askPrompt)
         await composer(page).press("Enter")
 
@@ -57,6 +65,18 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           firstTurn.getByRole("link", { name: /^Open dashboard/ })
         ).toBeVisible()
+        await expect(
+          firstTurn.getByText(dashboardTitle, { exact: true })
+        ).toBeVisible()
+        await expect(firstTurn.getByText(/^\d+ panels? from /)).toBeVisible()
+
+        const created = await page.request.get(`/api/v1/observe/${firstId}`)
+        expect(created.ok()).toBe(true)
+        const body = (await created.json()) as {
+          request: { dashboard_id: string | null }
+        }
+        dashboardId = body.request.dashboard_id ?? ""
+        expect(dashboardId).not.toBe("")
 
         await firstTurn.getByText(/^Ran \d+ steps?/).click()
         const steps = firstTurn
@@ -71,8 +91,10 @@ for (const colorScheme of ["light", "dark"] as const) {
           page.context().waitForEvent("page"),
           firstTurn.getByRole("link", { name: /^Open dashboard/ }).click(),
         ])
-        await expect(tab).toHaveURL(dashboardPath)
-        await expect(tab.getByRole("heading", { level: 1 })).not.toHaveText("")
+        await expect(tab).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
+        await expect(tab.getByRole("heading", { level: 1 })).toHaveText(
+          dashboardTitle
+        )
         await expectPanelsReady(tab)
         await expect(
           tab.locator("article[data-panel-id]").first()
@@ -89,6 +111,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(secondTurn.getByText(/Saved as version 2/)).toBeVisible({
           timeout: agentTimeout,
         })
+        await expect(secondTurn.getByText(/^Ran \d+ steps?/)).toBeVisible()
         await expect(page).toHaveURL(new RegExp(`/observe/${firstId}$`))
         const turns = page.getByRole("region", { name: /^Request / })
         await expect(turns.first()).toContainText(askPrompt)
@@ -109,6 +132,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         const current = rows.and(page.locator('[aria-current="true"]'))
         await expect(current).toHaveCount(1)
         await expect(current).toContainText(askPrompt)
+        await expect(current).toContainText("Saved version 1")
+        await expect(current).toContainText(refinedDashboardTitle)
         const order = await rows.evaluateAll(
           (buttons, followUp) => ({
             followUp: buttons.findIndex((button) =>
@@ -124,8 +149,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         expect(order.followUp).toBeLessThan(order.current)
 
         await rows.nth(order.followUp).click()
+        await expect(page).not.toHaveURL(new RegExp(firstId))
         await expect(page).toHaveURL(requestPath)
-        expect(page.url()).not.toContain(firstId)
         await expect(rows.nth(order.followUp)).toHaveAttribute(
           "aria-current",
           "true"
