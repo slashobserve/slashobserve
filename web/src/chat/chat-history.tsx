@@ -1,4 +1,4 @@
-import { useId, useRef } from "react"
+import { useEffect, useId, useRef } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { HistoryIcon } from "lucide-react"
 
@@ -67,6 +67,41 @@ function HistoryList({
 }) {
   const navigate = useNavigate()
   const { requests, query } = useMyRequests("all", pageSize)
+  const loadMoreFailed = query.isFetchNextPageError
+  const loadMoreErrorId = useId()
+  const rows = useRef<HTMLUListElement>(null)
+  const loadMoreButton = useRef<HTMLButtonElement>(null)
+  const retryButton = useRef<HTMLButtonElement>(null)
+  const focusFrom = useRef<number | null>(null)
+  const rowCount = requests.length
+  const fetching = query.isFetching
+
+  useEffect(() => {
+    const from = focusFrom.current
+    if (fetching || from === null) return
+    focusFrom.current = null
+    const active = document.activeElement
+    const onBody = !active || active === document.body
+    const focusRow = (index: number) =>
+      rows.current?.children[index]?.querySelector("button")?.focus()
+    if (rowCount > from) {
+      if (!onBody && active !== loadMoreButton.current) return
+      focusRow(from)
+    } else if (onBody) {
+      if (rowCount > 0) focusRow(rowCount - 1)
+      else retryButton.current?.focus()
+    }
+  }, [rowCount, fetching])
+
+  const retry = () => {
+    focusFrom.current = 0
+    void query.refetch()
+  }
+
+  const loadMore = () => {
+    focusFrom.current = rowCount
+    void query.fetchNextPage()
+  }
 
   if (query.isPending) {
     return (
@@ -85,11 +120,12 @@ function HistoryList({
           Could not load your requests.
         </p>
         <Button
+          ref={retryButton}
           variant="outline"
           size="sm"
           disabled={query.isFetching}
           focusableWhenDisabled
-          onClick={() => void query.refetch()}
+          onClick={retry}
         >
           Retry
         </Button>
@@ -107,7 +143,7 @@ function HistoryList({
 
   return (
     <div id={panelId} className="flex flex-col gap-3">
-      <ul className="-mx-2 flex flex-col">
+      <ul ref={rows} className="-mx-2 flex flex-col">
         {requests.map((request) => (
           <li key={request.id}>
             <button
@@ -133,20 +169,27 @@ function HistoryList({
       </ul>
       {query.hasNextPage ? (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-busy={query.isFetchingNextPage}
-            disabled={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            Load more
-          </Button>
-          {query.isFetchNextPageError ? (
-            <p role="alert" className="text-xs text-destructive">
+          {loadMoreFailed ? (
+            <p
+              id={loadMoreErrorId}
+              role="alert"
+              className="text-xs text-destructive"
+            >
               Could not load more requests.
             </p>
           ) : null}
+          <Button
+            ref={loadMoreButton}
+            variant="outline"
+            size="sm"
+            disabled={query.isFetchingNextPage}
+            focusableWhenDisabled
+            aria-busy={query.isFetchingNextPage}
+            aria-describedby={loadMoreFailed ? loadMoreErrorId : undefined}
+            onClick={loadMore}
+          >
+            Load more
+          </Button>
         </div>
       ) : null}
     </div>
