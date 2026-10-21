@@ -1,0 +1,24 @@
+{
+  "title": "E2E unverified import",
+  "uid": "e2e-unverified",
+  "schemaVersion": 39,
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Up",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(up)", "datasource": {"type": "prometheus", "uid": "prometheus"}}]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Missing",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"refId": "A", "expr": "sum(slashobserve_e2e_missing_metric_total)", "datasource": {"type": "prometheus", "uid": "prometheus"}}]
+    }
+  ]
+}

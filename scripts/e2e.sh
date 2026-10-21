@@ -673,6 +673,7 @@ suite() {
 
   check_datasources "$TMP/sa-jar"
   dashboards_suite
+  imports_suite
   events_suite
   comments_suite
   revisions_suite
@@ -1008,6 +1009,196 @@ sse_wait() {
 sse_close() {
   if [[ -n "$SSE_PID" ]]; then kill "$SSE_PID" 2>/dev/null || true; fi
   SSE_PID=""
+}
+
+import_body() {
+  local mapping="${2:-}"
+  [[ -n "$mapping" ]] || mapping='{}'
+  python3 -c 'import json,sys; print(json.dumps({"json": open(sys.argv[1]).read(), "mapping": json.loads(sys.argv[2])}))' "$1" "$mapping" >"$TMP/import-body.json"
+}
+
+import_check() {
+  python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if eval(sys.argv[2]) else 1)' "${2:-$TMP/api.body}" "$1"
+}
+
+expect_import_error() {
+  local path="$1" body="$2" status="$3" code="$4" out
+  out="$(api POST "$path" --data "$body")"
+  if [[ "$out" != "$status" ]] || ! import_check "d['code'] == '$code'"; then
+    fail "POST $path with $body should answer $status $code ($out: $(head -c 300 "$TMP/api.body"))"
+  fi
+}
+
+prom_defined() { capture LAST prom_scalar "$1" || true; is_number "$LAST"; }
+
+demo_shop_stat_panels_have_data() {
+  prom_defined 'sum(rate(http_requests_total{service=~".+",status=~"5.."}[1m])) / sum(rate(http_requests_total{service=~".+"}[1m]))' \
+    && prom_defined 'sum(rate(container_cpu_usage_seconds_total{service=~".+"}[1m]))'
+}
+
+imports_suite() {
+  api_token
+  local out demo="$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" unverified="$FIXTURES/grafana-unverified.json"
+  local demo_id unverified_id plain_id cursor leak i pids=() statuses=()
+  local nil_id=00000000-0000-0000-0000-000000000000 limit=$((8 * 1024 * 1024))
+
+  import_body "$demo"
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 200 ]] || fail "preview demo-shop ($out: $(head -c 300 "$TMP/api.body"))"
+  import_check "d['ready'] is True and d['report']['verified'] is False and d['report']['counts']['total'] == 9 and d['report']['counts']['placeholder'] == 1" \
+    || fail "demo-shop preview should be ready with 9 panels and 1 placeholder ($(head -c 600 "$TMP/api.body"))"
+  import_check "{x['key']: (x['match'], x['matched_by']) for x in d['datasources']} == {'prometheus': ('prom', 'alias'), 'clickhouse': ('ch', 'alias')}" \
+    || fail "demo-shop datasources should match prom and ch by alias ($(python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["datasources"]))' "$TMP/api.body"))"
+  import_check "[p['source_type'] for p in d['report']['panels'] if p['status'] == 'placeholder'] == ['barchart']" \
+    || fail "the placeholder line should come from a barchart panel"
+  import_check "len([p for p in d['spec']['panels'] if p['type'] == 'row']) == 2" || fail "demo-shop preview Spec should hold 2 rows"
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
+  [[ -z "$leak" ]] || fail "preview exposes connection details ($leak)"
+  pass "previewing the demo shop dashboard matches its datasources by alias and counts its panels without running queries"
+
+  import_body "$demo" '{"prometheus": "prom_tight"}'
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 200 ]] || fail "preview with a mapping ($out: $(head -c 300 "$TMP/api.body"))"
+  import_check "[(x['match'], x['matched_by']) for x in d['datasources'] if x['key'] == 'prometheus'] == [('prom_tight', 'mapping')]" \
+    || fail "the mapping should win over the alias ($(head -c 600 "$TMP/api.body"))"
+  pass "a mapping beats the alias"
+
+  import_body "$demo" '{"prometheus": "ch"}'
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 422 ]] && import_check "d['code'] == 'invalid_mapping'" || fail "a mapping to a datasource of another kind should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  import_body "$demo" '{"nope": "prom"}'
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 422 ]] && import_check "d['code'] == 'invalid_mapping'" || fail "a mapping for an unknown source datasource should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  pass "mappings to the wrong kind or for an unknown source are refused"
+
+  expect_import_error /imports/preview '{"json": "{not json"}' 422 invalid_json
+  expect_import_error /imports/preview '{"json": "[1,2]"}' 422 invalid_json
+  expect_import_error /imports/preview '{"json": "{}"}' 422 not_a_dashboard
+  expect_import_error /imports/preview '{}' 400 invalid_request
+  expect_import_error /imports/preview '{"json": ""}' 400 invalid_request
+  expect_import_error /imports/preview '{"json": "{}", "extra": 1}' 400 invalid_request
+  expect_import_error /imports/preview '{"json": "{}", "mapping": {"a": 1}}' 400 invalid_request
+  expect_import_error /imports/preview '{"json": "{}", "mapping": {"": "prom"}}' 400 invalid_request
+  expect_import_error /imports '{"json": "{not json"}' 422 invalid_json
+  expect_import_error /imports '{"json": "{}", "extra": 1}' 400 invalid_request
+  pass "bad bodies are refused with their codes"
+
+  python3 -c 'import sys; n=int(sys.argv[1]); open(sys.argv[2], "w").write("{\"json\": \"" + "x" * n + "\"}")' "$limit" "$TMP/import-large.json"
+  for path in /imports/preview /imports; do
+    out="$(api POST "$path" --data-binary "@$TMP/import-large.json")"
+    [[ "$out" == 413 ]] && import_check "d['code'] == 'too_large'" || fail "an 8 MiB body to $path should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  done
+  pass "a body above 8 MiB is refused with 413"
+
+  out="$(command curl -sS --max-time 10 -o "$TMP/api.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"json": "{}"}' "$BASE_URL/api/v1/imports/preview")"
+  [[ "$out" == 401 ]] || fail "an unauthenticated preview should be refused ($out)"
+  pass "previewing without signing in is refused"
+
+  python3 - "$unverified" "$TMP/import-unresolved.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+for p in d["panels"]:
+    p["datasource"]["uid"] = "zzz"
+    for t in p["targets"]:
+        t["datasource"]["uid"] = "zzz"
+json.dump({"json": json.dumps(d)}, open(sys.argv[2], "w"))
+PY
+  out="$(api POST /imports --data-binary "@$TMP/import-unresolved.json")"
+  [[ "$out" == 422 ]] || fail "importing an unmatched datasource should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  import_check "d['code'] == 'datasources_unresolved' and d['datasources'][0]['candidates'] == ['prom', 'prom_tight'] and d['datasources'][0]['match'] is None" \
+    || fail "an ambiguous datasource should list its candidates and never be guessed ($(head -c 600 "$TMP/api.body"))"
+  pass "a datasource with two candidates is never guessed"
+
+  poll 180 "Prometheus has data for the demo shop stat panels" demo_shop_stat_panels_have_data
+  import_body "$demo"
+  out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 201 ]] || fail "import demo-shop ($out: $(head -c 600 "$TMP/api.body"))"
+  demo_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
+  grep -qi "^location: /api/v1/dashboards/$demo_id" "$TMP/api.headers" || fail "import response has no Location header ($(cat "$TMP/api.headers"))"
+  import_check "d['version']['version'] == 1 and d['import']['report']['verified'] is True and d['import']['version'] == 1 and d['import']['dashboard_id'] == d['dashboard']['id']" \
+    || fail "the import should save version 1 with a verified report"
+  import_check "all(p['status'] in ('imported', 'partial') for p in d['import']['report']['panels'] if p['queries'] and all(q['datasource'] == 'prom' for q in p['queries']))" \
+    || fail "every demo-shop Prometheus panel should be imported or partial ($(python3 -c 'import json,sys; print(json.dumps([(p["title"], p["status"], p["reasons"]) for p in json.load(open(sys.argv[1]))["import"]["report"]["panels"]]))' "$TMP/api.body"))"
+  leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
+  [[ -z "$leak" ]] || fail "import response exposes connection details ($leak)"
+  out="$(api GET "/dashboards/$demo_id")"
+  [[ "$out" == 200 ]] || fail "the imported dashboard should be readable ($out)"
+  pass "importing the demo shop dashboard saves version 1 with a verified report"
+
+  import_body "$unverified"
+  out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 201 ]] || fail "import the unverified fixture ($out: $(head -c 600 "$TMP/api.body"))"
+  cp "$TMP/api.body" "$TMP/import-created.json"
+  unverified_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
+  import_check "{p['title']: p['status'] for p in d['import']['report']['panels']}.get('Missing') == 'unverified' and {p['title']: p['status'] for p in d['import']['report']['panels']}.get('Up') != 'unverified'" \
+    || fail "only the Missing panel should be unverified ($(head -c 800 "$TMP/api.body"))"
+  import_check "any('no data' in r for p in d['import']['report']['panels'] if p['title'] == 'Missing' for r in p['reasons']) and d['import']['report']['counts']['unverified'] == 1" \
+    || fail "the Missing panel should say it returned no data and the counts should show 1 unverified"
+  pass "a panel whose query returns no data is saved as unverified with its reason"
+
+  python3 - "$TMP/import-created.json" "$TMP/import-resave.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+json.dump({"parent_version": 1, "summary": "Save the imported Spec again", "spec": d["version"]["spec"]}, open(sys.argv[2], "w"))
+PY
+  out="$(api POST "/dashboards/$unverified_id/versions" --data-binary "@$TMP/import-resave.json")"
+  [[ "$out" == 422 ]] && import_check "any(i['code'] == 'query_empty' for i in d['issues'])" \
+    || fail "saving the imported Spec again should run every query ($out: $(head -c 600 "$TMP/api.body"))"
+  pass "a later save of an imported dashboard still rejects a failing query"
+
+  out="$(api GET "/dashboards/$unverified_id/import")"
+  [[ "$out" == 200 ]] || fail "get the import of a dashboard ($out: $(head -c 300 "$TMP/api.body"))"
+  python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1]))["import"] == json.load(open(sys.argv[2])) else 1)' "$TMP/import-created.json" "$TMP/api.body" \
+    || fail "the stored import should equal the one the import returned ($(head -c 600 "$TMP/api.body"))"
+  out="$(api POST /dashboards --data-binary "@$FIXTURES/dashboard-valid.json")"
+  [[ "$out" == 201 ]] || fail "create a dashboard that is not imported ($out)"
+  plain_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
+  out="$(api GET "/dashboards/$plain_id/import")"
+  [[ "$out" == 404 ]] && import_check "d['code'] == 'not_imported'" || fail "a dashboard that was not imported should answer not_imported ($out: $(head -c 300 "$TMP/api.body"))"
+  out="$(api GET "/dashboards/$nil_id/import")"
+  [[ "$out" == 404 ]] && import_check "d['code'] == 'not_found'" || fail "a missing dashboard should answer not_found ($out: $(head -c 300 "$TMP/api.body"))"
+  out="$(api GET /dashboards/nope/import)"
+  [[ "$out" == 400 ]] || fail "a dashboard id that is not a UUID should be refused ($out)"
+  pass "the import of a dashboard is returned as stored, and a dashboard that was not imported is told apart from a missing one"
+
+  out="$(api GET "/imports?limit=1")"
+  [[ "$out" == 200 ]] || fail "list imports ($out: $(head -c 300 "$TMP/api.body"))"
+  import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == '$unverified_id' and d['imports'][0]['counts']['unverified'] == 1 and isinstance(d['next_cursor'], str)" \
+    || fail "the first page should hold the newest import and a cursor ($(head -c 600 "$TMP/api.body"))"
+  cursor="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["next_cursor"])' "$TMP/api.body")"
+  out="$(api GET "/imports?limit=1&cursor=$cursor")"
+  [[ "$out" == 200 ]] && import_check "len(d['imports']) == 1 and d['imports'][0]['dashboard_id'] == '$demo_id'" \
+    || fail "the next page should hold the previous import ($out: $(head -c 600 "$TMP/api.body"))"
+  for query in "limit=0" "cursor=%21%21%21"; do
+    out="$(api GET "/imports?$query")"
+    [[ "$out" == 400 ]] || fail "GET /imports?$query should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  done
+  pass "imports are listed newest first in pages, and a bad limit or cursor is refused"
+
+  import_body "$unverified"
+  for i in 1 2 3; do
+    command curl -sS --max-time 90 -o "$TMP/import-concurrent-$i.body" -w '%{http_code}' -X POST \
+      -H "Authorization: Bearer $API_TOKEN" -H 'Content-Type: application/json' --data-binary "@$TMP/import-body.json" "$BASE_URL/api/v1/imports" >"$TMP/import-concurrent-$i.status" &
+    pids+=("$!")
+  done
+  for i in 1 2 3; do
+    wait "${pids[$((i - 1))]}" || fail "concurrent import $i did not finish"
+    statuses+=("$(cat "$TMP/import-concurrent-$i.status")")
+  done
+  [[ " ${statuses[*]} " == *" 201 "* ]] || fail "at least one concurrent import should succeed (${statuses[*]})"
+  for i in 1 2 3; do
+    case "${statuses[$((i - 1))]}" in
+      201) ;;
+      429) import_check "d['code'] == 'too_many_imports'" "$TMP/import-concurrent-$i.body" || fail "a refused import should say too_many_imports ($(cat "$TMP/import-concurrent-$i.body"))" ;;
+      *) fail "a concurrent import answered ${statuses[$((i - 1))]} ($(head -c 300 "$TMP/import-concurrent-$i.body"))" ;;
+    esac
+  done
+  pass "concurrent imports by one caller succeed or are told to wait with too_many_imports"
+
+  python3 -c 'import json; print(json.dumps({"json": json.dumps({"title": "Too many", "schemaVersion": 39, "panels": [{"id": i + 1, "type": "text", "title": "t", "gridPos": {"x": 0, "y": i, "w": 24, "h": 1}, "options": {"content": "x"}} for i in range(201)]})}))' >"$TMP/import-many.json"
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-many.json")"
+  [[ "$out" == 422 ]] && import_check "d['code'] == 'too_many_panels'" || fail "a dashboard of 201 panels should be refused ($out: $(head -c 300 "$TMP/api.body"))"
+  pass "a dashboard above the 200 panel limit is refused with too_many_panels"
 }
 
 events_suite() {
