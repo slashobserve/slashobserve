@@ -34,7 +34,7 @@ function panel(extra: Partial<DataPanel> = {}): DataPanel {
 }
 
 function frame(
-  fields: WireFrame["fields"],
+  fields: PreparedFrame["fields"],
   extra: Partial<Omit<WireFrame, "fields">> = {}
 ): PreparedFrame {
   return { ref: "A", fields, ...extra }
@@ -350,6 +350,33 @@ describe("table links", () => {
     )
     expect(cellLinksOf("n", 1)[0].href).toBe("/routes?name=%2Fpay")
     expect(cellLinksOf("pod", 0)[0].href).toBe("/routes?name=%2Fcart")
+  })
+})
+
+describe("table link scope", () => {
+  const links = [
+    { title: "${__field.name} of ${__series.name}", url: "/series" },
+  ]
+  const named = (pod: string, seriesName: string) =>
+    frame([time, { ...number([1]), seriesName }], { labels: { pod } })
+  const titleAt = (frames: PreparedFrame[], label: string, row: number) =>
+    build(frames, { links }).links(label, row)[0].title
+
+  it("names each row's series from the field of its own frame", () => {
+    const frames = [named("a", "alpha"), named("b", "beta")]
+    expect(titleAt(frames, "Value", 0)).toBe("Value of alpha")
+    expect(titleAt(frames, "Value", 1)).toBe("Value of beta")
+  })
+
+  it("names a row that lacks the column's field after the column's field", () => {
+    const other = frame([time, number([2], "Other")], { labels: { pod: "b" } })
+    const frames = [named("a", "alpha"), other]
+    expect(titleAt(frames, "Value", 1)).toBe("Value of alpha")
+  })
+
+  it("names a label column after its label key", () => {
+    const frames = [named("a", "alpha"), named("b", "beta")]
+    expect(titleAt(frames, "pod", 1)).toBe("pod of pod")
   })
 })
 
