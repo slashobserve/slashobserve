@@ -13,7 +13,6 @@ import type { DataPanel } from "@/spec"
 import { readChartColors, resolveColor } from "../colors"
 import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
-import { reduce } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
@@ -24,6 +23,7 @@ import {
   chartSeries,
   configuredKeys,
   ghostsDrawn,
+  legendCells,
   plotStateFor,
   thresholdsFor,
   type ChartSeries,
@@ -38,7 +38,6 @@ import {
   fillPercent,
   fillStyle,
   firstStackMode,
-  formatTogether,
   scaleOf,
   timeseriesDisplay,
   type AxesInUse,
@@ -351,9 +350,8 @@ function TimeseriesChart({
   const appliedRef = useRef<PlotState | null>(null)
   const [legendHeight, setLegendHeight] = useState(0)
 
-  const options = timeseriesDisplay(display)
+  const options = useMemo(() => timeseriesDisplay(display), [display])
   const reducers = options.legendValues
-  const reducersKey = reducers.join(",")
   const displayKey = stableJson(display)
   const configsKey = stableJson(configs)
   const thresholdsKey = stableJson(panel.thresholds ?? null)
@@ -424,18 +422,7 @@ function TimeseriesChart({
 
   const model = modelFor(panel, series, ghosts.length, options.tooltip)
 
-  const cells = useMemo(() => {
-    const columns = reducers.map((reducer) =>
-      formatTogether(
-        series.map((entry) => ({
-          value: reduce(entry.values, reducer),
-          config: entry.config,
-        }))
-      )
-    )
-    return series.map((_entry, row) => columns.map((column) => column[row]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reducers is tracked through reducersKey
-  }, [series, reducersKey])
+  const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
 
   const latest = useRef<Latest>({
     state,
@@ -482,7 +469,7 @@ function TimeseriesChart({
       plotRef.current = null
       appliedRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the model is rebuilt on every refresh; only the keys below decide when the plot is re-created
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     ready,
     signature,

@@ -1,9 +1,11 @@
-import type { DataPanel, Threshold } from "@/spec"
+import type { DataPanel, Reducer, Threshold } from "@/spec"
 
 import { assignSlots, type SlotMap } from "../colors"
 import type { FieldConfig } from "../field-config"
+import { reduce } from "../reducers"
 import type { AlignedSeries } from "./align"
 import {
+  formatTogether,
   seriesStyles,
   type AxisSettings,
   type StyledSeries,
@@ -12,6 +14,7 @@ import { stackSeries, type Cell } from "./stack"
 
 export type ChartSeries = StyledSeries & {
   values: Cell[]
+  fieldValues: readonly unknown[]
   config: FieldConfig
 }
 
@@ -32,7 +35,7 @@ export type ThresholdLines = {
   mode: FieldConfig["thresholdMode"]
 }
 
-type Aligned = Pick<AlignedSeries, "key" | "label" | "values">
+type Aligned = Pick<AlignedSeries, "key" | "label" | "values" | "field">
 
 export function configuredKeys(
   aligned: readonly Pick<AlignedSeries, "key">[],
@@ -56,7 +59,14 @@ export function chartSeries(
   return styles.flatMap((style, index) =>
     style.hidden
       ? []
-      : [{ ...style, values: aligned[index].values, config: configs[index] }]
+      : [
+          {
+            ...style,
+            values: aligned[index].values,
+            fieldValues: aligned[index].field.values,
+            config: configs[index],
+          },
+        ]
   )
 }
 
@@ -86,6 +96,21 @@ export function plotStateFor(
     below,
     stacked: modes.map((mode) => mode !== "none"),
   }
+}
+
+export function legendCells(
+  series: readonly Pick<ChartSeries, "fieldValues" | "config">[],
+  reducers: readonly Reducer[]
+): string[][] {
+  const columns = reducers.map((reducer) =>
+    formatTogether(
+      series.map(({ fieldValues, config }) => ({
+        value: reduce(fieldValues, reducer),
+        config,
+      }))
+    )
+  )
+  return series.map((_entry, row) => columns.map((column) => column[row]))
 }
 
 export function ghostsDrawn(

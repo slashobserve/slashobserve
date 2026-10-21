@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest"
 import type { DataPanel } from "@/spec"
 
 import type { FieldConfig } from "../field-config"
+import type { AlignedSeries } from "./align"
 import {
   bandBase,
   chartSeries,
   ghostsDrawn,
+  legendCells,
   nearestSpan,
   plotStateFor,
   thresholdsFor,
@@ -32,7 +34,8 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
 }
 
 function aligned(key: string, values: Cell[] = [1, 2]) {
-  return { key, label: key, values }
+  const field = { name: key, type: "number", values } as AlignedSeries["field"]
+  return { key, label: key, values, field }
 }
 
 function series(
@@ -51,6 +54,7 @@ function series(
     stack: "none",
     hidden: false,
     values,
+    fieldValues: values,
     config: config(),
     ...props,
   }
@@ -126,6 +130,31 @@ describe("plotStateFor", () => {
       [11, 11],
     ])
     expect(state.bands).toEqual([{ series: [3, 2] }])
+  })
+})
+
+describe("legendCells", () => {
+  it("reduces each series' own field values, not the aligned slots", () => {
+    const rows = [
+      series("a", [1, 2, 3, undefined], { fieldValues: [1, 2, 3] }),
+      series("b", [undefined, 10, undefined, 20], { fieldValues: [10, 20] }),
+    ]
+    expect(legendCells(rows, ["last", "count"])).toEqual([
+      ["3", "3"],
+      ["20", "2"],
+    ])
+  })
+
+  it("gives the values of one column the same decimals", () => {
+    const rows = [
+      series("a", [2.4], { config: config({ unit: "short" }) }),
+      series("b", [2.45], { config: config({ unit: "short" }) }),
+    ]
+    expect(legendCells(rows, ["max"])).toEqual([["2.40"], ["2.45"]])
+  })
+
+  it("has no columns without reducers", () => {
+    expect(legendCells([series("a", [1])], [])).toEqual([[]])
   })
 })
 
