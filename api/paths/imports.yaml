@@ -51,6 +51,7 @@ imports:
       Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual.
       The original JSON is stored for a later re-import and is never returned.
       A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`.
+      A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`.
     requestBody:
       required: true
       content:
@@ -58,6 +59,12 @@ imports:
           schema:
             $ref: "../openapi.yaml#/components/schemas/ImportRequest"
     responses:
+      "200":
+        description: The dashboard the request already created, when no import made it.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
       "201":
         description: The new dashboard, its first version and the import record.
         headers:

@@ -10,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
@@ -175,5 +177,44 @@ func TestPreviewsDoNotTakeImportSlots(t *testing.T) {
 	close(gate.release)
 	if code := <-done; code != http.StatusOK {
 		t.Fatalf("preview: %d", code)
+	}
+}
+
+func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testing.T) {
+	r := newRig(t)
+	row, err := r.queue.SubmitObserve(t.Context(), ada, "build it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, specWith("up"), "create", row.ID); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})
+	if err != nil || !replayed.Replayed || replayed.Record.ID != "" {
+		t.Fatalf("replayed %t, record %+v, err %v", replayed.Replayed, replayed.Record, err)
+	}
+
+	rec := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rec)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/imports", nil)
+	imports.RespondImported(ctx, replayed)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	doc, err := api.Load(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded any
+	if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	openapi3.DefineStringFormatValidator("uuid", openapi3.NewRegexpFormatValidator(openapi3.FormatOfStringForUUIDOfRFC9562))
+	if err := doc.Components.Schemas["DashboardWithVersion"].Value.VisitJSON(decoded); err != nil {
+		t.Fatalf("the body breaks DashboardWithVersion: %v\n%s", err, rec.Body)
+	}
+	if _, has := decoded.(map[string]any)["import"]; has {
+		t.Fatalf("the body carries an import: %s", rec.Body)
 	}
 }

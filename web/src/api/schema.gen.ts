@@ -779,7 +779,7 @@ export interface paths {
         put?: never;
         /**
          * Import a Grafana dashboard as version 1 of a new dashboard.
-         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`.
          */
         post: operations["createImport"];
         delete?: never;
@@ -3352,6 +3352,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description The dashboard the request already created, when no import made it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
             /** @description The new dashboard, its first version and the import record. */
             201: {
                 headers: {

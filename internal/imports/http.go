@@ -182,11 +182,17 @@ func (h *Handler) create(c *gin.Context) {
 		h.fail(c, "import dashboard", err)
 		return
 	}
+	respondImported(c, imported)
+}
+
+func respondImported(c *gin.Context, imported Imported) {
+	saved := dashboards.NewDashboardVersionJSON(imported.Dashboard, imported.Version)
+	if imported.Record.ID == "" {
+		c.JSON(http.StatusOK, saved)
+		return
+	}
 	c.Header("Location", "/api/v1/dashboards/"+imported.Dashboard.ID)
-	c.JSON(http.StatusCreated, importedJSON{
-		DashboardVersionJSON: dashboards.NewDashboardVersionJSON(imported.Dashboard, imported.Version),
-		Import:               newImportJSON(imported.Record),
-	})
+	c.JSON(http.StatusCreated, importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record)})
 }
 
 func (h *Handler) list(c *gin.Context) {
