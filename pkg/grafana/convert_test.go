@@ -246,3 +246,42 @@ func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
 		}
 	}
 }
+
+func TestRegexPatternsArriveVerbatim(t *testing.T) {
+	override := func(typ, members string) func(*testing.T) string {
+		return func(t *testing.T) string {
+			panel, _ := convertedPanel(t, panelDoc(typ, upTarget+","+members))
+			if len(panel.Overrides) != 1 {
+				t.Fatalf("overrides = %+v", panel.Overrides)
+			}
+			return panel.Overrides[0].Match.SeriesRegex
+		}
+	}
+	cases := []struct {
+		name string
+		run  func(*testing.T) string
+		want string
+	}{
+		{"graph alias with slashes", override("graph", `"seriesOverrides":[{"alias":"/^api-.*/","color":"#00ff00"}]`), "/^api-.*/"},
+		{"graph alias with flags", override("graph", `"seriesOverrides":[{"alias":"/err.*/i","color":"#00ff00"}]`), "/err.*/i"},
+		{"graph alias color with slashes", override("graph", `"aliasColors":{"/^api-.*/":"#00ff00"}`), "/^api-.*/"},
+		{"table-old style pattern", override("table-old", `"styles":[{"pattern":"/^col.*/","unit":"bytes","type":"number"}]`), "/^col.*/"},
+		{"byRegexp without slashes", override("timeseries", `"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byRegexp","options":"^db-.*"},"properties":[{"id":"unit","value":"bytes"}]}]}`), "^db-.*"},
+		{"byRegexp with slashes", override("timeseries", `"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byRegexp","options":"/db-.*/i"},"properties":[{"id":"unit","value":"bytes"}]}]}`), "/db-.*/i"},
+		{"regex mapping", func(t *testing.T) string {
+			panel, _ := convertedPanel(t, panelDoc("stat", upTarget+`,"fieldConfig":{"defaults":{"mappings":[{"type":"regex","options":{"pattern":"/^a.*/i","result":{"text":"A"}}}]},"overrides":[]}`))
+			return panel.Mappings[0].Regex
+		}, "/^a.*/i"},
+		{"filter fields pattern", func(t *testing.T) string {
+			panel, _ := convertedPanel(t, panelDoc("table", upTarget+`,"transformations":[{"id":"filterFieldsByName","options":{"include":{"pattern":"/^cpu/"}}}]`))
+			return panel.Transform[0].IncludeRegex
+		}, "/^cpu/"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.run(t); got != tc.want {
+				t.Fatalf("pattern = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
