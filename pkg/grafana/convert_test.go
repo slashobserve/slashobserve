@@ -1,8 +1,10 @@
 package grafana
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -130,6 +132,51 @@ func TestSeriesOverridesWithUnparseableValuesAreReportedNotWritten(t *testing.T)
 			}
 			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.path) {
 				t.Fatalf("status %s, paths %v, want %s reported", line.Status, line.Paths, tc.path)
+			}
+		})
+	}
+}
+
+func clickHousePanel(t *testing.T, sql string) (spec.Panel, PanelLine) {
+	t.Helper()
+	target, err := json.Marshal(map[string]any{"refId": "A", "rawSql": sql})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := fmt.Sprintf(`{"title":"T","schemaVersion":39,"panels":[{"id":1,"type":"timeseries","title":"T","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"},"targets":[%s]}]}`, target)
+	res := convertDoc(t, doc)
+	line := panelLine(t, res, "p1")
+	if line.Status == statusPlaceholder {
+		return spec.Panel{}, line
+	}
+	entry, ok := res.Spec.FindPanel("p1")
+	if !ok {
+		t.Fatalf("no panel p1 in the Spec")
+	}
+	return *entry.Panel, line
+}
+
+func TestTimeGroupIntervalUnitsAreNotGuessedFromTheirPrefix(t *testing.T) {
+	cases := []struct{ interval, want string }{
+		{"5m", "toStartOfInterval(toDateTime(ts), INTERVAL 5 MINUTE)"},
+		{"3 minutes", "toStartOfInterval(toDateTime(ts), INTERVAL 3 MINUTE)"},
+		{"10s", "toStartOfInterval(toDateTime(ts), INTERVAL 10 SECOND)"},
+		{"1 day", "toStartOfInterval(toDateTime(ts), INTERVAL 1 DAY)"},
+		{"500ms", ""},
+		{"2 ms", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.interval, func(t *testing.T) {
+			panel, line := clickHousePanel(t, "SELECT $__timeGroup(ts, '"+tc.interval+"') AS t FROM logs")
+			if tc.want != "" {
+				if got := panel.Queries[0].Query; got != "SELECT "+tc.want+" AS t FROM logs" {
+					t.Fatalf("query = %q", got)
+				}
+				return
+			}
+			dropped := line.Queries[0].Dropped
+			if line.Status != statusPlaceholder || dropped == nil || !strings.Contains(*dropped, "$__timeGroup(ts, '"+tc.interval+"')") {
+				t.Fatalf("status %s, dropped %v, want the macro named as unsupported", line.Status, dropped)
 			}
 		})
 	}

@@ -634,7 +634,7 @@ func officialReplacement(ref spec.Reference) (string, bool) {
 }
 
 var (
-	groupInterval   = regexp.MustCompile(`^['"]?\s*([1-9][0-9]*)\s*(s|m|h|d|w|second|minute|hour|day|week)s?\s*['"]?$`)
+	groupInterval   = regexp.MustCompile(`^['"]?\s*([1-9][0-9]*)\s*(s|m|h|d|w|(?:second|minute|hour|day|week)s?)\s*['"]?$`)
 	groupUnits      = map[string]string{"s": "SECOND", "m": "MINUTE", "h": "HOUR", "d": "DAY", "w": "WEEK", "second": "SECOND", "minute": "MINUTE", "hour": "HOUR", "day": "DAY", "week": "WEEK"}
 	autoIntervalArg = map[string]bool{"$__interval_s": true, "${__interval_s}": true}
 )
@@ -650,5 +650,9 @@ func timeGroupReplacement(column, interval string) (string, bool) {
 	if m == nil {
 		return "", false
 	}
-	return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %s %s)", column, m[1], groupUnits[m[2]]), true
+	unit := m[2]
+	if len(unit) > 1 {
+		unit = strings.TrimSuffix(unit, "s")
+	}
+	return fmt.Sprintf("toStartOfInterval(toDateTime(%s), INTERVAL %s %s)", column, m[1], groupUnits[unit]), true
 }
