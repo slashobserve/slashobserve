@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { memo, useMemo, useState } from "react"
 import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -73,17 +73,19 @@ function MoreLinks({ links }: { links: ResolvedLink[] }) {
   )
 }
 
+type RowProps = {
+  columns: TableColumn[]
+  row: ModelRow
+  fields: FieldResolver
+  scope: LinkScope
+}
+
 function BodyCell({
   column,
   row,
   fields,
   scope,
-}: {
-  column: TableColumn
-  row: ModelRow
-  fields: FieldResolver
-  scope: LinkScope
-}) {
+}: Omit<RowProps, "columns"> & { column: TableColumn }) {
   const value = row.values[column.key]
   const cell = cellOf(fields, column, row)
   const [first, ...more] = cellLinks(fields, column, row, cell, scope)
@@ -112,7 +114,7 @@ function BodyCell({
         <span className="inline-flex items-center gap-1">
           <a
             {...anchorProps(first)}
-            title={first.title}
+            title={[first.title, cell.word].filter(Boolean).join(" - ")}
             style={style}
             className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
           >
@@ -131,6 +133,27 @@ function BodyCell({
     </TableCell>
   )
 }
+
+const BodyRow = memo(function BodyRow({
+  columns,
+  row,
+  fields,
+  scope,
+}: RowProps) {
+  return (
+    <TableRow>
+      {columns.map((column) => (
+        <BodyCell
+          key={column.key}
+          column={column}
+          row={row}
+          fields={fields}
+          scope={scope}
+        />
+      ))}
+    </TableRow>
+  )
+})
 
 export const TablePanel: PanelRenderer = ({
   panel,
@@ -229,35 +252,30 @@ export const TablePanel: PanelRenderer = ({
         </TableHeader>
         <TableBody>
           {visible.map((row) => (
-            <TableRow
+            <BodyRow
               key={row.key}
-              className="[contain-intrinsic-size:auto_33px] [content-visibility:auto]"
-            >
-              {model.columns.map((column) => (
-                <BodyCell
-                  key={column.key}
-                  column={column}
-                  row={row}
-                  fields={fields}
-                  scope={links}
-                />
-              ))}
-            </TableRow>
+              columns={model.columns}
+              row={row}
+              fields={fields}
+              scope={links}
+            />
           ))}
         </TableBody>
         {model.footer.length > 0 ? (
           <TableFooter className="sticky bottom-0 z-10 border-t-0 bg-card shadow-[0_-1px_0_var(--border)]">
             {model.footer.map((footer) => (
               <TableRow key={footer.label} className="hover:bg-transparent">
-                {model.columns.map((column, index) => (
-                  <TableCell
-                    key={column.key}
-                    className={cn(
-                      "px-2 py-1",
-                      column.type === "number" && "text-right tabular-nums"
-                    )}
-                  >
-                    {index === 0 ? (
+                {model.columns.map((column, index) => {
+                  const className = cn(
+                    "px-2 py-1",
+                    column.type === "number" && "text-right tabular-nums"
+                  )
+                  return index === 0 ? (
+                    <TableHead
+                      key={column.key}
+                      scope="row"
+                      className={cn(className, "h-auto")}
+                    >
                       <span className="flex items-center justify-between gap-2">
                         <span>{footer.label}</span>
                         {footer.cells[0] !== null ? (
@@ -266,11 +284,13 @@ export const TablePanel: PanelRenderer = ({
                           </span>
                         ) : null}
                       </span>
-                    ) : (
-                      footer.cells[index]
-                    )}
-                  </TableCell>
-                ))}
+                    </TableHead>
+                  ) : (
+                    <TableCell key={column.key} className={className}>
+                      {footer.cells[index]}
+                    </TableCell>
+                  )
+                })}
               </TableRow>
             ))}
           </TableFooter>

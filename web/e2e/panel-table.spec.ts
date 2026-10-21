@@ -67,7 +67,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openTables(page, await createTables(request))
 
       const footer = panel(page, "Top routes").locator("tfoot tr").first()
-      await expect(footer.locator("td").first()).toHaveText("Total")
+      await expect(footer.locator("th[scope=row]")).toHaveText("Total")
     })
 
     test("links cells with row values and hides the header", async ({
@@ -99,7 +99,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       const rps = panel(page, title)
       await rps.getByRole("button", { name: `Panel menu: ${title}` }).click()
       await page.getByRole("menuitem", { name: "View as table" }).click()
-      await expect(rps.getByRole("columnheader", { name: "pod" })).toBeVisible()
+      await expect(
+        rps.getByRole("columnheader", { name: "Value" })
+      ).toBeVisible()
+      await expect(
+        rps.locator('td[data-column="Value"]').first()
+      ).toContainText("req/s")
       await expect(rps.locator("canvas")).toHaveCount(0)
     })
 
