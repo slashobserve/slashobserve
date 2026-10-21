@@ -1227,6 +1227,33 @@ test("edits the content of a text panel and saves it", async ({
   expect(notes).toMatchObject({ type: "text", content: "New **notes**" })
 })
 
+test("leaves no change behind when a title typed on an untitled text panel is cleared", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E untitled")
+  spec.panels.push({
+    id: "notes",
+    type: "text",
+    content: "Old notes",
+    gridPos: { x: 0, y: 16, w: 12, h: 4 },
+  })
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await openFromMenu(page, "notes")
+
+  const title = sheet(page).getByRole("textbox", { name: "Title" })
+  await title.fill("Temporary")
+  await expect(sheet(page).getByText("1 change: title")).toBeVisible()
+  await title.fill("")
+
+  await expect(sheet(page).getByText("No changes")).toBeVisible()
+  await expect(
+    sheet(page).getByRole("button", { name: saveVersionButton })
+  ).toBeDisabled()
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
