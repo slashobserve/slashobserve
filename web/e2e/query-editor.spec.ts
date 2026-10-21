@@ -602,6 +602,43 @@ test("offers Try again when the server cannot check the query right now", async 
   expect(firstQuery(rps)).toBe(savedQuery)
 })
 
+test("retries a transient failure with the edits made after it", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  await mockSaveResponse(page, [
+    {
+      path: "/panels/0/queries/0/query",
+      code: "datasource_unavailable",
+      message: "prometheus returned 502",
+    },
+  ])
+  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+  await expect(
+    sheet(page).getByText("The panel could not be checked right now.")
+  ).toBeVisible()
+  expectLoggedOnce(consoleErrors, 422)
+  await page.unroute(/\/versions$/)
+
+  await sheet(page)
+    .getByRole("textbox", { name: "Title" })
+    .fill("Edited after the failure")
+  await sheet(page).getByRole("button", { name: "Try again" }).click()
+
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  const rps = (await getDashboard(request, id)).spec.panels.find(
+    (item) => item.id === "rps"
+  )
+  expect(rps?.title).toBe("Edited after the failure")
+  expect(firstQuery(rps)).toBe(savedQuery)
+})
+
 test("lists each rejected query issue once and the transient line once", async ({
   page,
   request,

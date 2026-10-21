@@ -137,11 +137,6 @@ export default function PanelEditor({
   const editorRefs = useRef<(CodeEditorHandle | null)[]>([])
   const noticeRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-  const lastTarget = useRef<{
-    source: Dashboard
-    parent: number
-    panel: EditablePanel
-  } | null>(null)
 
   if (!dirty && version !== draft.baseVersion) {
     dispatch({ type: "rebase", version, panel })
@@ -215,7 +210,6 @@ export default function PanelEditor({
     parent: number,
     panelToSave: EditablePanel
   ) {
-    lastTarget.current = { source, parent, panel: panelToSave }
     const entry = findPanel(source, panelToSave.id)
     if (!entry) {
       setProblem({ kind: "gone" })
@@ -322,13 +316,9 @@ export default function PanelEditor({
     }
   }
 
-  function retry() {
-    if (newer > 0) {
-      void applyToLatest()
-      return
-    }
-    const target = lastTarget.current
-    if (target) submit(target.source, target.parent, target.panel)
+  function saveDraft() {
+    if (newer > 0) void applyToLatest()
+    else submit(spec, draft.baseVersion, draft.panel)
   }
 
   const data = isDataPanel(current) ? current : null
@@ -450,7 +440,7 @@ export default function PanelEditor({
             <SaveProblem
               problem={problem}
               panelId={current.id}
-              onRetry={retry}
+              onRetry={saveDraft}
             />
           ) : null}
         </div>
@@ -468,11 +458,7 @@ export default function PanelEditor({
             ? `Apply my changes to version ${newer}`
             : `Save as version ${latestVersion + 1}`
         }
-        onSave={() =>
-          newer > 0
-            ? void applyToLatest()
-            : submit(spec, draft.baseVersion, draft.panel)
-        }
+        onSave={saveDraft}
         onDiscard={onDiscard}
         readOnly={readOnly}
         onOpenLatest={onOpenLatest}
