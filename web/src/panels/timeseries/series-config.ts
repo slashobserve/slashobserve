@@ -126,12 +126,21 @@ function autoRange(min: number | null, max: number | null): [number, number] {
   return [min - pad, max + pad]
 }
 
+function percentRange(
+  min: number | null,
+  max: number | null
+): [number, number] {
+  const lo = min !== null && min < 0 ? -1 : 0
+  const hi = max !== null && max > 0 ? 1 : lo === -1 ? 0 : 1
+  return [lo, hi]
+}
+
 export function axisRange(
   axis: AxisSettings,
   min: number | null,
   max: number | null
 ): [number, number] {
-  if (axis.percent) return [0, 1]
+  if (axis.percent) return percentRange(min, max)
   const [autoMin, autoMax] = autoRange(min, max)
   const lo = axis.min ?? autoMin
   let hi = axis.max ?? autoMax

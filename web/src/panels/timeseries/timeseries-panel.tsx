@@ -36,7 +36,7 @@ import {
   type StyledSeries,
 } from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
-import { stackBelow, stackSeries } from "./stack"
+import { stackSeries } from "./stack"
 import "./timeseries.css"
 
 const legendShare = 0.4
@@ -355,8 +355,7 @@ function plotStateFor(
     hidden.has(key) ? "none" : stack
   )
   const axes = series.map(({ axis }) => axis)
-  const below = stackBelow(modes, axes)
-  const drawn = stackSeries(
+  const { drawn, below } = stackSeries(
     series.map(({ values }) => values),
     modes,
     axes
