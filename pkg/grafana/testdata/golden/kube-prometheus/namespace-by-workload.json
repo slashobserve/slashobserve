@@ -1,0 +1,885 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / Networking / Namespace (Workload)",
+    "uid": "bbb2a765a623ae38130206c7d94a160f",
+    "schema_version": 39,
+    "bytes": 28230,
+    "panels": 11,
+    "rows": 0,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 11,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 11,
+      "imported": 1,
+      "partial": 10,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Current Rate of Bits Received",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.displayMode",
+          "options.showUnfilled"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Current Rate of Bits Transmitted",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.displayMode",
+          "options.showUnfilled"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Current Status",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Receive Bandwidth",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Transmit Bandwidth",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Average Container Bandwidth by Workload: Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Average Container Bandwidth by Workload: Transmitted",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Rate of Received Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Rate of Transmitted Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Rate of Received Packets Dropped",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Rate of Transmitted Packets Dropped",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable namespace",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable type",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Networking / Namespace (Workload)",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\"}, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "namespace",
+        "label": "namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(container_network_receive_packets_total{cluster=\"$cluster\"}, namespace)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "default": "kube-system"
+      },
+      {
+        "name": "type",
+        "label": "workload_type",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\", namespace=\"$namespace\", workload=~\".+\"}, workload_type)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "bargauge",
+        "title": "Current Rate of Bits Received",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum((8 * rate(container_network_receive_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "color": "#73BF69",
+        "interval": "1m"
+      },
+      {
+        "id": "p2",
+        "type": "bargauge",
+        "title": "Current Rate of Bits Transmitted",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum((8 * rate(container_network_transmit_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "color": "#73BF69",
+        "interval": "1m"
+      },
+      {
+        "id": "p3",
+        "type": "table",
+        "title": "Current Status",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (8 * rate(container_network_receive_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (8 * rate(container_network_transmit_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  avg by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (8 * rate(container_network_receive_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  avg by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (8 * rate(container_network_transmit_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (1 * rate(container_network_receive_packets_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (1 * rate(container_network_transmit_packets_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (1 * rate(container_network_receive_packets_dropped_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sort_desc(\n  sum by (workload, workload_type) (\n    sum by (cluster, namespace, pod) (1 * rate(container_network_transmit_packets_dropped_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n    * on (cluster, namespace, pod)\n    topk by (cluster, namespace, pod) (\n      1,\n      max by (cluster, namespace, pod) (kube_pod_info{cluster=\"$cluster\",namespace=\"$namespace\",host_network=\"false\"})\n    )\n    * on (cluster, namespace, pod) group_left (workload, workload_type)\n    namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}\n  )\n)\n",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "seriesRegex": "/Bits/"
+            },
+            "unit": "bps"
+          },
+          {
+            "match": {
+              "seriesRegex": "/Packets/"
+            },
+            "unit": "pps"
+          },
+          {
+            "match": {
+              "field": "Workload"
+            },
+            "links": [
+              {
+                "title": "Drill down",
+                "url": "/d/728bf77cc1166d2f3133bf25846876cc?${datasource:queryparam}&var-cluster=${cluster}&var-namespace=${namespace}&var-type=${__data.fields.Type}&var-workload=${__data.fields.Workload}"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "joinByField",
+            "mode": "outer",
+            "field": "workload"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5",
+              "Time 6",
+              "Time 7",
+              "Time 8",
+              "workload_type 2",
+              "workload_type 3",
+              "workload_type 4",
+              "workload_type 5",
+              "workload_type 6",
+              "workload_type 7",
+              "workload_type 8"
+            ],
+            "rename": {
+              "Value #A": "Rx Bits",
+              "Value #B": "Tx Bits",
+              "Value #C": "Rx Bits (Avg)",
+              "Value #D": "Tx Bits (Avg)",
+              "Value #E": "Rx Packets",
+              "Value #F": "Tx Packets",
+              "Value #G": "Rx Packets Dropped",
+              "Value #H": "Tx Packets Dropped",
+              "workload": "Workload",
+              "workload_type 1": "Type"
+            },
+            "order": [
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5",
+              "Time 6",
+              "Time 7",
+              "Time 8",
+              "workload",
+              "workload_type 1",
+              "Value #A",
+              "Value #B",
+              "Value #C",
+              "Value #D",
+              "Value #E",
+              "Value #F",
+              "Value #G",
+              "Value #H",
+              "workload_type 2",
+              "workload_type 3",
+              "workload_type 4",
+              "workload_type 5",
+              "workload_type 6",
+              "workload_type 7",
+              "workload_type 8"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "Receive Bandwidth",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum((8 * rate(container_network_receive_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p5",
+        "type": "timeseries",
+        "title": "Transmit Bandwidth",
+        "gridPos": {
+          "x": 12,
+          "y": 18,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum((8 * rate(container_network_transmit_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p6",
+        "type": "timeseries",
+        "title": "Average Container Bandwidth by Workload: Received",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(avg((8 * rate(container_network_receive_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "Average Container Bandwidth by Workload: Transmitted",
+        "gridPos": {
+          "x": 12,
+          "y": 27,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(avg((8 * rate(container_network_transmit_bytes_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval]))\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p8",
+        "type": "timeseries",
+        "title": "Rate of Received Packets",
+        "gridPos": {
+          "x": 0,
+          "y": 36,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum(rate(container_network_receive_packets_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval])\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "pps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "Rate of Transmitted Packets",
+        "gridPos": {
+          "x": 12,
+          "y": 36,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum(rate(container_network_transmit_packets_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval])\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "pps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p10",
+        "type": "timeseries",
+        "title": "Rate of Received Packets Dropped",
+        "gridPos": {
+          "x": 0,
+          "y": 45,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum(rate(container_network_receive_packets_dropped_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval])\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "pps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p11",
+        "type": "timeseries",
+        "title": "Rate of Transmitted Packets Dropped",
+        "gridPos": {
+          "x": 12,
+          "y": 45,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sort_desc(sum(rate(container_network_transmit_packets_dropped_total{cluster=\"$cluster\",namespace=\"$namespace\"}[$__rate_interval])\n* on (cluster,namespace,pod) group_left ()\n    topk by (cluster,namespace,pod) (\n      1,\n      max by (cluster,namespace,pod) (kube_pod_info{host_network=\"false\"})\n    )\n* on (cluster,namespace,pod)\ngroup_left(workload,workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\",namespace=\"$namespace\", workload=~\".+\", workload_type=~\"$type\"}) by (workload))\n",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "pps",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      }
+    ]
+  }
+}

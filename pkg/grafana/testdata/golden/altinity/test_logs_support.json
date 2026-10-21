@@ -1,0 +1,236 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Test Logs support",
+    "uid": "VtsMXQl7z",
+    "schema_version": 40,
+    "bytes": 9473,
+    "panels": 3,
+    "rows": 0,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "P7E099F39B84EA795",
+      "name": null,
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 2,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    },
+    {
+      "key": "P4F4839B759FB0509",
+      "name": null,
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 1,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 3,
+      "imported": 0,
+      "partial": 2,
+      "placeholder": 1,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[0]",
+        "title": "Logs WIth Map as Label",
+        "type": "logs",
+        "source_type": "logs",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Saved ad hoc filters are not kept.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].adHocFilters",
+          "options.prettifyLogMessage",
+          "options.showCommonLabels",
+          "options.showLabels"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$table -> default.test_logs_with_complex_labels",
+              "$timeFilter -> $__timeFilter(_time)"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Altinity Plugin Logs",
+        "type": "placeholder",
+        "source_type": "logs",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Grafana plugin Logs",
+        "type": "logs",
+        "source_type": "logs",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Imported the generated SQL; the query builder settings are not kept.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].builderOptions",
+          "options.prettifyLogMessage",
+          "options.showCommonLabels"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable adhoc_variable",
+        "status": "partial",
+        "reason": "ClickHouse queries filter by this variable only where they use $adhoc_variable.",
+        "paths": [
+          "templating.list[0]"
+        ]
+      },
+      {
+        "subject": "variable adhoc_variable",
+        "status": "partial",
+        "reason": "Saved filters are not kept.",
+        "paths": [
+          "templating.list[0].filters"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Test Logs support",
+    "time": {
+      "from": "now-2d",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "adhoc_variable",
+        "type": "adhoc",
+        "datasource": "ch"
+      },
+      {
+        "name": "filter",
+        "type": "textbox"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p4",
+        "type": "logs",
+        "title": "Logs WIth Map as Label",
+        "description": "reproduce https://github.com/Altinity/clickhouse-grafana/issues/672",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 22,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT * FROM default.test_logs_with_complex_labels WHERE $__timeFilter(_time)",
+            "format": "logs"
+          }
+        ],
+        "display": {
+          "wrap": true,
+          "showTime": true
+        }
+      },
+      {
+        "id": "p2",
+        "type": "placeholder",
+        "title": "Altinity Plugin Logs",
+        "description": "reproduce https://github.com/Altinity/clickhouse-grafana/issues/125 and https://github.com/Altinity/clickhouse-grafana/issues/331",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 11,
+          "h": 9
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $adhoc builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "logs"
+      },
+      {
+        "id": "p3",
+        "type": "logs",
+        "title": "Grafana plugin Logs",
+        "gridPos": {
+          "x": 11,
+          "y": 8,
+          "w": 11,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT event_time as \"timestamp\", content as \"body\", level, label, detected_field, id FROM \"default\".\"test_logs\" WHERE ( timestamp >= $__fromTime AND timestamp <= $__toTime ) ORDER BY timestamp DESC LIMIT 100000",
+            "format": "logs"
+          }
+        ],
+        "display": {
+          "wrap": true,
+          "showTime": true,
+          "order": "oldest"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,801 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Prometheus / Overview",
+    "uid": "9fa0d141-d019-4ad7-8bc5-42196ee308bd",
+    "schema_version": 39,
+    "bytes": 20049,
+    "panels": 10,
+    "rows": 5,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 10,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 10,
+      "imported": 2,
+      "partial": 8,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Prometheus Stats",
+        "type": "table",
+        "source_type": "table",
+        "row": "Prometheus Stats",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.overrides[0].properties[2]",
+          "fieldConfig.overrides[1].properties[0]",
+          "fieldConfig.overrides[2].properties[0]",
+          "fieldConfig.overrides[3].properties[1]",
+          "fieldConfig.overrides[4].properties[1]",
+          "fieldConfig.overrides[5].properties[1]",
+          "fieldConfig.overrides[5].properties[4]",
+          "fieldConfig.overrides[6].properties[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Target Sync",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Discovery",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Targets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Discovery",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Average Scrape Interval Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Retrieval",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Scrape failures",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Retrieval",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Appended Samples",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Retrieval",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Head Series",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Storage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Head Chunks",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Storage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Query Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Query",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[14]",
+        "title": "Stage Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Query",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Prometheus / Overview",
+    "tags": [
+      "prometheus-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info{job=\"prometheus-k8s\",namespace=\"monitoring\"}, cluster)",
+        "sort": "alphaDesc",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+"
+      },
+      {
+        "name": "job",
+        "label": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info{cluster=~\"$cluster\"}, job)",
+        "sort": "alphaDesc",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+"
+      },
+      {
+        "name": "instance",
+        "label": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(prometheus_build_info{cluster=~\"$cluster\", job=~\"$job\"}, instance)",
+        "sort": "alphaDesc",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Prometheus Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "table",
+            "title": "Prometheus Stats",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "count by (cluster, job, instance, version) (prometheus_build_info{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "max by (cluster, job, instance) (time() - process_start_time_seconds{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "short",
+            "decimals": 2,
+            "overrides": [
+              {
+                "match": {
+                  "field": "Time"
+                },
+                "displayName": "Time"
+              },
+              {
+                "match": {
+                  "field": "cluster"
+                },
+                "unit": "short",
+                "decimals": 2,
+                "displayName": "Cluster"
+              },
+              {
+                "match": {
+                  "field": "job"
+                },
+                "unit": "short",
+                "decimals": 2,
+                "displayName": "Job"
+              },
+              {
+                "match": {
+                  "field": "instance"
+                },
+                "unit": "short",
+                "decimals": 2,
+                "displayName": "Instance"
+              },
+              {
+                "match": {
+                  "field": "version"
+                },
+                "unit": "short",
+                "decimals": 2,
+                "displayName": "Version"
+              },
+              {
+                "match": {
+                  "field": "Value #A"
+                },
+                "unit": "short",
+                "decimals": 2,
+                "displayName": "Count"
+              },
+              {
+                "match": {
+                  "field": "Value #B"
+                },
+                "unit": "s",
+                "displayName": "Uptime"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "row",
+        "title": "Discovery",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Target Sync",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(prometheus_target_sync_length_seconds_sum{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[5m])) by (cluster, job, scrape_job, instance) * 1e3",
+                "legend": "{{cluster}}:{{job}}:{{instance}}:{{scrape_job}}"
+              }
+            ],
+            "unit": "ms",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Targets",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (cluster, job, instance) (prometheus_sd_discovered_targets{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"})",
+                "legend": "{{cluster}}:{{job}}:{{instance}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Retrieval",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Average Scrape Interval Duration",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_target_interval_length_seconds_sum{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m]) / rate(prometheus_target_interval_length_seconds_count{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m]) * 1e3",
+                "legend": "{{cluster}}:{{job}}:{{instance}} {{interval}} configured"
+              }
+            ],
+            "unit": "ms",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Scrape failures",
+            "gridPos": {
+              "x": 8,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_exceeded_body_size_limit_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
+                "legend": "exceeded body size limit: {{cluster}} {{job}} {{instance}}"
+              },
+              {
+                "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_exceeded_sample_limit_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
+                "legend": "exceeded sample limit: {{cluster}} {{job}} {{instance}}"
+              },
+              {
+                "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_sample_duplicate_timestamp_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
+                "legend": "duplicate timestamp: {{cluster}} {{job}} {{instance}}"
+              },
+              {
+                "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_sample_out_of_bounds_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
+                "legend": "out of bounds: {{cluster}} {{job}} {{instance}}"
+              },
+              {
+                "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_sample_out_of_order_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
+                "legend": "out of order: {{cluster}} {{job}} {{instance}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "Appended Samples",
+            "gridPos": {
+              "x": 16,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_tsdb_head_samples_appended_total{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m])",
+                "legend": "{{cluster}} {{job}} {{instance}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Storage",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Head Series",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_tsdb_head_series{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}",
+                "legend": "{{cluster}} {{job}} {{instance}} head series"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Head Chunks",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "prometheus_tsdb_head_chunks{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}",
+                "legend": "{{cluster}} {{job}} {{instance}} head chunks"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "row",
+        "title": "Query",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Query Rate",
+            "gridPos": {
+              "x": 0,
+              "y": 33,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(prometheus_engine_query_duration_seconds_count{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\",slice=\"inner_eval\"}[5m])",
+                "legend": "{{cluster}} {{job}} {{instance}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "Stage Duration",
+            "gridPos": {
+              "x": 12,
+              "y": 33,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "max by (slice) (prometheus_engine_query_duration_seconds{quantile=\"0.9\",cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}) * 1e3",
+                "legend": "{{slice}}"
+              }
+            ],
+            "unit": "ms",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

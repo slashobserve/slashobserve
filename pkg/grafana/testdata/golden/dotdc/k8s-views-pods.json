@@ -1,0 +1,2096 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Kubernetes / Views / Pods",
+    "uid": "k8s_views_pods",
+    "schema_version": 42,
+    "bytes": 79545,
+    "panels": 25,
+    "rows": 4,
+    "variables": 6
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 25,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 25,
+      "imported": 6,
+      "partial": 19,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Created by",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[2]",
+        "title": "Running on",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[3]",
+        "title": "Pod IP",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p52",
+        "grafana_id": 52,
+        "grafana_path": "panels[4]",
+        "title": "Priority Class",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p53",
+        "grafana_id": 53,
+        "grafana_path": "panels[5]",
+        "title": "QOS Class",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[6]",
+        "title": "Last Terminated Reason",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "partial",
+        "reasons": [
+          "The threshold color \"text\" is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.thresholds.steps[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p57",
+        "grafana_id": 57,
+        "grafana_path": "panels[7]",
+        "title": "Last Terminated Exit Code",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Information",
+        "status": "partial",
+        "reasons": [
+          "The threshold color \"text\" is not supported yet.",
+          "Showing every value instead of one reduced value is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.thresholds.steps[0]",
+          "options.reduceOptions.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[9]",
+        "title": "Total pod CPU Requests usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p48",
+        "grafana_id": 48,
+        "grafana_path": "panels[10]",
+        "title": "Total pod CPU Limits usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[11]",
+        "title": "Total pod RAM Requests usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p49",
+        "grafana_id": 49,
+        "grafana_path": "panels[12]",
+        "title": "Total pod RAM Limits usage",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "targets[0].interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[13]",
+        "title": "Resources by container",
+        "type": "table",
+        "source_type": "table",
+        "row": "Resources",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p50",
+        "grafana_id": 50,
+        "grafana_path": "panels[14]",
+        "title": "CPU Usage / Requests & Limits by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[15]",
+        "title": "Memory Usage / Requests & Limits by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[16]",
+        "title": "CPU Usage by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[17]",
+        "title": "Memory Usage by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p59",
+        "grafana_id": 59,
+        "grafana_path": "panels[18]",
+        "title": "CPU Throttled seconds by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[20]",
+        "title": "OOM Events by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Kubernetes",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[21]",
+        "title": "Container Restarts by container",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Kubernetes",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p63",
+        "grafana_id": 63,
+        "grafana_path": "panels[22]",
+        "title": "Pods with Container Issues",
+        "type": "table",
+        "source_type": "table",
+        "row": "Kubernetes",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "transformations[0]",
+          "fieldConfig.defaults.custom.filterable",
+          "fieldConfig.defaults.custom.wrapText"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p64",
+        "grafana_id": 64,
+        "grafana_path": "panels[23]",
+        "title": "Unscheduled Pods",
+        "type": "table",
+        "source_type": "table",
+        "row": "Kubernetes",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "transformations[0]",
+          "fieldConfig.defaults.custom.filterable",
+          "fieldConfig.defaults.custom.wrapText"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[25]",
+        "title": "Network - Bandwidth",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[26]",
+        "title": "Network - Packets Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[27]",
+        "title": "Network - Packets Dropped",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[28]",
+        "title": "Network - Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "The min step $resolution cannot be kept; SlashObserve picks the step.",
+          "Exemplars are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[0].interval",
+          "targets[0].exemplar",
+          "targets[1].interval",
+          "targets[1].exemplar",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable namespace",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable pod",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[5].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Views / Pods",
+    "description": "This is a modern 'Pods View' dashboard for your Kubernetes cluster(s). Made for kube-prometheus-stack and take advantage of the latest Grafana features. GitHub repository: https://github.com/dotdc/grafana-dashboards-kubernetes",
+    "tags": [
+      "kubernetes",
+      "prometheus"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info,cluster)",
+        "sort": "alpha"
+      },
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_pod_info{cluster=\"$cluster\"}, namespace)",
+        "sort": "alpha",
+        "default": "monitoring"
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_pod_info{namespace=\"$namespace\", cluster=\"$cluster\"}, pod)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "resolution",
+        "type": "custom",
+        "options": [
+          "1s",
+          "15s",
+          "30s",
+          "1m",
+          "3m",
+          "5m"
+        ],
+        "default": "30s"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_pod_info{namespace=\"$namespace\", cluster=\"$cluster\"},job)",
+        "sort": "alpha",
+        "multi": true,
+        "default": "kube-state-metrics"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p43",
+        "type": "row",
+        "title": "Information",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "stat",
+            "title": "Created by",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_info{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"}",
+                "legend": "{{ created_by_kind }}: {{ created_by_name }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "display": {
+              "reduce": "mean",
+              "colorMode": "none",
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p33",
+            "type": "stat",
+            "title": "Running on",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 6,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_info{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"}",
+                "legend": "{{ node }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "links": [
+              {
+                "title": "/d/k8s_views_nodes/kubernetes-views-nodes?var-datasource=${datasource}&var-node=${__field.labels.node}&${cluster:queryparam}",
+                "url": "/d/k8s_views_nodes/kubernetes-views-nodes?var-datasource=${datasource}&var-node=${__field.labels.node}&${cluster:queryparam}"
+              }
+            ],
+            "display": {
+              "reduce": "mean",
+              "colorMode": "none",
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p41",
+            "type": "stat",
+            "title": "Pod IP",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 6,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_info{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"}",
+                "legend": "{{ pod_ip }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "display": {
+              "reduce": "mean",
+              "colorMode": "none",
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p52",
+            "type": "stat",
+            "title": "Priority Class",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 0,
+              "y": 3,
+              "w": 5,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_info{namespace=\"$namespace\", pod=\"$pod\", priority_class!=\"\", cluster=\"$cluster\"}",
+                "legend": "{{ priority_class }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#ffffff"
+              }
+            ],
+            "display": {
+              "reduce": "mean",
+              "colorMode": "none",
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p53",
+            "type": "stat",
+            "title": "QOS Class",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 5,
+              "y": 3,
+              "w": 7,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_status_qos_class{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"} > 0",
+                "legend": "{{ qos_class }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "series": "Burstable"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "BestEffort"
+                },
+                "color": "#FF9830"
+              }
+            ],
+            "display": {
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p56",
+            "type": "stat",
+            "title": "Last Terminated Reason",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 12,
+              "y": 3,
+              "w": 6,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_container_status_last_terminated_reason{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"}",
+                "legend": "{{ reason }}",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "graph": false,
+              "textMode": "name"
+            }
+          },
+          {
+            "id": "p57",
+            "type": "stat",
+            "title": "Last Terminated Exit Code",
+            "description": "Panel only works when a single pod is selected.",
+            "gridPos": {
+              "x": 18,
+              "y": 3,
+              "w": 6,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_container_status_last_terminated_exitcode{namespace=\"$namespace\", pod=\"$pod\", cluster=\"$cluster\"}",
+                "legend": "__auto",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "value": 1,
+                "color": "critical"
+              },
+              {
+                "value": 2,
+                "color": "warning"
+              }
+            ],
+            "display": {
+              "graph": false,
+              "textMode": "value"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p47",
+        "type": "row",
+        "title": "Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p39",
+            "type": "gauge",
+            "title": "Total pod CPU Requests usage",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 3,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
+                "legend": "Requests",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 60,
+                "color": "warning"
+              },
+              {
+                "value": 75,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "color": "#5794F2",
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p48",
+            "type": "gauge",
+            "title": "Total pod CPU Limits usage",
+            "gridPos": {
+              "x": 3,
+              "y": 6,
+              "w": 3,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
+                "legend": "Limits",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 60,
+                "color": "warning"
+              },
+              {
+                "value": 75,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p40",
+            "type": "gauge",
+            "title": "Total pod RAM Requests usage",
+            "gridPos": {
+              "x": 6,
+              "y": 6,
+              "w": 3,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1))",
+                "legend": "Requests",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "info"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 99,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "color": "#5794F2",
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p49",
+            "type": "gauge",
+            "title": "Total pod RAM Limits usage",
+            "gridPos": {
+              "x": 9,
+              "y": 6,
+              "w": 3,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) ",
+                "legend": "Limits",
+                "instant": true
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 60,
+                "color": "warning"
+              },
+              {
+                "value": 75,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p38",
+            "type": "table",
+            "title": "Resources by container",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container)",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}) by (container)",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "decimals": 4,
+            "overrides": [
+              {
+                "match": {
+                  "field": "Memory Requests"
+                },
+                "unit": "bytes",
+                "decimals": 2
+              },
+              {
+                "match": {
+                  "field": "Memory Limits"
+                },
+                "unit": "bytes",
+                "decimals": 2
+              },
+              {
+                "match": {
+                  "field": "Memory Used"
+                },
+                "unit": "bytes",
+                "decimals": 2
+              }
+            ],
+            "transform": [
+              {
+                "type": "joinByField",
+                "field": "container"
+              },
+              {
+                "type": "organize",
+                "exclude": [
+                  "Time",
+                  "Time 1",
+                  "Time 2",
+                  "Time 4",
+                  "__name__",
+                  "__name__ 1",
+                  "__name__ 2",
+                  "__name__ 3",
+                  "__name__ 4",
+                  "endpoint",
+                  "endpoint 2",
+                  "endpoint 3",
+                  "endpoint 4",
+                  "instance",
+                  "instance 2",
+                  "instance 3",
+                  "instance 4",
+                  "job",
+                  "job 2",
+                  "job 3",
+                  "job 4",
+                  "namespace",
+                  "namespace 2",
+                  "namespace 3",
+                  "namespace 4",
+                  "node",
+                  "node 2",
+                  "node 3",
+                  "node 4",
+                  "pod",
+                  "pod 2",
+                  "pod 3",
+                  "pod 4",
+                  "resource 1",
+                  "resource 2",
+                  "resource 3",
+                  "resource 4",
+                  "service",
+                  "service 2",
+                  "service 3",
+                  "service 4",
+                  "uid 1",
+                  "uid 2",
+                  "uid 3",
+                  "uid 4",
+                  "unit 1",
+                  "unit 2",
+                  "unit 3",
+                  "unit 4"
+                ],
+                "rename": {
+                  "Value #A": "CPU Requests",
+                  "Value #B": "CPU Limits",
+                  "Value #C": "Memory Requests",
+                  "Value #D": "Memory Limits",
+                  "Value #E": "CPU Used",
+                  "Value #F": "Memory Used",
+                  "container": "Container"
+                },
+                "order": [
+                  "container",
+                  "Value #E",
+                  "Value #A",
+                  "Value #B",
+                  "Value #F",
+                  "Value #C",
+                  "Value #D",
+                  "Time 1",
+                  "Time 2",
+                  "Time 3",
+                  "Time 4",
+                  "Time 5",
+                  "Time 6"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "p50",
+            "type": "timeseries",
+            "title": "CPU Usage / Requests & Limits by container",
+            "gridPos": {
+              "x": 0,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "legend": "{{ container }}  REQUESTS"
+              },
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"cpu\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "legend": "{{ container }}  LIMITS"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "critical"
+              },
+              {
+                "value": 20,
+                "color": "warning"
+              },
+              {
+                "value": 30,
+                "color": "ok"
+              },
+              {
+                "value": 70,
+                "color": "warning"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "Memory Usage / Requests & Limits by container",
+            "gridPos": {
+              "x": 12,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) by (container) / sum(kube_pod_container_resource_requests{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "legend": "{{ container }} REQUESTS"
+              },
+              {
+                "query": "sum(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", cluster=\"$cluster\"}) by (container) / sum(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"$pod\", resource=\"memory\", job=~\"$job\", cluster=\"$cluster\"} and on(namespace, pod) max by (namespace, pod) (kube_pod_status_phase{phase=\"Running\", namespace=\"$namespace\", pod=~\"$pod\", job=~\"$job\", cluster=\"$cluster\"} == 1)) by (container)",
+                "legend": "{{ container }} LIMITS"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "critical"
+              },
+              {
+                "value": 20,
+                "color": "warning"
+              },
+              {
+                "value": 30,
+                "color": "ok"
+              },
+              {
+                "value": 70,
+                "color": "warning"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "CPU Usage by container",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container, id)",
+                "legend": "{{ container }}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 4,
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "limit"
+                },
+                "color": "#F2495C",
+                "fill": 0
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p51",
+            "type": "timeseries",
+            "title": "Memory Usage by container",
+            "gridPos": {
+              "x": 12,
+              "y": 22,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(max_over_time(container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container, id)",
+                "legend": "{{ container }}"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p59",
+            "type": "timeseries",
+            "title": "CPU Throttled seconds by container",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_cfs_throttled_seconds_total{namespace=\"$namespace\", pod=~\"$pod\", image!=\"\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container)",
+                "legend": "{{ container }}"
+              }
+            ],
+            "unit": "s",
+            "decimals": 2,
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "min",
+                "max",
+                "mean"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p62",
+        "type": "row",
+        "title": "Kubernetes",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "OOM Events by container",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(increase(container_oom_events_total{namespace=\"${namespace}\", pod=~\"${pod}\", container!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (container) > 0",
+                "legend": "{{ container }}"
+              }
+            ],
+            "unit": "none",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Container Restarts by container",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"${namespace}\", pod=~\"${pod}\", container!=\"\", job=~\"$job\", cluster=\"$cluster\"}[$__rate_interval])) by (container) > 0",
+                "legend": "{{ container }}"
+              }
+            ],
+            "unit": "none",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage",
+            "fill": 25,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p63",
+            "type": "table",
+            "title": "Pods with Container Issues",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_container_status_waiting_reason{reason=~\"ErrImagePull|ImagePullBackOff|CrashLoopBackOff\"} == 1",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "warning"
+              },
+              {
+                "value": 5,
+                "color": "critical"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "reason"
+                },
+                "mappings": [
+                  {
+                    "value": "CrashLoopBackOff",
+                    "text": "CrashLoopBackOff",
+                    "color": "critical"
+                  },
+                  {
+                    "value": "ErrImagePull",
+                    "text": "ErrImagePull",
+                    "color": "warning"
+                  },
+                  {
+                    "value": "ImagePullBackOff",
+                    "text": "ImagePullBackOff",
+                    "color": "warning"
+                  }
+                ]
+              }
+            ],
+            "transform": [
+              {
+                "type": "filterFieldsByName",
+                "include": [
+                  "namespace",
+                  "pod",
+                  "reason",
+                  "container"
+                ]
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "container": "Container",
+                  "namespace": "Namespace",
+                  "pod": "Pod Name",
+                  "reason": "Reason"
+                }
+              },
+              {
+                "type": "sortBy",
+                "field": "Pod Name"
+              }
+            ]
+          },
+          {
+            "id": "p64",
+            "type": "table",
+            "title": "Unscheduled Pods",
+            "gridPos": {
+              "x": 12,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "kube_pod_status_scheduled{condition=\"false\"} == 1",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "warning"
+              },
+              {
+                "value": 5,
+                "color": "critical"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "condition"
+                },
+                "mappings": [
+                  {
+                    "value": "false",
+                    "text": "False",
+                    "color": "critical"
+                  }
+                ]
+              }
+            ],
+            "transform": [
+              {
+                "type": "filterFieldsByName",
+                "include": [
+                  "container",
+                  "namespace",
+                  "pod",
+                  "condition"
+                ]
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "condition": "Condition",
+                  "container": "Container",
+                  "namespace": "Namespace",
+                  "pod": "Pod Name"
+                },
+                "order": [
+                  "container",
+                  "namespace",
+                  "pod",
+                  "condition"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p45",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 55,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "Network - Bandwidth",
+            "gridPos": {
+              "x": 0,
+              "y": 56,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_bytes_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_bytes_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Transmitted"
+              }
+            ],
+            "unit": "binBps",
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Network - Packets Rate",
+            "gridPos": {
+              "x": 12,
+              "y": 56,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_packets_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_packets_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "Network - Packets Dropped",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_packets_dropped_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_packets_dropped_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Network - Errors",
+            "gridPos": {
+              "x": 12,
+              "y": 64,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_network_receive_errors_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Received"
+              },
+              {
+                "query": "- sum(rate(container_network_transmit_errors_total{namespace=\"$namespace\", pod=~\"$pod\", cluster=\"$cluster\"}[$__rate_interval]))",
+                "legend": "Transmitted"
+              }
+            ],
+            "unit": "pps",
+            "fill": 25,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

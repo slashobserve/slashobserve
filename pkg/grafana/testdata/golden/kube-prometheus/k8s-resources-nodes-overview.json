@@ -1,0 +1,437 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / Compute Resources / Nodes Overview",
+    "uid": "058020e04168bfdea0c52269cb699df2",
+    "schema_version": 39,
+    "bytes": 9181,
+    "panels": 5,
+    "rows": 0,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 5,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 5,
+      "imported": 0,
+      "partial": 5,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Node & Pod Count",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "CPU Utilization per Node",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Utilization per Node",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Compute Resources / Nodes Overview",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"kube-state-metrics\"}, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "timeseries",
+        "title": "Node & Pod Count",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "count(kube_node_info{cluster=\"$cluster\", job=\"kube-state-metrics\"})",
+            "legend": "nodes"
+          },
+          {
+            "query": "sum(kubelet_running_pods{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\"})",
+            "legend": "pods"
+          }
+        ],
+        "unit": "short",
+        "decimals": 0,
+        "overrides": [
+          {
+            "match": {
+              "series": "pods"
+            },
+            "axis": "right"
+          }
+        ],
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "CPU Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", resource=\"cpu\"})",
+            "legend": "allocatable"
+          },
+          {
+            "query": "sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{cluster=\"$cluster\"})",
+            "legend": "requests"
+          },
+          {
+            "query": "sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\"})",
+            "legend": "usage"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p3",
+        "type": "timeseries",
+        "title": "Memory Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", resource=\"memory\"})",
+            "legend": "allocatable"
+          },
+          {
+            "query": "sum(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests{cluster=\"$cluster\"})",
+            "legend": "requests"
+          },
+          {
+            "query": "sum(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\"})",
+            "legend": "usage"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "CPU Utilization per Node",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (node) (node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\"})\n/\nsum by (node) (kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", resource=\"cpu\"})\n",
+            "legend": "{{node}}"
+          }
+        ],
+        "unit": "percentunit",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p5",
+        "type": "timeseries",
+        "title": "Memory Utilization per Node",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (node) (node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", container!=\"\"})\n/\nsum by (node) (kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", resource=\"memory\"})\n",
+            "legend": "{{node}}"
+          }
+        ],
+        "unit": "percentunit",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      }
+    ]
+  }
+}

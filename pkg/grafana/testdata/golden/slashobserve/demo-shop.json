@@ -1,0 +1,535 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Demo shop (Grafana)",
+    "uid": "demo-shop",
+    "schema_version": 39,
+    "bytes": 21151,
+    "panels": 9,
+    "rows": 2,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "prometheus",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 5,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    },
+    {
+      "key": "clickhouse",
+      "name": null,
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 3,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 9,
+      "imported": 6,
+      "partial": 2,
+      "placeholder": 1,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Error ratio",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Traffic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "CPU busy",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Traffic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Requests and errors by route",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Traffic",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "p95 latency by service",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.showLegend"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Log volume by severity",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Slowest spans",
+        "type": "table",
+        "source_type": "table",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Error logs",
+        "type": "logs",
+        "source_type": "logs",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Requests by pod",
+        "type": "placeholder",
+        "source_type": "barchart",
+        "row": "Logs and traces",
+        "status": "placeholder",
+        "reasons": [
+          "Grafana panel type barchart is not supported yet."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "About",
+        "type": "text",
+        "source_type": "text",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Demo shop (Grafana)",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "service",
+        "type": "custom",
+        "options": [
+          "frontend",
+          "checkout",
+          "payments"
+        ],
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "route",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(http_requests_total{service=~\"$service\"}, route)",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Traffic",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "stat",
+            "title": "Error ratio",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(http_requests_total{service=~\"$service\",status=~\"5..\"}[$__rate_interval])) / sum(rate(http_requests_total{service=~\"$service\"}[$__rate_interval]))",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.01,
+                "color": "warning"
+              },
+              {
+                "value": 0.05,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p3",
+            "type": "gauge",
+            "title": "CPU busy",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{service=~\"$service\"}[$__rate_interval]))",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.7,
+                "color": "warning"
+              },
+              {
+                "value": 0.9,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Requests and errors by route",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (route) (rate(http_requests_total{service=~\"$service\",route=~\"$route\"}[$__rate_interval]))",
+                "legend": "{{route}}"
+              },
+              {
+                "query": "sum by (route) (rate(http_requests_total{service=~\"$service\",route=~\"$route\",status=~\"5..\"}[$__rate_interval]))",
+                "legend": "{{route}} errors"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "query": "B"
+                },
+                "color": "#F2495C",
+                "lineStyle": "dashed"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p5",
+            "type": "bargauge",
+            "title": "p95 latency by service",
+            "gridPos": {
+              "x": 0,
+              "y": 5,
+              "w": 12,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+                "legend": "{{service}}"
+              }
+            ],
+            "unit": "s",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Logs and traces",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Log volume by severity",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT $__timeInterval(Timestamp) AS time, SeverityText AS severity, count() AS n FROM otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) GROUP BY time, severity ORDER BY time"
+              }
+            ],
+            "unit": "short",
+            "fill": 10
+          },
+          {
+            "id": "p8",
+            "type": "table",
+            "title": "Slowest spans",
+            "gridPos": {
+              "x": 12,
+              "y": 10,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT SpanName AS span, quantile(0.99)(Duration) / 1e6 AS p99_ms, count() AS n FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY span ORDER BY p99_ms DESC LIMIT 10",
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "p99_ms"
+                },
+                "unit": "ms"
+              }
+            ]
+          },
+          {
+            "id": "p9",
+            "type": "logs",
+            "title": "Error logs",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT Timestamp, Body FROM otel_logs WHERE $__timeFilter(Timestamp) AND SeverityText = 'ERROR' ORDER BY Timestamp DESC LIMIT 100",
+                "format": "logs"
+              }
+            ]
+          },
+          {
+            "id": "p10",
+            "type": "placeholder",
+            "title": "Requests by pod",
+            "gridPos": {
+              "x": 12,
+              "y": 18,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "Grafana panel type barchart is not supported yet.",
+            "sourceType": "barchart"
+          },
+          {
+            "id": "p11",
+            "type": "text",
+            "title": "About",
+            "gridPos": {
+              "x": 0,
+              "y": 26,
+              "w": 24,
+              "h": 3
+            },
+            "content": "Imported from Grafana by the SlashObserve e2e suite."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,2753 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Node Exporter BSD",
+    "uid": "Kczn-jPZz",
+    "schema_version": 41,
+    "bytes": 118849,
+    "panels": 36,
+    "rows": 6,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${ds_prometheus}",
+      "name": "ds_prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 36,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 36,
+      "imported": 5,
+      "partial": 31,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[1]",
+        "title": "CPU Busy",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p155",
+        "grafana_id": 155,
+        "grafana_path": "panels[2]",
+        "title": "Sys Load (5m avg)",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p246",
+        "grafana_id": 246,
+        "grafana_path": "panels[3]",
+        "title": "Sys Load (15m avg)",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[4]",
+        "title": "RAM Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[5]",
+        "title": "SWAP Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p154",
+        "grafana_id": 154,
+        "grafana_path": "panels[6]",
+        "title": "Root FS Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[7]",
+        "title": "CPU Cores",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[8]",
+        "title": "RAM Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[9]",
+        "title": "SWAP Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[10]",
+        "title": "RootFS Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[11]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Quick CPU / Mem / Disk",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p77",
+        "grafana_id": 77,
+        "grafana_path": "panels[13]",
+        "title": "CPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.maxHeight"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[14]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p84",
+        "grafana_id": 84,
+        "grafana_path": "panels[15]",
+        "title": "Network Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "O",
+            "ref": "O",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p233",
+        "grafana_id": 233,
+        "grafana_path": "panels[16]",
+        "title": "Memory Swap In / Out",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p152",
+        "grafana_id": 152,
+        "grafana_path": "panels[17]",
+        "title": "Disk Percentage Used",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p156",
+        "grafana_id": 156,
+        "grafana_path": "panels[18]",
+        "title": "Disk Space Available / Used",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic CPU / Mem / Net / Disk",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.fieldMinMax",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p232",
+        "grafana_id": 232,
+        "grafana_path": "panels[19].panels[0]",
+        "title": "Network Traffic Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p229",
+        "grafana_id": 229,
+        "grafana_path": "panels[19].panels[1]",
+        "title": "Network Traffic Drops",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p230",
+        "grafana_id": 230,
+        "grafana_path": "panels[19].panels[2]",
+        "title": "Network Traffic Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p231",
+        "grafana_id": 231,
+        "grafana_path": "panels[19].panels[3]",
+        "title": "Network Traffic Multicast",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p247",
+        "grafana_id": 247,
+        "grafana_path": "panels[19].panels[4]",
+        "title": "Network Traffic No Proto",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "P",
+            "ref": "P",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p248",
+        "grafana_id": 248,
+        "grafana_path": "panels[19].panels[5]",
+        "title": "Network Traffic Collisions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Traffic",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[20].panels[0]",
+        "title": "Context Switches",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p236",
+        "grafana_id": 236,
+        "grafana_path": "panels[20].panels[1]",
+        "title": "Interrupts",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[20].panels[2]",
+        "title": "System Load",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.tooltip.maxHeight"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p237",
+        "grafana_id": 237,
+        "grafana_path": "panels[20].panels[3]",
+        "title": "System Calls",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p148",
+        "grafana_id": 148,
+        "grafana_path": "panels[20].panels[4]",
+        "title": "Processes Forks / Traps",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p168",
+        "grafana_id": 168,
+        "grafana_path": "panels[20].panels[5]",
+        "title": "System Time Variation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "System",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p251",
+        "grafana_id": 251,
+        "grafana_path": "panels[21].panels[0]",
+        "title": "Disk Read/Write IOps",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Filesystem",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p250",
+        "grafana_id": 250,
+        "grafana_path": "panels[21].panels[1]",
+        "title": "Disk Read/Write Data",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Filesystem",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p249",
+        "grafana_id": 249,
+        "grafana_path": "panels[21].panels[2]",
+        "title": "Time Spent Doing I/Os",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Filesystem",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p234",
+        "grafana_id": 234,
+        "grafana_path": "panels[21].panels[3]",
+        "title": "File Nodes Free",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Filesystem",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p44",
+        "grafana_id": 44,
+        "grafana_path": "panels[21].panels[4]",
+        "title": "Filesystem in ReadOnly / Error",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Disk Filesystem",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[22].panels[0]",
+        "title": "Node Exporter Scrape Time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Node Exporter",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p157",
+        "grafana_id": 157,
+        "grafana_path": "panels[22].panels[1]",
+        "title": "Node Exporter Scrape",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Node Exporter",
+        "status": "partial",
+        "reasons": [
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.displayMode",
+          "options.legend.showLegend"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "It uses datasource variable $ds_prometheus; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable node",
+        "status": "partial",
+        "reason": "It uses datasource variable $ds_prometheus; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable ds_prometheus",
+        "status": "partial",
+        "reason": "Datasource variable $ds_prometheus now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Node Exporter BSD",
+    "tags": [
+      "freebsd"
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "ds_prometheus",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "label": "job",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_uname_info, job)"
+      },
+      {
+        "name": "node",
+        "label": "Host:",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(node_uname_info{job=\"$job\"}, instance)"
+      }
+    ],
+    "links": [
+      {
+        "title": "GitHub",
+        "url": "https://github.com/rfmoz/grafana-dashboards",
+        "newTab": true
+      },
+      {
+        "title": "Grafana",
+        "url": "https://grafana.com/grafana/dashboards/4260",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p239",
+        "type": "row",
+        "title": "Quick CPU / Mem / Disk",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p20",
+            "type": "gauge",
+            "title": "CPU Busy",
+            "description": "Busy state of all CPU cores together",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\",instance=\"$node\",job=\"$job\"}[$__rate_interval])))",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p155",
+            "type": "gauge",
+            "title": "Sys Load (5m avg)",
+            "description": "Busy state of all CPU cores together (5 min average)",
+            "gridPos": {
+              "x": 3,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "scalar(node_load5{instance=\"$node\",job=\"$job\"}) * 100 / count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu))",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p246",
+            "type": "gauge",
+            "title": "Sys Load (15m avg)",
+            "description": "Busy state of all CPU cores together (15 min average)",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "scalar(node_load15{instance=\"$node\",job=\"$job\"}) * 100 / count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu))",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p16",
+            "type": "gauge",
+            "title": "RAM Used",
+            "description": "Non available RAM memory",
+            "gridPos": {
+              "x": 9,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "( 1 - ( (node_memory_free_bytes{instance=\"$node\",job=\"$job\"} + node_memory_buffer_bytes{instance=\"$node\",job=\"$job\"} + node_memory_cache_bytes{instance=\"$node\",job=\"$job\"} + node_memory_inactive_bytes{instance=\"$node\",job=\"$job\"}) / node_memory_size_bytes{instance=\"$node\",job=\"$job\"} ) ) * 100\n",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ]
+          },
+          {
+            "id": "p21",
+            "type": "gauge",
+            "title": "SWAP Used",
+            "description": "Percentage of swap space currently used by the system",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(node_memory_swap_size_bytes{instance=\"$node\",job=\"$job\"} > bool 0) * ((node_memory_swap_used_bytes{instance=\"$node\",job=\"$job\"} / node_memory_swap_size_bytes{instance=\"$node\",job=\"$job\"}) * 100)",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 10,
+                "color": "warning"
+              },
+              {
+                "value": 25,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p154",
+            "type": "gauge",
+            "title": "Root FS Used",
+            "description": "Used Root FS",
+            "gridPos": {
+              "x": 15,
+              "y": 1,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(\n  (node_filesystem_size_bytes{instance=\"$node\", job=\"$job\", mountpoint=\"/\"}\n   - node_filesystem_avail_bytes{instance=\"$node\", job=\"$job\", mountpoint=\"/\"})\n  / node_filesystem_size_bytes{instance=\"$node\", job=\"$job\", mountpoint=\"/\"}\n) * 100\n",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p14",
+            "type": "stat",
+            "title": "CPU Cores",
+            "description": "Total number of CPU cores",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu))",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "short",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p75",
+            "type": "stat",
+            "title": "RAM Total",
+            "description": "Total RAM",
+            "gridPos": {
+              "x": 20,
+              "y": 1,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_memory_size_bytes{instance=\"$node\",job=\"$job\"}",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "stat",
+            "title": "SWAP Total",
+            "description": "Total SWAP",
+            "gridPos": {
+              "x": 22,
+              "y": 1,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_memory_swap_size_bytes{instance=\"$node\",job=\"$job\"}",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p23",
+            "type": "stat",
+            "title": "RootFS Total",
+            "description": "Total RootFS",
+            "gridPos": {
+              "x": 18,
+              "y": 3,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_filesystem_size_bytes{instance=\"$node\",job=\"$job\",mountpoint=\"/\"}",
+                "instant": true,
+                "interval": "900s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p15",
+            "type": "stat",
+            "title": "Uptime",
+            "description": "System uptime",
+            "gridPos": {
+              "x": 20,
+              "y": 3,
+              "w": 4,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_time_seconds{instance=\"$node\",job=\"$job\"} - node_boot_time_seconds{instance=\"$node\",job=\"$job\"}",
+                "instant": true,
+                "interval": "1800s"
+              }
+            ],
+            "unit": "s",
+            "decimals": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p241",
+        "type": "row",
+        "title": "Basic CPU / Mem / Net / Disk",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p77",
+            "type": "timeseries",
+            "title": "CPU",
+            "description": "CPU time usage split by state, normalized across all CPU cores",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"system\"}[$__rate_interval]))",
+                "legend": "System - Processes executing in kernel mode",
+                "interval": "240s"
+              },
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[$__rate_interval]))",
+                "legend": "User - Normal processes executing in user mode",
+                "interval": "240s"
+              },
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"idle\"}[$__rate_interval]))",
+                "legend": "Idle - Waiting for something to happen",
+                "interval": "240s"
+              },
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"interrupt\"}[$__rate_interval]))",
+                "legend": "Interrupt - Servicing interrupts",
+                "interval": "240s"
+              },
+              {
+                "query": "avg(rate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"nice\"}[$__rate_interval]))",
+                "legend": "Nice - Niced processes executing in user mode",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 40,
+            "stack": "percent",
+            "overrides": [
+              {
+                "match": {
+                  "series": "Idle - Waiting for something to happen"
+                },
+                "color": "#052B51"
+              },
+              {
+                "match": {
+                  "series": "Nice - Niced processes executing in user mode"
+                },
+                "color": "#C15C17"
+              },
+              {
+                "match": {
+                  "series": "Interrupt - Servicing interrupts"
+                },
+                "color": "#E24D42"
+              },
+              {
+                "match": {
+                  "series": "System - Processes executing in kernel mode"
+                },
+                "color": "#508642"
+              },
+              {
+                "match": {
+                  "series": "User - Normal processes executing in user mode"
+                },
+                "color": "#5195CE"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p24",
+            "type": "timeseries",
+            "title": "Memory",
+            "description": "Memory usage breakdown",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_memory_inactive_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Inactive - Memory not recently accessed, can be reclaimed",
+                "interval": "240s"
+              },
+              {
+                "query": "node_memory_active_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Active - Memory currently being used by a process",
+                "interval": "240s"
+              },
+              {
+                "query": "node_memory_buffer_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Buffers - Disk cache",
+                "interval": "240s"
+              },
+              {
+                "query": "node_memory_cache_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Cache - Memory being used to cache data, can be freed immediately if required",
+                "interval": "120s"
+              },
+              {
+                "query": "node_memory_wired_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Wired - Memory in use by the Kernel",
+                "interval": "240s"
+              },
+              {
+                "query": "node_memory_free_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "Free - Completely unused memory available for allocation",
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 40,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "Active - Memory currently being used by a process"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "series": "Inactive - Memory not recently accessed, can be reclaimed"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "Wired - Memory in use by the Kernel"
+                },
+                "color": "#8F3BB8"
+              },
+              {
+                "match": {
+                  "series": "Free - Completely unused memory available for allocation"
+                },
+                "color": "#13366c"
+              },
+              {
+                "match": {
+                  "series": "Cache - Memory being used to cache data, can be freed immediately if required"
+                },
+                "color": "#FF9830"
+              },
+              {
+                "match": {
+                  "series": "Buffers - Disk cache"
+                },
+                "color": "#B877D9"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p84",
+            "type": "timeseries",
+            "title": "Network Traffic",
+            "description": "Incoming and outgoing network traffic per interface",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "O",
+                "query": "(rate(node_network_receive_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval]))*8",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              },
+              {
+                "ref": "P",
+                "query": "(rate(node_network_transmit_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval]))*8",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              }
+            ],
+            "unit": "bps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p233",
+            "type": "timeseries",
+            "title": "Memory Swap In / Out",
+            "description": "Rate of swap memory bytes moved in and out per second",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_memory_swapped_in_pages_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Swap in",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_memory_swapped_out_pages_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Swap out",
+                "interval": "240s"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p152",
+            "type": "timeseries",
+            "title": "Disk Percentage Used",
+            "description": "Filesystem space used by percentage",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "100 - ((node_filesystem_avail_bytes{instance=\"$node\",job=\"$job\"} * 100) / node_filesystem_size_bytes{instance=\"$node\",job=\"$job\"})",
+                "legend": "{{device}} - {{mountpoint}}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p156",
+            "type": "timeseries",
+            "title": "Disk Space Available / Used",
+            "description": "Disk space used, free, and available for user operations",
+            "gridPos": {
+              "x": 12,
+              "y": 28,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_filesystem_size_bytes{instance=\"$node\",job=\"$job\"} - node_filesystem_free_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Used",
+                "interval": "240s"
+              },
+              {
+                "query": "node_filesystem_free_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Free",
+                "interval": "30s",
+                "hide": true
+              },
+              {
+                "query": "node_filesystem_avail_bytes{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Available",
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p242",
+        "type": "row",
+        "title": "Network Traffic",
+        "gridPos": {
+          "x": 0,
+          "y": 39,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p232",
+            "type": "timeseries",
+            "title": "Network Traffic Packets",
+            "description": "Rate of network packets transmitted and received per second",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "P",
+                "query": "rate(node_network_transmit_packets_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_network_receive_packets_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p229",
+            "type": "timeseries",
+            "title": "Network Traffic Drops",
+            "description": "Rate of dropped network packets during transmission and reception per second",
+            "gridPos": {
+              "x": 12,
+              "y": 40,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_network_receive_drop_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_network_transmit_drop_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p230",
+            "type": "timeseries",
+            "title": "Network Traffic Errors",
+            "description": "Rate of network transmission and reception errors per second",
+            "gridPos": {
+              "x": 0,
+              "y": 52,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "P",
+                "query": "rate(node_network_transmit_errs_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_network_receive_errs_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p231",
+            "type": "timeseries",
+            "title": "Network Traffic Multicast",
+            "description": "Rate of multicast packets transmitted and received per second",
+            "gridPos": {
+              "x": 12,
+              "y": 52,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "P",
+                "query": "rate(node_network_transmit_multicast_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_network_receive_multicast_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p247",
+            "type": "timeseries",
+            "title": "Network Traffic No Proto",
+            "description": "Rate of network packets received without a recognized protocol per second",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "P",
+                "query": "rate(node_network_noproto_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Rx in",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p248",
+            "type": "timeseries",
+            "title": "Network Traffic Collisions",
+            "description": "Rate of packet collisions detected during transmission",
+            "gridPos": {
+              "x": 12,
+              "y": 64,
+              "w": 12,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_network_transmit_colls_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Tx out",
+                "interval": "240s"
+              }
+            ],
+            "unit": "pps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p243",
+        "type": "row",
+        "title": "System",
+        "gridPos": {
+          "x": 0,
+          "y": 40,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Context Switches",
+            "description": "Per-second rate of context switches",
+            "gridPos": {
+              "x": 0,
+              "y": 41,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_exec_context_switches_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Context switches",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p236",
+            "type": "timeseries",
+            "title": "Interrupts",
+            "description": "Per-second rate of hardware and software interrupts",
+            "gridPos": {
+              "x": 12,
+              "y": 41,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_exec_device_interrupts_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Device",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_exec_software_interrupts_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Software",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "System Load",
+            "description": "System load average over 1, 5, and 15 minutes. Reflects the number of active or waiting processes",
+            "gridPos": {
+              "x": 0,
+              "y": 51,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_load1{instance=\"$node\",job=\"$job\"}",
+                "legend": "Load 1m",
+                "interval": "480s"
+              },
+              {
+                "query": "node_load5{instance=\"$node\",job=\"$job\"}",
+                "legend": "Load 5m",
+                "interval": "480s"
+              },
+              {
+                "query": "node_load15{instance=\"$node\",job=\"$job\"}",
+                "legend": "Load 15m",
+                "interval": "480s"
+              },
+              {
+                "query": "count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu))",
+                "legend": "CPU Core Count",
+                "interval": "480s"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 20,
+            "overrides": [
+              {
+                "match": {
+                  "series": "CPU Core Count"
+                },
+                "color": "#C4162A",
+                "fill": 0,
+                "lineStyle": "dashed"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p237",
+            "type": "timeseries",
+            "title": "System Calls",
+            "description": "Rate of system calls executed per second",
+            "gridPos": {
+              "x": 12,
+              "y": 51,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_exec_system_calls_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "System calls",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p148",
+            "type": "timeseries",
+            "title": "Processes Forks / Traps",
+            "description": "Rate of process forks and processor traps handled per second",
+            "gridPos": {
+              "x": 0,
+              "y": 61,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_exec_forks_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Forks",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_exec_traps_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "Traps",
+                "interval": "240s"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p168",
+            "type": "timeseries",
+            "title": "System Time Variation",
+            "description": "Rate of change in system-reported time per second",
+            "gridPos": {
+              "x": 12,
+              "y": 61,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_time_seconds{instance=\"$node\",job=\"$job\"}[$__rate_interval]) - 1",
+                "legend": "Time Drift/sec",
+                "interval": "240s"
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "fill": 20,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p244",
+        "type": "row",
+        "title": "Disk Filesystem",
+        "gridPos": {
+          "x": 0,
+          "y": 41,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p251",
+            "type": "timeseries",
+            "title": "Disk Read/Write IOps",
+            "description": "Number of I/O operations completed per second",
+            "gridPos": {
+              "x": 0,
+              "y": 42,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_reads_completed_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Read",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_disk_writes_completed_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Write",
+                "interval": "240s"
+              }
+            ],
+            "unit": "iops",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p250",
+            "type": "timeseries",
+            "title": "Disk Read/Write Data",
+            "description": "Number of bytes read from or written to the device per second",
+            "gridPos": {
+              "x": 12,
+              "y": 42,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_read_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Read",
+                "interval": "240s"
+              },
+              {
+                "query": "rate(node_disk_written_bytes_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}} - Write",
+                "interval": "240s"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p249",
+            "type": "timeseries",
+            "title": "Time Spent Doing I/Os",
+            "description": "Percentage of time the disk spent actively processing I/O operations",
+            "gridPos": {
+              "x": 0,
+              "y": 53,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "rate(node_disk_io_time_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+                "legend": "{{device}}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percentunit",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p234",
+            "type": "timeseries",
+            "title": "File Nodes Free",
+            "description": "Number of free file nodes (inodes) available per mounted filesystem",
+            "gridPos": {
+              "x": 12,
+              "y": 53,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_filesystem_files_free{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Filenodes free",
+                "interval": "240s"
+              },
+              {
+                "query": "node_filesystem_files{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Filenodes total",
+                "interval": "240s",
+                "hide": true
+              }
+            ],
+            "unit": "short",
+            "fill": 40,
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p44",
+            "type": "timeseries",
+            "title": "Filesystem in ReadOnly / Error",
+            "description": "Filesystems mounted in read-only mode or reporting device-level I/O errors",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "node_filesystem_readonly{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - ReadOnly",
+                "interval": "240s"
+              },
+              {
+                "ref": "A",
+                "query": "node_filesystem_device_error{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{device}} - {{mountpoint}} - Error",
+                "interval": "240s"
+              }
+            ],
+            "unit": "bool_yes_no",
+            "min": 0,
+            "max": 1,
+            "fill": 40,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p245",
+        "type": "row",
+        "title": "Node Exporter",
+        "gridPos": {
+          "x": 0,
+          "y": 42,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p40",
+            "type": "timeseries",
+            "title": "Node Exporter Scrape Time",
+            "description": "Duration of each individual collector executed during a Node Exporter scrape",
+            "gridPos": {
+              "x": 0,
+              "y": 43,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_scrape_collector_duration_seconds{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{collector}}",
+                "interval": "30s"
+              }
+            ],
+            "unit": "s",
+            "fill": 20,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "min",
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p157",
+            "type": "bargauge",
+            "title": "Node Exporter Scrape",
+            "description": "Shows whether each Node Exporter collector scraped successfully (1 = success, 0 = failure), and whether the textfile collector returned an error.",
+            "gridPos": {
+              "x": 12,
+              "y": 43,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "node_scrape_collector_success{instance=\"$node\",job=\"$job\"}",
+                "legend": "{{collector}}",
+                "interval": "30s"
+              },
+              {
+                "query": "1 - node_textfile_scrape_error{instance=\"$node\",job=\"$job\"}",
+                "legend": "textfile",
+                "interval": "30s"
+              }
+            ],
+            "unit": "bool",
+            "min": 0,
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0,
+                "color": "critical"
+              },
+              {
+                "value": 1,
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "$conditionalTest + template Variables",
+    "uid": "cd6a9b5a-d9c4-4e97-bcb9-10e9f00fcfec",
+    "schema_version": 40,
+    "bytes": 9742,
+    "panels": 2,
+    "rows": 0,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "P7E099F39B84EA795",
+      "name": null,
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 2,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 2,
+      "imported": 1,
+      "partial": 0,
+      "placeholder": 1,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "2 parameters $conditionalTest + template variables",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [
+              "$timeSeries -> $__timeInterval(event_time)",
+              "$table -> default.test_grafana",
+              "$timeFilter -> $__timeFilter(event_time)",
+              "$conditionalTest( -> $__conditionalAll("
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "3 parameters $conditionalTest with ELSE statement + template variables",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support."
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "$conditionalTest + template Variables",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "service_name",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT service_name FROM default.test_grafana",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "timeseries",
+        "title": "2 parameters $conditionalTest + template variables",
+        "description": "fix https://github.com/Altinity/clickhouse-grafana/issues/485",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    $__timeInterval(event_time) as t,\n    sum(too_big_value) as v,\n    service_name\nFROM default.test_grafana\n\nWHERE $__timeFilter(event_time)\n$__conditionalAll(AND service_name IN ($service_name), $service_name)\nGROUP BY t, service_name\nORDER BY t\n"
+          }
+        ]
+      },
+      {
+        "id": "p2",
+        "type": "placeholder",
+        "title": "3 parameters $conditionalTest with ELSE statement + template variables",
+        "description": "fix https://github.com/Altinity/clickhouse-grafana/issues/661",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. It uses $__conditionalAll(AND service_name IN ($service_name), AND s..., which SlashObserve does not support.",
+        "sourceType": "timeseries"
+      }
+    ]
+  }
+}

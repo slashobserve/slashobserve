@@ -1,0 +1,756 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "ClickHouse - Query Analysis",
+    "uid": "w5Q2Otank",
+    "schema_version": 36,
+    "bytes": 41952,
+    "panels": 11,
+    "rows": 0,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 11,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 11,
+      "imported": 0,
+      "partial": 11,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[0]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title."
+        ],
+        "paths": [
+          "title"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[1]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title."
+        ],
+        "paths": [
+          "title"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[2]",
+        "title": "Query time distribution",
+        "type": "histogram",
+        "source_type": "histogram",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.bucketOffset"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[3]",
+        "title": "Top users",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Showing every value instead of one reduced value is not supported yet."
+        ],
+        "paths": [
+          "options.reduceOptions.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[4]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[5]",
+        "title": "Top query types over time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]",
+          "fieldConfig.defaults.custom.pointSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[6]",
+        "title": "Query performance by type over time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[7]",
+        "title": "Query requests by user",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "transformations[0]",
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[8]",
+        "title": "Memory usage over time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[9]",
+        "title": "Read vs Write Rows",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[10]",
+        "title": "Query overview",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable query_kind",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable type",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable user",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[4].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "ClickHouse - Query Analysis",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "ClickHouse instance",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      },
+      {
+        "name": "query_log",
+        "label": "Query log table",
+        "description": "Fully qualified query_log source. Point it at a premade view (for example obs_tools.query_log) to read a cluster-wide or rotation-aware query log instead of the local system table.",
+        "hide": "variable",
+        "type": "constant",
+        "value": "system.query_log"
+      },
+      {
+        "name": "query_kind",
+        "label": "Query kind",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT(query_kind) as query_kind FROM ${query_log} WHERE query_kind != ''",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "type",
+        "label": "Query status",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT type FROM ${query_log} GROUP BY type",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "user",
+        "label": "User",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT(initial_user) FROM ${query_log} WHERE initial_user != '' LIMIT 100",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p10",
+        "type": "stat",
+        "title": "Panel 10",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 5,
+          "h": 4
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() as \"Total queries\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p17",
+        "type": "stat",
+        "title": "Panel 17",
+        "gridPos": {
+          "x": 5,
+          "y": 0,
+          "w": 5,
+          "h": 4
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  avg(memory_usage) as \"Avg query memory\",\n  $__timeInterval(query_start_time) as time\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "Avg query memory"
+            },
+            "unit": "decbytes"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p12",
+        "type": "histogram",
+        "title": "Query time distribution",
+        "gridPos": {
+          "x": 10,
+          "y": 0,
+          "w": 8,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT query_duration_ms as \"Query time\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nLIMIT 1000",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "fill": 80,
+        "overrides": [
+          {
+            "match": {
+              "series": "Query time"
+            },
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "id": "p8",
+        "type": "piechart",
+        "title": "Top users",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  initial_user,\n  count() as c\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY initial_user\nLIMIT 100",
+            "format": "table"
+          }
+        ],
+        "display": {
+          "legend": "bottom"
+        }
+      },
+      {
+        "id": "p16",
+        "type": "stat",
+        "title": "Panel 16",
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 10,
+          "h": 4
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  avg(query_duration_ms) as \"Avg query time\",\n  $__timeInterval(query_start_time) as time\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "Avg query time"
+            },
+            "unit": "dtdurationms"
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p3",
+        "type": "timeseries",
+        "title": "Top query types over time",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 11
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  any(normalizeQuery(query)) AS normalized_query,\n  count() as c\nFROM ${query_log}\nWHERE type != 'QueryStart'\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND normalized_query_hash IN (\n    SELECT normalized_query_hash\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY normalized_query_hash\n    ORDER BY count() DESC\n    LIMIT 5\n  )\nGROUP BY normalized_query_hash, time\nORDER BY time",
+            "format": "logs"
+          }
+        ],
+        "fill": 15,
+        "stack": "normal"
+      },
+      {
+        "id": "p6",
+        "type": "timeseries",
+        "title": "Query performance by type over time",
+        "gridPos": {
+          "x": 0,
+          "y": 19,
+          "w": 24,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  any(normalizeQuery(query)) AS normalized_query,\n  avg(query_duration_ms) as avg_query_duration\nFROM ${query_log}\nWHERE type != 'QueryStart'\n  AND $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND normalized_query_hash IN (\n    SELECT normalized_query_hash\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY normalized_query_hash\n    ORDER BY avg(query_duration_ms) DESC\n    LIMIT 10\n  )\nGROUP BY normalized_query_hash, time\nORDER BY time",
+            "format": "logs"
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "timeseries",
+        "title": "Query requests by user",
+        "gridPos": {
+          "x": 0,
+          "y": 29,
+          "w": 24,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  initial_user as user,\n  count() as \"number of queries by\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND initial_user IN (\n    SELECT initial_user\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY initial_user\n    ORDER BY count() DESC\n    LIMIT 10\n  )\nGROUP BY initial_user, time\nORDER BY time",
+            "format": "logs"
+          }
+        ],
+        "style": "bars",
+        "stack": "normal"
+      },
+      {
+        "id": "p15",
+        "type": "timeseries",
+        "title": "Memory usage over time",
+        "gridPos": {
+          "x": 0,
+          "y": 39,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  max(memory_usage) as \"Max Memory Usage\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
+            "format": "logs"
+          }
+        ],
+        "fill": 20,
+        "overrides": [
+          {
+            "match": {
+              "series": "Max Memory Usage"
+            },
+            "unit": "decbytes"
+          }
+        ]
+      },
+      {
+        "id": "p19",
+        "type": "timeseries",
+        "title": "Read vs Write Rows",
+        "gridPos": {
+          "x": 12,
+          "y": 39,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  $__timeInterval(event_time) as time,\n  sum(read_rows) read_rows,\n  sum(written_rows) written_rows\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time ASC",
+            "format": "table"
+          }
+        ],
+        "fill": 26,
+        "overrides": [
+          {
+            "match": {
+              "series": "read_rows"
+            },
+            "color": "#1F60C4"
+          },
+          {
+            "match": {
+              "series": "written_rows"
+            },
+            "color": "#C4162A",
+            "axis": "right"
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "table",
+        "title": "Query overview",
+        "gridPos": {
+          "x": 0,
+          "y": 47,
+          "w": 24,
+          "h": 12
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n  query_start_time,\n  type,\n  query_duration_ms,\n  initial_user,\n  substring(query_id, 1, 8) as query_id,\n  query_kind,\n  normalizeQuery(query) AS normalized_query,\n  concat(toString(read_rows), ' rows / ', formatReadableSize(read_bytes)) AS read,\n  concat(toString(written_rows), ' rows / ', formatReadableSize(written_bytes)) AS written,\n  concat(toString(result_rows), ' rows / ', formatReadableSize(result_bytes)) AS result,\n  memory_usage\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nORDER BY query_duration_ms DESC\nLIMIT 1000",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "memory_usage"
+            },
+            "unit": "bytes"
+          },
+          {
+            "match": {
+              "field": "Duration"
+            },
+            "unit": "ms"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "client": "Client",
+              "client_hostname": "Client host",
+              "databases": "Databases",
+              "exception": "Exception",
+              "initial_user": "User",
+              "memory_usage": "Memory usage",
+              "normalized_query": "Normalized query",
+              "query_duration_ms": "Duration",
+              "query_id": "Query id",
+              "query_kind": "Type",
+              "query_start_time": "Start time",
+              "read": "Rows read",
+              "result": "Result",
+              "stack_trace": "Stack trace",
+              "tables": "Tables",
+              "type": "Status",
+              "user": "User",
+              "written": "Rows written"
+            },
+            "order": [
+              "query_id",
+              "type",
+              "memory_usage",
+              "query_start_time",
+              "query_duration_ms",
+              "initial_user",
+              "query_kind",
+              "normalized_query",
+              "read",
+              "written",
+              "result"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

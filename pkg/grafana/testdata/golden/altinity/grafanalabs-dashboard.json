@@ -1,0 +1,213 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "grafana labs dashboard",
+    "uid": "GgMuISkVz",
+    "schema_version": 40,
+    "bytes": 11283,
+    "panels": 3,
+    "rows": 0,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "P4F4839B759FB0509",
+      "name": null,
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 3,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 3,
+      "imported": 0,
+      "partial": 3,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[0]",
+        "title": "query builder",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Imported the generated SQL; the query builder settings are not kept.",
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "targets[0].builderOptions",
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[1]",
+        "title": "query editor",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[2]",
+        "title": "Logs + query builder",
+        "type": "logs",
+        "source_type": "logs",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.enableInfiniteScrolling"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable adhoc_variable",
+        "status": "partial",
+        "reason": "ClickHouse queries filter by this variable only where they use $adhoc_variable.",
+        "paths": [
+          "templating.list[1]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "grafana labs dashboard",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "service_name",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT Name FROM default.test_alerts",
+        "refresh": "timeRange",
+        "multi": true,
+        "default": [
+          "test2"
+        ]
+      },
+      {
+        "name": "adhoc_variable",
+        "type": "adhoc",
+        "datasource": "ch"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "query builder",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT $__timeInterval(EventTime) as \"time\", EventTime, sum(Value) FROM \"default\".\"test_alerts\" GROUP BY EventTime, time ORDER BY EventTime ASC LIMIT 1000"
+          }
+        ],
+        "style": "bars",
+        "fill": 100,
+        "stack": "normal"
+      },
+      {
+        "id": "p3",
+        "type": "timeseries",
+        "title": "query editor",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT $__timeInterval(EventTime) as time, Name, sum(Value) \r\nFROM default.test_alerts \r\nWHERE $__timeFilter(EventTime) \r\nAND Name IN (${service_name})\r\nGROUP BY Name, time \r\nORDER BY time ASC"
+          }
+        ],
+        "style": "bars",
+        "fill": 100,
+        "stack": "normal"
+      },
+      {
+        "id": "p5",
+        "type": "logs",
+        "title": "Logs + query builder",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 12,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT * FROM default.test_logs WHERE   ( event_time  >= $__fromTime AND event_time <= $__toTime )",
+            "format": "table"
+          }
+        ]
+      }
+    ]
+  }
+}

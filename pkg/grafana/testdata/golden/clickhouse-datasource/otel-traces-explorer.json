@@ -1,0 +1,732 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "OpenTelemetry Traces Explorer",
+    "uid": "otel-traces-explorer",
+    "schema_version": 39,
+    "bytes": 28613,
+    "panels": 8,
+    "rows": 3,
+    "variables": 8
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 8,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 8,
+      "imported": 0,
+      "partial": 7,
+      "placeholder": 1,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p55",
+        "grafana_id": 55,
+        "grafana_path": "panels[1]",
+        "title": "Service Map",
+        "type": "placeholder",
+        "source_type": "nodeGraph",
+        "row": "System Topology",
+        "status": "placeholder",
+        "reasons": [
+          "Grafana panel type nodeGraph is not supported yet."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "nodes",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          },
+          {
+            "ref_id": "edges",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[3]",
+        "title": "Trace Search Results",
+        "type": "table",
+        "source_type": "table",
+        "row": "Trace Search",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Mapped values must be between 1 and 200 characters.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[2].properties[1]",
+          "fieldConfig.overrides[2].properties[2]",
+          "fieldConfig.defaults.custom.inspect",
+          "options.footer.countRows",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p301",
+        "grafana_id": 301,
+        "grafana_path": "panels[5]",
+        "title": "Duration Distribution",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "interval",
+          "options.calculation.xBuckets.mode",
+          "options.calculation.yBuckets.mode",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.scheme",
+          "options.legend.show",
+          "options.tooltip.show",
+          "options.tooltip.yHistogram",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p302",
+        "grafana_id": 302,
+        "grafana_path": "panels[6]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "title",
+          "fieldConfig.defaults.color",
+          "interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p303",
+        "grafana_id": 303,
+        "grafana_path": "panels[7]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "title",
+          "interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p304",
+        "grafana_id": 304,
+        "grafana_path": "panels[8]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "title",
+          "interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p305",
+        "grafana_id": 305,
+        "grafana_path": "panels[9]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
+        ],
+        "paths": [
+          "title",
+          "interval"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p306",
+        "grafana_id": 306,
+        "grafana_path": "panels[10]",
+        "title": "Top Operations",
+        "type": "table",
+        "source_type": "table",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.overrides[2].properties[3]",
+          "fieldConfig.overrides[5].properties[0]",
+          "fieldConfig.defaults.custom.inspect",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]"
+        ]
+      },
+      {
+        "subject": "variable database",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable service",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable operation",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[4].datasource"
+        ]
+      },
+      {
+        "subject": "variable status",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[5].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "OpenTelemetry Traces Explorer",
+    "description": "Explore OpenTelemetry traces with service topology, per-service drill-downs, and trace search. Click services, operations, or TraceIds to navigate.",
+    "tags": [
+      "clickhouse",
+      "otel",
+      "traces"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data Source",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      },
+      {
+        "name": "interval",
+        "label": "Min interval",
+        "type": "interval",
+        "options": [
+          "10s",
+          "30s",
+          "1m",
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "6h",
+          "12h",
+          "1d"
+        ],
+        "auto": true,
+        "autoSteps": 30,
+        "autoMin": "10s"
+      },
+      {
+        "name": "database",
+        "label": "Database",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
+        "sort": "alpha"
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT ServiceName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "operation",
+        "label": "Operation",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT SpanName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service) ORDER BY SpanName LIMIT 200",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "status",
+        "label": "Status",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT StatusCode FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) ORDER BY StatusCode",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "min_duration",
+        "label": "Min Duration (ms)",
+        "description": "Filter to traces lasting at least this many milliseconds. Leave blank for no minimum.",
+        "type": "textbox"
+      },
+      {
+        "name": "search",
+        "label": "Search",
+        "description": "Free-text search applied to SpanName (operation) on every trace panel. Use the Traces Explorer's Status filter for error-only views. Leave blank to disable.",
+        "type": "textbox"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p50",
+        "type": "row",
+        "title": "System Topology",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p55",
+            "type": "placeholder",
+            "title": "Service Map",
+            "description": "Cross-service call graph from parent-child span joins. Edge counts are calls between services; node arcs show success vs error fraction. Limited to top 30 services and top 50 edges.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 10
+            },
+            "reason": "Grafana panel type nodeGraph is not supported yet.",
+            "sourceType": "nodeGraph"
+          }
+        ]
+      },
+      {
+        "id": "p60",
+        "type": "row",
+        "title": "Trace Search",
+        "gridPos": {
+          "x": 0,
+          "y": 11,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p20",
+            "type": "table",
+            "title": "Trace Search Results",
+            "description": "Recent traces matching the variable filters. Click a TraceId to view the trace.",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 24,
+              "h": 12
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  TraceId,\n  any(ServiceName) AS Service,\n  any(SpanName) AS RootOperation,\n  min(Timestamp) AS Time,\n  max(Duration) AS Duration,\n  count() AS Spans,\n  anyIf(StatusCode, StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Status\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SpanName IN (${operation:singlequote}), $operation)\n  AND $__conditionalAll(StatusCode IN (${status:singlequote}), $status)\n  AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY TraceId\nHAVING $__conditionalAll(max(Duration) >= toUInt64($min_duration) * 1000000, $min_duration)\nORDER BY Time DESC\nLIMIT 200",
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Duration"
+                },
+                "unit": "ns"
+              },
+              {
+                "match": {
+                  "field": "Status"
+                },
+                "mappings": [
+                  {
+                    "value": "Error",
+                    "text": "Error",
+                    "color": "critical"
+                  },
+                  {
+                    "value": "Ok",
+                    "text": "Ok",
+                    "color": "ok"
+                  },
+                  {
+                    "value": "Unset",
+                    "text": "-"
+                  }
+                ]
+              }
+            ],
+            "display": {
+              "footer": [
+                "count"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p200",
+        "type": "row",
+        "title": "$service",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 1
+        },
+        "repeat": "service",
+        "panels": [
+          {
+            "id": "p301",
+            "type": "heatmap",
+            "title": "Duration Distribution",
+            "description": "Span duration distribution over time for $service, log-scale. Sampled at 1-in-500 spans for performance.",
+            "gridPos": {
+              "x": 0,
+              "y": 25,
+              "w": 16,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  Duration / 1000000 AS duration_ms\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\n  AND cityHash64(SpanId) % 500 = 0\nORDER BY time"
+              }
+            ],
+            "unit": "ms",
+            "display": {
+              "calculate": true,
+              "yScale": "log"
+            }
+          },
+          {
+            "id": "p302",
+            "type": "stat",
+            "title": "Panel 302",
+            "description": "Total span count for $service.",
+            "gridPos": {
+              "x": 16,
+              "y": 25,
+              "w": 8,
+              "h": 2
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, count() AS Spans FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
+                "format": "table"
+              }
+            ],
+            "display": {
+              "reduce": "sum",
+              "colorMode": "none",
+              "textMode": "valueAndName",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p303",
+            "type": "stat",
+            "title": "Panel 303",
+            "description": "Error span count for $service.",
+            "gridPos": {
+              "x": 16,
+              "y": 27,
+              "w": 8,
+              "h": 2
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Errors FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
+                "format": "table"
+              }
+            ],
+            "color": "#F2495C",
+            "display": {
+              "reduce": "sum",
+              "colorMode": "none",
+              "textMode": "valueAndName",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p304",
+            "type": "stat",
+            "title": "Panel 304",
+            "description": "P99 span duration for $service.",
+            "gridPos": {
+              "x": 16,
+              "y": 29,
+              "w": 8,
+              "h": 2
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  quantile(0.99)(Duration) / 1000000 AS p99_ms\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY time\nORDER BY time"
+              }
+            ],
+            "unit": "ms",
+            "color": "#FF9830",
+            "display": {
+              "colorMode": "none",
+              "textMode": "valueAndName",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p305",
+            "type": "stat",
+            "title": "Panel 305",
+            "description": "Mean span duration for $service.",
+            "gridPos": {
+              "x": 16,
+              "y": 31,
+              "w": 8,
+              "h": 2
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, avg(Duration) / 1000000 AS \"Avg Duration\" FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
+                "format": "table"
+              }
+            ],
+            "unit": "ms",
+            "color": "#5794F2",
+            "display": {
+              "colorMode": "none",
+              "textMode": "valueAndName",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p306",
+            "type": "table",
+            "title": "Top Operations",
+            "description": "Operations for $service ranked by call count. Errors and Error % are colour-coded.",
+            "gridPos": {
+              "x": 0,
+              "y": 33,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  SpanName AS Operation,\n  count() AS Count,\n  countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Errors,\n  round(countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) / count() * 100, 2) AS \"Error %\",\n  quantile(0.5)(Duration) AS P50,\n  quantile(0.99)(Duration) AS P99,\n  anyIf(if(StatusMessage != '', StatusMessage, SpanAttributes['http.status_code']), StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS \"Top Error\"\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY Operation\nORDER BY Count DESC\nLIMIT 15",
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Errors"
+                },
+                "thresholds": [
+                  {
+                    "value": 1,
+                    "color": "critical"
+                  }
+                ]
+              },
+              {
+                "match": {
+                  "field": "Error %"
+                },
+                "unit": "percent",
+                "thresholds": [
+                  {
+                    "value": 1,
+                    "color": "warning"
+                  },
+                  {
+                    "value": 10,
+                    "color": "critical"
+                  }
+                ]
+              },
+              {
+                "match": {
+                  "field": "P50"
+                },
+                "unit": "ns"
+              },
+              {
+                "match": {
+                  "field": "P99"
+                },
+                "unit": "ns"
+              },
+              {
+                "match": {
+                  "field": "Top Error"
+                },
+                "color": "#F2495C"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

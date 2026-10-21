@@ -1,0 +1,963 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "window functions",
+    "uid": "de6482iletr0gc",
+    "schema_version": 40,
+    "bytes": 89062,
+    "panels": 24,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "PFA2E00E697AAEA0A",
+      "name": null,
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 24,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 24,
+      "imported": 0,
+      "partial": 0,
+      "placeholder": 24,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "$delta",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "$delta - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[2]",
+        "title": "$deltaColumns",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[3]",
+        "title": "$deltaColumns - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[4]",
+        "title": "$deltaColumnsAggregated",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[5]",
+        "title": "$deltaColumnsAggregated - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[6]",
+        "title": "$increase",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[7]",
+        "title": "$increase - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[8]",
+        "title": "$increaseColumns",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[9]",
+        "title": "$increaseColumns - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[10]",
+        "title": "$increaseColumnsAggregated",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[11]",
+        "title": "$increaseColumnsAggregated - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[12]",
+        "title": "$perSecond",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[13]",
+        "title": "$perSecond - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[14]",
+        "title": "$perSecondColumns",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[15]",
+        "title": "$perSecondColumns - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[16]",
+        "title": "$perSecondColumnsAggregated",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[17]",
+        "title": "$perSecondColumnsAggregated - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[18]",
+        "title": "$rate",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[19]",
+        "title": "$rate - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[20]",
+        "title": "$rateColumns",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[21]",
+        "title": "$rateColumns - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[22]",
+        "title": "$rateColumnsAggregated",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[23]",
+        "title": "$rateColumnsAggregated - without window functions",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "None of this panel's queries can be imported.",
+          "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL."
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "window functions",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p1",
+        "type": "placeholder",
+        "title": "$delta",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p2",
+        "type": "placeholder",
+        "title": "$delta - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $delta builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p21",
+        "type": "placeholder",
+        "title": "$deltaColumns",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p22",
+        "type": "placeholder",
+        "title": "$deltaColumns - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p23",
+        "type": "placeholder",
+        "title": "$deltaColumnsAggregated",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p24",
+        "type": "placeholder",
+        "title": "$deltaColumnsAggregated - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $deltaColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p3",
+        "type": "placeholder",
+        "title": "$increase",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p4",
+        "type": "placeholder",
+        "title": "$increase - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increase builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p17",
+        "type": "placeholder",
+        "title": "$increaseColumns",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p18",
+        "type": "placeholder",
+        "title": "$increaseColumns - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 32,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p19",
+        "type": "placeholder",
+        "title": "$increaseColumnsAggregated",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 40,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p20",
+        "type": "placeholder",
+        "title": "$increaseColumnsAggregated - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 40,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $increaseColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p5",
+        "type": "placeholder",
+        "title": "$perSecond",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 48,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p6",
+        "type": "placeholder",
+        "title": "$perSecond - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 48,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecond builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p13",
+        "type": "placeholder",
+        "title": "$perSecondColumns",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 56,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p14",
+        "type": "placeholder",
+        "title": "$perSecondColumns - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 56,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p15",
+        "type": "placeholder",
+        "title": "$perSecondColumnsAggregated",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 64,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p16",
+        "type": "placeholder",
+        "title": "$perSecondColumnsAggregated - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 64,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $perSecondColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p7",
+        "type": "placeholder",
+        "title": "$rate",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 72,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p8",
+        "type": "placeholder",
+        "title": "$rate - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 72,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rate builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p9",
+        "type": "placeholder",
+        "title": "$rateColumns",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 80,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p10",
+        "type": "placeholder",
+        "title": "$rateColumns - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 80,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumns builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p11",
+        "type": "placeholder",
+        "title": "$rateColumnsAggregated",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 0,
+          "y": 88,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      },
+      {
+        "id": "p12",
+        "type": "placeholder",
+        "title": "$rateColumnsAggregated - without window functions",
+        "description": "https://github.com/Altinity/clickhouse-grafana/issues/572",
+        "gridPos": {
+          "x": 12,
+          "y": 88,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "None of this panel's queries can be imported. Altinity macro $rateColumnsAggregated builds the whole query and is not supported; rewrite it as SQL.",
+        "sourceType": "timeseries"
+      }
+    ]
+  }
+}

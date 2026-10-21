@@ -1,0 +1,734 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / Compute Resources /  Multi-Cluster",
+    "uid": "b59e6c9f2fcbe2e16d77fc492374cc4f",
+    "schema_version": 39,
+    "bytes": 16379,
+    "panels": 10,
+    "rows": 0,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 10,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 10,
+      "imported": 8,
+      "partial": 2,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "CPU Utilisation",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "CPU Requests Commitment",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "CPU Limits Commitment",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Memory Utilisation",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Requests Commitment",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Memory Limits Commitment",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "CPU Quota",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Memory Usage (w/o cache)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Memory Requests by Cluster",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Compute Resources /  Multi-Cluster",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "stat",
+        "title": "CPU Utilisation",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(cluster:node_cpu:ratio_rate5m) / count(cluster:node_cpu:ratio_rate5m)",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "CPU Requests Commitment",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"cpu\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\", resource=\"cpu\"})",
+            "instant": true
+          }
+        ],
+        "unit": "percentunit",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p3",
+        "type": "stat",
+        "title": "CPU Limits Commitment",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"cpu\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\", resource=\"cpu\"})",
+            "instant": true
+          }
+        ],
+        "unit": "percentunit",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Memory Utilisation",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "1 - sum(:node_memory_MemAvailable_bytes:sum) / sum(node_memory_MemTotal_bytes{job=\"node-exporter\"})",
+            "instant": true
+          }
+        ],
+        "unit": "percentunit",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p5",
+        "type": "stat",
+        "title": "Memory Requests Commitment",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"memory\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\", resource=\"memory\"})",
+            "instant": true
+          }
+        ],
+        "unit": "percentunit",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "stat",
+        "title": "Memory Limits Commitment",
+        "gridPos": {
+          "x": 20,
+          "y": 0,
+          "w": 4,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"memory\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\", resource=\"memory\"})",
+            "instant": true
+          }
+        ],
+        "unit": "percentunit",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "CPU Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 3,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m)) by (cluster)",
+            "legend": "__auto"
+          }
+        ],
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p8",
+        "type": "table",
+        "title": "CPU Quota",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m)) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"cpu\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m)) by (cluster) / sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"cpu\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"cpu\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m)) by (cluster) / sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"cpu\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "seriesRegex": "/%/"
+            },
+            "unit": "percentunit"
+          },
+          {
+            "match": {
+              "field": "Cluster"
+            },
+            "links": [
+              {
+                "title": "Drill down",
+                "url": "/d/efa86fd1d0c121a26444b636a3f509a8?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "joinByField",
+            "mode": "outer",
+            "field": "cluster"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5"
+            ],
+            "rename": {
+              "Value #A": "CPU Usage",
+              "Value #B": "CPU Requests",
+              "Value #C": "CPU Requests %",
+              "Value #D": "CPU Limits",
+              "Value #E": "CPU Limits %",
+              "cluster": "Cluster"
+            },
+            "order": [
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5",
+              "cluster",
+              "Value #A",
+              "Value #B",
+              "Value #C",
+              "Value #D",
+              "Value #E"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "Memory Usage (w/o cache)",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster)",
+            "legend": "__auto"
+          }
+        ],
+        "unit": "bytes",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "table",
+        "title": "Memory Requests by Cluster",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"memory\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster) / sum(kube_pod_container_resource_requests{job=\"kube-state-metrics\", resource=\"memory\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"memory\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\"})) by (cluster) / sum(kube_pod_container_resource_limits{job=\"kube-state-metrics\", resource=\"memory\"}) by (cluster)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "unit": "bytes",
+        "overrides": [
+          {
+            "match": {
+              "seriesRegex": "/%/"
+            },
+            "unit": "percentunit"
+          },
+          {
+            "match": {
+              "field": "Cluster"
+            },
+            "links": [
+              {
+                "title": "Drill down",
+                "url": "/d/efa86fd1d0c121a26444b636a3f509a8?${datasource:queryparam}&var-cluster=${__data.fields.Cluster}"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "joinByField",
+            "mode": "outer",
+            "field": "cluster"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5"
+            ],
+            "rename": {
+              "Value #A": "Memory Usage",
+              "Value #B": "Memory Requests",
+              "Value #C": "Memory Requests %",
+              "Value #D": "Memory Limits",
+              "Value #E": "Memory Limits %",
+              "cluster": "Cluster"
+            },
+            "order": [
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5",
+              "cluster",
+              "Value #A",
+              "Value #B",
+              "Value #C",
+              "Value #D",
+              "Value #E"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

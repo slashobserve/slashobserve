@@ -1,0 +1,1423 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / Kubelet",
+    "uid": "3138fa155d5915769fbded898ac09fd9",
+    "schema_version": 39,
+    "bytes": 31092,
+    "panels": 24,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 24,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 24,
+      "imported": 6,
+      "partial": 18,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Running Kubelets",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Running Pods",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Running Containers",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Actual Volume Count",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Desired Volume Count",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Config Error Count",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Operation Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Operation Error Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Operation Duration 99th quantile",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Pod Start Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Pod Start Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Storage Operation Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "Storage Operation Error Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Storage Operation Duration 99th quantile",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[14]",
+        "title": "Cgroup manager operation rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[15]",
+        "title": "Cgroup manager 99th quantile",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[16]",
+        "title": "PLEG relist rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[17]",
+        "title": "PLEG relist interval",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[18]",
+        "title": "PLEG relist duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[19]",
+        "title": "RPC rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[20]",
+        "title": "Request duration 99th quantile",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[21]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[22]",
+        "title": "CPU usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[23]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Kubelet",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics\"}, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "instance",
+        "label": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics\",cluster=\"$cluster\"}, instance)",
+        "refresh": "timeRange",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "stat",
+        "title": "Running Kubelets",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kubelet_node_name{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\"})",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Running Pods",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kubelet_running_pods{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"})",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p3",
+        "type": "stat",
+        "title": "Running Containers",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kubelet_running_containers{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", container_state=\"running\", instance=~\"$instance\"})",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Actual Volume Count",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(volume_manager_total_volumes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\", state=\"actual_state_of_world\"})",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p5",
+        "type": "stat",
+        "title": "Desired Volume Count",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(volume_manager_total_volumes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\",state=\"desired_state_of_world\"})",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "stat",
+        "title": "Config Error Count",
+        "gridPos": {
+          "x": 20,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_node_config_error{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval]))",
+            "instant": true
+          }
+        ],
+        "unit": "none",
+        "interval": "1m",
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "Operation Rate",
+        "gridPos": {
+          "x": 0,
+          "y": 7,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_runtime_operations_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (operation_type, instance)",
+            "legend": "{{instance}} {{operation_type}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p8",
+        "type": "timeseries",
+        "title": "Operation Error Rate",
+        "gridPos": {
+          "x": 12,
+          "y": 7,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_runtime_operations_errors_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_type)",
+            "legend": "{{instance}} {{operation_type}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "Operation Duration 99th quantile",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_runtime_operations_duration_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_type, le))",
+            "legend": "{{instance}} {{operation_type}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p10",
+        "type": "timeseries",
+        "title": "Pod Start Rate",
+        "gridPos": {
+          "x": 0,
+          "y": 21,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_pod_start_duration_seconds_count{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance)",
+            "legend": "{{instance}} pod"
+          },
+          {
+            "query": "sum(rate(kubelet_pod_worker_duration_seconds_count{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance)",
+            "legend": "{{instance}} worker"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p11",
+        "type": "timeseries",
+        "title": "Pod Start Duration",
+        "gridPos": {
+          "x": 12,
+          "y": 21,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_pod_start_duration_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, le))",
+            "legend": "{{instance}} pod"
+          },
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_pod_worker_duration_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, le))",
+            "legend": "{{instance}} worker"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p12",
+        "type": "timeseries",
+        "title": "Storage Operation Rate",
+        "gridPos": {
+          "x": 0,
+          "y": 28,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(storage_operation_duration_seconds_count{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_name, volume_plugin)",
+            "legend": "{{instance}} {{operation_name}} {{volume_plugin}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p13",
+        "type": "timeseries",
+        "title": "Storage Operation Error Rate",
+        "gridPos": {
+          "x": 12,
+          "y": 28,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(storage_operation_errors_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_name, volume_plugin)",
+            "legend": "{{instance}} {{operation_name}} {{volume_plugin}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p14",
+        "type": "timeseries",
+        "title": "Storage Operation Duration 99th quantile",
+        "gridPos": {
+          "x": 0,
+          "y": 35,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(storage_operation_duration_seconds_bucket{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_name, volume_plugin, le))",
+            "legend": "{{instance}} {{operation_name}} {{volume_plugin}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p15",
+        "type": "timeseries",
+        "title": "Cgroup manager operation rate",
+        "gridPos": {
+          "x": 0,
+          "y": 42,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_cgroup_manager_duration_seconds_count{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_type)",
+            "legend": "{{operation_type}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p16",
+        "type": "timeseries",
+        "title": "Cgroup manager 99th quantile",
+        "gridPos": {
+          "x": 12,
+          "y": 42,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_cgroup_manager_duration_seconds_bucket{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval])) by (instance, operation_type, le))",
+            "legend": "{{instance}} {{operation_type}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p17",
+        "type": "timeseries",
+        "title": "PLEG relist rate",
+        "gridPos": {
+          "x": 0,
+          "y": 49,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(kubelet_pleg_relist_duration_seconds_count{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p18",
+        "type": "timeseries",
+        "title": "PLEG relist interval",
+        "gridPos": {
+          "x": 12,
+          "y": 49,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_pleg_relist_interval_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, le))",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p19",
+        "type": "timeseries",
+        "title": "PLEG relist duration",
+        "gridPos": {
+          "x": 0,
+          "y": 56,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(kubelet_pleg_relist_duration_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])) by (instance, le))",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p20",
+        "type": "timeseries",
+        "title": "RPC rate",
+        "gridPos": {
+          "x": 0,
+          "y": 63,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(rest_client_requests_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\",code=~\"2..\"}[$__rate_interval]))",
+            "legend": "2xx"
+          },
+          {
+            "query": "sum(rate(rest_client_requests_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\",code=~\"3..\"}[$__rate_interval]))",
+            "legend": "3xx"
+          },
+          {
+            "query": "sum(rate(rest_client_requests_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\",code=~\"4..\"}[$__rate_interval]))",
+            "legend": "4xx"
+          },
+          {
+            "query": "sum(rate(rest_client_requests_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\",code=~\"5..\"}[$__rate_interval]))",
+            "legend": "5xx"
+          }
+        ],
+        "unit": "ops",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p21",
+        "type": "timeseries",
+        "title": "Request duration 99th quantile",
+        "gridPos": {
+          "x": 0,
+          "y": 70,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(rest_client_request_duration_seconds_bucket{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\", instance=~\"$instance\"}[$__rate_interval])) by (instance, verb, le))",
+            "legend": "{{instance}} {{verb}}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p22",
+        "type": "timeseries",
+        "title": "Memory",
+        "gridPos": {
+          "x": 0,
+          "y": 77,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "process_resident_memory_bytes{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p23",
+        "type": "timeseries",
+        "title": "CPU usage",
+        "gridPos": {
+          "x": 8,
+          "y": 77,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(process_cpu_seconds_total{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}[$__rate_interval])",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p24",
+        "type": "timeseries",
+        "title": "Goroutines",
+        "gridPos": {
+          "x": 16,
+          "y": 77,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "go_goroutines{cluster=\"$cluster\",job=\"kubelet\", metrics_path=\"/metrics\",instance=~\"$instance\"}",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      }
+    ]
+  }
+}

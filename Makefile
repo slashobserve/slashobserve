@@ -15,7 +15,7 @@ SHOP_LINT := go tool -modfile=../../tools/golangci-lint/go.mod golangci-lint
 TYPE ?= errors
 PCT ?= 30
 
-.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals tidy-check clean
+.PHONY: build server cli web web-deps generate test lint ci demo demo-down demo-reset demo-fault demo-fault-reset e2e e2e-browser e2e-all evals golden tidy-check clean
 
 build: web
 	$(MAKE) server cli
@@ -54,6 +54,9 @@ lint: web-deps
 	cd web && bun run api:check
 	cd web && bun run lint
 	cd web && bun run format:check
+
+golden:
+	go test ./pkg/grafana -run TestCorpusGoldens -update
 
 tidy-check:
 	go mod tidy -diff

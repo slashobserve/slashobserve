@@ -1,0 +1,912 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / API server",
+    "uid": "09ec8aa1e996d6ffcd6817bbaff4db1b",
+    "schema_version": 39,
+    "bytes": 20909,
+    "panels": 17,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 16,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 17,
+      "imported": 4,
+      "partial": 13,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Notice",
+        "type": "text",
+        "source_type": "text",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Availability (30d) > 99.000%",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Error Budget (30d) > 99.000%",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Read Availability (30d)",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Read SLI - Requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Read SLI - Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Read SLI - Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Write Availability (30d)",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Write SLI - Requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Write SLI - Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Write SLI - Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Work Queue Add Rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "Work Queue Depth",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Work Queue Latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[14]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[15]",
+        "title": "CPU usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[16]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.asTable"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / API server",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"apiserver\"}, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"apiserver\", cluster=\"$cluster\"}, instance)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "text",
+        "title": "Notice",
+        "description": "The SLO (service level objective) and other metrics displayed on this dashboard are for informational purposes only.",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 2
+        },
+        "content": "The SLO (service level objective) and other metrics displayed on this dashboard are for informational purposes only."
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Availability (30d) > 99.000%",
+        "description": "How many percent of requests (both read and write) in 30 days have been answered successfully and fast enough?",
+        "gridPos": {
+          "x": 0,
+          "y": 2,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apiserver_request:availability30d{verb=\"all\", cluster=\"$cluster\"}"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 3,
+        "interval": "1m"
+      },
+      {
+        "id": "p3",
+        "type": "timeseries",
+        "title": "Error Budget (30d) > 99.000%",
+        "description": "How much error budget is left looking at our 99.000% availability guarantee?",
+        "gridPos": {
+          "x": 8,
+          "y": 2,
+          "w": 16,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "100 * (apiserver_request:availability30d{verb=\"all\", cluster=\"$cluster\"} - 0.990000)",
+            "legend": "error budget"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 3,
+        "fill": 100,
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Read Availability (30d)",
+        "description": "How many percent of read requests (LIST,GET) in 30 days have been answered successfully and fast enough?",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apiserver_request:availability30d{verb=\"read\", cluster=\"$cluster\"}"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 3,
+        "interval": "1m"
+      },
+      {
+        "id": "p5",
+        "type": "timeseries",
+        "title": "Read SLI - Requests",
+        "description": "How many read requests (LIST,GET) per second do the apiservers get by code?",
+        "gridPos": {
+          "x": 6,
+          "y": 9,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (code) (code_resource:apiserver_request_total:rate5m{verb=\"read\", cluster=\"$cluster\"})",
+            "legend": "{{ code }}"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 100,
+        "stack": "normal",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "timeseries",
+        "title": "Read SLI - Errors",
+        "description": "How many percent of read requests (LIST,GET) per second are returned with errors (5xx)?",
+        "gridPos": {
+          "x": 12,
+          "y": 9,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (resource) (code_resource:apiserver_request_total:rate5m{verb=\"read\",code=~\"5..\", cluster=\"$cluster\"}) / sum by (resource) (code_resource:apiserver_request_total:rate5m{verb=\"read\", cluster=\"$cluster\"})",
+            "legend": "{{ resource }}"
+          }
+        ],
+        "unit": "percentunit",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "Read SLI - Duration",
+        "description": "How many seconds is the 99th percentile for reading (LIST|GET) a given resource?",
+        "gridPos": {
+          "x": 18,
+          "y": 9,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "cluster_quantile:apiserver_request_sli_duration_seconds:histogram_quantile{verb=\"read\", cluster=\"$cluster\"}",
+            "legend": "{{ resource }}"
+          }
+        ],
+        "unit": "s",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p8",
+        "type": "stat",
+        "title": "Write Availability (30d)",
+        "description": "How many percent of write requests (POST|PUT|PATCH|DELETE) in 30 days have been answered successfully and fast enough?",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "apiserver_request:availability30d{verb=\"write\", cluster=\"$cluster\"}"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 3,
+        "interval": "1m"
+      },
+      {
+        "id": "p9",
+        "type": "timeseries",
+        "title": "Write SLI - Requests",
+        "description": "How many write requests (POST|PUT|PATCH|DELETE) per second do the apiservers get by code?",
+        "gridPos": {
+          "x": 6,
+          "y": 16,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (code) (code_resource:apiserver_request_total:rate5m{verb=\"write\", cluster=\"$cluster\"})",
+            "legend": "{{ code }}"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 100,
+        "stack": "normal",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "timeseries",
+        "title": "Write SLI - Errors",
+        "description": "How many percent of write requests (POST|PUT|PATCH|DELETE) per second are returned with errors (5xx)?",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (resource) (code_resource:apiserver_request_total:rate5m{verb=\"write\",code=~\"5..\", cluster=\"$cluster\"}) / sum by (resource) (code_resource:apiserver_request_total:rate5m{verb=\"write\", cluster=\"$cluster\"})",
+            "legend": "{{ resource }}"
+          }
+        ],
+        "unit": "percentunit",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p11",
+        "type": "timeseries",
+        "title": "Write SLI - Duration",
+        "description": "How many seconds is the 99th percentile for writing (POST|PUT|PATCH|DELETE) a given resource?",
+        "gridPos": {
+          "x": 18,
+          "y": 16,
+          "w": 6,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "cluster_quantile:apiserver_request_sli_duration_seconds:histogram_quantile{verb=\"write\", cluster=\"$cluster\"}",
+            "legend": "{{ resource }}"
+          }
+        ],
+        "unit": "s",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p12",
+        "type": "timeseries",
+        "title": "Work Queue Add Rate",
+        "gridPos": {
+          "x": 0,
+          "y": 23,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(workqueue_adds_total{job=\"apiserver\", instance=~\"$instance\", cluster=\"$cluster\"}[$__rate_interval])) by (instance, name)",
+            "legend": "{{instance}} {{name}}"
+          }
+        ],
+        "unit": "ops",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "hidden"
+        }
+      },
+      {
+        "id": "p13",
+        "type": "timeseries",
+        "title": "Work Queue Depth",
+        "gridPos": {
+          "x": 12,
+          "y": 23,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(workqueue_depth{job=\"apiserver\", instance=~\"$instance\", cluster=\"$cluster\"}[$__rate_interval])) by (instance, name)",
+            "legend": "{{instance}} {{name}}"
+          }
+        ],
+        "unit": "short",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "hidden"
+        }
+      },
+      {
+        "id": "p14",
+        "type": "timeseries",
+        "title": "Work Queue Latency",
+        "gridPos": {
+          "x": 0,
+          "y": 30,
+          "w": 24,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.99, sum(rate(workqueue_queue_duration_seconds_bucket{job=\"apiserver\", instance=~\"$instance\", cluster=\"$cluster\"}[$__rate_interval])) by (instance, name, le))",
+            "legend": "{{instance}} {{name}}"
+          }
+        ],
+        "unit": "s",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p15",
+        "type": "timeseries",
+        "title": "Memory",
+        "gridPos": {
+          "x": 0,
+          "y": 37,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "process_resident_memory_bytes{job=\"apiserver\",instance=~\"$instance\", cluster=\"$cluster\"}",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "bytes",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p16",
+        "type": "timeseries",
+        "title": "CPU usage",
+        "gridPos": {
+          "x": 8,
+          "y": 37,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(process_cpu_seconds_total{job=\"apiserver\",instance=~\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "short",
+        "min": 0,
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      },
+      {
+        "id": "p17",
+        "type": "timeseries",
+        "title": "Goroutines",
+        "gridPos": {
+          "x": 16,
+          "y": 37,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "go_goroutines{job=\"apiserver\",instance=~\"$instance\", cluster=\"$cluster\"}",
+            "legend": "{{instance}}"
+          }
+        ],
+        "unit": "short",
+        "interval": "1m",
+        "display": {
+          "legend": "right"
+        }
+      }
+    ]
+  }
+}

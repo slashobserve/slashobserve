@@ -1,0 +1,1141 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "ClickHouse - Data Analysis",
+    "uid": "-B3tt7a7z",
+    "schema_version": 41,
+    "bytes": 61294,
+    "panels": 16,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 16,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 16,
+      "imported": 2,
+      "partial": 12,
+      "placeholder": 2,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[0]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "transformations[0]",
+          "options.justifyMode",
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[2]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[3]",
+        "title": "",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "options.justifyMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[4]",
+        "title": "Disk usage",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[5]",
+        "title": "Top tables by rows",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.reduceOptions.values",
+          "options.displayMode",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[6]",
+        "title": "Top tables by columns",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.reduceOptions.values",
+          "options.displayMode",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[7]",
+        "title": "Database engines",
+        "type": "placeholder",
+        "source_type": "barchart",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana panel type barchart is not supported yet."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[8]",
+        "title": "Table engines",
+        "type": "placeholder",
+        "source_type": "barchart",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana panel type barchart is not supported yet."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[9]",
+        "title": "Database summary",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.overrides[5].properties[0]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[10]",
+        "title": "Dictionaries",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[11]",
+        "title": "Table summary",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.overrides[7].properties[1]",
+          "fieldConfig.overrides[8].properties[1]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[12]",
+        "title": "Detached partitions",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[13]",
+        "title": "Parts over time with row count",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "transformations[1]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.axisWidth",
+          "fieldConfig.defaults.custom.showPoints",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[14]",
+        "title": "Max parts per partition",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.reduceOptions.values",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[15]",
+        "title": "Recent part analysis",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "transformations[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable database",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable table",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "ClickHouse - Data Analysis",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "ClickHouse instance",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      },
+      {
+        "name": "database",
+        "label": "Database",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT name FROM system.databases;\n",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "table",
+        "label": "Table",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT name FROM system.tables WHERE database IN (${database:singlequote})",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Panel 4",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 6
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT version()",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "Version"
+            },
+            "unit": "string"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "version()": "Version"
+            }
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "stat",
+        "title": "Panel 2",
+        "gridPos": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 6
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT uptime() as uptime",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "series": "uptime"
+            },
+            "unit": "s"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "uptime": "Server uptime"
+            }
+          }
+        ],
+        "display": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": "p22",
+        "type": "stat",
+        "title": "Panel 22",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 6
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT  sum(total_rows) as \"Total rows\" FROM system.tables WHERE database IN (${database:singlequote}) AND name IN (${table:singlequote})",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "textMode": "valueAndName"
+        }
+      },
+      {
+        "id": "p23",
+        "type": "stat",
+        "title": "Panel 23",
+        "gridPos": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 6
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT count() as \"Total columns\" FROM system.columns WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "info"
+          }
+        ],
+        "display": {
+          "colorMode": "background",
+          "textMode": "valueAndName"
+        }
+      },
+      {
+        "id": "p9",
+        "type": "table",
+        "title": "Disk usage",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT\n    name as Name,\n    path as Path,\n    free_space as Free,\n    total_space as Total,\n    1 - free_space/total_space as Used\nFROM system.disks",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Used"
+            },
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          },
+          {
+            "match": {
+              "field": "Free space"
+            },
+            "unit": "bytes"
+          },
+          {
+            "match": {
+              "field": "Total space"
+            },
+            "unit": "bytes"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "Free": "Free space",
+              "Total": "Total space"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p25",
+        "type": "bargauge",
+        "title": "Top tables by rows",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 8,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(table.database, '.', name) as name,\n       table_stats.total_rows as total_rows\nFROM system.tables table\n         LEFT JOIN ( SELECT table,\n       database,\n       sum(rows)                  as total_rows\nFROM system.parts\nWHERE table IN (${table:singlequote}) AND active AND database IN (${database:singlequote}) \nGROUP BY table, database\n ) AS table_stats ON table.name = table_stats.table AND table.database = table_stats.database\nORDER BY total_rows DESC\nLIMIT 10",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p26",
+        "type": "bargauge",
+        "title": "Top tables by columns",
+        "gridPos": {
+          "x": 8,
+          "y": 6,
+          "w": 7,
+          "h": 9
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(table.database, '.', name) as name,\n       col_stats.col_count as total_columns\nFROM system.tables table\n         LEFT JOIN (SELECT database, table, count() as col_count FROM system.columns  GROUP BY table, database) as col_stats\n                   ON table.name = col_stats.table AND col_stats.database = table.database\nWHERE database IN (${database:singlequote}) AND name != '' AND table IN (${table:singlequote}) AND name != '' ORDER BY total_columns DESC LIMIT 10;\n",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p12",
+        "type": "placeholder",
+        "title": "Database engines",
+        "gridPos": {
+          "x": 15,
+          "y": 6,
+          "w": 4,
+          "h": 9
+        },
+        "reason": "Grafana panel type barchart is not supported yet.",
+        "sourceType": "barchart"
+      },
+      {
+        "id": "p11",
+        "type": "placeholder",
+        "title": "Table engines",
+        "gridPos": {
+          "x": 19,
+          "y": 6,
+          "w": 5,
+          "h": 9
+        },
+        "reason": "Grafana panel type barchart is not supported yet.",
+        "sourceType": "barchart"
+      },
+      {
+        "id": "p6",
+        "type": "table",
+        "title": "Database summary",
+        "gridPos": {
+          "x": 0,
+          "y": 15,
+          "w": 15,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT name,\n       engine,\n       tables,\n       partitions,\n       parts,\n       bytes_on_disk            \"disk_size\",\n       col_count,\n       total_rows,\n       data_uncompressed_bytes as \"uncompressed_size\"\nFROM system.databases db\n         LEFT JOIN ( SELECT database,\n                            uniq(table)                   \"tables\",\n                            uniq(table, partition)        \"partitions\",\n                            count()                    AS parts,\n                            sum(bytes_on_disk)            \"bytes_on_disk\",\n                            sum(data_uncompressed_bytes) as \"data_uncompressed_bytes\",\n                            sum(rows) as total_rows,\n                            max(col_count) as \"col_count\"\n                     FROM system.parts AS parts\n                               JOIN (SELECT database, count() as col_count\n                                         FROM system.columns\n                                         WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})\n                                         GROUP BY database) as col_stats\n                                        ON parts.database = col_stats.database\n                     WHERE database IN (${database:singlequote}) AND active AND table IN (${table:singlequote})\n                     GROUP BY database) AS db_stats ON db.name = db_stats.database\nWHERE database IN (${database:singlequote}) AND lower(name) != 'information_schema'\nORDER BY bytes_on_disk DESC\nLIMIT 10;",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Size on disk"
+            },
+            "unit": "bytes"
+          },
+          {
+            "match": {
+              "field": "Uncompressed size"
+            },
+            "unit": "bytes"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "col_count": "Column count",
+              "disk_size": "Size on disk",
+              "engine": "Engine",
+              "name": "Database",
+              "partitions": "Partition count",
+              "parts": "Part count",
+              "tables": "Number of tables",
+              "total_rows": "Total rows",
+              "uncompressed_size": "Uncompressed size"
+            },
+            "order": [
+              "name",
+              "engine",
+              "tables",
+              "total_rows",
+              "col_count",
+              "partitions",
+              "parts",
+              "disk_size",
+              "uncompressed_size"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "table",
+        "title": "Dictionaries",
+        "gridPos": {
+          "x": 15,
+          "y": 15,
+          "w": 9,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT source, type, status, count() \"count\" FROM system.dictionaries GROUP BY source, type, status ORDER BY status DESC, source",
+            "format": "table"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "count": "Usages",
+              "source": "Source",
+              "status": "Status",
+              "type": "Type"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "table",
+        "title": "Table summary",
+        "gridPos": {
+          "x": 0,
+          "y": 25,
+          "w": 15,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT name,\n       table.database,\n       engine,\n       partitions,\n       parts,\n       bytes_on_disk            \"disk_size\",\n       col_count,\n       table_stats.total_rows,\n       data_uncompressed_bytes as \"uncompressed_size\"\nFROM system.tables table\n         LEFT JOIN ( SELECT table,\n       database,\n       uniq(table, partition)        \"partitions\",\n       count()                    AS parts,\n       sum(bytes_on_disk)            \"bytes_on_disk\",\n       sum(data_uncompressed_bytes) as \"data_uncompressed_bytes\",\n       sum(rows)                  as total_rows,\n                            max(col_count) as col_count\nFROM system.parts as parts\n         LEFT JOIN (SELECT database, table, count() as col_count FROM system.columns GROUP BY table, database) as col_stats\n                   ON parts.table = col_stats.table AND col_stats.database = parts.database\nWHERE active\nGROUP BY table, database\n ) AS table_stats ON table.name = table_stats.table AND table.database = table_stats.database\nWHERE database IN (${database:singlequote}) AND lower(name) != 'information_schema' AND table IN (${table:singlequote})\nORDER BY bytes_on_disk DESC\nLIMIT 1000",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Size on disk"
+            },
+            "unit": "bytes"
+          },
+          {
+            "match": {
+              "field": "Uncompressed size"
+            },
+            "unit": "bytes"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "col_count": "Column count",
+              "col_stats.col_count": "Column count",
+              "database": "Database",
+              "disk_size": "Size on disk",
+              "engine": "Engine",
+              "name": "Table",
+              "partitions": "Partition count",
+              "parts": "Part count",
+              "table.database": "Database",
+              "table_stats.total_rows": "Row Count",
+              "tables": "Number of tables",
+              "total_rows": "Total rows",
+              "uncompressed_size": "Uncompressed size"
+            },
+            "order": [
+              "database",
+              "name",
+              "engine",
+              "table_stats.total_rows",
+              "partitions",
+              "parts",
+              "disk_size",
+              "uncompressed_size",
+              "col_count"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p28",
+        "type": "table",
+        "title": "Detached partitions",
+        "gridPos": {
+          "x": 15,
+          "y": 25,
+          "w": 9,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT database, table, partition_id, name, disk, level FROM system.detached_parts WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})",
+            "format": "table"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "rename": {
+              "database": "Database",
+              "disk": "Disk",
+              "level": "Level",
+              "max_block_number": "Max block number",
+              "min_block_number": "Min block number",
+              "name": "Name",
+              "partition_id": "Partition id",
+              "reason": "Reason",
+              "table": "Table"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p18",
+        "type": "timeseries",
+        "title": "Parts over time with row count",
+        "gridPos": {
+          "x": 0,
+          "y": 35,
+          "w": 15,
+          "h": 11
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT modification_time as timestamp, concatAssumeInjective(database, '.', table) as table, rows FROM system.parts parts WHERE parts.database IN (${database:singlequote}) AND parts.table IN (${table:singlequote})  AND $__timeFilter(modification_time) ORDER BY modification_time ASC",
+            "format": "table"
+          }
+        ],
+        "fill": 10,
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "bytes_on_disk",
+              "name"
+            ],
+            "rename": {
+              "rows": "rows in part"
+            },
+            "order": [
+              "timestamp",
+              "table",
+              "rows"
+            ]
+          }
+        ],
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p16",
+        "type": "bargauge",
+        "title": "Max parts per partition",
+        "gridPos": {
+          "x": 15,
+          "y": 35,
+          "w": 9,
+          "h": 11
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT concatAssumeInjective(database, '.', table) as dbTable, count() \"partitions\", sum(part_count) \"parts\", max(part_count) \"max_parts_per_partition\"\nFROM ( SELECT database, table, count() \"part_count\"\n       FROM system.parts\n       WHERE database IN (${database:singlequote}) AND active AND table IN (${table:singlequote})\n       GROUP BY database, table, partition ) partitions\nGROUP BY database, table\nORDER BY max_parts_per_partition DESC\nLIMIT 10",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "thresholdMode": "percentage",
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "partitions",
+              "parts"
+            ]
+          }
+        ],
+        "display": {
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p20",
+        "type": "table",
+        "title": "Recent part analysis",
+        "gridPos": {
+          "x": 0,
+          "y": 46,
+          "w": 24,
+          "h": 11
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT database, table, partition_id, modification_time, name, part_type, active, level, disk_name, path, marks, rows, bytes_on_disk, refcount, min_block_number, max_block_number FROM system.parts WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})  AND modification_time > now() - INTERVAL 3 MINUTE ORDER BY modification_time DESC",
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Active"
+            },
+            "mappings": [
+              {
+                "value": "true",
+                "color": "ok"
+              },
+              {
+                "value": "false",
+                "color": "critical"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "is_frozen",
+              "max_date",
+              "min_date",
+              "partition_id",
+              "refcount"
+            ],
+            "rename": {
+              "active": "Active",
+              "database": "Database",
+              "engine": "Engine",
+              "name": "Partition Name",
+              "part_type": "Partition Type",
+              "partition_id": "Partition Id",
+              "table": "Table"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

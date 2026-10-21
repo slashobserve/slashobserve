@@ -1,0 +1,722 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Kubernetes / Compute Resources / Node (Pods)",
+    "uid": "200ac8fdbfbb74b39aff88118e4d1c2c",
+    "schema_version": 39,
+    "bytes": 23440,
+    "panels": 5,
+    "rows": 0,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 5,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 5,
+      "imported": 2,
+      "partial": 3,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Hiding a series from the tooltip is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[2]",
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "CPU Quota",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Memory Usage (w/cache)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Hiding a series from the tooltip is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[2]",
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Memory Usage (w/o cache)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Hiding a series from the tooltip is not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[2]",
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.asTable",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Quota",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "F",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "G",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "H",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "variable cluster",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable node",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses prom.",
+        "paths": [
+          "templating.list[2].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses prom.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Kubernetes / Compute Resources / Node (Pods)",
+    "tags": [
+      "kubernetes-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(up{job=\"kube-state-metrics\"}, cluster)",
+        "sort": "alpha",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "node",
+        "label": "node",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(kube_node_info{cluster=\"$cluster\"}, node)",
+        "refresh": "timeRange",
+        "multi": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "timeseries",
+        "title": "CPU Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_node_status_capacity{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"cpu\"})",
+            "legend": "max capacity"
+          },
+          {
+            "query": "sum(kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"cpu\"})",
+            "legend": "max allocatable"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "legend": "{{pod}}"
+          }
+        ],
+        "fill": 10,
+        "stack": "normal",
+        "overrides": [
+          {
+            "match": {
+              "series": "max capacity"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "stack": "none"
+          },
+          {
+            "match": {
+              "series": "max allocatable"
+            },
+            "color": "#FFA6B0",
+            "fill": 0,
+            "lineStyle": "dashed",
+            "stack": "none"
+          }
+        ],
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p2",
+        "type": "table",
+        "title": "CPU Quota",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\", node=~\"$node\"})) by (pod) / sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_cpu:active:kube_pod_container_resource_limits{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\", node=~\"$node\"})) by (pod) / sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_cpu:active:kube_pod_container_resource_limits{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "seriesRegex": "/%/"
+            },
+            "unit": "percentunit"
+          },
+          {
+            "match": {
+              "field": "Pod"
+            },
+            "links": [
+              {
+                "title": "Drill down to pods",
+                "url": "/d/6581e46e4e5c7ba40a07646395ef7b23?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "joinByField",
+            "mode": "outer",
+            "field": "pod"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5"
+            ],
+            "rename": {
+              "Value #A": "CPU Usage",
+              "Value #B": "CPU Requests",
+              "Value #C": "CPU Requests %",
+              "Value #D": "CPU Limits",
+              "Value #E": "CPU Limits %",
+              "pod": "Pod"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "timeseries",
+        "title": "Memory Usage (w/cache)",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 24,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_node_status_capacity{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"memory\"})",
+            "legend": "max capacity"
+          },
+          {
+            "query": "sum(kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"memory\"})",
+            "legend": "max allocatable"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\", container!=\"\"})) by (pod)",
+            "legend": "{{pod}}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 10,
+        "stack": "normal",
+        "overrides": [
+          {
+            "match": {
+              "series": "max capacity"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "stack": "none"
+          },
+          {
+            "match": {
+              "series": "max allocatable"
+            },
+            "color": "#FFA6B0",
+            "fill": 0,
+            "lineStyle": "dashed",
+            "stack": "none"
+          }
+        ],
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "Memory Usage (w/o cache)",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 24,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(kube_node_status_capacity{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"memory\"})",
+            "legend": "max capacity"
+          },
+          {
+            "query": "sum(kube_node_status_allocatable{cluster=\"$cluster\", job=\"kube-state-metrics\", node=~\"$node\", resource=\"memory\"})",
+            "legend": "max allocatable"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_rss{cluster=\"$cluster\", node=~\"$node\", container!=\"\"})) by (pod)",
+            "legend": "{{pod}}"
+          }
+        ],
+        "unit": "bytes",
+        "fill": 10,
+        "stack": "normal",
+        "overrides": [
+          {
+            "match": {
+              "series": "max capacity"
+            },
+            "color": "#F2495C",
+            "lineStyle": "dashed",
+            "stack": "none"
+          },
+          {
+            "match": {
+              "series": "max allocatable"
+            },
+            "color": "#FFA6B0",
+            "fill": 0,
+            "lineStyle": "dashed",
+            "stack": "none"
+          }
+        ],
+        "interval": "1m",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ]
+        }
+      },
+      {
+        "id": "p5",
+        "type": "table",
+        "title": "Memory Quota",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 24,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod) / sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_memory:active:kube_pod_container_resource_limits{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_working_set_bytes{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod) / sum(max by (cluster, namespace, pod, container)(cluster:namespace:pod_memory:active:kube_pod_container_resource_limits{cluster=\"$cluster\", node=~\"$node\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_rss{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_cache{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_memory_swap{cluster=\"$cluster\", node=~\"$node\",container!=\"\"})) by (pod)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "unit": "bytes",
+        "overrides": [
+          {
+            "match": {
+              "seriesRegex": "/%/"
+            },
+            "unit": "percentunit"
+          },
+          {
+            "match": {
+              "field": "Pod"
+            },
+            "links": [
+              {
+                "title": "Drill down to pods",
+                "url": "/d/6581e46e4e5c7ba40a07646395ef7b23?${datasource:queryparam}&var-cluster=$cluster&var-namespace=$namespace&var-pod=${__data.fields.Pod}"
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "joinByField",
+            "mode": "outer",
+            "field": "pod"
+          },
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "Time 1",
+              "Time 2",
+              "Time 3",
+              "Time 4",
+              "Time 5",
+              "Time 6",
+              "Time 7",
+              "Time 8"
+            ],
+            "rename": {
+              "Value #A": "Memory Usage",
+              "Value #B": "Memory Requests",
+              "Value #C": "Memory Requests %",
+              "Value #D": "Memory Limits",
+              "Value #E": "Memory Limits %",
+              "Value #F": "Memory Usage (RSS)",
+              "Value #G": "Memory Usage (Cache)",
+              "Value #H": "Memory Usage (Swap)",
+              "pod": "Pod"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

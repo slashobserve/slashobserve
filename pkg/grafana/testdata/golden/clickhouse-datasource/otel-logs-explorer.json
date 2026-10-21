@@ -1,0 +1,636 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "OpenTelemetry Logs Explorer",
+    "uid": "otel-logs-explorer",
+    "schema_version": 39,
+    "bytes": 21529,
+    "panels": 6,
+    "rows": 2,
+    "variables": 6
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 6,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 6,
+      "imported": 0,
+      "partial": 6,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[1]",
+        "title": "Log Volume by Level",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "interval",
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[2]",
+        "title": "Services",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Size limits are not kept.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.reduceOptions.values",
+          "options.minVizWidth",
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Level Distribution",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Showing every value instead of one reduced value is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.reduceOptions.values",
+          "options.legend.values",
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[4]",
+        "title": "Top Error Messages",
+        "type": "table",
+        "source_type": "table",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.inspect",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p201",
+        "grafana_id": 201,
+        "grafana_path": "panels[6]",
+        "title": "Log Volume: $service",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "The min interval ${interval} cannot be kept; SlashObserve picks the step.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "interval",
+          "fieldConfig.defaults.custom.lineWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p202",
+        "grafana_id": 202,
+        "grafana_path": "panels[7]",
+        "title": "Log Samples: $service",
+        "type": "logs",
+        "source_type": "logs",
+        "row": "$service",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.prettifyLogMessage",
+          "options.showLabels"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]"
+        ]
+      },
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]"
+        ]
+      },
+      {
+        "subject": "variable database",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[1].datasource"
+        ]
+      },
+      {
+        "subject": "variable service",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[3].datasource"
+        ]
+      },
+      {
+        "subject": "variable level_filter",
+        "status": "partial",
+        "reason": "It uses datasource variable $datasource; it now uses ch.",
+        "paths": [
+          "templating.list[4].datasource"
+        ]
+      },
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "OpenTelemetry Logs Explorer",
+    "description": "Explore OpenTelemetry logs in ClickHouse. Top services with per-service log volume and samples.",
+    "tags": [
+      "clickhouse",
+      "otel",
+      "logs"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "datasource",
+        "label": "Datasource",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      },
+      {
+        "name": "database",
+        "label": "Database",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
+        "sort": "alpha"
+      },
+      {
+        "name": "interval",
+        "label": "Min interval",
+        "type": "interval",
+        "options": [
+          "10s",
+          "30s",
+          "1m",
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "6h",
+          "12h",
+          "1d"
+        ],
+        "auto": true,
+        "autoSteps": 30,
+        "autoMin": "10s"
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT ServiceName FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "level_filter",
+        "label": "Level",
+        "type": "query",
+        "datasource": "ch",
+        "query": "SELECT DISTINCT SeverityText FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) ORDER BY SeverityText",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "search",
+        "label": "Search",
+        "type": "textbox"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p100",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p1",
+            "type": "timeseries",
+            "title": "Log Volume by Level",
+            "description": "Stacked log volume by SeverityText across the services and levels selected above.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 5
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  SeverityText AS metric,\n  count() AS count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY time, metric\nORDER BY time"
+              }
+            ],
+            "style": "bars",
+            "fill": 80,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/fatal|FATAL/i"
+                },
+                "color": "#C4162A",
+                "displayName": "fatal"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/error|Error/i"
+                },
+                "color": "#F2495C",
+                "displayName": "error"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/warn|Warning/i"
+                },
+                "color": "#FF9830",
+                "displayName": "warning"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/info|Information/i"
+                },
+                "color": "#73BF69",
+                "displayName": "info"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/debug|Debug/i"
+                },
+                "color": "#5794F2",
+                "displayName": "debug"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/(?:^count )?TRACE$|(?:^count )?Trace$/i"
+                },
+                "color": "#B877D9",
+                "displayName": "trace"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p2",
+            "type": "bargauge",
+            "title": "Services",
+            "description": "Log volume per service in the current time range, honoring the Service, Level, and Search filters. Highest-volume first, up to 15.",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 7,
+              "h": 5
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  ServiceName AS Service,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Service\nORDER BY Count DESC\nLIMIT 15"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1000,
+                "color": "warning"
+              },
+              {
+                "value": 10000,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "reduce": "sum",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p4",
+            "type": "piechart",
+            "title": "Level Distribution",
+            "description": "Share of log lines by SeverityText. Useful for spotting unusual error spikes at a glance.",
+            "gridPos": {
+              "x": 7,
+              "y": 6,
+              "w": 5,
+              "h": 5
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  SeverityText AS Level,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Level\nORDER BY Count DESC"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/fatal|FATAL/"
+                },
+                "color": "#C4162A"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/error|Error/"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/warn|Warning/"
+                },
+                "color": "#FF9830"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/info|Information/"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/debug|Debug/"
+                },
+                "color": "#5794F2"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/TRACE|Trace/"
+                },
+                "color": "#B877D9"
+              }
+            ],
+            "display": {
+              "reduce": "sum",
+              "pieType": "donut"
+            }
+          },
+          {
+            "id": "p3",
+            "type": "table",
+            "title": "Top Error Messages",
+            "description": "Most frequent ERROR / WARN / FATAL bodies across the selected services. Common id-style tokens (userId, traceId, etc.) are stripped before grouping so similar messages cluster.",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  SeverityText AS Level,\n  ServiceName AS Service,\n  replaceRegexpAll(Body, '(userId|orderId|cartId|requestId|traceId|spanId|ctId)=[a-zA-Z0-9-]+', '\\1=…') AS Message,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND SeverityText IN ('ERROR', 'WARN', 'FATAL', 'Error', 'Warning', 'error', 'warning', 'fatal', 'CRITICAL')\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Level, Service, Message\nORDER BY Count DESC\nLIMIT 20"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p200",
+        "type": "row",
+        "title": "$service",
+        "gridPos": {
+          "x": 0,
+          "y": 11,
+          "w": 24,
+          "h": 1
+        },
+        "repeat": "service",
+        "panels": [
+          {
+            "id": "p201",
+            "type": "timeseries",
+            "title": "Log Volume: $service",
+            "description": "Log volume by SeverityText for $service.",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 24,
+              "h": 5
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  SeverityText AS metric,\n  count() AS count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName = ${service:singlequote}\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY time, metric\nORDER BY time"
+              }
+            ],
+            "style": "bars",
+            "fill": 80,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/fatal|FATAL/i"
+                },
+                "color": "#C4162A",
+                "displayName": "fatal"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/error|Error/i"
+                },
+                "color": "#F2495C",
+                "displayName": "error"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/warn|Warning/i"
+                },
+                "color": "#FF9830",
+                "displayName": "warning"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/info|Information/i"
+                },
+                "color": "#73BF69",
+                "displayName": "info"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/debug|Debug/i"
+                },
+                "color": "#5794F2",
+                "displayName": "debug"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/(?:^count )?TRACE$|(?:^count )?Trace$/i"
+                },
+                "color": "#B877D9",
+                "displayName": "trace"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "sum"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p202",
+            "type": "logs",
+            "title": "Log Samples: $service",
+            "description": "Recent log lines for $service. Click a row to expand attributes. JSON-shaped bodies are pretty-printed.",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 24,
+              "h": 14
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT\n  Timestamp AS timestamp,\n  Body AS body,\n  SeverityText AS level,\n  ServiceName,\n  TraceId,\n  SpanId,\n  ResourceAttributes['service.namespace'] AS namespace,\n  ResourceAttributes['k8s.pod.name'] AS k8s_pod\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName = ${service:singlequote}\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nORDER BY Timestamp DESC\nLIMIT 200",
+                "format": "logs"
+              }
+            ],
+            "display": {
+              "wrap": true,
+              "showTime": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

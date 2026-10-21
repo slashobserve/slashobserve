@@ -1,0 +1,293 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "issue 712 variable repeat test",
+    "uid": "ceak279mxrim8d",
+    "schema_version": 41,
+    "bytes": 11281,
+    "panels": 4,
+    "rows": 4,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "vertamedia-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 4,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 4,
+      "imported": 4,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "No repeat, No single quotes",
+        "type": "table",
+        "source_type": "table",
+        "row": "No repeat, no single quotes, shall works",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[3]",
+        "title": "No repeat, single quotes",
+        "type": "table",
+        "source_type": "table",
+        "row": "No repeat, single quotes, shall not work",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[5]",
+        "title": "repeat, $type",
+        "type": "table",
+        "source_type": "table",
+        "row": "Repeat, single quotes, shall not work",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[7]",
+        "title": "repeat, $type",
+        "type": "table",
+        "source_type": "table",
+        "row": "Repeat, no single quotes, shall works",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable datasource",
+        "status": "partial",
+        "reason": "Datasource variable $datasource now uses ch.",
+        "paths": []
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "issue 712 variable repeat test",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "type",
+        "type": "custom",
+        "options": [
+          "foo",
+          "bar",
+          "baz"
+        ],
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "clickhouse",
+        "default": "ch"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p3",
+        "type": "row",
+        "title": "No repeat, no single quotes, shall works",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "table",
+            "title": "No repeat, No single quotes",
+            "description": "https://github.com/Altinity/clickhouse-grafana/issues/712",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT (${type})",
+                "format": "table"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "No repeat, single quotes, shall not work",
+        "gridPos": {
+          "x": 0,
+          "y": 7,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p9",
+            "type": "table",
+            "title": "No repeat, single quotes",
+            "description": "shall not work,  https://github.com/Altinity/clickhouse-grafana/issues/712",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT ('${type}')",
+                "format": "table"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "row",
+        "title": "Repeat, single quotes, shall not work",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p8",
+            "type": "table",
+            "title": "repeat, $type",
+            "description": "https://github.com/Altinity/clickhouse-grafana/issues/712",
+            "gridPos": {
+              "x": 0,
+              "y": 15,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT ('${type}')",
+                "format": "table"
+              }
+            ],
+            "repeat": "type",
+            "repeatDirection": "h"
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Repeat, no single quotes, shall works",
+        "gridPos": {
+          "x": 0,
+          "y": 21,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "table",
+            "title": "repeat, $type",
+            "description": "https://github.com/Altinity/clickhouse-grafana/issues/712",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT (${type})",
+                "format": "table"
+              }
+            ],
+            "repeat": "type",
+            "repeatDirection": "h"
+          }
+        ]
+      }
+    ]
+  }
+}
