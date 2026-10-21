@@ -16,7 +16,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { ResolvedLink } from "@/panels/field-config"
+import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps } from "./dashboard-links"
@@ -211,11 +211,7 @@ export function PanelChrome({
         </div>
       </header>
       <div className="min-h-0 flex-1">
-        {state === "loading" ? (
-          <div className="size-full p-2 pt-0">
-            <Skeleton className="size-full animate-none motion-safe:animate-pulse" />
-          </div>
-        ) : null}
+        {state === "loading" ? <PanelSkeleton /> : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
             {isDataPanel(panel) ? (panel.noValue ?? "No data") : "No data"}

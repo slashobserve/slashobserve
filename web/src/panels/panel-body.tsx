@@ -2,11 +2,11 @@ import { Suspense, useMemo } from "react"
 
 import type { Selections } from "@/api/keys"
 import type { PanelDataResponse } from "@/dashboards/queries"
-import { Skeleton } from "@/components/ui/skeleton"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import { createFieldResolver, type FieldResolver } from "./field-config"
 import { dataRenderers, staticRenderers } from "./index"
+import { PanelSkeleton } from "./panel-skeleton"
 import { prepareFrames } from "./transforms"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
@@ -80,7 +80,7 @@ export function PanelBody({
   )
   const Renderer = dataRenderers[asTable ? "table" : panel.type]
   return (
-    <Suspense fallback={<Skeleton className="size-full" />}>
+    <Suspense fallback={<PanelSkeleton />}>
       {Renderer ? (
         <Renderer
           panel={panel}
@@ -110,7 +110,7 @@ export function StaticPanelBody({
 }: StaticPanelProps) {
   const Renderer = staticRenderers[panel.type]
   return (
-    <Suspense fallback={<Skeleton className="size-full" />}>
+    <Suspense fallback={<PanelSkeleton />}>
       {Renderer ? (
         <Renderer panel={panel} width={width} height={height} vars={vars} />
       ) : (
