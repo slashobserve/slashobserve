@@ -252,11 +252,9 @@ func operandText(v any) string {
 func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {
 	t := spec.Transform{Type: "calculateField"}
 	mode := asString(opts["mode"])
-	if mode == "" {
-		mode = "binary"
-		if _, hasReduce := opts["reduce"]; hasReduce && opts["binary"] == nil {
-			mode = "reduceRow"
-		}
+	defaulted := mode == ""
+	if defaulted {
+		mode = "reduceRow"
 	}
 	var fallback string
 	switch mode {
@@ -275,6 +273,9 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 			return t, false
 		}
 		t.ReduceRow, fallback = reducer, reducer
+		if defaulted && reducer == "sum" {
+			fallback = "Total"
+		}
 		if present(reduce["include"]) {
 			b.partial(path+".options.reduce.include", "")
 		}

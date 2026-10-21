@@ -3,6 +3,7 @@ package grafana
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -352,6 +353,33 @@ func TestSinglestatWithoutASparklineShowsNoGraph(t *testing.T) {
 			graph := panel.Display == nil || panel.Display.Graph == nil || *panel.Display.Graph
 			if graph != tc.wantGraph {
 				t.Fatalf("graph = %v, want %v (display %+v)", graph, tc.wantGraph, panel.Display)
+			}
+		})
+	}
+}
+
+func calculateFields(t *testing.T, transformation string) []spec.Transform {
+	t.Helper()
+	panel, _ := convertedPanel(t, panelDoc("table", upTarget+`,"transformations":[`+transformation+`]`))
+	return panel.Transform
+}
+
+func TestCalculateFieldDefaultsToTotalOfTheRow(t *testing.T) {
+	cases := []struct {
+		name, transformation string
+		want                 spec.Transform
+	}{
+		{"no options", `{"id":"calculateField"}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Total"}},
+		{"empty options", `{"id":"calculateField","options":{}}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Total"}},
+		{"alias only", `{"id":"calculateField","options":{"alias":"Sum of all"}}`, spec.Transform{Type: "calculateField", ReduceRow: "sum", Alias: "Sum of all"}},
+		{"reducer without mode", `{"id":"calculateField","options":{"reduce":{"reducer":"max"},"alias":"Peak"}}`, spec.Transform{Type: "calculateField", ReduceRow: "max", Alias: "Peak"}},
+		{"binary mode stays binary", `{"id":"calculateField","options":{"mode":"binary","binary":{"left":"a","operator":"+","right":"b"},"alias":"ab"}}`, spec.Transform{Type: "calculateField", Expr: "a + b", Alias: "ab"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := calculateFields(t, tc.transformation)
+			if len(got) != 1 || !reflect.DeepEqual(got[0], tc.want) {
+				t.Fatalf("transform = %+v, want [%+v]", got, tc.want)
 			}
 		})
 	}
