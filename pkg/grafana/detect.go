@@ -75,6 +75,7 @@ func load(raw []byte) (*source, error) {
 	if !hasPanelsOrRows(src.dash) {
 		return nil, inputErrorf(codeNotADashboard, "the JSON is not a Grafana dashboard: it has no panels or rows")
 	}
+	inlineLibraryPanels(src.dash)
 	top, legacy := buildNodes(src.dash)
 	src.legacy = legacy
 	src.nodes, src.clones = arrange(top)
