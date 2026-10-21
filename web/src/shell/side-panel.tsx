@@ -23,6 +23,7 @@ type Props = {
   footer?: ReactNode
   initialFocus?: RefObject<HTMLElement | null>
   trigger?: RefObject<HTMLElement | null>
+  titleRef?: RefObject<HTMLHeadingElement | null>
   children: ReactNode
 }
 
@@ -40,11 +41,13 @@ function PanelCard({
   footer,
   initialFocus,
   trigger,
+  titleRef: titleRefProp,
   children,
 }: Props) {
   const titleId = useId()
   const asideRef = useRef<HTMLElement>(null)
-  const titleRef = useRef<HTMLHeadingElement>(null)
+  const ownTitleRef = useRef<HTMLHeadingElement>(null)
+  const titleRef = titleRefProp ?? ownTitleRef
 
   useEffect(() => {
     const previous = document.activeElement
@@ -59,7 +62,7 @@ function PanelCard({
           : triggerElement
       target?.focus()
     }
-  }, [initialFocus, trigger])
+  }, [initialFocus, trigger, titleRef])
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape" || closeDisabled) return

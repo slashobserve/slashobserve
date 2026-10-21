@@ -352,6 +352,39 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(rows.nth(0)).toBeFocused()
     })
 
+    test("moves focus to the panel heading when a successful retry returns an empty list", async ({
+      page,
+      consoleErrors,
+    }) => {
+      let failed = false
+      await mockHistoryList(page, (_cursor, route) => {
+        if (!failed) {
+          failed = true
+          return route.fulfill({
+            status: 500,
+            json: { error: "list boom", code: "internal" },
+          })
+        }
+        return route.fulfill({ json: historyList([], null) })
+      })
+
+      await openHistory(page)
+      const aside = panel(page)
+      const retry = aside.getByRole("button", { name: "Retry" })
+      await expect(retry).toBeVisible()
+      await failedListLogged(consoleErrors, 1)
+
+      await retry.focus()
+      await page.keyboard.press("Enter")
+      await expect(
+        aside.getByText("No requests yet. Ask for a dashboard to start one.")
+      ).toBeVisible()
+      await expect(retry).toHaveCount(0)
+      await expect(
+        aside.getByRole("heading", { level: 2, name: "History" })
+      ).toBeFocused()
+    })
+
     test.describe("on a phone", () => {
       test.use({ viewport: { width: 390, height: 844 } })
 

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react"
+import { useEffect, useId, useRef, type RefObject } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { HistoryIcon } from "lucide-react"
 
@@ -27,6 +27,7 @@ export function ChatHistory({
   const setOpen = useHistoryPanel((state) => state.setOpen)
   const panelId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
 
   return (
     <>
@@ -49,9 +50,14 @@ export function ChatHistory({
           title="History"
           description="Your requests, newest first."
           trigger={trigger}
+          titleRef={heading}
           onClose={() => setOpen(false)}
         >
-          <HistoryList panelId={panelId} currentRequestId={currentRequestId} />
+          <HistoryList
+            panelId={panelId}
+            heading={heading}
+            currentRequestId={currentRequestId}
+          />
         </SidePanel>
       ) : null}
     </>
@@ -60,9 +66,11 @@ export function ChatHistory({
 
 function HistoryList({
   panelId,
+  heading,
   currentRequestId,
 }: {
   panelId: string
+  heading: RefObject<HTMLHeadingElement | null>
   currentRequestId?: string
 }) {
   const navigate = useNavigate()
@@ -89,9 +97,9 @@ function HistoryList({
       focusRow(from)
     } else if (onBody) {
       if (rowCount > 0) focusRow(rowCount - 1)
-      else retryButton.current?.focus()
+      else (retryButton.current ?? heading.current)?.focus()
     }
-  }, [rowCount, fetching])
+  }, [rowCount, fetching, heading])
 
   const retry = () => {
     focusFrom.current = 0
