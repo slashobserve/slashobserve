@@ -4,12 +4,6 @@ import { queryRef, type DataPanel } from "@/spec"
 export type WireField = WireFrame["fields"][number]
 export type ColumnType = WireField["type"]
 
-export type TableColumn = { key: string; label: string; type: ColumnType }
-export type TableData = {
-  columns: TableColumn[]
-  rows: Record<string, unknown>[]
-}
-
 const legendToken = /\{\{\s*([^{}\s]+)\s*\}\}/g
 
 function escapeLabelValue(value: string): string {
@@ -98,15 +92,6 @@ export function lastNumber(field: WireField): number | null {
   return null
 }
 
-function lastValue(field: WireField): unknown {
-  if (field.type === "number") return lastNumber(field)
-  for (let i = field.values.length - 1; i >= 0; i--) {
-    const value = field.values[i]
-    if (value !== null && value !== undefined) return value
-  }
-  return null
-}
-
 export type NumberSeries = {
   key: string
   label: string
@@ -145,88 +130,4 @@ export function hasData(frames: WireFrame[]): boolean {
         field.values.some((value) => value !== null && value !== undefined)
     )
   )
-}
-
-function hasLabels(frame: WireFrame): boolean {
-  return Object.keys(frame.labels ?? {}).length > 0
-}
-
-const refColumn: TableColumn = {
-  key: "query:ref",
-  label: "Query",
-  type: "string",
-}
-
-function unlabeledTable(frames: WireFrame[]): TableData {
-  const withRef = new Set(frames.map((frame) => frame.ref)).size > 1
-  const columns: TableColumn[] = withRef ? [refColumn] : []
-  const known = new Set(columns.map((column) => column.key))
-  const rows: Record<string, unknown>[] = []
-  for (const frame of frames) {
-    const used = new Set<string>()
-    const keys = frame.fields.map((field, index) => {
-      let key = `field:${field.name}`
-      if (used.has(key)) key = `${key}#${index}`
-      used.add(key)
-      if (!known.has(key)) {
-        known.add(key)
-        columns.push({ key, label: field.name, type: field.type })
-      }
-      return key
-    })
-    const rowCount = Math.max(0, ...frame.fields.map((f) => f.values.length))
-    for (let i = 0; i < rowCount; i++) {
-      const row: Record<string, unknown> = withRef
-        ? { [refColumn.key]: frame.ref }
-        : {}
-      frame.fields.forEach((field, index) => {
-        row[keys[index]] = field.values[i] ?? null
-      })
-      rows.push(row)
-    }
-  }
-  for (const row of rows) {
-    for (const column of columns) row[column.key] ??= null
-  }
-  return { columns, rows }
-}
-
-export function toTable(frames: WireFrame[]): TableData {
-  if (frames.length > 0 && !frames.some(hasLabels)) {
-    return unlabeledTable(frames)
-  }
-
-  const labelKeys = [
-    ...new Set(frames.flatMap((frame) => Object.keys(frame.labels ?? {}))),
-  ].sort()
-  const valueFields = new Map<string, ColumnType>()
-  for (const frame of frames) {
-    for (const field of frame.fields) {
-      if (field.type !== "time" && !valueFields.has(field.name)) {
-        valueFields.set(field.name, field.type)
-      }
-    }
-  }
-  const columns: TableColumn[] = [
-    ...labelKeys.map((key) => ({
-      key: `label:${key}`,
-      label: key,
-      type: "string" as const,
-    })),
-    ...[...valueFields].map(([name, type]) => ({
-      key: `field:${name}`,
-      label: name,
-      type,
-    })),
-  ]
-  const rows = frames.map((frame) => {
-    const row: Record<string, unknown> = {}
-    for (const key of labelKeys)
-      row[`label:${key}`] = frame.labels?.[key] ?? null
-    for (const field of frame.fields) {
-      if (field.type !== "time") row[`field:${field.name}`] = lastValue(field)
-    }
-    return row
-  })
-  return { columns, rows }
 }
