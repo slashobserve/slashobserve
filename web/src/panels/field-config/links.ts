@@ -12,6 +12,9 @@ export type LinkScope = {
   to?: string
   row?: { frame: WireFrame; index: number }
   fields?: FieldResolver
+  fromMs?: number
+  toMs?: number
+  labels?: Record<string, string>
   seriesName?: string
   fieldName?: string
   value?: unknown
@@ -26,7 +29,8 @@ const dataTokens = ["${__data.", "${__value", "${__series", "${__field"]
 const allowedProtocols = new Set(["http:", "https:", "mailto:"])
 const token = /\$\{([^}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g
 const dataField = /^__data\.fields(?:\.(.+)|\[\s*(?:"([^"]*)"|'([^']*)')\s*\])$/
-const queryParamVar = /^([A-Za-z_][A-Za-z0-9_]*):queryparam$/
+const formatSuffix = /^(.+):(raw|text|csv|percentencode|queryparam)$/
+const labelPrefix = "__field.labels."
 const plainVar = /^[A-Za-z_][A-Za-z0-9_]*$/
 const allLabel = "All"
 
@@ -55,50 +59,82 @@ function selectionOf(scope: LinkScope, name: string): string[] | null {
   return Object.hasOwn(scope.vars, name) ? scope.vars[name] : null
 }
 
+function valuesOf(name: string, scope: LinkScope): string[] | null {
+  const field = dataField.exec(name)
+  if (field) {
+    const value = rowValue(scope, field[1] ?? field[2] ?? field[3])
+    return value === null ? null : [value]
+  }
+  if (name === "__value.raw") {
+    if (scope.value === undefined) return null
+    return [scope.value === null ? "" : String(scope.value)]
+  }
+  if (name === "__value.text") {
+    return scope.valueText === undefined ? null : [scope.valueText]
+  }
+  if (name === "__series.name") {
+    return scope.seriesName === undefined ? null : [scope.seriesName]
+  }
+  if (name === "__field.name") {
+    return scope.fieldName === undefined ? null : [scope.fieldName]
+  }
+  if (name.startsWith(labelPrefix)) {
+    const key = name.slice(labelPrefix.length)
+    const { labels } = scope
+    return labels && Object.hasOwn(labels, key) ? [labels[key]] : null
+  }
+  if (name === "__from") {
+    return scope.fromMs === undefined ? null : [String(scope.fromMs)]
+  }
+  if (name === "__to") {
+    return scope.toMs === undefined ? null : [String(scope.toMs)]
+  }
+  if (plainVar.test(name)) {
+    const values = selectionOf(scope, name)
+    if (!values) return null
+    return values.includes(ALL) ? [allLabel] : values
+  }
+  return null
+}
+
+function formatValues(
+  values: string[],
+  format: string | undefined,
+  encode: Encode
+): string {
+  switch (format) {
+    case "raw":
+    case "csv":
+      return values.join(",")
+    case "text":
+      return values.join(" + ")
+    case "percentencode":
+      return encodeURIComponent(values.join(","))
+    default:
+      return encode(values.join(","))
+  }
+}
+
 function tokenValue(
   inner: string,
   scope: LinkScope,
   encode: Encode
 ): string | null {
-  const name = inner.trim()
-  if (name === "__url_time_range") {
+  const written = inner.trim()
+  if (written === "__url_time_range") {
     if (scope.from === undefined || scope.to === undefined) return null
     return `from=${encode(scope.from)}&to=${encode(scope.to)}`
   }
-  const field = dataField.exec(name)
-  if (field) {
-    const written = field[1] ?? field[2] ?? field[3]
-    const value = rowValue(scope, written)
-    return value === null ? null : encode(value)
+  const suffix = formatSuffix.exec(written)
+  const name = suffix ? suffix[1] : written
+  const format = suffix?.[2]
+  if (format === "queryparam") {
+    const selected = plainVar.test(name) ? selectionOf(scope, name) : null
+    if (!selected) return null
+    return selected.map((value) => `var-${name}=${encode(value)}`).join("&")
   }
-  if (name === "__value.raw") {
-    if (scope.value === undefined) return null
-    const raw = scope.value === null ? "" : String(scope.value)
-    return encode(raw)
-  }
-  if (name === "__value.text") {
-    return scope.valueText === undefined ? null : encode(scope.valueText)
-  }
-  if (name === "__series.name") {
-    return scope.seriesName === undefined ? null : encode(scope.seriesName)
-  }
-  if (name === "__field.name") {
-    return scope.fieldName === undefined ? null : encode(scope.fieldName)
-  }
-  const queryParam = queryParamVar.exec(name)
-  if (queryParam) {
-    const values = selectionOf(scope, queryParam[1])
-    if (!values) return null
-    return values
-      .map((value) => `var-${queryParam[1]}=${encode(value)}`)
-      .join("&")
-  }
-  if (plainVar.test(name)) {
-    const values = selectionOf(scope, name)
-    if (!values) return null
-    return encode(values.includes(ALL) ? allLabel : values.join(","))
-  }
-  return null
+  const values = valuesOf(name, scope)
+  return values && formatValues(values, format, encode)
 }
 
 function interpolate(text: string, scope: LinkScope, encode: Encode): string {

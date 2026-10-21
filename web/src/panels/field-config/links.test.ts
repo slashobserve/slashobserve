@@ -47,6 +47,12 @@ describe("link interpolation", () => {
     )
   })
 
+  it("keeps the All selection as its variable value in query parameters", () => {
+    expect(href("/d?${pod:queryparam}", { vars: { pod: ["$__all"] } })).toBe(
+      "/d?var-pod=%24__all"
+    )
+  })
+
   it("writes the time range", () => {
     expect(href("/d?${__url_time_range}", { from: "now-6h", to: "now" })).toBe(
       "/d?from=now-6h&to=now"
@@ -123,6 +129,52 @@ describe("link interpolation", () => {
     ).toBe("/v?raw=0.5&text=50%25&s=web%201&f=Value")
   })
 
+  it("formats variables as raw, csv, text or percentencode", () => {
+    const vars = { pod: ["a b", "c/d"] }
+    expect(href("/d?x=${pod:raw}", { vars })).toBe("/d?x=a b,c/d")
+    expect(href("/d?x=${pod:csv}", { vars })).toBe("/d?x=a b,c/d")
+    expect(href("/d?x=${pod:text}", { vars })).toBe("/d?x=a b + c/d")
+    expect(href("/d?x=${pod:percentencode}", { vars })).toBe(
+      "/d?x=a%20b%2Cc%2Fd"
+    )
+    expect(href("/d?x=${pod:nope}", { vars })).toBe("/d?x=${pod:nope}")
+  })
+
+  it("formats a data field of the row", () => {
+    const frame: WireFrame = {
+      ref: "A",
+      fields: [{ name: "route", type: "string", values: ["/a b", "/c d"] }],
+    }
+    const row = { frame, index: 1 }
+    expect(href("/r?x=${__data.fields.route:raw}", { row })).toBe("/r?x=/c d")
+    expect(href("/r?x=${__data.fields.route:percentencode}", { row })).toBe(
+      "/r?x=%2Fc%20d"
+    )
+  })
+
+  it("writes the time range as epoch milliseconds", () => {
+    expect(
+      href("/d?from=${__from}&to=${__to}", { fromMs: 1000, toMs: 2500 })
+    ).toBe("/d?from=1000&to=2500")
+    expect(href("/d?from=${__from}")).toBe("/d?from=${__from}")
+  })
+
+  it("reads a label of the series", () => {
+    const labels = { pod: "web 1" }
+    expect(href("/d?pod=${__field.labels.pod}", { labels })).toBe(
+      "/d?pod=web%201"
+    )
+    expect(href("/d?x=${__field.labels.nope}", { labels })).toBe(
+      "/d?x=${__field.labels.nope}"
+    )
+    expect(href("/d?x=${__field.labels.constructor}", { labels })).toBe(
+      "/d?x=${__field.labels.constructor}"
+    )
+    expect(href("/d?x=${__field.labels.pod}")).toBe(
+      "/d?x=${__field.labels.pod}"
+    )
+  })
+
   it("encodes substituted values", () => {
     expect(href("/d?q=${pod}", { vars: { pod: ["a b&c"] } })).toBe(
       "/d?q=a%20b%26c"
@@ -131,8 +183,8 @@ describe("link interpolation", () => {
 
   it("keeps an unknown token as written", () => {
     expect(
-      href("/d?x=${nope}&y=$other&z=${pod:csv}", { vars: { pod: ["a"] } })
-    ).toBe("/d?x=${nope}&y=$other&z=${pod:csv}")
+      href("/d?x=${nope}&y=$other&z=${pod:bogus}", { vars: { pod: ["a"] } })
+    ).toBe("/d?x=${nope}&y=$other&z=${pod:bogus}")
   })
 
   it("does not look up variables on the prototype", () => {
