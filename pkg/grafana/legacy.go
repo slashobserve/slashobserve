@@ -487,13 +487,13 @@ func (b *panelBuild) singlestatThresholds(p *spec.FieldProps) {
 	text := strings.TrimSpace(asString(b.raw["thresholds"]))
 	colors := stringList(b.raw["colors"])
 	b.consume("thresholds", "colors")
-	if len(colors) == 0 {
-		return
-	}
 	if text == "" {
-		if truthy(b.raw["colorValue"]) || truthy(b.raw["colorBackground"]) {
+		if b.typ == spec.Gauge || truthy(b.raw["colorValue"]) || truthy(b.raw["colorBackground"]) {
 			p.Thresholds = grafanaStatThresholds()
 		}
+		return
+	}
+	if len(colors) == 0 {
 		return
 	}
 	levels := strings.Split(text, ",")

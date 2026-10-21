@@ -407,7 +407,12 @@ func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 		{"blank levels with a colored background get Grafana's defaults", colors + `,"thresholds":"  ","colorBackground":true`, defaults},
 		{"missing levels with colored values get Grafana's defaults", colors + `,"colorValue":true`, defaults},
 		{"levels win over the defaults", colors + `,"thresholds":"50,80","colorValue":true`, []string{"ok", "warning@50", "critical@80"}},
-		{"colored values without colors write none", `"thresholds":"","colorValue":true`, []string{}},
+		{"colored values without colors get Grafana's defaults", `"thresholds":"","colorValue":true`, defaults},
+		{"a colored background without colors gets Grafana's defaults", `"colorBackground":true`, defaults},
+		{"an uncolored stat without colors writes none", `"thresholds":""`, []string{}},
+		{"a gauge with empty levels gets Grafana's defaults whatever the color flags", `"gauge":{"show":true},"thresholds":"","colorValue":false,"colorBackground":false`, defaults},
+		{"a gauge without colors or levels gets Grafana's defaults", `"gauge":{"show":true}`, defaults},
+		{"a gauge with levels and colors keeps them", `"gauge":{"show":true},` + colors + `,"thresholds":"50,80"`, []string{"ok", "warning@50", "critical@80"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
