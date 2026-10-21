@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { displayWithDefaults } from "@/spec"
+
 import type { FieldConfig } from "../field-config"
 import {
   axesInUse,
@@ -201,21 +203,23 @@ describe("formatTogether", () => {
 })
 
 describe("timeseriesDisplay", () => {
-  it("falls back to the defaults for missing or unknown options", () => {
-    expect(timeseriesDisplay({ legend: "left", tooltip: 4 })).toEqual({
+  it("reads the Spec defaults merged by displayWithDefaults", () => {
+    expect(timeseriesDisplay(displayWithDefaults("timeseries", {}))).toEqual({
       legend: "bottom",
       legendValues: [],
       tooltip: "single",
     })
   })
 
-  it("keeps known reducers and drops unknown ones", () => {
+  it("passes configured options through", () => {
     expect(
-      timeseriesDisplay({
-        legend: "right",
-        legendValues: ["mean", "nope", "max"],
-        tooltip: "hidden",
-      })
+      timeseriesDisplay(
+        displayWithDefaults("timeseries", {
+          legend: "right",
+          legendValues: ["mean", "max"],
+          tooltip: "hidden",
+        })
+      )
     ).toEqual({
       legend: "right",
       legendValues: ["mean", "max"],

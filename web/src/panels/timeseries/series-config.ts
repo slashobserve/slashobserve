@@ -3,7 +3,6 @@ import type { Reducer } from "@/spec"
 
 import { styleForSlot, type LineStyle, type SlotMap } from "../colors"
 import { displayValue, type FieldConfig } from "../field-config"
-import { reducerLabels } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { AlignedSeries } from "./align"
 
@@ -189,22 +188,12 @@ export type TimeseriesDisplay = {
   tooltip: "single" | "all" | "hidden"
 }
 
-const legendPlacements = ["bottom", "right", "hidden"] as const
-const tooltipModes = ["single", "all", "hidden"] as const
-
 export function timeseriesDisplay(
   display: Record<string, unknown>
 ): TimeseriesDisplay {
-  const legend = legendPlacements.find((value) => value === display.legend)
-  const tooltip = tooltipModes.find((value) => value === display.tooltip)
-  const reducers = Array.isArray(display.legendValues)
-    ? display.legendValues.filter((value): value is Reducer =>
-        Object.hasOwn(reducerLabels, value)
-      )
-    : []
   return {
-    legend: legend ?? "bottom",
-    legendValues: reducers,
-    tooltip: tooltip ?? "single",
+    legend: display.legend as TimeseriesDisplay["legend"],
+    legendValues: display.legendValues as Reducer[],
+    tooltip: display.tooltip as TimeseriesDisplay["tooltip"],
   }
 }
