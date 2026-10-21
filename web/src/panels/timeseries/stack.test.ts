@@ -165,6 +165,15 @@ describe("stackSeries", () => {
     )
     expect(below).toEqual([null, null, 0, null, null, 3, null])
   })
+
+  it("reports each series' stack direction", () => {
+    const { directions } = stackSeries(
+      [[1], [-1], [2]],
+      ["normal", "normal", "none"],
+      ["y", "y", "y"]
+    )
+    expect(directions.slice(0, 2)).toEqual([1, -1])
+  })
 })
 
 describe("stackDirection", () => {

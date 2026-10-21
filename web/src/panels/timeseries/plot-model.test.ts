@@ -101,7 +101,10 @@ describe("plotStateFor", () => {
       [11, 11],
       [111, 111],
     ])
-    expect(state.bands).toEqual([{ series: [2, 1] }, { series: [3, 2] }])
+    expect(state.bands).toEqual([
+      { series: [2, 1], dir: -1 },
+      { series: [3, 2], dir: -1 },
+    ])
   })
 
   it("drops the series above a hidden one onto the one below it", () => {
@@ -116,7 +119,7 @@ describe("plotStateFor", () => {
       [10, 10],
       [101, 101],
     ])
-    expect(state.bands).toEqual([{ series: [3, 1] }])
+    expect(state.bands).toEqual([{ series: [3, 1], dir: -1 }])
     expect(below).toEqual([null, null, 0])
     expect(isStacked).toEqual([true, false, true])
   })
@@ -129,7 +132,15 @@ describe("plotStateFor", () => {
       [1, 1],
       [11, 11],
     ])
-    expect(state.bands).toEqual([{ series: [3, 2] }])
+    expect(state.bands).toEqual([{ series: [3, 2], dir: -1 }])
+  })
+
+  it("fills a negative stack towards zero, the other way round from a positive one", () => {
+    const up = stacked("up", [5, 5])
+    const down1 = stacked("down1", [-1, -1])
+    const down2 = stacked("down2", [-2, -2])
+    const { state } = plotStateFor([1, 2], [], [up, down1, down2], new Set())
+    expect(state.bands).toEqual([{ series: [3, 2], dir: 1 }])
   })
 })
 

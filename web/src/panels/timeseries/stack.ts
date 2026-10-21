@@ -7,6 +7,7 @@ export type Direction = 1 | -1
 export type Stacked = {
   drawn: Cell[][]
   below: (number | null)[]
+  directions: Direction[]
 }
 
 const directionSamples = 100
@@ -55,6 +56,7 @@ export function stackSeries(
 ): Stacked {
   const drawn: Cell[][] = values.map((series) => [...series])
   const below = modes.map(() => null as number | null)
+  const directions = modes.map((): Direction => 1)
   for (const { members, mode, direction } of stackGroups(values, modes, axes)) {
     const length = values[members[0]].length
     const sums = new Array<number>(length).fill(0)
@@ -66,6 +68,7 @@ export function stackSeries(
     }
     members.forEach((index, position) => {
       below[index] = position === 0 ? null : members[position - 1]
+      directions[index] = direction
       drawn[index] = values[index].map((value, at) => {
         sums[at] += value ?? 0
         if (value == null) return value
@@ -74,5 +77,5 @@ export function stackSeries(
       })
     })
   }
-  return { drawn, below }
+  return { drawn, below, directions }
 }

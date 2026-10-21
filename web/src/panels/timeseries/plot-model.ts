@@ -20,7 +20,7 @@ export type ChartSeries = StyledSeries & {
 
 export type PlotState = {
   data: [number[], ...Cell[][]]
-  bands: { series: [number, number] }[]
+  bands: { series: [number, number]; dir: 1 | -1 }[]
   hidden: ReadonlySet<string>
 }
 
@@ -79,7 +79,7 @@ export function plotStateFor(
   const modes = series.map(({ key, stack }) =>
     hidden.has(key) ? "none" : stack
   )
-  const { drawn, below } = stackSeries(
+  const { drawn, below, directions } = stackSeries(
     series.map(({ values }) => values),
     modes,
     series.map(({ axis }) => axis)
@@ -89,7 +89,14 @@ export function plotStateFor(
     state: {
       data: [xs, ...ghosts, ...drawn],
       bands: below.flatMap((lower, index) =>
-        lower === null ? [] : [{ series: [first + index, first + lower] }]
+        lower === null
+          ? []
+          : [
+              {
+                series: [first + index, first + lower],
+                dir: directions[index] === 1 ? -1 : 1,
+              },
+            ]
       ),
       hidden,
     },
