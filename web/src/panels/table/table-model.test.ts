@@ -203,19 +203,31 @@ describe("table footer", () => {
     ])
   })
 
-  it("leaves the footer empty over a column that mixes units", () => {
+  it("leaves the unit-bearing footers empty and keeps the counts over a column that mixes units", () => {
     const { model } = build(
       [
         frame([number([90], "n")], { ref: "A" }),
         frame([number([2048], "n")], { ref: "B" }),
+        frame([number([2048], "n")], { ref: "C" }),
       ],
       {
         unit: "s",
-        overrides: [{ match: { query: "B" }, unit: "bytes" }],
+        overrides: [
+          { match: { query: "B" }, unit: "bytes" },
+          { match: { query: "C" }, unit: "bytes" },
+        ],
       },
-      { footer: ["sum"] }
+      {
+        footer: ["sum", "mean", "count", "distinctCount", "changeCount"],
+      }
     )
-    expect(model.footer).toEqual([{ label: "Total", cells: [null, null] }])
+    expect(model.footer).toEqual([
+      { label: "Total", cells: [null, null] },
+      { label: "Mean", cells: [null, null] },
+      { label: "Count", cells: [null, "3"] },
+      { label: "Distinct count", cells: [null, "2"] },
+      { label: "Change count", cells: [null, "1"] },
+    ])
   })
 
   it("counts rows without the column unit", () => {
