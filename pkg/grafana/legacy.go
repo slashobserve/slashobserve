@@ -219,7 +219,10 @@ func (b *panelBuild) graphLegendAndTooltip() {
 			}
 		}
 	}
-	b.consume("legend.show", "legend.rightSide", "legend.alignAsTable", "legend.values")
+	b.consume("legend.show", "legend.rightSide", "legend.values")
+	if !truthy(legend["alignAsTable"]) {
+		b.consume("legend.alignAsTable")
+	}
 	for _, calc := range legendCalcs {
 		b.consume("legend." + calc.key)
 	}

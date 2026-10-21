@@ -97,9 +97,11 @@ func (b *panelBuild) applyCalcs(d *spec.Display, calcs []string) {
 
 func (b *panelBuild) legendPlacement(fallback string) string {
 	show, hasShow := b.boolOption("options.legend.showLegend")
-	mode := b.enumOption("options.legend.displayMode", "list", "table", "hidden")
+	mode := b.enumOption("options.legend.displayMode", "list", "hidden")
 	placement := b.enumOption("options.legend.placement", "right", "bottom")
-	b.boolOption("options.legend.asTable")
+	if v, ok := b.value("options.legend.asTable"); ok && !truthy(v) {
+		b.consume("options.legend.asTable")
+	}
 	switch {
 	case hasShow && !*show, mode == "hidden":
 		return "hidden"

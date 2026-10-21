@@ -9,7 +9,10 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const genericPartialReason = "Some Grafana options of this panel are not supported yet."
+const (
+	genericPartialReason = "Some Grafana options of this panel are not supported yet."
+	legendTableReason    = "Legend tables are not supported; the legend is a plain list."
+)
 
 var grafanaDefaults = map[string]any{
 	"fieldConfig.defaults.custom.lineWidth":              1,
@@ -132,6 +135,9 @@ var partialReasons = map[string]string{
 	"fieldConfig.overrides":                         "Some overrides use matchers or properties that are not supported yet.",
 	"transformations":                               "Some transformations are not supported yet.",
 	"options.displayMode":                           "Bar styles are drawn in the SlashObserve style.",
+	"options.legend.displayMode":                    legendTableReason,
+	"options.legend.asTable":                        legendTableReason,
+	"legend.alignAsTable":                           legendTableReason,
 	"options.minVizHeight":                          "Size limits are not kept.",
 	"options.minVizWidth":                           "Size limits are not kept.",
 	"options.showThresholdLabels":                   "Threshold labels are not shown.",

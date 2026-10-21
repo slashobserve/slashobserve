@@ -451,3 +451,51 @@ func TestDatasourceVariableIsNotedOnceForTheDashboardNotPerPanel(t *testing.T) {
 		t.Fatalf("p1 = %+v, want datasource prom", entry.Panel)
 	}
 }
+
+const wantLegendTableReason = "Legend tables are not supported; the legend is a plain list."
+
+func TestLegendTablesAreReportedBecauseTheSpecHasNoTableLegend(t *testing.T) {
+	cases := []struct {
+		name  string
+		panel func(t *testing.T) (spec.Panel, PanelLine)
+		paths []string
+	}{
+		{"table display mode", func(t *testing.T) (spec.Panel, PanelLine) {
+			return convertedPanel(t, panelDoc("timeseries", upTarget+`,"options":{"legend":{"displayMode":"table","placement":"bottom","showLegend":true,"calcs":["mean"]}}`))
+		}, []string{"options.legend.displayMode"}},
+		{"as table flag", func(t *testing.T) (spec.Panel, PanelLine) {
+			return convertedPanel(t, panelDoc("timeseries", upTarget+`,"options":{"legend":{"displayMode":"list","asTable":true,"showLegend":true}}`))
+		}, []string{"options.legend.asTable"}},
+		{"legacy aligned as table", func(t *testing.T) (spec.Panel, PanelLine) {
+			return graphPanel(t, `"legend":{"alignAsTable":true,"show":true}`)
+		}, []string{"legend.alignAsTable"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, line := tc.panel(t)
+			if line.Status != statusPartial || !slices.Equal(line.Paths, tc.paths) || !slices.Contains(line.Reasons, wantLegendTableReason) {
+				t.Fatalf("status %s, paths %v, reasons %v, want %v and %q", line.Status, line.Paths, line.Reasons, tc.paths, wantLegendTableReason)
+			}
+		})
+	}
+}
+
+func TestPlainLegendOptionsReportNothing(t *testing.T) {
+	cases := map[string]func(t *testing.T) PanelLine{
+		"list": func(t *testing.T) PanelLine {
+			_, line := convertedPanel(t, panelDoc("timeseries", upTarget+`,"options":{"legend":{"displayMode":"list","asTable":false,"placement":"right","showLegend":true,"calcs":["max"]}}`))
+			return line
+		},
+		"legacy not a table": func(t *testing.T) PanelLine {
+			_, line := graphPanel(t, `"legend":{"alignAsTable":false,"show":true}`)
+			return line
+		},
+	}
+	for name, run := range cases {
+		t.Run(name, func(t *testing.T) {
+			if line := run(t); line.Status != statusImported || len(line.Paths) != 0 {
+				t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+			}
+		})
+	}
+}
