@@ -72,6 +72,42 @@ func errorCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return body.Code
 }
 
+func TestTheRoutesRefuseABadMappingWith400(t *testing.T) {
+	r := newRig(t)
+	router := newRouter(r.imports)
+	tooMany := map[string]string{}
+	for i := range imports.MaxMappingEntries + 1 {
+		tooMany["key"+strconv.Itoa(i)] = "prom"
+	}
+	for name, mapping := range map[string]map[string]string{
+		"51 entries":       tooMany,
+		"a 201 byte key":   {strings.Repeat("k", 201): "prom"},
+		"a 201 byte value": {"${DS}": strings.Repeat("v", 201)},
+		"an empty value":   {"${DS}": ""},
+		"an empty key":     {"": "prom"},
+	} {
+		for _, path := range []string{"/api/v1/imports/preview", "/api/v1/imports"} {
+			rec := post(router, path, -1, map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "mapping": mapping})
+			if rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
+				t.Errorf("%s %s: %d %s", name, path, rec.Code, rec.Body)
+			}
+		}
+	}
+	assertNothingSaved(t, r)
+}
+
+func TestThePreviewAcceptsAMappingAtTheLimits(t *testing.T) {
+	router := newRouter(newRig(t).imports)
+	atLimit := map[string]string{strings.Repeat("k", 200): strings.Repeat("v", 200)}
+	for i := range imports.MaxMappingEntries - 1 {
+		atLimit["key"+strconv.Itoa(i)] = "prom"
+	}
+	rec := post(router, "/api/v1/imports/preview", -1, map[string]any{"json": string(grafanaJSON("Shop", "prom", 1)), "mapping": atLimit})
+	if rec.Code == http.StatusBadRequest {
+		t.Fatalf("a mapping at the limits: %d %s", rec.Code, rec.Body)
+	}
+}
+
 func TestPreviewSlotsRefuseWith429AndFree(t *testing.T) {
 	gate := typeGateStub{armed: new(atomic.Bool), entered: make(chan struct{}, 64), release: make(chan struct{})}
 	router := newRouter(newRigWith(t, gate).imports)
