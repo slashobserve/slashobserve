@@ -321,6 +321,20 @@ func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
 	}
 }
 
+func TestDroppedTargetTakesItsOmittedPathsWithIt(t *testing.T) {
+	manyIssues := `"legendFormat":"` + strings.Repeat("l", 250) + `","interval":"7x","exemplar":true,"intervalFactor":2,"step":"7x"`
+	targets := `{"refId":"B","expr":"up"},` + strings.Repeat("{},", 98) + `{"refId":"Z","expr":"up{pod=\"$undeclared\"}",` + manyIssues + `}`
+	_, line := convertedPanel(t, panelDoc("timeseries", `"targets":[`+targets+`]`))
+	if len(line.Paths) != 99 {
+		t.Fatalf("paths = %d, want the 98 empty targets and the dropped one", len(line.Paths))
+	}
+	for _, reason := range line.Reasons {
+		if strings.Contains(reason, "more options") {
+			t.Fatalf("reasons = %v, want no count: the dropped target's omitted paths left with it", line.Reasons)
+		}
+	}
+}
+
 func TestRegexPatternsArriveVerbatim(t *testing.T) {
 	override := func(typ, members string) func(*testing.T) string {
 		return func(t *testing.T) string {
