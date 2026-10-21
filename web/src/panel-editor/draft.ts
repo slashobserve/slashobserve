@@ -58,7 +58,7 @@ export type DraftAction =
   | { type: "reset" }
   | { type: "rebase"; version: number; panel: EditablePanel }
 
-const maxQueries = 26
+export const maxQueries = 26
 
 const displayKeys: Record<DataPanelType, readonly string[]> = {
   timeseries: ["legend", "legendValues", "tooltip"],

@@ -15,11 +15,10 @@ import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { cn } from "@/lib/utils"
 import { isDataPanel, queryRef } from "@/spec"
 
-import type { DraftAction, EditablePanel } from "./draft"
+import { maxQueries, type DraftAction, type EditablePanel } from "./draft"
 import { QueryRow } from "./query-row"
 
 export const maxContentLength = 20000
-const maxQueries = 26
 
 type Props = {
   draft: EditablePanel
