@@ -209,7 +209,9 @@ function HistoryMeta({ request }: { request: RequestSummary }) {
     <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
       <StatusLabel tone={view.tone}>
         {request.status === "failed" ? (
-          <span className="max-w-[260px] truncate">{statusText}</span>
+          <span className="max-w-[260px] truncate" title={statusText}>
+            {statusText}
+          </span>
         ) : (
           statusText
         )}
