@@ -342,7 +342,7 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 			return columns{}, fmt.Errorf("marshal import %s: %w", column.name, err)
 		}
 		*column.into = raw
-		for _, issue := range dashboards.NULIssues(raw) {
+		for _, issue := range spec.NULIssues(raw) {
 			issue.Path = "/" + column.name + issue.Path
 			issues = append(issues, issue)
 		}
