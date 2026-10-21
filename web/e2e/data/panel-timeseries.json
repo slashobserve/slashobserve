@@ -1,0 +1,82 @@
+{
+  "specVersion": "0",
+  "title": "E2E timeseries features",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": "ts_overrides",
+      "type": "timeseries",
+      "title": "Requests and errors",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 9 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total[5m]))",
+          "legend": "{{pod}}"
+        },
+        {
+          "query": "sum(rate(http_requests_total[5m]))",
+          "legend": "total"
+        }
+      ],
+      "unit": "reqps",
+      "display": {
+        "legend": "right",
+        "legendValues": ["mean", "max"],
+        "tooltip": "all"
+      },
+      "overrides": [
+        {
+          "match": { "query": "B" },
+          "axis": "right",
+          "color": "critical",
+          "lineStyle": "dashed"
+        },
+        { "match": { "seriesRegex": "checkout-1" }, "hidden": true }
+      ]
+    },
+    {
+      "id": "ts_bars",
+      "type": "timeseries",
+      "title": "Stacked bars",
+      "gridPos": { "x": 0, "y": 9, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (service) (rate(http_requests_total[5m]))",
+          "legend": "{{service}}"
+        }
+      ],
+      "unit": "reqps",
+      "style": "bars",
+      "fill": 50,
+      "stack": "normal"
+    },
+    {
+      "id": "ts_percent",
+      "type": "timeseries",
+      "title": "Percent stack",
+      "gridPos": { "x": 12, "y": 9, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (service) (rate(http_requests_total[5m]))",
+          "legend": "{{service}}"
+        }
+      ],
+      "stack": "percent",
+      "fill": 30
+    },
+    {
+      "id": "ts_points",
+      "type": "timeseries",
+      "title": "Points",
+      "gridPos": { "x": 0, "y": 17, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [{ "query": "sum(rate(http_requests_total[5m]))" }],
+      "unit": "reqps",
+      "style": "points",
+      "display": { "legend": "hidden", "tooltip": "single" }
+    }
+  ]
+}
