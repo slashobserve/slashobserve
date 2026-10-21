@@ -173,7 +173,7 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 			Title:           dash.Title,
 			Mapping:         mappingOf(req),
 			Summary:         result.Summary,
-			Datasources:     datasourcesOf(result),
+			Datasources:     result.Datasources,
 			Report:          result.Report,
 			CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
 			CreatedAt:       inserted.CreatedAt.Time.UTC(),
@@ -332,7 +332,7 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 	}{
 		{"mapping", mappingOf(req), &cols.mapping},
 		{"summary", result.Summary, &cols.summary},
-		{"datasources", datasourcesOf(result), &cols.datasources},
+		{"datasources", result.Datasources, &cols.datasources},
 		{"report", result.Report, &report},
 	} {
 		raw, err := json.Marshal(column.from)
@@ -349,13 +349,6 @@ func encodeColumns(req Request, result *grafana.Result) (columns, error) {
 		return columns{}, &dashboards.InvalidSpecError{Issues: issues}
 	}
 	return cols, nil
-}
-
-func datasourcesOf(result *grafana.Result) []grafana.SourceDatasource {
-	if result.Datasources == nil {
-		return []grafana.SourceDatasource{}
-	}
-	return result.Datasources
 }
 
 func insertParams(req Request, cols columns, report grafana.Report, dash dashboards.Dashboard, ver dashboards.Version, by auth.Principal) (dbsqlc.InsertImportParams, error) {
