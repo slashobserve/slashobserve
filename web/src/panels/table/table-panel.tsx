@@ -114,7 +114,9 @@ function BodyCell({
         <span className="inline-flex items-center gap-1">
           <a
             {...anchorProps(first)}
-            title={[first.title, cell.word].filter(Boolean).join(" - ")}
+            title={
+              [first.title, cell.word].filter(Boolean).join(" - ") || undefined
+            }
             style={style}
             className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
           >
@@ -204,7 +206,6 @@ export const TablePanel: PanelRenderer = ({
       className="overflow-auto text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={{ width, height }}
     >
-      {/* The shadcn Table wrapper adds its own overflow container, which breaks the sticky header */}
       <table data-slot="table" className="w-full caption-bottom">
         <TableHeader
           className={
