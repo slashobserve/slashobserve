@@ -81,8 +81,6 @@ type Meta struct {
 	CreatedAt       time.Time
 }
 
-// A replay of a request id whose dashboard was not created by an import (the agent saved it with
-// create_dashboard) has Replayed true and an empty Record.
 type Imported struct {
 	Record    Record
 	Dashboard dashboards.Dashboard
