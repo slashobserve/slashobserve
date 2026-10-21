@@ -202,38 +202,24 @@ test("keeps other panels working when a renderer chunk fails and reloads the pag
   page,
   request,
 }) => {
-  const spec = loadSpec("overview")
-  spec.title = uniqueTitle("E2E chunk failure")
-  spec.panels = spec.panels.filter((item) => item.type !== "table")
-  const { id } = await createDashboard(request, spec)
-  await openDashboard(page, id)
-  await expectPanelsReady(page)
-
-  const chunk = "**/assets/table-panel-*.js"
+  const id = await createOverview(request)
+  const chunk = "**/assets/stat-panel-*.js"
   await page.route(chunk, (route) => route.abort())
-  const rps = panel(page, rpsTitle)
-  await rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` }).click()
-  await page.getByRole("menuitem", { name: "View as table" }).click()
-  await expect(rps.getByText("Could not load this panel")).toBeVisible()
+  await openDashboard(page, id)
 
   const stat = panel(page, "Checkout error rate")
-  await expect(stat).toHaveAttribute("data-state", "ready")
-  await expect(stat.getByText(/%$/)).toBeVisible()
+  await expect(stat.getByText("Could not load this panel")).toBeVisible()
+  await expect(stat.getByRole("button", { name: "Reload page" })).toBeVisible()
+  await expect(panel(page, rpsTitle).locator("canvas")).toHaveCount(1)
   await expect(panel(page, "Requests by pod").getByRole("meter")).toHaveCount(2)
 
   await page.unroute(chunk)
   await Promise.all([
     page.waitForEvent("load"),
-    rps.getByRole("button", { name: "Reload page" }).click(),
+    stat.getByRole("button", { name: "Reload page" }).click(),
   ])
   await expectPanelsReady(page)
-  await panel(page, rpsTitle)
-    .getByRole("button", { name: `Panel menu: ${rpsTitle}` })
-    .click()
-  await page.getByRole("menuitem", { name: "View as table" }).click()
-  await expect(
-    panel(page, rpsTitle).getByRole("columnheader", { name: "pod" })
-  ).toBeVisible()
+  await expect(panel(page, "Checkout error rate").getByText(/%$/)).toBeVisible()
 })
 
 test("renders in dark mode without leaking canvases", async ({

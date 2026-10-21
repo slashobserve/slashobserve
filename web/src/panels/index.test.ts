@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import schemaText from "../../../spec/schema/observespec.v0.json?raw"
+
 import { rendererManifests } from "./index"
 import type { RendererManifest } from "./types"
 
@@ -8,14 +10,32 @@ const found = import.meta.glob<{ manifest: RendererManifest }>(
   { eager: true }
 )
 
+type PanelDef = { properties: { type: { enum?: string[]; const?: string } } }
+
+const schema = JSON.parse(schemaText) as {
+  $defs: {
+    dataPanel: PanelDef
+    textPanel: PanelDef
+    placeholderPanel: PanelDef
+  }
+}
+
+const schemaPanelTypes = [
+  schema.$defs.dataPanel,
+  schema.$defs.textPanel,
+  schema.$defs.placeholderPanel,
+].flatMap((def) => def.properties.type.enum ?? [def.properties.type.const!])
+
 const entries = Object.entries(found).map(([path, { manifest }]) => ({
   folder: path.split("/")[1],
   manifest,
 }))
 
 describe("renderer registry", () => {
-  it("has twelve manifests, each named after its folder", () => {
-    expect(entries).toHaveLength(12)
+  it("has one manifest per schema panel type, each named after its folder", () => {
+    expect(entries.map(({ manifest }) => manifest.type).sort()).toEqual(
+      [...schemaPanelTypes].sort()
+    )
     for (const { folder, manifest } of entries) {
       expect(manifest.type).toBe(folder)
     }
