@@ -239,7 +239,7 @@ describe("field config resolution", () => {
       })
     )
     expect(resolver.displayName(f, f.fields[1])).toBe(
-      'app="web", pod="a" | up{app="web", pod="a"} | ${__field.labels.x}'
+      'pod="a", app="web" | up{app="web", pod="a"} | ${__field.labels.x}'
     )
   })
 
@@ -251,6 +251,14 @@ describe("field config resolution", () => {
     expect(resolver.displayName(f, f.fields[1])).toBe(
       "${__field.labels.constructor}"
     )
+  })
+
+  it("writes all labels in insertion order without escaping quotes", () => {
+    const f = frame([time, value()], { labels: { b: 'x"y', a: "1" } })
+    const resolver = createFieldResolver(
+      panel({ displayName: "${__field.labels}" })
+    )
+    expect(resolver.displayName(f, f.fields[1])).toBe('b="x"y", a="1"')
   })
 
   it("lets an override set the display name", () => {

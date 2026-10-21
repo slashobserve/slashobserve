@@ -3,14 +3,9 @@ import type { PreparedFrame } from "@/panels/transforms"
 const token = /\$\{([^}]*)\}/g
 const labelPrefix = "__field.labels."
 
-function escapeLabelValue(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')
-}
-
 function allLabels(labels: Record<string, string>): string {
   return Object.keys(labels)
-    .sort()
-    .map((key) => `${key}="${escapeLabelValue(labels[key])}"`)
+    .map((key) => `${key}="${labels[key]}"`)
     .join(", ")
 }
 
