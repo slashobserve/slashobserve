@@ -17,6 +17,7 @@ import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "./contrast"
 import { Sparkline } from "./sparkline"
+import { sparklinePoints } from "./sparkline-points"
 import { statTiles, type StatDisplay } from "./stat-tiles"
 
 const charWidth = 0.62
@@ -52,6 +53,16 @@ function gridFor(orientation: string): CSSProperties {
   }
 }
 
+function tileColumns(width: number, count: number, orientation: string) {
+  const across =
+    orientation === "horizontal"
+      ? count
+      : orientation === "vertical"
+        ? 1
+        : Math.min(count, Math.max(1, Math.floor(width / 120)))
+  return Math.ceil(width / Math.max(1, across))
+}
+
 export const StatPanel: PanelRenderer = ({
   panel,
   frames,
@@ -66,6 +77,16 @@ export const StatPanel: PanelRenderer = ({
   const tiles = useMemo(
     () => statTiles(frames, fields, display, panel.unit),
     [frames, fields, display, panel.unit]
+  )
+  const columns = tileColumns(width, tiles.length, display.orientation)
+  const lines = useMemo(
+    () =>
+      tiles.map((tile) =>
+        display.graph && tile.points.length >= 2
+          ? sparklinePoints(tile.points, columns)
+          : []
+      ),
+    [tiles, display.graph, columns]
   )
   const backgroundText = tiles.map((tile) => {
     if (display.colorMode !== "background" || !tile.color) return null
@@ -91,7 +112,8 @@ export const StatPanel: PanelRenderer = ({
             ? null
             : thresholdIcons[tile.threshold.level]
         const aria = tiles.length > 1 ? tile.name : panel.title
-        const drawn = display.graph && tile.points.length >= 2
+        const line = lines[index]
+        const drawn = line.length > 0
         const primary = nameAsValue ? tile.name : tile.text
         const dataLinks = tile.links.flatMap(
           (link) =>
@@ -179,7 +201,7 @@ export const StatPanel: PanelRenderer = ({
             {drawn ? (
               <div className="shrink-0" style={{ height: sparklineHeight }}>
                 <Sparkline
-                  points={tile.points}
+                  line={line}
                   stroke={sparkStroke}
                   strokeOpacity={filled ? 0.5 : 1}
                   area={!filled}
