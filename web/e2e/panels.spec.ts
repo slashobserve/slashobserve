@@ -405,7 +405,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         .getByRole("button", { name: `Panel links: ${rpsTitle}` })
         .click()
       await expect(
-        page.getByRole("menuitem", { name: "Explore prod" })
+        page.getByRole("menuitem", { name: "Explore prod (opens in new tab)" })
       ).toHaveAttribute("href", /\/dashboards\?q=prod$/)
       await expect(page.getByRole("menuitem", { name: "Bad" })).toHaveCount(0)
     })
@@ -416,6 +416,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const link = page
         .getByRole("navigation", { name: "Dashboard links" })
         .getByRole("link", { name: "Runbook" })
+      await expect(link).toHaveAccessibleName("Runbook (opens in new tab)")
       await expect(link).toHaveAttribute("target", "_blank")
       await expect(link).toHaveAttribute("href", /env=prod/)
     })

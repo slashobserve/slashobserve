@@ -1,6 +1,5 @@
 import { useId, type ReactNode } from "react"
 import {
-  ExternalLinkIcon,
   InfoIcon,
   LinkIcon,
   LoaderCircleIcon,
@@ -26,7 +25,7 @@ import { errorMessage, PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
-import { anchorProps } from "./dashboard-links"
+import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { VariableLoadError } from "./variables"
 
@@ -195,9 +194,7 @@ export function PanelChrome({
                     className="justify-between gap-3"
                   >
                     {link.title}
-                    {link.newTab ? (
-                      <ExternalLinkIcon aria-hidden="true" className="size-3" />
-                    ) : null}
+                    {link.newTab ? <NewTabMark /> : null}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

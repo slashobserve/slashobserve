@@ -15,6 +15,15 @@ export function anchorProps(link: ResolvedLink) {
   }
 }
 
+export function NewTabMark() {
+  return (
+    <>
+      <ExternalLinkIcon aria-hidden="true" className="size-3" />
+      <span className="sr-only">(opens in new tab)</span>
+    </>
+  )
+}
+
 export function DashboardLinks({
   links,
   scope,
@@ -38,9 +47,7 @@ export function DashboardLinks({
           className="inline-flex items-center gap-1 text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           {link.title}
-          {link.newTab ? (
-            <ExternalLinkIcon aria-hidden="true" className="size-3" />
-          ) : null}
+          {link.newTab ? <NewTabMark /> : null}
         </a>
       ))}
     </nav>

@@ -32,7 +32,11 @@
       ],
       "unit": "reqps",
       "links": [
-        { "title": "Explore ${env}", "url": "/dashboards?q=${env}" },
+        {
+          "title": "Explore ${env}",
+          "url": "/dashboards?q=${env}",
+          "newTab": true
+        },
         { "title": "Bad", "url": "javascript:alert(1)" }
       ]
     },
