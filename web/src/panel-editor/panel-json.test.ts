@@ -225,6 +225,7 @@ describe("parsePanelJson", () => {
       { path: "", message: missingPanelMessage, scope: "dashboard" },
     ])
   })
+
   it("round trips a formatted panel", () => {
     for (const panel of [top, child, notes]) {
       const result = parsePanelJson(formatPanel(panel), spec, panel.id)

@@ -384,24 +384,52 @@ describe("panelChanges against the JSON", () => {
     })),
   })
 
+  function mutated(next: () => number, count: number): DataPanel {
+    const result = start()
+    for (let i = 0; i < count; i++) {
+      mutations[Math.floor(next() * mutations.length)](result)
+    }
+    return result
+  }
+
+  it("names an empty display object added to a base without display", () => {
+    const base = panel()
+    expect(panelChanges(base, { ...base, display: {} })).toEqual([
+      { key: "display", label: "display" },
+    ])
+  })
+
   it("is empty exactly when the panels are the same JSON apart from title trimming and default refs", () => {
     const next = random(156)
-    const seen = { same: 0, different: 0 }
-    for (let round = 0; round < 3000; round++) {
-      const draft = start()
+    const seen = {
+      sameDespiteRawDifference: 0,
+      different: 0,
+      emptyDisplayOverAbsent: 0,
+      emptyThresholdsOverAbsent: 0,
+    }
+    for (let round = 0; round < 20000; round++) {
+      const base = mutated(next, Math.floor(next() * 4))
+      const draft = structuredClone(base)
       const count = Math.floor(next() * 4)
       for (let i = 0; i < count; i++) {
         mutations[Math.floor(next() * mutations.length)](draft)
       }
-      const same = sameJson(normalized(start()), normalized(draft))
-      seen[same ? "same" : "different"]++
+      const same = sameJson(normalized(base), normalized(draft))
+      if (same && !sameJson(base, draft)) seen.sameDespiteRawDifference++
+      if (!same) seen.different++
+      if (!("display" in base) && sameJson(draft.display, {}))
+        seen.emptyDisplayOverAbsent++
+      if (!("thresholds" in base) && sameJson(draft.thresholds, []))
+        seen.emptyThresholdsOverAbsent++
       expect(
-        panelChanges(start(), draft).length === 0,
-        JSON.stringify(draft)
+        panelChanges(base, draft).length === 0,
+        JSON.stringify({ base, draft })
       ).toBe(same)
     }
-    expect(seen.same).toBeGreaterThan(100)
-    expect(seen.different).toBeGreaterThan(100)
+    expect(seen.sameDespiteRawDifference).toBeGreaterThan(300)
+    expect(seen.different).toBeGreaterThan(1000)
+    expect(seen.emptyDisplayOverAbsent).toBeGreaterThan(20)
+    expect(seen.emptyThresholdsOverAbsent).toBeGreaterThan(20)
   })
 })
 
