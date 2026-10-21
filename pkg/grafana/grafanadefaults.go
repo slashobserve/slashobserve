@@ -179,10 +179,6 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"fieldConfig.defaults.custom.width": {
 		why: "table columns are sized by the browser from their content and have no fixed width",
 	},
-	"options.justifyMode": {
-		values: []any{"center"},
-		why:    "stat tiles always center their value and text",
-	},
 	"fieldConfig.overrides[].__systemRef": {
 		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",
 	},

@@ -76,7 +76,7 @@ func (b *panelBuild) convertQueries() {
 	items, _ := asArray(b.raw["targets"])
 	b.lines = make([]QueryLine, min(len(items), maxPanelPaths))
 	declared := b.c.declaredVariables()
-	overflow := len(items) > len(b.lines)
+	overflow := visibleBeyondPathCap(items) > 0
 	if overflow {
 		b.issues.limit--
 	}
@@ -112,8 +112,18 @@ func (b *panelBuild) convertQueries() {
 	}
 }
 
+func visibleBeyondPathCap(items []any) int {
+	visible := 0
+	for _, item := range items[min(len(items), maxPanelPaths):] {
+		if target, _ := asObject(item); !truthy(target["hide"]) {
+			visible++
+		}
+	}
+	return visible
+}
+
 func unlistedQueriesReason(n int) string {
-	return fmt.Sprintf("%d more queries were not imported.", n)
+	return notImportedReason(n, "query", "queries")
 }
 
 func (b *panelBuild) lineFor(i int) *QueryLine {

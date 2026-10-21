@@ -225,7 +225,7 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 	if line.Status != statusPartial || len(line.Paths) != 100 {
 		t.Fatalf("status %s with %d paths, want partial with the cap of 100", line.Status, len(line.Paths))
 	}
-	if want := fmt.Sprintf("+%d more options were not imported", leaves+1); !slices.Contains(line.Reasons, want) {
+	if want := fmt.Sprintf("%d more options were not imported.", leaves+1); !slices.Contains(line.Reasons, want) {
 		t.Fatalf("reasons = %v, want %q: the override past the cap is one path reported twice", line.Reasons, want)
 	}
 	if len(line.Reasons) != 2 {
@@ -235,17 +235,22 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 
 func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 	empty := func(n int) string { return strings.Repeat("{},", n) }
+	hidden := func(n int) string { return strings.Repeat(`{"hide":true},`, n) }
 	const million = 1_000_000
 	const hundredThousand = 100_000
 	cases := []struct {
 		name, typ, list string
 		targets         int
 		wantUp          bool
-		wantUnlisted    int
+		wantReason      string
 	}{
-		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, million - 101},
-		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
-		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, hundredThousand - 100},
+		{"a kept query after the listed targets", "timeseries", "[" + empty(200) + `{"refId":"Z","expr":"up"},` + empty(million-202) + "{}]", million, true, fmt.Sprintf("%d more queries were not imported.", million-101)},
+		{"no query can be imported", "timeseries", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"placeholder panel", "barchart", "[" + empty(hundredThousand-1) + "{}]", hundredThousand, false, fmt.Sprintf("%d more queries were not imported.", hundredThousand-100)},
+		{"one visible target past the cap", "timeseries", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
+		{"one visible target past the cap of a placeholder panel", "barchart", "[" + empty(100) + "{}]", 101, false, "1 more query was not imported."},
+		{"hidden targets past the cap are not counted", "timeseries", `[{"refId":"Z","expr":"up","noSuchKey":1},` + empty(99) + hidden(4) + `{"hide":true}]`, 105, true, ""},
+		{"hidden targets past the cap of a placeholder panel are not counted", "barchart", "[" + empty(100) + hidden(4) + `{"hide":true}]`, 105, false, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,15 +263,12 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 			if len(line.Queries) > 100 {
 				t.Fatalf("the panel lists %d queries, want at most 100", len(line.Queries))
 			}
+			if len(line.Paths) > 100 {
+				t.Fatalf("the panel lists %d paths, want at most 100", len(line.Paths))
+			}
 			report, err := json.Marshal(res.Report)
 			if err != nil || len(report) > 100_000 {
 				t.Fatalf("the report takes %d bytes (err %v), want at most 100000", len(report), err)
-			}
-			if !slices.Contains(line.Paths, "targets") {
-				t.Fatalf("paths = %v, want the rest reported once on targets", line.Paths)
-			}
-			if want := fmt.Sprintf("%d more queries were not imported.", tc.wantUnlisted); !slices.Contains(line.Reasons, want) {
-				t.Fatalf("reasons = %v, want %q", line.Reasons, want)
 			}
 			if tc.wantUp {
 				entry, _ := res.Spec.FindPanel("p1")
@@ -274,6 +276,23 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 				if len(queries) != 1 || queries[0].Query != "up" || queries[0].Ref != "Z" {
 					t.Fatalf("queries = %+v, want the one valid target kept with its ref", queries)
 				}
+			}
+			if tc.wantReason == "" {
+				for _, reason := range line.Reasons {
+					if strings.Contains(reason, "more ") {
+						t.Fatalf("reasons = %v, want no count of hidden targets", line.Reasons)
+					}
+				}
+				if slices.Contains(line.Paths, "targets") {
+					t.Fatalf("paths = %v, want no path for hidden targets", line.Paths)
+				}
+				return
+			}
+			if !slices.Contains(line.Paths, "targets") {
+				t.Fatalf("paths = %v, want the rest reported once on targets", line.Paths)
+			}
+			if !slices.Contains(line.Reasons, tc.wantReason) {
+				t.Fatalf("reasons = %v, want %q", line.Reasons, tc.wantReason)
 			}
 		})
 	}
@@ -299,6 +318,20 @@ func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
 	}
 	if cuts != 1 {
 		t.Fatalf("reasons = %v, want the kept target's %q once", line.Reasons, cutReason)
+	}
+}
+
+func TestDroppedTargetTakesItsOmittedPathsWithIt(t *testing.T) {
+	manyIssues := `"legendFormat":"` + strings.Repeat("l", 250) + `","interval":"7x","exemplar":true,"intervalFactor":2,"step":"7x"`
+	targets := `{"refId":"B","expr":"up"},` + strings.Repeat("{},", 98) + `{"refId":"Z","expr":"up{pod=\"$undeclared\"}",` + manyIssues + `}`
+	_, line := convertedPanel(t, panelDoc("timeseries", `"targets":[`+targets+`]`))
+	if len(line.Paths) != 99 {
+		t.Fatalf("paths = %d, want the 98 empty targets and the dropped one", len(line.Paths))
+	}
+	for _, reason := range line.Reasons {
+		if strings.Contains(reason, "more options") {
+			t.Fatalf("reasons = %v, want no count: the dropped target's omitted paths left with it", line.Reasons)
+		}
 	}
 }
 
@@ -388,7 +421,14 @@ func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 		{"blank levels with a colored background get Grafana's defaults", colors + `,"thresholds":"  ","colorBackground":true`, defaults},
 		{"missing levels with colored values get Grafana's defaults", colors + `,"colorValue":true`, defaults},
 		{"levels win over the defaults", colors + `,"thresholds":"50,80","colorValue":true`, []string{"ok", "warning@50", "critical@80"}},
-		{"colored values without colors write none", `"thresholds":"","colorValue":true`, []string{}},
+		{"colored values without colors get Grafana's defaults", `"thresholds":"","colorValue":true`, defaults},
+		{"a colored background without colors gets Grafana's defaults", `"colorBackground":true`, defaults},
+		{"levels with colored values but no colors get Grafana's defaults", `"thresholds":"50,80","colorValue":true`, defaults},
+		{"a gauge with levels but no colors gets Grafana's defaults", `"gauge":{"show":true},"thresholds":"50,80"`, defaults},
+		{"an uncolored stat without colors writes none", `"thresholds":""`, []string{}},
+		{"a gauge with empty levels gets Grafana's defaults whatever the color flags", `"gauge":{"show":true},"thresholds":"","colorValue":false,"colorBackground":false`, defaults},
+		{"a gauge without colors or levels gets Grafana's defaults", `"gauge":{"show":true}`, defaults},
+		{"a gauge with levels and colors keeps them", `"gauge":{"show":true},` + colors + `,"thresholds":"50,80"`, []string{"ok", "warning@50", "critical@80"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -397,6 +437,14 @@ func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 				t.Fatalf("thresholds = %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestUnknownReducerLeavesTheStatPartial(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("stat", upTarget+`,"options":{"reduceOptions":{"calcs":["bogus"]}}`))
+	const reason = "The reducer bogus is not supported yet."
+	if line.Status != statusPartial || !slices.Equal(line.Paths, []string{"options.reduceOptions.calcs"}) || !slices.Equal(line.Reasons, []string{reason}) {
+		t.Fatalf("status %s, paths %v, reasons %v, want partial with %q", line.Status, line.Paths, line.Reasons, reason)
 	}
 }
 
@@ -594,7 +642,8 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		{"legend width", series("", `"legend":{"displayMode":"list","placement":"right","width":300}`), true},
 		{"override line width 2", override("timeseries", `{"id":"custom.lineWidth","value":2}`), true},
 		{"override line width 4", override("timeseries", `{"id":"custom.lineWidth","value":4}`), false},
-		{"stat centered", panelDoc("stat", upTarget+`,"options":{"justifyMode":"center"}`), true},
+		{"stat justified automatically", panelDoc("stat", upTarget+`,"options":{"justifyMode":"auto"}`), true},
+		{"stat centered", panelDoc("stat", upTarget+`,"options":{"justifyMode":"center"}`), false},
 		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
 		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
 		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},

@@ -85,7 +85,7 @@ func (b *panelBuild) applyCalcs(d *spec.Display, calcs []string) {
 	if len(calcs) == 0 {
 		return
 	}
-	if !slices.Contains(reducerIDs, calcs[0]) {
+	if !isReducer(calcs[0]) {
 		b.partial("options.reduceOptions.calcs", fmt.Sprintf("The reducer %s is not supported yet.", calcs[0]))
 		return
 	}
@@ -133,7 +133,7 @@ func (b *panelBuild) legendValues(v any) []string {
 	unsupported := false
 	for _, calc := range stringList(v) {
 		switch {
-		case !slices.Contains(reducerIDs, calc):
+		case !isReducer(calc):
 			unsupported = true
 		case slices.Contains(out, calc):
 		case len(out) >= maxLegendValues:
@@ -215,7 +215,7 @@ func (b *panelBuild) footerReducers(v any) []string {
 	unsupported := false
 	for _, calc := range stringList(v) {
 		switch {
-		case !slices.Contains(reducerIDs, calc):
+		case !isReducer(calc):
 			unsupported = true
 		case slices.Contains(out, calc):
 		case len(out) >= maxFooterValues:

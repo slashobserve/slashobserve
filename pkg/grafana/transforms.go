@@ -3,7 +3,6 @@ package grafana
 import (
 	"cmp"
 	"fmt"
-	"maps"
 	"math"
 	"regexp"
 	"slices"
@@ -28,7 +27,10 @@ var reducerNames = map[string]string{
 	"stdDev": "StdDev", "distinctCount": "Distinct Count", "changeCount": "Change Count",
 }
 
-var reducerIDs = slices.Sorted(maps.Keys(reducerNames))
+func isReducer(id string) bool {
+	_, ok := reducerNames[id]
+	return ok
+}
 
 var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/]\s*\S+\s*$`)
 
@@ -174,7 +176,7 @@ func reducerList(b *panelBuild, v any, path string) []string {
 	unsupported := false
 	for _, item := range stringList(v) {
 		switch {
-		case !slices.Contains(reducerIDs, item):
+		case !isReducer(item):
 			unsupported = true
 		case !slices.Contains(out, item) && len(out) < maxReducers:
 			out = append(out, item)
@@ -269,7 +271,7 @@ func calculateTransform(b *panelBuild, opts map[string]any, path string) (spec.T
 	case "reduceRow":
 		reduce, _ := asObject(opts["reduce"])
 		reducer := cmp.Or(asString(reduce["reducer"]), "sum")
-		if !slices.Contains(reducerIDs, reducer) {
+		if !isReducer(reducer) {
 			b.partial(path+".options.reduce", "")
 			return t, false
 		}
