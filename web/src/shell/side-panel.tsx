@@ -22,6 +22,8 @@ type Props = {
   closeDisabled?: boolean
   footer?: ReactNode
   initialFocus?: RefObject<HTMLElement | null>
+  trigger?: RefObject<HTMLElement | null>
+  titleRef?: RefObject<HTMLHeadingElement | null>
   children: ReactNode
 }
 
@@ -38,21 +40,29 @@ function PanelCard({
   closeDisabled = false,
   footer,
   initialFocus,
+  trigger,
+  titleRef: titleRefProp,
   children,
 }: Props) {
   const titleId = useId()
   const asideRef = useRef<HTMLElement>(null)
-  const titleRef = useRef<HTMLHeadingElement>(null)
+  const ownTitleRef = useRef<HTMLHeadingElement>(null)
+  const titleRef = titleRefProp ?? ownTitleRef
 
   useEffect(() => {
     const previous = document.activeElement
+    const triggerElement = trigger?.current
     ;(initialFocus?.current ?? titleRef.current)?.focus()
     return () => {
-      if (previous instanceof HTMLElement && previous.isConnected) {
-        previous.focus()
-      }
+      const target =
+        previous instanceof HTMLElement &&
+        previous !== document.body &&
+        previous.isConnected
+          ? previous
+          : triggerElement
+      target?.focus()
     }
-  }, [initialFocus])
+  }, [initialFocus, trigger, titleRef])
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape" || closeDisabled) return
@@ -65,7 +75,7 @@ function PanelCard({
       ref={asideRef}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
-      className="flex min-h-0 max-w-full min-w-0 flex-[0_1_440px] flex-col border-l bg-background @max-[1000px]:grow @max-[1000px]:border-t @max-[1000px]:border-l-0"
+      className="flex max-h-full min-h-0 max-w-full min-w-0 flex-[0_1_440px] flex-col border-l bg-background @max-[1000px]:max-h-none @max-[1000px]:grow @max-[1000px]:border-t @max-[1000px]:border-l-0"
     >
       <div className="flex items-start justify-between gap-2 border-b pt-4 pr-3 pb-3.5 pl-[18px]">
         <div className="flex min-w-0 flex-col gap-[3px]">
