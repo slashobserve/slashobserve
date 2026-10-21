@@ -1,4 +1,4 @@
-import type { Ref } from "react"
+import type { ReactNode, Ref } from "react"
 import { ArrowLeftIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ type HeaderProps = {
   title: string
   description: string
   back?: () => void
+  controls?: ReactNode
   close: () => void
 }
 
@@ -18,6 +19,7 @@ export function CardHeader({
   title,
   description,
   back,
+  controls,
   close,
 }: HeaderProps) {
   return (
@@ -40,6 +42,7 @@ export function CardHeader({
             Back to activity
           </Button>
         ) : null}
+        {controls}
         <Button
           variant="ghost"
           size="icon-sm"

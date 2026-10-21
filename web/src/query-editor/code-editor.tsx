@@ -1,14 +1,18 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react"
-import { Compartment, EditorState } from "@codemirror/state"
+import { Compartment, EditorState, Prec } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 
 import { cn } from "@/lib/utils"
 
 import { languageFor } from "./extensions"
+import { lintLines } from "./lint-lines"
 import { serverLinter, type LintResult } from "./server-lint"
 import "./query-editor.css"
 
-export type CodeEditorHandle = { focusAt: (from: number) => void }
+export type CodeEditorHandle = {
+  focusAt: (from: number) => void
+  insertAtCursor: (text: string) => void
+}
 
 type Props = {
   value: string
@@ -19,7 +23,20 @@ type Props = {
   onLint: (result: LintResult) => void
   editorRef?: Ref<CodeEditorHandle>
   autoFocus?: boolean
+  onFocus?: () => void
 }
+
+const appearance = Prec.highest(
+  EditorView.theme({
+    "&": { fontSize: "12.5px" },
+    ".cm-scroller": { lineHeight: "1.6" },
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      borderRight: "1px solid var(--border)",
+    },
+    ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "transparent" },
+  })
+)
 
 function accessMode(readOnly: boolean) {
   return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]
@@ -38,18 +55,20 @@ export function CodeEditor({
   onLint,
   editorRef,
   autoFocus = false,
+  onFocus,
 }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const access = useRef(new Compartment())
   const label = useRef(new Compartment())
+  const refocus = useRef(autoFocus)
   const latest = useRef({
     value,
     onChange,
     onLint,
     readOnly,
     ariaLabel,
-    autoFocus,
+    onFocus,
   })
   useEffect(() => {
     latest.current = {
@@ -58,7 +77,7 @@ export function CodeEditor({
       onLint,
       readOnly,
       ariaLabel,
-      autoFocus,
+      onFocus,
     }
   })
 
@@ -73,8 +92,15 @@ export function CodeEditor({
           serverLinter(datasource.uid, (result) =>
             latest.current.onLint(result)
           ),
+          lintLines(),
+          appearance,
           access.current.of(accessMode(current.readOnly)),
           label.current.of(labelAttributes(current.ariaLabel)),
+          EditorView.domEventHandlers({
+            focus: () => {
+              latest.current.onFocus?.()
+            },
+          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               latest.current.onChange(update.state.doc.toString())
@@ -84,8 +110,9 @@ export function CodeEditor({
       }),
     })
     viewRef.current = view
-    if (current.autoFocus) view.focus()
+    if (refocus.current) view.focus()
     return () => {
+      refocus.current = view.dom.contains(document.activeElement)
       view.destroy()
       viewRef.current = null
     }
@@ -119,13 +146,24 @@ export function CodeEditor({
       view.dispatch({ selection: { anchor }, scrollIntoView: true })
       view.focus()
     },
+    insertAtCursor(text) {
+      const view = viewRef.current
+      if (!view) return
+      const range = view.state.selection.main
+      view.dispatch({
+        changes: { from: range.from, to: range.to, insert: text },
+        selection: { anchor: range.from + text.length },
+        scrollIntoView: true,
+      })
+      view.focus()
+    },
   }))
 
   return (
     <div
       ref={host}
       className={cn(
-        "overflow-hidden rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring dark:bg-input/30 [&_.cm-editor]:max-h-[50vh] [&_.cm-editor]:min-h-40",
+        "overflow-hidden rounded-control border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring [&_.cm-content]:min-h-14! [&_.cm-editor]:max-h-[50vh]",
         readOnly && "border-transparent bg-muted/50 dark:bg-muted/30"
       )}
     />

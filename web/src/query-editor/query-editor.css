@@ -37,6 +37,17 @@
   text-underline-offset: 3px;
 }
 
+.cm-editor .cm-lint-line {
+  padding: 2px 8px 4px 12px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--status-critical);
+}
+
+.cm-editor .cm-lint-line[data-severity="warning"] {
+  color: var(--status-warning);
+}
+
 @media (max-width: 640px) {
   .cm-editor .cm-completionInfo {
     display: none;
