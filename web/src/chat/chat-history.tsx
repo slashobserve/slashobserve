@@ -1,4 +1,4 @@
-import { useId } from "react"
+import { useId, useRef } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { HistoryIcon } from "lucide-react"
 
@@ -26,11 +26,13 @@ export function ChatHistory({
   const open = useHistoryPanel((state) => state.open)
   const setOpen = useHistoryPanel((state) => state.setOpen)
   const panelId = useId()
+  const trigger = useRef<HTMLButtonElement>(null)
 
   return (
     <>
       <TopRowActions>
         <Button
+          ref={trigger}
           variant="ghost"
           size="sm"
           className="h-[30px] gap-1.5 text-[13px]"
@@ -46,6 +48,7 @@ export function ChatHistory({
         <SidePanel
           title="History"
           description="Your requests, newest first."
+          trigger={trigger}
           onClose={() => setOpen(false)}
         >
           <HistoryList panelId={panelId} currentRequestId={currentRequestId} />

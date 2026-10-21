@@ -22,6 +22,7 @@ type Props = {
   closeDisabled?: boolean
   footer?: ReactNode
   initialFocus?: RefObject<HTMLElement | null>
+  trigger?: RefObject<HTMLElement | null>
   children: ReactNode
 }
 
@@ -38,6 +39,7 @@ function PanelCard({
   closeDisabled = false,
   footer,
   initialFocus,
+  trigger,
   children,
 }: Props) {
   const titleId = useId()
@@ -46,13 +48,18 @@ function PanelCard({
 
   useEffect(() => {
     const previous = document.activeElement
+    const triggerElement = trigger?.current
     ;(initialFocus?.current ?? titleRef.current)?.focus()
     return () => {
-      if (previous instanceof HTMLElement && previous.isConnected) {
-        previous.focus()
-      }
+      const target =
+        previous instanceof HTMLElement &&
+        previous !== document.body &&
+        previous.isConnected
+          ? previous
+          : triggerElement
+      target?.focus()
     }
-  }, [initialFocus])
+  }, [initialFocus, trigger])
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape" || closeDisabled) return
