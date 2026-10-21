@@ -1034,7 +1034,7 @@ expect_import_error() {
 prom_defined() { capture LAST prom_scalar "$1" || true; is_number "$LAST"; }
 
 demo_shop_stat_panels_have_data() {
-  prom_defined 'sum(rate(http_requests_total{service=~".+",status=~"5.."}[1m])) / sum(rate(http_requests_total{service=~".+"}[1m]))' \
+  prom_defined 'sum(rate(http_requests_total{service=~".+",status=~"5.."}[5m])) / sum(rate(http_requests_total{service=~".+"}[5m]))' \
     && prom_defined 'sum(rate(container_cpu_usage_seconds_total{service=~".+"}[1m]))'
 }
 
