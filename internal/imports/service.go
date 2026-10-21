@@ -104,6 +104,9 @@ func New(database *db.DB, dash *dashboards.Service, registry *datasource.Registr
 }
 
 func (s *Service) Preview(_ context.Context, req Request) (*grafana.Result, error) {
+	if err := checkLimits(req); err != nil {
+		return nil, err
+	}
 	return grafana.Convert(req.JSON, s.options(req))
 }
 
