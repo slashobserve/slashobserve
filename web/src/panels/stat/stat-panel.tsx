@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { useTheme } from "@/lib/theme"
+import { cn } from "@/lib/utils"
 
 import { resolveColor } from "../colors"
 import { isDataLink, resolveLink } from "../field-config"
@@ -20,17 +21,8 @@ import { Sparkline } from "./sparkline"
 import { sparklinePoints } from "./sparkline-points"
 import { statTiles, type StatDisplay } from "./stat-tiles"
 
-const charWidth = 0.62
-const sparklineHeight = "min(40cqh, max(0px, calc(100cqh - 60px)))"
-
-function fontSizeFor(text: string): string {
-  const columns = Math.max(text.length, 3) * charWidth
-  return `clamp(1.25rem, min(${(94 / columns).toFixed(1)}cqw, 45cqh), 3.5rem)`
-}
-
-function useRerenderOnThemeChange() {
-  useTheme()
-}
+const valueClass =
+  "min-w-0 truncate text-[28px] font-semibold tracking-[-0.02em] tabular-nums"
 
 function gridFor(orientation: string): CSSProperties {
   switch (orientation) {
@@ -72,7 +64,7 @@ export const StatPanel: PanelRenderer = ({
   height,
   links,
 }) => {
-  useRerenderOnThemeChange()
+  const { resolved: theme } = useTheme()
   const display = rawDisplay as StatDisplay
   const tiles = useMemo(
     () => statTiles(frames, fields, display, panel.unit),
@@ -88,11 +80,17 @@ export const StatPanel: PanelRenderer = ({
       ),
     [tiles, display.graph, columns]
   )
-  const backgroundText = tiles.map((tile) => {
-    if (display.colorMode !== "background" || !tile.color) return null
-    const rgb = cssColorToRgb(resolveColor(tile.color))
-    return rgb ? readableText(rgb) : null
-  })
+  const filledText = useMemo(
+    () =>
+      tiles.map((tile) => {
+        if (display.colorMode !== "background" || !tile.color) return undefined
+        const rgb = cssColorToRgb(resolveColor(tile.color))
+        return rgb ? readableText(rgb) : undefined
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveColor reads the live theme tokens; panel-stat.spec "recomputes the text color when the theme flips" fails without theme here
+    [tiles, display.colorMode, theme]
+  )
+  const background = display.colorMode === "background"
   const textMode = display.textMode
   const showText = textMode !== "none"
   const nameAsValue = textMode === "name"
@@ -101,12 +99,11 @@ export const StatPanel: PanelRenderer = ({
 
   return (
     <div
-      className="grid gap-2 overflow-auto p-2 pt-0"
+      className={cn("grid gap-2 overflow-auto", background && "p-2 pt-0")}
       style={{ width, height, ...gridFor(display.orientation) }}
     >
       {tiles.map((tile, index) => {
-        const filledText = backgroundText[index]
-        const filled = filledText !== null
+        const filled = background && tile.color !== null
         const Icon =
           tile.threshold.level === "base"
             ? null
@@ -114,7 +111,8 @@ export const StatPanel: PanelRenderer = ({
         const aria = tiles.length > 1 ? tile.name : panel.title
         const line = lines[index]
         const drawn = line.length > 0
-        const primary = nameAsValue ? tile.name : tile.text
+        const primary = nameAsValue ? tile.name : tile.amount
+        const unit = nameAsValue ? "" : tile.unit
         const dataLinks = tile.links.flatMap(
           (link) =>
             (isDataLink(link)
@@ -130,9 +128,10 @@ export const StatPanel: PanelRenderer = ({
         )
         const linkedPrimary = showText ? dataLinks[0] : undefined
         const menuLinks = showText ? dataLinks.slice(1) : dataLinks
+        const thresholdColor = display.colorMode === "value" ? tile.color : null
         const sparkStroke = filled
-          ? filledText
-          : (tile.color ?? "var(--series-1)")
+          ? "currentColor"
+          : (thresholdColor ?? "var(--series-1)")
         return (
           <div
             key={tile.key}
@@ -142,64 +141,83 @@ export const StatPanel: PanelRenderer = ({
             data-color-mode={display.colorMode}
             data-graph={String(drawn)}
             data-threshold={tile.threshold.level}
-            className="[container-type:size] relative flex min-h-0 flex-col overflow-hidden rounded-md px-2 text-foreground"
+            className={cn(
+              "relative flex min-h-0 flex-col overflow-hidden rounded-md text-foreground",
+              filled && "pt-2"
+            )}
             style={
               filled
                 ? {
                     backgroundColor: tile.color ?? undefined,
-                    color: filledText,
+                    color: filledText[index],
                   }
                 : undefined
             }
           >
-            <div className="[container-type:size] flex min-h-0 flex-1 flex-col items-center justify-center gap-1">
-              {showName ? (
-                <span
-                  title={tile.name}
-                  className={`max-w-full truncate text-xs ${filled ? "opacity-80" : "text-muted-foreground"}`}
-                >
-                  {tile.name}
-                </span>
-              ) : null}
-              {showText ? (
-                <span
-                  className="max-w-full truncate leading-none font-semibold tabular-nums"
-                  style={{
-                    fontSize: fontSizeFor(primary),
-                    color:
-                      display.colorMode === "value" && tile.color
-                        ? tile.color
-                        : undefined,
-                  }}
-                >
-                  {linkedPrimary ? (
-                    <a
-                      {...anchorProps(linkedPrimary)}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {primary}
-                      {linkedPrimary.newTab ? <NewTabMark /> : null}
-                    </a>
-                  ) : (
-                    primary
-                  )}
-                </span>
-              ) : null}
-              {Icon && showText ? (
-                <span className="flex items-center gap-1 text-xs font-medium">
-                  <Icon
-                    className="size-4"
-                    aria-hidden="true"
-                    style={{
-                      color: filled ? undefined : (tile.color ?? undefined),
-                    }}
-                  />
-                  {tile.threshold.label}
-                </span>
-              ) : null}
-            </div>
+            {showName ? (
+              <span
+                title={tile.name}
+                className={cn(
+                  "shrink-0 truncate px-3 text-[13px] font-medium",
+                  !filled && "text-muted-foreground"
+                )}
+              >
+                {tile.name}
+              </span>
+            ) : null}
+            {showText ? (
+              <div className="flex shrink-0 items-baseline gap-1.5 px-3">
+                {linkedPrimary ? (
+                  <a
+                    {...anchorProps(linkedPrimary)}
+                    data-stat-value=""
+                    title={linkedPrimary.title}
+                    aria-label={`${primary}: ${linkedPrimary.title}${linkedPrimary.newTab ? " (opens in new tab)" : ""}`}
+                    className={cn(
+                      valueClass,
+                      "-mx-1 rounded-sm px-1 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset"
+                    )}
+                  >
+                    {primary}
+                    {linkedPrimary.newTab ? <NewTabMark /> : null}
+                  </a>
+                ) : (
+                  <span data-stat-value="" className={valueClass}>
+                    {primary}
+                  </span>
+                )}
+                {unit ? (
+                  <span
+                    data-stat-unit=""
+                    className={cn(
+                      "shrink-0 text-[13px]",
+                      !filled && "text-muted-foreground"
+                    )}
+                  >
+                    {unit}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {Icon && showText ? (
+              <span
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 px-3 text-[12px]",
+                  !filled && "text-muted-foreground"
+                )}
+              >
+                <Icon
+                  className="size-[13px]"
+                  strokeWidth={2.4}
+                  aria-hidden="true"
+                  data-stat-icon=""
+                  style={{ color: thresholdColor ?? undefined }}
+                />
+                {tile.threshold.label}
+              </span>
+            ) : null}
             {drawn ? (
-              <div className="shrink-0" style={{ height: sparklineHeight }}>
+              <div className="mt-auto h-8 min-h-0 shrink">
                 <Sparkline
                   line={line}
                   stroke={sparkStroke}

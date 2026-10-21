@@ -20,7 +20,10 @@ function tiles(page: Page, title: string): Locator {
   return panel(page, title).locator("[data-stat-tile]")
 }
 
-function style(locator: Locator, property: "color" | "backgroundColor") {
+function style(
+  locator: Locator,
+  property: "color" | "backgroundColor" | "fontSize"
+) {
   return locator.evaluate(
     (element, name) => getComputedStyle(element)[name],
     property
@@ -38,6 +41,45 @@ function tokenColor(page: Page, token: string) {
   }, token)
 }
 
+function channels(color: string): [number, number, number] {
+  const match = /rgba?\((\d+), (\d+), (\d+)/.exec(color)
+  if (!match) throw new Error(`not an rgb color: ${color}`)
+  return [Number(match[1]), Number(match[2]), Number(match[3])]
+}
+
+function luminance(color: string) {
+  const [red, green, blue] = channels(color).map((channel) => {
+    const unit = channel / 255
+    return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+function contrast(a: string, b: string) {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (high + 0.05) / (low + 0.05)
+}
+
+test.describe("theme switch", () => {
+  test.use({ colorScheme: "light" })
+
+  test("recomputes the text color when the theme flips", async ({
+    page,
+    request,
+  }) => {
+    await openStats(page, request)
+
+    const tile = tiles(page, "Info background")
+    await expect(tile).toHaveAttribute("data-threshold", "info")
+    await expect.poll(() => style(tile, "color")).toBe("rgb(255, 255, 255)")
+
+    await page.getByRole("button", { name: "Switch theme" }).click()
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/)
+
+    await expect.poll(() => style(tile, "color")).toBe("rgb(10, 10, 10)")
+  })
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
@@ -51,18 +93,46 @@ for (const colorScheme of ["light", "dark"] as const) {
       const tile = tiles(page, "Background")
       await expect(tile).toHaveAttribute("data-color-mode", "background")
       expect(await style(tile, "backgroundColor")).not.toBe("rgba(0, 0, 0, 0)")
-      expect(["rgb(255, 255, 255)", "rgb(10, 10, 10)"]).toContain(
-        await style(tile, "color")
-      )
+      const text = await style(tile, "color")
+      expect(["rgb(255, 255, 255)", "rgb(10, 10, 10)"]).toContain(text)
+      expect(
+        contrast(await style(tile, "backgroundColor"), text)
+      ).toBeGreaterThanOrEqual(4.5)
     })
 
-    test("maps a value to text and color", async ({ page, request }) => {
+    test("maps a value to text kept in the foreground color", async ({
+      page,
+      request,
+    }) => {
       await openStats(page, request)
 
       const up = tiles(page, "Mapped").getByText("Up", { exact: true })
       await expect(up).toBeVisible()
       expect(await style(up, "color")).toBe(
-        await tokenColor(page, "--threshold-ok")
+        await tokenColor(page, "--foreground")
+      )
+    })
+
+    test("draws the value large with a muted unit and colors only the icon", async ({
+      page,
+      request,
+    }) => {
+      await openStats(page, request)
+
+      const tile = tiles(page, "State")
+      await expect(tile).toHaveAttribute("data-threshold", "critical")
+      const value = tile.locator("[data-stat-value]")
+      const unit = tile.locator("[data-stat-unit]")
+      expect(await style(value, "fontSize")).toBe("28px")
+      expect(await style(value, "color")).toBe(
+        await tokenColor(page, "--foreground")
+      )
+      expect(await style(unit, "fontSize")).toBe("13px")
+      expect(await style(unit, "color")).toBe(
+        await tokenColor(page, "--muted-foreground")
+      )
+      expect(await style(tile.locator("[data-stat-icon]"), "color")).toBe(
+        await tokenColor(page, "--threshold-critical")
       )
     })
 
@@ -99,8 +169,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("links the value", async ({ page, request }) => {
       await openStats(page, request)
 
-      const link = tiles(page, "Linked").getByRole("link")
+      const link = tiles(page, "Linked").getByRole("link", {
+        name: /Details for/,
+      })
       await expect(link).toHaveAttribute("href", /\/dashboards\?q=/)
+      await expect(link).toHaveAttribute("title", /^Details for /)
     })
   })
 }

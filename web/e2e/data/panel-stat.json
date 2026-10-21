@@ -67,6 +67,27 @@
         "textMode": "valueAndName",
         "reduce": "max"
       }
+    },
+    {
+      "id": "st_info",
+      "type": "stat",
+      "title": "Info background",
+      "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+      "datasource": "prom",
+      "queries": [{ "query": "sum(rate(http_requests_total[5m]))" }],
+      "unit": "reqps",
+      "thresholds": [{ "color": "info" }],
+      "display": { "colorMode": "background" }
+    },
+    {
+      "id": "st_state",
+      "type": "stat",
+      "title": "State",
+      "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 },
+      "datasource": "prom",
+      "queries": [{ "query": "sum(rate(http_requests_total[5m]))" }],
+      "unit": "reqps",
+      "thresholds": [{ "color": "critical" }]
     }
   ]
 }

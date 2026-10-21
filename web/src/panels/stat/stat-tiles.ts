@@ -30,10 +30,21 @@ export type StatTile = {
   labels: Record<string, string> | undefined
   value: number | null
   text: string
+  amount: string
+  unit: string
   color: string | null
   threshold: ThresholdState
   points: [number, number][]
   links: Link[]
+}
+
+const trailingUnit = /^(-?[\d.,]+) (\D+)$/
+
+function splitUnit(text: string, mapped: boolean) {
+  const match = mapped ? null : trailingUnit.exec(text)
+  return match
+    ? { amount: match[1], unit: match[2] }
+    : { amount: text, unit: "" }
 }
 
 function sparkline(frame: PreparedFrame, field: WireField): [number, number][] {
@@ -99,6 +110,7 @@ export function statTiles(
       labels: frame.labels,
       value,
       text: shown.text,
+      ...splitUnit(shown.text, shown.mapped),
       color: shown.color,
       threshold: shown.threshold,
       points: sparkline(frame, field),

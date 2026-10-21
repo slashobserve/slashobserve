@@ -100,6 +100,24 @@ describe("statTiles", () => {
     expect(tile.text).toBe("n/a")
   })
 
+  it.each([
+    ["reqps", 256, "256", "req/s"],
+    ["bytes", 1536, "1.5", "KiB"],
+    ["percent", 42, "42%", ""],
+    ["prefix:$", 3, "$3", ""],
+    ["short", 7, "7", ""],
+  ])("splits the %s unit from the amount", (unit, value, amount, suffix) => {
+    const [tile] = tiles([frame([value])], { unit })
+    expect([tile.amount, tile.unit]).toEqual([amount, suffix])
+  })
+
+  it("keeps a mapped text whole", () => {
+    const [tile] = tiles([frame([1])], {
+      mappings: [{ value: "1", text: "3 pods", color: "ok" }],
+    } as Partial<DataPanel>)
+    expect([tile.amount, tile.unit]).toEqual(["3 pods", ""])
+  })
+
   it("keeps the time and value pairs of a sparkline, dropping gaps", () => {
     const [tile] = tiles([frame([1, null, 3])])
     expect(tile.points).toEqual([
