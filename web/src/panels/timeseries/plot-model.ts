@@ -82,7 +82,8 @@ export function plotStateFor(
   const { drawn, below, directions } = stackSeries(
     series.map(({ values }) => values),
     modes,
-    series.map(({ axis }) => axis)
+    series.map(({ axis }) => axis),
+    series.map(({ style }) => style)
   )
   const first = 1 + ghosts.length
   return {
