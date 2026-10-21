@@ -8,6 +8,7 @@ import { mcpKey, mcpTool } from "./mcp"
 
 const requestText = "Show error rate too"
 const replyText = "Added error rate in version 2"
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -48,7 +49,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           summary: "Created by Claude Code",
         })) as { dashboard_id: string }
         id = created.dashboard_id
-        expect(id).not.toBe("")
+        expect(id).toMatch(uuid)
       })
 
       await test.step("breadcrumb", async () => {
@@ -145,6 +146,20 @@ for (const colorScheme of ["light", "dark"] as const) {
           version.getByText("saved over MCP", { exact: true })
         ).toBeVisible()
         await expect(versionButton(page)).toHaveText("Live · v2")
+      })
+
+      await test.step("with a model the capability is the same", async () => {
+        await page.unroute("**/api/v1/agent")
+        await page.reload()
+
+        await expect(
+          page.getByRole("navigation", { name: "Breadcrumb" })
+        ).toContainText("made by Claude Code")
+        await expect(
+          card(page)
+            .getByRole("form", { name: "Add to the activity" })
+            .getByRole("button", { name: "Send to agent" })
+        ).toBeVisible()
       })
     })
   })
