@@ -9,7 +9,7 @@ const repoRoot = join(import.meta.dirname, "..", "..")
 
 export const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 
-export function readJson<T>(...segments: string[]): T {
+function readJson<T>(...segments: string[]): T {
   return JSON.parse(
     readFileSync(join(repoRoot, ...segments), { encoding: "utf8" })
   ) as T
