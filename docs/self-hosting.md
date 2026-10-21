@@ -500,7 +500,7 @@ The JSON can be the classic dashboard model, an export that shares a dashboard e
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](#datasources-file).
 An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
 
-An import can be at most 8 MiB.
+The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
 Failing queries mark their panels unverified in the import report instead of failing the import; later saves of the dashboard run every query as usual.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
