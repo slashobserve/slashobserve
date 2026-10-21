@@ -28,6 +28,7 @@ type Encode = (text: string) => string
 const dataTokens = ["${__data.", "${__value", "${__series", "${__field"]
 const allowedProtocols = new Set(["http:", "https:", "mailto:"])
 const token = /\$\{([^}]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g
+const wholeToken = new RegExp(`^(?:${token.source})$`)
 const dataField = /^__data\.fields(?:\.(.+)|\[\s*(?:"([^"]*)"|'([^']*)')\s*\])$/
 const formatSuffix = /^(.+):(raw|text|csv|percentencode|queryparam)$/
 const labelPrefix = "__field.labels."
@@ -154,7 +155,10 @@ function isSafeUrl(url: string): boolean {
 }
 
 export function resolveLink(link: Link, scope: LinkScope): ResolvedLink | null {
-  const href = interpolate(link.url, scope, encodeURIComponent).trim()
+  const encode = wholeToken.test(link.url.trim())
+    ? identity
+    : encodeURIComponent
+  const href = interpolate(link.url, scope, encode).trim()
   if (!isSafeUrl(href)) return null
   return {
     title: interpolate(link.title, scope, identity),

@@ -206,6 +206,51 @@ describe("link interpolation", () => {
   })
 })
 
+describe("a URL that is exactly one token", () => {
+  const frame: WireFrame = {
+    ref: "A",
+    fields: [{ name: "url", type: "string", values: ["", "/x?a=b c&d=e"] }],
+  }
+
+  it("takes the value as it is, without encoding", () => {
+    expect(
+      href("${__value.raw}", { value: "https://example.org/a b?x=1&y=2" })
+    ).toBe("https://example.org/a b?x=1&y=2")
+    expect(href(" ${__data.fields.url} ", { row: { frame, index: 1 } })).toBe(
+      "/x?a=b c&d=e"
+    )
+    expect(href("$link", { vars: { link: ["/d?x=1&y=2"] } })).toBe("/d?x=1&y=2")
+  })
+
+  it("still encodes a token inside a larger URL", () => {
+    expect(
+      href("https://example.org/?u=${__value.raw}", { value: "/a?b=c&d" })
+    ).toBe("https://example.org/?u=%2Fa%3Fb%3Dc%26d")
+  })
+
+  it("drops a value with a scheme that is not allowed", () => {
+    expect(
+      href("${__value.raw}", { value: "javascript:alert(1)" })
+    ).toBeUndefined()
+    expect(
+      href("${__data.fields.url}", {
+        row: {
+          frame: {
+            ref: "A",
+            fields: [
+              { name: "url", type: "string", values: ["data:text/html,x"] },
+            ],
+          },
+          index: 0,
+        },
+      })
+    ).toBeUndefined()
+    expect(
+      href("$link", { vars: { link: [" JaVa\tScRiPt:alert(1)"] } })
+    ).toBeUndefined()
+  })
+})
+
 describe("link safety", () => {
   it("drops a javascript URL", () => {
     expect(href("javascript:alert(1)")).toBeUndefined()
