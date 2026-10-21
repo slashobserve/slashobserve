@@ -9,9 +9,17 @@ import {
 
 import type { EditablePanel } from "./draft"
 
-const missingPanelMessage = "This panel is not in the version you are editing."
+export const missingPanelMessage =
+  "This panel is not in the version you are editing."
 
-export type JsonIssue = { path: string; message: string; line?: number }
+export type IssueScope = "dashboard" | "panel"
+
+export type JsonIssue = {
+  path: string
+  message: string
+  scope: IssueScope
+  line?: number
+}
 export type ParsedPanel =
   { ok: true; panel: EditablePanel } | { ok: false; issues: JsonIssue[] }
 
@@ -58,7 +66,11 @@ function typeIssue(
   current: Panel
 ): JsonIssue | null {
   if (value.type === "row" || value.type === "placeholder") {
-    return { path: "/type", message: "Choose a data panel type or text." }
+    return {
+      path: "/type",
+      message: "Choose a data panel type or text.",
+      scope: "panel",
+    }
   }
   const isText = value.type === "text"
   const isData =
@@ -69,17 +81,25 @@ function typeIssue(
       path: "/type",
       message:
         "Use the panel type picker in the editor to change a data panel's type.",
+      scope: "panel",
     }
   }
   return null
 }
 
-function relativeIssue(pointer: string, issue: JsonIssue): JsonIssue {
-  if (issue.path === pointer) return { ...issue, path: "" }
+function scopedIssue(
+  pointer: string,
+  issue: { path: string; message: string }
+): JsonIssue {
+  if (issue.path === pointer) return { ...issue, path: "", scope: "panel" }
   if (issue.path.startsWith(pointer + "/")) {
-    return { ...issue, path: issue.path.slice(pointer.length) }
+    return {
+      ...issue,
+      path: issue.path.slice(pointer.length),
+      scope: "panel",
+    }
   }
-  return issue
+  return { ...issue, scope: "dashboard" }
 }
 
 export function parsePanelJson(
@@ -91,28 +111,38 @@ export function parsePanelJson(
   try {
     value = JSON.parse(text)
   } catch (error) {
-    if (!(error instanceof SyntaxError)) throw error
-    const line = jsonErrorLine(error.message, text)
+    const message = (error as SyntaxError).message
+    const line = jsonErrorLine(message, text)
     return {
       ok: false,
       issues: [
         line === undefined
-          ? { path: "", message: error.message }
-          : { path: "", message: error.message, line },
+          ? { path: "", message, scope: "panel" }
+          : { path: "", message, scope: "panel", line },
       ],
     }
   }
   if (!isRecord(value)) {
     return {
       ok: false,
-      issues: [{ path: "", message: "The panel must be a JSON object." }],
+      issues: [
+        {
+          path: "",
+          message: "The panel must be a JSON object.",
+          scope: "panel",
+        },
+      ],
     }
   }
   if (value.id !== panelId) {
     return {
       ok: false,
       issues: [
-        { path: "/id", message: `The panel id must stay "${panelId}".` },
+        {
+          path: "/id",
+          message: `The panel id must stay "${panelId}".`,
+          scope: "panel",
+        },
       ],
     }
   }
@@ -121,7 +151,7 @@ export function parsePanelJson(
   if (!entry || !placed) {
     return {
       ok: false,
-      issues: [{ path: "", message: missingPanelMessage }],
+      issues: [{ path: "", message: missingPanelMessage, scope: "dashboard" }],
     }
   }
   const crossing = typeIssue(value, entry.panel)
@@ -133,6 +163,6 @@ export function parsePanelJson(
   }
   return {
     ok: false,
-    issues: result.issues.map((issue) => relativeIssue(entry.pointer, issue)),
+    issues: result.issues.map((issue) => scopedIssue(entry.pointer, issue)),
   }
 }

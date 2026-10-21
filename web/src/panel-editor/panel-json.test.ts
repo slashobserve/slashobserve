@@ -5,6 +5,7 @@ import type { Dashboard, DataPanel, TextPanel } from "@/spec"
 import {
   formatPanel,
   jsonErrorLine,
+  missingPanelMessage,
   parsePanelJson,
   withPanel,
 } from "./panel-json"
@@ -105,27 +106,37 @@ describe("parsePanelJson", () => {
     expect(issues).toHaveLength(1)
     expect(issues[0].path).toBe("")
     expect(issues[0].message).not.toBe("")
+    expect(issues[0].scope).toBe("panel")
   })
 
   it("reports a non-object", () => {
-    expect(failure("[1]", "top")).toEqual([
-      { path: "", message: "The panel must be a JSON object." },
-    ])
-    expect(failure("null", "top")).toEqual([
-      { path: "", message: "The panel must be a JSON object." },
-    ])
+    const issue = {
+      path: "",
+      message: "The panel must be a JSON object.",
+      scope: "panel",
+    }
+    expect(failure("[1]", "top")).toEqual([issue])
+    expect(failure("null", "top")).toEqual([issue])
   })
 
   it("keeps the panel id", () => {
     expect(failure(JSON.stringify({ ...top, id: "other" }), "top")).toEqual([
-      { path: "/id", message: 'The panel id must stay "top".' },
+      {
+        path: "/id",
+        message: 'The panel id must stay "top".',
+        scope: "panel",
+      },
     ])
   })
 
   it("refuses row and placeholder types", () => {
     for (const type of ["row", "placeholder"]) {
       expect(failure(JSON.stringify({ ...top, type }), "top")).toEqual([
-        { path: "/type", message: "Choose a data panel type or text." },
+        {
+          path: "/type",
+          message: "Choose a data panel type or text.",
+          scope: "panel",
+        },
       ])
     }
   })
@@ -134,11 +145,11 @@ describe("parsePanelJson", () => {
     const message =
       "Use the panel type picker in the editor to change a data panel's type."
     expect(failure(JSON.stringify({ ...top, type: "text" }), "top")).toEqual([
-      { path: "/type", message },
+      { path: "/type", message, scope: "panel" },
     ])
     expect(
       failure(JSON.stringify({ ...notes, type: "stat" }), "notes")
-    ).toEqual([{ path: "/type", message }])
+    ).toEqual([{ path: "/type", message, scope: "panel" }])
   })
 
   it("allows moving between data panel types", () => {
@@ -171,9 +182,49 @@ describe("parsePanelJson", () => {
     expect(issues).toContainEqual({
       path: "",
       message: 'missing property "title"',
+      scope: "panel",
     })
   })
 
+  it("keeps a sibling panel's issue out of the draft when ids share a prefix", () => {
+    const filler: DataPanel[] = Array.from({ length: 11 }, (_, i) => ({
+      ...top,
+      id: `p${i}`,
+      gridPos: { x: 0, y: i, w: 6, h: 4 },
+    }))
+    const broken = { ...filler[10], queries: [{ query: "" }] }
+    const crowded: Dashboard = {
+      ...spec,
+      panels: [...filler.slice(0, 10), broken as DataPanel],
+    }
+    const result = parsePanelJson(JSON.stringify(filler[1]), crowded, "p1")
+    if (result.ok) throw new Error("expected issues")
+    expect(result.issues.length).toBeGreaterThan(0)
+    for (const issue of result.issues) {
+      expect(issue.scope).toBe("dashboard")
+      expect(issue.path.startsWith("/panels/10/")).toBe(true)
+    }
+  })
+
+  it("scopes an issue on another panel to the dashboard", () => {
+    const stale: Dashboard = {
+      ...spec,
+      panels: [top, { ...notes, content: 5 as unknown as string }],
+    }
+    const result = parsePanelJson(JSON.stringify(top), stale, "top")
+    if (result.ok) throw new Error("expected issues")
+    expect(result.issues).toContainEqual({
+      path: "/panels/1/content",
+      message: expect.any(String),
+      scope: "dashboard",
+    })
+  })
+
+  it("says the panel is missing when the version does not have it", () => {
+    expect(failure(JSON.stringify({ ...top, id: "ghost" }), "ghost")).toEqual([
+      { path: "", message: missingPanelMessage, scope: "dashboard" },
+    ])
+  })
   it("round trips a formatted panel", () => {
     for (const panel of [top, child, notes]) {
       const result = parsePanelJson(formatPanel(panel), spec, panel.id)
