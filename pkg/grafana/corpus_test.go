@@ -150,6 +150,23 @@ func TestCorpusGoldens(t *testing.T) {
 	}
 }
 
+func TestCorpusGoldensHaveSources(t *testing.T) {
+	root := testdata(t)
+	goldens, err := fs.Glob(root.FS(), goldenDir+"/*/*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inCorpus := map[string]bool{}
+	for _, f := range corpusFiles(t) {
+		inCorpus[f.source+"/"+f.name] = true
+	}
+	for _, g := range goldens {
+		if id := filepath.Base(filepath.Dir(g)) + "/" + filepath.Base(g); !inCorpus[id] {
+			t.Errorf("golden %s has no corpus file %s", g, id)
+		}
+	}
+}
+
 type sourcePanel struct {
 	path string
 	raw  map[string]any
