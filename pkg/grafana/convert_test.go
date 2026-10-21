@@ -590,6 +590,10 @@ func TestOptionsTheRenderersAlreadyDrawTheSameWayAreNotReported(t *testing.T) {
 		{"table column width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"width":120}},"overrides":[]}`), true},
 		{"table override column width", override("table", `{"id":"custom.width","value":90}`), true},
 		{"legend click marker", panelDoc("timeseries", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"__systemRef":"hideSeriesFrom","matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.hideFrom","value":{"viz":true}}]}]}`), true},
+		{"legacy line width 2", panelDoc("graph", upTarget+`,"linewidth":2`), true},
+		{"legacy line width 3", panelDoc("graph", upTarget+`,"linewidth":3`), false},
+		{"table column min width", panelDoc("table", upTarget+`,"fieldConfig":{"defaults":{"custom":{"minWidth":50}},"overrides":[]}`), true},
+		{"table override column min width", override("table", `{"id":"custom.minWidth","value":200}`), true},
 		{"legacy legend width", panelDoc("graph", upTarget+`,"legend":{"show":true,"rightSide":true,"sideWidth":350}`), true},
 	}
 	for _, tc := range cases {

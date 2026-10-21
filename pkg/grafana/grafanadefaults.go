@@ -159,6 +159,13 @@ var cosmeticOptions = map[string]cosmeticOption{
 		values: []any{2},
 		why:    "timeseries draws every series line 2px wide",
 	},
+	"linewidth": {
+		values: []any{2},
+		why:    "timeseries draws every series line 2px wide",
+	},
+	"fieldConfig.defaults.custom.minWidth": {
+		why: "table columns are sized by the browser from their content and have no minimum width",
+	},
 	"options.tooltip.sort": {
 		values: []any{"desc"},
 		why:    "the timeseries tooltip always lists its rows by descending value",
