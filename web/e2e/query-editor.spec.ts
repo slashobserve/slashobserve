@@ -1096,6 +1096,137 @@ test("does not count whitespace in a legend as a change", async ({
   ).toBeDisabled()
 })
 
+test("offers Reload page when the panel editor chunk fails to load", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  const chunk = "**/assets/panel-editor-*.js"
+  await page.route(chunk, (route) => route.abort())
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+
+  await expect(
+    sheet(page).getByText("Could not load the panel editor")
+  ).toBeVisible()
+  await expect(sheet(page).getByRole("button", { name: "Retry" })).toHaveCount(
+    0
+  )
+
+  await page.unroute(chunk)
+  await Promise.all([
+    page.waitForEvent("load"),
+    sheet(page).getByRole("button", { name: "Reload page" }).click(),
+  ])
+  await expect(sheet(page).locator(".cm-editor")).toBeVisible()
+  const expectedFailure = /net::ERR_FAILED|dynamically imported module/
+  consoleErrors.splice(
+    0,
+    consoleErrors.length,
+    ...consoleErrors.filter((text) => !expectedFailure.test(text))
+  )
+})
+
+test("shows the clash and sends nothing when applying my changes would make the panel invalid", async ({
+  page,
+  request,
+}) => {
+  const { id, spec } = await createOverview(request)
+  const posts: string[] = []
+  page.on("request", (message) => {
+    if (message.method() === "POST" && /\/versions$/.test(message.url())) {
+      posts.push(message.url())
+    }
+  })
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  await addVersion(
+    request,
+    id,
+    {
+      ...spec,
+      panels: spec.panels.map((item) =>
+        item.id === "rps"
+          ? {
+              id: "rps",
+              type: "text",
+              title: rpsTitle,
+              content: "Moved to the runbook",
+              gridPos: item.gridPos,
+            }
+          : item
+      ),
+    },
+    1
+  )
+  await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
+  await sheet(page)
+    .getByRole("button", { name: "Apply my changes to version 2" })
+    .click()
+
+  await expect(
+    sheet(page).getByText("Your changes do not fit version 2.")
+  ).toBeVisible()
+  await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
+  expect(posts).toEqual([])
+  expect((await getDashboard(request, id)).latestVersion).toBe(2)
+})
+
+test("keeps focus on the datasource select when its query editor is rebuilt", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, "SELECT 1")
+
+  const select = sheet(page).getByRole("combobox", {
+    name: "Datasource for query A",
+  })
+  await select.focus()
+  await select.selectOption({ label: "ch (ClickHouse)" })
+
+  await expect(queryEditor(page, "A").locator(".tok-keyword")).toHaveText(
+    "SELECT"
+  )
+  await expect(select).toBeFocused()
+})
+
+test("edits the content of a text panel and saves it", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("overview")
+  spec.title = uniqueTitle("E2E text")
+  spec.panels.push({
+    id: "notes",
+    type: "text",
+    title: "Notes",
+    content: "Old notes",
+    gridPos: { x: 0, y: 16, w: 12, h: 4 },
+  })
+  const { id } = await createDashboard(request, spec)
+  await openDashboard(page, id)
+  await openFromMenu(page, "Notes")
+
+  await expect(sheet(page).locator(".cm-editor")).toHaveCount(0)
+  const content = sheet(page).getByRole("textbox", { name: "Content" })
+  await expect(content).toHaveValue("Old notes")
+  await content.fill("New **notes**")
+  await expect(sheet(page).getByText("1 change: content")).toBeVisible()
+  await sheet(page).getByRole("button", { name: saveVersionButton }).click()
+
+  await expect(page.getByText("Saved version 2")).toBeVisible()
+  const notes = (await getDashboard(request, id)).spec.panels.find(
+    (item) => item.id === "notes"
+  )
+  expect(notes).toMatchObject({ type: "text", content: "New **notes**" })
+})
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
