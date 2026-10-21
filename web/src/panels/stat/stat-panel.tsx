@@ -2,9 +2,9 @@ import { useMemo } from "react"
 
 import { commonDecimals, formatValue } from "@/lib/units"
 
-import { firstNumberSeries, legendFor } from "./frames"
-import { thresholdFor, thresholdIcons } from "./thresholds"
-import type { PanelRenderer } from "./types"
+import { firstNumberSeries, legendFor } from "../frames"
+import { thresholdFor, thresholdIcons } from "../thresholds"
+import type { PanelRenderer } from "../types"
 
 const charWidth = 0.62
 
@@ -87,3 +87,5 @@ export const StatPanel: PanelRenderer = ({ panel, frames, width, height }) => {
     </div>
   )
 }
+
+export default StatPanel

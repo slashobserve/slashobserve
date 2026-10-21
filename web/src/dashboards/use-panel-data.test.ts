@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import { ApiError } from "@/api/errors"
 
-import { panelRetry } from "./use-panel-data"
+import type { Panel } from "@/spec"
+
+import { maxDataPointsFor, panelRetry } from "./use-panel-data"
 
 const error = (status: number, code: string) =>
   new ApiError(status, code, "failed")
@@ -26,5 +28,24 @@ describe("panelRetry", () => {
 
   it("never retries a client error", () => {
     expect(panelRetry(0, error(404, "not_found"))).toBe(false)
+  })
+})
+
+const panelOfType = (type: string) => ({ id: "p", type }) as Panel
+
+describe("maxDataPointsFor", () => {
+  it.each([
+    ["timeseries", 640, 700],
+    ["heatmap", 640, 700],
+    ["state-timeline", 640, 700],
+    ["histogram", 640, 700],
+    ["timeseries", 100, 100],
+    ["timeseries", 101, 200],
+    ["timeseries", 0, 100],
+    ["timeseries", 10_000, 1100],
+    ["stat", 640, undefined],
+    ["table", 640, undefined],
+  ])("%s at %i pixels asks for %s points", (type, width, expected) => {
+    expect(maxDataPointsFor(panelOfType(type), width)).toBe(expected)
   })
 })

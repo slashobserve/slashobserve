@@ -35,6 +35,8 @@ const labelPrefix = "__field.labels."
 const plainVar = /^[A-Za-z_][A-Za-z0-9_]*$/
 const allLabel = "All"
 
+const unresolvedRange = /\$\{?__(?:from|to)\b/
+
 const identity: Encode = (text) => text
 
 const strictEscapes = /[!'()*]/g
@@ -182,4 +184,5 @@ export function panelLinks(panel: DataPanel, scope: LinkScope): ResolvedLink[] {
   return (panel.links ?? [])
     .filter((link) => !isDataLink(link))
     .flatMap((link) => resolveLink(link, scope) ?? [])
+    .filter((link) => !unresolvedRange.test(link.href))
 }

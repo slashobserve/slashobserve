@@ -22,13 +22,16 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { refreshToMs } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
-import { panelRenderers } from "@/panels"
-import { hasData } from "@/panels/frames"
+import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
+import { createFieldResolver, panelLinks } from "@/panels/field-config"
+import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
+import { panelHasData } from "@/panels/transforms"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
+import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
 import {
   EditControls,
@@ -88,6 +91,8 @@ type PanelContainerProps = {
   height: number
   from: string | undefined
   to: string | undefined
+  rangeFrom: string
+  rangeTo: string
   selections: Selections
   selectionsReady: boolean
   blockedBy: string | undefined
@@ -109,6 +114,8 @@ const PanelContainer = memo(function PanelContainer({
   height,
   from,
   to,
+  rangeFrom,
+  rangeTo,
   selections,
   selectionsReady,
   blockedBy,
@@ -126,8 +133,12 @@ const PanelContainer = memo(function PanelContainer({
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const body = panelBodySize(Math.floor(width), Math.floor(height))
-  const supported =
-    isDataPanel(panel) && panelRenderers[panel.type] !== undefined
+  const dataPanel = isDataPanel(panel) ? panel : undefined
+  const supported = isRenderable(panel.type)
+
+  useEffect(() => {
+    if (seen) preloadRenderer(panel.type)
+  }, [seen, panel.type])
 
   const query = usePanelData({
     dashboardId,
@@ -138,8 +149,37 @@ const PanelContainer = memo(function PanelContainer({
     vars: selections,
     maxDataPoints: maxDataPointsFor(panel, body.width),
     refreshMs,
-    enabled: supported && seen && selectionsReady,
+    enabled: dataPanel !== undefined && supported && seen && selectionsReady,
   })
+
+  const populated = useMemo(
+    () =>
+      dataPanel !== undefined &&
+      query.data !== undefined &&
+      panelHasData(dataPanel, query.data.frames),
+    [dataPanel, query.data]
+  )
+
+  const fields = useMemo(
+    () => (dataPanel ? createFieldResolver(dataPanel) : undefined),
+    [dataPanel]
+  )
+  const links = useMemo(
+    () =>
+      dataPanel && fields
+        ? panelLinks(
+            dataPanel,
+            linkScopeFor({
+              vars: selections,
+              from: rangeFrom,
+              to: rangeTo,
+              fields,
+              meta: query.data?.meta,
+            })
+          )
+        : [],
+    [dataPanel, fields, selections, rangeFrom, rangeTo, query.data?.meta]
+  )
 
   const onTimeRangeSelect = useCallback(
     (fromMs: number, toMs: number) =>
@@ -153,7 +193,8 @@ const PanelContainer = memo(function PanelContainer({
 
   let state: PanelState = "loading"
   if (!supported) state = "unsupported"
-  else if (query.data) state = hasData(query.data.frames) ? "ready" : "empty"
+  else if (!dataPanel) state = "ready"
+  else if (query.data) state = populated ? "ready" : "empty"
   else if (blockedBy !== undefined) state = "error"
   else if (query.isError) state = "error"
 
@@ -162,10 +203,6 @@ const PanelContainer = memo(function PanelContainer({
       blockedBy === undefined ? undefined : new VariableLoadError(blockedBy),
     [blockedBy]
   )
-
-  const Renderer = isDataPanel(panel)
-    ? panelRenderers[tableView ? "table" : panel.type]
-    : undefined
 
   return (
     <div ref={ref} className="size-full">
@@ -180,6 +217,7 @@ const PanelContainer = memo(function PanelContainer({
         highlighted={highlighted}
         editing={editingPanel}
         datasourceLabel={panelDatasourceUids(panel).join(", ")}
+        links={links}
         badge={
           <PanelCommentBadge
             panelId={panel.id}
@@ -198,15 +236,26 @@ const PanelContainer = memo(function PanelContainer({
           />
         }
       >
-        {query.data && Renderer && isDataPanel(panel) ? (
-          <Renderer
-            panel={panel}
-            frames={query.data.frames}
-            meta={query.data.meta}
+        {dataPanel && query.data ? (
+          <PanelBody
+            panel={dataPanel}
+            data={query.data}
             width={body.width}
             height={body.height}
             syncKey={dashboardId}
             onTimeRangeSelect={onTimeRangeSelect}
+            vars={selections}
+            from={rangeFrom}
+            to={rangeTo}
+            asTable={tableView}
+          />
+        ) : null}
+        {isStaticPanel(panel) && supported ? (
+          <StaticPanelBody
+            panel={panel}
+            width={body.width}
+            height={body.height}
+            vars={selections}
           />
         ) : null}
       </PanelChrome>
@@ -413,6 +462,10 @@ function DashboardView({
           />
         ) : null}
         <VariablesBar states={states} />
+        <DashboardLinks
+          links={spec.links}
+          scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
+        />
         <LayoutAnnouncer />
         <main
           ref={gridBox}
@@ -432,6 +485,8 @@ function DashboardView({
                 height={size.height}
                 from={search.from}
                 to={search.to}
+                rangeFrom={effectiveFrom}
+                rangeTo={effectiveTo}
                 selections={selections}
                 selectionsReady={ready}
                 blockedBy={blockedBy}

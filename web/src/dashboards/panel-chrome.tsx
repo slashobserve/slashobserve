@@ -1,22 +1,31 @@
 import { useId, type ReactNode } from "react"
 import {
-  CircleAlertIcon,
   InfoIcon,
+  LinkIcon,
   LoaderCircleIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { panelTitle, type LayoutPanel } from "@/spec"
+import type { ResolvedLink } from "@/panels/field-config"
+import { errorMessage, PanelErrorState } from "@/panels/panel-error"
+import { PanelSkeleton } from "@/panels/panel-skeleton"
+import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
+import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
 import { VariableLoadError } from "./variables"
 
@@ -49,10 +58,6 @@ export function errorTitle(error: unknown): string {
   return "Panel failed to load"
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error"
-}
-
 type Props = {
   panel: LayoutPanel
   state: PanelState
@@ -61,6 +66,7 @@ type Props = {
   staleError?: unknown
   onRetry?: () => void
   badge?: ReactNode
+  links?: ResolvedLink[]
   menu?: ReactNode
   datasourceLabel?: string
   editing?: boolean
@@ -77,6 +83,7 @@ export function PanelChrome({
   staleError,
   onRetry,
   badge,
+  links = [],
   menu,
   datasourceLabel,
   editing = false,
@@ -165,34 +172,50 @@ export function PanelChrome({
             </Tooltip>
           ) : null}
           {badge}
+          {links.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground"
+                    aria-label={`Panel links: ${title}`}
+                  />
+                }
+              >
+                <LinkIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-max">
+                {links.map((link, index) => (
+                  <DropdownMenuItem
+                    key={`${index}:${link.href}`}
+                    render={<a {...anchorProps(link)} />}
+                    className="justify-between gap-3"
+                  >
+                    {link.title}
+                    {link.newTab ? <NewTabMark /> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
           {menu}
         </div>
       </header>
       <div className="min-h-0 flex-1">
-        {state === "loading" ? (
-          <div className="size-full p-2 pt-0">
-            <Skeleton className="size-full animate-none motion-safe:animate-pulse" />
-          </div>
-        ) : null}
+        {state === "loading" ? <PanelSkeleton /> : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
-            No data
+            {isDataPanel(panel) ? (panel.noValue ?? "No data") : "No data"}
           </div>
         ) : null}
         {state === "error" ? (
-          <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
-            <CircleAlertIcon className="size-5 text-destructive" />
-            <p className="text-sm font-medium">{errorTitle(error)}</p>
-            {errorMessage(error).toLowerCase() !==
-            errorTitle(error).toLowerCase() ? (
-              <p className="line-clamp-3 text-xs text-muted-foreground">
-                {errorMessage(error)}
-              </p>
-            ) : null}
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              Retry
-            </Button>
-          </div>
+          <PanelErrorState
+            title={errorTitle(error)}
+            error={error}
+            onRetry={onRetry}
+          />
         ) : null}
         {state === "unsupported" ? (
           <div className="flex size-full items-center justify-center p-3 text-center text-sm text-muted-foreground">

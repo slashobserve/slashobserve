@@ -1,0 +1,7 @@
+import type { RendererManifest } from "../types"
+
+export const manifest: RendererManifest = {
+  type: "timeseries",
+  supported: true,
+  load: () => import("./timeseries-panel"),
+}

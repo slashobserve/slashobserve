@@ -1,0 +1,53 @@
+{
+  "specVersion": "0",
+  "title": "E2E links",
+  "time": { "from": "now-15m", "to": "now" },
+  "variables": [
+    {
+      "name": "env",
+      "label": "Environment",
+      "type": "custom",
+      "options": ["prod", "staging"]
+    }
+  ],
+  "links": [
+    {
+      "title": "Runbook",
+      "url": "https://example.com/runbook?env=${env}",
+      "newTab": true
+    }
+  ],
+  "panels": [
+    {
+      "id": "rps",
+      "type": "timeseries",
+      "title": "Checkout requests per second",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\"}[$__rate_interval]))",
+          "legend": "{{pod}}"
+        }
+      ],
+      "unit": "reqps",
+      "links": [
+        {
+          "title": "Explore ${env}",
+          "url": "/dashboards?q=${env}",
+          "newTab": true
+        },
+        { "title": "Bad", "url": "javascript:alert(1)" }
+      ]
+    },
+    {
+      "id": "p_none",
+      "type": "timeseries",
+      "title": "Nothing here",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [{ "query": "count(up)" }],
+      "noValue": "Nothing yet"
+    }
+  ]
+}

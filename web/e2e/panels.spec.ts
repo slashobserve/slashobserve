@@ -86,7 +86,7 @@ test("draws every panel type with data", async ({ page, request }) => {
   }
 
   const logs = panel(page, "Log rows by service")
-  expect(await logs.getByRole("row").count()).toBeGreaterThan(1)
+  await expect(logs.getByRole("row").nth(1)).toBeVisible()
 })
 
 test("shows a crosshair tooltip and toggles series", async ({
@@ -196,6 +196,30 @@ test("switches between chart and table view", async ({ page, request }) => {
   await menu.click()
   await page.getByRole("menuitem", { name: "View as chart" }).click()
   await expect(rps.locator("canvas")).toHaveCount(1)
+})
+
+test("keeps other panels working when a renderer chunk fails and reloads the page", async ({
+  page,
+  request,
+}) => {
+  const id = await createOverview(request)
+  const chunk = "**/assets/stat-panel-*.js"
+  await page.route(chunk, (route) => route.abort())
+  await openDashboard(page, id)
+
+  const stat = panel(page, "Checkout error rate")
+  await expect(stat.getByText("Could not load this panel")).toBeVisible()
+  await expect(stat.getByRole("button", { name: "Reload page" })).toBeVisible()
+  await expect(panel(page, rpsTitle).locator("canvas")).toHaveCount(1)
+  await expect(panel(page, "Requests by pod").getByRole("meter")).toHaveCount(2)
+
+  await page.unroute(chunk)
+  await Promise.all([
+    page.waitForEvent("load"),
+    stat.getByRole("button", { name: "Reload page" }).click(),
+  ])
+  await expectPanelsReady(page)
+  await expect(panel(page, "Checkout error rate").getByText(/%$/)).toBeVisible()
 })
 
 test("renders in dark mode without leaking canvases", async ({
@@ -342,3 +366,61 @@ test("labels each query's series with its own legend", async ({
   await expect(legendButton(two, "all")).toBeVisible()
   await expect(legendButton(two, "job")).toBeVisible()
 })
+
+async function createLinks(request: APIRequestContext) {
+  const spec = loadSpec("links")
+  spec.title = uniqueTitle("E2E links")
+  const { id } = await createDashboard(request, spec)
+  return id
+}
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test.describe(`links in ${colorScheme}`, () => {
+    test.use({ colorScheme })
+
+    test("shows panel links with variables and drops unsafe ones", async ({
+      page,
+      request,
+    }) => {
+      const id = await createLinks(request)
+      await openDashboard(page, id)
+      const rps = panel(page, rpsTitle)
+      await expect(rps).toHaveAttribute("data-state", "ready")
+
+      await rps
+        .getByRole("button", { name: `Panel links: ${rpsTitle}` })
+        .click()
+      await expect(
+        page.getByRole("menuitem", { name: "Explore prod (opens in new tab)" })
+      ).toHaveAttribute("href", /\/dashboards\?q=prod$/)
+      await expect(page.getByRole("menuitem", { name: "Bad" })).toHaveCount(0)
+    })
+
+    test("shows dashboard links", async ({ page, request }) => {
+      const id = await createLinks(request)
+      await openDashboard(page, id)
+      const link = page
+        .getByRole("navigation", { name: "Dashboard links" })
+        .getByRole("link", { name: "Runbook" })
+      await expect(link).toHaveAccessibleName("Runbook (opens in new tab)")
+      await expect(link).toHaveAttribute("target", "_blank")
+      await expect(link).toHaveAttribute("href", /env=prod/)
+    })
+
+    test("shows the panel's noValue text when a query returns nothing", async ({
+      page,
+      request,
+    }) => {
+      const id = await createLinks(request)
+      await page.route("**/panels/p_none/data**", async (route) => {
+        const response = await route.fetch()
+        const body = (await response.json()) as Record<string, unknown>
+        await route.fulfill({ response, json: { ...body, frames: [] } })
+      })
+      await openDashboard(page, id)
+      const empty = panel(page, "Nothing here")
+      await expect(empty).toHaveAttribute("data-state", "empty")
+      await expect(empty.getByText("Nothing yet")).toBeVisible()
+    })
+  })
+}
