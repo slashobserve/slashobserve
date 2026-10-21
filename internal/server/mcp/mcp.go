@@ -20,6 +20,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -185,6 +186,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	principal, ok, err := h.authn.BearerPrincipal(r.Context(), header)
 	if err != nil {
+		if clientgone.Is(r.Context(), err) {
+			clientgone.WriteHeader(w, r, h.logger, "resolve bearer key")
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "resolve bearer key", logattrs.Failure("key_lookup_failed", err)...)
 		writeError(w, http.StatusInternalServerError, "internal", internalErrorMsg)
 		return

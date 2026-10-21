@@ -23,12 +23,14 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const (
 	goodKey   = "Bearer good"
 	errorKey  = "Bearer broken"
+	goneKey   = "Bearer gone"
 	otherKey  = "Bearer other"
 	publicURL = "http://observe.test:8080"
 )
@@ -49,6 +51,8 @@ func (f *fakeAuth) BearerPrincipal(_ context.Context, header string) (auth.Princ
 		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other"}, true, nil
 	case errorKey:
 		return auth.Principal{}, false, errors.New("database exploded with secret-detail")
+	case goneKey:
+		return auth.Principal{}, false, fmt.Errorf("get key: %w", context.Canceled)
 	}
 	if id, ok := strings.CutPrefix(header, "Bearer pool-"); ok {
 		return auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool"}, true, nil
@@ -117,7 +121,11 @@ func rpc(id int, method string, params any) string {
 }
 
 func (f *fixture) post(body string, headers map[string]string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
+	return f.postWithContext(context.Background(), body, headers)
+}
+
+func (f *fixture) postWithContext(ctx context.Context, body string, headers map[string]string) *httptest.ResponseRecorder {
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/mcp", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("MCP-Protocol-Version", "2025-11-25")
@@ -234,6 +242,38 @@ func TestAuthenticatorFailureIsInternalAndLeaksNothing(t *testing.T) {
 		if !strings.Contains(f.logs.String(), want) {
 			t.Errorf("log lacks %q: %s", want, f.logs.String())
 		}
+	}
+}
+
+func TestClientGoingAwayDuringAuthenticationIsNotAServerError(t *testing.T) {
+	cases := []struct {
+		name       string
+		cancel     bool
+		wantStatus int
+		wantError  bool
+	}{
+		{"request canceled", true, clientgone.Status, false},
+		{"server side cancellation", false, http.StatusInternalServerError, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.cancel {
+				cancel()
+			}
+			rec := f.postWithContext(ctx, rpc(1, "tools/list", nil), map[string]string{"Authorization": goneKey})
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if !tc.wantError && rec.Body.Len() != 0 {
+				t.Errorf("body %q, want none", rec.Body.String())
+			}
+			if got := strings.Contains(f.logs.String(), "level=ERROR"); got != tc.wantError {
+				t.Errorf("ERROR logged = %v, want %v: %s", got, tc.wantError, f.logs.String())
+			}
+		})
 	}
 }
 

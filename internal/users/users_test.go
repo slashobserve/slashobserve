@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"log/slog"
@@ -16,8 +17,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 const nilID = "00000000-0000-0000-0000-000000000000"
@@ -35,8 +38,12 @@ type rig struct {
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
+	return newRigWithLogger(t, slog.New(slog.DiscardHandler))
+}
+
+func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
+	t.Helper()
 	database := dbtest.New(t)
-	logger := slog.New(slog.DiscardHandler)
 	publicURL, err := url.Parse("http://localhost:8080")
 	if err != nil {
 		t.Fatal(err)
@@ -230,5 +237,38 @@ func TestSignOutYourselfExpiresTheSessionCookie(t *testing.T) {
 	}
 	if n := countSessions(t, r, ada); n != 0 {
 		t.Fatalf("sessions = %d, want 0", n)
+	}
+}
+
+func TestClientGoingAwayIsNotAServerError(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   func(id pgtype.UUID) string
+	}{
+		{"list", http.MethodGet, func(pgtype.UUID) string { return "/api/v1/users" }},
+		{"sign out", http.MethodDelete, func(id pgtype.UUID) string { return "/api/v1/users/" + id.String() + "/sessions" }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger, logs := logtest.New()
+			r := newRigWithLogger(t, logger)
+			admin := r.addUser("ada", time.Now())
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			req := httptest.NewRequestWithContext(ctx, tc.method, tc.path(admin), nil)
+			req.Header.Set("X-Test-Kind", string(auth.KindUser))
+			req.Header.Set("X-Test-Id", admin.String())
+			rec := httptest.NewRecorder()
+			r.engine.ServeHTTP(rec, req)
+			if rec.Code != clientgone.Status || rec.Body.Len() != 0 {
+				t.Errorf("status %d body %q, want %d and no body", rec.Code, rec.Body.String(), clientgone.Status)
+			}
+			for _, record := range logs.Records(t) {
+				if record["level"] == "ERROR" {
+					t.Errorf("logged an ERROR for a client that went away: %v", record)
+				}
+			}
+		})
 	}
 }

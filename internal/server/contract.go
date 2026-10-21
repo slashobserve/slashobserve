@@ -111,6 +111,7 @@ func (ct *contract) middleware(c *gin.Context) {
 
 	if ctx.Err() != nil {
 		original.WriteHeader(buffered.status)
+		original.WriteHeaderNow()
 		return
 	}
 	if requestErr != nil && !isClientError(buffered.status) {

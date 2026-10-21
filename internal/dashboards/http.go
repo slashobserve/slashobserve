@@ -2,7 +2,6 @@ package dashboards
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -26,8 +26,6 @@ const (
 
 	maxDatasourceRunes = 64
 	maxQueryRunes      = 200
-
-	statusClientClosedRequest = 499
 )
 
 type createRequest struct {
@@ -271,10 +269,10 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	var conflict *ConflictError
 	var invalid *InvalidSpecError
 	var invalidInput *InvalidInputError
+	if clientgone.Handle(c, s.logger, action, err) {
+		return
+	}
 	switch {
-	case errors.Is(err, context.Canceled):
-		s.logger.DebugContext(ctx, action+": client went away")
-		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.As(err, &conflict):

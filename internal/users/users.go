@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -70,6 +71,9 @@ func (h *Handler) list(c *gin.Context) {
 	ctx := c.Request.Context()
 	rows, err := h.db.Queries().ListUsers(ctx, params)
 	if err != nil {
+		if clientgone.Handle(c, h.logger, "list users", err) {
+			return
+		}
 		h.logger.ErrorContext(ctx, "list users", logattrs.Failure("internal", err, slog.String("actor_id", httpapi.Caller(c).ID))...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return
@@ -105,6 +109,9 @@ func (h *Handler) signOut(c *gin.Context) {
 	ctx := c.Request.Context()
 	caller := httpapi.Caller(c)
 	fail := func(action string, err error) {
+		if clientgone.Handle(c, h.logger, action, err) {
+			return
+		}
 		h.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, slog.String("actor_id", caller.ID), slog.String("user_id", id.String()))...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}

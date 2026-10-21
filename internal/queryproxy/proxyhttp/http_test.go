@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -631,6 +632,41 @@ func TestConcurrentIdenticalRequestsMakeOneUpstreamCall(t *testing.T) {
 	}
 	if fresh == 0 {
 		t.Fatal("no request reported a fresh execution")
+	}
+}
+
+func TestClientGoingAwayMidQueryEndsWithClientClosedStatusAndNoBody(t *testing.T) {
+	hn := newHarness(t)
+	entered := make(chan struct{})
+	hn.ds.onRange = func(ctx context.Context, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		close(entered)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, hn.dataPath("p_ts", window+"&var-job=api"), nil)
+	rec := make(chan *httptest.ResponseRecorder, 1)
+	go func() { rec <- hn.serve(req, "") }()
+	<-entered
+	cancel()
+	got := <-rec
+	if got.Code != clientgone.Status || got.Body.Len() != 0 {
+		t.Fatalf("status %d body %q, want %d and no body", got.Code, got.Body.String(), clientgone.Status)
+	}
+}
+
+func TestCancellationWhileTheClientIsStillConnectedIsAServerError(t *testing.T) {
+	hn := newHarness(t)
+	hn.ds.onRange = func(context.Context, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return nil, fmt.Errorf("upstream gave up: %w", context.Canceled)
+	}
+	got := hn.serve(httptest.NewRequest(http.MethodGet, hn.dataPath("p_ts", window+"&var-job=api"), nil), "")
+	if got.Code != http.StatusInternalServerError || !strings.Contains(got.Body.String(), `"code":"internal"`) {
+		t.Fatalf("status %d body %q, want 500 internal", got.Code, got.Body.String())
+	}
+	if !strings.Contains(hn.logs.String(), "level=ERROR") {
+		t.Fatalf("a server side cancellation was not logged as an error: %s", hn.logs.String())
 	}
 }
 
