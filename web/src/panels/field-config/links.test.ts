@@ -345,4 +345,23 @@ describe("data links", () => {
     ])
     expect(panelLinks({} as DataPanel, scope())).toEqual([])
   })
+
+  it("hides a link until the time range it uses is known", () => {
+    const panel = {
+      links: [
+        { title: "Window", url: "/d?from=${__from}&to=$__to" },
+        { title: "Plain", url: "/d" },
+      ],
+    } as DataPanel
+    expect(panelLinks(panel, scope()).map((link) => link.title)).toEqual([
+      "Plain",
+    ])
+    expect(
+      panelLinks(panel, scope({ fromMs: 1000 })).map((link) => link.title)
+    ).toEqual(["Plain"])
+    expect(panelLinks(panel, scope({ fromMs: 1000, toMs: 2500 }))).toEqual([
+      { title: "Window", href: "/d?from=1000&to=2500", newTab: false },
+      { title: "Plain", href: "/d", newTab: false },
+    ])
+  })
 })
