@@ -4,11 +4,14 @@ import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
 import { linkDefaults, type DataPanel, type Link } from "@/spec"
 
+import type { FieldResolver } from "./resolve"
+
 export type LinkScope = {
   vars: Selections
   from?: string
   to?: string
   row?: { frame: WireFrame; index: number }
+  fields?: FieldResolver
   seriesName?: string
   fieldName?: string
   value?: unknown
@@ -38,8 +41,10 @@ export function isDataLink(link: Link): boolean {
 function rowValue(scope: LinkScope, name: string): string | null {
   const { row } = scope
   if (!row) return null
-  const field = row.frame.fields.find((candidate) =>
-    matchesName(row.frame, candidate, name)
+  const field = row.frame.fields.find(
+    (candidate) =>
+      matchesName(row.frame, candidate, name) ||
+      scope.fields?.displayName(row.frame, candidate) === name
   )
   if (!field || row.index < 0 || row.index >= field.values.length) return null
   const value = field.values[row.index]

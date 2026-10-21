@@ -3,7 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Link } from "@/spec"
 
-import { isDataLink, panelLinks, resolveLink, type LinkScope } from "."
+import {
+  createFieldResolver,
+  isDataLink,
+  panelLinks,
+  resolveLink,
+  type LinkScope,
+} from "."
 
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
@@ -67,6 +73,29 @@ describe("link interpolation", () => {
     expect(href("/r?x=${__data.fields.route}")).toBe(
       "/r?x=${__data.fields.route}"
     )
+  })
+
+  it("reads a field of the row by its display name", () => {
+    const frame: WireFrame = {
+      ref: "A",
+      fields: [
+        { name: "Value", type: "number", values: [7, 9] },
+        { name: "host", type: "string", values: ["a", "b"] },
+      ],
+      labels: { pod: "web" },
+    }
+    const fields = createFieldResolver({
+      displayName: "Pod ${__field.labels.pod}",
+    } as DataPanel)
+    expect(
+      href("/r?x=${__data.fields.Pod web}", {
+        row: { frame, index: 1 },
+        fields,
+      })
+    ).toBe("/r?x=9")
+    expect(
+      href("/r?x=${__data.fields.Pod web}", { row: { frame, index: 1 } })
+    ).toBe("/r?x=${__data.fields.Pod web}")
   })
 
   it("fills the value, series and field tokens", () => {
