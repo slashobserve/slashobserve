@@ -3,11 +3,11 @@ import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
 import type { PanelDataMeta } from "@/dashboards/queries"
+import { stableJson } from "@/lib/json"
 import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 import { axisDecimals, formatAxisValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
-import { stableJson } from "@/panel-editor/draft"
 import type { DataPanel, Threshold } from "@/spec"
 
 import { assignSlots, readChartColors, resolveColor } from "../colors"

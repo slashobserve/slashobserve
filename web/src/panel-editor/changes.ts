@@ -1,7 +1,8 @@
+import { sameJson } from "@/lib/json"
 import { joinNames } from "@/observe/conversation"
 import { queryRef, type PanelQuery, type Threshold } from "@/spec"
 
-import { sameJson, type EditablePanel } from "./draft"
+import type { EditablePanel } from "./draft"
 
 export type Change = { key: string; label: string }
 

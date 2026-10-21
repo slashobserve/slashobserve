@@ -14,10 +14,11 @@ import {
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
+import { stableJson } from "@/lib/json"
 import { sentence } from "@/observe/queries"
 import type { DataPanel } from "@/spec"
 
-import { stableJson, type EditablePanel } from "./draft"
+import type { EditablePanel } from "./draft"
 import { missingPanelMessage } from "./panel-json"
 
 export type Suggestion = components["schemas"]["Suggestion"]
