@@ -212,7 +212,10 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 		fmt.Fprintf(&options, `"unknown%d":1`, i)
 	}
 	options.WriteString("}")
-	doc := panelDoc("timeseries", upTarget+","+options.String())
+	const withUnknownProperties = `{"matcher":{"id":"byName","options":"s"},"properties":[{"id":"unit","value":"bytes"},{"id":"noSuchA","value":1},{"id":"noSuchB","value":1}]}`
+	const pastTheOverrideCap = `{"matcher":{"id":"byName","options":"s"},"properties":[{"id":"unit","value":"bytes"},{"id":"min","value":10},{"id":"max","value":5}]}`
+	overrides := `"fieldConfig":{"defaults":{},"overrides":[` + strings.Repeat(withUnknownProperties+",", 50) + pastTheOverrideCap + `]}`
+	doc := panelDoc("timeseries", upTarget+","+overrides+","+options.String())
 
 	start := time.Now()
 	_, line := convertedPanel(t, doc)
@@ -222,8 +225,8 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 	if line.Status != statusPartial || len(line.Paths) != 100 {
 		t.Fatalf("status %s with %d paths, want partial with the cap of 100", line.Status, len(line.Paths))
 	}
-	if want := fmt.Sprintf("+%d more options were not imported", leaves-100); !slices.Contains(line.Reasons, want) {
-		t.Fatalf("reasons = %v, want %q", line.Reasons, want)
+	if want := fmt.Sprintf("+%d more options were not imported", leaves+1); !slices.Contains(line.Reasons, want) {
+		t.Fatalf("reasons = %v, want %q: the override past the cap is one path reported twice", line.Reasons, want)
 	}
 	if len(line.Reasons) != 2 {
 		t.Fatalf("reasons = %v, want the shared reason and the overflow count only", line.Reasons)
@@ -277,20 +280,25 @@ func TestHugeNumbersOfTargetsKeepTheReportBounded(t *testing.T) {
 }
 
 func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
+	const cutReason = "The legend was cut to 200 characters."
 	longLegend := strings.Repeat("l", 250)
 	panel, line := convertedPanel(t, panelDoc("timeseries", `"targets":[
 		{"refId":"A","expr":"up{pod=\"$undeclared\"}","legendFormat":"`+longLegend+`"},
-		{"refId":"B","expr":"up"}]`))
+		{"refId":"B","expr":"up","legendFormat":"`+longLegend+`"}]`))
 	if len(panel.Queries) != 1 {
 		t.Fatalf("queries = %+v, want only the second target", panel.Queries)
 	}
-	if !slices.Equal(line.Paths, []string{"targets[0]"}) {
-		t.Fatalf("paths = %v, want only the dropped target", line.Paths)
+	if !slices.Equal(line.Paths, []string{"targets[0]", "targets[1].legendFormat"}) {
+		t.Fatalf("paths = %v, want the dropped target and the kept target's cut legend", line.Paths)
 	}
+	cuts := 0
 	for _, reason := range line.Reasons {
-		if strings.Contains(reason, "legend was cut") {
-			t.Fatalf("reasons = %v keep a note about a query that was dropped", line.Reasons)
+		if reason == cutReason {
+			cuts++
 		}
+	}
+	if cuts != 1 {
+		t.Fatalf("reasons = %v, want the kept target's %q once", line.Reasons, cutReason)
 	}
 }
 
