@@ -70,9 +70,40 @@ export const serviceAccountKeys = {
   keys: (accountId: string) => ["service-accounts", accountId, "keys"] as const,
 }
 
+export type NameListParams = {
+  search?: string
+  metric?: string
+  table?: string
+}
+
 export const datasourceKeys = {
   all: ["datasources"] as const,
   list: () => ["datasources", "list"] as const,
+  metrics: (uid: string, search: string) =>
+    ["datasources", uid, "metrics", search] as const,
+  labels: (uid: string, params: NameListParams) =>
+    ["datasources", uid, "labels", params] as const,
+  labelValues: (uid: string, label: string, params: NameListParams) =>
+    ["datasources", uid, "labels", label, "values", params] as const,
+}
+
+export type PreviewKeyParams = {
+  panel: string
+  from?: string
+  to?: string
+  selections: Selections
+  maxDataPoints?: number
+}
+
+export const editorKeys = {
+  preview: (
+    dashboardId: string,
+    version: number,
+    panelId: string,
+    params: PreviewKeyParams
+  ) => ["editor-preview", dashboardId, version, panelId, params] as const,
+  suggestion: (dashboardId: string, suggestionId: string) =>
+    ["suggestions", dashboardId, suggestionId] as const,
 }
 
 export const userKeys = {
