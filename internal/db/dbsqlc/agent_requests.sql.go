@@ -48,15 +48,15 @@ WHERE id = (
   SELECT r.id FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < $1::integer
-    AND (r.dashboard_id IS NULL OR NOT EXISTS (
+    AND (r.dashboard_id IS NULL OR r.source = 'suggest' OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source <> 'suggest' AND o.id <> r.id
     ))
   ORDER BY r.created_at, r.id
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 func (q *Queries) ClaimAgentRequest(ctx context.Context, maxAttempts int32) (AgentRequest, error) {
@@ -87,13 +87,15 @@ func (q *Queries) ClaimAgentRequest(ctx context.Context, maxAttempts int32) (Age
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
 
 const countActiveAgentRequests = `-- name: CountActiveAgentRequests :one
 SELECT count(*) FROM agent_requests
-WHERE dashboard_id = $1 AND status IN ('queued', 'running')
+WHERE dashboard_id = $1 AND source <> 'suggest' AND status IN ('queued', 'running')
 `
 
 func (q *Queries) CountActiveAgentRequests(ctx context.Context, dashboardID pgtype.UUID) (int64, error) {
@@ -126,6 +128,29 @@ func (q *Queries) CountActiveObserveRequestsBy(ctx context.Context, requestedByI
 	return count, err
 }
 
+const countActiveSuggestRequests = `-- name: CountActiveSuggestRequests :one
+SELECT count(*) FROM agent_requests WHERE source = 'suggest' AND status IN ('queued', 'running')
+`
+
+func (q *Queries) CountActiveSuggestRequests(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveSuggestRequests)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countActiveSuggestRequestsBy = `-- name: CountActiveSuggestRequestsBy :one
+SELECT count(*) FROM agent_requests
+WHERE source = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = $1
+`
+
+func (q *Queries) CountActiveSuggestRequestsBy(ctx context.Context, requestedByID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveSuggestRequestsBy, requestedByID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const enqueueAgentRequest = `-- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
   dashboard_id, source, comment_id, prompt, panel_id, base_version,
@@ -135,7 +160,7 @@ INSERT INTO agent_requests (
   $7, $8, $9, $10,
   $11::text, $12::text
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 type EnqueueAgentRequestParams struct {
@@ -194,6 +219,8 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
@@ -202,7 +229,7 @@ const enqueueObserveRequest = `-- name: EnqueueObserveRequest :one
 INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client)
 VALUES ('observe', $1, $2, $3, $4, $5,
   $6::text, $7::text)
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 type EnqueueObserveRequestParams struct {
@@ -251,6 +278,80 @@ func (q *Queries) EnqueueObserveRequest(ctx context.Context, arg EnqueueObserveR
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+	)
+	return i, err
+}
+
+const enqueueSuggestRequest = `-- name: EnqueueSuggestRequest :one
+INSERT INTO agent_requests (
+  dashboard_id, source, prompt, panel_id, base_version, draft,
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
+) VALUES (
+  $1, 'suggest', $2, $3, $4::integer, $5::jsonb,
+  $6, $7, $8, $9,
+  $10::text, $11::text
+)
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
+`
+
+type EnqueueSuggestRequestParams struct {
+	DashboardID      pgtype.UUID
+	Prompt           string
+	PanelID          pgtype.Text
+	BaseVersion      int32
+	Draft            []byte
+	RequestedByKind  string
+	RequestedByID    pgtype.UUID
+	RequestedByName  string
+	RequestedByEmail pgtype.Text
+	Origin           pgtype.Text
+	OriginClient     pgtype.Text
+}
+
+func (q *Queries) EnqueueSuggestRequest(ctx context.Context, arg EnqueueSuggestRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, enqueueSuggestRequest,
+		arg.DashboardID,
+		arg.Prompt,
+		arg.PanelID,
+		arg.BaseVersion,
+		arg.Draft,
+		arg.RequestedByKind,
+		arg.RequestedByID,
+		arg.RequestedByName,
+		arg.RequestedByEmail,
+		arg.Origin,
+		arg.OriginClient,
+	)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
@@ -263,7 +364,7 @@ SET status = 'failed',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $3 AND status = 'running' AND attempts = $4
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 type FailAgentRequestParams struct {
@@ -306,6 +407,8 @@ func (q *Queries) FailAgentRequest(ctx context.Context, arg FailAgentRequestPara
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
@@ -321,7 +424,7 @@ SET status = CASE WHEN saved.version IS NULL THEN 'failed' ELSE 'succeeded' END,
 FROM agent_requests e
 LEFT JOIN dashboard_versions saved ON saved.agent_request_id = e.id AND (e.dashboard_id IS NULL OR saved.dashboard_id = e.dashboard_id)
 WHERE r.id = e.id AND r.status = 'running' AND r.lease_until < clock_timestamp() AND r.attempts >= $1::integer
-RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client
+RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion
 `
 
 func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, maxAttempts int32) ([]AgentRequest, error) {
@@ -358,6 +461,8 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, maxAttempts in
 			&i.RunUsage,
 			&i.Origin,
 			&i.OriginClient,
+			&i.Draft,
+			&i.Suggestion,
 		); err != nil {
 			return nil, err
 		}
@@ -370,7 +475,7 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, maxAttempts in
 }
 
 const getAgentRequest = `-- name: GetAgentRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests WHERE id = $1 AND dashboard_id = $2
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND source <> 'suggest'
 `
 
 type GetAgentRequestParams struct {
@@ -406,12 +511,14 @@ func (q *Queries) GetAgentRequest(ctx context.Context, arg GetAgentRequestParams
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
 
 const getAgentRequestByID = `-- name: GetAgentRequestByID :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests WHERE id = $1
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion FROM agent_requests WHERE id = $1
 `
 
 func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (AgentRequest, error) {
@@ -442,6 +549,8 @@ func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (Agen
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
@@ -466,6 +575,49 @@ func (q *Queries) GetAgentRequestSavedVersion(ctx context.Context, arg GetAgentR
 	row := q.db.QueryRow(ctx, getAgentRequestSavedVersion, arg.AgentRequestID, arg.DashboardID)
 	var i GetAgentRequestSavedVersionRow
 	err := row.Scan(&i.DashboardID, &i.Version)
+	return i, err
+}
+
+const getSuggestRequest = `-- name: GetSuggestRequest :one
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND source = 'suggest'
+`
+
+type GetSuggestRequestParams struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+}
+
+func (q *Queries) GetSuggestRequest(ctx context.Context, arg GetSuggestRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, getSuggestRequest, arg.ID, arg.DashboardID)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+	)
 	return i, err
 }
 
@@ -503,8 +655,8 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 }
 
 const listAgentRequests = `-- name: ListAgentRequests :many
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client FROM agent_requests
-WHERE dashboard_id = $1
+SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion FROM agent_requests
+WHERE dashboard_id = $1 AND source <> 'suggest'
   AND ($2::timestamptz IS NULL
     OR (created_at, id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC, id DESC
@@ -557,6 +709,8 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 			&i.RunUsage,
 			&i.Origin,
 			&i.OriginClient,
+			&i.Draft,
+			&i.Suggestion,
 		); err != nil {
 			return nil, err
 		}
@@ -574,7 +728,7 @@ SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_
   d.title AS dashboard_title
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id
-WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2
+WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.source <> 'suggest'
   AND ($3::text IS NULL OR r.source = $3::text)
   AND ($4::timestamptz IS NULL
     OR (r.created_at, r.id) < ($4::timestamptz, $5::uuid))
@@ -677,6 +831,15 @@ func (q *Queries) LockObserveRequests(ctx context.Context) error {
 	return err
 }
 
+const lockSuggestRequests = `-- name: LockSuggestRequests :exec
+SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:suggest', 0))
+`
+
+func (q *Queries) LockSuggestRequests(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockSuggestRequests)
+	return err
+}
+
 const releaseAgentRequest = `-- name: ReleaseAgentRequest :one
 UPDATE agent_requests
 SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
@@ -684,7 +847,7 @@ SET status = 'queued', attempts = attempts - 1, lease_until = NULL,
     ELSE jsonb_path_query_array(steps, '$[*] ? (@.attempt != $attempt)', jsonb_build_object('attempt', $2::integer)) END,
   check_failures = check_failures + CASE WHEN $1::boolean THEN 1 ELSE 0 END
 WHERE id = $3 AND status = 'running' AND attempts = $2
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 type ReleaseAgentRequestParams struct {
@@ -721,6 +884,8 @@ func (q *Queries) ReleaseAgentRequest(ctx context.Context, arg ReleaseAgentReque
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }
@@ -734,7 +899,7 @@ SET status = 'succeeded',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $3 AND status = 'running' AND attempts = $4
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
 `
 
 type SucceedAgentRequestParams struct {
@@ -777,6 +942,65 @@ func (q *Queries) SucceedAgentRequest(ctx context.Context, arg SucceedAgentReque
 		&i.RunUsage,
 		&i.Origin,
 		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+	)
+	return i, err
+}
+
+const succeedSuggestRequest = `-- name: SucceedSuggestRequest :one
+UPDATE agent_requests
+SET status = 'succeeded',
+  suggestion = $1::jsonb,
+  run_usage = $2::jsonb,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+WHERE id = $3 AND status = 'running' AND attempts = $4
+RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion
+`
+
+type SucceedSuggestRequestParams struct {
+	Suggestion []byte
+	RunUsage   []byte
+	ID         pgtype.UUID
+	Attempts   int32
+}
+
+func (q *Queries) SucceedSuggestRequest(ctx context.Context, arg SucceedSuggestRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, succeedSuggestRequest,
+		arg.Suggestion,
+		arg.RunUsage,
+		arg.ID,
+		arg.Attempts,
+	)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.Source,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
 	)
 	return i, err
 }

@@ -230,7 +230,9 @@ test("scopes the activity card from an old comments link", async ({
 
   const activity = page.getByRole("complementary", { name: "Activity" })
   await expect(activity).toBeVisible()
-  await expect(activity.getByLabel("Panel", { exact: true })).toHaveValue("rps")
+  await expect(
+    activity.getByRole("combobox", { name: "Panel", exact: true })
+  ).toHaveValue("rps")
   await expect(page).toHaveURL(/panel=rps/)
   await expect(page).not.toHaveURL(/tab=|edit=/)
 })

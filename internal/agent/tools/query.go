@@ -8,6 +8,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -39,6 +40,8 @@ const (
 	defaultDashTitle   = "Untitled dashboard"
 	maxDashTitleChars  = 200
 )
+
+var queryFormats = []string{"timeseries", "table", "heatmap", "logs"}
 
 var variableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 
@@ -124,7 +127,8 @@ type instantInput struct {
 
 type rangeInput struct {
 	instantInput
-	MaxDataPoints *int `json:"max_data_points"`
+	MaxDataPoints *int   `json:"max_data_points"`
+	Format        string `json:"format"`
 }
 
 func (r *Registry) queryRange(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -136,7 +140,10 @@ func (r *Registry) queryRange(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	return r.runAdhoc(ctx, spec.Timeseries, in.instantInput, points)
+	if in.Format != "" && !slices.Contains(queryFormats, in.Format) {
+		return invalid("format must be one of %s", strings.Join(queryFormats, ", ")), nil
+	}
+	return r.runAdhoc(ctx, spec.Timeseries, in.instantInput, in.Format, points)
 }
 
 func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -144,10 +151,10 @@ func (r *Registry) queryInstant(ctx context.Context, input json.RawMessage) (Res
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	return r.runAdhoc(ctx, spec.Table, in, 0)
+	return r.runAdhoc(ctx, spec.Table, in, "", 0)
 }
 
-func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in instantInput, dataPoints int) (Result, error) {
+func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in instantInput, format string, dataPoints int) (Result, error) {
 	inst, res, ok := r.instance(in.Datasource)
 	if !ok {
 		return res, nil
@@ -159,7 +166,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	if !ok {
 		return res, nil
 	}
-	dash, selections, res, ok := adhocDashboard(inst, panelType, in)
+	dash, selections, res, ok := adhocDashboard(inst, panelType, in, format)
 	if !ok {
 		return res, nil
 	}
@@ -211,7 +218,7 @@ func resolveRange(from, to string, now time.Time) (datasource.TimeRange, Result,
 	return datasource.TimeRange{From: start, To: end}, Result{}, true
 }
 
-func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in instantInput) (*spec.Dashboard, map[string]queryproxy.Selection, Result, bool) {
+func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in instantInput, format string) (*spec.Dashboard, map[string]queryproxy.Selection, Result, bool) {
 	if len(in.Variables) > maxVariables {
 		return nil, nil, invalid("at most %d variables are allowed", maxVariables), false
 	}
@@ -239,7 +246,7 @@ func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in insta
 			Type:       panelType,
 			Title:      adhocPanelID,
 			Datasource: inst.UID,
-			Queries:    []spec.Query{{Query: in.Query}},
+			Queries:    []spec.Query{{Query: in.Query, Format: format}},
 		}},
 	}
 	return dash, selections, Result{}, true

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { RequestProgress } from "@/observe/request-progress"
+import { Conversation } from "@/chat/conversation"
 
 export const Route = createFileRoute("/_authed/_shell/observe/$requestId")({
   staticData: { crumbs: [{ label: "Observe" }] },
@@ -9,5 +9,5 @@ export const Route = createFileRoute("/_authed/_shell/observe/$requestId")({
 
 function ObserveRoute() {
   const { requestId } = Route.useParams()
-  return <RequestProgress key={requestId} requestId={requestId} />
+  return <Conversation key={requestId} requestId={requestId} />
 }

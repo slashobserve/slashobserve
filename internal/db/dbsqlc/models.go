@@ -33,6 +33,8 @@ type AgentRequest struct {
 	RunUsage         []byte
 	Origin           pgtype.Text
 	OriginClient     pgtype.Text
+	Draft            []byte
+	Suggestion       []byte
 }
 
 type Dashboard struct {

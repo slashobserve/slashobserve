@@ -18,7 +18,7 @@ const iconProps = {
   "aria-hidden": true,
 } as const
 
-function StatusIcon({ tone }: { tone: StatusTone }) {
+export function StatusIcon({ tone }: { tone: StatusTone }) {
   switch (tone) {
     case "ok":
       return (

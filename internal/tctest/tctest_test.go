@@ -3,6 +3,7 @@ package tctest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,7 +20,71 @@ func (f *fakeContainer) Terminate(context.Context, ...testcontainers.TerminateOp
 	return nil
 }
 
-var errReaperRace = errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: unexpected container status "created"`)
+var errTransientReaperFailure = errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: unexpected container status "created"`)
+
+func TestIsReaperRace(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"shared reaper not started yet", errTransientReaperFailure, true},
+		{
+			"reaper dies while starting",
+			errors.New(`start postgres: run postgres: generic container: create container: reaper: new reaper: run container: started hook: wait until ready: mapped port: check target: retries: 10, port: "invalid port", last err: unexpected container status "removing": could not start container`),
+			true,
+		},
+		{
+			"reaper exits while starting",
+			errors.New(`create container: reaper: new reaper: run container: started hook: wait until ready: mapped port: check target: retries: 3, port: "invalid port", last err: container exited with code 0: could not start container`),
+			true,
+		},
+		{
+			"reaper failure joined with its termination error",
+			errors.Join(errors.New(`reaper: new reaper: run container: wait until ready: unexpected container status "removing"`), errors.New("terminate: boom")),
+			true,
+		},
+		{
+			"wrapped reaper failure",
+			fmt.Errorf("start clickhouse: %w", errors.New(`reaper: new reaper: run container: unexpected container status "removing"`)),
+			true,
+		},
+		{
+			"shared reaper stopped with exit code 0",
+			errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: container exited with code 0`),
+			true,
+		},
+		{
+			"shared reaper is being removed",
+			errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: unexpected container status "removing"`),
+			true,
+		},
+		{
+			"shared reaper exits non-zero",
+			errors.New(`create container: reaper: from container "f2ac365e": wait for reaper f2ac365e: container exited with code 1`),
+			false,
+		},
+		{
+			"new reaper exits non-zero",
+			errors.New(`create container: reaper: new reaper: run container: started hook: wait until ready: container exited with code 125: could not start container`),
+			false,
+		},
+		{"reaper cannot be created", errors.New("create container: reaper: new reaper: run container: pull access denied"), false},
+		{"reaper container out of memory", errors.New("reaper: new reaper: run container: wait until ready: container crashed with out-of-memory (OOMKilled)"), false},
+		{"container under test exits", errors.New("start postgres: run postgres: generic container: started hook: wait until ready: container exited with code 1: could not start container"), false},
+		{"container under test is removed", errors.New(`run postgres: wait until ready: mapped port: check target: last err: unexpected container status "removing"`), false},
+		{"reaper connect fails", errors.New("reaper connect: dial tcp: connection refused"), false},
+		{"context cancelled", context.Canceled, false},
+		{"pull failure", errors.New("pull access denied"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := isTransientReaperFailure(c.err); got != c.want {
+				t.Errorf("isTransientReaperFailure(%q) = %t, want %t", c.err, got, c.want)
+			}
+		})
+	}
+}
 
 func TestRetryReturnsOtherErrorsAfterOneCall(t *testing.T) {
 	want := errors.New("pull access denied")
@@ -39,9 +104,9 @@ func TestRetryStopsAtTheCapAndTerminatesEachFailedContainer(t *testing.T) {
 	got, err := retry(t.Context(), 3, time.Millisecond, func() (*fakeContainer, error) {
 		c := &fakeContainer{}
 		made = append(made, c)
-		return c, errReaperRace
+		return c, errTransientReaperFailure
 	})
-	if !errors.Is(err, errReaperRace) || len(made) != 3 || got != made[2] {
+	if !errors.Is(err, errTransientReaperFailure) || len(made) != 3 || got != made[2] {
 		t.Fatalf("got %v, %v after %d calls", got, err, len(made))
 	}
 	for i, c := range made[:2] {
@@ -59,7 +124,7 @@ func TestRetrySucceedsAfterAReaperRace(t *testing.T) {
 	_, err := retry(t.Context(), 3, time.Millisecond, func() (*fakeContainer, error) {
 		calls++
 		if calls == 1 {
-			return &fakeContainer{}, errReaperRace
+			return &fakeContainer{}, errTransientReaperFailure
 		}
 		return &fakeContainer{}, nil
 	})
@@ -74,7 +139,7 @@ func TestRetryReturnsEarlyWhenTheContextIsDone(t *testing.T) {
 	_, err := retry(ctx, 3, time.Hour, func() (*fakeContainer, error) {
 		calls++
 		cancel()
-		return &fakeContainer{}, errReaperRace
+		return &fakeContainer{}, errTransientReaperFailure
 	})
 	if !errors.Is(err, context.Canceled) || calls != 1 {
 		t.Errorf("err %v after %d calls", err, calls)

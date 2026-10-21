@@ -6,7 +6,7 @@ SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:claim', 0));
 
 -- name: CountActiveAgentRequests :one
 SELECT count(*) FROM agent_requests
-WHERE dashboard_id = @dashboard_id AND status IN ('queued', 'running');
+WHERE dashboard_id = @dashboard_id AND source <> 'suggest' AND status IN ('queued', 'running');
 
 -- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
@@ -29,9 +29,9 @@ WHERE id = (
   SELECT r.id FROM agent_requests r
   WHERE (r.status = 'queued' OR (r.status = 'running' AND r.lease_until < clock_timestamp()))
     AND r.attempts < @max_attempts::integer
-    AND (r.dashboard_id IS NULL OR NOT EXISTS (
+    AND (r.dashboard_id IS NULL OR r.source = 'suggest' OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source <> 'suggest' AND o.id <> r.id
     ))
   ORDER BY r.created_at, r.id
   FOR UPDATE SKIP LOCKED
@@ -83,11 +83,11 @@ WHERE id = @id AND status = 'running' AND attempts = @attempts
 RETURNING *;
 
 -- name: GetAgentRequest :one
-SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id;
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source <> 'suggest';
 
 -- name: ListAgentRequests :many
 SELECT * FROM agent_requests
-WHERE dashboard_id = @dashboard_id
+WHERE dashboard_id = @dashboard_id AND source <> 'suggest'
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY created_at DESC, id DESC
@@ -135,9 +135,43 @@ SELECT r.id, r.source, r.prompt, r.dashboard_id, r.panel_id, r.status, r.result_
   d.title AS dashboard_title
 FROM agent_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id
-WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id
+WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requested_by_id AND r.source <> 'suggest'
   AND (sqlc.narg('source')::text IS NULL OR r.source = sqlc.narg('source')::text)
   AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
     OR (r.created_at, r.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
+
+-- name: LockSuggestRequests :exec
+SELECT pg_advisory_xact_lock(hashtextextended('agent_requests:suggest', 0));
+
+-- name: CountActiveSuggestRequestsBy :one
+SELECT count(*) FROM agent_requests
+WHERE source = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = @requested_by_id;
+
+-- name: CountActiveSuggestRequests :one
+SELECT count(*) FROM agent_requests WHERE source = 'suggest' AND status IN ('queued', 'running');
+
+-- name: EnqueueSuggestRequest :one
+INSERT INTO agent_requests (
+  dashboard_id, source, prompt, panel_id, base_version, draft,
+  requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
+) VALUES (
+  @dashboard_id, 'suggest', @prompt, @panel_id, @base_version::integer, sqlc.narg('draft')::jsonb,
+  @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
+)
+RETURNING *;
+
+-- name: SucceedSuggestRequest :one
+UPDATE agent_requests
+SET status = 'succeeded',
+  suggestion = @suggestion::jsonb,
+  run_usage = sqlc.narg('run_usage')::jsonb,
+  lease_until = NULL,
+  finished_at = clock_timestamp()
+WHERE id = @id AND status = 'running' AND attempts = @attempts
+RETURNING *;
+
+-- name: GetSuggestRequest :one
+SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND source = 'suggest';

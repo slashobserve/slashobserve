@@ -238,7 +238,7 @@ test("dependent variables stay in place while they reload", async ({
 
   release = await holdVariableValues(page)
   await page.getByRole("combobox", { name: "Service" }).click()
-  const options = page.getByRole("option")
+  const options = page.getByRole("listbox").getByRole("option")
   await expect(options.first()).toBeVisible()
   const count = await options.count()
   expect(count).toBeGreaterThan(1)
