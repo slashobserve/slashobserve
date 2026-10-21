@@ -109,3 +109,28 @@ func TestLegacyGraphThresholdsKeepTheirColorMode(t *testing.T) {
 		})
 	}
 }
+
+func TestSeriesOverridesWithUnparseableValuesAreReportedNotWritten(t *testing.T) {
+	cases := []struct{ name, member, path string }{
+		{"stack group", `"stack":"A"`, "seriesOverrides[0].stack"},
+		{"fill text", `"fill":"abc"`, "seriesOverrides[0].fill"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := graphPanel(t, `"seriesOverrides":[{"alias":"errors","color":"#ff0000",`+tc.member+`}]`)
+			if len(panel.Overrides) != 1 {
+				t.Fatalf("overrides = %+v, want only the color", panel.Overrides)
+			}
+			got := panel.Overrides[0]
+			if got.Match.Series != "errors" || got.Color != "#ff0000" {
+				t.Fatalf("override = %+v", got)
+			}
+			if got.Stack != "" || got.Fill != nil {
+				t.Fatalf("override wrote stack %q fill %v for an unparseable value", got.Stack, got.Fill)
+			}
+			if line.Status != statusPartial || !slices.Contains(line.Paths, tc.path) {
+				t.Fatalf("status %s, paths %v, want %s reported", line.Status, line.Paths, tc.path)
+			}
+		})
+	}
+}

@@ -362,8 +362,10 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		return ok
 	case "fill":
 		f, ok := numberValue(v)
-		fill := int(math.Round(min(max(f*10, 0), 100)))
-		props.Fill = &fill
+		if ok {
+			fill := int(math.Round(min(max(f*10, 0), 100)))
+			props.Fill = &fill
+		}
 		return ok
 	case "bars", "lines", "dashLength", "spaceLength":
 		return true
@@ -374,7 +376,9 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		return true
 	case "stack":
 		flag, isBool := v.(bool)
-		props.Stack = stackFor(flag)
+		if isBool {
+			props.Stack = stackFor(flag)
+		}
 		return isBool
 	case "yaxis":
 		return secondAxis(props, v, axes)
