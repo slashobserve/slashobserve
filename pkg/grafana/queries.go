@@ -89,10 +89,10 @@ func (b *panelBuild) convertQueries() {
 			ref = b.n.ds.targets[i]
 		}
 		tb := &targetBuild{b: b, t: target, path: fmt.Sprintf("targets[%d]", i), line: &b.lines[i], used: map[string]bool{}}
-		paths, reasons := len(b.paths), len(b.reasons)
+		mark := b.issues.mark()
 		q, reason := tb.convert(ref, declared)
 		if reason != "" {
-			b.paths, b.reasons = b.paths[:paths], b.reasons[:reasons]
+			b.issues.rollBack(mark)
 			b.dropTarget(i, target, reason)
 			continue
 		}

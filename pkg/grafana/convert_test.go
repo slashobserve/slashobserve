@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -196,5 +197,52 @@ func TestOverrideByRefIDFollowsTheFirstQueryOfADuplicatedRefID(t *testing.T) {
 	}
 	if !slices.Contains(line.Queries[1].Rewrites, "refId A -> B") {
 		t.Fatalf("rewrites of the second query = %v", line.Queries[1].Rewrites)
+	}
+}
+
+func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
+	const leaves = 200000
+	var options strings.Builder
+	options.WriteString(`"options":{`)
+	for i := range leaves {
+		if i > 0 {
+			options.WriteByte(',')
+		}
+		fmt.Fprintf(&options, `"unknown%d":1`, i)
+	}
+	options.WriteString("}")
+	doc := panelDoc("timeseries", upTarget+","+options.String())
+
+	start := time.Now()
+	_, line := convertedPanel(t, doc)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("converting %d unknown options took %s", leaves, elapsed)
+	}
+	if line.Status != statusPartial || len(line.Paths) != 100 {
+		t.Fatalf("status %s with %d paths, want partial with the cap of 100", line.Status, len(line.Paths))
+	}
+	if want := fmt.Sprintf("+%d more options were not imported", leaves-100); !slices.Contains(line.Reasons, want) {
+		t.Fatalf("reasons = %v, want %q", line.Reasons, want)
+	}
+	if len(line.Reasons) != 2 {
+		t.Fatalf("reasons = %v, want the shared reason and the overflow count only", line.Reasons)
+	}
+}
+
+func TestDroppedTargetTakesItsPartialPathsAndReasonsWithIt(t *testing.T) {
+	longLegend := strings.Repeat("l", 250)
+	panel, line := convertedPanel(t, panelDoc("timeseries", `"targets":[
+		{"refId":"A","expr":"up{pod=\"$undeclared\"}","legendFormat":"`+longLegend+`"},
+		{"refId":"B","expr":"up"}]`))
+	if len(panel.Queries) != 1 {
+		t.Fatalf("queries = %+v, want only the second target", panel.Queries)
+	}
+	if !slices.Equal(line.Paths, []string{"targets[0]"}) {
+		t.Fatalf("paths = %v, want only the dropped target", line.Paths)
+	}
+	for _, reason := range line.Reasons {
+		if strings.Contains(reason, "legend was cut") {
+			t.Fatalf("reasons = %v keep a note about a query that was dropped", line.Reasons)
+		}
 	}
 }

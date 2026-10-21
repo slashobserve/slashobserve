@@ -12,6 +12,7 @@ const (
 	maxPanelTitle       = 200
 	maxPanelDescription = 2000
 	maxTextContent      = 20000
+	maxPanelPaths       = 100
 	noQueriesReason     = "None of this panel's queries can be imported."
 )
 
@@ -29,6 +30,70 @@ var silentPanelKeys = map[string]bool{
 	"timeFrom": true, "timeShift": true, "interval": true, "maxDataPoints": true,
 	"libraryPanel": true, "collapsed": true, "panels": true, "isNew": true,
 	"span": true, "height": true, "error": true, "editable": true,
+}
+
+type issueLog struct {
+	paths     []string
+	omitted   []string
+	reasons   []string
+	listed    map[string]bool
+	dropped   map[string]bool
+	reasonSet map[string]bool
+}
+
+type issueMark struct{ paths, omitted, reasons int }
+
+func newIssueLog() *issueLog {
+	return &issueLog{listed: map[string]bool{}, dropped: map[string]bool{}, reasonSet: map[string]bool{}}
+}
+
+func (l *issueLog) add(path, reason string) {
+	switch {
+	case l.listed[path]:
+	case l.dropped[path]:
+		return
+	case len(l.paths) >= maxPanelPaths:
+		l.dropped[path] = true
+		l.omitted = append(l.omitted, path)
+		return
+	default:
+		l.listed[path] = true
+		l.paths = append(l.paths, path)
+	}
+	if !l.reasonSet[reason] {
+		l.reasonSet[reason] = true
+		l.reasons = append(l.reasons, reason)
+	}
+}
+
+func (l *issueLog) mark() issueMark {
+	return issueMark{paths: len(l.paths), omitted: len(l.omitted), reasons: len(l.reasons)}
+}
+
+func (l *issueLog) rollBack(m issueMark) {
+	for _, path := range l.paths[m.paths:] {
+		delete(l.listed, path)
+	}
+	for _, path := range l.omitted[m.omitted:] {
+		delete(l.dropped, path)
+	}
+	for _, reason := range l.reasons[m.reasons:] {
+		delete(l.reasonSet, reason)
+	}
+	l.paths, l.omitted, l.reasons = l.paths[:m.paths], l.omitted[:m.omitted], l.reasons[:m.reasons]
+}
+
+func (l *issueLog) any() bool {
+	return len(l.paths) > 0
+}
+
+func (l *issueLog) report() (paths, reasons []string) {
+	paths = append([]string{}, l.paths...)
+	reasons = append([]string{}, l.reasons...)
+	if len(l.omitted) > 0 {
+		reasons = append(reasons, fmt.Sprintf("+%d more options were not imported", len(l.omitted)))
+	}
+	return paths, reasons
 }
 
 type builtPanel struct {
@@ -54,8 +119,7 @@ type panelBuild struct {
 	typ              spec.PanelType
 	panel            spec.Panel
 	consumed         map[string]bool
-	paths            []string
-	reasons          []string
+	issues           *issueLog
 	built            []*builtQuery
 	lines            []QueryLine
 	refs             map[string]string
@@ -79,11 +143,14 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 			return placeholderPanel(n, reason)
 		}
 	}
-	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}}
+	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, issues: newIssueLog()}
 	b.panel = spec.Panel{
 		ID:      n.id,
 		Type:    typ,
 		GridPos: spec.GridPos{X: n.pos.x, Y: n.pos.y, W: n.pos.w, H: n.pos.h},
+	}
+	if n.moved {
+		b.partial("gridPos", movedReason)
 	}
 	if typ == spec.Text {
 		return b.buildText()
@@ -220,21 +287,12 @@ func (b *panelBuild) isConsumed(path string) bool {
 	return false
 }
 
-func (b *panelBuild) addReason(reason string) {
-	if !slices.Contains(b.reasons, reason) {
-		b.reasons = append(b.reasons, reason)
-	}
-}
-
 func (b *panelBuild) partial(path, reason string) {
 	b.consume(path)
 	if reason == "" {
 		reason = partialReason(path)
 	}
-	if !slices.Contains(b.paths, path) {
-		b.paths = append(b.paths, path)
-	}
-	b.addReason(reason)
+	b.issues.add(path, reason)
 }
 
 func (b *panelBuild) reportUnconsumed() {
@@ -413,13 +471,11 @@ func (b *panelBuild) textMode() {
 
 func (b *panelBuild) finish() *builtPanel {
 	n := b.n
-	if n.moved {
-		b.partial("gridPos", movedReason)
-	}
 	status := statusImported
-	if len(b.paths) > 0 {
+	if b.issues.any() {
 		status = statusPartial
 	}
+	paths, reasons := b.issues.report()
 	queries := b.lines
 	if queries == nil {
 		queries = []QueryLine{}
@@ -433,8 +489,8 @@ func (b *panelBuild) finish() *builtPanel {
 		SourceType:  n.sourceType,
 		Row:         n.rowTitle,
 		Status:      status,
-		Reasons:     append([]string{}, b.reasons...),
-		Paths:       append([]string{}, b.paths...),
+		Reasons:     reasons,
+		Paths:       paths,
 		Queries:     queries,
 	}
 	b.panel.Display = b.display
