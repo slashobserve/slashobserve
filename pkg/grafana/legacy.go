@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"regexp"
@@ -121,7 +122,7 @@ func (b *panelBuild) graphAxes(p *spec.FieldProps) [2]graphAxis {
 		axes[1] = b.graphAxis(items[1], "yaxes[1]")
 	}
 	first := axes[0].props
-	p.Unit = cmpOr(first.Unit, p.Unit)
+	p.Unit = cmp.Or(first.Unit, p.Unit)
 	if first.Decimals != nil {
 		p.Decimals = first.Decimals
 	} else if p.Decimals == nil {
@@ -139,13 +140,6 @@ func (b *panelBuild) graphAxes(p *spec.FieldProps) [2]graphAxis {
 		p.Axis = "hidden"
 	}
 	return axes
-}
-
-func cmpOr(a, fallback string) string {
-	if a != "" {
-		return a
-	}
-	return fallback
 }
 
 func (b *panelBuild) usesSecondAxis() bool {
@@ -268,7 +262,7 @@ func legacyThresholdColor(t map[string]any) string {
 		return color
 	}
 	if mode == "custom" {
-		return cmpOr(asString(t["fillColor"]), asString(t["lineColor"]))
+		return cmp.Or(asString(t["fillColor"]), asString(t["lineColor"]))
 	}
 	return "red"
 }
@@ -700,7 +694,7 @@ func (b *panelBuild) styleExtras(style map[string]any, path string) {
 
 func (b *panelBuild) mergeTableDefaults(props spec.FieldProps) {
 	p := &b.panel.FieldProps
-	p.Unit = cmpOr(props.Unit, p.Unit)
+	p.Unit = cmp.Or(props.Unit, p.Unit)
 	if props.Decimals != nil {
 		p.Decimals = props.Decimals
 	}
