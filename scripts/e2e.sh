@@ -1090,6 +1090,15 @@ imports_suite() {
   done
   pass "a body above 8 MiB is refused with 413"
 
+  python3 - "$demo" "$TMP/import-padded.json" <<'PY'
+import json, sys
+dashboard = open(sys.argv[1]).read().rstrip()
+json.dump({"json": dashboard + " " * (6_500_000 - len(dashboard))}, open(sys.argv[2], "w"))
+PY
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-padded.json")"
+  [[ "$out" == 200 ]] && import_check "d['ready'] is True" || fail "a valid dashboard padded to 6.5 MB should preview ($out: $(head -c 300 "$TMP/api.body"))"
+  pass "a valid dashboard of about 6.5 MB previews, so the body bound sits above the import limit"
+
   out="$(command curl -sS --max-time 10 -o "$TMP/api.body" -w '%{http_code}' -X POST -H 'Content-Type: application/json' --data '{"json": "{}"}' "$BASE_URL/api/v1/imports/preview")"
   [[ "$out" == 401 ]] || fail "an unauthenticated preview should be refused ($out)"
   pass "previewing without signing in is refused"
