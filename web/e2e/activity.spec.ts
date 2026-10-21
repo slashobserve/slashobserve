@@ -1,15 +1,20 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
-
 import type { APIRequestContext, Page } from "@playwright/test"
 
+import {
+  agentSpec,
+  card,
+  entries,
+  entryWith,
+  fixturePrompt,
+  holdRequestsRunning,
+  revisionsApi,
+} from "./activity"
 import {
   addVersion,
   createComment,
   createDashboard,
   loadSpec,
   uniqueTitle,
-  type Spec,
 } from "./api"
 import {
   expectPanelsReady,
@@ -19,27 +24,15 @@ import {
 } from "./dashboards"
 import { expect, test } from "./fixtures"
 
-const repoRoot = join(import.meta.dirname, "..", "..")
 const agentTimeout = 90_000
 const rpsTitle = "Checkout requests per second"
 const logsTitle = "Log rows by service"
 const agentRpsTitle = "Requests per second"
 const you = "admin"
 
-function readJson<T>(...segments: string[]): T {
-  return JSON.parse(
-    readFileSync(join(repoRoot, ...segments), { encoding: "utf8" })
-  ) as T
-}
-
-function fixturePrompt(file: string): string {
-  return readJson<{ prompt: string }>("e2e", "fixtures", "llm", file).prompt
-}
-
 const perRoutePrompt = fixturePrompt("comment-per-route.json")
 const p99Prompt = fixturePrompt("followup-p99-panel.json")
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
-const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 const commentsPostApi = /\/api\/v1\/dashboards\/[^/]+\/comments$/
 const olderVersionNote =
   "You are viewing an older version. Open the latest version to send changes to the agent."
@@ -53,33 +46,14 @@ async function createOverview(request: APIRequestContext) {
 }
 
 async function createAgentDashboard(request: APIRequestContext) {
-  const spec = readJson<{ spec: Spec }>(
-    "e2e",
-    "fixtures",
-    "api",
-    "dashboard-valid.json"
-  ).spec
+  const spec = agentSpec()
   spec.title = uniqueTitle("E2E activity agent")
   const { id } = await createDashboard(request, spec)
   return { id, spec }
 }
 
-function card(page: Page) {
-  return page.getByRole("complementary", { name: "Activity" })
-}
-
 function toggle(page: Page) {
   return page.getByRole("button", { name: /^Activity/ })
-}
-
-function entries(page: Page) {
-  return card(page)
-    .getByRole("list", { name: "Activity" })
-    .locator(":scope > li")
-}
-
-function entryWith(page: Page, text: string) {
-  return entries(page).filter({ hasText: text })
 }
 
 function composerForm(page: Page) {
@@ -141,32 +115,6 @@ function clearRejectedRequestLogs(consoleErrors: string[], status: number) {
   expect(logged).not.toHaveLength(0)
   for (const message of logged) {
     consoleErrors.splice(consoleErrors.indexOf(message), 1)
-  }
-}
-
-async function holdRequestsRunning(page: Page) {
-  let held = true
-  await page.route(revisionsApi, async (route) => {
-    if (route.request().method() !== "GET" || !held) {
-      await route.fallback()
-      return
-    }
-    const response = await route.fetch()
-    const body = (await response.json()) as {
-      revisions: Record<string, unknown>[]
-    }
-    body.revisions = body.revisions.map((revision) => ({
-      ...revision,
-      status: "running",
-      attempts: 1,
-      error: null,
-      result_version: null,
-      finished_at: null,
-    }))
-    await route.fulfill({ response, json: body })
-  })
-  return () => {
-    held = false
   }
 }
 

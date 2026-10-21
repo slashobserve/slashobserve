@@ -1,28 +1,15 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
-
 import type { Page } from "@playwright/test"
 
-import { uniqueAccountName, uniqueTitle, type Spec } from "./api"
+import { agentSpec, card, entries } from "./activity"
+import { uniqueAccountName, uniqueTitle } from "./api"
 import { openDashboard, versionButton } from "./dashboards"
 import { expect, test } from "./fixtures"
 import { mcpKey, mcpTool } from "./mcp"
 
-const repoRoot = join(import.meta.dirname, "..", "..")
 const requestText = "Show error rate too"
 const replyText = "Added error rate in version 2"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
-
-function card(page: Page) {
-  return page.getByRole("complementary", { name: "Activity" })
-}
-
-function entries(page: Page) {
-  return card(page)
-    .getByRole("list", { name: "Activity" })
-    .locator(":scope > li")
-}
 
 async function readClipboard(page: Page): Promise<string> {
   return page.evaluate(() => navigator.clipboard.readText())
@@ -39,12 +26,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       const title = uniqueTitle("E2E Claude Code journey")
       const accountName = uniqueAccountName("e2e-claude-code")
-      const spec = JSON.parse(
-        readFileSync(
-          join(repoRoot, "e2e", "fixtures", "api", "dashboard-valid.json"),
-          { encoding: "utf8" }
-        )
-      ).spec as Spec
+      const spec = agentSpec()
       spec.title = title
       let id = ""
       let token = ""

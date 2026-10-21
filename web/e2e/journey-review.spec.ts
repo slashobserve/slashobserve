@@ -1,9 +1,14 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
-
 import type { Page } from "@playwright/test"
 
-import { createComment, createDashboard, uniqueTitle, type Spec } from "./api"
+import {
+  agentSpec,
+  card,
+  entries,
+  entryWith,
+  fixturePrompt,
+  holdRequestsRunning,
+} from "./activity"
+import { createComment, createDashboard, uniqueTitle } from "./api"
 import {
   expectPanelsReady,
   openDashboard,
@@ -12,41 +17,14 @@ import {
 } from "./dashboards"
 import { expect, test } from "./fixtures"
 
-const repoRoot = join(import.meta.dirname, "..", "..")
 const agentTimeout = 90_000
 const firstPanelId = "rps"
 const firstPanelTitle = "Requests per second"
 const secondPanelTitle = "Log rows by service"
 const teammateComment = "Is this per pod?"
 const ownComment = "Needs a p99"
-const revisionsApi = /\/api\/v1\/dashboards\/[^/]+\/revisions(\?.*)?$/
 
-function readJson<T>(...segments: string[]): T {
-  return JSON.parse(
-    readFileSync(join(repoRoot, ...segments), { encoding: "utf8" })
-  ) as T
-}
-
-const p99Prompt = readJson<{ prompt: string }>(
-  "e2e",
-  "fixtures",
-  "llm",
-  "followup-p99-panel.json"
-).prompt
-
-function card(page: Page) {
-  return page.getByRole("complementary", { name: "Activity" })
-}
-
-function entries(page: Page) {
-  return card(page)
-    .getByRole("list", { name: "Activity" })
-    .locator(":scope > li")
-}
-
-function entryWith(page: Page, text: string) {
-  return entries(page).filter({ hasText: text })
-}
+const p99Prompt = fixturePrompt("followup-p99-panel.json")
 
 function versionEntry(page: Page, version: number) {
   return entries(page).filter({
@@ -60,32 +38,6 @@ function activityToggle(page: Page, openComments: number) {
   })
 }
 
-async function holdRequestsRunning(page: Page) {
-  let held = true
-  await page.route(revisionsApi, async (route) => {
-    if (route.request().method() !== "GET" || !held) {
-      await route.fallback()
-      return
-    }
-    const response = await route.fetch()
-    const body = (await response.json()) as {
-      revisions: Record<string, unknown>[]
-    }
-    body.revisions = body.revisions.map((revision) => ({
-      ...revision,
-      status: "running",
-      attempts: 1,
-      error: null,
-      result_version: null,
-      finished_at: null,
-    }))
-    await route.fulfill({ response, json: body })
-  })
-  return () => {
-    held = false
-  }
-}
-
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
@@ -95,12 +47,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       page,
       request,
     }) => {
-      const spec = readJson<{ spec: Spec }>(
-        "e2e",
-        "fixtures",
-        "api",
-        "dashboard-valid.json"
-      ).spec
+      const spec = agentSpec()
       spec.title = uniqueTitle("E2E review journey")
       const { id } = await createDashboard(request, spec)
       const thread = (text: string) => entryWith(page, text)
