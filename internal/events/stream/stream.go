@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -114,8 +115,8 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	switch {
 	case err == nil:
 		return latest, true
-	case errors.Is(err, context.Canceled):
-		c.Abort()
+	case clientgone.Is(c.Request.Context(), err):
+		clientgone.Abort(c, h.logger, "read latest version for event stream")
 	case errors.Is(err, dashboards.ErrNotFound):
 		abort(c, http.StatusNotFound, "not_found", err.Error())
 	default:

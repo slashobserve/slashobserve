@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -28,6 +29,9 @@ func (s *Service) require(c *gin.Context) {
 	if h := c.GetHeader("Authorization"); h != "" {
 		p, ok, err := s.bearerPrincipal(c.Request.Context(), h)
 		if err != nil {
+			if clientgone.Handle(c, s.logger, "resolve bearer key", err) {
+				return
+			}
 			s.logger.ErrorContext(c.Request.Context(), "resolve bearer key", logattrs.Failure("key_lookup_failed", err)...)
 			abortError(c, http.StatusInternalServerError, "internal", "internal error")
 			return
@@ -42,6 +46,9 @@ func (s *Service) require(c *gin.Context) {
 	}
 	row, ok, err := s.sessionRow(c.Request)
 	if err != nil {
+		if clientgone.Handle(c, s.logger, "resolve session", err) {
+			return
+		}
 		s.logger.ErrorContext(c.Request.Context(), "resolve session", logattrs.Failure("session_lookup_failed", err)...)
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return

@@ -26,12 +26,23 @@ type sessionRig struct {
 	engine *gin.Engine
 	userID pgtype.UUID
 	cookie string
+	login  string
 }
 
 func newSessionRig(t *testing.T) *sessionRig {
 	t.Helper()
+	return newSessionRigWithLogger(t, slog.New(slog.DiscardHandler))
+}
+
+func newSessionRigWithLogger(t *testing.T, logger *slog.Logger) *sessionRig {
+	t.Helper()
+	return newSessionRigWithIssuer(t, logger, "http://issuer.example/dex")
+}
+
+func newSessionRigWithIssuer(t *testing.T, logger *slog.Logger, issuer string) *sessionRig {
+	t.Helper()
 	database := dbtest.New(t)
-	s, err := New(Config{PublicURL: mustURL(t, "http://localhost:8080"), IssuerURL: "http://issuer.example/dex"}, database.Queries(), slog.New(slog.DiscardHandler))
+	s, err := New(Config{PublicURL: mustURL(t, "http://localhost:8080"), IssuerURL: issuer}, database.Queries(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +65,8 @@ func newSessionRig(t *testing.T) *sessionRig {
 	engine := gin.New()
 	authenticated := s.Mount(engine.Group("/api/v1"))
 	authenticated.POST("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
-	return &sessionRig{t: t, db: database, engine: engine, userID: user.ID, cookie: s.sessionCookie + "=" + token}
+	authenticated.GET("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	return &sessionRig{t: t, db: database, engine: engine, userID: user.ID, cookie: s.sessionCookie + "=" + token, login: s.loginCookie}
 }
 
 func (r *sessionRig) request(method, path, origin string) int {

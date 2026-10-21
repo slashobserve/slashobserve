@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/oauth2"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -67,6 +68,9 @@ func (s *Service) login(c *gin.Context) {
 		ExpiresAt:    pgtype.Timestamptz{Time: time.Now().Add(loginStateTTL), Valid: true},
 	})
 	if err != nil {
+		if clientgone.Handle(c, s.logger, "store login state", err) {
+			return
+		}
 		s.logger.ErrorContext(ctx, "store login state", logattrs.Failure("login_state_failed", err)...)
 		c.Redirect(http.StatusFound, loginErrorPath("internal"))
 		return
@@ -215,6 +219,9 @@ func truncateRunes(s string, limit int) string {
 }
 
 func (s *Service) refuse(c *gin.Context, f *loginFailure) {
+	if f.err != nil && clientgone.Handle(c, s.logger, "sign-in", f.err) {
+		return
+	}
 	attrs := []any{slog.String("error_code", f.code)}
 	if f.reason != "" {
 		attrs = append(attrs, slog.String("reason", f.reason))
@@ -242,6 +249,9 @@ func (s *Service) logout(c *gin.Context) {
 	}
 	if cookie, err := c.Request.Cookie(s.sessionCookie); err == nil && cookie.Value != "" {
 		if err := s.queries.DeleteSession(c.Request.Context(), hashToken(cookie.Value)); err != nil {
+			if clientgone.Handle(c, s.logger, "delete session", err) {
+				return
+			}
 			s.logger.ErrorContext(c.Request.Context(), "delete session", logattrs.Failure("session_delete_failed", err)...)
 			abortError(c, http.StatusInternalServerError, "internal", "internal error")
 			return
@@ -254,6 +264,9 @@ func (s *Service) logout(c *gin.Context) {
 func (s *Service) session(c *gin.Context) {
 	p, ok, err := s.sessionPrincipal(c)
 	if err != nil {
+		if clientgone.Handle(c, s.logger, "resolve session", err) {
+			return
+		}
 		s.logger.ErrorContext(c.Request.Context(), "resolve session", logattrs.Failure("session_lookup_failed", err)...)
 		abortError(c, http.StatusInternalServerError, "internal", "internal error")
 		return

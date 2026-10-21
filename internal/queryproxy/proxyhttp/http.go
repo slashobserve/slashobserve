@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -444,6 +445,9 @@ func failureAttrs(err error) []any {
 }
 
 func (h *Handler) fail(c *gin.Context, err error) {
+	if clientgone.Handle(c, h.logger, "query proxy", err) {
+		return
+	}
 	if errors.Is(err, dashboards.ErrNotFound) {
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), err.Error())
 		return
@@ -454,9 +458,8 @@ func (h *Handler) fail(c *gin.Context, err error) {
 	}
 	status, code, message := queryproxy.Classify(err)
 	if status == 0 {
-		h.logger.DebugContext(c.Request.Context(), "query proxy: client went away")
-		c.Abort()
-		return
+		h.logger.ErrorContext(c.Request.Context(), "query proxy: canceled while the client is still connected", failureAttrs(err)...)
+		status, code, message = queryproxy.Classify(errInternal)
 	}
 	var qe *queryproxy.QueryError
 	if errors.As(err, &qe) {

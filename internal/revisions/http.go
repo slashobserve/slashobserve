@@ -1,7 +1,6 @@
 package revisions
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -23,8 +23,6 @@ const (
 	maxRequestBytes = 64 << 10
 	defaultLimit    = 50
 	maxLimit        = 200
-
-	statusClientClosedRequest = 499
 )
 
 type createRequest struct {
@@ -199,10 +197,10 @@ func (s *Service) getRevision(c *gin.Context) {
 
 func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any) {
 	ctx := c.Request.Context()
+	if clientgone.Handle(c, s.logger, action, err) {
+		return
+	}
 	switch {
-	case errors.Is(err, context.Canceled):
-		s.logger.DebugContext(ctx, action+": client went away")
-		c.AbortWithStatus(statusClientClosedRequest)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrUnknownPanel):

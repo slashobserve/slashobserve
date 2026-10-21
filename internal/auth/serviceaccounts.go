@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -221,6 +222,9 @@ func (s *Service) serviceAccountExists(c *gin.Context, id pgtype.UUID) bool {
 }
 
 func (s *Service) internalError(c *gin.Context, action string, err error) {
+	if clientgone.Handle(c, s.logger, action, err) {
+		return
+	}
 	principal, _ := FromContext(c.Request.Context())
 	s.logger.ErrorContext(c.Request.Context(), action, logattrs.Failure("internal", err,
 		slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID))...)

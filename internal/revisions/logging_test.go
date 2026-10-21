@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -217,6 +219,27 @@ func TestUndecodableStoredStepsAndUsageLogOnlyCodeAndType(t *testing.T) {
 		logs.AssertSafeFailure(t, record, code, "leaked-usage", leakedPrompt, "cannot unmarshal")
 		if record["agent_request_id"] != row.ID.String() {
 			t.Errorf("%s: record = %v", msg, record)
+		}
+	}
+}
+
+func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
+	logger, logs := logtest.New()
+	d := dbtest.New(t)
+	svc := revisions.NewService(d.DB, nil, logger)
+	dash := seedDashboard(t, d, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, revisionsPath(dash), nil)
+
+	rec := httptest.NewRecorder()
+	newRouter(svc).ServeHTTP(rec, req)
+	if rec.Code != clientgone.Status || rec.Body.Len() != 0 {
+		t.Fatalf("status %d body %q, want %d and no body", rec.Code, rec.Body.String(), clientgone.Status)
+	}
+	for _, record := range logs.Records(t) {
+		if record["level"] == "ERROR" {
+			t.Errorf("logged an ERROR for a client that went away: %v", record)
 		}
 	}
 }

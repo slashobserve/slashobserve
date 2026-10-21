@@ -16,7 +16,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 const (
@@ -143,4 +145,50 @@ func TestStreamSurvivesATransientCheckFailure(t *testing.T) {
 	}
 	sessions.fail.Store(false)
 	s.waitFor(t, ": ping")
+}
+
+type failingDashboards struct{ err error }
+
+func (f failingDashboards) LatestVersion(context.Context, pgtype.UUID) (int, error) { return 0, f.err }
+
+func TestClientGoingAwayWhileReadingTheVersionIsNotAServerError(t *testing.T) {
+	cases := []struct {
+		name          string
+		err           error
+		cancelRequest bool
+		wantStatus    int
+		wantError     bool
+	}{
+		{"request canceled", errors.Join(errors.New("latest version"), context.Canceled), true, clientgone.Status, false},
+		{"server side cancellation", errors.Join(errors.New("latest version"), context.Canceled), false, http.StatusInternalServerError, true},
+		{"server deadline", errors.Join(errors.New("latest version"), context.DeadlineExceeded), false, http.StatusInternalServerError, true},
+		{"database failure", errors.New("database exploded"), false, http.StatusInternalServerError, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			logger, logs := logtest.New()
+			broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
+			t.Cleanup(broker.Close)
+			h := NewHandler(broker, failingDashboards{tc.err}, &fakeSessions{}, logger)
+			engine := gin.New()
+			h.Register(engine.Group("/api/v1"))
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.cancelRequest {
+				cancel()
+			}
+			rec := httptest.NewRecorder()
+			engine.ServeHTTP(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/dashboards/"+dashboardID+"/events", nil))
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if got := strings.Contains(logs.String(), `"level":"ERROR"`); got != tc.wantError {
+				t.Errorf("ERROR logged = %v, want %v: %s", got, tc.wantError, logs.String())
+			}
+			if !tc.wantError && rec.Body.Len() != 0 {
+				t.Errorf("body %q, want none", rec.Body.String())
+			}
+		})
+	}
 }

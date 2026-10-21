@@ -1,13 +1,12 @@
 package server
 
 import (
-	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -29,9 +28,10 @@ func registerDatasourceRoutes(api *gin.RouterGroup, registry *datasource.Registr
 		if usage != nil {
 			var err error
 			if counts, err = usage.DatasourceUsage(ctx); err != nil {
-				if !errors.Is(err, context.Canceled) {
-					logger.ErrorContext(ctx, "count dashboards per datasource", logattrs.Failure("datasource_usage_failed", err)...)
+				if clientgone.Handle(c, logger, "count dashboards per datasource", err) {
+					return
 				}
+				logger.ErrorContext(ctx, "count dashboards per datasource", logattrs.Failure("datasource_usage_failed", err)...)
 				httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 				return
 			}
