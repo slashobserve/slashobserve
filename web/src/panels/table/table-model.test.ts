@@ -319,7 +319,23 @@ describe("table rows from several queries", () => {
       overrides: [{ match: { query: "B" }, unit: "bytes" }],
     })
     expect(cell("Value", 0).text).toBe("1.5 min")
-    expect(cell("Value", 2).text).toMatch(/^2(\.0+)? ?(KiB|KB|kB)/)
+    expect(cell("Value", 2).text).toBe("2 KiB")
+    expect(cell("Value", 3).text).toBe("4 KiB")
+  })
+
+  it("formats each unlabeled row with the unit of its own query", () => {
+    const { cell } = build(
+      [
+        frame([number([90], "n")], { ref: "A" }),
+        frame([number([2048], "n")], { ref: "B" }),
+      ],
+      {
+        unit: "s",
+        overrides: [{ match: { query: "B" }, unit: "bytes" }],
+      }
+    )
+    expect(cell("n", 0).text).toBe("1.5 min")
+    expect(cell("n", 1).text).toBe("2 KiB")
   })
 
   it("colors and links only the rows whose query configures them", () => {
