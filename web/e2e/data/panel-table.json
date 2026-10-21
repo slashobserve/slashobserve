@@ -1,0 +1,87 @@
+{
+  "specVersion": "0",
+  "title": "E2E table panels",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": "tb_top",
+      "type": "table",
+      "title": "Top routes",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (route) (rate(http_requests_total[5m]))",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transform": [
+        {
+          "type": "organize",
+          "exclude": ["Time"],
+          "rename": { "Value": "Requests" }
+        },
+        { "type": "sortBy", "field": "Requests", "desc": true },
+        { "type": "limit", "count": 3 }
+      ],
+      "unit": "reqps",
+      "overrides": [
+        {
+          "match": { "field": "Requests" },
+          "thresholds": [
+            { "color": "ok" },
+            { "value": 0.000001, "color": "warning" }
+          ]
+        }
+      ],
+      "display": { "footer": ["sum"] }
+    },
+    {
+      "id": "tb_logs",
+      "type": "table",
+      "title": "Log rows",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT ServiceName AS service, count() AS rows FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY rows DESC LIMIT 5"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open ${__data.fields.service}",
+          "url": "/dashboards?q=${__data.fields.service}"
+        }
+      ],
+      "display": { "header": false }
+    },
+    {
+      "id": "tb_ch_table",
+      "type": "table",
+      "title": "Services last seen",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT ServiceName AS service, max(Timestamp) AS last_seen, count() AS c FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY service ORDER BY c DESC LIMIT 5",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "tb_legend",
+      "type": "table",
+      "title": "Targets by job",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "sum by (job) (up)",
+          "legend": "{{job}}"
+        }
+      ],
+      "transform": [{ "type": "reduce", "reducers": ["lastNotNull"] }]
+    }
+  ]
+}

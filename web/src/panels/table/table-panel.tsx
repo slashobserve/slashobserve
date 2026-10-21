@@ -1,19 +1,34 @@
-import { useMemo, useState } from "react"
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react"
+import { memo, useMemo, useState } from "react"
+import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatTimeValue } from "@/lib/time"
-import { commonDecimals, formatValue } from "@/lib/units"
+import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
-import { toTable, type TableColumn } from "../frames"
+import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
+import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import {
+  cellLinks,
+  cellOf,
+  tableModel,
+  type TableColumn,
+  type TableRow as ModelRow,
+} from "./table-model"
 
 const maxRows = 1000
 
@@ -27,54 +42,149 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "en", { numeric: true })
 }
 
-function cellText(
-  column: TableColumn,
-  value: unknown,
-  unit: Parameters<typeof formatValue>[1],
-  decimals: number | undefined
-): string {
-  if (value === null || value === undefined) return "-"
-  if (column.type === "number" && typeof value === "number") {
-    return formatValue(value, unit, decimals)
-  }
-  if (column.type === "time" && typeof value === "number") {
-    return formatTimeValue(String(value))
-  }
-  if (typeof value === "object") return JSON.stringify(value)
-  return String(value)
+function MoreLinks({ links }: { links: ResolvedLink[] }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            aria-label="More links"
+          />
+        }
+      >
+        <EllipsisIcon aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-max">
+        {links.map((link, index) => (
+          <DropdownMenuItem
+            key={`${index}:${link.href}`}
+            render={<a {...anchorProps(link)} />}
+            className="justify-between gap-3"
+          >
+            {link.title}
+            {link.newTab ? <NewTabMark /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
-export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
-  const table = useMemo(() => toTable(frames), [frames])
-  const [sort, setSort] = useState<Sort>(null)
+type RowProps = {
+  columns: TableColumn[]
+  row: ModelRow
+  fields: FieldResolver
+  scope: LinkScope
+}
 
-  const columnDecimals = useMemo(() => {
-    const decimals = new Map<string, number | undefined>()
-    for (const column of table.columns) {
-      if (column.type !== "number") continue
-      decimals.set(
-        column.key,
-        commonDecimals(
-          table.rows.map((row) => row[column.key] as number | null),
-          panel.unit,
-          panel.decimals
-        )
-      )
-    }
-    return decimals
-  }, [table, panel.unit, panel.decimals])
+function BodyCell({
+  column,
+  row,
+  fields,
+  scope,
+}: Omit<RowProps, "columns"> & { column: TableColumn }) {
+  const value = row.values[column.key]
+  const cell = cellOf(fields, column, row)
+  const [first, ...more] = cellLinks(fields, column, row, cell, scope)
+  const Icon =
+    cell.level && cell.level !== "base" ? thresholdIcons[cell.level] : null
+  const content = (
+    <>
+      {Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null}
+      {cell.text}
+      {cell.word ? <span className="sr-only">, {cell.word}</span> : null}
+    </>
+  )
+  const style = cell.color ? { color: cell.color } : undefined
+  return (
+    <TableCell
+      data-column={column.label}
+      data-threshold={cell.level ?? undefined}
+      title={cell.word || undefined}
+      className={cn(
+        "px-2 py-1",
+        column.type === "number" && "text-right tabular-nums",
+        value === null && "text-muted-foreground"
+      )}
+    >
+      {first ? (
+        <span className="inline-flex items-center gap-1">
+          <a
+            {...anchorProps(first)}
+            title={
+              [first.title, cell.word].filter(Boolean).join(" - ") || undefined
+            }
+            style={style}
+            className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
+          >
+            {content}
+            {first.newTab ? <NewTabMark /> : null}
+          </a>
+          {more.length > 0 ? <MoreLinks links={more} /> : null}
+        </span>
+      ) : cell.color ? (
+        <span className="inline-flex items-center gap-1" style={style}>
+          {content}
+        </span>
+      ) : (
+        content
+      )}
+    </TableCell>
+  )
+}
+
+const BodyRow = memo(function BodyRow({
+  columns,
+  row,
+  fields,
+  scope,
+}: RowProps) {
+  return (
+    <TableRow>
+      {columns.map((column) => (
+        <BodyCell
+          key={column.key}
+          column={column}
+          row={row}
+          fields={fields}
+          scope={scope}
+        />
+      ))}
+    </TableRow>
+  )
+})
+
+export const TablePanel: PanelRenderer = ({
+  panel,
+  frames,
+  fields,
+  display,
+  links,
+  width,
+  height,
+}) => {
+  const model = useMemo(
+    () => tableModel(frames, fields, display),
+    [frames, fields, display]
+  )
+  const [chosen, setSort] = useState<Sort>(null)
+  const showHeader = display.header !== false
+  const sort = showHeader ? chosen : null
 
   const rows = useMemo(() => {
-    if (!sort) return table.rows
+    if (!sort) return model.rows
     const factor = sort.direction === "ascending" ? 1 : -1
-    return [...table.rows].sort((a, b) => {
-      const av = a[sort.key]
-      const bv = b[sort.key]
+    return [...model.rows].sort((a, b) => {
+      const av = a.values[sort.key]
+      const bv = b.values[sort.key]
       const missing = (v: unknown) => v === null || v === undefined
       if (missing(av) || missing(bv)) return compareValues(av, bv)
       return compareValues(av, bv) * factor
     })
-  }, [table.rows, sort])
+  }, [model.rows, sort])
 
   function toggleSort(key: string) {
     setSort((current) => {
@@ -96,67 +206,96 @@ export const TablePanel: PanelRenderer = ({ panel, frames, width, height }) => {
       className="overflow-auto text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={{ width, height }}
     >
-      {/* The shadcn Table wrapper adds its own overflow container, which breaks the sticky header */}
       <table data-slot="table" className="w-full caption-bottom">
-        <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]">
+        <TableHeader
+          className={
+            showHeader
+              ? "sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]"
+              : "sr-only"
+          }
+        >
           <TableRow className="hover:bg-transparent">
-            {table.columns.map((column) => {
+            {model.columns.map((column) => {
               const active = sort?.key === column.key ? sort : null
               const numeric = column.type === "number"
               return (
                 <TableHead
                   key={column.key}
-                  aria-sort={active?.direction ?? "none"}
+                  aria-sort={
+                    showHeader ? (active?.direction ?? "none") : undefined
+                  }
                   className={cn("h-8 px-2", numeric && "text-right")}
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleSort(column.key)}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-                      numeric && "flex-row-reverse"
-                    )}
-                  >
-                    {column.label}
-                    {active?.direction === "ascending" ? (
-                      <ArrowUpIcon className="size-3" aria-hidden="true" />
-                    ) : null}
-                    {active?.direction === "descending" ? (
-                      <ArrowDownIcon className="size-3" aria-hidden="true" />
-                    ) : null}
-                  </button>
+                  {showHeader ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(column.key)}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+                        numeric && "flex-row-reverse"
+                      )}
+                    >
+                      {column.label}
+                      {active?.direction === "ascending" ? (
+                        <ArrowUpIcon className="size-3" aria-hidden="true" />
+                      ) : null}
+                      {active?.direction === "descending" ? (
+                        <ArrowDownIcon className="size-3" aria-hidden="true" />
+                      ) : null}
+                    </button>
+                  ) : (
+                    column.label
+                  )}
                 </TableHead>
               )
             })}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {visible.map((row, index) => (
-            <TableRow key={index}>
-              {table.columns.map((column) => {
-                const value = row[column.key]
-                const numeric = column.type === "number"
-                return (
-                  <TableCell
-                    key={column.key}
-                    className={cn(
-                      "px-2 py-1",
-                      numeric && "text-right tabular-nums",
-                      value === null && "text-muted-foreground"
-                    )}
-                  >
-                    {cellText(
-                      column,
-                      value,
-                      panel.unit,
-                      columnDecimals.get(column.key)
-                    )}
-                  </TableCell>
-                )
-              })}
-            </TableRow>
+          {visible.map((row) => (
+            <BodyRow
+              key={row.key}
+              columns={model.columns}
+              row={row}
+              fields={fields}
+              scope={links}
+            />
           ))}
         </TableBody>
+        {model.footer.length > 0 ? (
+          <TableFooter className="sticky bottom-0 z-10 border-t-0 bg-card shadow-[0_-1px_0_var(--border)]">
+            {model.footer.map((footer) => (
+              <TableRow key={footer.label} className="hover:bg-transparent">
+                {model.columns.map((column, index) => {
+                  const className = cn(
+                    "px-2 py-1",
+                    column.type === "number" && "text-right tabular-nums"
+                  )
+                  return index === 0 ? (
+                    <TableHead
+                      key={column.key}
+                      scope="row"
+                      className={cn(className, "h-auto")}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span>{footer.label}</span>
+                        {footer.cells[0] !== null ? (
+                          <span className="tabular-nums">
+                            {footer.cells[0]}
+                          </span>
+                        ) : null}
+                      </span>
+                    </TableHead>
+                  ) : (
+                    <TableCell key={column.key} className={className}>
+                      {footer.cells[index]}
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            ))}
+          </TableFooter>
+        ) : null}
       </table>
       {rows.length > maxRows ? (
         <p className="px-2 py-1.5 text-muted-foreground">

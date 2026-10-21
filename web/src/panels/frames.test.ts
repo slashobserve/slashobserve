@@ -10,7 +10,6 @@ import {
   legendFor,
   seriesKey,
   seriesLabel,
-  toTable,
   uniqueKey,
 } from "./frames"
 
@@ -100,89 +99,6 @@ describe("hasData", () => {
         }),
       ])
     ).toBe(true)
-  })
-})
-
-describe("toTable", () => {
-  it("uses fields as columns for one unlabeled frame", () => {
-    const table = toTable([
-      frame({
-        fields: [
-          { name: "service", type: "string", values: ["a", "b"] },
-          { name: "n", type: "number", values: [3, 1] },
-        ],
-      }),
-    ])
-    expect(table.columns.map((c) => c.label)).toEqual(["service", "n"])
-    expect(table.rows).toEqual([
-      { "field:service": "a", "field:n": 3 },
-      { "field:service": "b", "field:n": 1 },
-    ])
-  })
-
-  it("keeps every row of several unlabeled frames and tells their queries apart", () => {
-    const rows = (ref: string, offset: number) =>
-      frame({
-        ref,
-        fields: [
-          { name: "time", type: "time", values: [1, 2, 3] },
-          {
-            name: ref === "A" ? "requests" : "errors",
-            type: "number",
-            values: [offset + 1, offset + 2, offset + 3],
-          },
-        ],
-      })
-    const table = toTable([rows("A", 0), rows("B", 10)])
-    expect(table.columns.map((c) => c.label)).toEqual([
-      "Query",
-      "time",
-      "requests",
-      "errors",
-    ])
-    expect(table.rows).toHaveLength(6)
-    expect(table.rows[0]).toEqual({
-      "query:ref": "A",
-      "field:time": 1,
-      "field:requests": 1,
-      "field:errors": null,
-    })
-    expect(table.rows[5]).toEqual({
-      "query:ref": "B",
-      "field:time": 3,
-      "field:requests": null,
-      "field:errors": 13,
-    })
-  })
-
-  it("merges same-named fields of unlabeled frames from one query without a ref column", () => {
-    const part = (values: number[]) =>
-      frame({ fields: [{ name: "n", type: "number", values }] })
-    const table = toTable([part([1, 2]), part([3])])
-    expect(table.columns.map((c) => c.label)).toEqual(["n"])
-    expect(table.rows).toEqual([
-      { "field:n": 1 },
-      { "field:n": 2 },
-      { "field:n": 3 },
-    ])
-  })
-
-  it("builds one row per frame with label columns and last values", () => {
-    const table = toTable([
-      frame({
-        labels: { pod: "a" },
-        fields: [time, { name: "value", type: "number", values: [1, 2, null] }],
-      }),
-      frame({
-        labels: { pod: "b", zone: "x" },
-        fields: [time, { name: "value", type: "number", values: [5, 6, 7] }],
-      }),
-    ])
-    expect(table.columns.map((c) => c.label)).toEqual(["pod", "zone", "value"])
-    expect(table.rows).toEqual([
-      { "label:pod": "a", "label:zone": null, "field:value": 2 },
-      { "label:pod": "b", "label:zone": "x", "field:value": 7 },
-    ])
   })
 })
 
