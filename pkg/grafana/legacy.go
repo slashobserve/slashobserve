@@ -483,13 +483,10 @@ func (b *panelBuild) singlestatThresholds(p *spec.FieldProps) {
 	text := strings.TrimSpace(asString(b.raw["thresholds"]))
 	colors := stringList(b.raw["colors"])
 	b.consume("thresholds", "colors")
-	if len(colors) == 0 {
+	if len(colors) == 0 || text == "" {
 		return
 	}
-	var levels []string
-	if text != "" {
-		levels = strings.Split(text, ",")
-	}
+	levels := strings.Split(text, ",")
 	var steps []thresholdStep
 	for i, color := range colors {
 		step := thresholdStep{index: i, color: color}

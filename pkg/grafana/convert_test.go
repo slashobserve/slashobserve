@@ -379,8 +379,10 @@ func TestSinglestatThresholdsFollowTheirColors(t *testing.T) {
 		want          []string
 	}{
 		{"two levels", colors + `,"thresholds":"50,80"`, []string{"ok", "warning@50", "critical@80"}},
-		{"empty levels keep the first color as the base", colors + `,"thresholds":""`, []string{"ok"}},
-		{"missing levels keep the first color as the base", colors, []string{"ok"}},
+		{"one level", colors + `,"thresholds":"50"`, []string{"ok", "warning@50"}},
+		{"empty levels leave the default thresholds", colors + `,"thresholds":""`, []string{}},
+		{"blank levels leave the default thresholds", colors + `,"thresholds":"  "`, []string{}},
+		{"missing levels leave the default thresholds", colors, []string{}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
