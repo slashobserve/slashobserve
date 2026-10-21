@@ -112,7 +112,11 @@ export function Legend({
             onClick={() => onToggle(item.key)}
             className={rowButtonClass(visible)}
           >
-            <LegendSwatch {...item} />
+            <LegendSwatch
+              color={item.color}
+              line={item.line}
+              style={item.style}
+            />
             <span className="truncate">{item.label}</span>
           </button>
         )
