@@ -134,9 +134,12 @@ export default function PanelEditor({
   const [noteOpen, setNoteOpen] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [applying, setApplying] = useState(false)
+  const [focusFirstQuery, setFocusFirstQuery] = useState(view === "editor")
   const editorRefs = useRef<(CodeEditorHandle | null)[]>([])
   const noticeRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+
+  if (focusFirstQuery && view !== "editor") setFocusFirstQuery(false)
 
   if (!dirty && version !== draft.baseVersion) {
     dispatch({ type: "rebase", version, panel })
@@ -385,6 +388,7 @@ export default function PanelEditor({
                   readOnly={readOnly}
                   issuesByQuery={issuesByQuery}
                   onActiveChange={setActiveQuery}
+                  focusFirst={focusFirstQuery}
                   editorRefs={editorRefs}
                   beforeAdd={
                     metricsOpen && data ? (

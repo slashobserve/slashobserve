@@ -28,6 +28,7 @@ type Props = {
   readOnly: boolean
   issuesByQuery: Record<number, string[]>
   onActiveChange: (index: number) => void
+  focusFirst: boolean
   editorRefs: RefObject<(CodeEditorHandle | null)[]>
   beforeAdd?: ReactNode
 }
@@ -75,6 +76,7 @@ export function QueryRows({
   readOnly,
   issuesByQuery,
   onActiveChange,
+  focusFirst,
   editorRefs,
   beforeAdd,
 }: Props) {
@@ -108,7 +110,7 @@ export function QueryRows({
         return (
           <QueryRow
             key={ref}
-            index={index}
+            autoFocus={focusFirst && index === 0}
             refName={ref}
             query={query}
             baseQuery={baseByRef.get(ref)}

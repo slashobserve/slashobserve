@@ -968,6 +968,31 @@ test("explains that a request body over the limit is too long to lint", async ({
   expectLoggedOnce(consoleErrors, 413)
 })
 
+test("moves between Editor and JSON with the arrow keys and keeps focus on the switch", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+
+  const view = sheet(page).getByRole("radiogroup", { name: "Editor view" })
+  const editorRadio = view.getByRole("radio", { name: "Editor" })
+  const jsonRadio = view.getByRole("radio", { name: "JSON" })
+  await editorRadio.focus()
+
+  await page.keyboard.press("ArrowRight")
+  await expect(page).toHaveURL(/panel=rps&edit=json/)
+  await expect(jsonRadio).toBeChecked()
+  await expect(jsonRadio).toBeFocused()
+
+  await page.keyboard.press("ArrowLeft")
+  await expect(page).toHaveURL(/panel=rps&edit=query/)
+  await expect(editorRadio).toBeChecked()
+  await expect(sheet(page).locator(".cm-content")).toBeVisible()
+  await expect(editorRadio).toBeFocused()
+})
+
 function queryEditor(page: Page, ref: string) {
   return sheet(page).getByRole("textbox", { name: `Query ${ref}` })
 }

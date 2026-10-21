@@ -29,7 +29,7 @@ function hasCoarsePointer() {
 }
 
 type Props = {
-  index: number
+  autoFocus: boolean
   refName: string
   query: PanelQuery
   baseQuery: PanelQuery | undefined
@@ -106,7 +106,7 @@ function Diagnostics({
 }
 
 export function QueryRow({
-  index,
+  autoFocus,
   refName,
   query,
   baseQuery,
@@ -185,7 +185,7 @@ export function QueryRow({
           onLint={setLint}
           onFocus={onFocus}
           editorRef={editor}
-          autoFocus={index === 0 && !readOnly && !hasCoarsePointer()}
+          autoFocus={autoFocus && !readOnly && !hasCoarsePointer()}
         />
       )}
       <div role="status" className="flex flex-col text-xs">
