@@ -58,6 +58,7 @@ const pointSize = 4
 const ghostDash = [2, 3]
 
 type Latest = {
+  model: Model
   state: PlotState
   entries: TooltipSeries[]
   meta: PanelDataMeta
@@ -76,7 +77,6 @@ type Model = {
 }
 
 type PlotConfig = {
-  model: Model
   syncKey: string
   host: HTMLElement
   latest: { current: Latest }
@@ -150,7 +150,8 @@ function seriesOptions(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { model, syncKey, host, latest } = config
+  const { syncKey, host, latest } = config
+  const { model } = latest.current
   const { series, axes, panelAxis, ghostCount } = model
   const { state, width, chartHeight } = latest.current
   const first = 1 + ghostCount
@@ -429,6 +430,7 @@ function TimeseriesChart({
   const model = modelFor(panel, series, ghosts.length, options.tooltip)
 
   const latest = useRef<Latest>({
+    model,
     state,
     entries,
     meta,
@@ -438,6 +440,7 @@ function TimeseriesChart({
   })
   useLayoutEffect(() => {
     latest.current = {
+      model,
       state,
       entries,
       meta,
@@ -465,7 +468,7 @@ function TimeseriesChart({
     const container = containerRef.current
     const host = hostRef.current
     if (!container || !host || !ready) return
-    const plot = createPlot(container, { model, syncKey, host, latest })
+    const plot = createPlot(container, { syncKey, host, latest })
     plotRef.current = plot
     appliedRef.current = latest.current.state
     return () => {
@@ -473,7 +476,6 @@ function TimeseriesChart({
       plotRef.current = null
       appliedRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     ready,
     signature,
