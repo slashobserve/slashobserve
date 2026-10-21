@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { dashboardKeys, observeKeys } from "./keys"
+import { dashboardKeys, datasourceKeys, editorKeys, observeKeys } from "./keys"
 
 function isPrefix(prefix: readonly unknown[], key: readonly unknown[]) {
   return prefix.every((part, index) => part === key[index])
@@ -87,6 +87,48 @@ describe("observeKeys", () => {
 
   test("a single request is not under the caller's requests", () => {
     expect(isPrefix(observeKeys.mineAll(), observeKeys.request("x"))).toBe(
+      false
+    )
+  })
+})
+
+describe("datasourceKeys", () => {
+  test("metric, label and label value names sit under the datasource root", () => {
+    expect(
+      isPrefix(datasourceKeys.all, datasourceKeys.metrics("prom", ""))
+    ).toBe(true)
+    expect(
+      isPrefix(datasourceKeys.all, datasourceKeys.labels("prom", {}))
+    ).toBe(true)
+    expect(
+      isPrefix(
+        datasourceKeys.all,
+        datasourceKeys.labelValues("prom", "pod", { metric: "up" })
+      )
+    ).toBe(true)
+  })
+
+  test("label names differ by datasource and by params", () => {
+    expect(datasourceKeys.labels("prom", { metric: "up" })).not.toEqual(
+      datasourceKeys.labels("prom", { metric: "down" })
+    )
+    expect(datasourceKeys.labels("prom", {})).not.toEqual(
+      datasourceKeys.labels("ch", {})
+    )
+  })
+})
+
+describe("editorKeys", () => {
+  test("a preview is not under the dashboard root", () => {
+    const key = editorKeys.preview("d1", 3, "p1", {
+      panel: "{}",
+      selections: {},
+    })
+    expect(isPrefix(dashboardKeys.all, key)).toBe(false)
+  })
+
+  test("a suggestion is not under the dashboard root", () => {
+    expect(isPrefix(dashboardKeys.all, editorKeys.suggestion("d", "s"))).toBe(
       false
     )
   })
