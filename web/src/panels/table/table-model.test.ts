@@ -338,6 +338,27 @@ describe("table rows from several queries", () => {
     expect(cell("n", 1).text).toBe("2 KiB")
   })
 
+  it.each([
+    ["A then B", ["A", "B"]],
+    ["B then A", ["B", "A"]],
+  ])(
+    "keeps the shared decimals of a unit when another query fixes its own (%s)",
+    (_, order) => {
+      const values: Record<string, number> = { A: 1.23456, B: 5 }
+      const { cell } = build(
+        order.map((ref) => frame([number([values[ref]], "n")], { ref })),
+        {
+          unit: "s",
+          overrides: [{ match: { query: "B" }, decimals: 0 }],
+        }
+      )
+      const a = order.indexOf("A")
+      const b = order.indexOf("B")
+      expect(cell("n", a).text).toBe("1.23 s")
+      expect(cell("n", b).text).toBe("5 s")
+    }
+  )
+
   it("colors and links only the rows whose query configures them", () => {
     const { cell, links } = build(frames, {
       overrides: [

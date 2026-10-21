@@ -251,19 +251,17 @@ function decimalsByUnit(
   rows: TableRow[]
 ): TableColumn["decimals"] {
   const groups = new Map<string | undefined, (number | null)[]>()
-  const decimals = new Map<string | undefined, number | undefined>()
   for (const row of rows) {
-    const { unit, decimals: fixed } = configAt(fields, column, row)
-    const value = row.values[column.key]
+    const { unit, decimals } = configAt(fields, column, row)
     const numbers = groups.get(unit) ?? []
-    numbers.push(typeof value === "number" ? value : null)
     groups.set(unit, numbers)
-    decimals.set(unit, fixed)
+    if (decimals !== undefined) continue
+    const value = row.values[column.key]
+    numbers.push(typeof value === "number" ? value : null)
   }
-  for (const [unit, numbers] of groups) {
-    decimals.set(unit, commonDecimals(numbers, unit, decimals.get(unit)))
-  }
-  return decimals
+  return new Map(
+    [...groups].map(([unit, numbers]) => [unit, commonDecimals(numbers, unit)])
+  )
 }
 
 function optionsAt(column: TableColumn, config: FieldConfig): DisplayOptions {
