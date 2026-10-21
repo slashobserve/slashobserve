@@ -215,6 +215,7 @@ export function QueryRow({
         </Label>
         <Input
           id={legendId}
+          aria-label={`Legend for query ${refName}`}
           value={query.legend ?? ""}
           maxLength={maxLegendLength}
           readOnly={readOnly}

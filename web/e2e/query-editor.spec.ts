@@ -569,10 +569,12 @@ test("explains that a query is too long to lint", async ({
 
 function mockSaveResponse(
   page: Page,
-  issues: Array<{ path: string; code: string; message: string }>
+  issues: Array<{ path: string; code: string; message: string }>,
+  held?: Promise<void>
 ) {
-  return page.route(/\/versions$/, (route) => {
+  return page.route(/\/versions$/, async (route) => {
     if (route.request().method() !== "POST") return route.fallback()
+    await held
     return route.fulfill({
       status: 422,
       contentType: "application/json",
@@ -1087,7 +1089,9 @@ test("does not count whitespace in a legend as a change", async ({
   await openDashboard(page, id)
   await openFromMenu(page, "Checkout error rate")
 
-  await sheet(page).getByRole("textbox", { name: "Legend" }).fill("   ")
+  await sheet(page)
+    .getByRole("textbox", { name: "Legend for query A" })
+    .fill("   ")
 
   await expect(sheet(page).getByText("No changes")).toBeVisible()
   await expect(sheet(page).getByText("Changed", { exact: true })).toHaveCount(0)
@@ -1252,6 +1256,57 @@ test("leaves no change behind when a title typed on an untitled text panel is cl
   await expect(
     sheet(page).getByRole("button", { name: saveVersionButton })
   ).toBeDisabled()
+})
+
+test("keeps focus on Save after a failed save", async ({
+  page,
+  request,
+  consoleErrors,
+}) => {
+  const { id } = await createOverview(request)
+  await openDashboard(page, id)
+  await openFromMenu(page, rpsTitle)
+  await replaceQuery(page, savedQuery)
+
+  let release = () => {}
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await mockSaveResponse(
+    page,
+    [
+      {
+        path: "/panels/0/title",
+        code: "invalid_title",
+        message: "the title is rejected",
+      },
+    ],
+    held
+  )
+  const save = sheet(page).getByRole("button", { name: saveVersionButton })
+  await save.click()
+  await expect(save).toHaveAttribute("aria-disabled", "true")
+  release()
+
+  await expect(sheet(page).getByText("the title is rejected")).toBeVisible()
+  expectLoggedOnce(consoleErrors, 422)
+  await expect(save).toBeEnabled()
+  await expect(save).toBeFocused()
+})
+
+test("uses 16px text in a query's datasource select on a narrow screen", async ({
+  page,
+  request,
+}) => {
+  const { id } = await createOverview(request)
+  await page.setViewportSize({ width: 700, height: 900 })
+  await page.goto(`/dashboards/${id}?panel=rps&edit=query`)
+
+  const select = sheet(page).getByRole("combobox", {
+    name: "Datasource for query A",
+  })
+  await expect(select).toHaveCSS("font-size", "16px")
+
+  await page.setViewportSize({ width: 1200, height: 900 })
+  await expect(select).toHaveCSS("font-size", "12px")
 })
 
 for (const colorScheme of ["light", "dark"] as const) {

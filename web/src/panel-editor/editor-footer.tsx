@@ -94,7 +94,7 @@ export function EditorFooter({
       <Button variant="outline" disabled={saving} onClick={onDiscard}>
         Discard
       </Button>
-      <Button disabled={!canSave} onClick={onSave}>
+      <Button focusableWhenDisabled disabled={!canSave} onClick={onSave}>
         {saveLabel}
       </Button>
     </div>

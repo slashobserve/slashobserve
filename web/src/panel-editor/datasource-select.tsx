@@ -42,7 +42,7 @@ export function DatasourceSelect({
       className={cn(
         "min-w-0 rounded-control border border-input bg-background font-normal text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         compact
-          ? "h-6 max-w-[220px] px-1.5 text-xs"
+          ? "h-6 max-w-[220px] px-1.5 text-xs narrow:text-base"
           : "h-7 px-2 text-[13px] narrow:text-base"
       )}
     >
