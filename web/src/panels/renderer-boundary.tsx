@@ -27,6 +27,11 @@ export class RendererBoundary extends Component<
         title="Could not load this panel"
         error={this.state.error}
         onRetry={this.retry}
+        retryLabel={
+          this.state.error instanceof RendererLoadError
+            ? "Reload page"
+            : "Retry"
+        }
       />
     )
   }

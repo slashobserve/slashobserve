@@ -198,7 +198,7 @@ test("switches between chart and table view", async ({ page, request }) => {
   await expect(rps.locator("canvas")).toHaveCount(1)
 })
 
-test("keeps other panels working when a renderer chunk fails and reloads on retry", async ({
+test("keeps other panels working when a renderer chunk fails and reloads the page", async ({
   page,
   request,
 }) => {
@@ -224,7 +224,7 @@ test("keeps other panels working when a renderer chunk fails and reloads on retr
   await page.unroute(chunk)
   await Promise.all([
     page.waitForEvent("load"),
-    rps.getByRole("button", { name: "Retry" }).click(),
+    rps.getByRole("button", { name: "Reload page" }).click(),
   ])
   await expectPanelsReady(page)
   await panel(page, rpsTitle)

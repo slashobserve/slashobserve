@@ -10,10 +10,12 @@ export function PanelErrorState({
   title,
   error,
   onRetry,
+  retryLabel = "Retry",
 }: {
   title: string
   error: unknown
   onRetry?: () => void
+  retryLabel?: string
 }) {
   const message = errorMessage(error)
   return (
@@ -24,7 +26,7 @@ export function PanelErrorState({
         <p className="line-clamp-3 text-xs text-muted-foreground">{message}</p>
       ) : null}
       <Button variant="outline" size="sm" onClick={onRetry}>
-        Retry
+        {retryLabel}
       </Button>
     </div>
   )
