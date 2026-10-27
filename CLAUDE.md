@@ -300,6 +300,7 @@ Directories are created when their phase starts; this is where things go.
   Server issues under a query's pointer show in that query's row, other issues in the panel under "This panel was rejected:", and issues about the rest of the dashboard apart from them under "Other problems in this dashboard:".
   The note becomes the version summary, else `defaultSaveSummary`.
   Placeholder panels are never edited.
+  The metrics and labels browser reads only `GET /api/v1/datasources/{uid}/metrics|labels|labels/{name}/values` and inserts names or matchers at the active query's cursor; for ClickHouse it also offers the `otel_logs` and `otel_traces` tables.
 - The Settings page (`/settings`) is read-only: Agent (provider, model, effort and status from `GET /api/v1/agent`), This server (public and MCP URLs), Sign-in (issuer, allowed domains, session length from `GET /api/v1/instance`), and Appearance, whose theme select (Match the system, Light, Dark) is the only place on shell pages to return to the system theme; the top-row button only switches between light and dark.
 - The dashboard page has an activity card (`web/src/activity/activity-card.tsx`) on the right, open by default; its open state and widths (400px for activity, 760px for editing) persist in `localStorage` key `slashobserve-activity`.
   `panel=<id>` scopes it to a panel and `panel=<id>&edit=query|json` opens the panel editor in it; legacy `tab=` links are rewritten to these keys by a `replace` redirect in the dashboard route's `beforeLoad`, so `tab` leaves the URL.
