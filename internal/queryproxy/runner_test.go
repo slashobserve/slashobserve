@@ -29,13 +29,15 @@ func TestQueryKind(t *testing.T) {
 		{spec.Heatmap, false, KindRange},
 		{spec.StateTimeline, false, KindRange},
 		{spec.Histogram, false, KindRange},
-		{spec.Stat, false, KindInstant},
-		{spec.Gauge, false, KindInstant},
+		{spec.Stat, false, KindRange},
+		{spec.Gauge, false, KindRange},
+		{spec.BarGauge, false, KindRange},
+		{spec.PieChart, false, KindRange},
 		{spec.Table, false, KindInstant},
-		{spec.BarGauge, false, KindInstant},
-		{spec.PieChart, false, KindInstant},
 		{spec.Logs, false, KindInstant},
-		{spec.PanelType("unknown"), false, KindInstant},
+		{spec.PanelType("unknown"), false, KindRange},
+		{spec.Stat, true, KindInstant},
+		{spec.Table, true, KindInstant},
 		{spec.Timeseries, true, KindInstant},
 		{spec.Heatmap, true, KindInstant},
 	}
@@ -61,6 +63,7 @@ func TestPanelKind(t *testing.T) {
 		{"hidden range ignored", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Instant: true}, {Query: "b", Hide: true}}}, KindInstant},
 		{"all hidden", spec.Panel{Type: spec.Timeseries, Queries: []spec.Query{{Query: "a", Hide: true}}}, KindInstant},
 		{"table", spec.Panel{Type: spec.Table, Queries: []spec.Query{{Query: "a"}}}, KindInstant},
+		{"stat", spec.Panel{Type: spec.Stat, Queries: []spec.Query{{Query: "a"}}}, KindRange},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -148,9 +151,10 @@ func TestRunPanelDispatch(t *testing.T) {
 	}{
 		{"timeseries uses range with step", spec.Timeseries, 200, KindRange, "range", 108 * time.Second},
 		{"timeseries default points", spec.Timeseries, 0, KindRange, "range", 22 * time.Second},
-		{"stat uses instant", spec.Stat, 200, KindInstant, "instant", 0},
+		{"stat uses range with step", spec.Stat, 200, KindRange, "range", 108 * time.Second},
 		{"table uses instant", spec.Table, 200, KindInstant, "instant", 0},
-		{"bargauge uses instant", spec.BarGauge, 200, KindInstant, "instant", 0},
+		{"bargauge uses range with step", spec.BarGauge, 200, KindRange, "range", 108 * time.Second},
+		{"logs uses instant", spec.Logs, 200, KindInstant, "instant", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

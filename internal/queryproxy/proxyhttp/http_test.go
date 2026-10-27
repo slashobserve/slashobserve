@@ -218,7 +218,7 @@ func testDashboard() *spec.Dashboard {
 			{ID: "p_tbl", Type: spec.Table, Title: "tbl", Datasource: "prom", Queries: []spec.Query{{Query: `count(up{job="$job"})`}}},
 			{ID: "p_note", Type: spec.Text},
 			{ID: "r_row", Type: spec.Row, Panels: []spec.Panel{
-				{ID: "p_child", Type: spec.Stat, Title: "child", Datasource: "prom", Queries: []spec.Query{{Query: `count(up)`}}},
+				{ID: "p_child", Type: spec.Table, Title: "child", Datasource: "prom", Queries: []spec.Query{{Query: `count(up)`}}},
 			}},
 		},
 	}

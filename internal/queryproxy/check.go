@@ -109,7 +109,7 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			continue
 		}
 		group.Go(func() error {
-			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, rng, selections, user, st.fork(), skip)...)
+			panelIssues[i] = append(panelIssues[i], r.checkPanel(budget, d, e, PanelRange(e.Panel, rng, now), selections, user, st.fork(), skip)...)
 			return nil
 		})
 	}
@@ -300,6 +300,9 @@ func variableIssue(path string, err error) spec.Issue {
 }
 
 func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.PanelEntry, rng datasource.TimeRange, selections map[string]Selection, user datasource.QueryUser, st *varState, skip []bool) []spec.Issue {
+	if e.Panel.TimeFrom != "" && rng.To.Sub(rng.From) > MaxRange {
+		return []spec.Issue{issue(e.Pointer+"/timeFrom", CodeTimeRangeInvalid, "the time range must be at most 400 days")}
+	}
 	ctx, cancel := context.WithTimeout(ctx, checkPanelDeadline(skip))
 	defer cancel()
 	maxDataPoints := checkMaxDataPoints

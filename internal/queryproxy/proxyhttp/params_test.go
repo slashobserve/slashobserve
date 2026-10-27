@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -163,5 +164,34 @@ func TestTimeRange(t *testing.T) {
 		if _, err := p.timeRange(d, now); !errors.Is(err, queryproxy.ErrInvalidRequest) {
 			t.Errorf("%q: err = %v, want ErrInvalidRequest", raw, err)
 		}
+	}
+}
+
+func TestPanelTimeRangeRejectsLongerThanFourHundredDays(t *testing.T) {
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	dashboard := datasource.TimeRange{From: now.Add(-6 * time.Hour), To: now}
+	tests := []struct {
+		name      string
+		timeFrom  string
+		wantStart time.Time
+		wantErr   bool
+	}{
+		{"at the limit", "now-400d", now.Add(-400 * 24 * time.Hour), false},
+		{"past the limit", "now-401d", time.Time{}, true},
+		{"no override", "", dashboard.From, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := panelTimeRange(&spec.Panel{TimeFrom: tt.timeFrom}, dashboard, now)
+			if tt.wantErr {
+				if !errors.Is(err, queryproxy.ErrInvalidRequest) {
+					t.Fatalf("err = %v, want ErrInvalidRequest", err)
+				}
+				return
+			}
+			if err != nil || !got.From.Equal(tt.wantStart) {
+				t.Fatalf("range = %v, err = %v, want from %v", got, err, tt.wantStart)
+			}
+		})
 	}
 }

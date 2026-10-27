@@ -375,7 +375,7 @@ func TestCheckSpecPanelCallShape(t *testing.T) {
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 	d := dashboardOf([]spec.Panel{
 		panelOf("series", spec.Timeseries, "prom", "up"),
-		panelOf("single", spec.Stat, "prom", "up"),
+		panelOf("single", spec.Table, "prom", "up"),
 	})
 	before := time.Now()
 	if issues, err := runner.CheckSpec(t.Context(), d, testNow, datasource.QueryUser{}); err != nil || issues != nil {
