@@ -19,7 +19,11 @@ import {
   valueFontSize,
   type Gauge,
 } from "./gauge-model"
+import { gaugeGrid, gridGap } from "./gauge-grid"
 import { GaugeSvg } from "./gauge-svg"
+
+const bodyInsetX = 16
+const bodyInsetY = 8
 
 function MoreLinks({ links }: { links: ResolvedLink[] }) {
   return (
@@ -77,7 +81,7 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
       data-gauge={gauge.name}
       data-markers={gauge.markers.length > 0}
       data-threshold={level}
-      className="[container-type:size] relative min-h-0"
+      className="[container-type:size] relative min-h-0 min-w-0"
     >
       <GaugeSvg gauge={gauge} />
       <div
@@ -146,14 +150,20 @@ export const GaugePanel: PanelRenderer = ({
     () => gaugeModel(frames, fields, display),
     [frames, fields, display]
   )
+  const { columns, rows } = gaugeGrid(
+    gauges.length,
+    width - bodyInsetX,
+    height - bodyInsetY
+  )
   return (
     <div
-      className="grid gap-2 overflow-y-auto p-2 pt-0"
+      className="grid overflow-hidden p-2 pt-0"
       style={{
         width,
         height,
-        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-        gridAutoRows: "minmax(140px, 1fr)",
+        gap: gridGap,
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
       }}
     >
       {gauges.map((gauge) => (
