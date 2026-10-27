@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedShellRouteImport } from './routes/_authed/_shell'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
+import { Route as AuthedShellImportRouteImport } from './routes/_authed/_shell/import'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
 import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shell/_chat/index'
@@ -44,6 +45,11 @@ const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
 const AuthedShellDatasourcesRoute = AuthedShellDatasourcesRouteImport.update({
   id: '/datasources',
   path: '/datasources',
+  getParentRoute: () => AuthedShellRoute,
+} as any)
+const AuthedShellImportRoute = AuthedShellImportRouteImport.update({
+  id: '/import',
+  path: '/import',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellKeysRoute = AuthedShellKeysRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
+  '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthedShellChatIndexRoute
   '/login': typeof LoginRoute
   '/datasources': typeof AuthedShellDatasourcesRoute
+  '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authed/_shell': typeof AuthedShellRouteWithChildren
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
+  '/_authed/_shell/import': typeof AuthedShellImportRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/datasources'
+    | '/import'
     | '/keys'
     | '/people'
     | '/settings/keys'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/datasources'
+    | '/import'
     | '/keys'
     | '/people'
     | '/settings/keys'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/datasources'
+    | '/_authed/_shell/import'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
     | '/_authed/_shell/settings/keys'
@@ -225,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/datasources'
       fullPath: '/datasources'
       preLoaderRoute: typeof AuthedShellDatasourcesRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/import': {
+      id: '/_authed/_shell/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof AuthedShellImportRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/keys': {
@@ -310,6 +329,7 @@ const AuthedShellChatRouteWithChildren = AuthedShellChatRoute._addFileChildren(
 interface AuthedShellRouteChildren {
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
+  AuthedShellImportRoute: typeof AuthedShellImportRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
@@ -320,6 +340,7 @@ interface AuthedShellRouteChildren {
 const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
+  AuthedShellImportRoute: AuthedShellImportRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
