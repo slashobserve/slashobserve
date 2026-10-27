@@ -268,8 +268,8 @@ func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision
 	switch {
 	case !ok:
 		return nil, a.draftInvalid(ctx, t.RequestID, ErrDraftInvalid)
-	case !entry.Panel.Type.IsData() && entry.Panel.Type != spec.Text:
-		return nil, fmt.Errorf("%w: the panel is not a data or text panel", ErrInvalidTask)
+	case !entry.Panel.Type.IsEditable():
+		return nil, fmt.Errorf("%w: the panel is not a data, text or dashboard list panel", ErrInvalidTask)
 	}
 	return rev, nil
 }
