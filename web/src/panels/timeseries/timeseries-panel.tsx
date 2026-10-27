@@ -19,7 +19,7 @@ import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
 import { Legend, rootFontSize, type LegendItem } from "./legend"
-import { LegendTable, legendTextMeasure } from "./legend-table"
+import { LegendTable, useLegendTextMeasure } from "./legend-table"
 import { legendTableWidth, rightLegendWidth } from "./legend-width"
 import {
   chartSeries,
@@ -379,6 +379,7 @@ function TimeseriesChart({
   )
   const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
   const rightLegend = legendShown && placement === "right"
+  const textMeasure = useLegendTextMeasure()
   const tableWidth = useMemo(() => {
     if (!rightLegend || reducers.length === 0) return null
     const rem = rootFontSize()
@@ -386,10 +387,10 @@ function TimeseriesChart({
       series.map(({ label }) => label),
       reducers.map((reducer) => reducerLabels[reducer]),
       cells,
-      legendTextMeasure(rem),
+      textMeasure(rem),
       rem
     )
-  }, [rightLegend, series, reducers, cells])
+  }, [rightLegend, series, reducers, cells, textMeasure])
   const legendWidth = rightLegend ? rightLegendWidth(tableWidth, width) : 0
   const chartWidth = width - legendWidth
   const bottomLegend = legendShown && placement === "bottom"

@@ -112,3 +112,31 @@ for (const colorScheme of ["light", "dark"] as const) {
     })
   })
 }
+
+test("sizes the right legend to the font once it has loaded", async ({
+  page,
+  request,
+}) => {
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route(/\.woff2(\?.*)?$/, async (route) => {
+    await held
+    await route.continue()
+  })
+  await openDashboard(page, await createFeatures(request))
+  await expectPanelsReady(page)
+
+  const legend = legendOf(panel(page, "Requests and errors"))
+  const width = async () => (await legend.boundingBox())!.width
+  const fallbackWidth = await width()
+  expect(await page.evaluate(() => document.fonts.status)).toBe("loading")
+
+  release()
+  await page.waitForFunction(() =>
+    [...document.fonts].some(
+      (face) =>
+        face.family.includes("Geist Variable") && face.status === "loaded"
+    )
+  )
+  await expect.poll(width).not.toBe(fallbackWidth)
+})

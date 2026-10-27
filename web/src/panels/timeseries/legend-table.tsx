@@ -1,4 +1,4 @@
-import type { Ref } from "react"
+import { useEffect, useState, type Ref } from "react"
 
 import type { Reducer } from "@/spec"
 
@@ -16,7 +16,7 @@ import type { TextMeasure } from "./legend-width"
 
 let measureContext: CanvasRenderingContext2D | null = null
 
-export function legendTextMeasure(rem: number): TextMeasure {
+function legendTextMeasure(rem: number): TextMeasure {
   measureContext ??= document.createElement("canvas").getContext("2d")
   const context = measureContext!
   const family = getComputedStyle(document.documentElement).fontFamily
@@ -24,6 +24,24 @@ export function legendTextMeasure(rem: number): TextMeasure {
     context.font = `${weight} ${0.75 * rem}px ${family}`
     return context.measureText(text).width
   }
+}
+
+const newMeasure = (): typeof legendTextMeasure => (rem) =>
+  legendTextMeasure(rem)
+
+export function useLegendTextMeasure(): typeof legendTextMeasure {
+  const [measure, setMeasure] = useState(newMeasure)
+  useEffect(() => {
+    if (document.fonts.status === "loaded") return
+    let current = true
+    void document.fonts.ready.then(() => {
+      if (current) setMeasure(newMeasure)
+    })
+    return () => {
+      current = false
+    }
+  }, [])
+  return measure
 }
 
 type Props = {
