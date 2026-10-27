@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, type CSSProperties } from "react"
 import { EllipsisIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -66,64 +66,90 @@ type CellProps = {
   >
 }
 
+const nameOffset = 17
+const wordOffset = 29
+
+function offsetRow(offset: number): CSSProperties {
+  return { top: `calc(50% + ${offset}cqmin)`, transform: "translateY(-50%)" }
+}
+
 function GaugeCell({ gauge, named, fields, scope }: CellProps) {
   const [first, ...more] = gaugeLinks(gauge, fields, scope)
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
+  const value = (
+    <div
+      className="absolute inset-x-0 flex items-center justify-center gap-1"
+      style={offsetRow(0)}
+    >
+      <span
+        data-gauge-value=""
+        className="leading-none font-semibold text-foreground tabular-nums"
+        style={{
+          fontSize: `${valueFontSize(gauge.text, more.length > 0).toFixed(2)}cqmin`,
+        }}
+      >
+        {first ? (
+          <a
+            {...anchorProps(first)}
+            title={first.title || undefined}
+            aria-label={`${gauge.text}: ${first.title}${first.newTab ? " (opens in new tab)" : ""}`}
+            className="inline-flex items-center gap-1 underline decoration-border underline-offset-4 hover:decoration-current"
+          >
+            {gauge.text}
+            {first.newTab ? <NewTabMark /> : null}
+          </a>
+        ) : (
+          gauge.text
+        )}
+      </span>
+      {more.length > 0 ? <MoreLinks links={more} /> : null}
+    </div>
+  )
   return (
     <div
-      role="meter"
-      aria-label={gauge.name}
-      aria-valuemin={gauge.min}
-      aria-valuemax={gauge.max}
-      aria-valuenow={gauge.value ?? undefined}
-      aria-valuetext={word ? `${gauge.text}, ${word}` : gauge.text}
-      data-gauge={gauge.name}
-      data-markers={gauge.markers.length > 0}
-      data-threshold={level}
+      data-gauge-cell=""
       className="[container-type:size] relative min-h-0 min-w-0"
     >
-      <GaugeSvg gauge={gauge} />
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-[1.5cqmin]"
-        style={{ paddingTop: "16cqmin" }}
+        role="meter"
+        aria-label={gauge.name}
+        aria-valuemin={gauge.min}
+        aria-valuemax={gauge.max}
+        aria-valuenow={gauge.meterValue}
+        aria-valuetext={word ? `${gauge.text}, ${word}` : gauge.text}
+        data-gauge={gauge.name}
+        data-markers={gauge.markers.length > 0}
+        data-threshold={level}
+        className="absolute inset-0"
       >
-        <span className="inline-flex items-center gap-1">
-          <span
-            className="leading-none font-semibold text-foreground tabular-nums"
-            style={{ fontSize: `${valueFontSize(gauge.text).toFixed(2)}cqmin` }}
-          >
-            {first ? (
-              <a
-                {...anchorProps(first)}
-                title={first.title || undefined}
-                className="underline decoration-border underline-offset-4 hover:decoration-current"
-              >
-                {gauge.text}
-              </a>
-            ) : (
-              gauge.text
-            )}
-          </span>
-          {first?.newTab ? <NewTabMark /> : null}
-          {more.length > 0 ? <MoreLinks links={more} /> : null}
-        </span>
+        <GaugeSvg gauge={gauge} />
+        {first ? null : value}
         {named ? (
-          <span
-            title={gauge.name}
-            className="max-w-[70cqmin] truncate text-muted-foreground"
-            style={{ fontSize: "clamp(11px, 7cqmin, 16px)" }}
+          <div
+            className="absolute inset-x-0 flex justify-center"
+            style={offsetRow(nameOffset)}
           >
-            {gauge.name}
-          </span>
+            <span
+              title={gauge.name}
+              className="max-w-[70cqmin] truncate leading-none text-muted-foreground"
+              style={{ fontSize: "clamp(11px, 7cqmin, 16px)" }}
+            >
+              {gauge.name}
+            </span>
+          </div>
         ) : null}
         {Icon ? (
-          <span
-            className="flex items-center gap-1 font-medium text-foreground"
-            style={{ fontSize: "clamp(11px, 6.5cqmin, 14px)" }}
+          <div
+            className="absolute inset-x-0 flex items-center justify-center gap-1 leading-none font-medium text-foreground"
+            style={{
+              ...offsetRow(named ? wordOffset : nameOffset),
+              fontSize: "clamp(11px, 6.5cqmin, 14px)",
+            }}
           >
             <Icon
               aria-hidden="true"
+              data-gauge-icon=""
               style={{
                 color: gauge.threshold.color ?? undefined,
                 width: "1.2em",
@@ -131,9 +157,10 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
               }}
             />
             {word}
-          </span>
+          </div>
         ) : null}
       </div>
+      {first ? value : null}
     </div>
   )
 }
@@ -157,6 +184,7 @@ export const GaugePanel: PanelRenderer = ({
   )
   return (
     <div
+      data-gauge-grid
       className="grid overflow-hidden p-2 pt-0"
       style={{
         width,

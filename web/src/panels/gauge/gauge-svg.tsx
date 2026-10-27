@@ -6,8 +6,6 @@ const markerRadius = 46.5
 const markerWidth = 3
 
 export function GaugeSvg({ gauge }: { gauge: Gauge }) {
-  const { min, max } = gauge
-  const fractionOf = (value: number) => (value - min) / (max - min)
   return (
     <svg
       viewBox="0 0 100 100"
@@ -24,17 +22,14 @@ export function GaugeSvg({ gauge }: { gauge: Gauge }) {
       {gauge.markers.map((marker) => (
         <path
           key={`${marker.from}:${marker.color}`}
-          d={arcPath(
-            fractionOf(marker.from),
-            fractionOf(marker.to),
-            markerRadius
-          )}
+          d={arcPath(marker.from, marker.to, markerRadius)}
           fill="none"
           strokeWidth={markerWidth}
           style={{ stroke: marker.color }}
         />
       ))}
       <path
+        data-gauge-arc=""
         d={arcPath(0, gauge.fraction, trackRadius)}
         fill="none"
         strokeWidth={trackWidth}

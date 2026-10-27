@@ -203,10 +203,37 @@ describe("gauge range", () => {
     expect([gauge.min, gauge.max]).toEqual([0, 1])
   })
 
+  it("ranges a percent field from 0 to 100 and a percentunit field from 0 to 1", () => {
+    const percent = one([34], { unit: "percent" })
+    expect([percent.min, percent.max]).toEqual([0, 100])
+    expect(percent.fraction).toBeCloseTo(0.34)
+    const unit = one([0.5], { unit: "percentunit" })
+    expect([unit.min, unit.max]).toEqual([0, 1])
+    expect(unit.fraction).toBeCloseTo(0.5)
+  })
+
+  it("lets an explicit min or max override the percent default", () => {
+    const gauge = one([34], { unit: "percent", max: 50 })
+    expect([gauge.min, gauge.max]).toEqual([0, 50])
+    const lower = one([34], { unit: "percent", min: 10 })
+    expect([lower.min, lower.max]).toEqual([10, 100])
+  })
+
   it("clamps the drawn fraction into the range", () => {
     expect(one([150], { min: 0, max: 100 }).fraction).toBe(1)
     expect(one([-30], { min: 0, max: 100 }).fraction).toBe(0)
     expect(one([150], { min: 0, max: 100 }).value).toBe(150)
+  })
+
+  it("clamps the meter value into the range and keeps the raw value", () => {
+    const high = one([150], { min: 0, max: 100 })
+    expect([high.meterValue, high.value]).toEqual([100, 150])
+    expect(one([-30], { min: 0, max: 100 }).meterValue).toBe(0)
+    expect(one([40], { min: 0, max: 100 }).meterValue).toBe(40)
+  })
+
+  it("puts a gauge without a value at the range minimum", () => {
+    expect(one([null], { min: 5, max: 100 }).meterValue).toBe(5)
   })
 })
 
@@ -225,6 +252,39 @@ describe("gauge text and color", () => {
       { overrides: [{ match: { field: "a" }, decimals: 1 }] }
     )
     expect(gauges.map((gauge) => gauge.text)).toEqual(["2.4", "2.45"])
+  })
+
+  it("leaves a field's own decimals out of the count its unit-mates share", () => {
+    const gauges = build(
+      [frame([time, number([1234.5678], "a"), number([1.23456], "b")])],
+      {
+        unit: "percent",
+        overrides: [{ match: { field: "a" }, decimals: 0 }],
+      }
+    )
+    expect(gauges.map((gauge) => gauge.text)).toEqual(["1,235%", "1.23%"])
+  })
+
+  it("shares decimals per unit", () => {
+    const gauges = build(
+      [
+        frame([
+          time,
+          number([2.4], "a"),
+          number([2.45], "b"),
+          number([1536], "c"),
+        ]),
+      ],
+      {
+        unit: "percent",
+        overrides: [{ match: { field: "c" }, unit: "bytes" }],
+      }
+    )
+    expect(gauges.map((gauge) => gauge.text)).toEqual([
+      "2.40%",
+      "2.45%",
+      "1.5 KiB",
+    ])
   })
 
   it("colors by threshold with its state", () => {
@@ -250,6 +310,15 @@ describe("gauge text and color", () => {
       max: 40,
     })
     expect(gauge.threshold.level).toBe("critical")
+  })
+
+  it("judges percentage thresholds against the range drawn from the data", () => {
+    const gauges = build([frame([time, number([10, 40])])], {
+      thresholdMode: "percentage",
+      thresholds: [...steps],
+    })
+    expect([gauges[0].min, gauges[0].max]).toEqual([0, 40])
+    expect(gauges[0].threshold.level).toBe("critical")
   })
 
   it("shows a mapping's text and color instead of the threshold state", () => {
@@ -280,15 +349,16 @@ describe("gauge markers", () => {
   it("splits the ring into one segment per threshold step", () => {
     const gauge = one([10], { thresholds: [...steps], min: 0, max: 100 })
     expect(gauge.markers).toEqual([
-      { from: 0, to: 50, color: "var(--threshold-ok)" },
-      { from: 50, to: 80, color: "var(--threshold-warning)" },
-      { from: 80, to: 100, color: "var(--threshold-critical)" },
+      { from: 0, to: 0.5, color: "var(--threshold-ok)" },
+      { from: 0.5, to: 0.8, color: "var(--threshold-warning)" },
+      { from: 0.8, to: 1, color: "var(--threshold-critical)" },
     ])
   })
 
   it("starts the base step at the range minimum", () => {
     const gauge = one([10], { thresholds: [...steps], min: -20, max: 100 })
-    expect(gauge.markers[0]).toMatchObject({ from: -20, to: 50 })
+    expect(gauge.markers[0].from).toBe(0)
+    expect(gauge.markers[0].to).toBeCloseTo(70 / 120)
   })
 
   it("maps percentage steps through the range", () => {
@@ -299,9 +369,9 @@ describe("gauge markers", () => {
       max: 300,
     })
     expect(gauge.markers.map(({ from, to }) => [from, to])).toEqual([
-      [100, 200],
-      [200, 260],
-      [260, 300],
+      [0, 0.5],
+      [0.5, 0.8],
+      [0.8, 1],
     ])
   })
 
@@ -317,8 +387,8 @@ describe("gauge markers", () => {
       max: 100,
     })
     expect(gauge.markers.map(({ from, to }) => [from, to])).toEqual([
-      [0, 50],
-      [50, 100],
+      [0, 0.5],
+      [0.5, 1],
     ])
   })
 
@@ -433,8 +503,11 @@ describe("valueFontSize", () => {
     expect(valueFontSize("1234567890")).toBeLessThan(valueFontSize("1234"))
   })
 
-  it("caps the size of a short text", () => {
+  it("sizes a short text as three characters", () => {
     expect(valueFontSize("7")).toBe(valueFontSize("777"))
-    expect(valueFontSize("7")).toBeLessThanOrEqual(24)
+  })
+
+  it("leaves room for the more links button", () => {
+    expect(valueFontSize("1234", true)).toBeLessThan(valueFontSize("1234"))
   })
 })

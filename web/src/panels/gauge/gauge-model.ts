@@ -26,6 +26,7 @@ export type Gauge = {
   key: string
   name: string
   value: number | null
+  meterValue: number
   text: string
   color: string | null
   threshold: ThresholdState
@@ -49,7 +50,12 @@ const startAngle = 150
 const sweepAngle = 240
 const valueCharWidth = 0.62
 const valueFit = 43
-const valueCap = 24
+const moreLinksWidth = 1.75
+
+const unitRanges = new Map([
+  ["percent", { min: 0, max: 100 }],
+  ["percentunit", { min: 0, max: 1 }],
+])
 
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
@@ -74,11 +80,9 @@ export function arcPath(
   return `M ${point(startAngle + from * sweepAngle, radius)} A ${radius} ${radius} 0 ${largeArc} 1 ${point(startAngle + to * sweepAngle, radius)}`
 }
 
-export function valueFontSize(text: string): number {
-  return Math.min(
-    valueCap,
-    valueFit / (Math.max(text.length, 3) * valueCharWidth)
-  )
+export function valueFontSize(text: string, withMoreLinks = false): number {
+  const textWidth = Math.max(text.length, 3) * valueCharWidth
+  return valueFit / (textWidth + (withMoreLinks ? moreLinksWidth : 0))
 }
 
 function visibleNumberFields(
@@ -113,8 +117,9 @@ function rangeFor(
   config: FieldConfig,
   data: { min?: number; max?: number }
 ): { min: number; max: number } {
-  const min = config.min ?? Math.min(0, data.min ?? 0)
-  const max = config.max ?? data.max ?? min
+  const unitRange = unitRanges.get(config.unit ?? "")
+  const min = config.min ?? unitRange?.min ?? Math.min(0, data.min ?? 0)
+  const max = config.max ?? unitRange?.max ?? data.max ?? min
   return { min, max: max <= min ? min + 1 : max }
 }
 
@@ -125,18 +130,14 @@ function markersFor(
 ): GaugeMarker[] {
   const steps = config.thresholds ?? []
   const percentage = config.thresholdMode === "percentage"
-  const startOf = (value: number | undefined): number => {
-    if (value === undefined) return min
-    return clamp(
-      percentage ? min + (value / 100) * (max - min) : value,
-      min,
-      max
-    )
+  const fractionOf = (value: number | undefined): number => {
+    if (value === undefined) return 0
+    return clamp(percentage ? value / 100 : (value - min) / (max - min), 0, 1)
   }
   return steps.flatMap((step, index) => {
-    const from = startOf(step.value)
+    const from = fractionOf(step.value)
     const next = steps[index + 1]
-    const to = next ? startOf(next.value) : max
+    const to = next ? fractionOf(next.value) : 1
     return from < to ? [{ from, to, color: thresholdColor(step.color) }] : []
   })
 }
@@ -176,12 +177,12 @@ export function gaugeModel(
       fieldMin: min,
       fieldMax: max,
     })
-    const thresholdColored =
-      shown.threshold.color !== null && shown.threshold.color === shown.color
+    const thresholdColored = shown.threshold.color === shown.color
     return {
       key: uniqueKey(seen, seriesKey(frame, field.name)),
       name: fields.displayName(frame, field),
       value,
+      meterValue: clamp(value ?? min, min, max),
       text: shown.text,
       color: shown.color,
       threshold: thresholdColored ? shown.threshold : thresholdFor(null),
