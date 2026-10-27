@@ -127,14 +127,34 @@ export function EditPane({
   const returnFocus = useRef(false)
   const afterLeave = useRef<(() => void) | null>(null)
   const viewGuard = useRef<ViewGuard>(null)
+  const jsonOpen = useRef(view === "json")
+  useEffect(() => {
+    jsonOpen.current = view === "json"
+  }, [view])
+  const [blockConfirmed, setBlockConfirmed] = useState(false)
 
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
-      unsaved.current && leavesDraft(current, next),
+      (unsaved.current || jsonOpen.current) && leavesDraft(current, next),
     enableBeforeUnload: () => unsaved.current,
     withResolver: true,
   })
-  const discardOpen = confirm !== null || blocker.status === "blocked"
+  const discardOpen = confirm !== null || blockConfirmed
+
+  useEffect(() => {
+    if (blocker.status !== "blocked") return
+    const { proceed, reset } = blocker
+    const approved = () => {
+      if (unsaved.current) {
+        setBlockConfirmed(true)
+        return
+      }
+      jsonOpen.current = false
+      proceed()
+    }
+    if (viewGuard.current) viewGuard.current.guardLeave(approved, reset)
+    else approved()
+  }, [blocker])
 
   useEffect(
     () => () => {
@@ -156,6 +176,7 @@ export function EditPane({
   const run = useCallback(
     (kind: Leave) => {
       unsaved.current = false
+      jsonOpen.current = false
       setConfirm(null)
       if (kind === "layout") {
         const proceed = afterLeave.current
@@ -198,14 +219,17 @@ export function EditPane({
     focusAfter.current = afterLeave.current ? "editor" : "default"
     afterLeave.current = null
     setConfirm(null)
+    setBlockConfirmed(false)
     if (blocker.status === "blocked") blocker.reset()
   }
 
   function discard() {
     focusAfter.current = confirm === "layout" ? "none" : "trigger"
-    if (blocker.status === "blocked") {
+    if (blockConfirmed && blocker.status === "blocked") {
       unsaved.current = false
+      jsonOpen.current = false
       setConfirm(null)
+      setBlockConfirmed(false)
       blocker.proceed()
       return
     }
@@ -214,6 +238,7 @@ export function EditPane({
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Escape" || event.defaultPrevented || discardOpen) return
+    if ((event.target as Element).closest('[role="alertdialog"]')) return
     event.preventDefault()
     // The dialog mounts during this keydown and its own Escape listener would see the same event and close it at once.
     window.setTimeout(() => leave("close"), 0)

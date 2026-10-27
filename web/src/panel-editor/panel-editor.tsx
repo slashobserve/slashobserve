@@ -63,7 +63,7 @@ export type EditorView = "editor" | "json"
 
 export type ViewGuard = {
   request: (view: EditorView) => void
-  guardLeave: (leave: () => void) => void
+  guardLeave: (leave: () => void, stay?: () => void) => void
 }
 
 type Props = {
@@ -151,8 +151,8 @@ export default function PanelEditor({
   }, [view])
 
   useImperativeHandle(viewGuardRef, () => {
-    const guarded = (leave: () => void) =>
-      view === "json" ? jsonGuard.current(leave) : leave()
+    const guarded = (leave: () => void, stay?: () => void) =>
+      view === "json" ? jsonGuard.current(leave, stay) : leave()
     return {
       request: (next) => {
         if (next !== view) guarded(() => onViewChange(next))
