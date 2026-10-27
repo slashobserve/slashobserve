@@ -35,6 +35,7 @@ type apiError struct {
 	status  int
 	message string
 	code    string
+	raw     []byte
 }
 
 func (e *apiError) Error() string {
@@ -75,6 +76,14 @@ func (a *app) clientFor(base *url.URL, token string) (*client, error) {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 	}, nil
+}
+
+func (c *client) withTimeout(d time.Duration) *client {
+	clone := *c
+	httpClient := *c.http
+	httpClient.Timeout = d
+	clone.http = &httpClient
+	return &clone
 }
 
 func parseID(arg string) (string, error) {
@@ -159,9 +168,9 @@ func decodeAPIError(status int, data []byte) error {
 		Code  string `json:"code"`
 	}
 	if json.Unmarshal(data, &body) != nil {
-		return &apiError{status: status}
+		return &apiError{status: status, raw: data}
 	}
-	return &apiError{status: status, message: text(body.Error), code: text(body.Code)}
+	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data}
 }
 
 type transportFailure struct{ error }
@@ -180,7 +189,7 @@ func (c *client) transportError(ctx context.Context, err error) error {
 	}
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return transportFailure{fmt.Errorf("the server at %s did not answer within %s", c.base.Host, requestTimeout)}
+		return transportFailure{fmt.Errorf("the server at %s did not answer within %s", c.base.Host, c.http.Timeout)}
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {

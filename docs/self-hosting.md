@@ -385,6 +385,7 @@ Then give it a prompt:
 
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
+`bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one and `--preview` shows the report without saving.
 
 Comments on a dashboard can be worked from the terminal:
 
