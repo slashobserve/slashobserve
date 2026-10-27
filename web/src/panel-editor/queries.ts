@@ -14,6 +14,7 @@ import {
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
+import type { PanelDataResponse } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { sentence } from "@/observe/queries"
 import type { DataPanel } from "@/spec"
@@ -124,7 +125,7 @@ export function previewQuery({
   selections,
   maxDataPoints,
 }: PreviewArgs) {
-  return queryOptions({
+  return queryOptions<PanelDataResponse>({
     queryKey: editorKeys.preview(dashboardId, version, panel.id, {
       panel: stableJson(panel),
       from,
