@@ -19,6 +19,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -78,6 +79,7 @@ type Deps struct {
 	Runner      *queryproxy.Runner
 	Dashboards  *dashboards.Service
 	Comments    *dashboards.Comments
+	Imports     *imports.Service
 	PublicURL   *url.URL
 	Logger      *slog.Logger
 }
@@ -140,6 +142,7 @@ func New(d Deps) *Registry {
 	all = append(all, r.queryEntries()...)
 	all = append(all, r.dashboardEntries()...)
 	all = append(all, r.commentEntries()...)
+	all = append(all, r.importEntries()...)
 	all = append(all, r.guideEntries()...)
 	for _, e := range all {
 		r.entries[e.tool.Name] = e

@@ -425,6 +425,9 @@ Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`)
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
+MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
+See [Import Grafana dashboards](#import-grafana-dashboards).
+
 Export the key in the shell that starts your client, so the key never lands in a config file:
 
     export OBSERVE_TOKEN=<your service-account key>
@@ -495,7 +498,7 @@ If your Cursor version cannot expand variables there, put the key in the file on
 ## Import Grafana dashboards
 
 You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
-All three call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, and `POST /api/v1/imports/preview` shows the result first without saving anything.
+The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
 The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
 
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](#datasources-file).
