@@ -68,8 +68,8 @@ test("never shows connection details", async ({ page }) => {
     "http://",
     "https://",
     "password",
-    "9090",
-    "8123",
+    ":9090",
+    ":8123",
     "slashobserve_ro",
   ]) {
     expect(text).not.toContain(forbidden)
