@@ -5,14 +5,15 @@ import { calculateField } from "./calculate"
 import { filterFieldsByName } from "./filter"
 import { applyQueryFormats } from "./format"
 import { joinByField } from "./join"
-import { stampLegends } from "./legend"
 import { limit } from "./limit"
 import { merge } from "./merge"
 import { organize } from "./organize"
 import { reduceFrames } from "./reduce"
+import { stampSeriesNames, type DatasourceTypeOf } from "./series-names"
 import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
 import type { PreparedFrame } from "./names"
+export type { DatasourceTypeOf } from "./series-names"
 
 export {
   matchesName,
@@ -56,10 +57,11 @@ export function applyTransforms(
 
 export function prepareFrames(
   panel: DataPanel,
-  frames: WireFrame[]
+  frames: WireFrame[],
+  datasourceTypeOf?: DatasourceTypeOf
 ): PreparedFrame[] {
   return applyTransforms(
-    applyQueryFormats(panel, stampLegends(panel, frames)),
+    applyQueryFormats(panel, stampSeriesNames(panel, frames, datasourceTypeOf)),
     panel.transform
   )
 }
