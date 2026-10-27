@@ -72,6 +72,7 @@ type Props = {
   editing?: boolean
   highlighted?: boolean
   dragHandle?: boolean
+  repeatOf?: string
   children?: ReactNode
 }
 
@@ -89,6 +90,7 @@ export function PanelChrome({
   editing = false,
   highlighted = false,
   dragHandle = false,
+  repeatOf,
   children,
 }: Props) {
   const titleId = useId()
@@ -99,6 +101,7 @@ export function PanelChrome({
       aria-labelledby={titleId}
       aria-busy={state === "loading"}
       data-panel-id={panel.id}
+      data-repeat-of={repeatOf}
       data-state={state}
       data-highlighted={selected ? "" : undefined}
       className={cn(
