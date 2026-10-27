@@ -73,7 +73,8 @@ type VersionMeta struct {
 
 type Version struct {
 	VersionMeta
-	Spec *spec.Dashboard
+	Spec       *spec.Dashboard
+	Unverified Unverified
 }
 
 type newVersion struct {
@@ -86,6 +87,7 @@ type newVersion struct {
 	author       Author
 	requestID    pgtype.UUID
 	origin       origin.Origin
+	unverified   Unverified
 }
 
 type store struct {
@@ -128,7 +130,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 		if err != nil {
 			return err
 		}
-		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec}
+		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
 		if inTx == nil {
 			return nil
 		}
@@ -161,7 +163,7 @@ func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Versi
 		if err != nil {
 			return err
 		}
-		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec}
+		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
 		return nil
 	})
 	var pgErr *pgconn.PgError
@@ -201,6 +203,12 @@ func insertVersion(ctx context.Context, q *dbsqlc.Queries, in newVersion, number
 		AgentRequestID: in.requestID,
 		Origin:         originKind,
 		OriginClient:   originClient,
+	}
+	if !in.unverified.Empty() {
+		params.Unverified, err = json.Marshal(in.unverified)
+		if err != nil {
+			return VersionMeta{}, fmt.Errorf("marshal unverified: %w", err)
+		}
 	}
 	if number > 1 {
 		params.ParentVersion = pgtype.Int4{Int32: httpapi.Int32(in.parent), Valid: true}
@@ -292,6 +300,17 @@ func (st store) specBytes(ctx context.Context, id pgtype.UUID, number int) ([]by
 		return nil, fmt.Errorf("get version spec: %w", err)
 	}
 	return raw, nil
+}
+
+func (st store) unverified(ctx context.Context, id pgtype.UUID, number int) (Unverified, error) {
+	raw, err := st.db.Queries().GetDashboardVersionUnverified(ctx, dbsqlc.GetDashboardVersionUnverifiedParams{ID: id, Version: httpapi.Int32(number)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Unverified{}, ErrNotFound
+	}
+	if err != nil {
+		return Unverified{}, fmt.Errorf("get version unverified: %w", err)
+	}
+	return decodeUnverified(raw)
 }
 
 func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
@@ -404,7 +423,22 @@ func versionFromRow(row dbsqlc.DashboardVersion) (Version, error) {
 		return Version{}, err
 	}
 	meta := metaFromRow(row.Version, row.ParentVersion, row.RestoredFrom, row.Summary, authorFromRow(row.AuthorKind, row.AuthorID, row.AuthorName, row.AuthorEmail), row.CreatedAt, row.Origin, row.OriginClient, row.AgentRequestID)
-	return Version{VersionMeta: meta, Spec: d}, nil
+	unverified, err := decodeUnverified(row.Unverified)
+	if err != nil {
+		return Version{}, err
+	}
+	return Version{VersionMeta: meta, Spec: d, Unverified: unverified}, nil
+}
+
+func decodeUnverified(raw []byte) (Unverified, error) {
+	var u Unverified
+	if raw == nil {
+		return u, nil
+	}
+	if err := json.Unmarshal(raw, &u); err != nil {
+		return Unverified{}, fmt.Errorf("decode stored unverified: %w", err)
+	}
+	return u, nil
 }
 
 func metaFromRow(number int32, parent, restored pgtype.Int4, summary string, author Author, createdAt pgtype.Timestamptz, originKind, originClient pgtype.Text, agentRequestID pgtype.UUID) VersionMeta {

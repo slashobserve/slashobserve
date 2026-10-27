@@ -58,7 +58,8 @@ type versionMetaJSON struct {
 
 type versionJSON struct {
 	versionMetaJSON
-	Spec *spec.Dashboard `json:"spec"`
+	Spec       *spec.Dashboard `json:"spec"`
+	Unverified Unverified      `json:"unverified"`
 }
 
 type DashboardVersionJSON struct {
@@ -149,6 +150,6 @@ func newVersionMetaJSON(v VersionMeta) versionMetaJSON {
 func NewDashboardVersionJSON(d Dashboard, v Version) DashboardVersionJSON {
 	return DashboardVersionJSON{
 		Dashboard: newDashboardJSON(d),
-		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec},
+		Version:   versionJSON{versionMetaJSON: newVersionMetaJSON(v.VersionMeta), Spec: v.Spec, Unverified: v.Unverified.withEmptyLists()},
 	}
 }

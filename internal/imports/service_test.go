@@ -247,9 +247,9 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 	if !errors.As(err, &invalid) {
 		t.Fatalf("Create with the same spec: err = %v, want InvalidSpecError", err)
 	}
-	_, _, _, err = r.dashboard.AddVersion(t.Context(), ada, uuid(t, dash.ID), 1, specWith(brokenQuery), "again")
-	if !errors.As(err, &invalid) {
-		t.Fatalf("AddVersion with the same spec: err = %v, want InvalidSpecError", err)
+	_, again, _, err := r.dashboard.AddVersion(t.Context(), ada, uuid(t, dash.ID), 1, specWith(brokenQuery), "again")
+	if err != nil || again.Number != 2 || len(again.Unverified.Panels) != 1 {
+		t.Fatalf("AddVersion with the same spec: version %d, unverified %+v, err %v, want version 2 keeping the panel unverified", again.Number, again.Unverified, err)
 	}
 }
 

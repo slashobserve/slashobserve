@@ -1164,9 +1164,9 @@ d = json.load(open(sys.argv[1]))
 json.dump({"parent_version": 1, "summary": "Save the imported Spec again", "spec": d["version"]["spec"]}, open(sys.argv[2], "w"))
 PY
   out="$(api POST "/dashboards/$unverified_id/versions" --data-binary "@$TMP/import-resave.json")"
-  [[ "$out" == 422 ]] && import_check "any(i['code'] == 'query_empty' for i in d['issues'])" \
-    || fail "saving the imported Spec again should run every query ($out: $(head -c 600 "$TMP/api.body"))"
-  pass "a later save of an imported dashboard still rejects a failing query"
+  [[ "$out" == 201 ]] && import_check "d['version']['version'] == 2 and [p['issues'][0]['code'] for p in d['version']['unverified']['panels']] == ['query_empty']" \
+    || fail "saving the imported Spec again should keep the Missing panel unverified ($out: $(head -c 600 "$TMP/api.body"))"
+  pass "a later save of an imported dashboard keeps its unchanged failing panel unverified"
 
   out="$(api GET "/dashboards/$unverified_id/import")"
   [[ "$out" == 200 ]] || fail "get the import of a dashboard ($out: $(head -c 300 "$TMP/api.body"))"

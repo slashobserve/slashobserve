@@ -502,7 +502,8 @@ An import cannot be saved while a datasource has no match, and SlashObserve neve
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
-Failing queries mark their panels unverified in the import report instead of failing the import; later saves of the dashboard run every query as usual.
+Failing queries mark their panels and variables unverified in the import report instead of failing the import.
+Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 
 ## Upgrades and backups
