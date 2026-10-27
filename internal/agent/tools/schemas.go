@@ -5,6 +5,7 @@ const (
 	nameGetDashboard    = "get_dashboard"
 	nameGetSchema       = "get_schema"
 	nameGetSpecGuide    = "get_spec_guide"
+	nameImportGrafana   = "import_grafana_dashboard"
 	nameLintQuery       = "lint_query"
 	nameListComments    = "list_comments"
 	nameListDashboards  = "list_dashboards"
@@ -25,6 +26,7 @@ const (
 	descGetDashboard    = "Read a saved dashboard's ObserveSpec at its latest version, or at a given version. Use it before revising a dashboard."
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
+	descImportGrafana   = "Import a Grafana dashboard as a new SlashObserve dashboard. Pass the dashboard JSON text in json (classic model, export with __inputs, or an API response). Grafana datasources are matched to ours automatically when unambiguous; otherwise the result lists them and you map each key to one of our datasource uids in mapping. Panels whose queries fail are saved and reported as unverified; fix them afterwards with update_dashboard."
 	descLintQuery       = "Check a PromQL or ClickHouse SQL query for syntax and policy problems without running it. Use it on a draft query before running or saving it. When the datasource cannot be reached it returns an error such as datasource_unavailable instead of diagnostics, which says nothing about the query."
 	descListComments    = "List a dashboard's comments, oldest first: open threads by default. A reply has parent_id; panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
 	descListDashboards  = "List saved dashboards, most recently updated first, with their latest version and URL. Use it to find a dashboard to open or revise."
@@ -75,6 +77,8 @@ const (
 	schemaQueryRange = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propFormat + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
+
+	schemaImportGrafana = `{"type":"object","additionalProperties":false,"required":["json"],"properties":{"json":{"type":"string","minLength":1,"description":"The Grafana dashboard JSON text."},"mapping":{"type":"object","maxProperties":50,"additionalProperties":{"type":"string","minLength":1,"maxLength":200},"description":"Grafana datasource key (uid, name or ${DS_X}) to our datasource uid."}}}`
 
 	schemaListDashboards = `{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Dashboards per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 

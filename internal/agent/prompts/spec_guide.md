@@ -60,3 +60,4 @@ Leave out every value that equals its default.
 ## Saving
 - Every query runs during the save, and every data panel must return data for the default time range and variable values, or the save is rejected with the reason; fix the named panels and save again.
 - Never put HTML or scripts in any field; titles, descriptions and text panels are plain text.
+- When the user gives you a Grafana dashboard JSON, call import_grafana_dashboard instead of rewriting it by hand.

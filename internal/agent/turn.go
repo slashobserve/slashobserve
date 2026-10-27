@@ -29,6 +29,7 @@ const (
 
 	toolCreateDashboard = "create_dashboard"
 	toolUpdateDashboard = "update_dashboard"
+	toolImportGrafana   = "import_grafana_dashboard"
 
 	codeInvalidRequest  = "invalid_request"
 	codeVersionConflict = "version_conflict"
@@ -92,7 +93,7 @@ type callSlot struct {
 }
 
 func isSave(name string) bool {
-	return name == toolCreateDashboard || name == toolUpdateDashboard
+	return name == toolCreateDashboard || name == toolUpdateDashboard || name == toolImportGrafana
 }
 
 func phaseFor(name string, repairing bool) string {
@@ -101,7 +102,7 @@ func phaseFor(name string, repairing bool) string {
 		return phaseLint
 	case "query_range", "query_instant":
 		return phaseQuery
-	case toolCreateDashboard, toolUpdateDashboard:
+	case toolCreateDashboard, toolUpdateDashboard, toolImportGrafana:
 		if repairing {
 			return phaseRepair
 		}
