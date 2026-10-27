@@ -42,6 +42,19 @@ export function SettingsColumn({
       />
     </div>
   )
+  if (draft.type === "dashlist") {
+    return (
+      <div className="flex flex-col gap-3.5">
+        {title}
+        <DisplayOptions
+          type="dashlist"
+          display={draft.display}
+          dispatch={dispatch}
+          readOnly={readOnly}
+        />
+      </div>
+    )
+  }
   if (!isDataPanel(draft)) {
     return <div className="flex flex-col gap-3.5">{title}</div>
   }

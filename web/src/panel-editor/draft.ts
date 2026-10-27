@@ -2,6 +2,7 @@ import {
   displayKeysByType,
   isDataPanel,
   queryRef,
+  type DashlistPanel,
   type DataPanel,
   type DataPanelType,
   type Panel,
@@ -11,10 +12,12 @@ import {
   type Unit,
 } from "@/spec"
 
-export type EditablePanel = DataPanel | TextPanel
+export type EditablePanel = DataPanel | TextPanel | DashlistPanel
 
 export function isEditablePanel(panel: Panel): panel is EditablePanel {
-  return isDataPanel(panel) || panel.type === "text"
+  return (
+    isDataPanel(panel) || panel.type === "text" || panel.type === "dashlist"
+  )
 }
 
 export type EditorDraft = {
@@ -98,7 +101,11 @@ function removeQuery(panel: DataPanel, index: number) {
   panel.queries.splice(index, 1)
 }
 
-function setDisplay(panel: DataPanel, key: string, value: unknown) {
+function setDisplay(
+  panel: DataPanel | DashlistPanel,
+  key: string,
+  value: unknown
+) {
   const display: Record<string, unknown> = { ...panel.display }
   if (value === undefined) delete display[key]
   else display[key] = structuredClone(value)
@@ -180,10 +187,12 @@ export function draftReducer(
       }
       return withDraftPanel(state, panel)
     }
-    case "setDisplay":
-      return editData(state, (panel) =>
-        setDisplay(panel, action.key, action.value)
-      )
+    case "setDisplay": {
+      if (state.panel.type === "text") return state
+      const panel = structuredClone(state.panel)
+      setDisplay(panel, action.key, action.value)
+      return withDraftPanel(state, panel)
+    }
     case "setContent": {
       if (state.panel.type !== "text") return state
       const panel = structuredClone(state.panel)
