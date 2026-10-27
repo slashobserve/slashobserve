@@ -344,6 +344,7 @@ export default function PanelEditor({
           dashboardId={dashboardId}
           spec={spec}
           version={version}
+          baseVersion={draft.baseVersion}
           base={draft.base}
           draft={draft.panel}
           timeRange={timeRange}

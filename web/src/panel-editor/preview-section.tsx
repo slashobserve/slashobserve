@@ -32,6 +32,7 @@ export type PreviewSectionProps = {
   dashboardId: string
   spec: Dashboard
   version: number
+  baseVersion: number
   base: EditablePanel
   draft: EditablePanel
   timeRange: { from?: string; to?: string }
@@ -120,6 +121,7 @@ function DataPreview({
   dashboardId,
   spec,
   version,
+  baseVersion,
   base,
   draft,
   timeRange,
@@ -151,7 +153,7 @@ function DataPreview({
       base.datasource !== debounced.datasource)
   const saved = usePanelData({
     dashboardId,
-    version,
+    version: baseVersion,
     panel: base,
     from: timeRange.from,
     to: timeRange.to,
@@ -234,7 +236,7 @@ function DataPreview({
               aria-hidden="true"
               className="w-3.5 border-t-2 border-dotted border-ghost"
             />
-            Saved in v{version}
+            Saved in v{baseVersion}
           </span>
         </div>
       ) : null}
@@ -246,6 +248,7 @@ export function PreviewSection({
   dashboardId,
   spec,
   version,
+  baseVersion,
   base,
   draft,
   timeRange,
@@ -259,6 +262,7 @@ export function PreviewSection({
         dashboardId={dashboardId}
         spec={spec}
         version={version}
+        baseVersion={baseVersion}
         base={base}
         draft={draft}
         timeRange={timeRange}
