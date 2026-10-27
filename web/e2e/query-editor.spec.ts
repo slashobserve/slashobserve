@@ -14,7 +14,12 @@ import {
   panel,
   versionButton,
 } from "./dashboards"
-import { chunkFailureLogged, expect, test } from "./fixtures"
+import {
+  chunkFailureLogged,
+  draftPreviewRejectionLogged,
+  expect,
+  test,
+} from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"
@@ -131,7 +136,7 @@ test("loads SQL highlighting", async ({ page, request }) => {
   ).toHaveText("SELECT")
 })
 
-test("shows a lint error inline", async ({ page, request }) => {
+test("shows a lint error inline", async ({ page, request, consoleErrors }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await openFromMenu(page, rpsTitle)
@@ -148,6 +153,7 @@ test("shows a lint error inline", async ({ page, request }) => {
   await expect(item).toBeVisible()
   await item.click()
   await expect(sheet(page).locator(".cm-content")).toBeFocused()
+  await draftPreviewRejectionLogged(consoleErrors)
 })
 
 test("saves an edited query as a new version", async ({ page, request }) => {
@@ -533,6 +539,7 @@ test("confirms Escape once with an unsaved query and keeps or discards the draft
 test("points a lint error at the right character after multi-byte text", async ({
   page,
   request,
+  consoleErrors,
 }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
@@ -547,6 +554,7 @@ test("points a lint error at the right character after multi-byte text", async (
       name: /^Error:.*\(line 1, column 16\)$/,
     })
   ).toBeVisible()
+  await draftPreviewRejectionLogged(consoleErrors)
 })
 
 test("explains that a query is too long to lint", async ({
@@ -1352,7 +1360,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       ])
     })
 
-    test("shows lint under the offending line", async ({ page, request }) => {
+    test("shows lint under the offending line", async ({
+      page,
+      request,
+      consoleErrors,
+    }) => {
       const { id } = await createOverview(request)
       await openDashboard(page, id)
       await openFromMenu(page, rpsTitle)
@@ -1366,6 +1378,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           .getByRole("button", { name: /^Error:/ })
           .first()
       ).toBeVisible()
+      await draftPreviewRejectionLogged(consoleErrors)
     })
 
     test("switches to the JSON view through the URL", async ({

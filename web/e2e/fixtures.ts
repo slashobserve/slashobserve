@@ -27,6 +27,13 @@ export function failedResourceLogged(consoleErrors: string[], status: string) {
   consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
 }
 
+export async function draftPreviewRejectionLogged(consoleErrors: string[]) {
+  const rejections = () =>
+    consoleErrors.filter((message) => message.includes("status of 422"))
+  await expect.poll(() => rejections().length).toBe(1)
+  consoleErrors.splice(consoleErrors.indexOf(rejections()[0]), 1)
+}
+
 const chunkFailure = /net::ERR_FAILED|dynamically imported module/
 
 export function chunkFailureLogged(consoleErrors: string[]) {
