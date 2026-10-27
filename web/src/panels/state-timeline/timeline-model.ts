@@ -83,9 +83,10 @@ export function timelineModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
   display: Record<string, unknown>,
-  range: TimeRange
+  range: TimeRange,
+  cells = false
 ): TimelineModel {
-  const merge = mergeValuesOf(display)
+  const merge = !cells && mergeValuesOf(display)
   const seen = new Map<string, number>()
   const raw: { key: string; name: string; segments: RawSegment[] }[] = []
   for (const frame of frames) {
