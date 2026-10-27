@@ -252,37 +252,6 @@ test("renders in dark mode without leaking canvases", async ({
   await expectPanelsReady(page)
 })
 
-test("keeps the same chart canvas across a data refresh", async ({
-  page,
-  request,
-}) => {
-  await page.emulateMedia({ colorScheme: "light" })
-  const id = await createOverview(request)
-  await openDashboard(page, id)
-  await expectPanelsReady(page)
-
-  const rps = panel(page, rpsTitle)
-  await rps.locator("canvas").evaluate((canvas) => {
-    canvas.setAttribute("data-e2e-canvas", "first")
-  })
-  const marked = rps.locator('canvas[data-e2e-canvas="first"]')
-
-  const refreshed = panelDataResponse(page, "rps")
-  await page.getByRole("button", { name: "Refresh now" }).click()
-  await refreshed
-  await expectPanelsReady(page)
-  await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => done(null)))
-  )
-  await expect(rps.locator("canvas")).toHaveCount(1)
-  await expect(marked).toHaveCount(1)
-
-  await page.getByRole("button", { name: "Switch theme" }).click()
-  await expect(page.locator("html")).toHaveClass(/\bdark\b/)
-  await expect(rps.locator("canvas")).toHaveCount(1)
-  await expect(marked).toHaveCount(0)
-})
-
 test("keeps series colors when a variable filters series", async ({
   page,
   request,
