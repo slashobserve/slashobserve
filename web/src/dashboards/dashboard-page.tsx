@@ -74,7 +74,7 @@ import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
-import { controlVariables, VariableLoadError } from "./variables"
+import { VariableLoadError } from "./variables"
 
 function pageClass(stacked: boolean) {
   return cn(
@@ -325,10 +325,7 @@ function DashboardView({
       unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
     [envelope.version.unverified, envelopeVersion, version]
   )
-  const variables = useMemo(
-    () => controlVariables(spec.variables ?? []),
-    [spec]
-  )
+  const variables = useMemo(() => spec.variables ?? [], [spec])
 
   const { states, selections, values, ready, blocking } = useVariables({
     dashboardId,

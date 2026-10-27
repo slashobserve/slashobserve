@@ -1,15 +1,19 @@
 import type { Selections } from "@/api/keys"
-import type { CustomVariable, QueryVariable, Variable } from "@/spec"
+import type {
+  CustomVariable,
+  DatasourceVariable,
+  IntervalVariable,
+  QueryVariable,
+  Variable,
+} from "@/spec"
 
 import { ALL } from "./search"
+import { formatFilter, parseFilters } from "./variable-controls/adhoc"
 
-export type ControlVariable = QueryVariable | CustomVariable
+export const AUTO = "$__auto"
 
-export function controlVariables(variables: Variable[]): ControlVariable[] {
-  return variables.filter(
-    (variable): variable is ControlVariable =>
-      variable.type === "query" || variable.type === "custom"
-  )
+export function intervalOptions(variable: IntervalVariable): string[] {
+  return variable.auto ? [AUTO, ...variable.options] : variable.options
 }
 
 export class VariableLoadError extends Error {
@@ -30,7 +34,7 @@ export function sortSelections(selections: Selections): Selections {
 }
 
 export function earlierSelections(
-  variables: ControlVariable[],
+  variables: Variable[],
   index: number,
   urlVars: Record<string, string[]>
 ): Selections {
@@ -56,8 +60,31 @@ export function parentKeyOf(selections: Selections): string {
   return JSON.stringify(selections)
 }
 
+function localDisplay(variable: Variable): VariableDisplay | undefined {
+  switch (variable.type) {
+    case "custom":
+      return readyDisplay(variable.options)
+    case "interval":
+      return readyDisplay(intervalOptions(variable))
+    case "constant":
+    case "textbox":
+    case "adhoc":
+      return { status: "ready", shown: undefined, selectable: undefined }
+    default:
+      return undefined
+  }
+}
+
+function readyDisplay(values: string[]): VariableDisplay {
+  return {
+    status: "ready",
+    shown: { values, truncated: false },
+    selectable: values,
+  }
+}
+
 export function variableDisplay(
-  variable: ControlVariable,
+  variable: Variable,
   request: {
     data: ValuesData | undefined
     last: LoadedValues | undefined
@@ -66,13 +93,8 @@ export function variableDisplay(
     isFetching: boolean
   }
 ): VariableDisplay {
-  if (variable.type === "custom") {
-    return {
-      status: "ready",
-      shown: { values: variable.options, truncated: false },
-      selectable: variable.options,
-    }
-  }
+  const local = localDisplay(variable)
+  if (local) return local
   const { last } = request
   const lastValues =
     last?.parentKey === request.parentKey ? last.data.values : undefined
@@ -96,43 +118,116 @@ export function variableDisplay(
   return { status: "loading", shown: undefined, selectable: undefined }
 }
 
-function fromUrl(variable: ControlVariable, values: string[]): string[] {
+function fromUrl(
+  variable: QueryVariable | CustomVariable,
+  values: string[]
+): string[] {
   if (variable.includeAll && values.includes(ALL)) return [ALL]
-  const concrete = values.filter((value) => value !== ALL)
+  const concrete = values.filter((value) => value !== ALL && value !== "")
   if (concrete.length === 0) return []
   return variable.multi ? concrete : [concrete[0]]
 }
 
+function intervalSelection(
+  variable: IntervalVariable,
+  urlValue: string | undefined
+): string {
+  const options = intervalOptions(variable)
+  if (urlValue !== undefined && options.includes(urlValue)) return urlValue
+  if (variable.default !== undefined && options.includes(variable.default)) {
+    return variable.default
+  }
+  return options[0]
+}
+
+function datasourceSelection(
+  variable: DatasourceVariable,
+  urlValue: string | undefined,
+  available: string[]
+): string {
+  if (urlValue !== undefined && available.includes(urlValue)) return urlValue
+  if (variable.default !== undefined && available.includes(variable.default)) {
+    return variable.default
+  }
+  return available[0]
+}
+
 export function resolveSelections(
-  variables: ControlVariable[],
+  variables: Variable[],
   urlVars: Record<string, string[]>,
   options: VariableOptions
 ): { selections: Selections; pending: boolean; waiting: string[] } {
   const selections: Selections = {}
   const waiting: string[] = []
   for (const variable of variables) {
-    const explicit = fromUrl(variable, urlVars[variable.name] ?? [])
-    if (explicit.length > 0) {
-      selections[variable.name] = explicit
-    } else if (variable.includeAll) {
-      selections[variable.name] = [ALL]
-    } else {
-      const available = options[variable.name]
-      if (available === undefined) waiting.push(variable.name)
-      else if (available.length > 0) selections[variable.name] = [available[0]]
+    const urlValues = urlVars[variable.name] ?? []
+    switch (variable.type) {
+      case "constant":
+        selections[variable.name] = [variable.value]
+        break
+      case "textbox":
+        selections[variable.name] = [urlValues[0] ?? variable.default ?? ""]
+        break
+      case "interval":
+        selections[variable.name] = [intervalSelection(variable, urlValues[0])]
+        break
+      case "adhoc": {
+        const filters = parseFilters(urlValues)
+        if (filters.length > 0) {
+          selections[variable.name] = filters.map(formatFilter)
+        }
+        break
+      }
+      case "datasource": {
+        const available = options[variable.name]
+        if (available === undefined) waiting.push(variable.name)
+        else if (available.length > 0) {
+          selections[variable.name] = [
+            datasourceSelection(variable, urlValues[0], available),
+          ]
+        }
+        break
+      }
+      default: {
+        const explicit = fromUrl(variable, urlValues)
+        if (explicit.length > 0) {
+          selections[variable.name] = explicit
+        } else if (variable.includeAll) {
+          selections[variable.name] = [ALL]
+        } else {
+          const available = options[variable.name]
+          if (available === undefined) waiting.push(variable.name)
+          else if (available.length > 0) {
+            selections[variable.name] = [available[0]]
+          }
+        }
+      }
     }
   }
   return { selections, pending: waiting.length > 0, waiting }
 }
 
+function dependsOnEarlier(variable: Variable): boolean {
+  return (
+    variable.type === "query" ||
+    variable.type === "custom" ||
+    variable.type === "datasource"
+  )
+}
+
 export function applyVariableChange(
-  variables: ControlVariable[],
+  variables: Variable[],
   urlVars: Record<string, string[]>,
   name: string,
   values: string[]
 ): Record<string, string[]> {
   const index = variables.findIndex((variable) => variable.name === name)
-  const later = new Set(variables.slice(index + 1).map((v) => v.name))
+  const later = new Set(
+    variables
+      .slice(index + 1)
+      .filter(dependsOnEarlier)
+      .map((v) => v.name)
+  )
   const next: Record<string, string[]> = {}
   for (const [key, value] of Object.entries(urlVars)) {
     if (key !== name && !later.has(key)) next[key] = value

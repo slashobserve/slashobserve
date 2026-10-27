@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { parseSearch, stringifySearch } from "@/lib/search"
+
 import {
   dashboardSearchFromBack,
   searchFromState,
@@ -37,9 +39,20 @@ describe("validateDashboardSearch", () => {
       panel: "1bad",
       edit: "other",
       tab: "other",
-      "var-empty": "",
     })
     expect(state).toEqual({ vars: {} })
+  })
+
+  it("keeps a variable whose only value is empty as one empty value", () => {
+    expect(validateDashboardSearch({ "var-svc": "" }).vars).toEqual({
+      svc: [""],
+    })
+    expect(validateDashboardSearch({ "var-svc": ["", ""] }).vars).toEqual({
+      svc: [""],
+    })
+    expect(validateDashboardSearch({ "var-svc": ["", "a"] }).vars).toEqual({
+      svc: ["a"],
+    })
   })
 
   it("accepts numbers from in-app navigation", () => {
@@ -124,6 +137,13 @@ describe("searchFromState", () => {
       validateDashboardSearch({ panel: "rps", tab: "query" })
     )
     expect(flat).toEqual({ panel: "rps", edit: "query" })
+  })
+
+  it("writes an empty value as var-<name>= and reads it back", () => {
+    const state = validateDashboardSearch({ "var-svc": "" })
+    const text = stringifySearch(searchFromState(state))
+    expect(text).toBe("?var-svc=")
+    expect(validateDashboardSearch(parseSearch(text))).toEqual(state)
   })
 
   it("round-trips through validation", () => {

@@ -9,9 +9,9 @@ import {
   sortSelections,
   parentKeyOf,
   variableDisplay,
-  controlVariables,
-  type ControlVariable as Variable,
+  intervalOptions,
 } from "./variables"
+import type { IntervalVariable, Variable } from "@/spec"
 
 const pod: Variable = {
   name: "pod",
@@ -263,22 +263,183 @@ describe("selection helpers", () => {
   })
 })
 
-describe("controlVariables", () => {
-  it("keeps only query and custom variables", () => {
-    const kept = controlVariables([
-      pod,
-      { name: "team", type: "constant", value: "payments" },
-      route,
-      { name: "filter", type: "textbox" },
-      { name: "source", type: "datasource", datasourceType: "prometheus" },
-      { name: "adhoc", type: "adhoc", datasource: "prom" },
-      { name: "window", type: "interval", options: ["1m"] },
-      env,
+describe("resolveSelections for every variable type", () => {
+  const site: Variable = { name: "site", type: "constant", value: "shop" }
+  const iv: IntervalVariable = {
+    name: "iv",
+    type: "interval",
+    options: ["1m", "5m"],
+    auto: true,
+  }
+  const plainIv: IntervalVariable = {
+    name: "iv",
+    type: "interval",
+    options: ["1m", "5m"],
+  }
+  const svc: Variable = { name: "svc", type: "textbox", default: "checkout" }
+  const dsv: Variable = {
+    name: "dsv",
+    type: "datasource",
+    datasourceType: "prometheus",
+  }
+  const af: Variable = { name: "af", type: "adhoc", datasource: "prom" }
+
+  function resolve(
+    variable: Variable,
+    urlVars: Record<string, string[]> = {},
+    options: Record<string, string[] | undefined> = {}
+  ) {
+    return resolveSelections([variable], urlVars, options)
+  }
+
+  it("always selects a constant's own value", () => {
+    expect(resolve(site, { site: ["other"] }).selections).toEqual({
+      site: ["shop"],
+    })
+  })
+
+  it("offers $__auto first only when the interval variable has auto", () => {
+    expect(intervalOptions(iv)).toEqual(["$__auto", "1m", "5m"])
+    expect(intervalOptions(plainIv)).toEqual(["1m", "5m"])
+  })
+
+  it("selects an interval from the URL, then the default, then the first option", () => {
+    expect(resolve(iv, { iv: ["5m"] }).selections).toEqual({ iv: ["5m"] })
+    expect(resolve(iv, { iv: ["$__auto"] }).selections).toEqual({
+      iv: ["$__auto"],
+    })
+    expect(resolve(iv).selections).toEqual({ iv: ["$__auto"] })
+    expect(resolve({ ...plainIv, default: "5m" }).selections).toEqual({
+      iv: ["5m"],
+    })
+    expect(resolve(plainIv).selections).toEqual({ iv: ["1m"] })
+  })
+
+  it("rejects an interval value that is not an option, and $__auto without auto", () => {
+    expect(resolve(plainIv, { iv: ["$__auto"] }).selections).toEqual({
+      iv: ["1m"],
+    })
+    expect(resolve(iv, { iv: ["7m"] }).selections).toEqual({ iv: ["$__auto"] })
+  })
+
+  it("takes a textbox from the URL, including an empty value, else its default", () => {
+    expect(resolve(svc, { svc: ["payments"] }).selections).toEqual({
+      svc: ["payments"],
+    })
+    expect(resolve(svc, { svc: [""] }).selections).toEqual({ svc: [""] })
+    expect(resolve(svc).selections).toEqual({ svc: ["checkout"] })
+    expect(resolve({ name: "q", type: "textbox" }).selections).toEqual({
+      q: [""],
+    })
+  })
+
+  it("waits for the datasource list, then prefers the URL value, the default, the first", () => {
+    expect(resolve(dsv)).toEqual({
+      selections: {},
+      pending: true,
+      waiting: ["dsv"],
+    })
+    const list = ["prom", "prom_tight"]
+    expect(resolve(dsv, {}, { dsv: list }).selections).toEqual({
+      dsv: ["prom"],
+    })
+    expect(
+      resolve(dsv, { dsv: ["prom_tight"] }, { dsv: list }).selections
+    ).toEqual({ dsv: ["prom_tight"] })
+    expect(
+      resolve({ ...dsv, default: "prom_tight" }, {}, { dsv: list }).selections
+    ).toEqual({ dsv: ["prom_tight"] })
+  })
+
+  it("falls back when a datasource value is outside the list", () => {
+    expect(
+      resolve(dsv, { dsv: ["gone"] }, { dsv: ["prom"] }).selections
+    ).toEqual({ dsv: ["prom"] })
+    expect(
+      resolve({ ...dsv, default: "gone" }, {}, { dsv: ["prom"] }).selections
+    ).toEqual({ dsv: ["prom"] })
+  })
+
+  it("leaves a datasource variable with an empty list to the server", () => {
+    expect(resolve(dsv, {}, { dsv: [] })).toEqual({
+      selections: {},
+      pending: false,
+      waiting: [],
+    })
+  })
+
+  it("keeps valid adhoc filters, drops the rest and sends none when empty", () => {
+    expect(resolve(af).selections).toEqual({})
+    expect(
+      resolve(af, { af: ["job|=|api", "broken", "job|~|x", "a|=~|b|c"] })
+        .selections
+    ).toEqual({ af: ["job|=|api", "a|=~|b|c"] })
+    expect(resolve(af, { af: ["broken"] }).selections).toEqual({})
+  })
+
+  it("keeps at most 20 adhoc filters", () => {
+    const many = Array.from({ length: 25 }, (_, i) => `k${i}|=|v`)
+    expect(resolve(af, { af: many }).selections.af).toHaveLength(20)
+  })
+
+  it("ignores an empty URL value on query and custom variables", () => {
+    expect(
+      resolveSelections([env], { env: [""] }, { env: ["prod"] }).selections
+    ).toEqual({
+      env: ["prod"],
+    })
+  })
+
+  it("never waits on or loads values for the local types", () => {
+    for (const variable of [site, iv, svc, af]) {
+      expect(resolve(variable).pending).toBe(false)
+    }
+    expect(variableDisplay(svc, requestIdle).status).toBe("ready")
+    expect(variableDisplay(af, requestIdle).shown).toBeUndefined()
+    expect(variableDisplay(iv, requestIdle).shown?.values).toEqual([
+      "$__auto",
+      "1m",
+      "5m",
     ])
-    expect(kept.map((variable) => variable.name)).toEqual([
-      "pod",
-      "route",
-      "env",
-    ])
+  })
+
+  it("loads a datasource variable's values like a query variable's", () => {
+    expect(variableDisplay(dsv, requestIdle).status).toBe("loading")
+  })
+})
+
+const requestIdle = {
+  data: undefined,
+  last: undefined,
+  parentKey: parentKeyOf({}),
+  isError: false,
+  isFetching: true,
+}
+
+describe("applyVariableChange with every type", () => {
+  const text: Variable = { name: "svc", type: "textbox" }
+  const filters: Variable = { name: "af", type: "adhoc", datasource: "prom" }
+  const ds: Variable = {
+    name: "dsv",
+    type: "datasource",
+    datasourceType: "prometheus",
+  }
+
+  it("keeps later textbox and adhoc selections when an earlier variable changes", () => {
+    expect(
+      applyVariableChange(
+        [env, text, filters, ds],
+        { env: ["dev"], svc: ["x"], af: ["a|=|b"], dsv: ["prom"] },
+        "env",
+        ["prod"]
+      )
+    ).toEqual({ env: ["prod"], svc: ["x"], af: ["a|=|b"] })
+  })
+
+  it("keeps an emptied textbox as an empty value and drops a cleared adhoc variable", () => {
+    expect(applyVariableChange([text], {}, "svc", [""])).toEqual({ svc: [""] })
+    expect(applyVariableChange([filters], { af: ["a|=|b"] }, "af", [])).toEqual(
+      {}
+    )
   })
 })

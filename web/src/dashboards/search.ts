@@ -48,11 +48,14 @@ function firstString(value: unknown): string | undefined {
 function stringList(value: unknown): string[] {
   const items = Array.isArray(value) ? value : [value]
   const out: string[] = []
+  let empty = false
   for (const item of items) {
     const text = firstString(item)
-    if (text !== undefined && text !== "") out.push(text)
+    if (text === undefined) continue
+    if (text === "") empty = true
+    else out.push(text)
   }
-  return out
+  return out.length === 0 && empty ? [""] : out
 }
 
 export function validateDashboardSearch(
