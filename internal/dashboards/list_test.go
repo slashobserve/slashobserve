@@ -1,6 +1,7 @@
 package dashboards
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -136,6 +137,52 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 			}
 			if skipped.Total != 0 || len(skipped.Items) != len(paged.Items) {
 				t.Errorf("SkipTotal gave total %d and %d items, want 0 and %d", skipped.Total, len(skipped.Items), len(paged.Items))
+			}
+		})
+	}
+}
+
+func taggedSpec(title string, tags ...string) []byte {
+	encoded, err := json.Marshal(append([]string{}, tags...))
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Appendf(nil, `{"specVersion":"0","title":%q,"tags":%s,"time":{"from":"now-15m","to":"now"},"panels":[{"id":"p","type":"timeseries","title":"p","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"up"}]}]}`, title, encoded)
+}
+
+func TestListFiltersByEveryGivenTag(t *testing.T) {
+	r := newRig(t, false)
+	for title, tags := range map[string][]string{
+		"Shop":     {"demo", "shop"},
+		"Fleet":    {"demo"},
+		"Untagged": nil,
+	} {
+		if _, _, err := r.service.Create(t.Context(), testUser, taggedSpec(title, tags...), "create"); err != nil {
+			t.Fatalf("create %s: %v", title, err)
+		}
+	}
+	tests := []struct {
+		name string
+		tags []string
+		want []string
+	}{
+		{"no tag", nil, []string{"Fleet", "Shop", "Untagged"}},
+		{"one tag", []string{"demo"}, []string{"Fleet", "Shop"}},
+		{"two tags", []string{"demo", "shop"}, []string{"Shop"}},
+		{"a tag nobody has", []string{"nope"}, []string{}},
+		{"one tag and one nobody has", []string{"demo", "nope"}, []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page, err := r.service.List(t.Context(), ListParams{Limit: 50, Tags: tt.tags})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := titlesOf(page.Items); !slices.Equal(got, tt.want) {
+				t.Fatalf("items = %v, want %v", got, tt.want)
+			}
+			if page.Total != len(tt.want) {
+				t.Errorf("total_count = %d, want %d", page.Total, len(tt.want))
 			}
 		})
 	}

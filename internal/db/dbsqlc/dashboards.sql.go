@@ -61,9 +61,10 @@ WHERE ($1::text IS NULL
   AND (NOT $4::boolean OR d.created_origin = 'mcp')
   AND ($5::text IS NULL OR d.created_origin_client = $5::text)
   AND ($6::text IS NULL OR v.datasource_uids @> ARRAY[$6::text])
-  AND ($7::text IS NULL
-    OR strpos(lower(d.title), lower($7::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($7::text)) > 0)
+  AND ($7::text[] IS NULL OR d.tags @> $7::text[])
+  AND ($8::text IS NULL
+    OR strpos(lower(d.title), lower($8::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($8::text)) > 0)
 `
 
 type CountDashboardsParams struct {
@@ -73,6 +74,7 @@ type CountDashboardsParams struct {
 	OnlyMcp     bool
 	McpClient   pgtype.Text
 	Datasource  pgtype.Text
+	Tags        []string
 	Q           pgtype.Text
 }
 
@@ -84,6 +86,7 @@ func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams
 		arg.OnlyMcp,
 		arg.McpClient,
 		arg.Datasource,
+		arg.Tags,
 		arg.Q,
 	)
 	var count int64
@@ -500,11 +503,12 @@ WHERE ($1::timestamptz IS NULL
   AND (NOT $6::boolean OR d.created_origin = 'mcp')
   AND ($7::text IS NULL OR d.created_origin_client = $7::text)
   AND ($8::text IS NULL OR v.datasource_uids @> ARRAY[$8::text])
-  AND ($9::text IS NULL
-    OR strpos(lower(d.title), lower($9::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($9::text)) > 0)
+  AND ($9::text[] IS NULL OR d.tags @> $9::text[])
+  AND ($10::text IS NULL
+    OR strpos(lower(d.title), lower($10::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($10::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $10
+LIMIT $11
 `
 
 type ListDashboardsParams struct {
@@ -516,6 +520,7 @@ type ListDashboardsParams struct {
 	OnlyMcp         bool
 	McpClient       pgtype.Text
 	Datasource      pgtype.Text
+	Tags            []string
 	Q               pgtype.Text
 	RowLimit        int32
 }
@@ -541,6 +546,7 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 		arg.OnlyMcp,
 		arg.McpClient,
 		arg.Datasource,
+		arg.Tags,
 		arg.Q,
 		arg.RowLimit,
 	)

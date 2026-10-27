@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,17 +26,23 @@ func listFilterStatus(t *testing.T, rawQuery string) (int, ListParams) {
 
 func TestListFiltersRejectBadInput(t *testing.T) {
 	bad := map[string]string{
-		"q invalid UTF-8":             "q=%FF",
-		"q truncated UTF-8":           "q=%C3",
-		"q NUL":                       "q=a%00b",
-		"q whitespace only":           "q=%20%20",
-		"q raw length over the limit": "q=%20" + strings.Repeat("a", maxQueryRunes),
-		"q multibyte over the limit":  "q=" + strings.Repeat("%C3%A9", maxQueryRunes+1),
-		"datasource invalid UTF-8":    "datasource=%FF",
-		"datasource NUL":              "datasource=%00",
-		"datasource over the limit":   "datasource=" + strings.Repeat("a", maxDatasourceRunes+1),
-		"q empty":                     "q=",
-		"datasource empty":            "datasource=",
+		"q invalid UTF-8":              "q=%FF",
+		"q truncated UTF-8":            "q=%C3",
+		"q NUL":                        "q=a%00b",
+		"q whitespace only":            "q=%20%20",
+		"q raw length over the limit":  "q=%20" + strings.Repeat("a", maxQueryRunes),
+		"q multibyte over the limit":   "q=" + strings.Repeat("%C3%A9", maxQueryRunes+1),
+		"datasource invalid UTF-8":     "datasource=%FF",
+		"datasource NUL":               "datasource=%00",
+		"datasource over the limit":    "datasource=" + strings.Repeat("a", maxDatasourceRunes+1),
+		"tag with an uppercase letter": "tag=Demo",
+		"tag with a leading dash":      "tag=-demo",
+		"tag empty":                    "tag=",
+		"tag over the length limit":    "tag=" + strings.Repeat("a", 41),
+		"eleven tags":                  strings.Repeat("tag=a&", 10) + "tag=a",
+		"one bad tag among good ones":  "tag=demo&tag=Bad",
+		"q empty":                      "q=",
+		"datasource empty":             "datasource=",
 	}
 	for name, raw := range bad {
 		t.Run(name, func(t *testing.T) {
@@ -62,6 +69,25 @@ func TestListFiltersAcceptAndTrimQuery(t *testing.T) {
 		code, params := listFilterStatus(t, tt.raw)
 		if code != http.StatusOK || params.Query != tt.wantQuery || params.Datasource != tt.wantDS {
 			t.Errorf("%.40s answered %d with query %.20q and datasource %.20q", tt.raw, code, params.Query, params.Datasource)
+		}
+	}
+}
+
+func TestListFiltersAcceptRepeatedTags(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want []string
+	}{
+		{"", nil},
+		{"tag=demo", []string{"demo"}},
+		{"tag=demo&tag=shop.v2", []string{"demo", "shop.v2"}},
+		{"tag=" + strings.Repeat("a", 40), []string{strings.Repeat("a", 40)}},
+		{strings.Repeat("tag=a&", 9) + "tag=a", []string{"a", "a", "a", "a", "a", "a", "a", "a", "a", "a"}},
+	}
+	for _, tt := range tests {
+		code, params := listFilterStatus(t, tt.raw)
+		if code != http.StatusOK || !slices.Equal(params.Tags, tt.want) {
+			t.Errorf("%.40s answered %d with tags %v, want %v", tt.raw, code, params.Tags, tt.want)
 		}
 	}
 }

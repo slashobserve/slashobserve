@@ -39,6 +39,8 @@ export type StaticPanelProps = {
   width: number
   height: number
   vars: Selections
+  from: string
+  to: string
 }
 
 export type StaticPanelRenderer = ComponentType<StaticPanelProps>

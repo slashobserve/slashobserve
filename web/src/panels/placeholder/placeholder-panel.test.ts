@@ -19,6 +19,8 @@ function render(extra: Partial<PlaceholderSpec>): string {
       width: 400,
       height: 200,
       vars: {},
+      from: "now-1h",
+      to: "now",
     })
   )
 }

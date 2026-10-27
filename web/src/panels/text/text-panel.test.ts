@@ -26,6 +26,8 @@ function render(content: string, vars: Selections = {}): string {
       width: 400,
       height: 200,
       vars,
+      from: "now-1h",
+      to: "now",
     })
   )
   return html.replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")

@@ -270,6 +270,7 @@ type ListParams struct {
 	MadeBy     MadeBy
 	Datasource string
 	Query      string
+	Tags       []string
 	SkipTotal  bool
 }
 

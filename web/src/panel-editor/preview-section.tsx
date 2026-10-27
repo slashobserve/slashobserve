@@ -277,6 +277,8 @@ export function PreviewSection({
           width={width}
           height={chartHeight}
           vars={selections ?? noSelections}
+          from={timeRange.from ?? spec.time.from}
+          to={timeRange.to ?? spec.time.to}
         />
       </>
     )
