@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { sameJson, stableJson } from "@/lib/json"
 import {
   dataPanelTypes,
+  type DashlistPanel,
   type DataPanel,
   type PanelQuery,
   type TextPanel,
@@ -17,6 +18,7 @@ import {
   nextRef,
   startDraft,
   type DraftAction,
+  type EditablePanel,
   type EditorDraft,
 } from "./draft"
 
@@ -49,7 +51,7 @@ function deepFreeze<T>(value: T): T {
   return value
 }
 
-function apply(panel: DataPanel | TextPanel, ...actions: DraftAction[]) {
+function apply(panel: EditablePanel, ...actions: DraftAction[]) {
   return actions.reduce(
     (state, action) => draftReducer(state, action),
     startDraft(3, panel)
@@ -72,7 +74,7 @@ describe("startDraft", () => {
 })
 
 describe("isEditablePanel", () => {
-  it("accepts data and text panels only", () => {
+  it("accepts data, text and dashboard list panels only", () => {
     expect(isEditablePanel(dataPanel())).toBe(true)
     expect(isEditablePanel(textPanel)).toBe(true)
     expect(isEditablePanel({ id: "r", type: "row", title: "R", gridPos })).toBe(
@@ -457,6 +459,57 @@ describe("immutability", () => {
     const before = stableJson(state)
     expect(() => draftReducer(state, action)).not.toThrow()
     expect(stableJson(state)).toBe(before)
+  })
+})
+
+describe("dashlist drafts", () => {
+  const dashlist: DashlistPanel = { id: "d1", type: "dashlist", gridPos }
+
+  it("is editable", () => {
+    expect(isEditablePanel(dashlist)).toBe(true)
+  })
+
+  it("takes setDisplay and removes the key again with undefined", () => {
+    const set = apply(dashlist, {
+      type: "setDisplay",
+      key: "tags",
+      value: ["prod"],
+    })
+    expect((set.panel as DashlistPanel).display).toEqual({ tags: ["prod"] })
+    const cleared = draftReducer(set, {
+      type: "setDisplay",
+      key: "tags",
+      value: undefined,
+    })
+    expect("display" in cleared.panel).toBe(false)
+  })
+
+  it("ignores setDisplay on a text panel", () => {
+    const state = apply(textPanel, {
+      type: "setDisplay",
+      key: "tags",
+      value: ["prod"],
+    })
+    expect(state.panel).toEqual(textPanel)
+  })
+})
+
+describe("setType display keys", () => {
+  it("drops canvas elements and connections when the type changes to stat", () => {
+    const state = apply(
+      dataPanel({
+        type: "canvas",
+        display: {
+          reduce: "max",
+          elements: [{ id: "e", type: "text", x: 0, y: 0, w: 1, h: 1 }],
+          connections: [],
+        },
+      } as Partial<DataPanel>),
+      { type: "setType", panelType: "stat" }
+    )
+    const panel = state.panel as DataPanel
+    expect(panel.type).toBe("stat")
+    expect(panel.display).toEqual({ reduce: "max" })
   })
 })
 

@@ -197,7 +197,7 @@ export default function PanelEditor({
         (query) =>
           query.query.trim() !== "" && [...query.query].length <= maxQueryLength
       )
-    : [...current.content].length <= maxContentLength
+    : current.type !== "text" || [...current.content].length <= maxContentLength
   const canSave =
     dirty &&
     !saving &&

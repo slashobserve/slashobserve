@@ -1,6 +1,8 @@
 import {
+  displayKeysByType,
   isDataPanel,
   queryRef,
+  type DashlistPanel,
   type DataPanel,
   type DataPanelType,
   type Panel,
@@ -10,10 +12,12 @@ import {
   type Unit,
 } from "@/spec"
 
-export type EditablePanel = DataPanel | TextPanel
+export type EditablePanel = DataPanel | TextPanel | DashlistPanel
 
 export function isEditablePanel(panel: Panel): panel is EditablePanel {
-  return isDataPanel(panel) || panel.type === "text"
+  return (
+    isDataPanel(panel) || panel.type === "text" || panel.type === "dashlist"
+  )
 }
 
 export type EditorDraft = {
@@ -45,66 +49,8 @@ export type DraftAction =
 
 export const maxQueries = 26
 
-const displayKeys: Record<DataPanelType, readonly string[]> = {
-  timeseries: ["legend", "legendValues", "tooltip"],
-  stat: ["reduce", "colorMode", "graph", "textMode", "orientation"],
-  gauge: ["reduce", "thresholdMarkers"],
-  bargauge: ["reduce", "orientation"],
-  table: ["header", "footer"],
-  piechart: ["reduce", "pieType", "legend"],
-  heatmap: ["calculate", "yScale"],
-  histogram: ["bucketSize", "bucketCount"],
-  "state-timeline": ["mergeValues", "showValues"],
-  logs: ["wrap", "showTime", "order"],
-  barchart: [
-    "orientation",
-    "xField",
-    "showValues",
-    "barWidth",
-    "groupWidth",
-    "legend",
-    "tooltip",
-  ],
-  "status-history": ["showValues"],
-  trend: ["xField", "legend", "legendValues", "tooltip"],
-  xychart: ["xField", "show", "pointSize", "legend", "tooltip"],
-  candlestick: [
-    "mode",
-    "candleStyle",
-    "colorStrategy",
-    "upColor",
-    "downColor",
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    "legend",
-    "tooltip",
-  ],
-  nodeGraph: ["layout"],
-  traces: [],
-  flamegraph: [],
-  geomap: [
-    "view",
-    "lat",
-    "lon",
-    "zoom",
-    "location",
-    "latField",
-    "lonField",
-    "geohashField",
-    "sizeField",
-    "colorField",
-    "markerSize",
-    "markerSizeMax",
-  ],
-  canvas: ["reduce", "elements", "connections"],
-  alertlist: ["limit", "sort", "viewMode"],
-}
-
 export function displayKeysFor(type: DataPanelType): readonly string[] {
-  return displayKeys[type]
+  return displayKeysByType[type] ?? []
 }
 
 export function nextRef(queries: readonly PanelQuery[]): string {
@@ -155,7 +101,11 @@ function removeQuery(panel: DataPanel, index: number) {
   panel.queries.splice(index, 1)
 }
 
-function setDisplay(panel: DataPanel, key: string, value: unknown) {
+function setDisplay(
+  panel: DataPanel | DashlistPanel,
+  key: string,
+  value: unknown
+) {
   const display: Record<string, unknown> = { ...panel.display }
   if (value === undefined) delete display[key]
   else display[key] = structuredClone(value)
@@ -237,10 +187,12 @@ export function draftReducer(
       }
       return withDraftPanel(state, panel)
     }
-    case "setDisplay":
-      return editData(state, (panel) =>
-        setDisplay(panel, action.key, action.value)
-      )
+    case "setDisplay": {
+      if (state.panel.type === "text") return state
+      const panel = structuredClone(state.panel)
+      setDisplay(panel, action.key, action.value)
+      return withDraftPanel(state, panel)
+    }
     case "setContent": {
       if (state.panel.type !== "text") return state
       const panel = structuredClone(state.panel)

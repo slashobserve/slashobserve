@@ -97,10 +97,12 @@ export function QueryRows({
     else addButton.current?.focus()
   }, [count, editorRefs])
 
+  if (draft.type === "dashlist") return null
+
   if (!isDataPanel(draft)) {
     return (
       <ContentField
-        value={draft.type === "text" ? draft.content : ""}
+        value={draft.content}
         readOnly={readOnly}
         onChange={(content) => dispatch({ type: "setContent", content })}
       />
