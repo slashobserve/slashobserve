@@ -292,7 +292,7 @@ func (a *Agent) loaded(ctx context.Context, dash dashboards.Dashboard, ver dashb
 	case ver.Spec == nil:
 		return nil, &safeError{message: "could not load the dashboard", code: codeLoadFailed, err: errors.New(noSpec)}
 	}
-	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec}, nil
+	return &revision{dashboardID: dash.ID, number: ver.Number, spec: ver.Spec, unverified: ver.Unverified}, nil
 }
 
 func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.Mode, statuses []datasource.Status, current *revision, out *Outcome) (bool, error) {

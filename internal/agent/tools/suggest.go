@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -59,10 +61,32 @@ func (r *Registry) suggestPanel(ctx context.Context, principal auth.Principal, r
 			return Result{}, err
 		}
 		if len(issues) > 0 {
-			return suggestionRejected(issues), nil
+			blocking, err := r.blockingSuggestionIssues(ctx, run, candidate, issues)
+			if err != nil {
+				return Result{}, err
+			}
+			if len(blocking) > 0 {
+				return suggestionRejected(blocking), nil
+			}
 		}
 	}
 	return success("Proposed a change to panel "+clip(run.PanelID, maxStepNameBytes), suggestedOut{Suggested: true, PanelID: run.PanelID, Panel: raw}), nil
+}
+
+func (r *Registry) blockingSuggestionIssues(ctx context.Context, run Run, candidate *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, error) {
+	id, err := db.ParseUUID(run.DashboardID)
+	if err != nil {
+		return nil, fmt.Errorf("run dashboard id: %w", err)
+	}
+	_, base, err := r.deps.Dashboards.GetVersion(ctx, id, run.ParentVersion)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		return issues, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_, blocking := dashboards.CarryUnverified(base.Spec, base.Unverified, candidate, issues)
+	return blocking, nil
 }
 
 func suggestionFailure(err error) (Result, error) {
