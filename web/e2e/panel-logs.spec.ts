@@ -121,7 +121,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openLogs(page, await createLogs(request))
 
       const rows = lines(page, "Oldest logs")
-      expect(await rows.count()).toBeGreaterThan(1)
+      await expect.poll(() => rows.count()).toBeGreaterThan(1)
       const first = await rows.first().locator("time").getAttribute("datetime")
       const last = await rows.last().locator("time").getAttribute("datetime")
       expect(Date.parse(first ?? "")).toBeLessThanOrEqual(

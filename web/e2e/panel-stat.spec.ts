@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test"
 
 import { createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard, panel } from "./dashboards"
+import { expectPanelsReady, openDashboard } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 async function createStats(request: APIRequestContext) {
@@ -17,7 +17,9 @@ async function openStats(page: Page, request: APIRequestContext) {
 }
 
 function tiles(page: Page, title: string): Locator {
-  return panel(page, title).locator("[data-stat-tile]")
+  return page
+    .getByRole("article", { name: title, exact: true })
+    .locator("[data-stat-tile]")
 }
 
 function style(

@@ -115,7 +115,7 @@ test("loads PromQL highlighting", async ({ page, request }) => {
     .poll(() => editor.locator('.cm-content [class*="tok-"]').count())
     .toBeGreaterThan(0)
   await expect(
-    sheet(page).getByRole("textbox", { name: "Query A" })
+    sheet(page).getByRole("textbox", { name: "Query A", exact: true })
   ).toBeVisible()
 })
 
@@ -140,6 +140,8 @@ test("shows a lint error inline", async ({ page, request }) => {
   await expect(sheet(page).locator(".cm-lintRange-error").first()).toBeVisible({
     timeout: 5_000,
   })
+  await page.keyboard.press("Escape")
+  await expect(page.locator(".cm-tooltip-autocomplete")).toHaveCount(0)
   const item = sheet(page)
     .getByRole("button", { name: /^Error:/ })
     .first()
@@ -521,7 +523,8 @@ test("confirms Escape once with an unsaved query and keeps or discards the draft
   await expect(sheet(page).locator(".cm-content")).toHaveText(savedQuery)
 
   await page.keyboard.press("Escape")
-  await page.getByRole("button", { name: "Discard" }).click()
+  await expect(discardDialog(page)).toBeVisible()
+  await discardDialog(page).getByRole("button", { name: "Discard" }).click()
   await expect(sheet(page)).toHaveCount(0)
   await expect(page).not.toHaveURL(/panel=|edit=/)
   await expect(page.locator('[data-panel-menu="rps"]')).toBeFocused()
@@ -1052,7 +1055,10 @@ test("moves between Editor and JSON with the arrow keys and keeps focus on the s
 })
 
 function queryEditor(page: Page, ref: string) {
-  return sheet(page).getByRole("textbox", { name: `Query ${ref}` })
+  return sheet(page).getByRole("textbox", {
+    name: `Query ${ref}`,
+    exact: true,
+  })
 }
 
 async function addSecondQuery(page: Page) {

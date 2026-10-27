@@ -126,11 +126,12 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("names reduced rows by the legend", async ({ page, request }) => {
       await openTables(page, await createTables(request))
 
-      const names = await panel(page, "Targets by job")
-        .locator('td[data-column="Field"]')
-        .allTextContents()
-      expect(names.length).toBeGreaterThan(0)
-      for (const name of names) expect(name).not.toContain("{")
+      const cells = panel(page, "Targets by job").locator(
+        'td[data-column="Field"]'
+      )
+      await expect.poll(() => cells.count()).toBeGreaterThan(0)
+      for (const name of await cells.allTextContents())
+        expect(name).not.toContain("{")
     })
   })
 }
