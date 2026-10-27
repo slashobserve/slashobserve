@@ -27,6 +27,7 @@ type Props = {
   readOnly: boolean
   issuesByQuery: ReadonlyMap<string, string[]>
   onActiveChange: (index: number) => void
+  onRemoved: (ref: string) => void
   focusFirst: boolean
   editorRefs: RefObject<(CodeEditorHandle | null)[]>
   beforeAdd?: ReactNode
@@ -75,6 +76,7 @@ export function QueryRows({
   readOnly,
   issuesByQuery,
   onActiveChange,
+  onRemoved,
   focusFirst,
   editorRefs,
   beforeAdd,
@@ -136,6 +138,7 @@ export function QueryRows({
             }
             onRemove={() => {
               removedAt.current = index
+              onRemoved(ref)
               dispatch({ type: "removeQuery", index })
             }}
             onFocus={() => onActiveChange(index)}

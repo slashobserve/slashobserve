@@ -12,7 +12,12 @@ const unknownDatasourceText =
 export type Problem =
   | { kind: "conflict"; latest: number }
   | { kind: "gone" }
-  | { kind: "rejected"; issues: ApiIssue[]; pointer: string; refs: string[] }
+  | {
+      kind: "rejected"
+      issues: ApiIssue[]
+      pointer: string
+      refs: (string | null)[]
+    }
   | { kind: "transient" }
   | { kind: "invalid"; issues: JsonIssue[] }
   | { kind: "clash"; version: number; issues: JsonIssue[] }
@@ -24,21 +29,28 @@ type Rejected = {
   dashboard: ApiIssue[]
 }
 
+function queryRefOf(
+  issue: ApiIssue,
+  pointer: string,
+  refs: readonly (string | null)[]
+): string | null | undefined {
+  const queries = `${pointer}/queries/`
+  if (!issue.path.startsWith(queries)) return undefined
+  return refs[Number(issue.path.slice(queries.length).split("/")[0])]
+}
+
 export function splitRejected(
   issues: ApiIssue[],
   pointer: string,
-  refs: readonly string[]
+  refs: readonly (string | null)[]
 ): Rejected {
-  const queries = `${pointer}/queries/`
   const own = `${pointer}/`
   const out: Rejected = { byQuery: new Map(), panel: [], dashboard: [] }
   for (const issue of issues.filter((item) => !isTransient(item))) {
-    if (issue.path.startsWith(queries)) {
-      const ref = refs[Number(issue.path.slice(queries.length).split("/")[0])]
-      if (ref !== undefined) {
-        out.byQuery.set(ref, [...(out.byQuery.get(ref) ?? []), issue])
-        continue
-      }
+    const ref = queryRefOf(issue, pointer, refs)
+    if (typeof ref === "string") {
+      out.byQuery.set(ref, [...(out.byQuery.get(ref) ?? []), issue])
+      continue
     }
     if (issue.path === pointer || issue.path.startsWith(own)) {
       out.panel.push(issue)
@@ -47,6 +59,23 @@ export function splitRejected(
     }
   }
   return out
+}
+
+export function withoutQuery(
+  problem: Problem | null,
+  ref: string
+): Problem | null {
+  if (problem?.kind !== "rejected") return problem
+  const issues = problem.issues.filter(
+    (issue) => queryRefOf(issue, problem.pointer, problem.refs) !== ref
+  )
+  if (issues.length === problem.issues.length) return problem
+  if (issues.length === 0) return null
+  return {
+    ...problem,
+    issues,
+    refs: problem.refs.map((item) => (item === ref ? null : item)),
+  }
 }
 
 export function rejectedQueryLines(

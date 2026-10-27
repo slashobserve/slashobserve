@@ -54,6 +54,7 @@ import {
   SaveProblem,
   rejectedQueryLines,
   showsProblem,
+  withoutQuery,
   type Problem,
 } from "./save-problem"
 import { SettingsColumn } from "./settings-column"
@@ -390,6 +391,9 @@ export default function PanelEditor({
                   readOnly={readOnly}
                   issuesByQuery={issuesByQuery}
                   onActiveChange={setActiveQuery}
+                  onRemoved={(ref) =>
+                    setProblem((current) => withoutQuery(current, ref))
+                  }
                   focusFirst={focusFirstQuery}
                   editorRefs={editorRefs}
                   beforeAdd={

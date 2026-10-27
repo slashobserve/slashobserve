@@ -6,6 +6,7 @@ import {
   rejectedQueryLines,
   showsProblem,
   splitRejected,
+  withoutQuery,
   type Problem,
 } from "./save-problem"
 
@@ -139,6 +140,43 @@ describe("rejectedQueryLines", () => {
   it("has no lines for any other problem", () => {
     expect(rejectedQueryLines({ kind: "gone" }).size).toBe(0)
     expect(rejectedQueryLines(null).size).toBe(0)
+  })
+})
+
+describe("withoutQuery", () => {
+  const rejected: Problem = {
+    kind: "rejected",
+    pointer,
+    refs: ["A", "B"],
+    issues: [
+      issue("/panels/1/queries/0/query"),
+      issue("/panels/1/queries/1/query"),
+      issue("/panels/1/title"),
+    ],
+  }
+
+  it("drops the issues of the removed query and keeps the rest", () => {
+    const next = withoutQuery(rejected, "A")
+    expect(next).toMatchObject({
+      kind: "rejected",
+      refs: [null, "B"],
+      issues: [issue("/panels/1/queries/1/query"), issue("/panels/1/title")],
+    })
+    expect(rejectedQueryLines(next).has("A")).toBe(false)
+  })
+
+  it("clears the problem when the removed query held every issue", () => {
+    const only: Problem = {
+      ...rejected,
+      issues: [issue("/panels/1/queries/0/query")],
+    } as Problem
+    expect(withoutQuery(only, "A")).toBeNull()
+  })
+
+  it("leaves other problems and unrelated removals alone", () => {
+    expect(withoutQuery(rejected, "C")).toBe(rejected)
+    expect(withoutQuery({ kind: "gone" }, "A")).toEqual({ kind: "gone" })
+    expect(withoutQuery(null, "A")).toBeNull()
   })
 })
 
