@@ -5,6 +5,7 @@ import "uplot/dist/uPlot.min.css"
 import type { PanelDataMeta } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { formatDateTime } from "@/lib/time"
+import { timeLabel } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
 import { axisDecimals, formatAxisValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
@@ -82,18 +83,13 @@ type PlotConfig = {
   latest: { current: Latest }
 }
 
-const dayMs = 86_400_000
 const tickEdgeGap = 24
 
 function timeLabels(splits: (number | null)[], spanSeconds: number): string[] {
   const spanMs = spanSeconds * 1000
-  return splits.map((seconds) => {
-    if (seconds === null) return ""
-    const text = formatDateTime(seconds * 1000)
-    if (spanMs > 7 * dayMs) return text.slice(5, 10)
-    if (spanMs > dayMs) return text.slice(5, 16)
-    return spanMs < 300_000 ? text.slice(11, 19) : text.slice(11, 16)
-  })
+  return splits.map((seconds) =>
+    seconds === null ? "" : timeLabel(seconds * 1000, spanMs)
+  )
 }
 
 const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
