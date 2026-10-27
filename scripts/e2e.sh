@@ -2126,7 +2126,7 @@ mcp_expect() {
 mcp_suite() {
   api_token
   local out id name leak label args panel cid wid vid
-  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide lint_query list_comments list_dashboards list_datasources
+  local tool_names=(create_dashboard get_dashboard get_schema get_spec_guide import_grafana_dashboard lint_query list_comments list_dashboards list_datasources
     list_label_values list_labels list_metrics query_instant query_range reply_to_comment resolve_comment sample_rows update_dashboard)
   : >"$TMP/mcp-all.body"
 
