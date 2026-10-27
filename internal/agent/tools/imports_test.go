@@ -14,7 +14,7 @@ func TestAttentionOf(t *testing.T) {
 		{PanelID: "p10", Title: "Requests by pod", Status: "placeholder", Reasons: []string{"Grafana panel type barchart is not supported yet."}},
 		{PanelID: "p11", Title: "No reason", Status: "unverified"},
 	}}
-	want := []attentionOut{
+	want := []Attention{
 		{PanelID: "p2", Title: "Latency", Status: "partial", Reason: "first"},
 		{PanelID: "p10", Title: "Requests by pod", Status: "placeholder", Reason: "Grafana panel type barchart is not supported yet."},
 		{PanelID: "p11", Title: "No reason", Status: "unverified"},
@@ -24,6 +24,25 @@ func TestAttentionOf(t *testing.T) {
 	}
 	if got := attentionOf(grafana.Report{}); got == nil || len(got) != 0 {
 		t.Fatalf("empty report attention = %#v, want an empty non-nil list", got)
+	}
+}
+
+func TestConversionAttentionDropsUnverified(t *testing.T) {
+	report := grafana.Report{Panels: []grafana.PanelLine{
+		{PanelID: "p1", Title: "Requests", Status: "imported"},
+		{PanelID: "p2", Title: "Latency", Status: "partial", Reasons: []string{"first", "second"}},
+		{PanelID: "p10", Title: "Requests by pod", Status: "placeholder", Reasons: []string{"Grafana panel type barchart is not supported yet."}},
+		{PanelID: "p11", Title: "No reason", Status: "unverified"},
+	}}
+	want := []Attention{
+		{PanelID: "p2", Title: "Latency", Status: "partial", Reason: "first"},
+		{PanelID: "p10", Title: "Requests by pod", Status: "placeholder", Reason: "Grafana panel type barchart is not supported yet."},
+	}
+	if got := ConversionAttention(report); !reflect.DeepEqual(got, want) {
+		t.Fatalf("conversion attention = %+v, want %+v", got, want)
+	}
+	if got := ConversionAttention(grafana.Report{}); got == nil || len(got) != 0 {
+		t.Fatalf("empty report conversion attention = %#v, want an empty non-nil list", got)
 	}
 }
 

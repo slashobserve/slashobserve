@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
@@ -14,7 +15,8 @@ const (
 	codeDatasourcesUnresolved = "datasources_unresolved"
 	codeTooManyImports        = "too_many_imports"
 
-	statusImported grafana.Status = "imported"
+	statusImported   grafana.Status = "imported"
+	statusUnverified grafana.Status = "unverified"
 )
 
 var errImportsNotConfigured = errors.New("imports are not configured")
@@ -25,7 +27,7 @@ func (r *Registry) importEntries() []entry {
 	}
 }
 
-type attentionOut struct {
+type Attention struct {
 	PanelID string         `json:"panel_id"`
 	Title   string         `json:"title"`
 	Status  grafana.Status `json:"status"`
@@ -39,7 +41,7 @@ type importedOut struct {
 	Title       string         `json:"title"`
 	Replayed    bool           `json:"replayed"`
 	Counts      grafana.Counts `json:"counts"`
-	Attention   []attentionOut `json:"attention"`
+	Attention   []Attention    `json:"attention"`
 	Truncated   bool           `json:"truncated"`
 }
 
@@ -63,19 +65,23 @@ type unresolvedOut struct {
 	Truncated   bool               `json:"truncated,omitempty"`
 }
 
-func attentionOf(report grafana.Report) []attentionOut {
-	out := []attentionOut{}
+func attentionOf(report grafana.Report) []Attention {
+	out := []Attention{}
 	for _, line := range report.Panels {
 		if line.Status == statusImported {
 			continue
 		}
-		row := attentionOut{PanelID: line.PanelID, Title: line.Title, Status: line.Status}
+		row := Attention{PanelID: line.PanelID, Title: line.Title, Status: line.Status}
 		if len(line.Reasons) > 0 {
 			row.Reason = line.Reasons[0]
 		}
 		out = append(out, row)
 	}
 	return out
+}
+
+func ConversionAttention(report grafana.Report) []Attention {
+	return slices.DeleteFunc(attentionOf(report), func(a Attention) bool { return a.Status == statusUnverified })
 }
 
 func unresolvedRows(list []grafana.SourceDatasource) []unresolvedRowOut {

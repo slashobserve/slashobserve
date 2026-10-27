@@ -216,6 +216,7 @@ func run() error {
 			Tools:       toolRegistry,
 			Dashboards:  dashboardsService,
 			Datasources: registry,
+			Imports:     importsService,
 			Logger:      logger,
 		}), revisions.NewSteps(database, logger))
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
