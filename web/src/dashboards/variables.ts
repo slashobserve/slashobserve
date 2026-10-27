@@ -128,6 +128,14 @@ function fromUrl(
   return variable.multi ? concrete : [concrete[0]]
 }
 
+function declaredSelection(
+  variable: QueryVariable | CustomVariable
+): string[] | undefined {
+  const values = [variable.default ?? []].flat()
+  if (values.length === 0) return undefined
+  return values.includes(ALL) ? [ALL] : values
+}
+
 function intervalSelection(
   variable: IntervalVariable,
   urlValue: string | undefined
@@ -190,8 +198,11 @@ export function resolveSelections(
       }
       default: {
         const explicit = fromUrl(variable, urlValues)
+        const declared = declaredSelection(variable)
         if (explicit.length > 0) {
           selections[variable.name] = explicit
+        } else if (declared) {
+          selections[variable.name] = declared
         } else if (variable.includeAll) {
           selections[variable.name] = [ALL]
         } else {
