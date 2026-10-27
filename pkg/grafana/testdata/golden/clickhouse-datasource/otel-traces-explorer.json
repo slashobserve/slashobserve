@@ -29,9 +29,9 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 0,
+      "imported": 1,
       "partial": 7,
-      "placeholder": 1,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -40,28 +40,26 @@
         "grafana_id": 55,
         "grafana_path": "panels[1]",
         "title": "Service Map",
-        "type": "placeholder",
+        "type": "nodeGraph",
         "source_type": "nodeGraph",
         "row": "System Topology",
-        "status": "placeholder",
-        "reasons": [
-          "Grafana panel type nodeGraph is not supported yet."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "nodes",
-            "ref": null,
-            "datasource": null,
+            "ref": "nodes",
+            "datasource": "ch",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           },
           {
             "ref_id": "edges",
-            "ref": null,
-            "datasource": null,
+            "ref": "edges",
+            "datasource": "ch",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -442,7 +440,7 @@
         "panels": [
           {
             "id": "p55",
-            "type": "placeholder",
+            "type": "nodeGraph",
             "title": "Service Map",
             "description": "Cross-service call graph from parent-child span joins. Edge counts are calls between services; node arcs show success vs error fraction. Limited to top 30 services and top 50 edges.",
             "gridPos": {
@@ -451,8 +449,33 @@
               "w": 24,
               "h": 10
             },
-            "reason": "Grafana panel type nodeGraph is not supported yet.",
-            "sourceType": "nodeGraph"
+            "datasource": "ch",
+            "queries": [
+              {
+                "ref": "nodes",
+                "query": "SELECT\n  ServiceName AS id,\n  ServiceName AS title,\n  concat(toString(count()), ' spans') AS mainstat,\n  concat(toString(round(avg(Duration) / 1000000, 1)), ' ms avg') AS secondarystat,\n  (count() - countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR'))) / count() AS arc__success,\n  countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) / count() AS arc__errors\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\nGROUP BY ServiceName\nORDER BY count() DESC\nLIMIT 30",
+                "format": "table"
+              },
+              {
+                "ref": "edges",
+                "query": "SELECT\n  concat(parent.ServiceName, '-', child.ServiceName) AS id,\n  parent.ServiceName AS source,\n  child.ServiceName AS target,\n  concat(toString(count()), ' calls') AS mainstat\nFROM ${database}.otel_traces AS child\nINNER JOIN ${database}.otel_traces AS parent\n  ON child.ParentSpanId = parent.SpanId\n  AND child.TraceId = parent.TraceId\nWHERE $__timeFilter(child.Timestamp)\n  AND $__timeFilter(parent.Timestamp)\n  AND parent.ServiceName != child.ServiceName\nGROUP BY source, target\nORDER BY count() DESC\nLIMIT 50",
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "arc__success"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "field": "arc__errors"
+                },
+                "color": "#F2495C"
+              }
+            ]
           }
         ]
       },

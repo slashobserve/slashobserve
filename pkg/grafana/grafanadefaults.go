@@ -126,6 +126,24 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 	spec.Text: {
 		"options.mode": "markdown",
 	},
+	spec.BarChart: {
+		"options.xTickLabelRotation": 0,
+		"options.xTickLabelSpacing":  0,
+		"options.barRadius":          0,
+		"options.fullHighlight":      false,
+	},
+	spec.StatusHistory: {
+		"options.colWidth": 0.9,
+	},
+	spec.XYChart: {
+		"options.mapping":                              "auto",
+		"fieldConfig.defaults.custom.pointShape":       "circle",
+		"fieldConfig.defaults.custom.pointStrokeWidth": 1,
+	},
+	spec.Candlestick: {
+		"options.colors.flat":      "gray",
+		"options.includeAllFields": false,
+	},
 }
 
 var partialReasons = map[string]string{
@@ -143,6 +161,12 @@ var partialReasons = map[string]string{
 	"options.minVizWidth":                           "Size limits are not kept.",
 	"options.showThresholdLabels":                   "Threshold labels are not shown.",
 	"fieldConfig.defaults.color":                    "This color scheme is not supported yet; series use the default palette.",
+	"options.colorByField":                          "Coloring bars by a field is not supported yet.",
+	"options.xTickLabelRotation":                    "Axis labels are drawn in the SlashObserve style.",
+	"options.xTickLabelSpacing":                     "Axis labels are drawn in the SlashObserve style.",
+	"options.barRadius":                             "Bars are drawn in the SlashObserve style.",
+	"options.fullHighlight":                         "Highlighting a whole bar group is not supported yet.",
+	"options.includeAllFields":                      "Drawing the other fields as lines is not supported yet.",
 }
 
 type cosmeticOption struct {
@@ -178,6 +202,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"fieldConfig.defaults.custom.width": {
 		why: "table columns are sized by the browser from their content and have no fixed width",
+	},
+	"options.zoomMode": {
+		why: "the node graph zooms only with its own buttons and ignores the scroll wheel",
 	},
 	"fieldConfig.overrides[].__systemRef": {
 		why: "bookkeeping marker Grafana writes when a legend click hides a series; the hideFrom property beside it is the converted part",

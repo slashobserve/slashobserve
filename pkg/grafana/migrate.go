@@ -47,13 +47,15 @@ func panelTypeOf(p map[string]any) (typ, sourceType string) {
 	switch sourceType {
 	case "graph":
 		return "timeseries", sourceType
-	case "singlestat":
+	case "singlestat", "grafana-singlestat-panel":
 		if g, ok := asObject(p["gauge"]); ok && truthy(g["show"]) {
 			return "gauge", sourceType
 		}
 		return "stat", sourceType
-	case "table-old":
+	case "table-old", "datagrid", "logstable":
 		return "table", sourceType
+	case "logs-new":
+		return "logs", sourceType
 	case "grafana-piechart-panel":
 		return "piechart", sourceType
 	}

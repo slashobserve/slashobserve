@@ -30,8 +30,8 @@
     "counts": {
       "total": 16,
       "imported": 2,
-      "partial": 12,
-      "placeholder": 2,
+      "partial": 14,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -244,21 +244,26 @@
         "grafana_id": 12,
         "grafana_path": "panels[7]",
         "title": "Database engines",
-        "type": "placeholder",
+        "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "Grafana panel type barchart is not supported yet."
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look."
         ],
-        "paths": [],
+        "paths": [
+          "fieldConfig.defaults.custom.axisGridShow",
+          "fieldConfig.defaults.custom.axisSoftMin",
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "ch",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -267,21 +272,26 @@
         "grafana_id": 11,
         "grafana_path": "panels[8]",
         "title": "Table engines",
-        "type": "placeholder",
+        "type": "barchart",
         "source_type": "barchart",
         "row": null,
-        "status": "placeholder",
+        "status": "partial",
         "reasons": [
-          "Grafana panel type barchart is not supported yet."
+          "Some Grafana options of this panel are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look."
         ],
-        "paths": [],
+        "paths": [
+          "fieldConfig.defaults.custom.axisGridShow",
+          "fieldConfig.defaults.custom.axisSoftMin",
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "ch",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -786,7 +796,7 @@
       },
       {
         "id": "p12",
-        "type": "placeholder",
+        "type": "barchart",
         "title": "Database engines",
         "gridPos": {
           "x": 15,
@@ -794,12 +804,21 @@
           "w": 4,
           "h": 9
         },
-        "reason": "Grafana panel type barchart is not supported yet.",
-        "sourceType": "barchart"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT engine, count() \"Number of databases\" FROM system.databases WHERE name IN (${database:singlequote}) GROUP BY engine ",
+            "format": "table"
+          }
+        ],
+        "fill": 61,
+        "display": {
+          "barWidth": 1
+        }
       },
       {
         "id": "p11",
-        "type": "placeholder",
+        "type": "barchart",
         "title": "Table engines",
         "gridPos": {
           "x": 19,
@@ -807,8 +826,14 @@
           "w": 5,
           "h": 9
         },
-        "reason": "Grafana panel type barchart is not supported yet.",
-        "sourceType": "barchart"
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT engine, count() \"Number of tables\" FROM system.tables WHERE database IN (${database:singlequote}) AND notLike(engine,'System%')  AND name IN (${table:singlequote}) GROUP BY engine ORDER BY count() DESC",
+            "format": "table"
+          }
+        ],
+        "fill": 61
       },
       {
         "id": "p6",

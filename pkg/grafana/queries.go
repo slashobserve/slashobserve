@@ -21,7 +21,6 @@ const (
 	sqlFormatTable    = 1
 	sqlFormatLogs     = 2
 	sqlFormatTraces   = 3
-	tracesDropped     = "Trace queries are not supported yet."
 	expressionDropped = "Server-side expressions are not supported yet."
 )
 
@@ -304,7 +303,7 @@ func (tb *targetBuild) clickHouseFormat() (string, string) {
 	case "logs":
 		return "logs", ""
 	case "traces":
-		return "", tracesDropped
+		return "table", ""
 	}
 	n, _ := asInt(tb.t["format"])
 	switch n {
@@ -313,7 +312,7 @@ func (tb *targetBuild) clickHouseFormat() (string, string) {
 	case sqlFormatLogs:
 		return "logs", ""
 	case sqlFormatTraces:
-		return "", tracesDropped
+		return "table", ""
 	}
 	return "", ""
 }
@@ -335,7 +334,7 @@ func (tb *targetBuild) altinity(declared map[string]bool) (spec.Query, string) {
 	case "logs":
 		q.Format = "logs"
 	case "traces", "flamegraph":
-		return spec.Query{}, tracesDropped
+		q.Format = "table"
 	}
 	if factor, ok := asFloat(tb.t["intervalFactor"]); ok && factor != 1 {
 		tb.partial("intervalFactor", "The resolution factor of this query is not supported yet.")

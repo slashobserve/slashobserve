@@ -27,7 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
-	minimumFull   = 16.5
+	minimumFull   = 16.9
 	maxLinePaths  = 100
 	tooManyPanels = "too_many_panels"
 )

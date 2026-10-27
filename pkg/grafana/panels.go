@@ -14,12 +14,26 @@ const (
 	maxTextContent      = 20000
 	maxPanelPaths       = 100
 	noQueriesReason     = "None of this panel's queries can be imported."
+	homePanelReason     = "Grafana's home page panels have no SlashObserve equivalent."
+	debugPanelReason    = "Grafana's debug and live panels have no SlashObserve equivalent."
 )
 
 var convertiblePanelTypes = map[spec.PanelType]bool{
 	spec.Timeseries: true, spec.Stat: true, spec.Gauge: true, spec.BarGauge: true,
 	spec.Table: true, spec.PieChart: true, spec.Heatmap: true, spec.Histogram: true,
 	spec.StateTimeline: true, spec.Logs: true, spec.Text: true,
+	spec.BarChart: true, spec.StatusHistory: true, spec.Trend: true, spec.XYChart: true,
+	spec.Candlestick: true, spec.NodeGraph: true, spec.Traces: true, spec.FlameGraph: true,
+}
+
+var placeholderReasons = map[string]string{
+	"annolist":       "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+	"news":           "SlashObserve does not fetch RSS feeds yet.",
+	"welcome":        homePanelReason,
+	"gettingstarted": homePanelReason,
+	"debug":          debugPanelReason,
+	"live":           debugPanelReason,
+	"alertGroups":    "Alertmanager is not supported yet.",
 }
 
 var silentPanelKeys = map[string]bool{
@@ -178,6 +192,9 @@ func (c *converter) datasourceReason(n *panelNode) string {
 
 func (c *converter) unsupportedReason(n *panelNode) string {
 	if reason := c.datasourceReason(n); reason != "" {
+		return reason
+	}
+	if reason, ok := placeholderReasons[n.sourceType]; ok {
 		return reason
 	}
 	return fmt.Sprintf("Grafana panel type %s is not supported yet.", n.sourceType)

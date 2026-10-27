@@ -1,0 +1,941 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Panel types A",
+    "uid": "panel-types-a",
+    "schema_version": 39,
+    "bytes": 24069,
+    "panels": 19,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 5,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    },
+    {
+      "key": "${DS_CLICKHOUSE}",
+      "name": "ClickHouse",
+      "type": "grafana-clickhouse-datasource",
+      "kind": "clickhouse",
+      "panels": 7,
+      "match": "ch",
+      "matched_by": "only",
+      "candidates": [
+        "ch"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 19,
+      "imported": 6,
+      "partial": 6,
+      "placeholder": 7,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Requests by pod",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Coloring bars by a field is not supported yet.",
+          "Axis labels are drawn in the SlashObserve style."
+        ],
+        "paths": [
+          "options.colorByField",
+          "options.xTickLabelRotation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Service up",
+        "type": "status-history",
+        "source_type": "status-history",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Row height and column width are fixed.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.rowHeight",
+          "options.legend.showLegend"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Latency by payload size",
+        "type": "trend",
+        "source_type": "trend",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Body length against severity",
+        "type": "xychart",
+        "source_type": "xychart",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Choosing the Y, color and size fields is not supported; they are picked automatically."
+        ],
+        "paths": [
+          "options.series[0].y"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Open file descriptors",
+        "type": "candlestick",
+        "source_type": "candlestick",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "open",
+            "ref": "open",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "high",
+            "ref": "high",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "low",
+            "ref": "low",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "close",
+            "ref": "close",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Service map",
+        "type": "nodeGraph",
+        "source_type": "nodeGraph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The force layout is drawn layered."
+        ],
+        "paths": [
+          "options.layoutAlgorithm"
+        ],
+        "queries": [
+          {
+            "ref_id": "nodes",
+            "ref": "nodes",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "edges",
+            "ref": "edges",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Recent traces",
+        "type": "traces",
+        "source_type": "traces",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "CPU profile",
+        "type": "flamegraph",
+        "source_type": "flamegraph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Inventory grid",
+        "type": "table",
+        "source_type": "datagrid",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Editing cells is not supported; the grid is shown as a table."
+        ],
+        "paths": [
+          "options.selectedSeries"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Recent logs",
+        "type": "logs",
+        "source_type": "logs-new",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Logs as a table",
+        "type": "table",
+        "source_type": "logstable",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Error ratio",
+        "type": "stat",
+        "source_type": "grafana-singlestat-panel",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "Recent annotations",
+        "type": "placeholder",
+        "source_type": "annolist",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "SlashObserve has no annotations yet, so an annotation list has nothing to show."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Grafana news",
+        "type": "placeholder",
+        "source_type": "news",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "SlashObserve does not fetch RSS feeds yet."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[14]",
+        "title": "Welcome",
+        "type": "placeholder",
+        "source_type": "welcome",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana's home page panels have no SlashObserve equivalent."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[15]",
+        "title": "Getting started",
+        "type": "placeholder",
+        "source_type": "gettingstarted",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana's home page panels have no SlashObserve equivalent."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[16]",
+        "title": "Debug",
+        "type": "placeholder",
+        "source_type": "debug",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana's debug and live panels have no SlashObserve equivalent."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[17]",
+        "title": "Live",
+        "type": "placeholder",
+        "source_type": "live",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana's debug and live panels have no SlashObserve equivalent."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[18]",
+        "title": "Alert groups",
+        "type": "placeholder",
+        "source_type": "alertGroups",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Alertmanager is not supported yet."
+        ],
+        "paths": [],
+        "queries": []
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Panel types A",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p1",
+        "type": "barchart",
+        "title": "Requests by pod",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (pod) (increase(http_requests_total[$__range]))",
+            "legend": "{{pod}}",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "unit": "short",
+        "fill": 80,
+        "stack": "normal",
+        "display": {
+          "orientation": "horizontal",
+          "showValues": "always",
+          "xField": "pod",
+          "barWidth": 0.6
+        }
+      },
+      {
+        "id": "p2",
+        "type": "status-history",
+        "title": "Service up",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "up",
+            "legend": "{{job}}"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "mappings": [
+          {
+            "value": "1",
+            "text": "Up",
+            "color": "ok"
+          },
+          {
+            "value": "0",
+            "text": "Down",
+            "color": "critical"
+          }
+        ],
+        "fill": 70,
+        "display": {
+          "showValues": "never"
+        }
+      },
+      {
+        "id": "p3",
+        "type": "trend",
+        "title": "Latency by payload size",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT toUInt32(length(Body) / 100) * 100 AS size, avg(length(Body)) AS avg_len FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY size ORDER BY size",
+            "format": "table"
+          }
+        ],
+        "unit": "bytes",
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all",
+          "xField": "size"
+        }
+      },
+      {
+        "id": "p4",
+        "type": "xychart",
+        "title": "Body length against severity",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT SeverityNumber AS severity, length(Body) AS body_length FROM otel_logs WHERE $__timeFilter(Timestamp) LIMIT 500",
+            "format": "table"
+          }
+        ],
+        "fill": 50,
+        "display": {
+          "xField": "severity",
+          "show": "points+lines",
+          "pointSize": 6
+        }
+      },
+      {
+        "id": "p5",
+        "type": "candlestick",
+        "title": "Open file descriptors",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "ref": "open",
+            "query": "min_over_time(process_open_fds[5m])",
+            "legend": "open"
+          },
+          {
+            "ref": "high",
+            "query": "max_over_time(process_open_fds[5m])",
+            "legend": "high"
+          },
+          {
+            "ref": "low",
+            "query": "min_over_time(process_open_fds[5m])",
+            "legend": "low"
+          },
+          {
+            "ref": "close",
+            "query": "process_open_fds",
+            "legend": "close"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "mode": "candles",
+          "candleStyle": "ohlcbars",
+          "colorStrategy": "close-close",
+          "upColor": "info",
+          "downColor": "warning",
+          "open": "open",
+          "high": "high",
+          "low": "low",
+          "close": "close"
+        }
+      },
+      {
+        "id": "p6",
+        "type": "nodeGraph",
+        "title": "Service map",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "ref": "nodes",
+            "query": "SELECT ServiceName AS id, ServiceName AS title, toString(count()) AS mainstat, toString(round(avg(Duration) / 1000000, 1)) AS secondarystat, (count() - countIf(StatusCode = 'Error')) / count() AS arc__success, countIf(StatusCode = 'Error') / count() AS arc__errors FROM otel_traces WHERE $__timeFilter(Timestamp) GROUP BY ServiceName LIMIT 30",
+            "format": "table"
+          },
+          {
+            "ref": "edges",
+            "query": "SELECT concat(p.ServiceName, '-', c.ServiceName) AS id, p.ServiceName AS source, c.ServiceName AS target, count() AS mainstat FROM otel_traces AS c INNER JOIN otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId WHERE $__timeFilter(c.Timestamp) AND p.ServiceName != c.ServiceName GROUP BY source, target LIMIT 50",
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "mainstat"
+            },
+            "unit": "ms"
+          },
+          {
+            "match": {
+              "field": "secondarystat"
+            },
+            "unit": "percentunit"
+          },
+          {
+            "match": {
+              "field": "arc__success"
+            },
+            "color": "#73BF69"
+          },
+          {
+            "match": {
+              "field": "arc__errors"
+            },
+            "color": "#F2495C"
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "traces",
+        "title": "Recent traces",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 200",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": "p8",
+        "type": "flamegraph",
+        "title": "CPU profile",
+        "gridPos": {
+          "x": 12,
+          "y": 26,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT stack AS label, 0 AS level, sum(samples) AS value, sum(samples) AS self FROM profiles WHERE $__timeFilter(Timestamp) GROUP BY stack",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": "p9",
+        "type": "table",
+        "title": "Inventory grid",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "kube_pod_info",
+            "legend": "__auto",
+            "instant": true,
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "logs",
+        "title": "Recent logs",
+        "gridPos": {
+          "x": 12,
+          "y": 34,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT Timestamp AS timestamp, Body AS body, SeverityText AS level FROM otel_logs WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 200",
+            "format": "logs"
+          }
+        ],
+        "display": {
+          "wrap": true,
+          "showTime": true,
+          "order": "oldest"
+        }
+      },
+      {
+        "id": "p11",
+        "type": "table",
+        "title": "Logs as a table",
+        "gridPos": {
+          "x": 0,
+          "y": 40,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "ch",
+        "queries": [
+          {
+            "query": "SELECT Timestamp AS timestamp, Body AS body, SeverityText AS level FROM otel_logs WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 200",
+            "format": "logs"
+          }
+        ]
+      },
+      {
+        "id": "p12",
+        "type": "stat",
+        "title": "Error ratio",
+        "gridPos": {
+          "x": 12,
+          "y": 42,
+          "w": 6,
+          "h": 4
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(http_requests_total{code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))"
+          }
+        ],
+        "unit": "percentunit",
+        "decimals": 2,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 0.01,
+            "color": "warning"
+          },
+          {
+            "value": 0.05,
+            "color": "critical"
+          }
+        ],
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "display": {
+          "graph": false
+        }
+      },
+      {
+        "id": "p13",
+        "type": "placeholder",
+        "title": "Recent annotations",
+        "gridPos": {
+          "x": 18,
+          "y": 42,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+        "sourceType": "annolist"
+      },
+      {
+        "id": "p14",
+        "type": "placeholder",
+        "title": "Grafana news",
+        "gridPos": {
+          "x": 0,
+          "y": 48,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "SlashObserve does not fetch RSS feeds yet.",
+        "sourceType": "news"
+      },
+      {
+        "id": "p15",
+        "type": "placeholder",
+        "title": "Welcome",
+        "gridPos": {
+          "x": 6,
+          "y": 48,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "Grafana's home page panels have no SlashObserve equivalent.",
+        "sourceType": "welcome"
+      },
+      {
+        "id": "p16",
+        "type": "placeholder",
+        "title": "Getting started",
+        "gridPos": {
+          "x": 12,
+          "y": 46,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "Grafana's home page panels have no SlashObserve equivalent.",
+        "sourceType": "gettingstarted"
+      },
+      {
+        "id": "p17",
+        "type": "placeholder",
+        "title": "Debug",
+        "gridPos": {
+          "x": 18,
+          "y": 46,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "Grafana's debug and live panels have no SlashObserve equivalent.",
+        "sourceType": "debug"
+      },
+      {
+        "id": "p18",
+        "type": "placeholder",
+        "title": "Live",
+        "gridPos": {
+          "x": 0,
+          "y": 52,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "Grafana's debug and live panels have no SlashObserve equivalent.",
+        "sourceType": "live"
+      },
+      {
+        "id": "p19",
+        "type": "placeholder",
+        "title": "Alert groups",
+        "gridPos": {
+          "x": 6,
+          "y": 52,
+          "w": 6,
+          "h": 4
+        },
+        "reason": "Alertmanager is not supported yet.",
+        "sourceType": "alertGroups"
+      }
+    ]
+  }
+}

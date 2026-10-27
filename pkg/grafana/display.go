@@ -35,6 +35,12 @@ var displayBuilders = map[spec.PanelType]func(*panelBuild){
 	spec.Histogram:     displayHistogram,
 	spec.StateTimeline: displayStateTimeline,
 	spec.Logs:          displayLogs,
+	spec.BarChart:      displayBarChart,
+	spec.StatusHistory: displayStatusHistory,
+	spec.Trend:         displayTrend,
+	spec.XYChart:       displayXYChart,
+	spec.Candlestick:   displayCandlestick,
+	spec.NodeGraph:     displayNodeGraph,
 }
 
 func (b *panelBuild) convertDisplay() {
@@ -113,11 +119,15 @@ func (b *panelBuild) legendPlacement(fallback string) string {
 
 func displayTimeseries(b *panelBuild) {
 	d := b.disp()
-	if placement := b.legendPlacement(""); placement != "" {
-		d.Legend = placement
-	}
+	b.legendAndTooltip(d)
 	if v, ok := b.value("options.legend.calcs"); ok {
 		d.LegendValues = b.legendValues(v)
+	}
+}
+
+func (b *panelBuild) legendAndTooltip(d *spec.Display) {
+	if placement := b.legendPlacement(""); placement != "" {
+		d.Legend = placement
 	}
 	switch b.enumOption("options.tooltip.mode", "single", "multi", "none") {
 	case "multi":
@@ -200,6 +210,9 @@ func displayBarGauge(b *panelBuild) {
 
 func displayTable(b *panelBuild) {
 	d := b.disp()
+	if b.n.sourceType == "datagrid" {
+		b.datagridOptions()
+	}
 	if flag, ok := b.boolOption("options.showHeader"); ok {
 		d.Header = flag
 	}
