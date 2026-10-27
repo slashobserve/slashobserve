@@ -390,6 +390,59 @@ describe("resolveSelections for every variable type", () => {
     })
   })
 
+  describe("query and custom defaults, as the server resolves them", () => {
+    const withDefault = (
+      variable: Variable,
+      value: string | string[]
+    ): Variable => ({ ...variable, default: value }) as Variable
+
+    it("selects a single custom default instead of the first option", () => {
+      expect(
+        resolve(withDefault(env, "dev"), {}, { env: ["prod", "dev"] })
+          .selections
+      ).toEqual({ env: ["dev"] })
+    })
+
+    it("selects a query default without waiting for the values", () => {
+      expect(resolve(withDefault(route, "/cart"))).toEqual({
+        selections: { route: ["/cart"] },
+        pending: false,
+        waiting: [],
+      })
+    })
+
+    it("selects every value of a multi default", () => {
+      expect(
+        resolve(withDefault(pod, ["b", "a"]), {}, { pod: ["a", "b"] })
+          .selections
+      ).toEqual({ pod: ["b", "a"] })
+    })
+
+    it("selects All for an $__all default", () => {
+      expect(
+        resolve(withDefault(pod, ALL), {}, { pod: ["a", "b"] }).selections
+      ).toEqual({ pod: [ALL] })
+    })
+
+    it("prefers the default over includeAll", () => {
+      expect(resolve(withDefault(pod, "b")).selections).toEqual({
+        pod: ["b"],
+      })
+    })
+
+    it("prefers the URL over the default", () => {
+      expect(
+        resolve(withDefault(env, "dev"), { env: ["prod"] }).selections
+      ).toEqual({ env: ["prod"] })
+    })
+
+    it("falls back to the default when the URL value is empty", () => {
+      expect(
+        resolve(withDefault(env, "dev"), { env: [""] }).selections
+      ).toEqual({ env: ["dev"] })
+    })
+  })
+
   it("never waits on or loads values for the local types", () => {
     for (const variable of [site, iv, svc, af]) {
       expect(resolve(variable).pending).toBe(false)
