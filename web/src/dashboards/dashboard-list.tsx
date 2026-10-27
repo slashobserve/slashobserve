@@ -1,21 +1,24 @@
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowUpRightIcon, SearchIcon } from "lucide-react"
-import { useEffect, useId, useRef, useState } from "react"
+import { useTable, type Table } from "@tanstack/react-table"
+import { SearchIcon } from "lucide-react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
-import type { paths } from "@/api/schema.gen"
 import { LoadProblem } from "@/components/load-problem"
-import { RelativeTime } from "@/components/relative-time"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { madeByLabel } from "@/lib/origin"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import {
+  dashboardColumns,
+  listFeatures,
+  type DashboardSummary,
+} from "./dashboard-columns"
 import { DatasourceMenu, MadeByMenu } from "./list-filter-menus"
 import {
   clampQuery,
@@ -25,12 +28,11 @@ import {
   type ListSearch,
 } from "./list-filters"
 
-type DashboardSummary =
-  paths["/dashboards"]["get"]["responses"][200]["content"]["application/json"]["dashboards"][number]
-
 const pageSize = 50
 const skeletonRows = 5
 const searchDelayMs = 250
+const emptyList: DashboardSummary[] = []
+const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
 function useDashboardList(search: ListSearch) {
   const filters = toFilters(search)
@@ -58,91 +60,16 @@ function useDashboardList(search: ListSearch) {
   })
 }
 
-function ListHeader() {
-  return (
-    <thead>
-      <tr>
-        <HeaderCell>Title</HeaderCell>
-        <HeaderCell>Made by</HeaderCell>
-        <HeaderCell>Datasources</HeaderCell>
-        <HeaderCell>Open comments</HeaderCell>
-        <HeaderCell>Version</HeaderCell>
-        <HeaderCell className="text-right">Updated</HeaderCell>
-      </tr>
-    </thead>
-  )
-}
+type ListTable = Table<typeof listFeatures, DashboardSummary>
 
-function DashboardRow({ dashboard }: { dashboard: DashboardSummary }) {
-  return (
-    <tr>
-      <Cell>
-        <Link
-          to="/dashboards/$dashboardId"
-          params={{ dashboardId: dashboard.id }}
-          target="_blank"
-          rel="noopener"
-          className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {dashboard.title}
-          <ArrowUpRightIcon
-            aria-hidden="true"
-            className="ml-1 inline-block size-3.5 align-text-bottom text-muted-foreground"
-          />
-          <span className="sr-only"> (opens in a new tab)</span>
-        </Link>
-        {dashboard.description ? (
-          <div className="text-xs wrap-anywhere text-muted-foreground">
-            {dashboard.description}
-          </div>
-        ) : null}
-      </Cell>
-      <Cell className="min-w-40 text-muted-foreground">
-        {madeByLabel(dashboard.creator)}
-      </Cell>
-      <Cell>
-        {dashboard.datasource_uids.length > 0 ? (
-          <span className="font-mono text-xs">
-            {dashboard.datasource_uids.join(", ")}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">None</span>
-        )}
-      </Cell>
-      <Cell className="tabular-nums">
-        {dashboard.open_comment_count > 0
-          ? dashboard.open_comment_count
-          : "None"}
-      </Cell>
-      <Cell className="tabular-nums">v{dashboard.latest_version}</Cell>
-      <Cell className="text-right whitespace-nowrap text-muted-foreground">
-        <RelativeTime iso={dashboard.updated_at} />
-      </Cell>
-    </tr>
-  )
-}
-
-function SkeletonRows() {
+function SkeletonRows({ table }: { table: ListTable }) {
   return Array.from({ length: skeletonRows }, (_, index) => (
     <tr key={index}>
-      <Cell>
-        <Skeleton className="h-5 w-48 max-w-full" />
-      </Cell>
-      <Cell>
-        <Skeleton className="h-5 w-28" />
-      </Cell>
-      <Cell>
-        <Skeleton className="h-5 w-16" />
-      </Cell>
-      <Cell>
-        <Skeleton className="h-5 w-10" />
-      </Cell>
-      <Cell>
-        <Skeleton className="h-5 w-8" />
-      </Cell>
-      <Cell>
-        <Skeleton className="ml-auto h-5 w-16" />
-      </Cell>
+      {table.getAllLeafColumns().map((column) => (
+        <Cell key={column.id}>
+          <Skeleton className={column.columnDef.meta?.skeletonClassName} />
+        </Cell>
+      ))}
     </tr>
   ))
 }
@@ -213,7 +140,17 @@ type Props = {
 
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const query = useDashboardList(search)
-  const dashboards = query.data?.pages.flatMap((page) => page.dashboards) ?? []
+  const pages = query.data?.pages
+  const dashboards = useMemo(
+    () => pages?.flatMap((page) => page.dashboards) ?? emptyList,
+    [pages]
+  )
+  const table = useTable({
+    features: listFeatures,
+    columns: dashboardColumns,
+    data: dashboards,
+    getRowId: dashboardRowId,
+  })
   const empty = query.data !== undefined && dashboards.length === 0
   const noDashboards = empty && !query.isPlaceholderData && !hasFilters(search)
   const [resetKey, setResetKey] = useState(0)
@@ -310,16 +247,38 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       {showTable ? (
         <>
           <TableCard minWidth={760} labelledBy={labelledBy}>
-            <ListHeader />
+            <thead>
+              {table.getHeaderGroups().map((group) => (
+                <tr key={group.id}>
+                  {group.headers.map((header) => (
+                    <HeaderCell
+                      key={header.id}
+                      className={header.column.columnDef.meta?.headerClassName}
+                    >
+                      <table.FlexRender header={header} />
+                    </HeaderCell>
+                  ))}
+                </tr>
+              ))}
+            </thead>
             <tbody
               ref={rows}
               aria-busy={query.isPending || query.isPlaceholderData}
             >
               {query.isPending ? (
-                <SkeletonRows />
+                <SkeletonRows table={table} />
               ) : (
-                dashboards.map((dashboard) => (
-                  <DashboardRow key={dashboard.id} dashboard={dashboard} />
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id}>
+                    {row.getAllCells().map((cell) => (
+                      <Cell
+                        key={cell.id}
+                        className={cell.column.columnDef.meta?.cellClassName}
+                      >
+                        <table.FlexRender cell={cell} />
+                      </Cell>
+                    ))}
+                  </tr>
                 ))
               )}
             </tbody>
