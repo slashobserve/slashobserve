@@ -107,6 +107,30 @@ describe("rows", () => {
     expect(keys(items)).toEqual(["r1", "r2", "c", "d"])
   })
 
+  it("moves the panels below a collapsed row up and below an expanded one down", () => {
+    const stored = dashboard([
+      row("r", 0, [stat("kid", pos(0, 1, 24, 4))], { collapsed: true }),
+      stat("next", pos(0, 1, 24, 2)),
+    ])
+    expect(expand(stored).find((item) => item.key === "next")?.gridPos.y).toBe(
+      1
+    )
+    expect(
+      expand(stored, { collapsed: { r: false } }).find(
+        (item) => item.key === "next"
+      )?.gridPos.y
+    ).toBe(5)
+    const open = dashboard([
+      row("r", 0, [stat("kid", pos(0, 1, 24, 4))]),
+      stat("next", pos(0, 5, 24, 2)),
+    ])
+    expect(
+      expand(open, { collapsed: { r: true } }).find(
+        (item) => item.key === "next"
+      )?.gridPos.y
+    ).toBe(1)
+  })
+
   it("follows the stored flag only while editing", () => {
     const items = expand(spec, {
       collapsed: { r1: true, r2: false },
@@ -269,7 +293,7 @@ describe("row repeat", () => {
     expect(items.map((item) => [item.key, item.gridPos.y])).toEqual([
       ["r", 0],
       ["r__r1", 1],
-      ["after", 5],
+      ["after", 2],
     ])
   })
 

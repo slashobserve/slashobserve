@@ -194,7 +194,7 @@ export function expandLayout(input: ExpandInput): LayoutItem[] {
 
   function rowPiece(row: RowPanel, context: Context): Piece {
     const top = row.gridPos.y
-    const childBottom = isCollapsed(row)
+    const childBottom = row.collapsed
       ? 0
       : Math.max(
           0,

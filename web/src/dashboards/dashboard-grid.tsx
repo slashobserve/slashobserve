@@ -41,8 +41,7 @@ function pixelHeight(h: number): number {
 
 function viewItem(entry: LayoutItem): Layout[number] {
   const { x, y, w, h } = entry.gridPos
-  const fixed = entry.kind !== "panel"
-  return { i: entry.key, x, y, w, h, static: fixed }
+  return { i: entry.key, x, y, w, h }
 }
 
 export function DashboardGrid({
