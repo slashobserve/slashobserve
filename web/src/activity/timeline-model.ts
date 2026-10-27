@@ -4,6 +4,19 @@ import type { Comment } from "@/comments/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import { isActive, type Revision } from "@/revisions/queries"
 
+type ImportRecord = components["schemas"]["ImportRecord"]
+
+export type UnverifiedPanel = {
+  panelId: string
+  title: string
+  reason: string
+}
+
+export type ImportedDashboard = {
+  record: ImportRecord
+  unverified: readonly UnverifiedPanel[]
+}
+
 export type TimelineEntry =
   | {
       kind: "thread"
@@ -35,6 +48,14 @@ export type TimelineEntry =
       panelId: null
       version: VersionMeta
     }
+  | {
+      kind: "import"
+      key: "import"
+      at: string
+      panelId: null
+      record: ImportRecord
+      unverified: readonly UnverifiedPanel[]
+    }
 
 type StepStamp = Pick<components["schemas"]["AgentStep"], "attempt" | "at">
 
@@ -65,6 +86,7 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   request: 1,
   running: 2,
   version: 3,
+  import: 4,
 }
 
 const sameSendWindowMs = 2000
@@ -141,6 +163,7 @@ export function buildTimeline(input: {
   comments: readonly Comment[]
   requests: readonly Revision[]
   versions: readonly VersionMeta[]
+  imported?: ImportedDashboard | null
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 
@@ -200,10 +223,22 @@ export function buildTimeline(input: {
     })
   }
 
+  if (input.imported) {
+    entries.push({
+      kind: "import",
+      key: "import",
+      at: input.imported.record.created_at,
+      panelId: null,
+      record: input.imported.record,
+      unverified: input.imported.unverified,
+    })
+  }
+
   return sortEntries(entries)
 }
 
 function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
+  if (entry.kind === "import") return show === "everything"
   switch (show) {
     case "everything":
       return true
@@ -214,14 +249,20 @@ function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
   }
 }
 
+function matchesPanel(entry: TimelineEntry, panelId: string | null): boolean {
+  if (panelId === null) return true
+  if (entry.kind === "import") {
+    return entry.unverified.some((panel) => panel.panelId === panelId)
+  }
+  return entry.panelId === panelId
+}
+
 export function filterTimeline(
   entries: readonly TimelineEntry[],
   show: TimelineShow,
   panelId: string | null
 ): TimelineEntry[] {
   return entries.filter(
-    (entry) =>
-      matchesShow(entry, show) &&
-      (panelId === null || entry.panelId === panelId)
+    (entry) => matchesShow(entry, show) && matchesPanel(entry, panelId)
   )
 }

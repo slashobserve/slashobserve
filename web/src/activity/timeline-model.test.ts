@@ -8,6 +8,7 @@ import {
   buildTimeline,
   currentStep,
   filterTimeline,
+  type ImportedDashboard,
   type TimelineEntry,
 } from "./timeline-model"
 
@@ -71,6 +72,48 @@ function version(n: number, createdAt: string): VersionMeta {
     origin_client: null,
     agent_request_id: null,
   }
+}
+
+function imported(
+  createdAt: string,
+  unverified: { panelId: string; title: string; reason: string }[] = []
+): ImportedDashboard {
+  const record: ImportedDashboard["record"] = {
+    id: "i1",
+    dashboard_id: "d1",
+    version: 1,
+    source: "grafana",
+    importer_version: 1,
+    title: "Checkout",
+    mapping: {},
+    summary: {
+      format: "classic",
+      title: "Checkout",
+      uid: "checkout",
+      schema_version: 39,
+      bytes: 1024,
+      panels: 2,
+      rows: 0,
+      variables: 0,
+    },
+    datasources: [],
+    report: {
+      importer_version: 1,
+      verified: true,
+      counts: {
+        total: 2,
+        imported: 1,
+        partial: 0,
+        placeholder: 0,
+        unverified: 1,
+      },
+      panels: [],
+      notes: [],
+    },
+    created_by: author,
+    created_at: createdAt,
+  }
+  return { record, unverified }
 }
 
 function keys(entries: readonly TimelineEntry[]): string[] {
@@ -377,6 +420,23 @@ describe("buildTimeline", () => {
     expect(entry?.kind === "thread" && entry.request?.id).toBe("earlier")
   })
 
+  it("puts the import after version 1 at the same time and before a later version", () => {
+    const entries = buildTimeline({
+      ...none,
+      versions: [version(2, at(2)), version(1, at(1))],
+      imported: imported(at(1)),
+    })
+    expect(keys(entries)).toEqual(["version:1", "import", "version:2"])
+  })
+
+  it("has no import entry without an import", () => {
+    const versions = [version(1, at(1))]
+    expect(keys(buildTimeline({ ...none, versions }))).toEqual(["version:1"])
+    expect(keys(buildTimeline({ ...none, versions, imported: null }))).toEqual([
+      "version:1",
+    ])
+  })
+
   it("carries the panel of each entry", () => {
     const entries = buildTimeline({
       comments: [comment({ id: "c1", panel_id: "p1" })],
@@ -471,6 +531,33 @@ describe("filterTimeline", () => {
       "request:r-p2",
       "running:r-p2",
     ])
+  })
+
+  describe("import entry", () => {
+    const withImport = buildTimeline({
+      ...none,
+      versions: [version(1, at(1))],
+      imported: imported(at(1), [
+        { panelId: "p1", title: "Errors", reason: "no data" },
+      ]),
+    })
+
+    it("shows only for everything", () => {
+      expect(keys(filterTimeline(withImport, "everything", null))).toContain(
+        "import"
+      )
+      expect(keys(filterTimeline(withImport, "open", null))).toEqual([])
+      expect(keys(filterTimeline(withImport, "changes", null))).toEqual([
+        "version:1",
+      ])
+    })
+
+    it("stays under a panel scope only for an unverified panel", () => {
+      expect(keys(filterTimeline(withImport, "everything", "p1"))).toEqual([
+        "import",
+      ])
+      expect(keys(filterTimeline(withImport, "everything", "p2"))).toEqual([])
+    })
   })
 
   it("combines the show filter with the panel scope", () => {
