@@ -42,16 +42,20 @@ export const dashboardColumns = column.columns([
         <Link
           to="/dashboards/$dashboardId"
           params={{ dashboardId: row.original.id }}
-          target="_blank"
-          rel="noopener"
           className="inline rounded-sm font-medium wrap-anywhere no-underline outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           {row.original.title}
-          <ArrowUpRightIcon
-            aria-hidden="true"
-            className="ml-1 inline-block size-3.5 align-text-bottom text-muted-foreground"
-          />
-          <span className="sr-only"> (opens in a new tab)</span>
+        </Link>
+        <Link
+          to="/dashboards/$dashboardId"
+          params={{ dashboardId: row.original.id }}
+          target="_blank"
+          rel="noopener"
+          aria-label={`Open ${row.original.title} in a new tab`}
+          title={`Open ${row.original.title} in a new tab`}
+          className="ml-1 inline-block rounded-sm align-text-bottom text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [@media(hover:none)]:opacity-100"
+        >
+          <ArrowUpRightIcon aria-hidden="true" className="size-3.5" />
         </Link>
         {row.original.description ? (
           <div className="text-xs wrap-anywhere text-muted-foreground">

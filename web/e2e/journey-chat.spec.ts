@@ -87,20 +87,18 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
 
       await test.step("open the dashboard", async () => {
-        const [tab] = await Promise.all([
-          page.context().waitForEvent("page"),
-          firstTurn.getByRole("link", { name: /^Open dashboard/ }).click(),
-        ])
-        await expect(tab).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
-        await expect(tab.getByRole("heading", { level: 1 })).toHaveText(
+        await firstTurn.getByRole("link", { name: /^Open dashboard/ }).click()
+        await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`))
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(
           dashboardTitle
         )
-        await expectPanelsReady(tab)
+        await expectPanelsReady(page)
         await expect(
-          tab.locator("article[data-panel-id]").first()
+          page.locator("article[data-panel-id]").first()
         ).toBeVisible()
-        await expect(card(tab)).toBeVisible()
-        await tab.close()
+        await expect(card(page)).toBeVisible()
+        await page.goBack()
+        await expect(firstTurn).toBeVisible()
       })
 
       await test.step("follow up", async () => {

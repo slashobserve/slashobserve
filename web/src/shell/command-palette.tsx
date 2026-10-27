@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react"
 import { Autocomplete } from "@base-ui/react/autocomplete"
 import { Dialog } from "@base-ui/react/dialog"
 import { useQuery } from "@tanstack/react-query"
@@ -23,6 +29,7 @@ import type { NavPath } from "./nav"
 import {
   filterPalette,
   isPaletteShortcut,
+  type DashboardEntry,
   type PaletteEntry,
 } from "./palette-items"
 import { dashboardTitlesQuery } from "./palette-queries"
@@ -66,15 +73,42 @@ function PaletteBody({ close }: { close: () => void }) {
   const titles = useQuery(dashboardTitlesQuery())
   const groups = filterPalette(query, titles.data ?? [])
 
-  function select(entry: PaletteEntry) {
+  const highlighted = useRef<PaletteEntry | undefined>(undefined)
+
+  function openInNewTab(entry: DashboardEntry) {
+    close()
+    window.open(`/dashboards/${entry.id}`, "_blank", "noopener")
+  }
+
+  function select(entry: PaletteEntry, event: ReactMouseEvent) {
+    if (entry.kind === "dashboard" && (event.metaKey || event.ctrlKey)) {
+      openInNewTab(entry)
+      return
+    }
     close()
     if (entry.kind === "page") {
       void navigate({ to: entry.to })
     } else if (entry.kind === "dashboard") {
-      window.open(`/dashboards/${entry.id}`, "_blank", "noopener")
+      void navigate({
+        to: "/dashboards/$dashboardId",
+        params: { dashboardId: entry.id },
+      })
     } else {
       void signOut()
     }
+  }
+
+  function openHighlightedInNewTab(event: ReactKeyboardEvent) {
+    const entry = highlighted.current
+    if (
+      event.key !== "Enter" ||
+      !(event.metaKey || event.ctrlKey) ||
+      entry?.kind !== "dashboard"
+    ) {
+      return
+    }
+    event.preventDefault()
+    openInNewTab(entry)
   }
 
   return (
@@ -87,6 +121,9 @@ function PaletteBody({ close }: { close: () => void }) {
         value={query}
         onValueChange={setQuery}
         autoHighlight="always"
+        onItemHighlighted={(entry) => {
+          highlighted.current = entry
+        }}
         itemToStringValue={(entry: PaletteEntry) => entry.label}
       >
         <div className="flex h-11 items-center gap-2 border-b px-3">
@@ -98,6 +135,7 @@ function PaletteBody({ close }: { close: () => void }) {
           <Autocomplete.Input
             aria-label="Search dashboards and pages"
             placeholder="Search dashboards or jump to a page"
+            onKeyDown={openHighlightedInNewTab}
             className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -112,19 +150,28 @@ function PaletteBody({ close }: { close: () => void }) {
                   <Autocomplete.Item
                     key={entry.id}
                     value={entry}
-                    onClick={() => select(entry)}
-                    className="flex h-9 cursor-default items-center gap-2.5 rounded-control px-2.5 text-[13px] data-highlighted:bg-selection"
+                    onClick={(event) => select(entry, event)}
+                    className="group/item flex h-9 cursor-default items-center gap-2.5 rounded-control px-2.5 text-[13px] data-highlighted:bg-selection"
                   >
                     <EntryIcon entry={entry} />
                     <span className="truncate">{entry.label}</span>
                     {entry.kind === "dashboard" ? (
-                      <>
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label={`Open ${entry.label} in a new tab`}
+                        title={`Open ${entry.label} in a new tab`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openInNewTab(entry)
+                        }}
+                        className="ml-auto flex-none rounded-sm p-0.5 text-muted-foreground opacity-0 outline-none group-hover/item:opacity-100 group-data-highlighted/item:opacity-100 hover:text-foreground"
+                      >
                         <ArrowUpRightIcon
                           aria-hidden="true"
-                          className="ml-auto size-3.5 flex-none text-muted-foreground"
+                          className="size-3.5"
                         />
-                        <span className="sr-only"> (opens in a new tab)</span>
-                      </>
+                      </button>
                     ) : null}
                   </Autocomplete.Item>
                 )}

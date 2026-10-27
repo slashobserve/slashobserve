@@ -1,5 +1,4 @@
 import { Link, useNavigate } from "@tanstack/react-router"
-import { ArrowUpRightIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -48,8 +47,6 @@ export function OpenDashboardLink({
     <Link
       to="/dashboards/$dashboardId"
       params={{ dashboardId }}
-      target="_blank"
-      rel="noopener"
       className={cn(
         buttonVariants(
           variant === "primary" ? {} : { variant: "outline", size: "sm" }
@@ -57,8 +54,6 @@ export function OpenDashboardLink({
       )}
     >
       Open dashboard
-      <ArrowUpRightIcon aria-hidden="true" className="size-[13px]" />
-      <span className="sr-only"> (opens in a new tab)</span>
     </Link>
   )
 }

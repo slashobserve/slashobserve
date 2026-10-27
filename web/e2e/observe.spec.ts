@@ -11,7 +11,7 @@ const requestPath = /\/observe\/([0-9a-f-]{36})$/
 const dashboardPath = /\/dashboards\/([0-9a-f-]{36})/
 const requestApi = /\/api\/v1\/observe\/[0-9a-f-]{36}$/
 const revisionsApi = /\/api\/v1\/dashboards\/[0-9a-f-]{36}\/revisions$/
-const openLink = { name: "Open dashboard (opens in a new tab)" }
+const openLink = { name: "Open dashboard", exact: true }
 
 type ObserveBody = {
   request: {
@@ -21,7 +21,7 @@ type ObserveBody = {
   }
 }
 
-test("creates a dashboard from a prompt", async ({ page, context }) => {
+test("creates a dashboard from a prompt", async ({ page }) => {
   let openGate!: () => void
   const gate = new Promise<void>((resolve) => (openGate = resolve))
   await page.route(requestApi, async (route) => {
@@ -44,17 +44,14 @@ test("creates a dashboard from a prompt", async ({ page, context }) => {
 
   const open = page.getByRole("link", openLink)
   await expect(open).toBeVisible({ timeout: 90_000 })
-  await expect(open).toHaveAttribute("target", "_blank")
+  await expect(open).not.toHaveAttribute("target")
   await expect(page.getByText("Saved as version 1")).toBeVisible()
   await expect(page).toHaveURL(conversationUrl)
 
-  const popupPromise = context.waitForEvent("page")
   await open.click()
-  const popup = await popupPromise
-  await expect(popup).toHaveURL(dashboardPath)
-  await expectPanelsReady(popup)
-  await expect(popup.getByRole("alert")).toHaveCount(0)
-  await popup.close()
+  await expect(page).toHaveURL(dashboardPath)
+  await expectPanelsReady(page)
+  await expect(page.getByRole("alert")).toHaveCount(0)
 
   await page.goto("/")
   await expect(
@@ -152,7 +149,7 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
   await expect(alerts).toContainText("could not be updated")
   const open = alerts.getByRole("link", openLink)
   await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
-  await expect(open).toHaveAttribute("target", "_blank")
+  await expect(open).not.toHaveAttribute("target")
   await alerts.getByRole("button", { name: "Try again" }).click()
 
   await expect(alerts).toHaveCount(2, { timeout: 30_000 })
@@ -207,7 +204,7 @@ test("links a failed comment revision back to its dashboard", async ({
   await expect(alert.getByRole("button", { name: "Try again" })).toHaveCount(0)
   const open = alert.getByRole("link", openLink)
   await expect(open).toHaveAttribute("href", `/dashboards/${dashboardId}`)
-  await expect(open).toHaveAttribute("target", "_blank")
+  await expect(open).not.toHaveAttribute("target")
 })
 
 test("follows up in the same chat", async ({ page }) => {

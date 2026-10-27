@@ -269,7 +269,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 <SkeletonRows table={table} />
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
+                  <tr key={row.id} className="group/row">
                     {row.getAllCells().map((cell) => (
                       <Cell
                         key={cell.id}

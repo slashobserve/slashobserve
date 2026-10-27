@@ -4,7 +4,6 @@ import type { Route } from "@playwright/test"
 import { expect, test, type Page } from "./fixtures"
 
 const listPath = "/api/v1/dashboards"
-const newTabSuffix = " (opens in a new tab)"
 
 const cardColors = {
   light: { background: "rgb(255, 255, 255)", border: "rgb(228, 228, 231)" },
@@ -67,7 +66,7 @@ function filterBox(page: Page) {
 function rowFor(page: Page, title: string) {
   return page
     .getByRole("row")
-    .filter({ has: page.getByRole("link", { name: title }) })
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) })
 }
 
 async function filterByTitle(page: Page, title: string) {
@@ -87,8 +86,8 @@ test("lists dashboards newest first", async ({ page, request }) => {
   await createDashboard(request, { ...loadSpec("overview"), title: titleB })
 
   await page.goto("/dashboards")
-  const linkA = page.getByRole("link", { name: titleA })
-  const linkB = page.getByRole("link", { name: titleB })
+  const linkA = page.getByRole("link", { name: titleA, exact: true })
+  const linkB = page.getByRole("link", { name: titleB, exact: true })
   await expect(linkA).toBeVisible()
   await expect(linkB).toBeVisible()
 
@@ -152,7 +151,11 @@ for (const scheme of ["light", "dark"] as const) {
   })
 }
 
-test("opens a dashboard in a new tab", async ({ page, context, request }) => {
+test("opens a dashboard in the same tab and from the arrow in a new tab", async ({
+  page,
+  context,
+  request,
+}) => {
   const title = uniqueTitle("List tab")
   const created = await createDashboard(request, {
     ...loadSpec("overview"),
@@ -161,17 +164,25 @@ test("opens a dashboard in a new tab", async ({ page, context, request }) => {
   await page.goto("/dashboards")
   await filterByTitle(page, title)
 
-  const link = page.getByRole("link", { name: title })
-  await expect(link).toHaveAttribute("target", "_blank")
-  await expect(link).toHaveAccessibleName(`${title}${newTabSuffix}`)
+  const link = page.getByRole("link", { name: title, exact: true })
+  await expect(link).not.toHaveAttribute("target")
+  const arrow = page.getByRole("link", { name: `Open ${title} in a new tab` })
+  await expect(arrow).toHaveAttribute("target", "_blank")
+  await expect(arrow).toHaveCSS("opacity", "0")
+  await link.hover()
+  await expect(arrow).toHaveCSS("opacity", "1")
   const [popup] = await Promise.all([
     context.waitForEvent("page"),
-    link.click(),
+    arrow.click(),
   ])
   await expect(popup).toHaveURL(new RegExp(`/dashboards/${created.id}`))
   await expect(popup.getByRole("heading", { level: 1 })).toHaveText(title)
   await expect(page).toHaveURL(/\/dashboards(\?.*)?$/)
   await popup.close()
+
+  await link.click()
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${created.id}`))
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(title)
 })
 
 test("filters by title, maker and datasource, in the URL", async ({
@@ -312,7 +323,9 @@ test("keeps the no match state while a longer search loads", async ({
 
   await page.getByRole("button", { name: "Clear filters" }).click()
   await expect(noDashboards).toHaveCount(0)
-  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: row.title, exact: true })
+  ).toBeVisible()
 })
 
 test("hides Load more and the count while a new filter loads", async ({
@@ -337,7 +350,9 @@ test("hides Load more and the count while a new filter loads", async ({
 
   await filterBox(page).fill("x-slow")
   await expect.poll(() => slowSeen).toBe(true)
-  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: row.title, exact: true })
+  ).toBeVisible()
   await expect(dashboardsCard(page).locator("tbody")).toHaveAttribute(
     "aria-busy",
     "true"
@@ -365,7 +380,9 @@ test("Clear filters also drops search text that was not applied yet", async ({
   await filterBox(page).fill("typed but not applied")
   await page.getByRole("button", { name: "Clear filters" }).click()
   await expect(filterBox(page)).toHaveValue("")
-  await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: row.title, exact: true })
+  ).toBeVisible()
   await page.waitForTimeout(600)
   await expect(filterBox(page)).toHaveValue("")
   expect(new URL(page.url()).search).toBe("")
@@ -385,7 +402,9 @@ test.describe("on a phone", () => {
       route.fulfill({ json: listBody([row]) })
     )
     await page.goto("/dashboards")
-    await expect(page.getByRole("link", { name: row.title })).toBeVisible()
+    await expect(
+      page.getByRole("link", { name: row.title, exact: true })
+    ).toBeVisible()
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth
@@ -489,17 +508,23 @@ test("keeps the new tab arrow with the last word of a wrapped title", async ({
     route.fulfill({ json: listBody([row]) })
   )
   await page.goto("/dashboards")
-  const link = page.getByRole("link", { name: row.title })
+  const link = page.getByRole("link", { name: row.title, exact: true })
   await expect(link).toBeVisible()
-  const placement = await link.evaluate((element) => {
-    const lines = Array.from(element.getClientRects())
-    const arrow = element.querySelector("svg")!.getBoundingClientRect()
-    const last = lines[lines.length - 1]
-    return {
-      lines: lines.length,
-      onLastLine: arrow.top >= last.top - 2 && arrow.bottom <= last.bottom + 2,
-    }
+  const arrow = page.getByRole("link", {
+    name: `Open ${row.title} in a new tab`,
   })
+  const placement = await link.evaluate(
+    (element, arrowElement) => {
+      const lines = Array.from(element.getClientRects())
+      const box = arrowElement.getBoundingClientRect()
+      const last = lines[lines.length - 1]
+      return {
+        lines: lines.length,
+        onLastLine: box.top >= last.top - 2 && box.bottom <= last.bottom + 2,
+      }
+    },
+    await arrow.elementHandle()
+  )
   expect(placement.lines).toBeGreaterThan(1)
   expect(placement.onLastLine).toBe(true)
 })
@@ -534,10 +559,7 @@ function pagedList(
 }
 
 function activeLinkTitle(page: Page) {
-  return page.evaluate(
-    (suffix) => (document.activeElement?.textContent ?? "").replace(suffix, ""),
-    newTabSuffix
-  )
+  return page.evaluate(() => document.activeElement?.textContent ?? "")
 }
 
 test("loads more pages and moves focus to the first new row", async ({
@@ -559,20 +581,28 @@ test("loads more pages and moves focus to the first new row", async ({
   )
 
   await page.goto("/dashboards")
-  await expect(page.getByRole("link", { name: first.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: first.title, exact: true })
+  ).toBeVisible()
   await expect(page.getByText("alpha beta", { exact: true })).toHaveCount(1)
-  await expect(page.getByRole("link", { name: secondA.title })).toHaveCount(0)
+  await expect(
+    page.getByRole("link", { name: secondA.title, exact: true })
+  ).toHaveCount(0)
 
   const loadMore = page.getByRole("button", { name: "Load more" })
   await loadMore.focus()
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("link", { name: secondB.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: secondB.title, exact: true })
+  ).toBeVisible()
   await expect.poll(() => activeLinkTitle(page)).toBe(secondA.title)
 
   await expect(loadMore).toBeVisible()
   await loadMore.focus()
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("link", { name: third.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: third.title, exact: true })
+  ).toBeVisible()
   await expect(loadMore).toHaveCount(0)
   await expect.poll(() => activeLinkTitle(page)).toBe(third.title)
 })
@@ -608,7 +638,9 @@ test("keeps Load more focusable and inert while a page loads", async ({
   expect(requests.filter((cursor) => cursor === "c2")).toHaveLength(1)
 
   release()
-  await expect(page.getByRole("link", { name: second.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: second.title, exact: true })
+  ).toBeVisible()
   expect(requests.filter((cursor) => cursor === "c2")).toHaveLength(1)
   await expect.poll(() => activeLinkTitle(page)).toBe(second.title)
 })
@@ -672,7 +704,9 @@ test("does not steal focus on a later refetch after a failed Load more", async (
     dispatchEvent(new Event("offline"))
     dispatchEvent(new Event("online"))
   })
-  await expect(page.getByRole("link", { name: third.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: third.title, exact: true })
+  ).toBeVisible()
   expect(
     await page.evaluate(() => document.activeElement === document.body)
   ).toBe(true)
@@ -710,7 +744,9 @@ test("shows a failed Load more next to the button and retries from it", async ({
   await expect(inline).toContainText("page boom")
   await expect(page.getByText("Could not load dashboards")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0)
-  await expect(page.getByRole("link", { name: first.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: first.title, exact: true })
+  ).toBeVisible()
   await expect(inline).toBeInViewport()
   const errorBox = await inline.boundingBox()
   const buttonBox = await loadMore.boundingBox()
@@ -718,7 +754,9 @@ test("shows a failed Load more next to the button and retries from it", async ({
   await expect(loadMore).toBeEnabled()
 
   await loadMore.click()
-  await expect(page.getByRole("link", { name: second.title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: second.title, exact: true })
+  ).toBeVisible()
   await expect(page.getByRole("alert")).toHaveCount(0)
   await expect(loadMore).toHaveCount(0)
   await expect.poll(() => activeLinkTitle(page)).toBe(second.title)
@@ -744,7 +782,9 @@ test("shows an error with retry", async ({ page, request, consoleErrors }) => {
 
   await page.unroute(failing)
   await retry.click()
-  await expect(page.getByRole("link", { name: title })).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: title, exact: true })
+  ).toBeVisible()
   await expect(alert).toHaveCount(0)
   consoleErrors.length = 0
 })

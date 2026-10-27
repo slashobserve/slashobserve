@@ -82,7 +82,10 @@ test("jumps to a page with the keyboard", async ({ page }) => {
   await expect(palette(page)).toHaveCount(0)
 })
 
-test("opens a matching dashboard in a new tab", async ({ page, request }) => {
+test("opens a matching dashboard in the same tab and from the arrow in a new tab", async ({
+  page,
+  request,
+}) => {
   const title = uniqueTitle("Palette")
   const { id } = await createDashboard(request, {
     ...loadSpec("overview"),
@@ -94,13 +97,24 @@ test("opens a matching dashboard in a new tab", async ({ page, request }) => {
   await expect(searchInput(page)).toHaveValue(title)
   const option = palette(page).getByRole("option", { name: title })
   await expect(option).toHaveAttribute("data-highlighted", "")
+  const arrow = option.getByRole("button", {
+    name: `Open ${title} in a new tab`,
+  })
   const [popup] = await Promise.all([
     page.context().waitForEvent("page"),
-    page.keyboard.press("Enter"),
+    arrow.click(),
   ])
   await expect(popup).toHaveURL(new RegExp(`/dashboards/${id}$`))
   await popup.close()
+  await expect(palette(page)).toHaveCount(0)
   expect(page.url()).toBe(before)
+
+  await openFromShortcut(page)
+  await page.keyboard.type(title)
+  await expect(option).toHaveAttribute("data-highlighted", "")
+  await page.keyboard.press("Enter")
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${id}$`))
+  await expect(palette(page)).toHaveCount(0)
 })
 
 test("explains an empty result", async ({ page }) => {
