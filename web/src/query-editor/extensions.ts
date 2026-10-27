@@ -13,7 +13,7 @@ import {
 import { classHighlighter } from "@lezer/highlight"
 import { PromQLExtension } from "@prometheus-io/codemirror-promql"
 
-const theme = EditorView.theme({
+export const theme = EditorView.theme({
   "&": {
     backgroundColor: "transparent",
     color: "var(--foreground)",
