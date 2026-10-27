@@ -89,6 +89,8 @@ type PanelContainerProps = {
   dashboardId: string
   version: number
   panel: LayoutPanel
+  title: string
+  repeatOf: string | undefined
   width: number
   height: number
   from: string | undefined
@@ -112,7 +114,9 @@ type PanelContainerProps = {
 const PanelContainer = memo(function PanelContainer({
   dashboardId,
   version,
-  panel,
+  panel: sourcePanel,
+  title,
+  repeatOf,
   width,
   height,
   from,
@@ -132,6 +136,13 @@ const PanelContainer = memo(function PanelContainer({
   editingPanel,
   composerRef,
 }: PanelContainerProps) {
+  const panel = useMemo(
+    () =>
+      title === panelTitle(sourcePanel)
+        ? sourcePanel
+        : { ...sourcePanel, title },
+    [sourcePanel, title]
+  )
   const ref = useRef<HTMLDivElement>(null)
   const seen = useSeen(ref)
   const [tableView, setTableView] = useState(false)
@@ -221,6 +232,7 @@ const PanelContainer = memo(function PanelContainer({
         dragHandle={editable}
         highlighted={highlighted}
         editing={editingPanel}
+        repeatOf={repeatOf}
         datasourceLabel={panelDatasourceUids(panel).join(", ")}
         links={links}
         badge={
@@ -318,7 +330,7 @@ function DashboardView({
     [spec]
   )
 
-  const { states, selections, ready, blocking } = useVariables({
+  const { states, selections, values, ready, blocking } = useVariables({
     dashboardId,
     version,
     variables,
@@ -494,32 +506,45 @@ function DashboardView({
           className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
         >
           <DashboardGrid
+            dashboardId={dashboardId}
             spec={spec}
+            selections={selections}
+            values={values}
             editable={editing && canEdit}
             layout={editing ? session.layout : undefined}
             onLayoutChange={editing ? setLayout : undefined}
-            renderPanel={(panel, size) => (
+            renderPanel={(item, size) => (
               <PanelContainer
                 dashboardId={dashboardId}
                 version={version}
-                panel={panel}
+                panel={item.panel}
+                title={item.title}
+                repeatOf={
+                  item.key === item.panel.id ? undefined : item.panel.id
+                }
                 width={size.width}
                 height={size.height}
                 from={search.from}
                 to={search.to}
                 rangeFrom={effectiveFrom}
                 rangeTo={effectiveTo}
-                selections={selections}
+                selections={item.selections}
                 selectionsReady={ready}
                 blockedBy={blockedBy}
                 onRetryBlocked={onRetryBlocked}
                 refreshMs={refreshMs}
                 editable={editing && canEdit}
                 layoutSession={editing}
-                openComments={openByPanel.get(panel.id) ?? 0}
-                unverifiedReason={unverifiedByPanel.get(panel.id)}
-                highlighted={panel.id === search.panel || panel.id === flashed}
-                editingPanel={editingPanel && panel.id === search.panel}
+                openComments={
+                  item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0
+                }
+                unverifiedReason={unverifiedByPanel.get(item.panel.id)}
+                highlighted={
+                  item.panel.id === search.panel || item.panel.id === flashed
+                }
+                editingPanel={
+                  editingPanel && item.first && item.panel.id === search.panel
+                }
                 composerRef={composerRef}
               />
             )}

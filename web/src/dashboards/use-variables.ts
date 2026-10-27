@@ -131,6 +131,19 @@ export function useVariables({
   }
   const selections = stable.selections
 
+  const valueLists: Record<string, string[] | undefined> = {}
+  variables.forEach((variable, index) => {
+    valueLists[variable.name] = displays[index].shown?.values
+  })
+  const valuesKey = JSON.stringify(valueLists)
+  const [stableValues, setStableValues] = useState({
+    key: valuesKey,
+    lists: valueLists,
+  })
+  if (stableValues.key !== valuesKey) {
+    setStableValues({ key: valuesKey, lists: valueLists })
+  }
+
   const states: VariableState[] = variables.map((variable, index) => ({
     variable,
     options: displays[index].shown?.values,
@@ -148,6 +161,7 @@ export function useVariables({
   return {
     states,
     selections,
+    values: stableValues.lists,
     ready: !resolved.pending,
     blocking,
   }
