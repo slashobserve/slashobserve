@@ -80,7 +80,11 @@ func (h *Handler) preview(c *gin.Context) {
 		h.previewFail(c, uid, err)
 		return
 	}
-	rng, err := p.timeRange(d, time.Now())
+	now := time.Now()
+	rng, err := p.timeRange(d, now)
+	if err == nil {
+		rng, err = panelTimeRange(draft, rng, now)
+	}
 	if err != nil {
 		h.previewFail(c, uid, err)
 		return

@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from "react"
 import {
+  ClockIcon,
   InfoIcon,
   LinkIcon,
   LoaderCircleIcon,
@@ -27,6 +28,7 @@ import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { anchorProps, NewTabMark } from "./dashboard-links"
 import { PanelMoveHandle, PanelResizeGrip } from "./edit/panel-move-handle"
+import { timeOverrideLabel } from "./time-override"
 import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
@@ -96,6 +98,7 @@ export function PanelChrome({
   const titleId = useId()
   const title = panelTitle(panel)
   const selected = editing || highlighted
+  const timeOverride = isDataPanel(panel) ? timeOverrideLabel(panel) : null
   return (
     <article
       aria-labelledby={titleId}
@@ -146,6 +149,15 @@ export function PanelChrome({
         {datasourceLabel ? (
           <span className="min-w-0 truncate text-xs text-muted-foreground">
             {datasourceLabel}
+          </span>
+        ) : null}
+        {timeOverride ? (
+          <span
+            title={timeOverride.title}
+            className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+          >
+            <ClockIcon aria-hidden="true" className="size-3 shrink-0" />
+            <span className="truncate">{timeOverride.text}</span>
           </span>
         ) : null}
         {editing ? (

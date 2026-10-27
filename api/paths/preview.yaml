@@ -14,6 +14,8 @@ datasources-uid-preview:
       Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
       `from`, `to`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`,
       and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default.
+      Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel.
+      A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran.
       The response has the shape of panel data, with `meta.cached` always false.
     requestBody:
       required: true

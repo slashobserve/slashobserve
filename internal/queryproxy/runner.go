@@ -142,10 +142,10 @@ func QueryKind(p *spec.Panel, q spec.Query) Kind {
 		return KindInstant
 	}
 	switch p.Type {
-	case spec.Timeseries, spec.Heatmap, spec.StateTimeline, spec.Histogram:
-		return KindRange
+	case spec.Table, spec.Logs:
+		return KindInstant
 	}
-	return KindInstant
+	return KindRange
 }
 
 func PanelKind(p *spec.Panel) Kind {

@@ -33,6 +33,8 @@ dashboards-id-versions-version-panels-panel-id-data:
       default to the version's `time`, and may span at most 400 days.
       A range panel aligns `from` and `to` down to a multiple of the step, and an instant panel aligns `to` down to 5 seconds;
       the aligned range comes back in `meta`.
+      Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel.
+      A panel's `timeFrom` replaces the range with the last N units up to now, and `timeShift` moves the range back; `meta.from` and `meta.to` report the range that ran.
       Every visible query of the panel runs in this one request (at most 4 at a time), and each frame carries the `ref` of the query that produced it; a hidden query does not run.
       The panel's `maxDataPoints` caps `max_data_points`, and a query's or the panel's `interval` is the minimum step of a range query.
       A failing query fails the whole request, and the error names it in `ref`.

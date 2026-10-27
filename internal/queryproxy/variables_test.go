@@ -469,7 +469,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 		v := customVariable("env", "prod", "staging")
 		v.IncludeAll, v.Multi = true, true
-		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", `up{env=~"$env"}`)}, v)
+		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{env=~"$env"}`)}, v)
 		if err := runAll(t, runner, d, "p1", map[string]Selection{"env": {All: true}}); err != nil {
 			t.Fatalf("RunPanel: %v", err)
 		}
@@ -486,7 +486,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		fake := newFake("prometheus")
 		fake.onVariable = answer("a", "b")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", "up")}, includeAllQuery("job", "prom", "label_values(job)"))
+		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", "up")}, includeAllQuery("job", "prom", "label_values(job)"))
 		if err := runAll(t, runner, d, "p1", map[string]Selection{"job": {All: true}}); err != nil {
 			t.Fatalf("RunPanel: %v", err)
 		}
@@ -503,7 +503,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		fake := newFake("prometheus")
 		fake.onVariable = answer("a", "b")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", `up{a=~"$job", b=~"${job:pipe}"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
+		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{a=~"$job", b=~"${job:pipe}"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
 		if err := runAll(t, runner, d, "p1", map[string]Selection{"job": {All: true}}); err != nil {
 			t.Fatalf("RunPanel: %v", err)
 		}
@@ -532,7 +532,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 		fake.onVariable = answer("a", "b")
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
 		runner.sem = semaphore.NewWeighted(1)
-		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
+		d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
 		_, err := runner.RunPanel(ctx, Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: map[string]Selection{"job": {All: true}}})
@@ -545,7 +545,7 @@ func TestRunPanelAllListSources(t *testing.T) {
 func TestRunPanelAllThroughRealMacros(t *testing.T) {
 	clickHouse := func(query string) (spec.Panel, spec.Variable) {
 		v := includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs")
-		return spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}, v
+		return spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}, v
 	}
 	tests := []struct {
 		name    string
@@ -607,7 +607,7 @@ func TestRunPanelAllThroughRealMacros(t *testing.T) {
 					return dataFrames(), nil
 				}
 				runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-				d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
+				d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", `up{job=~"$job"}`)}, includeAllQuery("job", "prom", "label_values(job)"))
 				if err := runAll(t, runner, d, "p1", map[string]Selection{"job": {All: true}}); err != nil {
 					t.Fatalf("RunPanel: %v", err)
 				}
@@ -640,7 +640,7 @@ func TestRunPanelSelectionRules(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newFake("prometheus")
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
-			d := dashboardOf([]spec.Panel{panelOf("p1", spec.Stat, "prom", "up")}, tt.variables...)
+			d := dashboardOf([]spec.Panel{panelOf("p1", spec.Table, "prom", "up")}, tt.variables...)
 			err := runAll(t, runner, d, "p1", tt.selections)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
@@ -724,7 +724,7 @@ func TestRunPanelConditionalAllThroughRealMacros(t *testing.T) {
 				return dataFrames(), nil
 			}
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
-			panel := spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
+			panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
 			d := dashboardOf([]spec.Panel{panel}, includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"))
 			if err := runAll(t, runner, d, "p1", map[string]Selection{"svc": tt.selection}); err != nil {
 				t.Fatalf("RunPanel: %v", err)
@@ -772,7 +772,7 @@ func TestRunPanelConditionalAllGuardOnlyNeedsNoAllList(t *testing.T) {
 				return dataFrames(), nil
 			}
 			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
-			panel := spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: tt.query}}}
+			panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: tt.query}}}
 			other := customVariable("other", "a")
 			other.IncludeAll = true
 			d := dashboardOf([]spec.Panel{panel}, includeAllQuery("svc", "ch", "SELECT DISTINCT ServiceName FROM otel_logs"), other)
@@ -1105,7 +1105,7 @@ func TestRunPanelNewVariableTypesReachTheQuery(t *testing.T) {
 			return dataFrames(), nil
 		}
 		runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"ch": fake})
-		panel := spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
+		panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "ch", Queries: []spec.Query{{Query: query}}}
 		d := dashboardOf([]spec.Panel{panel}, variables...)
 		_, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections})
 		return expanded, err
@@ -1191,7 +1191,7 @@ func TestRunPanelNewVariableTypesReachTheQuery(t *testing.T) {
 func TestAdhocFiltersApplyToPrometheusQueriesOfTheirDatasource(t *testing.T) {
 	prom, other := newFake("prometheus"), newFake("prometheus")
 	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom, "prom2": other})
-	panel := spec.Panel{ID: "p1", Type: spec.Stat, Title: "p1", Datasource: "prom", Queries: []spec.Query{{Query: "up"}, {Query: "up", Datasource: "prom2"}}}
+	panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "prom", Queries: []spec.Query{{Query: "up"}, {Query: "up", Datasource: "prom2"}}}
 	d := dashboardOf([]spec.Panel{panel}, adhocVariable("f", "prom"), adhocVariable("g", "prom"), adhocVariable("h", "prom2"))
 	selections := map[string]Selection{
 		"f": {Values: []string{"job|=|api", "pod|!~|web-.*"}},

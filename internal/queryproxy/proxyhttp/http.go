@@ -144,7 +144,11 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
 		return
 	}
-	rng, err := p.timeRange(d, time.Now())
+	now := time.Now()
+	rng, err := p.timeRange(d, now)
+	if err == nil {
+		rng, err = panelTimeRange(found.Panel, rng, now)
+	}
 	if err != nil {
 		h.fail(c, err)
 		return

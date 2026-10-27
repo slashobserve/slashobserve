@@ -93,7 +93,19 @@ function describeRelativeRange(from: string, to: string): string | null {
   const count = Number(match[2])
   if (!Number.isSafeInteger(count) || count > maxRelativeCount) return null
   if (!isTimeUnit(match[3])) return null
-  return `Last ${count} ${unitNames[match[3]]}${count === 1 ? "" : "s"}`
+  return `Last ${durationText(count, match[3])}`
+}
+
+function durationText(count: number, unit: TimeUnit): string {
+  return `${count} ${unitNames[unit]}${count === 1 ? "" : "s"}`
+}
+
+export function describeDuration(text: string): string | null {
+  const match = /^([1-9][0-9]*)([smhdwMy])$/.exec(text)
+  if (!match) return null
+  const count = Number(match[1])
+  if (!Number.isSafeInteger(count) || !isTimeUnit(match[2])) return null
+  return durationText(count, match[2])
 }
 
 export function describeRange(from: string, to: string): string {

@@ -26,7 +26,6 @@ const (
 	minMaxDataPoints     = 10
 	maxMaxDataPoints     = 11000
 	maxTimeParamBytes    = 128
-	maxRange             = 400 * 24 * time.Hour
 	instantResolution    = 5 * time.Second
 )
 
@@ -157,7 +156,7 @@ func (p params) timeRange(d *spec.Dashboard, now time.Time) (datasource.TimeRang
 	if !from.Before(to) {
 		return datasource.TimeRange{}, invalidf("%s must be before %s", paramFrom, paramTo)
 	}
-	if to.Sub(from) > maxRange {
+	if to.Sub(from) > queryproxy.MaxRange {
 		return datasource.TimeRange{}, invalidf("the time range must be at most 400 days")
 	}
 	return datasource.TimeRange{From: from, To: to}, nil
@@ -184,4 +183,12 @@ func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) al
 		from, points = to.Add(-minMaxDataPoints*step), minMaxDataPoints
 	}
 	return alignment{rng: datasource.TimeRange{From: from, To: to}, step: step, maxDataPoints: points}
+}
+
+func panelTimeRange(panel *spec.Panel, rng datasource.TimeRange, now time.Time) (datasource.TimeRange, error) {
+	rng = queryproxy.PanelRange(panel, rng, now)
+	if rng.To.Sub(rng.From) > queryproxy.MaxRange {
+		return datasource.TimeRange{}, invalidf("the time range must be at most 400 days")
+	}
+	return rng, nil
 }
