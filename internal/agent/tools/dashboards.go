@@ -137,6 +137,46 @@ type dashboardOut struct {
 	Title       string          `json:"title"`
 	URL         string          `json:"url"`
 	Spec        *spec.Dashboard `json:"spec"`
+	Unverified  *unverifiedOut  `json:"unverified,omitempty"`
+}
+
+type unverifiedOut struct {
+	Panels    []unverifiedPanelOut    `json:"panels"`
+	Variables []unverifiedVariableOut `json:"variables"`
+}
+
+type unverifiedPanelOut struct {
+	PanelID string       `json:"panel_id"`
+	Title   string       `json:"title"`
+	Issues  []spec.Issue `json:"issues"`
+}
+
+type unverifiedVariableOut struct {
+	Name   string       `json:"name"`
+	Issues []spec.Issue `json:"issues"`
+}
+
+func newUnverifiedOut(d *spec.Dashboard, u dashboards.Unverified) *unverifiedOut {
+	if u.Empty() {
+		return nil
+	}
+	out := &unverifiedOut{Panels: make([]unverifiedPanelOut, len(u.Panels)), Variables: make([]unverifiedVariableOut, len(u.Variables))}
+	for i, p := range u.Panels {
+		title, _ := panelTitleIn(d, p.PanelID)
+		out.Panels[i] = unverifiedPanelOut{PanelID: p.PanelID, Title: title, Issues: p.Issues}
+	}
+	for i, v := range u.Variables {
+		out.Variables[i] = unverifiedVariableOut{Name: v.Name, Issues: v.Issues}
+	}
+	return out
+}
+
+func panelTitleIn(d *spec.Dashboard, id string) (string, bool) {
+	entry, ok := d.FindPanel(id)
+	if !ok {
+		return "", false
+	}
+	return entry.Panel.Title, true
 }
 
 func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -171,7 +211,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Spec: ver.Spec}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	body, err := json.Marshal(out)
 	if err != nil {
 		return Result{}, err
@@ -189,12 +229,13 @@ type panelOut struct {
 }
 
 type savedOut struct {
-	DashboardID string     `json:"dashboard_id"`
-	Version     int        `json:"version"`
-	URL         string     `json:"url"`
-	Replayed    *bool      `json:"replayed,omitempty"`
-	Panels      []panelOut `json:"panels"`
-	Truncated   bool       `json:"truncated,omitempty"`
+	DashboardID      string     `json:"dashboard_id"`
+	Version          int        `json:"version"`
+	URL              string     `json:"url"`
+	Replayed         *bool      `json:"replayed,omitempty"`
+	Panels           []panelOut `json:"panels"`
+	Truncated        bool       `json:"truncated,omitempty"`
+	UnverifiedPanels []string   `json:"unverified_panels,omitempty"`
 }
 
 type invalidSpecOut struct {
@@ -428,13 +469,18 @@ func (r *Registry) savedOut(dash dashboards.Dashboard, ver dashboards.Version, r
 		panels[i] = panelOut{ID: e.Panel.ID, Title: e.Panel.Title, Type: e.Panel.Type}
 	}
 	panels, truncated := fit(panels, listBudget)
+	var unverified []string
+	for _, p := range ver.Unverified.Panels {
+		unverified = append(unverified, p.PanelID)
+	}
 	return savedOut{
-		DashboardID: dash.ID,
-		Version:     ver.Number,
-		URL:         DashboardURL(r.deps.PublicURL, dash.ID),
-		Replayed:    replayed,
-		Panels:      panels,
-		Truncated:   truncated,
+		DashboardID:      dash.ID,
+		Version:          ver.Number,
+		URL:              DashboardURL(r.deps.PublicURL, dash.ID),
+		Replayed:         replayed,
+		Panels:           panels,
+		Truncated:        truncated,
+		UnverifiedPanels: unverified,
 	}
 }
 

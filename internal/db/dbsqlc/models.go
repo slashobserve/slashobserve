@@ -90,6 +90,7 @@ type DashboardVersion struct {
 	Origin         pgtype.Text
 	OriginClient   pgtype.Text
 	DatasourceUids []string
+	Unverified     []byte
 }
 
 type Import struct {

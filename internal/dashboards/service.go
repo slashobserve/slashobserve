@@ -109,7 +109,8 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec
 	if err != nil {
 		return Dashboard{}, Version{}, nil, false, err
 	}
-	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)}
+	unverified, _ := UnverifiedOf(parsed, issues)
+	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: unverified}
 	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 	if hook != nil {
 		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
@@ -174,10 +175,11 @@ func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.
 	if latest != parent {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
-	if err := s.checkQueries(ctx, by, parsed); err != nil {
+	carried, err := s.checkSave(ctx, by, id, parent, parsed)
+	if err != nil {
 		return Dashboard{}, Version{}, false, err
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)})
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: carried})
 	if errors.Is(err, errStaleParent) || errors.Is(err, errRequestSaved) {
 		return s.replayOrConflict(ctx, by, id, parent, canonical, requestID)
 	}
@@ -207,11 +209,15 @@ func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID
 	if issues := s.runner.CheckDatasources(parsed); len(issues) > 0 {
 		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
 	}
+	unverified, err := s.store.unverified(ctx, id, from)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
 	canonical, err := json.Marshal(parsed)
 	if err != nil {
 		return Dashboard{}, Version{}, fmt.Errorf("marshal spec: %w", err)
 	}
-	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx)})
+	dash, ver, err := s.store.addVersion(ctx, newVersion{dashboardID: id, parent: parent, restoredFrom: &from, spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: unverified})
 	if errors.Is(err, errStaleParent) {
 		return Dashboard{}, Version{}, s.conflict(ctx, id)
 	}
@@ -417,6 +423,29 @@ func (s *Service) checkQueries(ctx context.Context, by auth.Principal, d *spec.D
 		return &InvalidSpecError{Issues: issues}
 	}
 	return nil
+}
+
+func (s *Service) checkSave(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, parsed *spec.Dashboard) (Unverified, error) {
+	prevUnverified, err := s.store.unverified(ctx, id, parent)
+	if err != nil {
+		return Unverified{}, err
+	}
+	if prevUnverified.Empty() {
+		return Unverified{}, s.checkQueries(ctx, by, parsed)
+	}
+	prev, err := s.VersionSpec(ctx, id, parent)
+	if err != nil {
+		return Unverified{}, err
+	}
+	issues, err := s.runner.CheckSpec(ctx, parsed, time.Now(), queryproxy.UserFor(by))
+	if err != nil {
+		return Unverified{}, err
+	}
+	carried, blocking := CarryUnverified(prev, prevUnverified, parsed, issues)
+	if len(blocking) > 0 {
+		return Unverified{}, &InvalidSpecError{Issues: blocking}
+	}
+	return carried, nil
 }
 
 func (s *Service) replayOrConflict(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, canonical []byte, requestID pgtype.UUID) (Dashboard, Version, bool, error) {

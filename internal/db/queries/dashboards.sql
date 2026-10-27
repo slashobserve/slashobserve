@@ -11,11 +11,11 @@ RETURNING *;
 -- name: InsertDashboardVersion :one
 INSERT INTO dashboard_versions (
   dashboard_id, version, parent_version, restored_from, spec, summary,
-  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client
+  author_kind, author_id, author_name, author_email, agent_request_id, origin, origin_client, unverified
 ) VALUES (
   @dashboard_id, @version, @parent_version, @restored_from, @spec, @summary,
   @author_kind, @author_id, @author_name, @author_email, @agent_request_id,
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('unverified')::jsonb
 )
 RETURNING dashboard_id, version, parent_version, restored_from, summary,
   author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at;
@@ -46,6 +46,9 @@ WHERE d.id = @id;
 
 -- name: GetDashboardVersionSpec :one
 SELECT spec FROM dashboard_versions WHERE dashboard_id = @id AND version = @version;
+
+-- name: GetDashboardVersionUnverified :one
+SELECT unverified FROM dashboard_versions WHERE dashboard_id = @id AND version = @version;
 
 -- name: ListDashboards :many
 SELECT sqlc.embed(d),

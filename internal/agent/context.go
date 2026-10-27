@@ -9,6 +9,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -19,6 +20,7 @@ type revision struct {
 	dashboardID string
 	number      int
 	spec        *spec.Dashboard
+	unverified  dashboards.Unverified
 }
 
 func buildSystem() string {
@@ -73,6 +75,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	}
 	if mode == tools.ModeSuggest {
 		fmt.Fprintf(&b, "\nYou are proposing a change to dashboard %s, version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
+		writeUnverified(&b, current)
 		title, _ := panelTitle(current.spec, panelID)
 		if title == "" {
 			title = panelID
@@ -81,6 +84,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 		return b.String(), nil
 	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
+	writeUnverified(&b, current)
 	if panelID != "" {
 		fromComment := source == revisions.SourceComment
 		if title, ok := panelTitle(current.spec, panelID); ok {
@@ -96,6 +100,44 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 		}
 	}
 	return b.String(), nil
+}
+
+const (
+	maxUnverifiedLines = 60
+	maxUnverifiedBytes = 8 << 10
+)
+
+func writeUnverified(b *strings.Builder, current *revision) {
+	u := current.unverified
+	if u.Empty() {
+		return
+	}
+	var lines []string
+	for _, p := range u.Panels {
+		title, _ := panelTitle(current.spec, p.PanelID)
+		lines = append(lines, fmt.Sprintf("- panel %s %q: %s", p.PanelID, title, firstIssue(p.Issues)))
+	}
+	for _, v := range u.Variables {
+		lines = append(lines, fmt.Sprintf("- variable %s: %s", v.Name, firstIssue(v.Issues)))
+	}
+	fmt.Fprintf(b, "\nUnverified in version %d: their queries failed when it was saved. A save keeps them unverified while their queries and the variables those use stay unchanged; a changed or new query must return data.", current.number)
+	size := 0
+	for i, line := range lines {
+		if i == maxUnverifiedLines || size+len(line) > maxUnverifiedBytes {
+			fmt.Fprintf(b, "\n- ... and %d more", len(lines)-i)
+			break
+		}
+		size += len(line)
+		b.WriteString("\n" + line)
+	}
+	b.WriteString("\nKeep unverified panels unless the request asks to delete them.")
+}
+
+func firstIssue(issues []spec.Issue) string {
+	if len(issues) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s: %s", issues[0].Code, strings.Join(strings.Fields(issues[0].Message), " "))
 }
 
 func panelTitle(d *spec.Dashboard, id string) (string, bool) {

@@ -273,7 +273,7 @@ export interface paths {
         put?: never;
         /**
          * Save a new version on top of the version the caller last saw, validating the Spec and running every panel query.
-         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`.
+         * @description A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`. A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries (every field, with the datasource each query uses) and every variable they reach are unchanged; the new version lists it again with the new issues. Any other failing query is a 422 `invalid_spec` that lists only the blocking issues.
          */
         post: operations["createDashboardVersion"];
         delete?: never;
@@ -316,7 +316,7 @@ export interface paths {
         put?: never;
         /**
          * Save a copy of an earlier version as a new version.
-         * @description The stored Spec is parsed again and its datasource references are checked, but its queries are not run, so restoring a known-good state does not fail because an upstream is briefly down.
+         * @description The stored Spec is parsed again and its datasource references are checked, but its queries are not run, so restoring a known-good state does not fail because an upstream is briefly down. The new version copies the restored version's `unverified` list.
          */
         post: operations["restoreDashboardVersion"];
         delete?: never;
@@ -798,7 +798,7 @@ export interface components {
         };
         Issue: {
             path: string;
-            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have) and `threshold_value_missing` (a threshold other than the first omits its value). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`). */
+            /** @description Spec parsing adds schema and semantic codes such as `schema`, `too_large`, `unknown_unit`, `duplicate_panel_id`, `unknown_variable`, `too_many_panels` (more than 200 panels counting row children), `duplicate_query_ref`, `unknown_query_ref` (an override matches a query ref the panel does not have) and `threshold_value_missing` (a threshold other than the first omits its value). Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`), `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child), and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal` (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`). A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`. */
             code: string;
             message: string;
         };
@@ -1027,6 +1027,20 @@ export interface components {
             spec: {
                 [key: string]: unknown;
             };
+            unverified: components["schemas"]["Unverified"];
+        };
+        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). */
+        Unverified: {
+            panels: components["schemas"]["UnverifiedPanel"][];
+            variables: components["schemas"]["UnverifiedVariable"][];
+        };
+        UnverifiedPanel: {
+            panel_id: string;
+            issues: components["schemas"]["Issue"][];
+        };
+        UnverifiedVariable: {
+            name: string;
+            issues: components["schemas"]["Issue"][];
         };
         DashboardWithVersion: {
             dashboard: components["schemas"]["DashboardSummary"];

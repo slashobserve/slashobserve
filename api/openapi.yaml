@@ -122,6 +122,7 @@ components:
             `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty` and `internal`
             (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`).
+            A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`.
         message:
           type: string
     ValidationError:
@@ -545,7 +546,7 @@ components:
     Version:
       type: object
       additionalProperties: false
-      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, spec]
+      required: [version, parent_version, restored_from, summary, author, created_at, origin, origin_client, agent_request_id, spec, unverified]
       properties:
         version:
           type: integer
@@ -584,6 +585,49 @@ components:
           type: object
           additionalProperties: true
           description: The ObserveSpec document, validated against its own schema.
+        unverified:
+          $ref: "#/components/schemas/Unverified"
+    Unverified:
+      type: object
+      additionalProperties: false
+      required: [panels, variables]
+      description: >-
+        Panels and variables of this version whose queries failed when it was saved but were kept:
+        a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged
+        (see `POST /dashboards/{id}/versions`).
+      properties:
+        panels:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnverifiedPanel"
+        variables:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnverifiedVariable"
+    UnverifiedPanel:
+      type: object
+      additionalProperties: false
+      required: [panel_id, issues]
+      properties:
+        panel_id:
+          type: string
+        issues:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Issue"
+    UnverifiedVariable:
+      type: object
+      additionalProperties: false
+      required: [name, issues]
+      properties:
+        name:
+          type: string
+        issues:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Issue"
     DashboardWithVersion:
       type: object
       additionalProperties: false

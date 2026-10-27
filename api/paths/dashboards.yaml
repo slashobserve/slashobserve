@@ -184,6 +184,10 @@ dashboards-id-versions:
     description: >-
       A request whose parent version is no longer the latest answers 409, unless it repeats the latest version exactly
       (same parent, author and Spec), in which case it answers 200 with `Idempotent-Replay: true`.
+      A failing panel or variable does not fail the save when the parent version lists it in `unverified` and its queries
+      (every field, with the datasource each query uses) and every variable they reach are unchanged;
+      the new version lists it again with the new issues.
+      Any other failing query is a 422 `invalid_spec` that lists only the blocking issues.
     requestBody:
       required: true
       content:
@@ -299,6 +303,7 @@ dashboards-id-versions-version-restore:
     description: >-
       The stored Spec is parsed again and its datasource references are checked, but its queries are not run,
       so restoring a known-good state does not fail because an upstream is briefly down.
+      The new version copies the restored version's `unverified` list.
     requestBody:
       required: true
       content:

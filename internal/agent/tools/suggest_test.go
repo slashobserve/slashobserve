@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"sync"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -25,9 +28,10 @@ func suggestText(id, content string, y int) string {
 }
 
 type suggestRig struct {
-	registry *Registry
-	base     *spec.Dashboard
-	ctx      context.Context
+	registry    *Registry
+	base        *spec.Dashboard
+	ctx         context.Context
+	dashboardID string
 
 	mu      sync.Mutex
 	queries []string
@@ -57,11 +61,17 @@ func newSuggestRig(t *testing.T) *suggestRig {
 		},
 	}
 	rig.registry = newTestRegistry(t, ds, nil)
+	rig.registry.deps.Dashboards = dashboards.New(dbtest.New(t).DB, rig.registry.deps.Runner, slog.New(slog.DiscardHandler))
 	base, err := spec.Parse([]byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))))
 	if err != nil {
 		t.Fatal(err)
 	}
 	rig.base = base
+	saved, _, err := rig.registry.deps.Dashboards.Create(rig.ctx, auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada"}, []byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))), "seed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rig.dashboardID = saved.ID
 	return rig
 }
 
@@ -70,7 +80,7 @@ func (r *suggestRig) suggest(t *testing.T, panelID, tool, input string) (Result,
 	r.mu.Lock()
 	r.queries = nil
 	r.mu.Unlock()
-	ctx := WithRun(r.ctx, Run{Mode: ModeSuggest, DashboardID: dashA, ParentVersion: 1, PanelID: panelID, Base: r.base})
+	ctx := WithRun(r.ctx, Run{Mode: ModeSuggest, DashboardID: r.dashboardID, ParentVersion: 1, PanelID: panelID, Base: r.base})
 	res, err := r.registry.Call(ctx, tool, []byte(input))
 	if err != nil {
 		t.Fatal(err)
