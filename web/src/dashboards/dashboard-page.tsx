@@ -281,6 +281,8 @@ const PanelContainer = memo(function PanelContainer({
             width={body.width}
             height={body.height}
             vars={selections}
+            from={rangeFrom}
+            to={rangeTo}
           />
         ) : null}
       </PanelChrome>

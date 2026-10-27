@@ -117,13 +117,22 @@ export function StaticPanelBody({
   width,
   height,
   vars,
+  from,
+  to,
 }: StaticPanelProps) {
   const Renderer = staticRenderers[panel.type]
   return (
     <RendererBoundary>
       <Suspense fallback={<PanelSkeleton />}>
         {Renderer ? (
-          <Renderer panel={panel} width={width} height={height} vars={vars} />
+          <Renderer
+            panel={panel}
+            width={width}
+            height={height}
+            vars={vars}
+            from={from}
+            to={to}
+          />
         ) : (
           <Unsupported />
         )}
