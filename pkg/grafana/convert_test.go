@@ -925,3 +925,13 @@ func TestAutoLegendIsKeptVerbatim(t *testing.T) {
 		t.Fatalf("queries = %+v, want legend __auto", panel.Queries)
 	}
 }
+
+func TestStatusHistoryColoredByThresholdsIsNotReported(t *testing.T) {
+	panel, line := convertedPanel(t, panelDoc("status-history", upTarget+`,"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":80}]}},"overrides":[]}`))
+	if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{"ok", "critical@80"}) {
+		t.Fatalf("thresholds = %v", got)
+	}
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v, reasons = %v", line.Paths, line.Reasons)
+	}
+}

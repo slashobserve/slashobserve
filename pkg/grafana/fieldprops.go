@@ -124,7 +124,7 @@ func (b *panelBuild) colorMode() string {
 
 func (b *panelBuild) thresholdsApply() bool {
 	switch b.typ {
-	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline:
+	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline, spec.StatusHistory:
 		return true
 	case spec.Timeseries, spec.Trend, spec.Candlestick:
 		v, _ := b.value("fieldConfig.defaults.custom.thresholdsStyle.mode")
@@ -383,6 +383,7 @@ func propColor(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 
 var thresholdColoredTypes = map[spec.PanelType]bool{
 	spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true, spec.StateTimeline: true,
+	spec.StatusHistory: true,
 }
 
 func propDrawStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
