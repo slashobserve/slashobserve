@@ -1,6 +1,5 @@
 import uPlot from "uplot"
 
-import { formatDateTime } from "@/lib/time"
 import type { Threshold } from "@/spec"
 
 import type { LineStyle } from "../colors"
@@ -79,7 +78,8 @@ export function tooltipPlugin(
   host: HTMLElement,
   mode: "single" | "all",
   first: number,
-  series: () => TooltipSeries[]
+  series: () => TooltipSeries[],
+  heading: (x: number) => string
 ): uPlot.Plugin {
   let tooltip: HTMLDivElement | null = null
   let plot: uPlot | null = null
@@ -160,12 +160,12 @@ export function tooltipPlugin(
           }))
         )
 
-        const heading = document.createElement("div")
-        heading.className = "ts-tooltip-time"
-        heading.textContent = formatDateTime(u.data[0][idx] * 1000)
+        const title = document.createElement("div")
+        title.className = "ts-tooltip-time"
+        title.textContent = heading(u.data[0][idx])
 
         const render = (count: number, withMore = false) => {
-          const children: HTMLElement[] = [heading]
+          const children: HTMLElement[] = [title]
           for (let position = 0; position < count; position++) {
             children.push(
               tooltipRow(meta[candidates[position].index], texts[position])

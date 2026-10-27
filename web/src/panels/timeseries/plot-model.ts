@@ -18,6 +18,11 @@ export type ChartSeries = StyledSeries & {
   config: FieldConfig
 }
 
+export type XAxis =
+  { kind: "time" } | { kind: "number"; format: (value: number) => string }
+
+export const timeAxis: XAxis = { kind: "time" }
+
 export type PlotState = {
   data: [number[], ...Cell[][]]
   bands: { series: [number, number]; dir: 1 | -1 }[]
