@@ -1995,6 +1995,8 @@ export interface operations {
                 datasource?: string;
                 /** @description Case-insensitive text found in the title or the description; leading and trailing whitespace is ignored and a value of only whitespace is rejected. */
                 q?: string;
+                /** @description Only dashboards with every given tag. */
+                tag?: string[];
             };
             header?: never;
             path?: never;

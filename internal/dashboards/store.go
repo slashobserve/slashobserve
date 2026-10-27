@@ -322,6 +322,7 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, 
 		McpClient:   f.McpClient,
 		Datasource:  f.Datasource,
 		Q:           f.Q,
+		Tags:        f.Tags,
 		RowLimit:    httpapi.Int32(limit),
 	}
 	if after != nil {
@@ -363,6 +364,7 @@ func filterOf(p ListParams) (dbsqlc.CountDashboardsParams, error) {
 		McpClient:  optionalText(p.MadeBy.MCPClient),
 		Datasource: optionalText(p.Datasource),
 		Q:          optionalText(p.Query),
+		Tags:       p.Tags,
 	}
 	if p.MadeBy.CreatorKind != "" {
 		id, err := db.ParseUUID(p.MadeBy.CreatorID)

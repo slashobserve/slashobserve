@@ -6,6 +6,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -26,7 +28,10 @@ const (
 
 	maxDatasourceRunes = 64
 	maxQueryRunes      = 200
+	maxTags            = 10
 )
+
+var tagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
 
 type createRequest struct {
 	Spec    json.RawMessage `json:"spec"`
@@ -119,6 +124,12 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		return params, false
 	}
 	params.Datasource = datasource
+	tags := c.QueryArray("tag")
+	if len(tags) > maxTags || slices.ContainsFunc(tags, func(tag string) bool { return !tagPattern.MatchString(tag) }) {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "tag must match the dashboard tag pattern, at most 10")
+		return params, false
+	}
+	params.Tags = tags
 	if query != "" {
 		trimmed := strings.TrimSpace(query)
 		if !cleanText(query) || utf8.RuneCountInString(query) > maxQueryRunes || trimmed == "" {
