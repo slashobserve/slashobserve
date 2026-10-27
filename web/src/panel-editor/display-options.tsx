@@ -1,12 +1,16 @@
-import { useId, useState, type Dispatch } from "react"
+import { useId, useState, type Dispatch, type ReactNode } from "react"
 
 import { Input } from "@/components/ui/input"
 import {
   displayWithDefaults,
   isDefaultDisplayValue,
-  type DataPanelType,
+  type DisplayPanelType,
 } from "@/spec"
 
+import { displayOptions } from "./display-options/index"
+import { parseNumber, parseTags } from "./display-options/parse"
+import { reducerOptions } from "./display-options/shared"
+import type { DisplayOption, NumberRule } from "./display-options/types"
 import type { DraftAction } from "./draft"
 import {
   CheckboxField,
@@ -17,59 +21,7 @@ import {
 } from "./field-controls"
 import { toggleOrdered } from "./ordered-set"
 
-const reducerOptions: Option[] = [
-  { value: "lastNotNull", label: "Last" },
-  { value: "last", label: "Last, including empty" },
-  { value: "first", label: "First" },
-  { value: "firstNotNull", label: "First, not empty" },
-  { value: "min", label: "Min" },
-  { value: "max", label: "Max" },
-  { value: "mean", label: "Mean" },
-  { value: "median", label: "Median" },
-  { value: "sum", label: "Total" },
-  { value: "count", label: "Count" },
-  { value: "range", label: "Range" },
-  { value: "delta", label: "Delta" },
-  { value: "diff", label: "Difference" },
-  { value: "stdDev", label: "Standard deviation" },
-  { value: "distinctCount", label: "Distinct values" },
-  { value: "changeCount", label: "Changes" },
-]
-
-const legendOptions: Option[] = [
-  { value: "bottom", label: "Bottom" },
-  { value: "right", label: "Right" },
-  { value: "hidden", label: "Hidden" },
-]
-
-const orientationOptions: Option[] = [
-  { value: "auto", label: "Auto" },
-  { value: "horizontal", label: "Horizontal" },
-  { value: "vertical", label: "Vertical" },
-]
-
-const legendValueOptions: Option[] = [
-  { value: "lastNotNull", label: "Last" },
-  { value: "mean", label: "Mean" },
-  { value: "max", label: "Max" },
-  { value: "min", label: "Min" },
-  { value: "sum", label: "Total" },
-]
-
-const footerOptions: Option[] = [
-  { value: "sum", label: "Total" },
-  { value: "mean", label: "Mean" },
-  { value: "min", label: "Min" },
-  { value: "max", label: "Max" },
-  { value: "lastNotNull", label: "Last" },
-  { value: "count", label: "Count" },
-]
-
-const maxFooterReducers = 5
-const maxBucketCount = 1000
-
 type Controls = {
-  type: DataPanelType
   display: Record<string, unknown>
   set: (key: string, value: unknown) => void
   disabled: boolean
@@ -115,17 +67,6 @@ function Choice({
       }
       disabled={controls.disabled}
       onChange={(value) => controls.set(name, value === "" ? undefined : value)}
-    />
-  )
-}
-
-function Calculation({ controls }: { controls: Controls }) {
-  return (
-    <Choice
-      controls={controls}
-      label="Calculation"
-      name="reduce"
-      options={reducerOptions}
     />
   )
 }
@@ -185,270 +126,256 @@ function Reducers({
   )
 }
 
+function useEntry(stored: string) {
+  const [entry, setEntry] = useState(stored)
+  const [synced, setSynced] = useState(stored)
+  if (stored !== synced) {
+    setSynced(stored)
+    setEntry(stored)
+  }
+  return {
+    entry,
+    edit: (next: string, committed: string) => {
+      setEntry(next)
+      setSynced(committed)
+    },
+  }
+}
+
+function EntryField({
+  label,
+  hint,
+  invalid,
+  children,
+}: {
+  label: string
+  hint?: string
+  invalid: boolean
+  children: (props: {
+    id: string
+    "aria-invalid": boolean
+    "aria-describedby"?: string
+  }) => ReactNode
+}) {
+  const id = useId()
+  return (
+    <Field label={label} htmlFor={id}>
+      {children({
+        id,
+        "aria-invalid": invalid,
+        "aria-describedby": hint === undefined ? undefined : `${id}-hint`,
+      })}
+      {hint === undefined ? null : (
+        <span
+          id={`${id}-hint`}
+          className={
+            invalid
+              ? "text-xs text-status-critical"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {hint}
+        </span>
+      )}
+    </Field>
+  )
+}
+
 function NumberOption({
   controls,
   label,
   name,
   hint,
-  parse,
+  rule,
 }: {
   controls: Controls
   label: string
   name: string
   hint: string
-  parse: (text: string) => number | null
+  rule: NumberRule
 }) {
-  const id = useId()
   const stored = controls.display[name]
-  const value = typeof stored === "number" ? stored : undefined
-  const [entry, setEntry] = useState(value === undefined ? "" : String(value))
-  const [synced, setSynced] = useState(value)
-  if (value !== synced) {
-    setSynced(value)
-    setEntry(value === undefined ? "" : String(value))
-  }
-  const parsed = entry.trim() === "" ? undefined : parse(entry.trim())
-  const invalid = parsed === null
+  const current = typeof stored === "number" ? String(stored) : ""
+  const { entry, edit } = useEntry(current)
+  const parse = (value: string) => parseNumber(value, rule)
+  const trimmed = entry.trim()
+  const invalid = trimmed !== "" && parse(trimmed) === null
   return (
-    <Field label={label} htmlFor={id}>
-      <Input
-        id={id}
-        inputMode="decimal"
-        value={entry}
-        placeholder="Auto"
-        aria-invalid={invalid}
-        aria-describedby={`${id}-hint`}
-        readOnly={controls.disabled}
-        onChange={(event) => {
-          const next = event.target.value
-          setEntry(next)
-          const number = next.trim() === "" ? undefined : parse(next.trim())
-          if (number === null) return
-          setSynced(number)
-          controls.set(name, number)
-        }}
-      />
-      <span
-        id={`${id}-hint`}
-        className={
-          invalid
-            ? "text-xs text-status-critical"
-            : "text-xs text-muted-foreground"
-        }
-      >
-        {hint}
-      </span>
-    </Field>
+    <EntryField label={label} hint={hint} invalid={invalid}>
+      {(props) => (
+        <Input
+          {...props}
+          inputMode="decimal"
+          value={entry}
+          placeholder="Auto"
+          readOnly={controls.disabled}
+          onChange={(event) => {
+            const next = event.target.value
+            const nextTrimmed = next.trim()
+            const number = nextTrimmed === "" ? undefined : parse(nextTrimmed)
+            if (number === null) {
+              edit(next, current)
+              return
+            }
+            edit(next, number === undefined ? "" : String(number))
+            controls.set(name, number)
+          }}
+        />
+      )}
+    </EntryField>
   )
 }
 
-function parseBucketSize(entry: string): number | null {
-  if (!/^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(entry)) return null
-  const value = Number(entry)
-  return Number.isFinite(value) && value > 0 ? value : null
+function TextOption({
+  controls,
+  label,
+  name,
+  placeholder,
+  maxLength,
+}: {
+  controls: Controls
+  label: string
+  name: string
+  placeholder: string
+  maxLength: number
+}) {
+  const { entry, edit } = useEntry(text(controls.display, name))
+  return (
+    <EntryField label={label} invalid={false}>
+      {(props) => (
+        <Input
+          {...props}
+          value={entry}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          readOnly={controls.disabled}
+          onChange={(event) => {
+            const next = event.target.value
+            const value = next.trim()
+            edit(next, value)
+            controls.set(name, value === "" ? undefined : value)
+          }}
+        />
+      )}
+    </EntryField>
+  )
 }
 
-function parseBucketCount(entry: string): number | null {
-  if (!/^\d+$/.test(entry)) return null
-  const value = Number(entry)
-  return value >= 1 && value <= maxBucketCount ? value : null
+function TagsOption({
+  controls,
+  label,
+  name,
+  max,
+}: {
+  controls: Controls
+  label: string
+  name: string
+  max: number
+}) {
+  const stored = list(controls.display, name).join(", ")
+  const { entry, edit } = useEntry(stored)
+  const tagsOf = (value: string) => {
+    const tags = parseTags(value)
+    return tags !== null && tags.length <= max ? tags : null
+  }
+  const invalid = tagsOf(entry) === null
+  const hint = `Separated by commas. Lowercase letters, digits, dots, dashes and underscores. At most ${max}.`
+  return (
+    <EntryField label={label} hint={hint} invalid={invalid}>
+      {(props) => (
+        <Input
+          {...props}
+          value={entry}
+          placeholder="All tags"
+          readOnly={controls.disabled}
+          onChange={(event) => {
+            const next = event.target.value
+            const tags = tagsOf(next)
+            if (tags === null) {
+              edit(next, stored)
+              return
+            }
+            edit(next, tags.join(", "))
+            controls.set(name, tags)
+          }}
+        />
+      )}
+    </EntryField>
+  )
 }
 
-function TypeOptions({ controls }: { controls: Controls }) {
-  switch (controls.type) {
-    case "timeseries":
+function OptionControl({
+  option,
+  controls,
+}: {
+  option: DisplayOption
+  controls: Controls
+}) {
+  switch (option.kind) {
+    case "choice":
       return (
-        <>
-          <Choice
-            controls={controls}
-            label="Legend"
-            name="legend"
-            options={legendOptions}
-          />
-          <Reducers
-            controls={controls}
-            label="Legend values"
-            name="legendValues"
-            options={legendValueOptions}
-          />
-          <Choice
-            controls={controls}
-            label="Tooltip"
-            name="tooltip"
-            options={[
-              { value: "single", label: "Single series" },
-              { value: "all", label: "All series" },
-              { value: "hidden", label: "Hidden" },
-            ]}
-          />
-        </>
+        <Choice
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          options={option.options}
+          absent={option.absent}
+        />
       )
-    case "stat":
+    case "toggle":
       return (
-        <>
-          <Calculation controls={controls} />
-          <Choice
-            controls={controls}
-            label="Color mode"
-            name="colorMode"
-            options={[
-              { value: "value", label: "Value" },
-              { value: "background", label: "Background" },
-              { value: "none", label: "None" },
-            ]}
-          />
-          <Toggle controls={controls} label="Show graph" name="graph" />
-          <Choice
-            controls={controls}
-            label="Text"
-            name="textMode"
-            absent="Auto"
-            options={[
-              { value: "value", label: "Value" },
-              { value: "name", label: "Name" },
-              { value: "valueAndName", label: "Value and name" },
-              { value: "none", label: "None" },
-            ]}
-          />
-          <Choice
-            controls={controls}
-            label="Orientation"
-            name="orientation"
-            options={orientationOptions}
-          />
-        </>
+        <Toggle controls={controls} label={option.label} name={option.key} />
       )
-    case "gauge":
+    case "reducer":
       return (
-        <>
-          <Calculation controls={controls} />
-          <Toggle
-            controls={controls}
-            label="Show threshold markers"
-            name="thresholdMarkers"
-          />
-        </>
+        <Choice
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          options={reducerOptions}
+        />
       )
-    case "bargauge":
+    case "reducers":
       return (
-        <>
-          <Calculation controls={controls} />
-          <Choice
-            controls={controls}
-            label="Orientation"
-            name="orientation"
-            options={orientationOptions}
-          />
-        </>
+        <Reducers
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          options={option.options}
+          max={option.max}
+        />
       )
-    case "table":
+    case "number":
       return (
-        <>
-          <Toggle controls={controls} label="Show header" name="header" />
-          <Reducers
-            controls={controls}
-            label="Footer"
-            name="footer"
-            options={footerOptions}
-            max={maxFooterReducers}
-          />
-        </>
+        <NumberOption
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          hint={option.hint}
+          rule={option.rule}
+        />
       )
-    case "piechart":
+    case "text":
       return (
-        <>
-          <Calculation controls={controls} />
-          <Choice
-            controls={controls}
-            label="Pie type"
-            name="pieType"
-            options={[
-              { value: "pie", label: "Pie" },
-              { value: "donut", label: "Donut" },
-            ]}
-          />
-          <Choice
-            controls={controls}
-            label="Legend"
-            name="legend"
-            options={legendOptions}
-          />
-        </>
+        <TextOption
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          placeholder={option.placeholder}
+          maxLength={option.maxLength}
+        />
       )
-    case "heatmap":
+    case "tags":
       return (
-        <>
-          <Toggle
-            controls={controls}
-            label="Calculate buckets"
-            name="calculate"
-          />
-          <Choice
-            controls={controls}
-            label="Y scale"
-            name="yScale"
-            options={[
-              { value: "linear", label: "Linear" },
-              { value: "log", label: "Log" },
-            ]}
-          />
-        </>
+        <TagsOption
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          max={option.max}
+        />
       )
-    case "histogram":
-      return (
-        <>
-          <NumberOption
-            controls={controls}
-            label="Bucket size"
-            name="bucketSize"
-            hint="A number above 0. Empty is automatic."
-            parse={parseBucketSize}
-          />
-          <NumberOption
-            controls={controls}
-            label="Bucket count"
-            name="bucketCount"
-            hint="A whole number from 1 to 1000. Empty is automatic."
-            parse={parseBucketCount}
-          />
-        </>
-      )
-    case "state-timeline":
-      return (
-        <>
-          <Toggle
-            controls={controls}
-            label="Merge equal values"
-            name="mergeValues"
-          />
-          <Choice
-            controls={controls}
-            label="Show values"
-            name="showValues"
-            options={[
-              { value: "auto", label: "Auto" },
-              { value: "always", label: "Always" },
-              { value: "never", label: "Never" },
-            ]}
-          />
-        </>
-      )
-    case "logs":
-      return (
-        <>
-          <Toggle controls={controls} label="Wrap lines" name="wrap" />
-          <Toggle controls={controls} label="Show time" name="showTime" />
-          <Choice
-            controls={controls}
-            label="Order"
-            name="order"
-            options={[
-              { value: "newest", label: "Newest first" },
-              { value: "oldest", label: "Oldest first" },
-            ]}
-          />
-        </>
-      )
+    case "note":
+      return <p className="text-xs text-muted-foreground">{option.text}</p>
   }
 }
 
@@ -458,13 +385,14 @@ export function DisplayOptions({
   dispatch,
   readOnly,
 }: {
-  type: DataPanelType
+  type: DisplayPanelType
   display: unknown
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
 }) {
+  const options = displayOptions[type]
+  if (options.length === 0) return null
   const controls: Controls = {
-    type,
     display: displayWithDefaults(type, display),
     disabled: readOnly,
     set: (key, value) =>
@@ -480,7 +408,13 @@ export function DisplayOptions({
   return (
     <div className="flex flex-col gap-3.5">
       <h3 className="pt-1 text-[13px] font-semibold">Display</h3>
-      <TypeOptions controls={controls} />
+      {options.map((option, index) => (
+        <OptionControl
+          key={"key" in option ? option.key : index}
+          option={option}
+          controls={controls}
+        />
+      ))}
     </div>
   )
 }

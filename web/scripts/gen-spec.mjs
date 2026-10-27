@@ -65,10 +65,29 @@ const validator = `${banner}\n// @ts-nocheck\n${code}\n`
 
 const defaultsModule = `${bannerFor("spec/schema/defaults.json")}\nexport const specDefaults = ${JSON.stringify(defaults, null, 2)} as const\n`
 
+const displayKeysByType = Object.fromEntries([
+  ...schema.$defs.dataPanel.allOf.flatMap((rule) =>
+    rule.if?.properties?.type?.const && rule.then?.properties?.display
+      ? [
+          [
+            rule.if.properties.type.const,
+            Object.keys(rule.then.properties.display.properties),
+          ],
+        ]
+      : []
+  ),
+  [
+    "dashlist",
+    Object.keys(schema.$defs.dashlistPanel.properties.display.properties),
+  ],
+])
+const displayKeysModule = `${banner}\nexport const displayKeysByType: Record<string, readonly string[]> = ${JSON.stringify(displayKeysByType, null, 2)}\n`
+
 const outputs = {
   "observespec.gen.ts": types,
   "validate.gen.ts": validator,
   "defaults.gen.ts": defaultsModule,
+  "display-keys.gen.ts": displayKeysModule,
 }
 const check = process.argv.includes("--check")
 const stale = []

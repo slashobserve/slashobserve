@@ -460,6 +460,25 @@ describe("immutability", () => {
   })
 })
 
+describe("setType display keys", () => {
+  it("drops canvas elements and connections when the type changes to stat", () => {
+    const state = apply(
+      dataPanel({
+        type: "canvas",
+        display: {
+          reduce: "max",
+          elements: [{ id: "e", type: "text", x: 0, y: 0, w: 1, h: 1 }],
+          connections: [],
+        },
+      } as Partial<DataPanel>),
+      { type: "setType", panelType: "stat" }
+    )
+    const panel = state.panel as DataPanel
+    expect(panel.type).toBe("stat")
+    expect(panel.display).toEqual({ reduce: "max" })
+  })
+})
+
 describe("displayKeysFor", () => {
   type Schema = {
     $defs: {

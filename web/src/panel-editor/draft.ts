@@ -1,4 +1,5 @@
 import {
+  displayKeysByType,
   isDataPanel,
   queryRef,
   type DataPanel,
@@ -45,66 +46,8 @@ export type DraftAction =
 
 export const maxQueries = 26
 
-const displayKeys: Record<DataPanelType, readonly string[]> = {
-  timeseries: ["legend", "legendValues", "tooltip"],
-  stat: ["reduce", "colorMode", "graph", "textMode", "orientation"],
-  gauge: ["reduce", "thresholdMarkers"],
-  bargauge: ["reduce", "orientation"],
-  table: ["header", "footer"],
-  piechart: ["reduce", "pieType", "legend"],
-  heatmap: ["calculate", "yScale"],
-  histogram: ["bucketSize", "bucketCount"],
-  "state-timeline": ["mergeValues", "showValues"],
-  logs: ["wrap", "showTime", "order"],
-  barchart: [
-    "orientation",
-    "xField",
-    "showValues",
-    "barWidth",
-    "groupWidth",
-    "legend",
-    "tooltip",
-  ],
-  "status-history": ["showValues"],
-  trend: ["xField", "legend", "legendValues", "tooltip"],
-  xychart: ["xField", "show", "pointSize", "legend", "tooltip"],
-  candlestick: [
-    "mode",
-    "candleStyle",
-    "colorStrategy",
-    "upColor",
-    "downColor",
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    "legend",
-    "tooltip",
-  ],
-  nodeGraph: ["layout"],
-  traces: [],
-  flamegraph: [],
-  geomap: [
-    "view",
-    "lat",
-    "lon",
-    "zoom",
-    "location",
-    "latField",
-    "lonField",
-    "geohashField",
-    "sizeField",
-    "colorField",
-    "markerSize",
-    "markerSizeMax",
-  ],
-  canvas: ["reduce", "elements", "connections"],
-  alertlist: ["limit", "sort", "viewMode"],
-}
-
 export function displayKeysFor(type: DataPanelType): readonly string[] {
-  return displayKeys[type]
+  return displayKeysByType[type] ?? []
 }
 
 export function nextRef(queries: readonly PanelQuery[]): string {
