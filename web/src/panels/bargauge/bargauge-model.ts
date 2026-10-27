@@ -1,4 +1,4 @@
-import { commonDecimals } from "@/lib/units"
+import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
 import {
@@ -96,21 +96,6 @@ function sharedRange(entries: Entry[]): { low: number; high: number } {
   return { low, high }
 }
 
-function decimalsByUnit(entries: Entry[]): Map<string | undefined, number> {
-  const groups = new Map<string | undefined, (number | null)[]>()
-  for (const { config, value } of entries) {
-    const numbers = groups.get(config.unit) ?? []
-    groups.set(config.unit, numbers)
-    if (config.decimals === undefined) numbers.push(value)
-  }
-  const decimals = new Map<string | undefined, number>()
-  for (const [unit, numbers] of groups) {
-    const common = commonDecimals(numbers, unit)
-    if (common !== undefined) decimals.set(unit, common)
-  }
-  return decimals
-}
-
 function clamp(fraction: number): number {
   return Math.min(1, Math.max(0, fraction))
 }
@@ -122,7 +107,13 @@ export function bargaugeModel(
 ): BargaugeModel {
   const entries = entriesOf(frames, fields, reducerOf(display))
   const shared = sharedRange(entries)
-  const decimals = decimalsByUnit(entries)
+  const decimals = decimalsByUnit(
+    entries.map(({ config, value }) => ({
+      unit: config.unit,
+      decimals: config.decimals,
+      value,
+    }))
+  )
   const bars = entries.map(({ key, frame, field, config, value }): Bar => {
     const implied = unitRanges.get(config.unit ?? "")
     const min = config.min ?? implied?.min ?? shared.low

@@ -460,6 +460,26 @@ export function commonDecimals(
   )
 }
 
+export type DecimalsItem = {
+  unit?: string
+  decimals?: number
+  value: number | null
+}
+
+export function decimalsByUnit(
+  items: readonly DecimalsItem[]
+): Map<string | undefined, number | undefined> {
+  const groups = new Map<string | undefined, (number | null)[]>()
+  for (const { unit, decimals, value } of items) {
+    const numbers = groups.get(unit) ?? []
+    groups.set(unit, numbers)
+    if (decimals === undefined) numbers.push(value)
+  }
+  return new Map(
+    [...groups].map(([unit, numbers]) => [unit, commonDecimals(numbers, unit)])
+  )
+}
+
 const maxOwnDecimals = 8
 const noiseDigits = 12
 

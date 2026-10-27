@@ -1,5 +1,5 @@
 import { formatTimeValue } from "@/lib/time"
-import { commonDecimals } from "@/lib/units"
+import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
 import {
@@ -272,22 +272,17 @@ function shownSource(
   return draft.feeders.find((feeder) => isShown(feeder, fields))
 }
 
-function decimalsByUnit(
+function columnDecimals(
   fields: FieldResolver,
   column: TableColumn,
   rows: TableRow[]
 ): TableColumn["decimals"] {
-  const groups = new Map<string | undefined, (number | null)[]>()
-  for (const row of rows) {
-    const { unit, decimals } = configAt(fields, column, row)
-    const numbers = groups.get(unit) ?? []
-    groups.set(unit, numbers)
-    if (decimals !== undefined) continue
-    const value = row.values[column.key]
-    numbers.push(typeof value === "number" ? value : null)
-  }
-  return new Map(
-    [...groups].map(([unit, numbers]) => [unit, commonDecimals(numbers, unit)])
+  return decimalsByUnit(
+    rows.map((row) => {
+      const { unit, decimals } = configAt(fields, column, row)
+      const value = row.values[column.key]
+      return { unit, decimals, value: typeof value === "number" ? value : null }
+    })
   )
 }
 
@@ -345,7 +340,7 @@ export function tableModel(
       range: rangeOf(field, values),
     }
     if (draft.type === "number") {
-      column.decimals = decimalsByUnit(fields, column, rows)
+      column.decimals = columnDecimals(fields, column, rows)
     }
     columns.push(column)
     columnValues.push(values)

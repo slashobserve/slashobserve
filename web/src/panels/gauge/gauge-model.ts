@@ -1,4 +1,4 @@
-import { commonDecimals } from "@/lib/units"
+import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
 import {
@@ -142,21 +142,6 @@ function markersFor(
   })
 }
 
-function decimalsByUnit(
-  sources: Source[],
-  values: (number | null)[]
-): Map<string | undefined, number | undefined> {
-  const groups = new Map<string | undefined, (number | null)[]>()
-  sources.forEach(({ config }, index) => {
-    const numbers = groups.get(config.unit) ?? []
-    groups.set(config.unit, numbers)
-    if (config.decimals === undefined) numbers.push(values[index])
-  })
-  return new Map(
-    [...groups].map(([unit, numbers]) => [unit, commonDecimals(numbers, unit)])
-  )
-}
-
 export function gaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
@@ -167,7 +152,13 @@ export function gaugeModel(
   const withMarkers = display.thresholdMarkers === true
   const data = dataRange(sources)
   const values = sources.map(({ field }) => reduce(field.values, reducer))
-  const decimals = decimalsByUnit(sources, values)
+  const decimals = decimalsByUnit(
+    sources.map(({ config }, index) => ({
+      unit: config.unit,
+      decimals: config.decimals,
+      value: values[index],
+    }))
+  )
   const seen = new Map<string, number>()
   return sources.map(({ frame, field, config }, index) => {
     const value = values[index]
