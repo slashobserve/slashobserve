@@ -1,0 +1,655 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Panel types B",
+    "uid": "panel-types-b",
+    "schema_version": 39,
+    "bytes": 24774,
+    "panels": 10,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 10,
+      "imported": 2,
+      "partial": 6,
+      "placeholder": 2,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Probes by location",
+        "type": "geomap",
+        "source_type": "geomap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Map tiles are not loaded; the map shows country outlines."
+        ],
+        "paths": [
+          "options.basemap"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Probes by country",
+        "type": "geomap",
+        "source_type": "geomap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Named map regions are shown fitted to the data.",
+          "Looking up locations by name is not supported yet.",
+          "Only the first markers layer is drawn; other layers are left out.",
+          "Map tiles are not loaded; the map shows country outlines.",
+          "Map controls are not configurable."
+        ],
+        "paths": [
+          "options.view.id",
+          "options.layers[0].location",
+          "options.layers[1]",
+          "options.basemap",
+          "options.controls.showScale"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Requests by position (worldmap)",
+        "type": "geomap",
+        "source_type": "grafana-worldmap-panel",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Requests by country (worldmap)",
+        "type": "geomap",
+        "source_type": "grafana-worldmap-panel",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Looking up locations by name is not supported yet.",
+          "Only the current value is shown."
+        ],
+        "paths": [
+          "locationData",
+          "valueName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Service flow (scaled)",
+        "type": "canvas",
+        "source_type": "canvas",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "The color \"text\" is not supported yet.",
+          "Only 1 pixel borders are supported."
+        ],
+        "paths": [
+          "options.root.elements[1].config.color.fixed",
+          "options.root.elements[1].border.width"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Service flow (pixels)",
+        "type": "canvas",
+        "source_type": "canvas",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Element positions were converted to percentages of the panel and may shift.",
+          "Canvas element type server is not supported; it was left out."
+        ],
+        "paths": [
+          "options.root.elements[0].placement",
+          "options.root.elements[1].placement",
+          "options.root.elements[2]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Legacy alerts",
+        "type": "placeholder",
+        "source_type": "alertlist",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Legacy Grafana alerts are not available in SlashObserve."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Grafana-managed alerts",
+        "type": "placeholder",
+        "source_type": "alertlist",
+        "row": null,
+        "status": "placeholder",
+        "reasons": [
+          "Grafana-managed alerts are not available; SlashObserve lists Prometheus rule alerts."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Related dashboards",
+        "type": "dashlist",
+        "source_type": "dashlist",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Deploy state (discrete)",
+        "type": "state-timeline",
+        "source_type": "natel-discrete-panel",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Row height is fixed."
+        ],
+        "paths": [
+          "rowHeight"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Panel types B",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p1",
+        "type": "geomap",
+        "title": "Probes by location",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (lat, lon) (probe_success)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "view": "coords",
+          "lat": 52,
+          "lon": 5,
+          "zoom": 4,
+          "location": "coords",
+          "latField": "lat",
+          "lonField": "lon",
+          "sizeField": "Value",
+          "colorField": "Value",
+          "markerSize": 3,
+          "markerSizeMax": 20
+        }
+      },
+      {
+        "id": "p2",
+        "type": "geomap",
+        "title": "Probes by country",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (country) (probe_success)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "color": "#37872D"
+      },
+      {
+        "id": "p3",
+        "type": "geomap",
+        "title": "Requests by position (worldmap)",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (latitude, longitude) (http_requests_total)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "decimals": 0,
+        "thresholds": [
+          {
+            "color": "#f53636"
+          },
+          {
+            "value": 10,
+            "color": "warning"
+          },
+          {
+            "value": 100,
+            "color": "#32ac2d"
+          }
+        ],
+        "display": {
+          "view": "coords",
+          "lat": 20,
+          "lon": 10,
+          "zoom": 3,
+          "location": "coords",
+          "latField": "latitude",
+          "lonField": "longitude",
+          "sizeField": "Value",
+          "colorField": "Value",
+          "markerSize": 2,
+          "markerSizeMax": 30
+        }
+      },
+      {
+        "id": "p4",
+        "type": "geomap",
+        "title": "Requests by country (worldmap)",
+        "gridPos": {
+          "x": 12,
+          "y": 10,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (country) (http_requests_total)",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "decimals": 0,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 5,
+            "color": "warning"
+          },
+          {
+            "value": 50,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "view": "world",
+          "markerSize": 2,
+          "markerSizeMax": 30
+        }
+      },
+      {
+        "id": "p5",
+        "type": "canvas",
+        "title": "Service flow (scaled)",
+        "gridPos": {
+          "x": 0,
+          "y": 20,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(http_requests_total[5m]))",
+            "instant": true
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "elements": [
+            {
+              "id": "Requests",
+              "kind": "metric",
+              "left": 10,
+              "top": 30,
+              "width": 25,
+              "height": 30,
+              "field": "Value",
+              "fill": "field",
+              "textColor": "#ffffff",
+              "fontSize": 24
+            },
+            {
+              "id": "Backend",
+              "kind": "rectangle",
+              "left": 60,
+              "top": 30,
+              "width": 30,
+              "height": 30,
+              "text": "Backend",
+              "fill": "#5794F2",
+              "stroke": "#8AB8FF",
+              "align": "left"
+            },
+            {
+              "id": "Note",
+              "kind": "text",
+              "left": 10,
+              "top": 75,
+              "width": 80,
+              "height": 15,
+              "text": "Flow of requests",
+              "textColor": "#999999",
+              "fontSize": 12,
+              "align": "right"
+            }
+          ],
+          "connections": [
+            {
+              "from": "Requests",
+              "to": "Backend",
+              "color": "#d9d9d9",
+              "width": 3
+            }
+          ]
+        }
+      },
+      {
+        "id": "p6",
+        "type": "canvas",
+        "title": "Service flow (pixels)",
+        "gridPos": {
+          "x": 12,
+          "y": 20,
+          "w": 12,
+          "h": 10
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(http_requests_total[5m]))",
+            "instant": true
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "elements": [
+            {
+              "id": "Edge",
+              "kind": "ellipse",
+              "left": 13.89,
+              "top": 14.71,
+              "width": 16.67,
+              "height": 23.53,
+              "text": "Edge",
+              "fill": "#d9d9d9",
+              "textColor": "#000000",
+              "fontSize": 16
+            },
+            {
+              "id": "Pool",
+              "kind": "metric",
+              "left": 58.33,
+              "top": 14.71,
+              "width": 27.78,
+              "height": 23.53,
+              "field": "Value",
+              "fill": "field",
+              "textColor": "#000000",
+              "fontSize": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "p7",
+        "type": "placeholder",
+        "title": "Legacy alerts",
+        "gridPos": {
+          "x": 0,
+          "y": 30,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "Legacy Grafana alerts are not available in SlashObserve.",
+        "sourceType": "alertlist"
+      },
+      {
+        "id": "p8",
+        "type": "placeholder",
+        "title": "Grafana-managed alerts",
+        "gridPos": {
+          "x": 12,
+          "y": 30,
+          "w": 12,
+          "h": 8
+        },
+        "reason": "Grafana-managed alerts are not available; SlashObserve lists Prometheus rule alerts.",
+        "sourceType": "alertlist"
+      },
+      {
+        "id": "p9",
+        "type": "dashlist",
+        "title": "Related dashboards",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 12,
+          "h": 8
+        },
+        "display": {
+          "limit": 8,
+          "query": "Checkout",
+          "tags": [
+            "production",
+            "slo"
+          ],
+          "keepTime": true,
+          "includeVars": true
+        }
+      },
+      {
+        "id": "p10",
+        "type": "state-timeline",
+        "title": "Deploy state (discrete)",
+        "gridPos": {
+          "x": 12,
+          "y": 38,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "max by (job) (up)",
+            "legend": "{{job}}"
+          }
+        ],
+        "unit": "short",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A",
+            "color": "#CCCCCC"
+          },
+          {
+            "value": "1",
+            "text": "UP",
+            "color": "ok"
+          },
+          {
+            "value": "0",
+            "text": "DOWN",
+            "color": "critical"
+          },
+          {
+            "range": [
+              2,
+              5
+            ],
+            "text": "FLAPPING",
+            "color": "warning"
+          }
+        ]
+      }
+    ]
+  }
+}

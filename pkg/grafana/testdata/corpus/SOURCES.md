@@ -122,8 +122,10 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 - Files:
   - `demo-shop.json`
   - `panel-types-a.json`
+  - `panel-types-b.json`
 - `demo-shop.json` is a classic Grafana 11 dashboard authored in this repository for the demo stack.
 - `panel-types-a.json` covers the panel types missing from the upstream corpus.
+- `panel-types-b.json` covers the map, canvas, alert list, dashboard list and discrete panel types, with one panel for each case the importer converts except a Prometheus alert list, whose query the importer writes itself and so has no Grafana target to compare with.
 - The ClickHouse targets set `format` to the sqlds `FormatQueryOption` value: 0 for time series, 1 for table, 2 for logs, 3 for trace.
 - The `src/types/` directory of grafana/clickhouse-datasource at the commit above declares no `Format` enum.
 - Its `CHQueryBase.format` is a bare `number` whose comment points at `FormatQueryOption` in https://github.com/grafana/sqlds (`query.go`, commit dda2dc0a54b128961fc9f7885baabf555f3ddfdc), which is where the values come from.
@@ -134,8 +136,8 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 
 Counted over every corpus JSON file: top-level `panels`, nested row `panels`, and legacy `rows[].panels`.
 Each legacy `rows[]` entry is also counted as one `row`, although it is a dashboard-level object and not a panel.
-Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1311 panels and the stated 1330, and between 172 and the stated 191 for that file.
-The corpus holds 60 dashboards and 1330 panels including rows.
+Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1321 panels and the stated 1340, and between 172 and the stated 191 for that file.
+The corpus holds 61 dashboards and 1340 panels including rows.
 Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141) and `rfmoz/haproxy.json` (113).
 
 ### As written
@@ -153,12 +155,17 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | logs | 7 |
 | heatmap | 5 |
 | barchart | 4 |
+| alertlist | 2 |
+| canvas | 2 |
+| geomap | 2 |
+| grafana-worldmap-panel | 2 |
 | nodeGraph | 2 |
 | piechart | 2 |
 | text | 2 |
 | alertGroups | 1 |
 | annolist | 1 |
 | candlestick | 1 |
+| dashlist | 1 |
 | datagrid | 1 |
 | debug | 1 |
 | flamegraph | 1 |
@@ -168,6 +175,7 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
+| natel-discrete-panel | 1 |
 | news | 1 |
 | state-timeline | 1 |
 | status-history | 1 |
@@ -191,12 +199,17 @@ No `table-old` panel occurs in the corpus.
 | logs | 7 |
 | heatmap | 5 |
 | barchart | 4 |
+| alertlist | 2 |
+| canvas | 2 |
+| geomap | 2 |
+| grafana-worldmap-panel | 2 |
 | nodeGraph | 2 |
 | piechart | 2 |
 | text | 2 |
 | alertGroups | 1 |
 | annolist | 1 |
 | candlestick | 1 |
+| dashlist | 1 |
 | datagrid | 1 |
 | debug | 1 |
 | flamegraph | 1 |
@@ -206,6 +219,7 @@ No `table-old` panel occurs in the corpus.
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
+| natel-discrete-panel | 1 |
 | news | 1 |
 | state-timeline | 1 |
 | status-history | 1 |

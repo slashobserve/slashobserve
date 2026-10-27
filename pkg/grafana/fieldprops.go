@@ -20,6 +20,7 @@ const (
 	maxDisplayName = 200
 	maxNoValue     = 100
 	maxCustomUnit  = 20
+	maxMappedValue = 200
 
 	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
 )
@@ -108,6 +109,7 @@ func (b *panelBuild) convertFieldConfig() {
 	b.fixMinMax(&b.panel.FieldProps, "fieldConfig.defaults.max")
 	b.convertOverrides()
 	b.convertLegacy()
+	b.convertDiscrete()
 }
 
 func (b *panelBuild) fixMinMax(p *spec.FieldProps, path string) {
@@ -124,7 +126,7 @@ func (b *panelBuild) colorMode() string {
 
 func (b *panelBuild) thresholdsApply() bool {
 	switch b.typ {
-	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline, spec.StatusHistory:
+	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline, spec.StatusHistory, spec.Canvas:
 		return true
 	case spec.Timeseries, spec.Trend, spec.Candlestick:
 		v, _ := b.value("fieldConfig.defaults.custom.thresholdsStyle.mode")
@@ -383,7 +385,7 @@ func propColor(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 
 var thresholdColoredTypes = map[spec.PanelType]bool{
 	spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true, spec.StateTimeline: true,
-	spec.StatusHistory: true,
+	spec.StatusHistory: true, spec.Geomap: true, spec.Canvas: true,
 }
 
 func propDrawStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -468,14 +470,16 @@ func propLinks(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
+var staticPanelNames = map[spec.PanelType]string{spec.Text: "text panels", spec.DashList: "dashboard lists"}
+
 func (b *panelBuild) convertLinks() {
 	items, _ := asArray(b.raw["links"])
 	b.consume("links")
 	if len(items) == 0 {
 		return
 	}
-	if b.typ == spec.Text {
-		b.partial("links", "Links on text panels are not supported yet.")
+	if b.typ == spec.Text || b.typ == spec.DashList {
+		b.partial("links", fmt.Sprintf("Links on %s are not supported yet.", staticPanelNames[b.typ]))
 		return
 	}
 	links := b.linkList(items, func(i int) string { return fmt.Sprintf("links[%d]", i) })

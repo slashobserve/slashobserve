@@ -41,6 +41,9 @@ var displayBuilders = map[spec.PanelType]func(*panelBuild){
 	spec.XYChart:       displayXYChart,
 	spec.Candlestick:   displayCandlestick,
 	spec.NodeGraph:     displayNodeGraph,
+	spec.Geomap:        displayGeomap,
+	spec.Canvas:        displayCanvas,
+	spec.AlertList:     displayAlertList,
 }
 
 func (b *panelBuild) convertDisplay() {
@@ -377,7 +380,7 @@ func (b *panelBuild) convertPanelTimes() {
 func (b *panelBuild) convertMaxDataPoints(v any) {
 	f, ok := numberValue(v)
 	switch {
-	case !ok || f == 0:
+	case !ok || f == 0, b.typ == spec.Geomap && f == 1:
 	case f != math.Trunc(f) || f < minDataPoints || f > maxDataPoints:
 		b.partial("maxDataPoints", "Only 10 to 11000 data points are supported.")
 	default:

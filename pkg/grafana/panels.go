@@ -2,7 +2,9 @@ package grafana
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -24,6 +26,7 @@ var convertiblePanelTypes = map[spec.PanelType]bool{
 	spec.StateTimeline: true, spec.Logs: true, spec.Text: true,
 	spec.BarChart: true, spec.StatusHistory: true, spec.Trend: true, spec.XYChart: true,
 	spec.Candlestick: true, spec.NodeGraph: true, spec.Traces: true, spec.FlameGraph: true,
+	spec.Geomap: true, spec.Canvas: true, spec.AlertList: true, spec.DashList: true,
 }
 
 var placeholderReasons = map[string]string{
@@ -155,7 +158,10 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 	if reason := legacyPlaceholderReason(n); reason != "" {
 		return placeholderPanel(n, reason)
 	}
-	if typ != spec.Text {
+	if reason := alertListReason(n); reason != "" {
+		return placeholderPanel(n, reason)
+	}
+	if typ != spec.Text && typ != spec.DashList {
 		if reason := c.datasourceReason(n); reason != "" {
 			return placeholderPanel(n, reason)
 		}
@@ -169,8 +175,11 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 	if n.moved {
 		b.partial("gridPos", movedReason)
 	}
-	if typ == spec.Text {
+	switch typ {
+	case spec.Text:
 		return b.buildText()
+	case spec.DashList:
+		return b.buildDashList()
 	}
 	return b.buildData()
 }
@@ -268,15 +277,26 @@ func placeholderPanel(n *panelNode, reason string) *builtPanel {
 	return &builtPanel{node: n, panel: panel, line: line}
 }
 
+var indexedKey = regexp.MustCompile(`^(.*?)((?:\[[0-9]+\])*)$`)
+
 func lookup(m map[string]any, path string) (any, bool) {
 	var cur any = m
 	for _, key := range strings.Split(path, ".") {
+		parts := indexedKey.FindStringSubmatch(key)
 		obj, ok := cur.(map[string]any)
 		if !ok {
 			return nil, false
 		}
-		if cur, ok = obj[key]; !ok {
+		if cur, ok = obj[parts[1]]; !ok {
 			return nil, false
+		}
+		for _, index := range indexPattern.FindAllString(parts[2], -1) {
+			items, isArray := cur.([]any)
+			i, _ := strconv.Atoi(strings.Trim(index, "[]"))
+			if !isArray || i >= len(items) {
+				return nil, false
+			}
+			cur = items[i]
 		}
 	}
 	return cur, true
@@ -409,7 +429,7 @@ func (b *panelBuild) buildData() *builtPanel {
 		b.partial("title", "Grafana shows this panel without a title.")
 	}
 	b.panel.Description = b.description()
-	b.convertQueries()
+	b.convertPanelQueries()
 	if len(b.built) == 0 {
 		return b.noQueries()
 	}
@@ -422,6 +442,14 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.datasourceVariables()
 	b.reportUnconsumed()
 	return b.finish()
+}
+
+func (b *panelBuild) convertPanelQueries() {
+	if b.typ == spec.AlertList {
+		b.alertListQueries()
+		return
+	}
+	b.convertQueries()
 }
 
 func (b *panelBuild) untitled() string {

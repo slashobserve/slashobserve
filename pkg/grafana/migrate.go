@@ -58,6 +58,10 @@ func panelTypeOf(p map[string]any) (typ, sourceType string) {
 		return "logs", sourceType
 	case "grafana-piechart-panel":
 		return "piechart", sourceType
+	case "grafana-worldmap-panel":
+		return "geomap", sourceType
+	case "natel-discrete-panel":
+		return "state-timeline", sourceType
 	}
 	return sourceType, sourceType
 }
