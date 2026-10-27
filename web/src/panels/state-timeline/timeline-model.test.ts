@@ -41,13 +41,15 @@ function build(
   frames: PreparedFrame[],
   extra: Partial<DataPanel> = {},
   display: Record<string, unknown> = {},
-  window = range
+  window = range,
+  cells = false
 ) {
   return timelineModel(
     frames,
     createFieldResolver(panel(extra)),
     displayWithDefaults("state-timeline", display),
-    window
+    window,
+    cells
   )
 }
 
@@ -188,6 +190,49 @@ describe("timelineModel", () => {
   it("distinguishes numbers by display text", () => {
     const { states } = build([series("a", [0.5, 1.5])], { unit: "percentunit" })
     expect(states.map(({ text }) => text)).toEqual(["50%", "150%"])
+  })
+})
+
+describe("timelineModel with cells", () => {
+  const cells = (frames: PreparedFrame[], extra: Partial<DataPanel> = {}) =>
+    build(frames, extra, {}, range, true)
+
+  it("keeps equal neighbours as separate cells", () => {
+    const { rows } = cells([series("a", [1, 1, 2, 2, 1])])
+    expect(
+      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+    ).toEqual([
+      [0, 10, "1"],
+      [10, 20, "1"],
+      [20, 30, "2"],
+      [30, 40, "2"],
+      [40, 100, "1"],
+    ])
+  })
+
+  it("ignores mergeValues", () => {
+    const { rows } = build(
+      [series("a", [1, 1])],
+      {},
+      { mergeValues: true },
+      range,
+      true
+    )
+    expect(rows[0].segments).toHaveLength(2)
+  })
+
+  it("colors states and leaves a gap for null the same way", () => {
+    const frames = [series("a", ["up", null, "up", "down"], "string")]
+    const merged = build(frames)
+    const split = cells(frames)
+    expect(split.states).toEqual(merged.states)
+    expect(
+      split.rows[0].segments.map(({ from, to, color }) => [from, to, color])
+    ).toEqual([
+      [0, 10, "var(--series-1)"],
+      [20, 30, "var(--series-1)"],
+      [30, 100, "var(--series-2)"],
+    ])
   })
 })
 
