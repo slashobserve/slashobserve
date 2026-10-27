@@ -146,6 +146,9 @@ export default function PanelEditor({
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
   useEffect(() => () => onDirtyChange(false), [onDirtyChange])
+  useEffect(() => {
+    if (view !== "json") jsonGuard.current = leaveNow
+  }, [view])
 
   useImperativeHandle(viewGuardRef, () => {
     const guarded = (leave: () => void) =>
