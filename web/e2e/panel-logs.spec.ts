@@ -33,11 +33,72 @@ for (const colorScheme of ["light", "dark"] as const) {
       ).toBeGreaterThan(0)
       const first = lines(page, "Newest logs").first()
       await expect(first.locator("time")).toHaveAttribute("datetime", /.+/)
-      await expect(first.locator("[data-logs-level]")).toHaveText(/\S/)
-      await expect(first).toHaveAttribute(
-        "data-level",
-        /^(error|warning|info|other)$/
+      await expect(first.locator("time")).toHaveText(
+        /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/
       )
+      await expect(first.locator("[data-logs-level]")).toHaveText(/\S/)
+      const info = panel(page, "Newest logs").locator(
+        'ul[data-logs-count] > li[data-level="info"]'
+      )
+      await expect(info.first().locator("[data-logs-level]")).toHaveText("Info")
+    })
+
+    test("shows normalised level words in full", async ({ page, request }) => {
+      await openLogs(page, await createLogs(request))
+
+      const rows = lines(page, "Level words")
+      await expect(rows).toHaveCount(12)
+      const shown = await rows.evaluateAll((items) =>
+        items.map((item) => {
+          const word = item.querySelector("[data-logs-level] span.truncate")
+          return {
+            kind: item.getAttribute("data-level"),
+            text: word?.textContent,
+            clipped: word ? word.scrollWidth > word.clientWidth : true,
+          }
+        })
+      )
+      expect(shown.map(({ kind, text }) => [text, kind])).toEqual([
+        ["Critical", "error"],
+        ["Critical", "error"],
+        ["Critical", "error"],
+        ["Error", "error"],
+        ["Error", "error"],
+        ["Warning", "warning"],
+        ["Warning", "warning"],
+        ["Info", "info"],
+        ["Info", "info"],
+        ["Debug", "other"],
+        ["Trace", "other"],
+        ["Verbose", "other"],
+      ])
+      expect(shown.filter(({ clipped }) => clipped)).toEqual([])
+    })
+
+    test("keeps the line cap note above the scrolling lines", async ({
+      page,
+      request,
+    }) => {
+      await openLogs(page, await createLogs(request))
+
+      const card = panel(page, "Capped logs")
+      await expect(card.locator("ul[data-logs-count]")).toHaveAttribute(
+        "data-logs-count",
+        "1000"
+      )
+      const note = card.getByText("Showing the newest 1,000 lines.")
+      await expect(note).toBeVisible()
+      const before = await note.boundingBox()
+      const list = card.locator("ul[data-logs-count]")
+      const listTop = (await list.boundingBox())?.y ?? 0
+      expect((before?.y ?? 0) + (before?.height ?? 0)).toBeLessThanOrEqual(
+        listTop
+      )
+      await list.evaluate((el) => {
+        el.parentElement?.scrollTo({ top: el.scrollHeight })
+      })
+      await expect(lines(page, "Capped logs").last()).toBeInViewport()
+      expect((await note.boundingBox())?.y).toBe(before?.y)
     })
 
     test("expands a line", async ({ page, request }) => {

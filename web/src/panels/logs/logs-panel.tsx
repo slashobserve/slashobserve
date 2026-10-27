@@ -1,6 +1,6 @@
 import { memo, useId, useMemo, useState } from "react"
 
-import { formatDateTime } from "@/lib/time"
+import { formatDateTimeMs } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
 import type { FieldResolver } from "../field-config"
@@ -65,7 +65,7 @@ const LogRow = memo(function LogRow({
               "-"
             ) : (
               <time dateTime={new Date(entry.time).toISOString()}>
-                {formatDateTime(entry.time)}
+                {formatDateTimeMs(entry.time)}
               </time>
             )}
           </span>
@@ -136,30 +136,32 @@ export const LogsPanel: PanelRenderer = ({
   )
 
   return (
-    <div className="overflow-auto" style={{ width, height }}>
-      <ul
-        role="list"
-        aria-label={`${panel.title} log lines`}
-        data-logs-count={entries.length}
-        className="m-0 list-none p-0"
-      >
-        {entries.map((entry) => (
-          <LogRow
-            key={entry.key}
-            entry={entry}
-            fields={fields}
-            wrap={display.wrap}
-            showTime={display.showTime}
-            levelColumn={levelColumn}
-          />
-        ))}
-      </ul>
+    <div className="flex flex-col" style={{ width, height }}>
       {truncated ? (
-        <p className="px-2 py-1.5 text-xs text-muted-foreground">
+        <p className="shrink-0 border-b border-border px-2 py-1.5 text-xs text-muted-foreground">
           Showing the {display.order === "oldest" ? "oldest" : "newest"}{" "}
           {maxEntries.toLocaleString("en")} lines.
         </p>
       ) : null}
+      <div className="min-h-0 flex-1 overflow-auto">
+        <ul
+          role="list"
+          aria-label={`${panel.title} log lines`}
+          data-logs-count={entries.length}
+          className="m-0 list-none p-0"
+        >
+          {entries.map((entry) => (
+            <LogRow
+              key={entry.key}
+              entry={entry}
+              fields={fields}
+              wrap={display.wrap}
+              showTime={display.showTime}
+              levelColumn={levelColumn}
+            />
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }

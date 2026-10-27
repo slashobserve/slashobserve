@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   describeRange,
   formatDateTime,
+  formatDateTimeMs,
   formatRelative,
   formatShortRelative,
   formatTimeValue,
@@ -71,6 +72,10 @@ describe("formatting", () => {
     const ms = new Date(2026, 9, 17, 9, 5, 7).getTime()
     expect(formatTimeValue(String(ms))).toBe("2026-10-17 09:05:07")
     expect(formatDateTime(ms)).toBe("2026-10-17 09:05:07")
+    expect(formatDateTimeMs(ms + 42)).toBe("2026-10-17 09:05:07.042")
+    expect(formatDateTimeMs(ms)).toBe("2026-10-17 09:05:07.000")
+    expect(formatDateTimeMs(ms + 999)).toBe("2026-10-17 09:05:07.999")
+    expect(formatDateTimeMs("not a time")).toBe("not a time")
     expect(formatTimeValue("now-1h")).toBe("now-1h")
   })
 
