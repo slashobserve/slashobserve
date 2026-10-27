@@ -42,6 +42,7 @@ var (
 	ErrNotFound      = errors.New("import not found")
 	ErrBusy          = errors.New("too many imports in flight")
 	ErrInvalidCursor = errors.New("invalid cursor")
+	ErrInvalidFilter = errors.New("invalid filter")
 )
 
 type UnresolvedError struct {
@@ -224,16 +225,32 @@ func (s *Service) logImported(ctx context.Context, imported Imported) {
 	)
 }
 
-func (s *Service) List(ctx context.Context, limit int, cursor string) ([]Meta, string, error) {
-	after, ok := httpapi.DecodeTimeCursor(cursor)
+type ListParams struct {
+	Limit       int
+	Cursor      string
+	MadeBy      *auth.Principal
+	DashboardID pgtype.UUID
+}
+
+func (s *Service) List(ctx context.Context, p ListParams) ([]Meta, string, error) {
+	after, ok := httpapi.DecodeTimeCursor(p.Cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
 	}
+	limit := p.Limit
 	if limit <= 0 {
 		limit = defaultLimit
 	}
 	limit = min(limit, maxLimit)
-	params := dbsqlc.ListImportsParams{RowLimit: httpapi.Int32(limit + 1)}
+	params := dbsqlc.ListImportsParams{RowLimit: httpapi.Int32(limit + 1), DashboardID: p.DashboardID}
+	if p.MadeBy != nil {
+		madeByID, err := db.ParseUUID(p.MadeBy.ID)
+		if err != nil {
+			return nil, "", fmt.Errorf("parse made_by id: %w", err)
+		}
+		params.MadeByKind = pgtype.Text{String: string(p.MadeBy.Kind), Valid: true}
+		params.MadeByID = madeByID
+	}
 	if after != nil {
 		params.CursorCreatedAt = pgtype.Timestamptz{Time: after.Time, Valid: true}
 		params.CursorID = after.ID

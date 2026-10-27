@@ -120,13 +120,19 @@ SELECT id, dashboard_id, version, importer_version, title, (report -> 'counts'):
 FROM imports
 WHERE ($1::timestamptz IS NULL
     OR (created_at, id) < ($1::timestamptz, $2::uuid))
+  AND ($3::text IS NULL
+    OR (created_by_kind = $3::text AND created_by_id = $4::uuid))
+  AND ($5::uuid IS NULL OR dashboard_id = $5::uuid)
 ORDER BY created_at DESC, id DESC
-LIMIT $3
+LIMIT $6
 `
 
 type ListImportsParams struct {
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
+	MadeByKind      pgtype.Text
+	MadeByID        pgtype.UUID
+	DashboardID     pgtype.UUID
 	RowLimit        int32
 }
 
@@ -145,7 +151,14 @@ type ListImportsRow struct {
 }
 
 func (q *Queries) ListImports(ctx context.Context, arg ListImportsParams) ([]ListImportsRow, error) {
-	rows, err := q.db.Query(ctx, listImports, arg.CursorCreatedAt, arg.CursorID, arg.RowLimit)
+	rows, err := q.db.Query(ctx, listImports,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.MadeByKind,
+		arg.MadeByID,
+		arg.DashboardID,
+		arg.RowLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

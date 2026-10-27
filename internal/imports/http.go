@@ -2,11 +2,14 @@ package imports
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -200,7 +203,14 @@ func (h *Handler) list(c *gin.Context) {
 	if !ok {
 		return
 	}
-	metas, next, err := h.svc.List(c.Request.Context(), limit, c.Query("cursor"))
+	params, err := listParamsOf(c.Request.URL.Query(), httpapi.Caller(c))
+	if err != nil {
+		h.fail(c, "list imports", err)
+		return
+	}
+	params.Limit = limit
+	params.Cursor = c.Query("cursor")
+	metas, next, err := h.svc.List(c.Request.Context(), params)
 	if err != nil {
 		h.fail(c, "list imports", err)
 		return
@@ -210,6 +220,24 @@ func (h *Handler) list(c *gin.Context) {
 		body.Imports = append(body.Imports, newMetaJSON(m))
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+func listParamsOf(query url.Values, caller auth.Principal) (ListParams, error) {
+	var params ListParams
+	if values, present := query["made_by"]; present {
+		if len(values) != 1 || values[0] != "me" {
+			return ListParams{}, fmt.Errorf("%w: made_by must be me", ErrInvalidFilter)
+		}
+		params.MadeBy = &caller
+	}
+	if values, present := query["dashboard_id"]; present {
+		id, err := db.ParseUUID(values[0])
+		if len(values) != 1 || err != nil {
+			return ListParams{}, fmt.Errorf("%w: dashboard_id must be a UUID", ErrInvalidFilter)
+		}
+		params.DashboardID = id
+	}
+	return params, nil
 }
 
 func (h *Handler) forDashboard(c *gin.Context) {
@@ -245,7 +273,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_imported", "the dashboard was not imported")
 	case errors.Is(err, dashboards.ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrInvalidCursor):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidFilter):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		principal := httpapi.Caller(c)
