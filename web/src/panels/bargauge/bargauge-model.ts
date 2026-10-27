@@ -33,7 +33,7 @@ export type Bar = {
   config: FieldConfig
 }
 
-export type BargaugeModel = { orientation: Orientation; bars: Bar[] }
+export type BargaugeModel = { bars: Bar[] }
 
 type Entry = {
   key: string
@@ -47,7 +47,12 @@ export function reducerOf(display: Record<string, unknown>): Reducer {
   return display.reduce as Reducer
 }
 
-function orientationOf(
+const unitRanges = new Map([
+  ["percent", { min: 0, max: 100 }],
+  ["percentunit", { min: 0, max: 1 }],
+])
+
+export function orientationOf(
   display: Record<string, unknown>,
   size: { width: number; height: number }
 ): Orientation {
@@ -113,15 +118,15 @@ function clamp(fraction: number): number {
 export function bargaugeModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
-  display: Record<string, unknown>,
-  size: { width: number; height: number }
+  display: Record<string, unknown>
 ): BargaugeModel {
   const entries = entriesOf(frames, fields, reducerOf(display))
   const shared = sharedRange(entries)
   const decimals = decimalsByUnit(entries)
   const bars = entries.map(({ key, frame, field, config, value }): Bar => {
-    const min = config.min ?? shared.low
-    const configured = config.max ?? shared.high
+    const implied = unitRanges.get(config.unit ?? "")
+    const min = config.min ?? implied?.min ?? shared.low
+    const configured = config.max ?? implied?.max ?? shared.high
     const max = configured <= min ? min + 1 : configured
     const shown = displayValue(value, config, {
       decimals: decimals.get(config.unit),
@@ -147,7 +152,7 @@ export function bargaugeModel(
       config,
     }
   })
-  return { orientation: orientationOf(display, size), bars }
+  return { bars }
 }
 
 function lastPresent(values: readonly unknown[]): unknown {
@@ -159,14 +164,16 @@ function rowOf(bar: Bar, reducer: Reducer): LinkScope["row"] {
   const fields = frame.fields.map((field) => ({
     ...field,
     values: [
-      field === bar.field
-        ? bar.value
-        : field.type === "number"
-          ? reduce(field.values, reducer)
-          : (lastPresent(field.values) ?? null),
+      field.type === "number"
+        ? reduce(field.values, reducer)
+        : (lastPresent(field.values) ?? null),
     ],
   }))
   return { frame: { ...frame, fields }, index: 0 }
+}
+
+export function valueTextOf(bar: Bar): string {
+  return bar.word ? `${bar.text}, ${bar.word}` : bar.text
 }
 
 export function barLinks(

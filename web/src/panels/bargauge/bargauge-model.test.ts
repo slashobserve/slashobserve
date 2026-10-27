@@ -4,7 +4,12 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
-import { barLinks, bargaugeModel, reducerOf } from "./bargauge-model"
+import {
+  barLinks,
+  bargaugeModel,
+  orientationOf,
+  reducerOf,
+} from "./bargauge-model"
 
 beforeEach(() => {
   vi.stubGlobal("location", { origin: "https://observe.example.com" })
@@ -48,42 +53,38 @@ const tall = { width: 100, height: 400 }
 function build(
   frames: PreparedFrame[],
   extra: Partial<DataPanel> = {},
-  display: Record<string, unknown> = {},
-  size = wide
+  display: Record<string, unknown> = {}
 ) {
   const fields = createFieldResolver(panel(extra))
   const merged = displayWithDefaults("bargauge", display)
   return {
     fields,
     display: merged,
-    model: bargaugeModel(frames, fields, merged, size),
+    model: bargaugeModel(frames, fields, merged),
   }
 }
 
 describe("orientation", () => {
-  const frames = [series([1, 2]), series([3, 4], { pod: "b" })]
+  const orientation = (
+    display: Record<string, unknown>,
+    size: { width: number; height: number }
+  ) => orientationOf(displayWithDefaults("bargauge", display), size)
 
   it("is horizontal when the body is wider than tall", () => {
-    expect(build(frames, {}, {}, wide).model.orientation).toBe("horizontal")
+    expect(orientation({}, wide)).toBe("horizontal")
   })
 
   it("is vertical when the body is taller than wide", () => {
-    expect(build(frames, {}, {}, tall).model.orientation).toBe("vertical")
+    expect(orientation({}, tall)).toBe("vertical")
   })
 
   it("is vertical when the body is square", () => {
-    expect(
-      build(frames, {}, {}, { width: 200, height: 200 }).model.orientation
-    ).toBe("vertical")
+    expect(orientation({}, { width: 200, height: 200 })).toBe("vertical")
   })
 
   it("follows an explicit orientation over the body's aspect", () => {
-    const horizontal = { orientation: "horizontal" }
-    const vertical = { orientation: "vertical" }
-    expect(build(frames, {}, horizontal, tall).model.orientation).toBe(
-      "horizontal"
-    )
-    expect(build(frames, {}, vertical, wide).model.orientation).toBe("vertical")
+    expect(orientation({ orientation: "horizontal" }, tall)).toBe("horizontal")
+    expect(orientation({ orientation: "vertical" }, wide)).toBe("vertical")
   })
 })
 
@@ -175,6 +176,18 @@ describe("range", () => {
   it("keeps the data range for a bound the field leaves out", () => {
     const [a] = build(frames, { max: 20 }).model.bars
     expect([a.min, a.max]).toEqual([0, 20])
+  })
+
+  it("spans 0 to 100 for percent and 0 to 1 for percentunit", () => {
+    const percent = build([series([25])], { unit: "percent" }).model.bars[0]
+    expect([percent.min, percent.max, percent.fraction]).toEqual([0, 100, 0.25])
+    const unit = build([series([0.5])], { unit: "percentunit" }).model.bars[0]
+    expect([unit.min, unit.max, unit.fraction]).toEqual([0, 1, 0.5])
+  })
+
+  it("lets a configured bound replace the one a percent unit implies", () => {
+    const [bar] = build([series([25])], { unit: "percent", max: 50 }).model.bars
+    expect([bar.min, bar.max, bar.fraction]).toEqual([0, 50, 0.5])
   })
 
   it("lets an override give one field its own range", () => {
@@ -335,10 +348,10 @@ describe("data links", () => {
     const frame: PreparedFrame = {
       ref: "A",
       fields: [
-        { name: "Time", type: "time", values: [1, 2] },
-        { name: "host", type: "string", values: ["old", "new"] },
-        { name: "Value", type: "number", values: [4, 7] },
-        { name: "other", type: "number", values: [1, 9] },
+        { name: "Time", type: "time", values: [1, 2, 3] },
+        { name: "host", type: "string", values: ["old", "new", null] },
+        { name: "Value", type: "number", values: [4, 7, null] },
+        { name: "other", type: "number", values: [1, 9, null] },
       ],
     }
     const row = {
