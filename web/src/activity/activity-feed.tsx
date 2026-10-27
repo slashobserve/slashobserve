@@ -1,13 +1,22 @@
-import { useCallback, useMemo, useState, type ReactNode, type Ref } from "react"
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
 
+import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
+import { importForDashboardQuery } from "@/import/record-queries"
+import { fixPrompt } from "@/import/record-summary"
 import { useAgentInfo } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
 import { allPanels, panelTitle, type Dashboard } from "@/spec"
@@ -17,6 +26,7 @@ import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { ExternalAgentNote } from "./external-agent-note"
+import { ImportEntry } from "./import-entry"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
 import { ThreadEntry } from "./thread-entry"
@@ -50,10 +60,12 @@ type Props = {
   onScopeChange: (panelId: string | null) => void
   onSelectPanel: (panelId: string) => void
   back: string | undefined
-  composerRef: Ref<HTMLTextAreaElement>
+  composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
 type PanelRef = { id: string; title: string }
+
+type UnverifiedRef = { panelId: string; reason: string }
 
 function useLatestPanelRefs(dashboardId: string): PanelRef[] | undefined {
   const queryClient = useQueryClient()
@@ -62,6 +74,25 @@ function useLatestPanelRefs(dashboardId: string): PanelRef[] | undefined {
       allPanels(asDashboardSpec(envelope.version.spec)).map(({ panel }) => ({
         id: panel.id,
         title: panelTitle(panel),
+      })),
+    []
+  )
+  return useQuery({
+    ...latestDashboardQuery(queryClient, dashboardId),
+    staleTime: Infinity,
+    select,
+  }).data
+}
+
+function useLatestUnverified(dashboardId: string): UnverifiedRef[] | undefined {
+  const queryClient = useQueryClient()
+  const select = useCallback(
+    (envelope: {
+      version: { unverified: components["schemas"]["Unverified"] }
+    }): UnverifiedRef[] =>
+      envelope.version.unverified.panels.map(({ panel_id, issues }) => ({
+        panelId: panel_id,
+        reason: issues[0]?.message ?? "",
       })),
     []
   )
@@ -82,6 +113,8 @@ function changeSignature(entry: TimelineEntry | undefined): string {
       return `${entry.key}:${entry.request.status}`
     case "version":
       return entry.key
+    case "import":
+      return `${entry.key}:${entry.unverified.length}`
   }
 }
 
@@ -130,12 +163,28 @@ export function ActivityFeed({
   const history = useVersionHistory(dashboardId)
   const agent = useAgentInfo()
   const panels = useLatestPanelRefs(dashboardId)
+  const latestUnverified = useLatestUnverified(dashboardId)
+  const importRecord = useQuery(importForDashboardQuery(dashboardId)).data
   const [show, setShow] = useState<TimelineShow>("everything")
 
   const panelList = useMemo(() => panels ?? [], [panels])
   const titles = useMemo(
     () => new Map(panelList.map((panel) => [panel.id, panel.title])),
     [panelList]
+  )
+  const imported = useMemo(
+    () =>
+      importRecord
+        ? {
+            record: importRecord,
+            unverified: (latestUnverified ?? []).map(({ panelId, reason }) => ({
+              panelId,
+              title: titles.get(panelId) ?? panelId,
+              reason,
+            })),
+          }
+        : null,
+    [importRecord, latestUnverified, titles]
   )
   const requests = useMemo(() => revisions.data ?? [], [revisions.data])
   const versions = useMemo(
@@ -149,11 +198,12 @@ export function ActivityFeed({
           comments: comments.comments,
           requests,
           versions,
+          imported,
         }),
         show,
         scopePanelId
       ),
-    [comments.comments, requests, versions, show, scopePanelId]
+    [comments.comments, requests, versions, imported, show, scopePanelId]
   )
 
   const gate = sendToAgentState({
@@ -179,6 +229,19 @@ export function ActivityFeed({
       onScopeChange(null)
     },
     [setTarget, dashboardId, onScopeChange]
+  )
+  const onAskToFix = useCallback(
+    (panelId: string, title: string) => {
+      setDraft(dashboardId, fixPrompt(title, panelId))
+      onTargetChange({ kind: "panel", panelId })
+      requestAnimationFrame(() => {
+        const textarea = composerRef.current
+        if (textarea === null) return
+        textarea.focus()
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length)
+      })
+    },
+    [setDraft, dashboardId, onTargetChange, composerRef]
   )
   const panelId = scopePanelId ?? storedTarget
   const target: Target =
@@ -217,6 +280,16 @@ export function ActivityFeed({
       case "version":
         return (
           <VersionEntry dashboardId={dashboardId} entry={entry} back={back} />
+        )
+      case "import":
+        return (
+          <ImportEntry
+            entry={entry}
+            scopePanelId={scopePanelId}
+            gate={gate}
+            onSelectPanel={onSelectPanel}
+            onAskToFix={onAskToFix}
+          />
         )
     }
   }

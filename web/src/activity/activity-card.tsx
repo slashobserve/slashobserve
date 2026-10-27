@@ -5,6 +5,7 @@ import {
   useRef,
   type CSSProperties,
   type Ref,
+  type RefObject,
 } from "react"
 
 import type { Selections } from "@/api/keys"
@@ -34,7 +35,7 @@ type Props = {
   back: string | undefined
   timeRange: { from?: string; to?: string }
   selections: Selections | null
-  composerRef: Ref<HTMLTextAreaElement>
+  composerRef: RefObject<HTMLTextAreaElement | null>
   guardRef: Ref<EditGuard>
   onSelectPanel: (panelId: string) => void
   onClose: () => void

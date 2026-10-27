@@ -3332,6 +3332,10 @@ export interface operations {
             query?: {
                 limit?: number;
                 cursor?: string;
+                /** @description Only imports made by the caller; the only value is `me`. */
+                made_by?: string;
+                /** @description Only the import of this dashboard; zero or one item. */
+                dashboard_id?: string;
             };
             header?: never;
             path?: never;

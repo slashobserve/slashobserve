@@ -6,6 +6,7 @@ import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   requestStatusView,
   useMyRequests,
@@ -14,9 +15,13 @@ import {
 import { SidePanel } from "@/shell/side-panel"
 import { TopRowActions } from "@/shell/top-row-actions"
 
-import { useHistoryPanel } from "./history-store"
+import { useHistoryPanel, type HistoryTab } from "./history-store"
+import { ImportHistory } from "./import-history"
 
 const pageSize = 20
+
+const triggerClass =
+  "h-auto flex-none rounded-none border-0 border-b-2 border-transparent px-0 pb-2 text-[13px] font-medium text-muted-foreground -mb-px after:hidden data-active:border-foreground data-active:text-foreground dark:data-active:border-foreground dark:group-data-[variant=line]/tabs-list:data-active:border-foreground"
 
 export function ChatHistory({
   currentRequestId,
@@ -25,6 +30,8 @@ export function ChatHistory({
 }) {
   const open = useHistoryPanel((state) => state.open)
   const setOpen = useHistoryPanel((state) => state.setOpen)
+  const tab = useHistoryPanel((state) => state.tab)
+  const setTab = useHistoryPanel((state) => state.setTab)
   const panelId = useId()
   const trigger = useRef<HTMLButtonElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -48,16 +55,39 @@ export function ChatHistory({
       {open ? (
         <SidePanel
           title="History"
-          description="Your requests, newest first."
+          description="Your chats and imports, newest first."
           trigger={trigger}
           titleRef={heading}
           onClose={() => setOpen(false)}
         >
-          <HistoryList
-            panelId={panelId}
-            heading={heading}
-            currentRequestId={currentRequestId}
-          />
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as HistoryTab)}
+          >
+            <TabsList
+              variant="line"
+              activateOnFocus
+              aria-label="History"
+              className="mb-1 h-auto w-full justify-start gap-[18px] border-b p-0"
+            >
+              <TabsTrigger value="chats" className={triggerClass}>
+                Chats
+              </TabsTrigger>
+              <TabsTrigger value="imports" className={triggerClass}>
+                Imports
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="chats">
+              <HistoryList
+                panelId={panelId}
+                heading={heading}
+                currentRequestId={currentRequestId}
+              />
+            </TabsContent>
+            <TabsContent value="imports">
+              <ImportHistory panelId={panelId} heading={heading} />
+            </TabsContent>
+          </Tabs>
         </SidePanel>
       ) : null}
     </>

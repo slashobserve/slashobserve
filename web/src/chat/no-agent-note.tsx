@@ -1,3 +1,5 @@
+import { ImportLink } from "./import-link"
+
 export function NoAgentNote() {
   return (
     <div className="w-full rounded-card border bg-background px-4 py-3.5 text-[13px]">
@@ -6,6 +8,9 @@ export function NoAgentNote() {
         Set <code className="font-mono text-xs">SLASHOBSERVE_LLM_PROVIDER</code>{" "}
         and restart the server to build dashboards from a chat.
       </p>
+      <div className="mt-2 -ml-2.5">
+        <ImportLink />
+      </div>
     </div>
   )
 }
