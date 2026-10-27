@@ -2,13 +2,14 @@ import { Suspense, useMemo } from "react"
 
 import type { Selections } from "@/api/keys"
 import type { PanelDataResponse } from "@/dashboards/queries"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import { createFieldResolver, type FieldResolver } from "./field-config"
 import { dataRenderers, staticRenderers } from "./index"
 import { PanelSkeleton } from "./panel-skeleton"
 import { RendererBoundary } from "./renderer-boundary"
-import { prepareFrames } from "./transforms"
+import { prepareFrames, type DatasourceTypeOf } from "./transforms"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
 
@@ -62,13 +63,18 @@ export function PanelBody({
   to,
   asTable = false,
 }: Props) {
+  const datasources = useDatasources()
+  const typeOf = useMemo<DatasourceTypeOf>(
+    () => (uid) => datasourceTypeOf(datasources.data, uid),
+    [datasources.data]
+  )
   const frames = useMemo(
-    () => prepareFrames(panel, data.frames),
-    [panel, data.frames]
+    () => prepareFrames(panel, data.frames, typeOf),
+    [panel, data.frames, typeOf]
   )
   const ghostFrames = useMemo(
-    () => (ghost ? prepareFrames(panel, ghost.frames) : undefined),
-    [panel, ghost]
+    () => (ghost ? prepareFrames(panel, ghost.frames, typeOf) : undefined),
+    [panel, ghost, typeOf]
   )
   const fields = useMemo(() => createFieldResolver(panel), [panel])
   const display = useMemo(

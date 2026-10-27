@@ -252,11 +252,19 @@ describe("query format table", () => {
       panel([{ format: "table" }, { format: "timeseries" }]),
       [a, b]
     )
+    const named = (source: WireFrame, name: string) => ({
+      ...source,
+      fields: source.fields.map((field) =>
+        field.type === "number" ? { ...field, seriesName: name } : field
+      ),
+    })
     expect(out).toHaveLength(2)
-    expect(out[1]).toEqual(b)
+    expect(out[1]).toEqual(named(b, "q"))
     expect(out[1]).not.toBe(b)
-    expect(prepareFrames(panel([{ format: "heatmap" }]), [a])).toEqual([a])
-    expect(prepareFrames(panel([{}]), [a])).toEqual([a])
+    expect(prepareFrames(panel([{ format: "heatmap" }]), [a])).toEqual([
+      named(a, '{pod="a"}'),
+    ])
+    expect(prepareFrames(panel([{}]), [a])).toEqual([named(a, '{pod="a"}')])
   })
 
   it("stamps a legend on timeseries queries but never on table queries", () => {

@@ -41,14 +41,14 @@ describe("alignFrames", () => {
     ])
   })
 
-  it("falls back to the label set when a query has no legend", () => {
+  it("names a series by its field and label value when a query has no legend", () => {
     const aligned = align([frame("A", { pod: "x" }, [1, 2])])
-    expect(aligned.series[0].label).toBe('{pod="x"}')
+    expect(aligned.series[0].label).toBe("value x")
   })
 
-  it("prefixes labels that two queries share", () => {
+  it("names series of two queries by their ref", () => {
     const aligned = align([frame("A", {}, [1, 2]), frame("B", {}, [3, 4])])
-    expect(aligned.series.map((s) => s.label)).toEqual(["A: value", "B: value"])
+    expect(aligned.series.map((s) => s.label)).toEqual(["A value", "B value"])
   })
 
   it("does not prefix a shared templated legend that resolves differently", () => {
