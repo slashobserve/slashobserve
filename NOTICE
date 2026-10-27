@@ -16,3 +16,7 @@ Each source directory carries its upstream LICENSE, and SOURCES.md records the c
 - grafana/clickhouse-datasource (https://github.com/grafana/clickhouse-datasource), Apache-2.0
 - Altinity/clickhouse-grafana (https://github.com/Altinity/clickhouse-grafana), MIT
 - dotdc/grafana-dashboards-kubernetes (https://github.com/dotdc/grafana-dashboards-kubernetes), Apache-2.0
+
+Third-party map data
+
+The web UI bundles the country outlines of world-atlas (https://github.com/topojson/world-atlas), ISC, derived from Natural Earth (https://www.naturalearthdata.com), public domain, for geomap panels.
