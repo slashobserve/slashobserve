@@ -21,7 +21,7 @@ func sourceNamed(t *testing.T, res *Result, key string) SourceDatasource {
 
 func TestBuiltInDatasourcesAreListedWithoutAKind(t *testing.T) {
 	res := convertDoc(t, dashboardJSON("",
-		`{"id":1,"type":"news","title":"News","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"datasource","uid":"grafana"}}`,
+		`{"id":1,"type":"vendor-news-panel","title":"News","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"datasource","uid":"grafana"}}`,
 		`{"id":2,"type":"timeseries","title":"Copy","gridPos":{"x":6,"y":0,"w":6,"h":4},"datasource":"-- Dashboard --","targets":[{"panelId":3,"refId":"A"}]}`,
 		`{"id":3,"type":"timeseries","title":"Mixed","gridPos":{"x":12,"y":0,"w":6,"h":4},"datasource":`+promRef+`,"targets":[{"expr":"up","refId":"A"},{"datasource":{"type":"__expr__","uid":"__expr__"},"refId":"B"}]}`,
 	))
@@ -40,7 +40,7 @@ func TestBuiltInDatasourcesAreListedWithoutAKind(t *testing.T) {
 	if got := sourceNamed(t, res, "prom"); got.Kind == nil || *got.Kind != "prometheus" || got.Panels != 1 {
 		t.Errorf("prom = %+v", got)
 	}
-	if got := panelLine(t, res, "p1").Reasons[0]; got != "Grafana panel type news is not supported yet." {
+	if got := panelLine(t, res, "p1").Reasons[0]; got != "Grafana panel type vendor-news-panel is not supported yet." {
 		t.Errorf("p1 reason = %q", got)
 	}
 }

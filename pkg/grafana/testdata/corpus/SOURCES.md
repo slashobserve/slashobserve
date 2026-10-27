@@ -121,7 +121,9 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 - Authored: 2026-10-19
 - Files:
   - `demo-shop.json`
-- It is a classic Grafana 11 dashboard authored in this repository for the demo stack.
+  - `panel-types-a.json`
+- `demo-shop.json` is a classic Grafana 11 dashboard authored in this repository for the demo stack.
+- `panel-types-a.json` covers the panel types missing from the upstream corpus.
 - The ClickHouse targets set `format` to the sqlds `FormatQueryOption` value: 0 for time series, 1 for table, 2 for logs, 3 for trace.
 - The `src/types/` directory of grafana/clickhouse-datasource at the commit above declares no `Format` enum.
 - Its `CHQueryBase.format` is a bare `number` whose comment points at `FormatQueryOption` in https://github.com/grafana/sqlds (`query.go`, commit dda2dc0a54b128961fc9f7885baabf555f3ddfdc), which is where the values come from.
@@ -132,8 +134,8 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 
 Counted over every corpus JSON file: top-level `panels`, nested row `panels`, and legacy `rows[].panels`.
 Each legacy `rows[]` entry is also counted as one `row`, although it is a dashboard-level object and not a panel.
-Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1292 panels and the stated 1311, and between 172 and the stated 191 for that file.
-The corpus holds 59 dashboards and 1311 panels including rows.
+Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1311 panels and the stated 1330, and between 172 and the stated 191 for that file.
+The corpus holds 60 dashboards and 1330 panels including rows.
 Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141) and `rfmoz/haproxy.json` (113).
 
 ### As written
@@ -150,12 +152,29 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | singlestat | 12 |
 | logs | 7 |
 | heatmap | 5 |
-| barchart | 3 |
+| barchart | 4 |
+| nodeGraph | 2 |
 | piechart | 2 |
 | text | 2 |
+| alertGroups | 1 |
+| annolist | 1 |
+| candlestick | 1 |
+| datagrid | 1 |
+| debug | 1 |
+| flamegraph | 1 |
+| gettingstarted | 1 |
+| grafana-singlestat-panel | 1 |
 | histogram | 1 |
-| nodeGraph | 1 |
+| live | 1 |
+| logs-new | 1 |
+| logstable | 1 |
+| news | 1 |
 | state-timeline | 1 |
+| status-history | 1 |
+| traces | 1 |
+| trend | 1 |
+| welcome | 1 |
+| xychart | 1 |
 
 ### With `graph` folded into `timeseries`, `singlestat` into `stat` and `table-old` into `table`
 
@@ -171,9 +190,26 @@ No `table-old` panel occurs in the corpus.
 | bargauge | 21 |
 | logs | 7 |
 | heatmap | 5 |
-| barchart | 3 |
+| barchart | 4 |
+| nodeGraph | 2 |
 | piechart | 2 |
 | text | 2 |
+| alertGroups | 1 |
+| annolist | 1 |
+| candlestick | 1 |
+| datagrid | 1 |
+| debug | 1 |
+| flamegraph | 1 |
+| gettingstarted | 1 |
+| grafana-singlestat-panel | 1 |
 | histogram | 1 |
-| nodeGraph | 1 |
+| live | 1 |
+| logs-new | 1 |
+| logstable | 1 |
+| news | 1 |
 | state-timeline | 1 |
+| status-history | 1 |
+| traces | 1 |
+| trend | 1 |
+| welcome | 1 |
+| xychart | 1 |

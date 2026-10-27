@@ -679,3 +679,249 @@ func TestOptionsThatChangeMeaningAreAlwaysReported(t *testing.T) {
 		})
 	}
 }
+
+func displayJSON(t *testing.T, panel spec.Panel) string {
+	t.Helper()
+	if panel.Display == nil {
+		return "null"
+	}
+	data, err := json.Marshal(panel.Display)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func TestChartPanelTypesImportTheirOptions(t *testing.T) {
+	cases := []struct {
+		name, typ, members string
+		display            string
+		stack              string
+		paths              []string
+	}{
+		{
+			name: "bar chart options", typ: "barchart",
+			members: `"options":{"orientation":"horizontal","xField":"pod","showValue":"always","barWidth":0.5,"groupWidth":0.8,"stacking":"percent","legend":{"displayMode":"list","placement":"right","showLegend":true},"tooltip":{"mode":"multi","sort":"none"}}`,
+			display: `{"legend":"right","tooltip":"all","orientation":"horizontal","showValues":"always","xField":"pod","barWidth":0.5,"groupWidth":0.8}`,
+			stack:   "percent",
+		},
+		{
+			name: "bar chart defaults", typ: "barchart",
+			members: `"options":{"orientation":"auto","showValue":"auto","barWidth":0.97,"groupWidth":0.7,"stacking":"none","xTickLabelRotation":0,"xTickLabelSpacing":0,"barRadius":0,"fullHighlight":false,"legend":{"displayMode":"list","placement":"bottom","showLegend":true,"calcs":[]},"tooltip":{"mode":"single","sort":"none"}}`,
+			display: "null",
+		},
+		{
+			name: "bar chart options with no Spec field", typ: "barchart",
+			members: `"options":{"colorByField":"pod","xTickLabelRotation":45,"xTickLabelSpacing":10,"barRadius":0.2,"fullHighlight":true}`,
+			display: "null",
+			paths:   []string{"options.barRadius", "options.colorByField", "options.fullHighlight", "options.xTickLabelRotation", "options.xTickLabelSpacing"},
+		},
+		{
+			name: "bar chart width outside the range", typ: "barchart",
+			members: `"options":{"barWidth":0,"groupWidth":1}`,
+			display: `{"groupWidth":1}`,
+			paths:   []string{"options.barWidth"},
+		},
+		{
+			name: "status history", typ: "status-history",
+			members: `"options":{"showValue":"never","rowHeight":0.9,"colWidth":0.9}`,
+			display: `{"showValues":"never"}`,
+		},
+		{
+			name: "status history sizes", typ: "status-history",
+			members: `"options":{"rowHeight":0.5,"colWidth":0.7}`,
+			display: "null",
+			paths:   []string{"options.rowHeight", "options.colWidth"},
+		},
+		{
+			name: "trend", typ: "trend",
+			members: `"options":{"xField":"size","legend":{"displayMode":"list","placement":"right","showLegend":true,"calcs":["max","mean"]},"tooltip":{"mode":"none","sort":"none"}}`,
+			display: `{"legend":"right","legendValues":["max","mean"],"tooltip":"hidden","xField":"size"}`,
+		},
+		{
+			name: "xy chart version 1", typ: "xychart",
+			members: `"options":{"dims":{"x":"severity"}},"fieldConfig":{"defaults":{"custom":{"show":"lines","pointSize":{"fixed":8}}},"overrides":[]}`,
+			display: `{"xField":"severity","show":"lines","pointSize":8}`,
+		},
+		{
+			name: "xy chart manual mapping", typ: "xychart",
+			members: `"options":{"mapping":"manual","series":[{"x":{"matcher":{"id":"byName","options":"severity"}},"y":{"matcher":{"id":"byNames","options":["len"]}},"size":{"matcher":{"id":"byName","options":"n"}}}]}`,
+			display: `{"xField":"severity"}`,
+			paths:   []string{"options.series[0].y", "options.series[0].size"},
+		},
+		{
+			name: "xy chart with two series", typ: "xychart",
+			members: `"options":{"mapping":"manual","series":[{"x":{"matcher":{"id":"byName","options":"a"}}},{"x":{"matcher":{"id":"byName","options":"b"}}}]}`,
+			display: "null",
+			paths:   []string{"options.mapping", "options.series"},
+		},
+		{
+			name: "xy chart point size outside the range", typ: "xychart",
+			members: `"options":{"mapping":"auto"},"fieldConfig":{"defaults":{"custom":{"pointSize":{"fixed":60},"show":"points","pointShape":"circle","pointStrokeWidth":1,"fillOpacity":50}},"overrides":[]}`,
+			display: "null",
+			paths:   []string{"fieldConfig.defaults.custom.pointSize.fixed"},
+		},
+		{
+			name: "candlestick", typ: "candlestick",
+			members: `"options":{"mode":"candles","candleStyle":"ohlcbars","colorStrategy":"close-close","colors":{"up":"blue","down":"orange","flat":"gray"},"fields":{"open":"o","high":"h","low":"l","close":"c","volume":"v"},"includeAllFields":false}`,
+			display: `{"mode":"candles","candleStyle":"ohlcbars","colorStrategy":"close-close","upColor":"info","downColor":"warning","open":"o","high":"h","low":"l","close":"c","volume":"v"}`,
+		},
+		{
+			name: "candlestick options with no Spec field", typ: "candlestick",
+			members: `"options":{"colors":{"up":"nonsense","down":"orange","flat":"purple"},"includeAllFields":true}`,
+			display: `{"downColor":"warning"}`,
+			paths:   []string{"options.colors.up", "options.colors.flat", "options.includeAllFields"},
+		},
+		{
+			name: "node graph grid layout", typ: "nodeGraph",
+			members: `"options":{"layoutAlgorithm":"grid","zoomMode":"greedy"}`,
+			display: `{"layout":"grid"}`,
+		},
+		{
+			name: "node graph force layout", typ: "nodeGraph",
+			members: `"options":{"layoutAlgorithm":"force"}`,
+			display: "null",
+			paths:   []string{"options.layoutAlgorithm"},
+		},
+		{
+			name: "traces", typ: "traces",
+			members: `"options":{"limit":10}`,
+			display: "null",
+			paths:   []string{"options.limit"},
+		},
+		{
+			name: "flame graph", typ: "flamegraph",
+			members: `"options":{}`,
+			display: "null",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc(tc.typ, upTarget+","+tc.members))
+			if string(panel.Type) != tc.typ || line.Type != tc.typ {
+				t.Fatalf("type = %s, line type = %s, want %s", panel.Type, line.Type, tc.typ)
+			}
+			if got := displayJSON(t, panel); got != tc.display {
+				t.Errorf("display = %s, want %s", got, tc.display)
+			}
+			if panel.Stack != tc.stack {
+				t.Errorf("stack = %q, want %q", panel.Stack, tc.stack)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestStatusHistorySizeIsReportedWithItsOwnReason(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("status-history", upTarget+`,"options":{"rowHeight":0.5}`))
+	if !slices.Contains(line.Reasons, rowHeightReason) {
+		t.Fatalf("reasons = %v, want %q", line.Reasons, rowHeightReason)
+	}
+}
+
+func TestNodeGraphUnitsAndArcsBecomeFieldOverrides(t *testing.T) {
+	cases := []struct {
+		name, options string
+		want          []spec.Override
+		paths         []string
+	}{
+		{
+			name:    "equal node and edge unit",
+			options: `"nodes":{"mainStatUnit":"ms"},"edges":{"mainStatUnit":"ms"}`,
+			want:    []spec.Override{{Match: spec.Match{Field: "mainstat"}, FieldProps: spec.FieldProps{Unit: "ms"}}},
+		},
+		{
+			name:    "one side only",
+			options: `"nodes":{"secondaryStatUnit":"percentunit"}`,
+			want:    []spec.Override{{Match: spec.Match{Field: "secondarystat"}, FieldProps: spec.FieldProps{Unit: "percentunit"}}},
+		},
+		{
+			name:    "edge side only",
+			options: `"edges":{"secondaryStatUnit":"bytes"}`,
+			want:    []spec.Override{{Match: spec.Match{Field: "secondarystat"}, FieldProps: spec.FieldProps{Unit: "bytes"}}},
+		},
+		{
+			name:    "different node and edge units",
+			options: `"nodes":{"mainStatUnit":"ms"},"edges":{"mainStatUnit":"s"}`,
+			paths:   []string{"options.nodes.mainStatUnit", "options.edges.mainStatUnit"},
+		},
+		{
+			name:    "unit the Spec lacks",
+			options: `"nodes":{"mainStatUnit":"nonsense"}`,
+			paths:   []string{"options.nodes.mainStatUnit"},
+		},
+		{
+			name:    "arcs",
+			options: `"nodes":{"arcs":[{"field":"arc__ok","color":"green"},{"field":"arc__bad","color":"#ff0000"},{"field":"","color":"red"},{"field":"arc__nocolor"}]}`,
+			want: []spec.Override{
+				{Match: spec.Match{Field: "arc__ok"}, FieldProps: spec.FieldProps{Color: "#73BF69"}},
+				{Match: spec.Match{Field: "arc__bad"}, FieldProps: spec.FieldProps{Color: "#ff0000"}},
+			},
+			paths: []string{"options.nodes.arcs[2]", "options.nodes.arcs[3]"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("nodeGraph", upTarget+`,"options":{`+tc.options+`}`))
+			if !reflect.DeepEqual(panel.Overrides, tc.want) {
+				t.Errorf("overrides = %+v, want %+v", panel.Overrides, tc.want)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v", line.Paths, tc.paths)
+			}
+		})
+	}
+}
+
+func TestNodeGraphFieldOverridesMatchFieldsNotSeries(t *testing.T) {
+	panel, _ := convertedPanel(t, panelDoc("nodeGraph", upTarget+`,"fieldConfig":{"defaults":{},"overrides":[{"matcher":{"id":"byName","options":"arc__errors"},"properties":[{"id":"color","value":{"mode":"fixed","fixedColor":"red"}}]}]}`))
+	want := []spec.Override{{Match: spec.Match{Field: "arc__errors"}, FieldProps: spec.FieldProps{Color: "#F2495C"}}}
+	if !reflect.DeepEqual(panel.Overrides, want) {
+		t.Fatalf("overrides = %+v, want %+v", panel.Overrides, want)
+	}
+}
+
+func TestTrendAndCandlestickKeepThresholdsStyle(t *testing.T) {
+	for _, typ := range []string{"trend", "candlestick", "timeseries"} {
+		t.Run(typ, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc(typ, upTarget+`,"fieldConfig":{"defaults":{"custom":{"thresholdsStyle":{"mode":"line"}},"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":80}]}},"overrides":[]}`))
+			if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{"ok", "critical@80"}) {
+				t.Fatalf("thresholds = %v", got)
+			}
+			if len(line.Paths) != 0 {
+				t.Fatalf("paths = %v", line.Paths)
+			}
+		})
+	}
+}
+
+func TestTraceQueriesBecomeTableQueries(t *testing.T) {
+	const frame = `"id":1,"title":"T","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"}`
+	cases := []struct{ name, typ, target string }{
+		{"query type traces", "traces", `{"refId":"A","rawSql":"SELECT 1","queryType":"traces"}`},
+		{"format 3", "traces", `{"refId":"A","rawSql":"SELECT 1","format":3}`},
+		{"node graph", "nodeGraph", `{"refId":"A","rawSql":"SELECT 1","queryType":"traces"}`},
+		{"altinity traces", "traces", `{"refId":"A","query":"SELECT 1","format":"traces","datasource":{"type":"vertamedia-clickhouse-datasource","uid":"ch"}}`},
+		{"altinity flame graph", "flamegraph", `{"refId":"A","query":"SELECT 1","format":"flamegraph","datasource":{"type":"vertamedia-clickhouse-datasource","uid":"ch"}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, fmt.Sprintf(`{"title":"T","schemaVersion":39,"panels":[{%s,"type":%q,"targets":[%s]}]}`, frame, tc.typ, tc.target))
+			if len(panel.Queries) != 1 || panel.Queries[0].Format != "table" {
+				t.Fatalf("queries = %+v, want one table query", panel.Queries)
+			}
+			if line.Status == statusPlaceholder || line.Queries[0].Dropped != nil {
+				t.Fatalf("line = %+v, want the trace query kept", line)
+			}
+		})
+	}
+}
+
+func TestAutoLegendIsKeptVerbatim(t *testing.T) {
+	panel, _ := convertedPanel(t, panelDoc("timeseries", `"targets":[{"refId":"A","expr":"up","legendFormat":"__auto"}]`))
+	if len(panel.Queries) != 1 || panel.Queries[0].Legend != "__auto" {
+		t.Fatalf("queries = %+v, want legend __auto", panel.Queries)
+	}
+}

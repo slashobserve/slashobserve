@@ -96,7 +96,7 @@ func (b *panelBuild) matchFor(matcher map[string]any) (spec.Match, bool) {
 		if !isText || !validLength(text, maxNameMatch) {
 			return spec.Match{}, false
 		}
-		if b.typ == spec.Table || b.typ == spec.Logs {
+		if b.typ == spec.Table || b.typ == spec.Logs || b.typ == spec.NodeGraph {
 			return spec.Match{Field: text}, true
 		}
 		return spec.Match{Series: text}, true

@@ -41,9 +41,9 @@
     "verified": false,
     "counts": {
       "total": 9,
-      "imported": 6,
+      "imported": 7,
       "partial": 2,
-      "placeholder": 1,
+      "placeholder": 0,
       "unverified": 0
     },
     "panels": [
@@ -214,21 +214,19 @@
         "grafana_id": 10,
         "grafana_path": "panels[9]",
         "title": "Requests by pod",
-        "type": "placeholder",
+        "type": "barchart",
         "source_type": "barchart",
         "row": "Logs and traces",
-        "status": "placeholder",
-        "reasons": [
-          "Grafana panel type barchart is not supported yet."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": [
           {
             "ref_id": "A",
-            "ref": null,
-            "datasource": null,
+            "ref": "A",
+            "datasource": "prom",
             "rewrites": [],
-            "dropped": "The panel is a placeholder, so its query is not imported."
+            "dropped": null
           }
         ]
       },
@@ -505,7 +503,7 @@
           },
           {
             "id": "p10",
-            "type": "placeholder",
+            "type": "barchart",
             "title": "Requests by pod",
             "gridPos": {
               "x": 12,
@@ -513,8 +511,15 @@
               "w": 12,
               "h": 8
             },
-            "reason": "Grafana panel type barchart is not supported yet.",
-            "sourceType": "barchart"
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (pod) (increase(http_requests_total[$__range]))",
+                "legend": "{{pod}}",
+                "instant": true
+              }
+            ],
+            "fill": 80
           },
           {
             "id": "p11",

@@ -41,7 +41,7 @@ func (b *panelBuild) convertLegacy() {
 	switch b.n.sourceType {
 	case "graph":
 		b.legacyGraph()
-	case "singlestat":
+	case "singlestat", "grafana-singlestat-panel":
 		b.legacySinglestat()
 	case "table-old":
 		b.legacyTable()

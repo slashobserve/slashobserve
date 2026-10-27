@@ -126,7 +126,7 @@ func (b *panelBuild) thresholdsApply() bool {
 	switch b.typ {
 	case spec.Stat, spec.Gauge, spec.BarGauge, spec.StateTimeline:
 		return true
-	case spec.Timeseries:
+	case spec.Timeseries, spec.Trend, spec.Candlestick:
 		v, _ := b.value("fieldConfig.defaults.custom.thresholdsStyle.mode")
 		mode := asString(v)
 		b.consume("fieldConfig.defaults.custom.thresholdsStyle.mode")
