@@ -200,7 +200,7 @@ export function draftReducer(
       })
     case "setTitle": {
       const panel = structuredClone(state.panel)
-      if (action.title === "" && state.base.title === undefined) {
+      if (action.title.trim() === "" && state.base.title === undefined) {
         delete panel.title
       } else {
         panel.title = action.title

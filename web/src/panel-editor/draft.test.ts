@@ -329,6 +329,17 @@ describe("setTitle", () => {
     expect(sameJson(state.panel, state.base)).toBe(true)
   })
 
+  it("leaves a panel saved without a title unchanged when only whitespace is typed", () => {
+    const untitled: Partial<DataPanel> = dataPanel()
+    delete untitled.title
+    const state = apply(untitled as DataPanel, {
+      type: "setTitle",
+      title: "   ",
+    })
+    expect("title" in state.panel).toBe(false)
+    expect(sameJson(state.panel, state.base)).toBe(true)
+  })
+
   it("keeps an empty title on a panel saved with one", () => {
     const state = apply(dataPanel(), { type: "setTitle", title: "" })
     expect(state.panel.title).toBe("")
