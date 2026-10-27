@@ -141,8 +141,7 @@ func QueryKind(p *spec.Panel, q spec.Query) Kind {
 	if q.Instant {
 		return KindInstant
 	}
-	switch p.Type {
-	case spec.Table, spec.Logs:
+	if spec.InstantByDefault(p.Type) {
 		return KindInstant
 	}
 	return KindRange

@@ -1,0 +1,73 @@
+{
+  "specVersion": "0",
+  "title": "Panel types",
+  "description": "One panel of every type added after the first ten: charts, graphs, traces, maps, a canvas, an alert list and a dashboard list",
+  "tags": ["example", "panel-types"],
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    { "id": "p_bars", "type": "barchart", "title": "Requests by route",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }, "datasource": "prom",
+      "queries": [{ "query": "sum by (route) (increase(http_requests_total{service=\"frontend\"}[1h]))", "instant": true, "format": "table" }],
+      "display": { "orientation": "horizontal", "xField": "route", "showValues": "always" } },
+    { "id": "p_history", "type": "status-history", "title": "Service up",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }, "datasource": "prom",
+      "queries": [{ "query": "up", "legend": "{{job}}" }],
+      "mappings": [
+        { "value": "1", "text": "Up", "color": "ok" },
+        { "value": "0", "text": "Down", "color": "critical" }
+      ],
+      "display": { "showValues": "auto" } },
+    { "id": "p_trend", "type": "trend", "title": "Latency by payload size",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT toUInt32(length(Body) / 100) * 100 AS size, avg(length(Body)) AS avg_len FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY size ORDER BY size", "format": "table" }],
+      "display": { "xField": "size", "legend": "bottom" } },
+    { "id": "p_xy", "type": "xychart", "title": "Body length against severity",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT SeverityNumber AS severity, length(Body) AS body_length FROM otel_logs WHERE $__timeFilter(Timestamp) LIMIT 500", "format": "table" }],
+      "display": { "xField": "severity", "show": "points", "pointSize": 6 } },
+    { "id": "p_candles", "type": "candlestick", "title": "Open file descriptors",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 }, "datasource": "prom",
+      "queries": [
+        { "ref": "open", "query": "min_over_time(process_open_fds[5m])" },
+        { "ref": "high", "query": "max_over_time(process_open_fds[5m])" },
+        { "ref": "low", "query": "min_over_time(process_open_fds[5m])" },
+        { "ref": "close", "query": "process_open_fds" }
+      ],
+      "display": { "mode": "candles", "candleStyle": "ohlcbars", "colorStrategy": "close-close" } },
+    { "id": "p_map", "type": "nodeGraph", "title": "Service map",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT concat(p.ServiceName, ' -> ', c.ServiceName) AS id, p.ServiceName AS source, c.ServiceName AS target, count() AS mainstat FROM otel_traces AS c INNER JOIN otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId WHERE $__timeFilter(c.Timestamp) AND $__timeFilter(p.Timestamp) AND p.ServiceName != c.ServiceName GROUP BY source, target LIMIT 200", "format": "table" }],
+      "display": { "layout": "layered" } },
+    { "id": "p_trace", "type": "traces", "title": "Latest trace",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, SpanAttributes AS tags FROM otel_traces WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 1) ORDER BY startTime LIMIT 1000", "format": "table" }],
+      "display": {} },
+    { "id": "p_flame", "type": "flamegraph", "title": "Profile",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT 0 AS level, 10 AS value, 2 AS self, 'root' AS label UNION ALL SELECT 1 AS level, 8 AS value, 8 AS self, 'child' AS label", "format": "table" }],
+      "display": {} },
+    { "id": "p_geo", "type": "geomap", "title": "Sites",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }, "datasource": "prom",
+      "queries": [{ "query": "sum by (lat, lon) (site_requests_total)", "instant": true, "format": "table" }],
+      "display": { "view": "world", "location": "coords", "latField": "lat", "lonField": "lon", "markerSize": 4, "markerSizeMax": 20 } },
+    { "id": "p_canvas", "type": "canvas", "title": "Checkout flow",
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 }, "datasource": "ch",
+      "queries": [{ "query": "SELECT count() AS errors FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)", "format": "table" }],
+      "thresholds": [{ "color": "ok" }, { "value": 10, "color": "critical" }],
+      "display": {
+        "reduce": "lastNotNull",
+        "elements": [
+          { "id": "service", "kind": "rectangle", "left": 5, "top": 30, "width": 30, "height": 40, "text": "Checkout", "fill": "info" },
+          { "id": "errors", "kind": "metric", "left": 60, "top": 30, "width": 30, "height": 40, "field": "errors", "fill": "field", "fontSize": 20 }
+        ],
+        "connections": [{ "from": "service", "to": "errors", "color": "field", "field": "errors", "width": 3 }]
+      } },
+    { "id": "p_alerts", "type": "alertlist", "title": "Firing alerts",
+      "gridPos": { "x": 0, "y": 40, "w": 12, "h": 8 }, "datasource": "prom",
+      "queries": [{ "query": "ALERTS{alertstate=\"firing\"}", "instant": true, "format": "table" }],
+      "display": { "limit": 10, "sort": "importance", "viewMode": "list" } },
+    { "id": "p_dashboards", "type": "dashlist", "title": "Related dashboards",
+      "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
+      "display": { "tags": ["example"], "limit": 5 } }
+  ]
+}

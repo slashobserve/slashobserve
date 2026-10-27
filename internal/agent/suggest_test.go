@@ -142,7 +142,7 @@ func TestSuggestRunRejectsBadStartingPoints(t *testing.T) {
 			},
 			want: agent.ErrDraftInvalid,
 		},
-		"panel that is not a data or text panel": {
+		"panel that is not a data, text or dashboard list panel": {
 			edit: func(r *rig, task *agent.Task) { task.Draft = placeholder(r) },
 			want: agent.ErrInvalidTask,
 		},

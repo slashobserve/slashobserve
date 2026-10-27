@@ -94,7 +94,7 @@ func (e *DraftError) Unwrap() error { return ErrDraftInvalid }
 type notSuggestibleError struct{}
 
 func (notSuggestibleError) Error() string {
-	return "the panel is not a data or text panel of that version"
+	return "the panel is not a data, text or dashboard list panel of that version"
 }
 
 func (notSuggestibleError) Unwrap() error { return ErrUnknownPanel }

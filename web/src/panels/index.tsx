@@ -13,7 +13,11 @@ import type {
 export function isStaticPanel<T extends { type: string }>(
   item: T
 ): item is Extract<T, { type: StaticPanelType }> {
-  return item.type === "text" || item.type === "placeholder"
+  return (
+    item.type === "text" ||
+    item.type === "placeholder" ||
+    item.type === "dashlist"
+  )
 }
 
 const found = import.meta.glob<{ manifest: RendererManifest }>(

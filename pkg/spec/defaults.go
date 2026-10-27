@@ -40,13 +40,25 @@ type LinkDefaults struct {
 	NewTab bool `json:"newTab"`
 }
 
+type CanvasElementDefaults struct {
+	FontSize int    `json:"fontSize"`
+	Align    string `json:"align"`
+}
+
+type CanvasConnectionDefaults struct {
+	Width int `json:"width"`
+}
+
 type DefaultsTable struct {
-	FieldProps FieldPropsDefaults    `json:"fieldProps"`
-	Query      QueryDefaults         `json:"query"`
-	Variable   VariableDefaults      `json:"variable"`
-	Row        RowDefaults           `json:"row"`
-	Link       LinkDefaults          `json:"link"`
-	Display    map[PanelType]Display `json:"display"`
+	FieldProps       FieldPropsDefaults       `json:"fieldProps"`
+	Query            QueryDefaults            `json:"query"`
+	Variable         VariableDefaults         `json:"variable"`
+	Row              RowDefaults              `json:"row"`
+	Link             LinkDefaults             `json:"link"`
+	Display          map[PanelType]Display    `json:"display"`
+	CanvasElement    CanvasElementDefaults    `json:"canvasElement"`
+	CanvasConnection CanvasConnectionDefaults `json:"canvasConnection"`
+	InstantPanels    []PanelType              `json:"instantPanels"`
 }
 
 var defaults = sync.OnceValue(func() DefaultsTable {
@@ -65,6 +77,7 @@ var defaults = sync.OnceValue(func() DefaultsTable {
 func Defaults() DefaultsTable {
 	table := defaults()
 	table.Display = maps.Clone(table.Display)
+	table.InstantPanels = slices.Clone(table.InstantPanels)
 	for panelType, display := range table.Display {
 		display.LegendValues = slices.Clone(display.LegendValues)
 		display.Footer = slices.Clone(display.Footer)
@@ -76,9 +89,31 @@ func Defaults() DefaultsTable {
 		display.MergeValues = clonePointer(display.MergeValues)
 		display.Wrap = clonePointer(display.Wrap)
 		display.ShowTime = clonePointer(display.ShowTime)
+		display.BarWidth = clonePointer(display.BarWidth)
+		display.GroupWidth = clonePointer(display.GroupWidth)
+		display.Lat = clonePointer(display.Lat)
+		display.Lon = clonePointer(display.Lon)
+		display.Zoom = clonePointer(display.Zoom)
+		display.KeepTime = clonePointer(display.KeepTime)
+		display.IncludeVars = clonePointer(display.IncludeVars)
+		display.Elements = slices.Clone(display.Elements)
+		display.Connections = slices.Clone(display.Connections)
+		display.Tags = slices.Clone(display.Tags)
 		table.Display[panelType] = display
 	}
 	return table
+}
+
+var instantPanels = sync.OnceValue(func() map[PanelType]bool {
+	set := map[PanelType]bool{}
+	for _, t := range defaults().InstantPanels {
+		set[t] = true
+	}
+	return set
+})
+
+func InstantByDefault(t PanelType) bool {
+	return instantPanels()[t]
 }
 
 func clonePointer[T any](p *T) *T {

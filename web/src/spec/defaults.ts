@@ -1,7 +1,9 @@
 import { specDefaults } from "./defaults.gen"
 import type { DataPanelType } from "./panels"
 
-export type DisplayOf<T extends DataPanelType> = {
+export type DisplayPanelType = DataPanelType | "dashlist"
+
+export type DisplayOf<T extends DisplayPanelType> = {
   [K in T]: Record<string, unknown>
 }[T]
 
@@ -10,6 +12,9 @@ export const queryDefaults = specDefaults.query
 export const variableDefaults = specDefaults.variable
 export const rowDefaults = specDefaults.row
 export const linkDefaults = specDefaults.link
+export const canvasElementDefaults = specDefaults.canvasElement
+export const canvasConnectionDefaults = specDefaults.canvasConnection
+export const instantPanelTypes: readonly string[] = specDefaults.instantPanels
 
 const displayTable: Record<
   string,
@@ -35,7 +40,7 @@ function displayDefaultsFor(type: string): Record<string, unknown> {
 }
 
 export function displayWithDefaults(
-  type: DataPanelType,
+  type: DisplayPanelType,
   display: unknown
 ): Record<string, unknown> {
   const given = isPlainObject(display)
@@ -68,7 +73,7 @@ function sameValue(a: unknown, b: unknown): boolean {
 }
 
 export function isDefaultDisplayValue(
-  type: DataPanelType,
+  type: DisplayPanelType,
   key: string,
   value: unknown
 ): boolean {

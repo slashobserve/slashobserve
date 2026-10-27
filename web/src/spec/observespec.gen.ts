@@ -25,7 +25,7 @@ export type Query = string;
  * Default selection: one value, several for a multi variable, or $__all.
  */
 export type Selection = string | string[];
-export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel;
+export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel | DashlistPanel;
 export type DataPanel = FieldProps & DataPanel1;
 /**
  * A Grafana unit id, or a custom suffix:/prefix: unit.
@@ -468,7 +468,18 @@ export interface DataPanel1 {
     | "heatmap"
     | "histogram"
     | "state-timeline"
-    | "logs";
+    | "logs"
+    | "barchart"
+    | "status-history"
+    | "trend"
+    | "xychart"
+    | "candlestick"
+    | "nodeGraph"
+    | "traces"
+    | "flamegraph"
+    | "geomap"
+    | "canvas"
+    | "alertlist";
   datasource: DatasourceUid;
   /**
    * @minItems 1
@@ -562,5 +573,28 @@ export interface RowPanel {
   /**
    * @maxItems 200
    */
-  panels?: (DataPanel | TextPanel | PlaceholderPanel)[];
+  panels?: (DataPanel | TextPanel | PlaceholderPanel | DashlistPanel)[];
+}
+/**
+ * Links to other dashboards on this server; no datasource or queries.
+ */
+export interface DashlistPanel {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  title?: string;
+  description?: string;
+  gridPos: GridPos;
+  type: "dashlist";
+  display?: {
+    query?: string;
+    /**
+     * @maxItems 10
+     */
+    tags?: string[];
+    limit?: number;
+    keepTime?: boolean;
+    includeVars?: boolean;
+  };
 }

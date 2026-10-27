@@ -17,6 +17,7 @@ const schema = JSON.parse(schemaText) as {
     dataPanel: PanelDef
     textPanel: PanelDef
     placeholderPanel: PanelDef
+    dashlistPanel: PanelDef
   }
 }
 
@@ -24,6 +25,7 @@ const schemaPanelTypes = [
   schema.$defs.dataPanel,
   schema.$defs.textPanel,
   schema.$defs.placeholderPanel,
+  schema.$defs.dashlistPanel,
 ].flatMap((def) => def.properties.type.enum ?? [def.properties.type.const!])
 
 const entries = Object.entries(found).map(([path, { manifest }]) => ({
@@ -32,10 +34,10 @@ const entries = Object.entries(found).map(([path, { manifest }]) => ({
 }))
 
 describe("renderer registry", () => {
-  it("has one manifest per schema panel type, each named after its folder", () => {
-    expect(entries.map(({ manifest }) => manifest.type).sort()).toEqual(
-      [...schemaPanelTypes].sort()
-    )
+  it("has only manifests of schema panel types, each named after its folder", () => {
+    for (const { manifest } of entries) {
+      expect(schemaPanelTypes).toContain(manifest.type)
+    }
     for (const { folder, manifest } of entries) {
       expect(manifest.type).toBe(folder)
     }

@@ -1654,6 +1654,466 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "barchart"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "orientation": {
+                    "enum": [
+                      "auto",
+                      "horizontal",
+                      "vertical"
+                    ]
+                  },
+                  "xField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "showValues": {
+                    "enum": [
+                      "auto",
+                      "always",
+                      "never"
+                    ]
+                  },
+                  "barWidth": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "groupWidth": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
+                  },
+                  "legend": {
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "status-history"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "showValues": {
+                    "enum": [
+                      "auto",
+                      "always",
+                      "never"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "trend"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "xField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "legend": {
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "legendValues": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/reducer"
+                    }
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "xychart"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "xField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "show": {
+                    "enum": [
+                      "points",
+                      "lines",
+                      "points+lines"
+                    ]
+                  },
+                  "pointSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 40
+                  },
+                  "legend": {
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "candlestick"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "candles+volume",
+                      "candles",
+                      "volume"
+                    ]
+                  },
+                  "candleStyle": {
+                    "enum": [
+                      "candles",
+                      "ohlcbars"
+                    ]
+                  },
+                  "colorStrategy": {
+                    "enum": [
+                      "open-close",
+                      "close-close"
+                    ]
+                  },
+                  "upColor": {
+                    "$ref": "#/$defs/color"
+                  },
+                  "downColor": {
+                    "$ref": "#/$defs/color"
+                  },
+                  "open": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "high": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "low": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "close": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "volume": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "legend": {
+                    "enum": [
+                      "bottom",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "nodeGraph"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "layout": {
+                    "enum": [
+                      "layered",
+                      "grid"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "traces"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "flamegraph"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "geomap"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "view": {
+                    "enum": [
+                      "fit",
+                      "world",
+                      "coords"
+                    ]
+                  },
+                  "lat": {
+                    "type": "number",
+                    "minimum": -85,
+                    "maximum": 85
+                  },
+                  "lon": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "zoom": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 18
+                  },
+                  "location": {
+                    "enum": [
+                      "auto",
+                      "coords",
+                      "geohash"
+                    ]
+                  },
+                  "latField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "lonField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "geohashField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "sizeField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "colorField": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "markerSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "markerSizeMax": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "canvas"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "reduce": {
+                    "$ref": "#/$defs/reducer"
+                  },
+                  "elements": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "$ref": "#/$defs/canvasElement"
+                    }
+                  },
+                  "connections": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "$ref": "#/$defs/canvasConnection"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "alertlist"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "display": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "sort": {
+                    "enum": [
+                      "alphaAsc",
+                      "alphaDesc",
+                      "importance",
+                      "timeAsc",
+                      "timeDesc"
+                    ]
+                  },
+                  "viewMode": {
+                    "enum": [
+                      "list",
+                      "stat"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ],
       "properties": {
@@ -1686,7 +2146,18 @@
             "heatmap",
             "histogram",
             "state-timeline",
-            "logs"
+            "logs",
+            "barchart",
+            "status-history",
+            "trend",
+            "xychart",
+            "candlestick",
+            "nodeGraph",
+            "traces",
+            "flamegraph",
+            "geomap",
+            "canvas",
+            "alertlist"
           ]
         },
         "datasource": {
@@ -1874,6 +2345,9 @@
               },
               {
                 "$ref": "#/$defs/placeholderPanel"
+              },
+              {
+                "$ref": "#/$defs/dashlistPanel"
               }
             ]
           }
@@ -1903,8 +2377,201 @@
         },
         {
           "$ref": "#/$defs/rowPanel"
+        },
+        {
+          "$ref": "#/$defs/dashlistPanel"
         }
       ]
+    },
+    "fieldName": {
+      "title": "FieldName",
+      "description": "A field name or series name in the panel's frames.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "canvasColor": {
+      "title": "CanvasColor",
+      "description": "A color, or field to take the bound field's threshold or mapping color.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/color"
+        },
+        {
+          "const": "field"
+        }
+      ]
+    },
+    "canvasElement": {
+      "title": "CanvasElement",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "left",
+        "top",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+        },
+        "kind": {
+          "enum": [
+            "metric",
+            "text",
+            "rectangle",
+            "ellipse"
+          ]
+        },
+        "left": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "top": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "field": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "fill": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "stroke": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "textColor": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "fontSize": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 72
+        },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        }
+      }
+    },
+    "canvasConnection": {
+      "title": "CanvasConnection",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+        },
+        "color": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "field": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    },
+    "dashlistPanel": {
+      "title": "DashlistPanel",
+      "description": "Links to other dashboards on this server; no datasource or queries.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "gridPos"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable across versions; comments anchor to it.",
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "gridPos": {
+          "$ref": "#/$defs/gridPos"
+        },
+        "type": {
+          "const": "dashlist"
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "tags": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_.-]{0,39}$"
+              }
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "keepTime": {
+              "type": "boolean"
+            },
+            "includeVars": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
     }
   }
 }

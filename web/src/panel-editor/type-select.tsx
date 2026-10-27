@@ -16,6 +16,17 @@ export const typeLabels: Record<DataPanelType, string> = {
   histogram: "Histogram",
   "state-timeline": "State timeline",
   logs: "Logs",
+  barchart: "Bar chart",
+  "status-history": "Status history",
+  trend: "Trend",
+  xychart: "XY chart",
+  candlestick: "Candlestick",
+  nodeGraph: "Node graph",
+  traces: "Traces",
+  flamegraph: "Flame graph",
+  geomap: "Geomap",
+  canvas: "Canvas",
+  alertlist: "Alert list",
 }
 
 const options = dataPanelTypes.map((type) => ({

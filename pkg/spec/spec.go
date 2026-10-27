@@ -39,6 +39,18 @@ const (
 	Histogram     PanelType = "histogram"
 	StateTimeline PanelType = "state-timeline"
 	Logs          PanelType = "logs"
+	BarChart      PanelType = "barchart"
+	StatusHistory PanelType = "status-history"
+	Trend         PanelType = "trend"
+	XYChart       PanelType = "xychart"
+	Candlestick   PanelType = "candlestick"
+	NodeGraph     PanelType = "nodeGraph"
+	Traces        PanelType = "traces"
+	FlameGraph    PanelType = "flamegraph"
+	Geomap        PanelType = "geomap"
+	Canvas        PanelType = "canvas"
+	AlertList     PanelType = "alertlist"
+	DashList      PanelType = "dashlist"
 	Text          PanelType = "text"
 	Row           PanelType = "row"
 	Placeholder   PanelType = "placeholder"
@@ -46,10 +58,15 @@ const (
 
 func (t PanelType) IsData() bool {
 	switch t {
-	case Timeseries, Stat, Gauge, BarGauge, Table, PieChart, Heatmap, Histogram, StateTimeline, Logs:
+	case Timeseries, Stat, Gauge, BarGauge, Table, PieChart, Heatmap, Histogram, StateTimeline, Logs,
+		BarChart, StatusHistory, Trend, XYChart, Candlestick, NodeGraph, Traces, FlameGraph, Geomap, Canvas, AlertList:
 		return true
 	}
 	return false
+}
+
+func (t PanelType) IsEditable() bool {
+	return t.IsData() || t == Text || t == DashList
 }
 
 type VariableType string
@@ -242,27 +259,88 @@ type Transform struct {
 }
 
 type Display struct {
-	Legend           string   `json:"legend,omitempty"`
-	LegendValues     []string `json:"legendValues,omitempty"`
-	Tooltip          string   `json:"tooltip,omitempty"`
-	Reduce           string   `json:"reduce,omitempty"`
-	ColorMode        string   `json:"colorMode,omitempty"`
-	Graph            *bool    `json:"graph,omitempty"`
-	TextMode         string   `json:"textMode,omitempty"`
-	Orientation      string   `json:"orientation,omitempty"`
-	ThresholdMarkers *bool    `json:"thresholdMarkers,omitempty"`
-	Header           *bool    `json:"header,omitempty"`
-	Footer           []string `json:"footer,omitempty"`
-	PieType          string   `json:"pieType,omitempty"`
-	Calculate        *bool    `json:"calculate,omitempty"`
-	YScale           string   `json:"yScale,omitempty"`
-	BucketSize       *float64 `json:"bucketSize,omitempty"`
-	BucketCount      int      `json:"bucketCount,omitempty"`
-	MergeValues      *bool    `json:"mergeValues,omitempty"`
-	ShowValues       string   `json:"showValues,omitempty"`
-	Wrap             *bool    `json:"wrap,omitempty"`
-	ShowTime         *bool    `json:"showTime,omitempty"`
-	Order            string   `json:"order,omitempty"`
+	Legend           string             `json:"legend,omitempty"`
+	LegendValues     []string           `json:"legendValues,omitempty"`
+	Tooltip          string             `json:"tooltip,omitempty"`
+	Reduce           string             `json:"reduce,omitempty"`
+	ColorMode        string             `json:"colorMode,omitempty"`
+	Graph            *bool              `json:"graph,omitempty"`
+	TextMode         string             `json:"textMode,omitempty"`
+	Orientation      string             `json:"orientation,omitempty"`
+	ThresholdMarkers *bool              `json:"thresholdMarkers,omitempty"`
+	Header           *bool              `json:"header,omitempty"`
+	Footer           []string           `json:"footer,omitempty"`
+	PieType          string             `json:"pieType,omitempty"`
+	Calculate        *bool              `json:"calculate,omitempty"`
+	YScale           string             `json:"yScale,omitempty"`
+	BucketSize       *float64           `json:"bucketSize,omitempty"`
+	BucketCount      int                `json:"bucketCount,omitempty"`
+	MergeValues      *bool              `json:"mergeValues,omitempty"`
+	ShowValues       string             `json:"showValues,omitempty"`
+	Wrap             *bool              `json:"wrap,omitempty"`
+	ShowTime         *bool              `json:"showTime,omitempty"`
+	Order            string             `json:"order,omitempty"`
+	XField           string             `json:"xField,omitempty"`
+	BarWidth         *float64           `json:"barWidth,omitempty"`
+	GroupWidth       *float64           `json:"groupWidth,omitempty"`
+	Show             string             `json:"show,omitempty"`
+	PointSize        int                `json:"pointSize,omitempty"`
+	Mode             string             `json:"mode,omitempty"`
+	CandleStyle      string             `json:"candleStyle,omitempty"`
+	ColorStrategy    string             `json:"colorStrategy,omitempty"`
+	UpColor          string             `json:"upColor,omitempty"`
+	DownColor        string             `json:"downColor,omitempty"`
+	Open             string             `json:"open,omitempty"`
+	High             string             `json:"high,omitempty"`
+	Low              string             `json:"low,omitempty"`
+	Close            string             `json:"close,omitempty"`
+	Volume           string             `json:"volume,omitempty"`
+	Layout           string             `json:"layout,omitempty"`
+	View             string             `json:"view,omitempty"`
+	Lat              *float64           `json:"lat,omitempty"`
+	Lon              *float64           `json:"lon,omitempty"`
+	Zoom             *float64           `json:"zoom,omitempty"`
+	Location         string             `json:"location,omitempty"`
+	LatField         string             `json:"latField,omitempty"`
+	LonField         string             `json:"lonField,omitempty"`
+	GeohashField     string             `json:"geohashField,omitempty"`
+	SizeField        string             `json:"sizeField,omitempty"`
+	ColorField       string             `json:"colorField,omitempty"`
+	MarkerSize       int                `json:"markerSize,omitempty"`
+	MarkerSizeMax    int                `json:"markerSizeMax,omitempty"`
+	Elements         []CanvasElement    `json:"elements,omitempty"`
+	Connections      []CanvasConnection `json:"connections,omitempty"`
+	Limit            int                `json:"limit,omitempty"`
+	Sort             string             `json:"sort,omitempty"`
+	ViewMode         string             `json:"viewMode,omitempty"`
+	Query            string             `json:"query,omitempty"`
+	Tags             []string           `json:"tags,omitempty"`
+	KeepTime         *bool              `json:"keepTime,omitempty"`
+	IncludeVars      *bool              `json:"includeVars,omitempty"`
+}
+
+type CanvasElement struct {
+	ID        string  `json:"id"`
+	Kind      string  `json:"kind"`
+	Left      float64 `json:"left"`
+	Top       float64 `json:"top"`
+	Width     float64 `json:"width"`
+	Height    float64 `json:"height"`
+	Text      string  `json:"text,omitempty"`
+	Field     string  `json:"field,omitempty"`
+	Fill      string  `json:"fill,omitempty"`
+	Stroke    string  `json:"stroke,omitempty"`
+	TextColor string  `json:"textColor,omitempty"`
+	FontSize  int     `json:"fontSize,omitempty"`
+	Align     string  `json:"align,omitempty"`
+}
+
+type CanvasConnection struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Color string `json:"color,omitempty"`
+	Field string `json:"field,omitempty"`
+	Width int    `json:"width,omitempty"`
 }
 
 type GridPos struct {

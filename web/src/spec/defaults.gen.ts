@@ -67,6 +67,80 @@ export const specDefaults = {
       "wrap": false,
       "showTime": false,
       "order": "newest"
+    },
+    "barchart": {
+      "orientation": "auto",
+      "showValues": "auto",
+      "barWidth": 0.97,
+      "groupWidth": 0.7,
+      "legend": "bottom",
+      "tooltip": "single"
+    },
+    "status-history": {
+      "showValues": "auto"
+    },
+    "trend": {
+      "legend": "bottom",
+      "legendValues": [],
+      "tooltip": "single"
+    },
+    "xychart": {
+      "show": "points",
+      "pointSize": 5,
+      "legend": "bottom",
+      "tooltip": "single"
+    },
+    "candlestick": {
+      "mode": "candles+volume",
+      "candleStyle": "candles",
+      "colorStrategy": "open-close",
+      "upColor": "ok",
+      "downColor": "critical",
+      "legend": "bottom",
+      "tooltip": "single"
+    },
+    "nodeGraph": {
+      "layout": "layered"
+    },
+    "traces": {},
+    "flamegraph": {},
+    "geomap": {
+      "view": "fit",
+      "location": "auto",
+      "markerSize": 5,
+      "markerSizeMax": 15
+    },
+    "canvas": {
+      "reduce": "lastNotNull",
+      "elements": [],
+      "connections": []
+    },
+    "alertlist": {
+      "limit": 20,
+      "sort": "alphaAsc",
+      "viewMode": "list"
+    },
+    "dashlist": {
+      "tags": [],
+      "limit": 10,
+      "keepTime": false,
+      "includeVars": false
     }
-  }
+  },
+  "canvasElement": {
+    "fontSize": 14,
+    "align": "center"
+  },
+  "canvasConnection": {
+    "width": 2
+  },
+  "instantPanels": [
+    "table",
+    "logs",
+    "nodeGraph",
+    "traces",
+    "flamegraph",
+    "geomap",
+    "alertlist"
+  ]
 } as const

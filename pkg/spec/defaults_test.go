@@ -28,6 +28,25 @@ func rawObject(t *testing.T, raw json.RawMessage) map[string]any {
 	return out
 }
 
+func schemaDisplayPanelTypes(t *testing.T) []string {
+	t.Helper()
+	var doc struct {
+		Defs struct {
+			DashlistPanel struct {
+				Properties struct {
+					Type struct {
+						Const string `json:"const"`
+					} `json:"type"`
+				} `json:"properties"`
+			} `json:"dashlistPanel"`
+		} `json:"$defs"`
+	}
+	if err := json.Unmarshal(spec.Schema(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	return append(schemaDataPanelTypes(t), doc.Defs.DashlistPanel.Properties.Type.Const)
+}
+
 func schemaDataPanelTypes(t *testing.T) []string {
 	t.Helper()
 	var doc struct {
@@ -102,7 +121,7 @@ func TestDefaultsTableDecodes(t *testing.T) {
 }
 
 func TestDefaultsDisplayKeysAreSchemaPanelTypes(t *testing.T) {
-	types := schemaDataPanelTypes(t)
+	types := schemaDisplayPanelTypes(t)
 	for panelType := range spec.Defaults().Display {
 		if !slices.Contains(types, string(panelType)) {
 			t.Errorf("display default for %q, which is not a schema data panel type %v", panelType, types)
@@ -119,6 +138,41 @@ func TestDefaultsDisplayKeysAreSchemaPanelTypes(t *testing.T) {
 	}
 }
 
+func TestInstantPanelsAreSchemaDataPanelTypes(t *testing.T) {
+	types := schemaDataPanelTypes(t)
+	table := spec.Defaults()
+	if len(table.InstantPanels) == 0 {
+		t.Fatal("defaults list no instant panels")
+	}
+	for _, panelType := range table.InstantPanels {
+		if !slices.Contains(types, string(panelType)) {
+			t.Errorf("instant panel %q is not a schema data panel type", panelType)
+		}
+	}
+}
+
+func TestInstantByDefault(t *testing.T) {
+	instant := []spec.PanelType{spec.Table, spec.Logs, spec.NodeGraph, spec.Traces, spec.FlameGraph, spec.Geomap, spec.AlertList}
+	for _, panelType := range instant {
+		if !spec.InstantByDefault(panelType) {
+			t.Errorf("InstantByDefault(%q) = false, want true", panelType)
+		}
+	}
+	for _, panelType := range []spec.PanelType{spec.Timeseries, spec.BarChart, spec.Canvas, spec.Text, spec.DashList} {
+		if spec.InstantByDefault(panelType) {
+			t.Errorf("InstantByDefault(%q) = true, want false", panelType)
+		}
+	}
+}
+
+func TestDefaultsInstantPanelsAreCloned(t *testing.T) {
+	first := spec.Defaults()
+	first.InstantPanels[0] = "mutated"
+	if spec.Defaults().InstantPanels[0] == "mutated" || spec.InstantByDefault("mutated") {
+		t.Fatal("Defaults() shares the instant panel list between calls")
+	}
+}
+
 func TestDefaultValuesAreSchemaValid(t *testing.T) {
 	raw := rawDefaults(t)
 	var display map[string]json.RawMessage
@@ -129,10 +183,24 @@ func TestDefaultValuesAreSchemaValid(t *testing.T) {
 	for _, panelType := range slices.Sorted(maps.Keys(display)) {
 		t.Run("display "+panelType, func(t *testing.T) {
 			panel := defaultsPanel("p1", panelType)
+			if panelType == "dashlist" {
+				delete(panel, "datasource")
+				delete(panel, "queries")
+			}
 			panel["display"] = rawObject(t, display[panelType])
 			parseDefaultsDoc(t, defaultsDoc(panel))
 		})
 	}
+
+	t.Run("canvas elements", func(t *testing.T) {
+		element := map[string]any{"id": "a", "kind": "metric", "left": 0, "top": 0, "width": 10, "height": 10}
+		maps.Copy(element, rawObject(t, raw["canvasElement"]))
+		connection := map[string]any{"from": "a", "to": "a"}
+		maps.Copy(connection, rawObject(t, raw["canvasConnection"]))
+		panel := defaultsPanel("p1", "canvas")
+		panel["display"] = map[string]any{"elements": []any{element}, "connections": []any{connection}}
+		parseDefaultsDoc(t, defaultsDoc(panel))
+	})
 
 	t.Run("fieldProps", func(t *testing.T) {
 		panel := defaultsPanel("p1", "timeseries")

@@ -89,7 +89,7 @@ func (s *Service) checkSuggestion(ctx context.Context, dashboardID pgtype.UUID, 
 		return fmt.Errorf("read version spec: %w", err)
 	}
 	entry, ok := base.FindPanel(panelID)
-	if !ok || !suggestible(entry.Panel.Type) {
+	if !ok || !entry.Panel.Type.IsEditable() {
 		return ErrNotSuggestible
 	}
 	if len(draft) == 0 {
@@ -126,7 +126,7 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 		return &DraftError{Issues: []spec.Issue{{
 			Path:    entry.Pointer,
 			Code:    codeInvalidDraft,
-			Message: fmt.Sprintf("the draft must keep id %q and stay a data or text panel", entry.Panel.ID),
+			Message: fmt.Sprintf("the draft must keep id %q and stay a data, text or dashboard list panel", entry.Panel.ID),
 		}}}
 	}
 	raw, err := json.Marshal(placed)
@@ -149,12 +149,8 @@ func (s *Service) checkDraft(base *spec.Dashboard, entry spec.PanelEntry, draft 
 func placedPanel(candidate *spec.Dashboard, entry spec.PanelEntry) (*spec.Panel, bool) {
 	for _, e := range candidate.AllPanels() {
 		if e.Pointer == entry.Pointer {
-			return e.Panel, e.Panel.ID == entry.Panel.ID && suggestible(e.Panel.Type)
+			return e.Panel, e.Panel.ID == entry.Panel.ID && e.Panel.Type.IsEditable()
 		}
 	}
 	return nil, false
-}
-
-func suggestible(t spec.PanelType) bool {
-	return t.IsData() || t == spec.Text
 }

@@ -31,6 +31,8 @@ const (
 	CodeThresholdValueMissing IssueCode = "threshold_value_missing"
 	CodeInvalidDefault        IssueCode = "invalid_default"
 	CodeInvalidRegex          IssueCode = "invalid_regex"
+	CodeDuplicateElementID    IssueCode = "duplicate_element_id"
+	CodeUnknownElement        IssueCode = "unknown_element"
 )
 
 const maxIssues = 50

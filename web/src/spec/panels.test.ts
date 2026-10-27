@@ -86,7 +86,7 @@ describe("panel kinds", () => {
       ["n", false, false],
       ["p", false, false],
     ])
-    expect(dataPanelTypes).toHaveLength(10)
+    expect(dataPanelTypes).toHaveLength(21)
   })
 })
 
