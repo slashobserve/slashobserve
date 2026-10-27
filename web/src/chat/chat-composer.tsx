@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
-import type { FormEvent, KeyboardEvent, ReactNode } from "react"
+import type { FormEvent, KeyboardEvent } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
 } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
 
+import { ImportLink } from "./import-link"
 import { NoAgentNote } from "./no-agent-note"
 
 const maxPromptLength = 4000
@@ -32,7 +33,6 @@ type Props = {
   autoFocus?: boolean
   disabled?: boolean
   onSent: (request: ObserveRequest) => void | Promise<void>
-  secondaryAction?: ReactNode
 }
 
 function isEditable(target: EventTarget | null): boolean {
@@ -71,7 +71,6 @@ export function ChatComposer({
   autoFocus = false,
   disabled = false,
   onSent,
-  secondaryAction,
 }: Props) {
   const agent = useAgentInfo()
   const datasources = useDatasources()
@@ -241,7 +240,7 @@ export function ChatComposer({
             {model !== null ? <span>{model}</span> : null}
           </div>
           <div className="flex items-center gap-1.5">
-            {secondaryAction}
+            <ImportLink />
             <Button
               type="submit"
               size="icon"

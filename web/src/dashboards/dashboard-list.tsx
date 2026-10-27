@@ -219,12 +219,20 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
               <p className="text-sm text-muted-foreground">
                 Ask for one in the chat and it shows up here.
               </p>
-              <Link
-                to="/"
-                className={cn(buttonVariants({ variant: "outline" }))}
-              >
-                Open the chat
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  to="/"
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  Open the chat
+                </Link>
+                <Link
+                  to="/import"
+                  className={cn(buttonVariants({ variant: "outline" }))}
+                >
+                  Import from Grafana
+                </Link>
+              </div>
             </>
           ) : (
             <>
