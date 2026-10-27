@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { stableJson } from "@/lib/json"
+import { sameJson, stableJson } from "@/lib/json"
 import {
   dataPanelTypes,
   type DataPanel,
