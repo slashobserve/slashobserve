@@ -29,9 +29,11 @@ import {
   legendCells,
   plotStateFor,
   thresholdsFor,
+  timeAxis,
   type ChartSeries,
   type PlotState,
   type ThresholdLines,
+  type XAxis,
 } from "./plot-model"
 import { thresholdsPlugin, tooltipPlugin, type TooltipSeries } from "./plugins"
 import { isolatedPoints } from "./points"
@@ -81,6 +83,8 @@ type PlotConfig = {
   syncKey: string
   host: HTMLElement
   latest: { current: Latest }
+  xAxis: XAxis
+  draw?: uPlot.Plugin
 }
 
 const tickEdgeGap = 24
@@ -102,7 +106,8 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
 
 function seriesOptions(
   entry: ChartSeries,
-  hidden: ReadonlySet<string>
+  hidden: ReadonlySet<string>,
+  customPainted: boolean
 ): uPlot.Series {
   const stroke = resolveColor(entry.color)
   const fill = fillPercent(entry.style, entry.fill)
@@ -113,6 +118,9 @@ function seriesOptions(
     stroke,
     dash: entry.dash,
     spanGaps: false,
+  }
+  if (customPainted) {
+    return { ...base, width: 0, paths: () => null, points: { show: false } }
   }
   if (entry.style === "bars") {
     return {
@@ -146,7 +154,9 @@ function seriesOptions(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { syncKey, host, latest } = config
+  const { syncKey, host, latest, xAxis, draw } = config
+  const timed = xAxis.kind === "time"
+  const customPainted = draw !== undefined
   const { model } = latest.current
   const { series, axes, panelAxis, ghostCount } = model
   const { state, width, chartHeight } = latest.current
@@ -159,7 +169,14 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
   const plugins: uPlot.Plugin[] = []
   if (model.tooltip !== "hidden") {
     plugins.push(
-      tooltipPlugin(host, model.tooltip, first, () => latest.current.entries)
+      tooltipPlugin(
+        host,
+        model.tooltip,
+        first,
+        () => latest.current.entries,
+        (x) =>
+          xAxis.kind === "time" ? formatDateTime(x * 1000) : xAxis.format(x)
+      )
     )
   }
   if (model.thresholds) {
@@ -169,6 +186,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
       )
     )
   }
+  if (draw) plugins.push(draw)
 
   const valueAxis = (
     key: AxisKey,
@@ -208,12 +226,17 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     legend: { show: false },
     scales: {
       x: {
-        time: true,
+        time: timed,
         range: (_u, dataMin, dataMax) => {
           const { meta } = latest.current
           const from = Date.parse(meta.from) / 1000
           const to = Date.parse(meta.to) / 1000
-          if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
+          if (
+            timed &&
+            Number.isFinite(from) &&
+            Number.isFinite(to) &&
+            to > from
+          ) {
             return [from, to]
           }
           return dataMin === dataMax
@@ -248,7 +271,11 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         ticks: { show: false },
         filter: dropEdgeTicks,
         values: (u, splits) =>
-          timeLabels(splits, (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0)),
+          xAxis.kind === "time"
+            ? timeLabels(splits, (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0))
+            : splits.map((value) =>
+                value === null ? "" : xAxis.format(value)
+              ),
       },
       valueAxis("left", 3, leftSettings, leftShown, leftShown),
       ...(axes.right
@@ -266,33 +293,48 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         spanGaps: false,
         points: { show: false },
       })),
-      ...series.map((entry) => seriesOptions(entry, state.hidden)),
+      ...series.map((entry) =>
+        seriesOptions(entry, state.hidden, customPainted)
+      ),
     ],
     bands: state.bands.map((band) => ({ ...band })),
     cursor: {
-      sync: {
-        key: syncKey,
-        filters: {
-          sub: (type) =>
-            type !== "mousedown" && type !== "mouseup" && type !== "dblclick",
-        },
-      },
-      drag: { x: true, y: false, setScale: false },
-      points: { size: (_u, index) => (index < first ? 0 : 6) },
-    },
-    hooks: {
-      setSelect: [
-        (u) => {
-          const { left, width: selected } = u.select
-          if (selected >= minSelectWidth) {
-            const from = u.posToVal(left, "x") * 1000
-            const to = u.posToVal(left + selected, "x") * 1000
-            latest.current.onTimeRangeSelect(Math.round(from), Math.round(to))
+      ...(timed
+        ? {
+            sync: {
+              key: syncKey,
+              filters: {
+                sub: (type: string) =>
+                  type !== "mousedown" &&
+                  type !== "mouseup" &&
+                  type !== "dblclick",
+              },
+            },
           }
-          u.setSelect(noSelect, false)
-        },
-      ],
+        : {}),
+      drag: { x: timed, y: false, setScale: false },
+      points: {
+        size: (_u, index) => (index < first || customPainted ? 0 : 6),
+      },
     },
+    hooks: timed
+      ? {
+          setSelect: [
+            (u) => {
+              const { left, width: selected } = u.select
+              if (selected >= minSelectWidth) {
+                const from = u.posToVal(left, "x") * 1000
+                const to = u.posToVal(left + selected, "x") * 1000
+                latest.current.onTimeRangeSelect(
+                  Math.round(from),
+                  Math.round(to)
+                )
+              }
+              u.setSelect(noSelect, false)
+            },
+          ],
+        }
+      : {},
     plugins,
   }
 
@@ -303,7 +345,8 @@ function modelFor(
   panel: DataPanel,
   series: ChartSeries[],
   ghostCount: number,
-  tooltip: Model["tooltip"]
+  tooltip: Model["tooltip"],
+  tightRange: boolean
 ): Model {
   const axes = axesInUse(
     series,
@@ -311,6 +354,7 @@ function modelFor(
     panel,
     ghostCount
   )
+  if (tightRange && axes.left) axes.left = { ...axes.left, tight: true }
   return {
     series,
     axes,
@@ -327,7 +371,14 @@ function modelFor(
   }
 }
 
-function TimeseriesChart({
+export type ChartProps = PanelRendererProps & {
+  aligned: AlignedFrames
+  configs: FieldConfig[]
+  xAxis?: XAxis
+  draw?: uPlot.Plugin
+}
+
+export function TimeseriesChart({
   panel,
   display,
   meta,
@@ -337,7 +388,9 @@ function TimeseriesChart({
   onTimeRangeSelect,
   aligned,
   configs,
-}: PanelRendererProps & { aligned: AlignedFrames; configs: FieldConfig[] }) {
+  xAxis = timeAxis,
+  draw,
+}: ChartProps) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -424,7 +477,13 @@ function TimeseriesChart({
     }
   }, [aligned.xs, ghosts, series, hidden])
 
-  const model = modelFor(panel, series, ghosts.length, options.tooltip)
+  const model = modelFor(
+    panel,
+    series,
+    ghosts.length,
+    options.tooltip,
+    draw !== undefined
+  )
 
   const latest = useRef<Latest>({
     model,
@@ -465,7 +524,13 @@ function TimeseriesChart({
     const container = containerRef.current
     const host = hostRef.current
     if (!container || !host || !ready) return
-    const plot = createPlot(container, { syncKey, host, latest })
+    const plot = createPlot(container, {
+      syncKey,
+      host,
+      latest,
+      xAxis,
+      draw,
+    })
     plotRef.current = plot
     appliedRef.current = latest.current.state
     return () => {
@@ -478,6 +543,8 @@ function TimeseriesChart({
     signature,
     theme,
     syncKey,
+    xAxis,
+    draw,
     configsKey,
     displayKey,
     ghosts.length,
@@ -552,7 +619,11 @@ function TimeseriesChart({
       <div
         ref={containerRef}
         role="img"
-        aria-label={`${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`}
+        aria-label={
+          xAxis.kind === "time"
+            ? `${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
+            : `${panel.title}: ${series.length} series`
+        }
         data-axes={axisNames.join(" ")}
         data-series={series.length}
         data-ghosts={ghosts.length}

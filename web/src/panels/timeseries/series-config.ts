@@ -75,6 +75,7 @@ export type AxisSettings = {
   min?: number
   max?: number
   percent: boolean
+  tight?: boolean
 }
 
 export type PanelAxis = Omit<AxisSettings, "percent">
@@ -124,13 +125,17 @@ export function firstStackMode(
   return series.find(({ stack }) => stack !== "none")?.stack ?? "none"
 }
 
+function paddedRange(min: number, max: number): [number, number] {
+  const pad = max === min ? Math.abs(min) * 0.05 : (max - min) * 0.05
+  return [min - pad, max + pad]
+}
+
 function autoRange(min: number, max: number): [number, number] {
   if (min >= 0) {
     if (max <= 0) return [0, 1]
     return [0, max + max * 0.05]
   }
-  const pad = max === min ? Math.abs(min) * 0.05 : (max - min) * 0.05
-  return [min - pad, max + pad]
+  return paddedRange(min, max)
 }
 
 function percentRange(min: number, max: number): [number, number] {
@@ -146,7 +151,9 @@ export function axisRange(
 ): [number, number] | [null, null] {
   if (min === null || max === null) return [null, null]
   if (axis.percent) return percentRange(min, max)
-  const [autoMin, autoMax] = autoRange(min, max)
+  const [autoMin, autoMax] = axis.tight
+    ? paddedRange(min, max)
+    : autoRange(min, max)
   const lo = axis.min ?? autoMin
   let hi = axis.max ?? autoMax
   if (hi <= lo) hi = lo + 1

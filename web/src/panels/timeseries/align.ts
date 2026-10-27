@@ -22,6 +22,11 @@ type Column = {
   times: unknown[]
 }
 
+export type XSource = {
+  fieldOf: (frame: PreparedFrame) => PreparedField | undefined
+  divisor: number
+}
+
 function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
@@ -30,24 +35,27 @@ function timeOf(frame: PreparedFrame): PreparedField | undefined {
   return frame.fields.find((field) => field.type === "time")
 }
 
-function columnsOf(frames: PreparedFrame[]): Column[] {
+export const timeSource: XSource = { fieldOf: timeOf, divisor: 1000 }
+
+function columnsOf(frames: PreparedFrame[], source: XSource): Column[] {
   return frames.flatMap((frame) => {
-    const time = timeOf(frame)
-    if (!time) return []
+    const x = source.fieldOf(frame)
+    if (!x) return []
     return frame.fields
-      .filter((field) => field.type === "number")
-      .map((field) => ({ frame, field, times: time.values }))
+      .filter((field) => field.type === "number" && field !== x)
+      .map((field) => ({ frame, field, times: x.values }))
   })
 }
 
 export function alignFrames(
   frames: PreparedFrame[],
   nameOf: (frame: PreparedFrame, field: PreparedField) => string,
-  ghostFrames: PreparedFrame[] = []
+  ghostFrames: PreparedFrame[] = [],
+  source: XSource = timeSource
 ): AlignedFrames {
   const timestamps = new Set<number>()
   for (const frame of [...frames, ...ghostFrames]) {
-    for (const value of timeOf(frame)?.values ?? []) {
+    for (const value of source.fieldOf(frame)?.values ?? []) {
       if (typeof value === "number" && Number.isFinite(value)) {
         timestamps.add(value)
       }
@@ -68,7 +76,7 @@ export function alignFrames(
 
   const seen = new Map<string, number>()
   const series = qualifyCollidingLabels(
-    columnsOf(frames).map((column) => ({
+    columnsOf(frames, source).map((column) => ({
       ...column,
       ref: column.frame.ref,
       key: uniqueKey(seen, seriesKey(column.frame, column.field.name)),
@@ -83,8 +91,8 @@ export function alignFrames(
   }))
 
   return {
-    xs: sorted.map((ms) => ms / 1000),
+    xs: sorted.map((x) => x / source.divisor),
     series,
-    ghosts: columnsOf(ghostFrames).map(alignColumn),
+    ghosts: columnsOf(ghostFrames, source).map(alignColumn),
   }
 }

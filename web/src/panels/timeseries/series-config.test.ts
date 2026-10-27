@@ -141,6 +141,15 @@ describe("axisRange", () => {
     expect(axisRange(axis, 1, 10)).toEqual([-5, 10.5])
   })
 
+  it("fits a tight axis to the data instead of starting at zero", () => {
+    expect(axisRange({ percent: false, tight: true }, 100, 110)).toEqual([
+      99.5, 110.5,
+    ])
+    expect(
+      axisRange({ percent: false, tight: true, min: 0 }, 100, 110)
+    ).toEqual([0, 110.5])
+  })
+
   it("fixes a percent axis to 0..1", () => {
     expect(axisRange({ percent: true }, 0.2, 1)).toEqual([0, 1])
   })
