@@ -77,4 +77,8 @@ describe("panelHasData", () => {
       )
     ).toBe(true)
   })
+
+  it("is true for an alert list without frames, since no alerts is the healthy answer", () => {
+    expect(has(panel({ type: "alertlist" }), [])).toBe(true)
+  })
 })

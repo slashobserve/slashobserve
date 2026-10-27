@@ -5,11 +5,14 @@ import type { FieldResolver } from "./field-config"
 import { hasData } from "./frames"
 import { prepareFrames } from "./transforms"
 
+const emptyIsAnAnswer: ReadonlySet<DataPanel["type"]> = new Set(["alertlist"])
+
 export function panelHasData(
   panel: DataPanel,
   frames: WireFrame[],
   fields: FieldResolver
 ): boolean {
+  if (emptyIsAnAnswer.has(panel.type)) return true
   const prepared = prepareFrames(panel, frames)
   if (panel.type !== "timeseries") return hasData(prepared)
   return hasData(
