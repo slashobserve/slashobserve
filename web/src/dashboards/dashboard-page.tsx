@@ -69,6 +69,8 @@ import {
 import { TimeRangePicker } from "./time-range-picker"
 import { maxDataPointsFor, usePanelData } from "./use-panel-data"
 import { useSeen } from "./use-seen"
+import { UnverifiedLabel } from "./unverified-label"
+import { unverifiedReasons } from "./unverified"
 import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
@@ -101,6 +103,7 @@ type PanelContainerProps = {
   editable: boolean
   layoutSession: boolean
   openComments: number
+  unverifiedReason: string | undefined
   highlighted: boolean
   editingPanel: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -124,6 +127,7 @@ const PanelContainer = memo(function PanelContainer({
   editable,
   layoutSession,
   openComments,
+  unverifiedReason,
   highlighted,
   editingPanel,
   composerRef,
@@ -220,12 +224,20 @@ const PanelContainer = memo(function PanelContainer({
         datasourceLabel={panelDatasourceUids(panel).join(", ")}
         links={links}
         badge={
-          <PanelCommentBadge
-            panelId={panel.id}
-            title={panelTitle(panel)}
-            count={openComments}
-            disabled={layoutSession}
-          />
+          <>
+            {unverifiedReason ? (
+              <UnverifiedLabel
+                title={panelTitle(panel)}
+                reason={unverifiedReason}
+              />
+            ) : null}
+            <PanelCommentBadge
+              panelId={panel.id}
+              title={panelTitle(panel)}
+              count={openComments}
+              disabled={layoutSession}
+            />
+          </>
         }
         menu={
           <PanelMenu
@@ -296,6 +308,11 @@ function DashboardView({
     search.version === undefined
   const version = editing ? session.baseVersion : envelopeVersion
   const spec = editing ? session.baseSpec : envelopeSpec
+  const unverifiedByPanel = useMemo(
+    () =>
+      unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
+    [envelope.version.unverified, envelopeVersion, version]
+  )
   const variables = useMemo(
     () => controlVariables(spec.variables ?? []),
     [spec]
@@ -500,6 +517,7 @@ function DashboardView({
                 editable={editing && canEdit}
                 layoutSession={editing}
                 openComments={openByPanel.get(panel.id) ?? 0}
+                unverifiedReason={unverifiedByPanel.get(panel.id)}
                 highlighted={panel.id === search.panel || panel.id === flashed}
                 editingPanel={editingPanel && panel.id === search.panel}
                 composerRef={composerRef}
