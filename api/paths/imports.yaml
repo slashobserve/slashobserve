@@ -1,0 +1,159 @@
+imports-preview:
+  post:
+    operationId: previewImport
+    summary: Convert a Grafana dashboard without saving it or running any query.
+    description: >-
+      Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`.
+      `ready` is false while a source datasource has no match; `spec` is then null.
+      `report.verified` is always false because no query runs.
+      A body above 8 MiB answers 413 `too_large`.
+      A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`.
+      A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ImportRequest"
+    responses:
+      "200":
+        description: The converted dashboard, its datasource matches and the import report.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ImportPreview"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The JSON is not a Grafana dashboard the importer accepts (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`) or the mapping is wrong (`invalid_mapping`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "429":
+        description: The caller already has 2 previews in flight, or the instance has 4 (`too_many_imports`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+imports:
+  post:
+    operationId: createImport
+    summary: Import a Grafana dashboard as version 1 of a new dashboard.
+    description: >-
+      Takes the same body as the preview and saves the converted Spec even when some queries fail.
+      Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual.
+      The original JSON is stored for a later re-import and is never returned.
+      A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`.
+      A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ImportRequest"
+    responses:
+      "200":
+        description: The dashboard the request already created, when no import made it.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/DashboardWithVersion"
+      "201":
+        description: The new dashboard, its first version and the import record.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ImportedDashboard"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The importer's codes as for the preview (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`, `invalid_mapping`),
+          `datasources_unresolved` while a source datasource has no match (`datasources` lists every one, `candidates` the choices),
+          or `invalid_spec` when the converted Spec cannot be saved (for example a NUL character; `issues` lists the problems).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/DatasourcesUnresolved"
+                - $ref: "../openapi.yaml#/components/schemas/ValidationError"
+      "429":
+        description: The caller already has an import in flight, or the instance has 4 (`too_many_imports`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  get:
+    operationId: listImports
+    summary: List imports, newest first.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of imports.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ImportList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-id-import:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getDashboardImport
+    summary: Get how a dashboard was imported from Grafana.
+    description: Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import.
+    responses:
+      "200":
+        description: The import record, with the report as verified when the dashboard was saved.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ImportRecord"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

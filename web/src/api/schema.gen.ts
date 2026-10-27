@@ -344,6 +344,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboards/{id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get how a dashboard was imported from Grafana.
+         * @description Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import.
+         */
+        get: operations["getDashboardImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards/{id}/events": {
         parameters: {
             query?: never;
@@ -719,6 +741,47 @@ export interface paths {
         get: operations["getObserveRequest"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert a Grafana dashboard without saving it or running any query.
+         * @description Accepts the classic dashboard model, the export wrapper (with `__inputs`) and the API response `{"dashboard": ..., "meta": ...}` as the text in `json`. `ready` is false while a source datasource has no match; `spec` is then null. `report.verified` is always false because no query runs. A body above 8 MiB answers 413 `too_large`. A caller has at most 2 previews in flight and the instance at most 4; more answers 429 `too_many_imports`. A 422 carries the importer's code: `invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels` or `invalid_mapping`.
+         */
+        post: operations["previewImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List imports, newest first. */
+        get: operations["listImports"];
+        put?: never;
+        /**
+         * Import a Grafana dashboard as version 1 of a new dashboard.
+         * @description Takes the same body as the preview and saves the converted Spec even when some queries fail. Panels whose queries fail are marked `unverified` in the stored report with the reason; later saves of the dashboard run every query as usual. The original JSON is stored for a later re-import and is never returned. A caller has at most 1 import in flight and the instance at most 4; more answers 429 `too_many_imports`. A retried agent request that already made its dashboard without an import answers 200 with that dashboard and no `import`.
+         */
+        post: operations["createImport"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1295,6 +1358,144 @@ export interface components {
         };
         AgentRequestEnvelope: {
             request: components["schemas"]["AgentRequest"];
+        };
+        ImportRequest: {
+            /** @description The Grafana dashboard JSON text, exactly as pasted or uploaded. */
+            json: string;
+            /** @description Source datasource key to our datasource uid; keys and values are 1 to 200 bytes. */
+            mapping?: {
+                [key: string]: string;
+            } | null;
+        };
+        ImportSummary: {
+            /** @enum {string} */
+            format: "classic" | "export" | "api";
+            title: string;
+            uid: string;
+            schema_version: number;
+            bytes: number;
+            panels: number;
+            rows: number;
+            variables: number;
+        };
+        ImportSourceDatasource: {
+            /** @description How the dashboard refers to the datasource (a uid, a name or an `${DS_...}` input). */
+            key: string;
+            name: string | null;
+            /** @description The Grafana datasource type. */
+            type: string | null;
+            /** @description Our datasource type it needs (`prometheus` or `clickhouse`); null for a built-in datasource. */
+            kind: string | null;
+            panels: number;
+            /** @description The uid of our datasource it will use; null while unmatched. */
+            match: string | null;
+            /** @enum {string|null} */
+            matched_by: "mapping" | "uid" | "alias" | "only" | null;
+            /** @description The uids of ours of the same kind. */
+            candidates: string[];
+        };
+        ImportQueryLine: {
+            ref_id: string;
+            ref: string | null;
+            datasource: string | null;
+            rewrites: string[];
+            dropped: string | null;
+        };
+        ImportPanelLine: {
+            panel_id: string;
+            grafana_id: number | null;
+            grafana_path: string;
+            title: string;
+            type: string;
+            source_type: string;
+            row: string | null;
+            /** @enum {string} */
+            status: "imported" | "partial" | "placeholder" | "unverified";
+            reasons: string[];
+            paths: string[];
+            queries: components["schemas"]["ImportQueryLine"][];
+        };
+        ImportNote: {
+            subject: string;
+            /** @enum {string} */
+            status: "imported" | "partial" | "placeholder" | "unverified";
+            reason: string;
+            paths: string[];
+        };
+        ImportCounts: {
+            total: number;
+            imported: number;
+            partial: number;
+            placeholder: number;
+            unverified: number;
+        };
+        ImportReport: {
+            importer_version: number;
+            /** @description True once every query ran at save time; always false in a preview. */
+            verified: boolean;
+            counts: components["schemas"]["ImportCounts"];
+            panels: components["schemas"]["ImportPanelLine"][];
+            notes: components["schemas"]["ImportNote"][];
+        };
+        ImportPreview: {
+            summary: components["schemas"]["ImportSummary"];
+            datasources: components["schemas"]["ImportSourceDatasource"][];
+            /** @description True when every source datasource has a match, so the import can be saved. */
+            ready: boolean;
+            report: components["schemas"]["ImportReport"];
+            /** @description The converted ObserveSpec document; null when `ready` is false. */
+            spec: {
+                [key: string]: unknown;
+            } | null;
+        };
+        ImportRecord: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            /** @description The dashboard version the import produced. */
+            version: number;
+            /** @enum {string} */
+            source: "grafana";
+            importer_version: number;
+            title: string;
+            mapping: {
+                [key: string]: string;
+            };
+            summary: components["schemas"]["ImportSummary"];
+            datasources: components["schemas"]["ImportSourceDatasource"][];
+            report: components["schemas"]["ImportReport"];
+            created_by: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ImportMeta: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            dashboard_id: string;
+            version: number;
+            importer_version: number;
+            title: string;
+            counts: components["schemas"]["ImportCounts"];
+            created_by: components["schemas"]["Author"];
+            /** Format: date-time */
+            created_at: string;
+        };
+        ImportList: {
+            imports: components["schemas"]["ImportMeta"][];
+            next_cursor: string | null;
+        };
+        ImportedDashboard: {
+            dashboard: components["schemas"]["DashboardSummary"];
+            version: components["schemas"]["Version"];
+            import: components["schemas"]["ImportRecord"];
+        };
+        DatasourcesUnresolved: {
+            error: string;
+            /** @enum {string} */
+            code: "datasources_unresolved";
+            datasources: components["schemas"]["ImportSourceDatasource"][];
         };
     };
     responses: {
@@ -2047,6 +2248,32 @@ export interface operations {
                         to: number;
                         changes: components["schemas"]["SpecChange"][];
                     };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getDashboardImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The import record, with the report as verified when the dashboard was saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecord"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -3037,6 +3264,134 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    previewImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description The converted dashboard, its datasource matches and the import report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            413: components["responses"]["TooLarge"];
+            /** @description The JSON is not a Grafana dashboard the importer accepts (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`) or the mapping is wrong (`invalid_mapping`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller already has 2 previews in flight, or the instance has 4 (`too_many_imports`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listImports: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of imports. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description The dashboard the request already created, when no import made it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            /** @description The new dashboard, its first version and the import record. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedDashboard"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            413: components["responses"]["TooLarge"];
+            /** @description The importer's codes as for the preview (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`, `invalid_mapping`), `datasources_unresolved` while a source datasource has no match (`datasources` lists every one, `candidates` the choices), or `invalid_spec` when the converted Spec cannot be saved (for example a NUL character; `issues` lists the problems). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["DatasourcesUnresolved"] | components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description The caller already has an import in flight, or the instance has 4 (`too_many_imports`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

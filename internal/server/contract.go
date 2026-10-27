@@ -22,7 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api"
-	"github.com/slashobserve/slashobserve/pkg/spec"
+	"github.com/slashobserve/slashobserve/internal/imports"
 )
 
 const (
@@ -30,9 +30,7 @@ const (
 	eventStreamMediaType = "text/event-stream"
 	contractViolation    = "api contract violation"
 
-	// Must stay above every handler's own body limit (the largest is the dashboards' spec.MaxBytes plus 64 KiB),
-	// or that handler's 413 can never be reached.
-	maxContractBodyBytes = 4 * spec.MaxBytes
+	maxContractBodyBytes = imports.MaxBodyBytes + 1<<20
 )
 
 var defineFormats = sync.OnceFunc(func() {

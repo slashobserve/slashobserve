@@ -28,12 +28,14 @@ const (
 	MaxBodyBytes      = 8 << 20
 	MaxMappingEntries = 50
 
-	maxPerPrincipal = 1
-	maxPerInstance  = 4
-	defaultLimit    = 50
-	maxLimit        = 200
-	maxSummaryBytes = 500
-	sourceGrafana   = "grafana"
+	importsPerPrincipal  = 1
+	importsPerInstance   = 4
+	previewsPerPrincipal = 2
+	previewsPerInstance  = 4
+	defaultLimit         = 50
+	maxLimit             = 200
+	maxSummaryBytes      = 500
+	sourceGrafana        = "grafana"
 )
 
 var (
@@ -94,19 +96,27 @@ type Service struct {
 	registry  *datasource.Registry
 	logger    *slog.Logger
 
-	mu           sync.Mutex
-	perPrincipal map[string]int
-	inFlight     int
+	importSlots  *slots
+	previewSlots *slots
 }
 
 func New(database *db.DB, dash *dashboards.Service, registry *datasource.Registry, logger *slog.Logger) *Service {
-	return &Service{db: database, dashboard: dash, registry: registry, logger: logger, perPrincipal: map[string]int{}}
+	return &Service{
+		db: database, dashboard: dash, registry: registry, logger: logger,
+		importSlots:  newSlots(importsPerPrincipal, importsPerInstance),
+		previewSlots: newSlots(previewsPerPrincipal, previewsPerInstance),
+	}
 }
 
-func (s *Service) Preview(_ context.Context, req Request) (*grafana.Result, error) {
+func (s *Service) Preview(_ context.Context, by auth.Principal, req Request) (*grafana.Result, error) {
 	if err := checkLimits(req); err != nil {
 		return nil, err
 	}
+	release, ok := s.previewSlots.acquire(principalKey(by))
+	if !ok {
+		return nil, ErrBusy
+	}
+	defer release()
 	return grafana.Convert(req.JSON, s.options(req))
 }
 
@@ -123,7 +133,7 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 			return s.replay(ctx, dash, ver)
 		}
 	}
-	release, ok := s.acquire(string(by.Kind) + ":" + by.ID)
+	release, ok := s.importSlots.acquire(principalKey(by))
 	if !ok {
 		return Imported{}, ErrBusy
 	}
@@ -303,19 +313,36 @@ func (s *Service) options(req Request) grafana.Options {
 	return grafana.Options{Datasources: ours, Mapping: req.Mapping}
 }
 
-func (s *Service) acquire(key string) (func(), bool) {
+func principalKey(by auth.Principal) string {
+	return string(by.Kind) + ":" + by.ID
+}
+
+type slots struct {
+	perPrincipal int
+	perInstance  int
+
+	mu       sync.Mutex
+	byKey    map[string]int
+	inFlight int
+}
+
+func newSlots(perPrincipal, perInstance int) *slots {
+	return &slots{perPrincipal: perPrincipal, perInstance: perInstance, byKey: map[string]int{}}
+}
+
+func (s *slots) acquire(key string) (func(), bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.perPrincipal[key] >= maxPerPrincipal || s.inFlight >= maxPerInstance {
+	if s.byKey[key] >= s.perPrincipal || s.inFlight >= s.perInstance {
 		return nil, false
 	}
-	s.perPrincipal[key]++
+	s.byKey[key]++
 	s.inFlight++
 	return func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if s.perPrincipal[key]--; s.perPrincipal[key] == 0 {
-			delete(s.perPrincipal, key)
+		if s.byKey[key]--; s.byKey[key] == 0 {
+			delete(s.byKey, key)
 		}
 		s.inFlight--
 	}, true

@@ -82,6 +82,19 @@ func (nulErrorStub) VariableValues(_ context.Context, q datasource.Query, _ data
 	return []string{"v"}, nil
 }
 
+type nulPanelErrorStub struct{ promStub }
+
+func (nulPanelErrorStub) QueryRange(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+	if strings.Contains(q.Text, brokenQuery) {
+		return nil, fmt.Errorf("%w: bad label a\x00b", datasource.ErrInvalidQuery)
+	}
+	return frames(q)
+}
+
+func (s nulPanelErrorStub) QueryInstant(ctx context.Context, q datasource.Query, tr datasource.TimeRange) ([]datasource.Frame, error) {
+	return s.QueryRange(ctx, q, tr, 0)
+}
+
 type blockingStub struct {
 	promStub
 	entered chan struct{}
@@ -278,7 +291,7 @@ func TestAFailingHookRollsTheSaveBack(t *testing.T) {
 
 func TestPreviewWritesNothing(t *testing.T) {
 	r := newRig(t)
-	result, err := r.imports.Preview(t.Context(), imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
+	result, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 2)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +310,7 @@ func TestPreviewWritesNothing(t *testing.T) {
 
 func TestPreviewReturnsInputErrors(t *testing.T) {
 	r := newRig(t)
-	_, err := r.imports.Preview(t.Context(), imports.Request{JSON: []byte(`not json`)})
+	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: []byte(`not json`)})
 	var input *grafana.InputError
 	if !errors.As(err, &input) {
 		t.Fatalf("err = %v, want InputError", err)
@@ -492,6 +505,42 @@ func TestAnImportReplacesANULFromADatasourceErrorInTheReason(t *testing.T) {
 	}
 }
 
+func TestAnImportReplacesANULFromAPanelQueryErrorInTheReason(t *testing.T) {
+	r := newRigWith(t, nulPanelErrorStub{})
+	body := fmt.Appendf(nil, `{"title":"Shop","uid":"abc","schemaVersion":39,"panels":[
+		{"id":1,"type":"timeseries","title":"Good","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":"up"}]},
+		{"id":2,"type":"timeseries","title":"Broken","gridPos":{"x":12,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":%q}]}]}`, brokenQuery)
+	got, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: body})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "bad label a\uFFFDb"
+	reasonsOf := func(report grafana.Report) []string {
+		for _, p := range report.Panels {
+			if p.Title == "Broken" {
+				return p.Reasons
+			}
+		}
+		return nil
+	}
+	check := func(where string, report grafana.Report) {
+		t.Helper()
+		reasons := reasonsOf(report)
+		if len(reasons) != 1 || !strings.Contains(reasons[0], want) || strings.ContainsRune(reasons[0], 0) {
+			t.Errorf("reasons %s = %q, want one holding %q", where, reasons, want)
+		}
+		if report.Counts.Unverified != 1 {
+			t.Errorf("unverified %s = %d, want 1", where, report.Counts.Unverified)
+		}
+	}
+	check("on the import", got.Record.Report)
+	stored, err := r.imports.ForDashboard(t.Context(), uuid(t, got.Dashboard.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	check("in the stored report", stored.Report)
+}
+
 func assertNothingSaved(t *testing.T, r *rig) {
 	t.Helper()
 	page, err := r.dashboard.List(t.Context(), dashboards.ListParams{Limit: 10})
@@ -548,7 +597,7 @@ func TestImportEnforcesTheBodyAndMappingLimits(t *testing.T) {
 func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	r := newRig(t)
 	var input *grafana.InputError
-	_, err := r.imports.Preview(t.Context(), imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
+	_, err := r.imports.Preview(t.Context(), ada, imports.Request{JSON: bytes.Repeat([]byte("x"), imports.MaxBodyBytes+1)})
 	if !errors.As(err, &input) || input.Code != "too_large" {
 		t.Fatalf("large body: err = %v, want InputError too_large", err)
 	}
@@ -556,7 +605,7 @@ func TestPreviewEnforcesTheBodyAndMappingLimits(t *testing.T) {
 	for i := range imports.MaxMappingEntries + 1 {
 		mapping[fmt.Sprintf("key%d", i)] = "prom"
 	}
-	_, err = r.imports.Preview(t.Context(), imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
+	_, err = r.imports.Preview(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), Mapping: mapping})
 	if !errors.As(err, &input) || input.Code != "invalid_mapping" {
 		t.Fatalf("large mapping: err = %v, want InputError invalid_mapping", err)
 	}
