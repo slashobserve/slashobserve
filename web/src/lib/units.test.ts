@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   axisDecimals,
   commonDecimals,
+  decimalsByUnit,
   formatAxisValue,
   formatValue as f,
   formatValueParts,
@@ -220,6 +221,43 @@ describe("commonDecimals", () => {
     expect(commonDecimals([2.4, 2.45], "reqps", 1)).toBe(1)
     expect(commonDecimals([2.4, 2.45], "bool")).toBeUndefined()
     expect(commonDecimals([1, 2], "dateTimeAsIso")).toBeUndefined()
+  })
+})
+
+describe("decimalsByUnit", () => {
+  it("shares one decimal count per unit", () => {
+    const shared = decimalsByUnit([
+      { unit: "reqps", value: 2.4 },
+      { unit: "reqps", value: 2.45 },
+      { unit: "bytes", value: 1536 },
+      { unit: "bytes", value: 2048 },
+    ])
+    expect(shared.get("reqps")).toBe(2)
+    expect(shared.get("bytes")).toBe(1)
+  })
+
+  it("keeps values with their own decimals out of the count", () => {
+    const shared = decimalsByUnit([
+      { unit: "reqps", value: 2.4 },
+      { unit: "reqps", decimals: 4, value: 2.4567 },
+    ])
+    expect(shared.get("reqps")).toBe(1)
+  })
+
+  it("groups values without a unit and tolerates missing values", () => {
+    const shared = decimalsByUnit([
+      { value: 1.5 },
+      { value: null },
+      { value: 2 },
+    ])
+    expect(shared.get(undefined)).toBe(1)
+    expect(shared.get("reqps")).toBeUndefined()
+  })
+
+  it("leaves a unit with no countable value undefined", () => {
+    const shared = decimalsByUnit([{ unit: "reqps", value: null }])
+    expect(shared.has("reqps")).toBe(true)
+    expect(shared.get("reqps")).toBeUndefined()
   })
 })
 

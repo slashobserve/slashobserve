@@ -1,4 +1,4 @@
-import { commonDecimals } from "@/lib/units"
+import { decimalsByUnit } from "@/lib/units"
 import type { Reducer } from "@/spec"
 
 import { styleForSlot } from "../colors"
@@ -84,23 +84,6 @@ function entriesOf(
   return entries
 }
 
-function decimalsByUnit(
-  entries: Omit<Entry, "color">[]
-): Map<string | undefined, number> {
-  const groups = new Map<string | undefined, (number | null)[]>()
-  for (const { config, value } of entries) {
-    const numbers = groups.get(config.unit) ?? []
-    groups.set(config.unit, numbers)
-    if (config.decimals === undefined) numbers.push(value)
-  }
-  const decimals = new Map<string | undefined, number>()
-  for (const [unit, numbers] of groups) {
-    const common = commonDecimals(numbers, unit)
-    if (common !== undefined) decimals.set(unit, common)
-  }
-  return decimals
-}
-
 function isDrawn(value: number | null): value is number {
   return value !== null && value > 0
 }
@@ -111,7 +94,13 @@ export function pieModel(
   display: Record<string, unknown>
 ): PieModel {
   const entries = entriesOf(frames, fields, reducerOf(display))
-  const decimals = decimalsByUnit(entries)
+  const decimals = decimalsByUnit(
+    entries.map(({ config, value }) => ({
+      unit: config.unit,
+      decimals: config.decimals,
+      value,
+    }))
+  )
   const total = entries.reduce(
     (sum, { value }) => (isDrawn(value) ? sum + value : sum),
     0
