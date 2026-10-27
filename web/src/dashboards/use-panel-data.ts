@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, type Selections } from "@/api/keys"
-import type { Panel } from "@/spec"
+import { isDataPanel, type Panel } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
@@ -21,18 +21,15 @@ type Args = {
   enabled: boolean
 }
 
-const rangePanelTypes: readonly string[] = [
-  "timeseries",
-  "heatmap",
-  "state-timeline",
-  "histogram",
-]
+const instantPanelTypes: readonly string[] = ["table", "logs"]
 
 export function maxDataPointsFor(
   panel: Panel,
   pixelWidth: number
 ): number | undefined {
-  if (!rangePanelTypes.includes(panel.type)) return undefined
+  if (!isDataPanel(panel) || instantPanelTypes.includes(panel.type)) {
+    return undefined
+  }
   const bucketed = Math.ceil(pixelWidth / 100) * 100
   return Math.min(Math.max(bucketed, 100), 1100)
 }

@@ -39,12 +39,18 @@ describe("maxDataPointsFor", () => {
     ["heatmap", 640, 700],
     ["state-timeline", 640, 700],
     ["histogram", 640, 700],
+    ["stat", 640, 700],
+    ["gauge", 640, 700],
+    ["bargauge", 640, 700],
+    ["piechart", 640, 700],
     ["timeseries", 100, 100],
     ["timeseries", 101, 200],
     ["timeseries", 0, 100],
     ["timeseries", 10_000, 1100],
-    ["stat", 640, undefined],
     ["table", 640, undefined],
+    ["logs", 640, undefined],
+    ["text", 640, undefined],
+    ["row", 640, undefined],
   ])("%s at %i pixels asks for %s points", (type, width, expected) => {
     expect(maxDataPointsFor(panelOfType(type), width)).toBe(expected)
   })
