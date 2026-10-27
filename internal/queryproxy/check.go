@@ -335,10 +335,14 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 	if len(issues) > 0 {
 		return issues
 	}
-	if len(res.Queries) > 0 && !skippedVisible(e.Panel, skip) && !slices.ContainsFunc(res.Queries, func(q QueryResult) bool { return !framesEmpty(q.Frames) }) {
+	if len(res.Queries) > 0 && !emptyResultIsValid(e.Panel) && !skippedVisible(e.Panel, skip) && !slices.ContainsFunc(res.Queries, func(q QueryResult) bool { return !framesEmpty(q.Frames) }) {
 		return []spec.Issue{issue(e.Pointer+"/queries", CodeQueryEmpty, "%s", emptyPanelMessage)}
 	}
 	return nil
+}
+
+func emptyResultIsValid(p *spec.Panel) bool {
+	return p.Type == spec.AlertList
 }
 
 func checkPanelDeadline(skip []bool) time.Duration {

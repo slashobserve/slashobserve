@@ -120,6 +120,27 @@ func TestCheckSpecIssues(t *testing.T) {
 			wantCalls: 1,
 		},
 		{
+			name:   "alert list with no alerts is valid",
+			panels: []spec.Panel{panelOf("p0", spec.AlertList, "prom", "ALERTS")},
+			setup: func(f *fakeDatasource) {
+				f.onInstant = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+					return nil, nil
+				}
+			},
+			wantCalls: 1,
+		},
+		{
+			name:   "node graph with no edges is empty",
+			panels: []spec.Panel{panelOf("p0", spec.NodeGraph, "prom", "up")},
+			setup: func(f *fakeDatasource) {
+				f.onInstant = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+					return nil, nil
+				}
+			},
+			want:      []wantIssue{{"/panels/0/queries", CodeQueryEmpty, emptyPanelMessage}},
+			wantCalls: 1,
+		},
+		{
 			name:   "only time field is empty",
 			panels: oneTimeseries("up"),
 			setup: emptyFrames([]datasource.Frame{{Fields: []datasource.Field{
