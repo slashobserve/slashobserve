@@ -114,3 +114,11 @@ export const userKeys = {
 export const instanceKeys = {
   info: () => ["instance"] as const,
 }
+
+export const importKeys = {
+  all: ["imports"] as const,
+  preview: (sourceId: number, mapping: Record<string, string>) =>
+    ["imports", "preview", sourceId, mapping] as const,
+  list: (scope: "mine") => ["imports", "list", scope] as const,
+  forDashboard: (id: string) => ["imports", "dashboard", id] as const,
+}
