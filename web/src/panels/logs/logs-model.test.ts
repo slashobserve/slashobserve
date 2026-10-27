@@ -80,7 +80,7 @@ describe("logsModel columns", () => {
           field(name, "string", ["warn"]),
         ]),
       ])
-      expect(entries[0].level).toEqual({ word: "Warn", kind: "warning" })
+      expect(entries[0].level).toEqual({ word: "Warning", kind: "warning" })
       expect(entries[0].message).toBe("hello")
     }
   )
@@ -133,8 +133,69 @@ describe("logsModel columns", () => {
       {},
       { unit: "bytes", noValue: "none" }
     )
-    expect(entries.map((entry) => entry.message)).toEqual(["none", "1.5 KiB"])
+    expect(entries.map((entry) => entry.message)).toEqual([
+      'up{job="api"} none',
+      'up{job="api"} 1.5 KiB',
+    ])
     expect(entries.every((entry) => entry.level === null)).toBe(true)
+  })
+
+  it("keeps the value alone when a frame has no series name or labels", () => {
+    const { entries } = model([
+      frame([field("Time", "time", [1000]), field("Value", "number", [3])]),
+    ])
+    expect(entries[0].message).toBe("3")
+  })
+
+  it("tells the series of two Prometheus frames apart", () => {
+    const series = (job: string, value: number) =>
+      frame(
+        [field("Time", "time", [1000]), field("Value", "number", [value])],
+        { ref: "A", name: "up", labels: { job } }
+      )
+    const { entries } = model([series("j1", 1), series("j2", 2)])
+    const byMessage = new Map(
+      entries.map((entry) => [entry.message, entry] as const)
+    )
+    expect([...byMessage.keys()].sort()).toEqual([
+      'up{job="j1"} 1',
+      'up{job="j2"} 2',
+    ])
+    const labelsOf = (message: string) =>
+      byMessage
+        .get(message)
+        ?.details.filter((detail) => "text" in detail)
+        .map((detail) => [detail.name, "text" in detail ? detail.text : ""])
+    expect(labelsOf('up{job="j1"} 1')).toEqual([
+      ["__name__", "up"],
+      ["job", "j1"],
+    ])
+    expect(labelsOf('up{job="j2"} 2')).toEqual([
+      ["__name__", "up"],
+      ["job", "j2"],
+    ])
+  })
+
+  it("shows the series name and labels as detail rows", () => {
+    const fields = createFieldResolver(panel())
+    const { entries } = model([
+      frame([field("Time", "time", [1000]), field("Value", "number", [1])], {
+        name: "up",
+        labels: { pod: "a", job: "j1" },
+      }),
+    ])
+    expect(
+      entries[0].details.map((detail) => [
+        detail.name,
+        detailText(fields, detail),
+      ])
+    ).toEqual([
+      ["Time", formatDateTime(1000)],
+      ["Value", "1"],
+      ["__name__", "up"],
+      ["job", "j1"],
+      ["pod", "a"],
+    ])
   })
 
   it("leaves the message empty when the only string field is the level", () => {
@@ -325,24 +386,32 @@ describe("logsModel keys", () => {
 
 describe("logLevel", () => {
   it.each([
+    ["emerg", "Critical", "error"],
+    ["fatal", "Critical", "error"],
+    ["alert", "Critical", "error"],
+    ["crit", "Critical", "error"],
+    ["Critical", "Critical", "error"],
+    ["PANIC", "Critical", "error"],
     ["error", "Error", "error"],
     ["ERR", "Error", "error"],
-    ["fatal", "Fatal", "error"],
-    ["Critical", "Critical", "error"],
-    ["crit", "Crit", "error"],
-    ["alert", "Alert", "error"],
-    ["emerg", "Emerg", "error"],
-    ["PANIC", "Panic", "error"],
-    ["warn", "Warn", "warning"],
+    ["eror", "Error", "error"],
+    ["warn", "Warning", "warning"],
     ["WARNING", "Warning", "warning"],
     ["info", "Info", "info"],
-    ["information", "Information", "info"],
-    ["notice", "Notice", "info"],
-    ["debug", "Debug", "other"],
+    ["information", "Info", "info"],
+    ["informational", "Info", "info"],
+    ["notice", "Info", "info"],
+    ["dbug", "Debug", "other"],
+    ["DEBUG", "Debug", "other"],
     ["trace", "Trace", "other"],
     ["verbose", "Verbose", "other"],
+    ["VERBOSE", "Verbose", "other"],
   ])("reads %s as the word %s of kind %s", (text, word, kind) => {
     expect(logLevel(text)).toEqual({ word, kind })
+  })
+
+  it("shows WARN and warning as the same word", () => {
+    expect(logLevel("WARN")?.word).toBe(logLevel("warning")?.word)
   })
 
   it("trims the text and keeps a number's digits", () => {
@@ -360,6 +429,63 @@ describe("logLevel", () => {
       expect(logLevel(text)?.kind).toBe("other")
     }
   )
+})
+
+describe("logsModel severity numbers", () => {
+  const levelsFor = (numbers: unknown[], extra: PreparedField[] = []) =>
+    model([
+      frame([
+        field(
+          "Body",
+          "string",
+          numbers.map(() => "x")
+        ),
+        field("SeverityNumber", "number", numbers),
+        ...extra,
+      ]),
+    ]).entries.map((entry) => entry.level?.word ?? null)
+
+  it("maps the OpenTelemetry bands when there is no level text", () => {
+    const numbers = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24]
+    expect(levelsFor(numbers)).toEqual([
+      "Trace",
+      "Trace",
+      "Debug",
+      "Debug",
+      "Info",
+      "Info",
+      "Warning",
+      "Warning",
+      "Error",
+      "Error",
+      "Critical",
+      "Critical",
+    ])
+  })
+
+  it("gives numbers outside 1 to 24 no level", () => {
+    expect(levelsFor([0, 25, -3, 9.5, null])).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ])
+  })
+
+  it("prefers the level text over the number", () => {
+    const { entries } = model([
+      frame([
+        field("Body", "string", ["a", "b"]),
+        field("SeverityText", "string", ["ERROR", ""]),
+        field("SeverityNumber", "number", [9, 9]),
+      ]),
+    ])
+    expect(entries.map((entry) => entry.level?.word).sort()).toEqual([
+      "Error",
+      "Info",
+    ])
+  })
 })
 
 describe("detailText", () => {

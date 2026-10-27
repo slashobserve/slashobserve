@@ -2,7 +2,12 @@ import { formatDateTime } from "@/lib/time"
 
 import { displayValue, type FieldResolver } from "../field-config"
 import { uniqueKey } from "../frames"
-import type { PreparedField, PreparedFrame } from "../transforms"
+import {
+  seriesName,
+  type PreparedField,
+  type PreparedFrame,
+} from "../transforms"
+import { rowCount } from "../transforms/names"
 
 export const maxEntries = 1000
 
@@ -16,12 +21,9 @@ export type LogLevelKind = "error" | "warning" | "info" | "other"
 
 export type LogLevel = { word: string; kind: LogLevelKind }
 
-export type LogDetail = {
-  name: string
-  field: PreparedField
-  frame: PreparedFrame
-  index: number
-}
+export type LogDetail =
+  | { name: string; field: PreparedField; frame: PreparedFrame; index: number }
+  | { name: string; text: string }
 
 export type LogEntry = {
   key: string
@@ -34,6 +36,7 @@ export type LogEntry = {
 export type LogsModel = { entries: LogEntry[]; truncated: boolean }
 
 const messageNames = new Set(["body", "message", "msg", "line", "log"])
+const severityNumberNames = new Set(["severitynumber"])
 const levelNames = new Set([
   "severitytext",
   "severity",
@@ -42,20 +45,29 @@ const levelNames = new Set([
   "detected_level",
 ])
 
-const levelKinds = new Map<string, LogLevelKind>([
-  ["error", "error"],
-  ["err", "error"],
-  ["fatal", "error"],
-  ["critical", "error"],
-  ["crit", "error"],
-  ["alert", "error"],
-  ["emerg", "error"],
-  ["panic", "error"],
-  ["warn", "warning"],
-  ["warning", "warning"],
-  ["info", "info"],
-  ["information", "info"],
-  ["notice", "info"],
+const trace: LogLevel = { word: "Trace", kind: "other" }
+const debug: LogLevel = { word: "Debug", kind: "other" }
+const info: LogLevel = { word: "Info", kind: "info" }
+const warning: LogLevel = { word: "Warning", kind: "warning" }
+const error: LogLevel = { word: "Error", kind: "error" }
+const critical: LogLevel = { word: "Critical", kind: "error" }
+
+const severityBands = [trace, debug, info, warning, error, critical]
+
+const levelsByAlias = new Map<string, LogLevel>([
+  ...["trace"].map((alias): [string, LogLevel] => [alias, trace]),
+  ...["dbug", "debug"].map((alias): [string, LogLevel] => [alias, debug]),
+  ...["info", "information", "informational", "notice"].map(
+    (alias): [string, LogLevel] => [alias, info]
+  ),
+  ...["warn", "warning"].map((alias): [string, LogLevel] => [alias, warning]),
+  ...["err", "eror", "error"].map((alias): [string, LogLevel] => [
+    alias,
+    error,
+  ]),
+  ...["emerg", "fatal", "alert", "crit", "critical", "panic"].map(
+    (alias): [string, LogLevel] => [alias, critical]
+  ),
 ])
 
 const maxEpochMs = 8.64e15
@@ -64,6 +76,7 @@ type Columns = {
   time: PreparedField | undefined
   message: PreparedField | undefined
   level: PreparedField | undefined
+  severityNumber: PreparedField | undefined
 }
 
 type Located = {
@@ -90,6 +103,7 @@ function columnsOf(frame: PreparedFrame): Columns {
     time: frame.fields.find((field) => field.type === "time"),
     message,
     level,
+    severityNumber: named(frame, severityNumberNames),
   }
 }
 
@@ -107,9 +121,17 @@ export function logLevel(value: unknown): LogLevel | null {
   if (value === null || value === undefined) return null
   const text = String(value).trim()
   if (text === "") return null
-  const lower = text.toLowerCase()
-  const kind = levelKinds.get(lower) ?? "other"
-  return { word: lower === "err" ? "Error" : capitalise(text), kind }
+  return (
+    levelsByAlias.get(text.toLowerCase()) ?? {
+      word: capitalise(text),
+      kind: "other",
+    }
+  )
+}
+
+export function severityLevel(value: unknown): LogLevel | null {
+  if (typeof value !== "number" || !Number.isInteger(value)) return null
+  return severityBands[Math.floor((value - 1) / 4)] ?? null
 }
 
 function messageOf(
@@ -121,10 +143,23 @@ function messageOf(
   if (!field) return ""
   const value = field.values[row]
   if (field.type === "string") return typeof value === "string" ? value : ""
-  return displayValue(value, fields.configFor(frame, field)).text
+  const text = displayValue(value, fields.configFor(frame, field)).text
+  const series = seriesName(frame, field)
+  return series === field.name ? text : `${series} ${text}`
+}
+
+function seriesDetails(frame: PreparedFrame): LogDetail[] {
+  const labels = frame.labels ?? {}
+  const details: LogDetail[] = Object.keys(labels)
+    .sort()
+    .map((name) => ({ name, text: labels[name] }))
+  return frame.name === undefined
+    ? details
+    : [{ name: "__name__", text: frame.name }, ...details]
 }
 
 export function detailText(fields: FieldResolver, detail: LogDetail): string {
+  if ("text" in detail) return detail.text
   const value = detail.field.values[detail.index]
   const shown = displayValue(
     value,
@@ -134,14 +169,6 @@ export function detailText(fields: FieldResolver, detail: LogDetail): string {
   return detail.field.type === "time" && time !== null && !shown.mapped
     ? formatDateTime(time)
     : shown.text
-}
-
-function rowsOf(frame: PreparedFrame): number {
-  let count = 0
-  for (const field of frame.fields) {
-    if (field.values.length > count) count = field.values.length
-  }
-  return count
 }
 
 function compareTimes(a: number | null, b: number | null, factor: number) {
@@ -158,7 +185,7 @@ export function logsModel(
   const located: Located[] = []
   for (const frame of frames) {
     const columns = columnsOf(frame)
-    const count = rowsOf(frame)
+    const count = rowCount(frame)
     for (let row = 0; row < count; row++) {
       located.push({
         frame,
@@ -182,14 +209,19 @@ export function logsModel(
           `${frame.ref}|${time ?? ""}|${message.slice(0, 120)}`
         ),
         time,
-        level: logLevel(columns.level?.values[row]),
+        level:
+          logLevel(columns.level?.values[row]) ??
+          severityLevel(columns.severityNumber?.values[row]),
         message,
-        details: frame.fields.map((field) => ({
-          name: field.name,
-          field,
-          frame,
-          index: row,
-        })),
+        details: [
+          ...frame.fields.map((field) => ({
+            name: field.name,
+            field,
+            frame,
+            index: row,
+          })),
+          ...seriesDetails(frame),
+        ],
       }
     })
   return { entries, truncated: located.length > maxEntries }
