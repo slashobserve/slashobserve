@@ -1,0 +1,62 @@
+{
+  "specVersion": "0",
+  "title": "E2E logs panels",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": "lg_new",
+      "type": "logs",
+      "title": "Newest logs",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 10 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT Timestamp, SeverityText, ServiceName, Body FROM otel_logs WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 200",
+          "format": "logs"
+        }
+      ],
+      "display": { "showTime": true, "wrap": true }
+    },
+    {
+      "id": "lg_old",
+      "type": "logs",
+      "title": "Oldest logs",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 10 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT Timestamp, SeverityText, ServiceName, Body FROM otel_logs WHERE $__timeFilter(Timestamp) ORDER BY Timestamp DESC LIMIT 200",
+          "format": "logs"
+        }
+      ],
+      "display": { "order": "oldest", "showTime": true }
+    },
+    {
+      "id": "lg_levels",
+      "type": "logs",
+      "title": "Level words",
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 10 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT now64(3) - toIntervalMillisecond(number) AS Timestamp, ['EMERG', 'fatal', 'Critical', 'ERR', 'error', 'WARN', 'warning', 'information', 'NOTICE', 'dbug', 'trace', 'verbose'][number + 1] AS SeverityText, 'line' AS Body FROM numbers(12)",
+          "format": "logs"
+        }
+      ],
+      "display": { "showTime": true }
+    },
+    {
+      "id": "lg_cap",
+      "type": "logs",
+      "title": "Capped logs",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 10 },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT now64(3) - toIntervalMillisecond(number) AS Timestamp, 'line' AS Body FROM numbers(1200)",
+          "format": "logs"
+        }
+      ]
+    }
+  ]
+}

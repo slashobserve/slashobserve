@@ -58,6 +58,12 @@ export function formatDateTime(value: string | number | Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+export function formatDateTimeMs(value: string | number | Date): string {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return `${formatDateTime(date)}.${String(date.getMilliseconds()).padStart(3, "0")}`
+}
+
 export function formatTimeValue(value: string): string {
   return epochMillis.test(value) ? formatDateTime(Number(value)) : value
 }
