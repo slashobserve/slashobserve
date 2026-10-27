@@ -1,32 +1,87 @@
+import { Fragment } from "react"
+
 import { useSetDashboardSearch } from "./search"
-import { VariableSelect } from "./variable-select"
 import type { VariableState } from "./use-variables"
+import { AdhocControl } from "./variable-controls/adhoc-control"
+import { DatasourceControl } from "./variable-controls/datasource-control"
+import { IntervalControl } from "./variable-controls/interval-control"
+import { TextboxControl } from "./variable-controls/textbox-control"
+import { VariableSelect } from "./variable-select"
 import { applyVariableChange } from "./variables"
 
 type Props = { states: VariableState[] }
 
+function isShown(state: VariableState): boolean {
+  return (
+    state.variable.type !== "constant" && state.variable.hide !== "variable"
+  )
+}
+
 export function VariablesBar({ states }: Props) {
   const setSearch = useSetDashboardSearch()
-  if (states.length === 0) return null
+  const shown = states.filter(isShown)
+  if (shown.length === 0) return null
   const variables = states.map((state) => state.variable)
+
+  function control(state: VariableState) {
+    const { variable } = state
+    const onChange = (values: string[]) =>
+      setSearch((current) => ({
+        ...current,
+        vars: applyVariableChange(
+          variables,
+          current.vars,
+          variable.name,
+          values
+        ),
+      }))
+    switch (variable.type) {
+      case "query":
+      case "custom":
+        return (
+          <VariableSelect
+            variable={variable}
+            state={state}
+            onChange={onChange}
+          />
+        )
+      case "interval":
+        return (
+          <IntervalControl
+            variable={variable}
+            state={state}
+            onChange={onChange}
+          />
+        )
+      case "textbox":
+        return (
+          <TextboxControl
+            variable={variable}
+            state={state}
+            onChange={onChange}
+          />
+        )
+      case "datasource":
+        return (
+          <DatasourceControl
+            variable={variable}
+            state={state}
+            onChange={onChange}
+          />
+        )
+      case "adhoc":
+        return (
+          <AdhocControl variable={variable} state={state} onChange={onChange} />
+        )
+      case "constant":
+        return null
+    }
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
-      {states.map((state) => (
-        <VariableSelect
-          key={state.variable.name}
-          state={state}
-          onChange={(values) =>
-            setSearch((current) => ({
-              ...current,
-              vars: applyVariableChange(
-                variables,
-                current.vars,
-                state.variable.name,
-                values
-              ),
-            }))
-          }
-        />
+      {shown.map((state) => (
+        <Fragment key={state.variable.name}>{control(state)}</Fragment>
       ))}
     </div>
   )
