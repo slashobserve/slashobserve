@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowUpRightIcon, CircleAlertIcon } from "lucide-react"
+import { CircleAlertIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
@@ -154,17 +154,7 @@ export function ImportPage() {
 
   const runImport = () => {
     if (!source) return
-    const tab = window.open("", "_blank")
-    if (tab) tab.opener = null
-    importDashboard.mutate(
-      { source, mapping },
-      {
-        onSuccess: (data) => {
-          if (tab) tab.location.href = `/dashboards/${data.dashboard.id}`
-        },
-        onError: () => tab?.close(),
-      }
-    )
+    importDashboard.mutate({ source, mapping })
   }
 
   const importError = importDashboard.isError
@@ -225,16 +215,13 @@ export function ImportPage() {
       <Button variant="outline" className="font-normal" onClick={startOver}>
         Import another
       </Button>
-      <a
-        href={`/dashboards/${result.dashboard.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        to="/dashboards/$dashboardId"
+        params={{ dashboardId: result.dashboard.id }}
         className={cn(buttonVariants())}
       >
         Open dashboard
-        <ArrowUpRightIcon aria-hidden="true" />
-        <span className="sr-only"> (opens in a new tab)</span>
-      </a>
+      </Link>
     </>
   ) : (
     <>
