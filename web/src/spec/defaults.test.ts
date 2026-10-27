@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 import defaultsText from "../../../spec/schema/defaults.json?raw"
 import {
+  canvasConnectionDefaults,
+  canvasElementDefaults,
   displayWithDefaults,
   fieldPropDefaults,
+  instantPanelTypes,
   isDefaultDisplayValue,
   linkDefaults,
   queryDefaults,
@@ -11,9 +14,11 @@ import {
   variableDefaults,
 } from "./index"
 import { specDefaults } from "./defaults.gen"
-import type { DataPanel } from "./observespec.gen"
+import type { DataPanelType } from "./panels"
 
-const panelTypes = Object.keys(specDefaults.display) as DataPanel["type"][]
+const panelTypes = Object.keys(specDefaults.display) as Array<
+  keyof typeof specDefaults.display
+>
 
 function dashboard(panels: unknown[], extras: Record<string, unknown> = {}) {
   return {
@@ -37,6 +42,16 @@ function dataPanel(type: string, extras: Record<string, unknown> = {}) {
   }
 }
 
+function dashlistPanel(extras: Record<string, unknown> = {}) {
+  return {
+    id: "p",
+    type: "dashlist",
+    title: "t",
+    gridPos: { x: 0, y: 0, w: 12, h: 8 },
+    ...extras,
+  }
+}
+
 function expectValid(value: unknown) {
   const result = validateSpecSchema(value)
   expect(result.valid ? [] : result.issues).toEqual([])
@@ -50,7 +65,49 @@ describe("spec defaults", () => {
   it.each(panelTypes)("%s display defaults are schema valid", (type) => {
     const display = specDefaults.display[type]
     const extras = Object.keys(display).length > 0 ? { display } : {}
-    expectValid(dashboard([dataPanel(type, extras)]))
+    expectValid(
+      dashboard([
+        type === "dashlist" ? dashlistPanel(extras) : dataPanel(type, extras),
+      ])
+    )
+  })
+
+  it("canvas element and connection defaults are schema valid", () => {
+    const element = {
+      id: "a",
+      kind: "metric",
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+      ...canvasElementDefaults,
+    }
+    const connection = { from: "a", to: "a", ...canvasConnectionDefaults }
+    expectValid(
+      dashboard([
+        dataPanel("canvas", {
+          display: { elements: [element], connections: [connection] },
+        }),
+      ])
+    )
+  })
+
+  it("instant panel types are schema data panel types", () => {
+    expect(instantPanelTypes).toContain("table")
+    expect(instantPanelTypes).toContain("alertlist")
+    expect(instantPanelTypes).not.toContain("timeseries")
+    const types = Object.keys(specDefaults.display)
+    for (const type of instantPanelTypes) expect(types).toContain(type)
+  })
+
+  it("dashlist defaults apply through displayWithDefaults", () => {
+    expect(displayWithDefaults("dashlist", { limit: 5 })).toEqual({
+      tags: [],
+      limit: 5,
+      keepTime: false,
+      includeVars: false,
+    })
+    expect(isDefaultDisplayValue("dashlist", "limit", 10)).toBe(true)
   })
 
   it("field property defaults are schema valid", () => {
@@ -154,13 +211,13 @@ describe("spec defaults", () => {
   })
 
   it("an unknown panel type has no defaults and never throws", () => {
-    const unknownType = "nope" as DataPanel["type"]
+    const unknownType = "nope" as DataPanelType
     expect(displayWithDefaults(unknownType, { legend: "right" })).toEqual({
       legend: "right",
     })
     expect(displayWithDefaults(unknownType, undefined)).toEqual({})
     expect(isDefaultDisplayValue(unknownType, "legend", "bottom")).toBe(false)
-    const inherited = "constructor" as DataPanel["type"]
+    const inherited = "constructor" as DataPanelType
     expect(displayWithDefaults(inherited, undefined)).toEqual({})
     expect(isDefaultDisplayValue(inherited, "name", "Object")).toBe(false)
   })

@@ -485,8 +485,8 @@ describe("displayKeysFor", () => {
     )
   )
 
-  it("lists the display keys of the schema for all ten panel types", () => {
-    expect(dataPanelTypes).toHaveLength(10)
+  it("lists the display keys of the schema for every data panel type", () => {
+    expect(dataPanelTypes).toHaveLength(21)
     expect([...schemaKeys.keys()].sort()).toEqual([...dataPanelTypes].sort())
     for (const type of dataPanelTypes) {
       expect([...displayKeysFor(type)].sort(), type).toEqual(

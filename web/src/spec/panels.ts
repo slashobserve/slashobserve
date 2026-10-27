@@ -20,6 +20,17 @@ export const dataPanelTypes: readonly DataPanelType[] = [
   "histogram",
   "state-timeline",
   "logs",
+  "barchart",
+  "status-history",
+  "trend",
+  "xychart",
+  "candlestick",
+  "nodeGraph",
+  "traces",
+  "flamegraph",
+  "geomap",
+  "canvas",
+  "alertlist",
 ]
 
 export function isDataPanel(panel: Panel): panel is DataPanel {

@@ -3,6 +3,7 @@ import type { ComponentType } from "react"
 import type { Selections } from "@/api/keys"
 import type { PanelDataMeta } from "@/dashboards/queries"
 import type {
+  DashlistPanel,
   DataPanel,
   DataPanelType,
   PlaceholderPanel,
@@ -31,10 +32,10 @@ export type PanelRendererProps = {
 
 export type PanelRenderer = ComponentType<PanelRendererProps>
 
-export type StaticPanelType = "text" | "placeholder"
+export type StaticPanelType = "text" | "placeholder" | "dashlist"
 
 export type StaticPanelProps = {
-  panel: TextPanel | PlaceholderPanel
+  panel: TextPanel | PlaceholderPanel | DashlistPanel
   width: number
   height: number
   vars: Selections

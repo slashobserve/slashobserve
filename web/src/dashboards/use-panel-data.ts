@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, type Selections } from "@/api/keys"
-import { isDataPanel, type Panel } from "@/spec"
+import { instantPanelTypes, isDataPanel, type Panel } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
@@ -20,8 +20,6 @@ type Args = {
   refreshMs: number | null
   enabled: boolean
 }
-
-const instantPanelTypes: readonly string[] = ["table", "logs"]
 
 export function maxDataPointsFor(
   panel: Panel,

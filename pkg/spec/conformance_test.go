@@ -75,6 +75,11 @@ func displayNode(t *testing.T, doc schemaDoc) schemaNode {
 		}
 		maps.Copy(props, branch.Then.Properties.Display.Properties)
 	}
+	var dashlistDisplay schemaNode
+	if err := json.Unmarshal(doc.Defs["dashlistPanel"].Properties["display"], &dashlistDisplay); err != nil {
+		t.Fatalf("decode dashlistPanel display: %v", err)
+	}
+	maps.Copy(props, dashlistDisplay.Properties)
 	if len(props) == 0 {
 		t.Fatal("dataPanel has no display properties")
 	}
@@ -86,7 +91,7 @@ func TestTypesMatchSchema(t *testing.T) {
 	d := doc.Defs
 	fieldProps := d["fieldProps"]
 	variables := []schemaNode{d["queryVariable"], d["customVariable"], d["constantVariable"], d["intervalVariable"], d["textboxVariable"], d["datasourceVariable"], d["adhocVariable"]}
-	panels := []schemaNode{mergeProps(d["dataPanel"], fieldProps), d["textPanel"], d["placeholderPanel"], d["rowPanel"]}
+	panels := []schemaNode{mergeProps(d["dataPanel"], fieldProps), d["textPanel"], d["dashlistPanel"], d["placeholderPanel"], d["rowPanel"]}
 	cases := []struct {
 		name  string
 		typ   reflect.Type
@@ -105,6 +110,8 @@ func TestTypesMatchSchema(t *testing.T) {
 		{"Mapping", reflect.TypeFor[spec.Mapping](), d["mapping"].OneOf},
 		{"Match", reflect.TypeFor[spec.Match](), d["match"].OneOf},
 		{"Transform", reflect.TypeFor[spec.Transform](), d["transform"].OneOf},
+		{"CanvasElement", reflect.TypeFor[spec.CanvasElement](), []schemaNode{d["canvasElement"]}},
+		{"CanvasConnection", reflect.TypeFor[spec.CanvasConnection](), []schemaNode{d["canvasConnection"]}},
 		{"Display", reflect.TypeFor[spec.Display](), []schemaNode{displayNode(t, doc)}},
 	}
 	for _, tc := range cases {

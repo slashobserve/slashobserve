@@ -28,6 +28,41 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkVariableQueries(d.Variables)...)
 	issues = append(issues, checkPanelQueries(d, entries)...)
+	issues = append(issues, checkCanvas(entries)...)
+	return issues
+}
+
+func checkCanvas(entries []PanelEntry) []Issue {
+	var issues []Issue
+	for _, e := range entries {
+		if e.Panel.Type != Canvas || e.Panel.Display == nil {
+			continue
+		}
+		base := e.Pointer + "/display"
+		ids := map[string]bool{}
+		for i, el := range e.Panel.Display.Elements {
+			if ids[el.ID] {
+				issues = append(issues, Issue{
+					Path:    base + "/elements/" + strconv.Itoa(i) + "/id",
+					Code:    CodeDuplicateElementID,
+					Message: fmt.Sprintf("canvas element id %q is already used in this panel", el.ID),
+				})
+			}
+			ids[el.ID] = true
+		}
+		for i, c := range e.Panel.Display.Connections {
+			for _, end := range []struct{ name, id string }{{"from", c.From}, {"to", c.To}} {
+				if ids[end.id] {
+					continue
+				}
+				issues = append(issues, Issue{
+					Path:    base + "/connections/" + strconv.Itoa(i) + "/" + end.name,
+					Code:    CodeUnknownElement,
+					Message: fmt.Sprintf("connection %s names no canvas element %q", end.name, end.id),
+				})
+			}
+		}
+	}
 	return issues
 }
 

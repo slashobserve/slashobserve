@@ -34,6 +34,7 @@ let code = standaloneCode(ajv, {
   dataPanel: `${schema.$id}#/$defs/dataPanel`,
   textPanel: `${schema.$id}#/$defs/textPanel`,
   placeholderPanel: `${schema.$id}#/$defs/placeholderPanel`,
+  dashlistPanel: `${schema.$id}#/$defs/dashlistPanel`,
   rowPanel: `${schema.$id}#/$defs/rowPanel`,
 })
 code = code.replace(

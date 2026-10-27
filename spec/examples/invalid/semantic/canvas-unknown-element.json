@@ -1,0 +1,45 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "canvas",
+      "title": "Diagram",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "ch",
+      "queries": [
+        {
+          "query": "SELECT count() FROM otel_logs WHERE $__timeFilter(Timestamp)"
+        }
+      ],
+      "display": {
+        "elements": [
+          {
+            "id": "a",
+            "kind": "metric",
+            "left": 10,
+            "top": 10,
+            "width": 20,
+            "height": 20
+          }
+        ],
+        "connections": [
+          {
+            "from": "a",
+            "to": "b"
+          }
+        ]
+      }
+    }
+  ]
+}
