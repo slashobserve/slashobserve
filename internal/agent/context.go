@@ -21,6 +21,7 @@ type revision struct {
 	number      int
 	spec        *spec.Dashboard
 	unverified  dashboards.Unverified
+	conversion  []tools.Attention
 }
 
 func buildSystem() string {
@@ -76,6 +77,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	if mode == tools.ModeSuggest {
 		fmt.Fprintf(&b, "\nYou are proposing a change to dashboard %s, version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 		writeUnverified(&b, current)
+		writeConversion(&b, current)
 		title, _ := panelTitle(current.spec, panelID)
 		if title == "" {
 			title = panelID
@@ -85,6 +87,7 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 	}
 	fmt.Fprintf(&b, "\nYou are revising dashboard %s, currently version %d.\n```json\n%s\n```", current.dashboardID, current.number, body)
 	writeUnverified(&b, current)
+	writeConversion(&b, current)
 	if panelID != "" {
 		fromComment := source == revisions.SourceComment
 		if title, ok := panelTitle(current.spec, panelID); ok {
@@ -103,8 +106,8 @@ func buildContext(statuses []datasource.Status, mode tools.Mode, source revision
 }
 
 const (
-	maxUnverifiedLines = 60
-	maxUnverifiedBytes = 8 << 10
+	maxListLines = 60
+	maxListBytes = 8 << 10
 )
 
 func writeUnverified(b *strings.Builder, current *revision) {
@@ -121,16 +124,32 @@ func writeUnverified(b *strings.Builder, current *revision) {
 		lines = append(lines, fmt.Sprintf("- variable %s: %s", v.Name, firstIssue(v.Issues)))
 	}
 	fmt.Fprintf(b, "\nUnverified in version %d: their queries failed when it was saved. A save keeps them unverified while their queries and the variables those use stay unchanged; a changed or new query must return data.", current.number)
+	writeCapped(b, lines)
+	b.WriteString("\nKeep unverified panels unless the request asks to delete them.")
+}
+
+func writeConversion(b *strings.Builder, current *revision) {
+	if len(current.conversion) == 0 {
+		return
+	}
+	lines := make([]string, len(current.conversion))
+	for i, a := range current.conversion {
+		lines[i] = fmt.Sprintf("- %s %s %q: %s", a.Status, a.PanelID, a.Title, strings.Join(strings.Fields(a.Reason), " "))
+	}
+	fmt.Fprintf(b, "\nVersion %d is a Grafana import. The importer converted these panels only partly or kept them as placeholders:", current.number)
+	writeCapped(b, lines)
+}
+
+func writeCapped(b *strings.Builder, lines []string) {
 	size := 0
 	for i, line := range lines {
-		if i == maxUnverifiedLines || size+len(line) > maxUnverifiedBytes {
+		if i == maxListLines || size+len(line) > maxListBytes {
 			fmt.Fprintf(b, "\n- ... and %d more", len(lines)-i)
 			break
 		}
 		size += len(line)
 		b.WriteString("\n" + line)
 	}
-	b.WriteString("\nKeep unverified panels unless the request asks to delete them.")
 }
 
 func firstIssue(issues []spec.Issue) string {

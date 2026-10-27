@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -75,11 +76,16 @@ type DatasourceHealth interface {
 	Health(ctx context.Context) []datasource.Status
 }
 
+type ImportReader interface {
+	ForDashboard(ctx context.Context, id pgtype.UUID) (imports.Record, error)
+}
+
 type Config struct {
 	Provider    llm.Provider
 	Tools       ToolSet
 	Dashboards  DashboardReader
 	Datasources DatasourceHealth
+	Imports     ImportReader
 	Logger      *slog.Logger
 }
 
@@ -121,6 +127,7 @@ type Agent struct {
 	tools       ToolSet
 	dashboards  DashboardReader
 	datasources DatasourceHealth
+	imports     ImportReader
 	logger      *slog.Logger
 	system      string
 	toolSpecs   []llm.ToolSpec
@@ -142,6 +149,7 @@ func New(c Config) *Agent {
 		tools:       c.Tools,
 		dashboards:  c.Dashboards,
 		datasources: c.Datasources,
+		imports:     c.Imports,
 		logger:      c.Logger,
 		system:      buildSystem(),
 		toolSpecs:   specs,
@@ -234,7 +242,12 @@ func (a *Agent) run(ctx context.Context, t Task, out *Outcome) error {
 
 func (a *Agent) loadLatest(ctx context.Context, id pgtype.UUID, requestID string) (*revision, error) {
 	dash, ver, err := a.dashboards.Get(ctx, id)
-	return a.loaded(ctx, dash, ver, err, requestID, "latest version has no spec")
+	rev, err := a.loaded(ctx, dash, ver, err, requestID, "latest version has no spec")
+	if err != nil {
+		return nil, err
+	}
+	rev.conversion = a.conversionNotes(ctx, id, rev.number, requestID)
+	return rev, nil
 }
 
 func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision, error) {
@@ -243,6 +256,7 @@ func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision
 	if err != nil {
 		return nil, err
 	}
+	rev.conversion = a.conversionNotes(ctx, id, rev.number, t.RequestID)
 	if len(t.Draft) == 0 {
 		if _, ok := rev.spec.FindPanel(t.PanelID); !ok {
 			return nil, fmt.Errorf("%w: the panel is not in that version of the dashboard", ErrInvalidTask)
@@ -258,6 +272,25 @@ func (a *Agent) loadBase(ctx context.Context, id pgtype.UUID, t Task) (*revision
 		return nil, fmt.Errorf("%w: the panel is not a data or text panel", ErrInvalidTask)
 	}
 	return rev, nil
+}
+
+func (a *Agent) conversionNotes(ctx context.Context, id pgtype.UUID, number int, requestID string) []tools.Attention {
+	if a.imports == nil {
+		return nil
+	}
+	record, err := a.imports.ForDashboard(ctx, id)
+	switch {
+	case errors.Is(err, imports.ErrNotFound), errors.Is(err, dashboards.ErrNotFound):
+		return nil
+	case err != nil:
+		if ctx.Err() == nil {
+			a.logger.WarnContext(ctx, "agent could not read the import record", logattrs.Failure("import_read_failed", err, slog.String("agent_request_id", requestID))...)
+		}
+		return nil
+	case record.Version != number:
+		return nil
+	}
+	return tools.ConversionAttention(record.Report)
 }
 
 func (a *Agent) draftInvalid(ctx context.Context, requestID string, err error) error {
