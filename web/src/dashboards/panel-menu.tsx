@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -61,7 +62,7 @@ export function PanelMenu({
     },
   ]
   const data = isDataPanel(panel)
-  if (data) {
+  if (isEditablePanel(panel)) {
     items.push({
       id: "edit",
       label: inspectable ? "Edit" : "Edit (finish the layout first)",

@@ -7,7 +7,7 @@ import {
   panel,
   panelDataResponse,
 } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { chunkFailureLogged, expect, test } from "./fixtures"
 
 const rpsTitle = "Checkout requests per second"
 
@@ -201,6 +201,7 @@ test("switches between chart and table view", async ({ page, request }) => {
 test("keeps other panels working when a renderer chunk fails and reloads the page", async ({
   page,
   request,
+  consoleErrors,
 }) => {
   const id = await createOverview(request)
   const chunk = "**/assets/stat-panel-*.js"
@@ -220,6 +221,7 @@ test("keeps other panels working when a renderer chunk fails and reloads the pag
   ])
   await expectPanelsReady(page)
   await expect(panel(page, "Checkout error rate").getByText(/%$/)).toBeVisible()
+  chunkFailureLogged(consoleErrors)
 })
 
 test("renders in dark mode without leaking canvases", async ({

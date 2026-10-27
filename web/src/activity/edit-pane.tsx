@@ -27,17 +27,18 @@ import {
   useSetDashboardSearch,
   validateDashboardSearch,
 } from "@/dashboards/search"
-import {
-  findPanel,
-  isDataPanel,
-  panelTitle,
-  type Dashboard,
-  type Panel,
-} from "@/spec"
+import type { Selections } from "@/api/keys"
+import { Button } from "@/components/ui/button"
+import { guardLoad } from "@/panels/renderer-load"
+import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
+import { isEditablePanel } from "@/panel-editor/draft"
+import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
 import { CardHeader } from "./card-header"
+import { EditorBoundary } from "./editor-boundary"
+import { EditorViewSwitch } from "./editor-view-switch"
 
-const QueryTab = lazy(() => import("@/query-editor/query-tab"))
+const PanelEditor = lazy(guardLoad(() => import("@/panel-editor/panel-editor")))
 
 type Leave = "back" | "close" | "saved" | "layout"
 
@@ -50,6 +51,10 @@ type Props = {
   version: number
   latestVersion: number
   pinned: boolean
+  view: EditorView
+  onViewChange: (view: EditorView) => void
+  timeRange: { from?: string; to?: string }
+  selections: Selections | null
   onBack: () => void
   onClose: () => void
   onSaved: () => void
@@ -80,7 +85,7 @@ function leavesDraft(
   )
 }
 
-function QuerySkeleton() {
+function EditorSkeleton() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true">
       <Skeleton className="h-8 w-full animate-none motion-safe:animate-pulse" />
@@ -96,6 +101,10 @@ export function EditPane({
   version,
   latestVersion,
   pinned,
+  view,
+  onViewChange,
+  timeRange,
+  selections,
   onBack,
   onClose,
   onSaved,
@@ -117,6 +126,7 @@ export function EditPane({
   const root = useRef<HTMLDivElement>(null)
   const returnFocus = useRef(false)
   const afterLeave = useRef<(() => void) | null>(null)
+  const viewGuard = useRef<ViewGuard>(null)
 
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
@@ -163,8 +173,12 @@ export function EditPane({
 
   const leave = useCallback(
     (kind: Leave) => {
-      if (unsaved.current) setConfirm(kind)
-      else run(kind)
+      const proceed = () => {
+        if (unsaved.current) setConfirm(kind)
+        else run(kind)
+      }
+      if (viewGuard.current) viewGuard.current.guardLeave(proceed)
+      else proceed()
     },
     [run]
   )
@@ -205,32 +219,52 @@ export function EditPane({
     window.setTimeout(() => leave("close"), 0)
   }
 
+  const editable = panel !== undefined && isEditablePanel(panel)
   let body: ReactNode
   if (panel === undefined) {
     body = null
-  } else if (!isDataPanel(panel)) {
+  } else if (!isEditablePanel(panel)) {
     body = (
-      <p className="text-[13px] text-muted-foreground">
-        This panel has no query to edit.
-      </p>
+      <div className="flex flex-col items-start gap-3 px-4 py-4">
+        <p className="text-[13px] text-muted-foreground">
+          This panel cannot be edited.
+        </p>
+        <Button variant="outline" onClick={() => leave("back")}>
+          Back to activity
+        </Button>
+      </div>
     )
   } else {
     body = (
-      <Suspense fallback={<QuerySkeleton />}>
-        <QueryTab
-          dashboardId={dashboardId}
-          spec={spec}
-          panel={panel}
-          version={version}
-          latestVersion={latestVersion}
-          readOnly={readOnly}
-          onDirtyChange={onDirtyChange}
-          onSaved={() => run("saved")}
-          onOpenLatest={() =>
-            setSearch((state) => ({ ...state, version: undefined }))
+      <EditorBoundary>
+        <Suspense
+          fallback={
+            <div className="px-4 py-4">
+              <EditorSkeleton />
+            </div>
           }
-        />
-      </Suspense>
+        >
+          <PanelEditor
+            dashboardId={dashboardId}
+            spec={spec}
+            panel={panel}
+            version={version}
+            latestVersion={latestVersion}
+            readOnly={readOnly}
+            view={view}
+            onViewChange={onViewChange}
+            viewGuardRef={viewGuard}
+            timeRange={timeRange}
+            selections={selections}
+            onDirtyChange={onDirtyChange}
+            onSaved={() => run("saved")}
+            onOpenLatest={() =>
+              setSearch((state) => ({ ...state, version: undefined }))
+            }
+            onDiscard={() => leave("back")}
+          />
+        </Suspense>
+      </EditorBoundary>
     )
   }
 
@@ -250,11 +284,21 @@ export function EditPane({
             : `This panel is not in version ${version}.`
         }
         back={() => leave("back")}
+        controls={
+          editable ? (
+            <EditorViewSwitch
+              view={view}
+              onChange={(next) =>
+                viewGuard.current
+                  ? viewGuard.current.request(next)
+                  : onViewChange(next)
+              }
+            />
+          ) : null
+        }
         close={() => leave("close")}
       />
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-        {body}
-      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{body}</div>
       <AlertDialog
         open={discardOpen}
         onOpenChange={(next) => {
@@ -280,9 +324,9 @@ export function EditPane({
           }}
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard your query changes?</AlertDialogTitle>
+            <AlertDialogTitle>Discard your changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              The query and title you edited have not been saved.
+              The panel changes you made have not been saved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

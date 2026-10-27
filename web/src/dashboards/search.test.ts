@@ -47,14 +47,20 @@ describe("validateDashboardSearch", () => {
     expect(validateDashboardSearch({ "var-n": 7 }).vars).toEqual({ n: ["7"] })
   })
 
-  it("keeps edit only as query with a panel", () => {
+  it("keeps edit only as query or json with a panel", () => {
     expect(validateDashboardSearch({ panel: "rps", edit: "query" })).toEqual({
       panel: "rps",
       edit: "query",
       vars: {},
     })
+    expect(validateDashboardSearch({ panel: "p", edit: "json" })).toEqual({
+      panel: "p",
+      edit: "json",
+      vars: {},
+    })
     expect(validateDashboardSearch({ edit: "query" })).toEqual({ vars: {} })
-    expect(validateDashboardSearch({ panel: "rps", edit: "json" })).toEqual({
+    expect(validateDashboardSearch({ edit: "json" })).toEqual({ vars: {} })
+    expect(validateDashboardSearch({ panel: "rps", edit: "other" })).toEqual({
       panel: "rps",
       vars: {},
     })

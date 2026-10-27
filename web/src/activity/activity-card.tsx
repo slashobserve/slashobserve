@@ -7,9 +7,11 @@ import {
   type Ref,
 } from "react"
 
+import type { Selections } from "@/api/keys"
 import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { useAgentInfo } from "@/observe/queries"
 import { cn } from "@/lib/utils"
+import type { EditorView } from "@/panel-editor/panel-editor"
 import type { Dashboard } from "@/spec"
 
 import { CardHeader } from "./card-header"
@@ -30,6 +32,8 @@ type Props = {
   pinned: boolean
   madeBy: string | null
   back: string | undefined
+  timeRange: { from?: string; to?: string }
+  selections: Selections | null
   composerRef: Ref<HTMLTextAreaElement>
   guardRef: Ref<EditGuard>
   onSelectPanel: (panelId: string) => void
@@ -45,6 +49,8 @@ export function ActivityCard({
   pinned,
   madeBy,
   back,
+  timeRange,
+  selections,
   composerRef,
   guardRef,
   onSelectPanel,
@@ -61,8 +67,9 @@ export function ActivityCard({
   const card = useRef<HTMLElement>(null)
 
   const panelId = search.panel
-  const editingId = search.edit === "query" ? panelId : undefined
+  const editingId = search.edit !== undefined ? panelId : undefined
   const editing = editingId !== undefined
+  const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
   const shown = useRef<{ panelId: string | undefined; editing: boolean }>({
@@ -94,6 +101,15 @@ export function ActivityCard({
     setOpen(true)
     setSearch((state) => ({ ...state, edit: undefined }))
   }, [setOpen, setSearch])
+
+  const onViewChange = useCallback(
+    (next: EditorView) =>
+      setSearch(
+        (state) => ({ ...state, edit: next === "json" ? "json" : "query" }),
+        { replace: true }
+      ),
+    [setSearch]
+  )
 
   const onSaved = useCallback(() => {
     setOpen(true)
@@ -141,6 +157,10 @@ export function ActivityCard({
           version={version}
           latestVersion={latestVersion}
           pinned={pinned}
+          view={view}
+          onViewChange={onViewChange}
+          timeRange={timeRange}
+          selections={selections}
           onBack={onBack}
           onClose={onClose}
           onSaved={onSaved}

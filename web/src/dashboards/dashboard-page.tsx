@@ -328,13 +328,17 @@ function DashboardView({
 
   const effectiveFrom = search.from ?? spec.time.from
   const effectiveTo = search.to ?? spec.time.to
+  const timeRange = useMemo(
+    () => ({ from: search.from, to: search.to }),
+    [search.from, search.to]
+  )
   const refreshValue = search.refresh ?? spec.refresh ?? "off"
   const refreshMs = refreshToMs(refreshValue)
 
   const pinned = search.version !== undefined
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
-  const editingPanel = search.edit === "query" && search.panel !== undefined
+  const editingPanel = search.edit !== undefined && search.panel !== undefined
   const cardVisible = (open || editingPanel) && !editing
   const cardLayout = useActivityLayout(editingPanel)
   const composerRef = useRef<HTMLTextAreaElement>(null)
@@ -513,6 +517,8 @@ function DashboardView({
           pinned={pinned}
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           back={backFromSearch(search)}
+          timeRange={timeRange}
+          selections={ready ? selections : null}
           composerRef={composerRef}
           guardRef={editGuard}
           onSelectPanel={onSelectPanel}

@@ -27,6 +27,18 @@ export function failedResourceLogged(consoleErrors: string[], status: string) {
   consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
 }
 
+const chunkFailure = /net::ERR_FAILED|dynamically imported module/
+
+export function chunkFailureLogged(consoleErrors: string[]) {
+  const logged = consoleErrors.filter((message) => chunkFailure.test(message))
+  expect(logged.length).toBeGreaterThan(0)
+  consoleErrors.splice(
+    0,
+    consoleErrors.length,
+    ...consoleErrors.filter((message) => !chunkFailure.test(message))
+  )
+}
+
 export async function tabUntilFocused(
   page: Page,
   locator: Locator,

@@ -14,13 +14,15 @@ declare module "@tanstack/react-router" {
   }
 }
 
+export type EditView = "query" | "json"
+
 export type DashboardSearch = {
   from?: string
   to?: string
   refresh?: string
   version?: number
   panel?: string
-  edit?: "query"
+  edit?: EditView
   vars: Record<string, string[]>
 }
 
@@ -79,11 +81,12 @@ export function validateDashboardSearch(
   const panel = firstString(raw.panel)
   if (panel !== undefined && panelIdPattern.test(panel)) state.panel = panel
 
-  if (
-    state.panel !== undefined &&
-    (firstString(raw.edit) === "query" || firstString(raw.tab) === "query")
-  ) {
-    state.edit = "query"
+  if (state.panel !== undefined) {
+    const edit = firstString(raw.edit)
+    if (edit === "json") state.edit = "json"
+    else if (edit === "query" || firstString(raw.tab) === "query") {
+      state.edit = "query"
+    }
   }
 
   for (const key of Object.keys(raw)) {

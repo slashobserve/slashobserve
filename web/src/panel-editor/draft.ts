@@ -58,7 +58,7 @@ export type DraftAction =
   | { type: "reset" }
   | { type: "rebase"; version: number; panel: EditablePanel }
 
-const maxQueries = 26
+export const maxQueries = 26
 
 const displayKeys: Record<DataPanelType, readonly string[]> = {
   timeseries: ["legend", "legendValues", "tooltip"],
@@ -200,7 +200,11 @@ export function draftReducer(
       })
     case "setTitle": {
       const panel = structuredClone(state.panel)
-      panel.title = action.title
+      if (action.title.trim() === "" && state.base.title === undefined) {
+        delete panel.title
+      } else {
+        panel.title = action.title
+      }
       return withDraftPanel(state, panel)
     }
     case "setDisplay":
