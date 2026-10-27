@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -132,12 +133,14 @@ func parseDashboardID(raw string) (pgtype.UUID, Result, bool) {
 }
 
 type dashboardOut struct {
-	DashboardID string          `json:"dashboard_id"`
-	Version     int             `json:"version"`
-	Title       string          `json:"title"`
-	URL         string          `json:"url"`
-	Spec        *spec.Dashboard `json:"spec"`
-	Unverified  *unverifiedOut  `json:"unverified,omitempty"`
+	DashboardID              string          `json:"dashboard_id"`
+	Version                  int             `json:"version"`
+	Title                    string          `json:"title"`
+	URL                      string          `json:"url"`
+	Spec                     *spec.Dashboard `json:"spec"`
+	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
+	ImportAttention          []Attention     `json:"import_attention,omitempty"`
+	ImportAttentionTruncated bool            `json:"import_attention_truncated,omitempty"`
 }
 
 type unverifiedOut struct {
@@ -212,6 +215,9 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		return Result{}, err
 	}
 	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
+		return Result{}, err
+	}
 	body, err := json.Marshal(out)
 	if err != nil {
 		return Result{}, err
@@ -220,6 +226,24 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 		return toolError(codeTooLarge, fmt.Sprintf("the spec is %d bytes, over the %d byte tool result limit", len(body), MaxModelSpecBytes)), nil
 	}
 	return success("Read version "+strconv.Itoa(ver.Number), out), nil
+}
+
+func (r *Registry) importAttention(ctx context.Context, id pgtype.UUID, version int) ([]Attention, bool, error) {
+	if r.deps.Imports == nil {
+		return nil, false, nil
+	}
+	record, err := r.deps.Imports.ForDashboard(ctx, id)
+	if errors.Is(err, imports.ErrNotFound) || errors.Is(err, dashboards.ErrNotFound) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if record.Version != version {
+		return nil, false, nil
+	}
+	rows, truncated := fit(ConversionAttention(record.Report), listBudget)
+	return rows, truncated, nil
 }
 
 type panelOut struct {
