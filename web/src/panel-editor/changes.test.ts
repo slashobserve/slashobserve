@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { sameJson } from "@/lib/json"
 import type { DataPanel, TextPanel } from "@/spec"
 
 import {
@@ -11,7 +12,6 @@ import {
   rebasePanel,
   type Change,
 } from "./changes"
-import { sameJson } from "./draft"
 
 const gridPos = { x: 0, y: 0, w: 6, h: 4 }
 

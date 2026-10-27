@@ -4,19 +4,34 @@ import { formatDateTime } from "@/lib/time"
 import type { Threshold } from "@/spec"
 
 import type { LineStyle } from "../colors"
+import type { FieldConfig } from "../field-config"
+import { bandBase, nearestSpan, thresholdValueAt } from "./plot-model"
+import { formatTogether, type DrawStyle } from "./series-config"
+import type { Cell } from "./stack"
 
 const maxTooltipRows = 10
 const tooltipGap = 12
 const tooltipEdge = 4
 
-export type TooltipSeries = { label: string; color: string; line: LineStyle }
+export type TooltipSeries = {
+  label: string
+  color: string
+  line: LineStyle
+  style: DrawStyle
+  scale: string
+  config: FieldConfig
+  values: Cell[]
+  stacked: boolean
+  below: number | null
+}
 
 type Row = { index: number; value: number }
 
-function swatch(color: string, line: LineStyle): HTMLElement {
+function swatch(color: string, line: LineStyle, style: DrawStyle): HTMLElement {
   const element = document.createElement("span")
   element.className = "series-swatch"
   element.dataset.line = line
+  element.dataset.shape = style
   element.style.color = color
   return element
 }
@@ -30,7 +45,7 @@ function tooltipRow(entry: TooltipSeries, text: string): HTMLElement {
   const value = document.createElement("span")
   value.className = "ts-tooltip-value"
   value.textContent = text
-  line.append(swatch(entry.color, entry.line), label, value)
+  line.append(swatch(entry.color, entry.line, entry.style), label, value)
   return line
 }
 
@@ -41,10 +56,30 @@ function moreLine(count: number): HTMLElement {
   return more
 }
 
+function nearestRow(
+  u: uPlot,
+  rows: Row[],
+  entries: TooltipSeries[],
+  first: number,
+  idx: number,
+  top: number
+): Row {
+  const spans = rows.map((row): [number, number] => {
+    const entry = entries[row.index]
+    const drawn = u.data[first + row.index][idx] as number
+    const lower =
+      entry.below === null ? null : { drawn: u.data[first + entry.below][idx] }
+    const base = bandBase(drawn, entry.stacked, lower)
+    return [u.valToPos(drawn, entry.scale), u.valToPos(base, entry.scale)]
+  })
+  return rows[nearestSpan(spans, top)]
+}
+
 export function tooltipPlugin(
   host: HTMLElement,
-  series: () => TooltipSeries[],
-  format: (values: number[]) => string[]
+  mode: "single" | "all",
+  first: number,
+  series: () => TooltipSeries[]
 ): uPlot.Plugin {
   let tooltip: HTMLDivElement | null = null
   let plot: uPlot | null = null
@@ -96,16 +131,34 @@ export function tooltipPlugin(
 
         const meta = series()
         const rows: Row[] = []
-        for (let i = 1; i < u.series.length; i++) {
-          const value = u.data[i]?.[idx]
-          if (u.series[i].show && typeof value === "number") {
-            rows.push({ index: i - 1, value })
+        meta.forEach((entry, index) => {
+          const value = entry.values[idx]
+          if (u.series[first + index]?.show && typeof value === "number") {
+            rows.push({ index, value })
           }
-        }
+        })
         if (rows.length === 0) return hide()
-        rows.sort((a, b) => b.value - a.value)
-        const candidates = rows.slice(0, maxTooltipRows)
-        const texts = format(candidates.map((row) => row.value))
+        const hovered = u.over.matches(":hover")
+        const candidates =
+          mode === "single"
+            ? [
+                nearestRow(
+                  u,
+                  rows,
+                  meta,
+                  first,
+                  idx,
+                  hovered ? (u.cursor.top ?? 0) : 0
+                ),
+              ]
+            : rows.sort((a, b) => b.value - a.value).slice(0, maxTooltipRows)
+        const shown = mode === "single" ? 1 : rows.length
+        const texts = formatTogether(
+          candidates.map((row) => ({
+            value: row.value,
+            config: meta[row.index].config,
+          }))
+        )
 
         const heading = document.createElement("div")
         heading.className = "ts-tooltip-time"
@@ -118,8 +171,8 @@ export function tooltipPlugin(
               tooltipRow(meta[candidates[position].index], texts[position])
             )
           }
-          if (withMore || rows.length > count) {
-            children.push(moreLine(Math.max(1, rows.length - count)))
+          if (withMore || shown > count) {
+            children.push(moreLine(Math.max(1, shown - count)))
           }
           tooltip?.replaceChildren(...children)
         }
@@ -130,9 +183,12 @@ export function tooltipPlugin(
         tooltip.hidden = false
         if (tooltip.offsetHeight > limit && candidates.length > 1) {
           render(candidates.length, true)
-          const first = tooltip.querySelectorAll<HTMLElement>(".ts-tooltip-row")
+          const rowElements =
+            tooltip.querySelectorAll<HTMLElement>(".ts-tooltip-row")
           const step =
-            first.length > 1 ? first[1].offsetTop - first[0].offsetTop : 0
+            rowElements.length > 1
+              ? rowElements[1].offsetTop - rowElements[0].offsetTop
+              : 0
           const fit =
             step > 0
               ? candidates.length -
@@ -147,7 +203,7 @@ export function tooltipPlugin(
         if (x + width > geometry.width - tooltipEdge) {
           x = originX + left - width - tooltipGap
         }
-        const top = u.over.matches(":hover") ? (u.cursor.top ?? 0) : 0
+        const top = hovered ? (u.cursor.top ?? 0) : 0
         const y = originY + top - height / 2
         const maxX = Math.max(tooltipEdge, geometry.width - width - tooltipEdge)
         const maxY = Math.max(
@@ -162,6 +218,7 @@ export function tooltipPlugin(
 
 export function thresholdsPlugin(
   thresholds: Threshold[],
+  mode: "absolute" | "percentage",
   resolveColor: (color: string) => string
 ): uPlot.Plugin {
   const colors = thresholds.map((threshold) => resolveColor(threshold.color))
@@ -181,8 +238,9 @@ export function thresholdsPlugin(
         ctx.lineWidth = Math.max(1, Math.round(ratio))
         ctx.setLineDash([4 * ratio, 4 * ratio])
         thresholds.forEach((threshold, index) => {
-          const at = threshold.value
-          if (at === undefined || at < min || at > max) return
+          if (threshold.value === undefined) return
+          const at = thresholdValueAt(threshold.value, mode, min, max)
+          if (at < min || at > max) return
           const y = Math.round(u.valToPos(at, "y", true))
           ctx.strokeStyle = colors[index]
           ctx.beginPath()

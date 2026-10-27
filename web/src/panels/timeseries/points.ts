@@ -1,5 +1,17 @@
 import type uPlot from "uplot"
 
+function nearestPresent(
+  values: ArrayLike<number | null | undefined>,
+  start: number,
+  step: 1 | -1
+): number | null | undefined {
+  for (let at = start; at >= 0 && at < values.length; at += step) {
+    const value = values[at]
+    if (value !== undefined) return value
+  }
+  return undefined
+}
+
 export function isolatedIndices(
   values: ArrayLike<number | null | undefined>,
   from: number,
@@ -8,11 +20,10 @@ export function isolatedIndices(
   const indices: number[] = []
   const last = Math.min(to, values.length - 1)
   for (let index = Math.max(from, 0); index <= last; index++) {
-    if (
-      values[index] != null &&
-      values[index - 1] == null &&
-      values[index + 1] == null
-    ) {
+    if (typeof values[index] !== "number") continue
+    const before = nearestPresent(values, index - 1, -1)
+    const after = nearestPresent(values, index + 1, 1)
+    if (typeof before !== "number" && typeof after !== "number") {
       indices.push(index)
     }
   }

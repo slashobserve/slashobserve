@@ -3,31 +3,49 @@ import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
 import type { PanelDataMeta } from "@/dashboards/queries"
+import { stableJson } from "@/lib/json"
 import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
-import {
-  axisDecimals,
-  commonDecimals,
-  formatAxisValue,
-  formatValue,
-} from "@/lib/units"
+import { axisDecimals, formatAxisValue } from "@/lib/units"
+import { cn } from "@/lib/utils"
 import type { DataPanel } from "@/spec"
 
-import {
-  assignSlots,
-  readChartColors,
-  resolveColor,
-  styleForSlot,
-  type SeriesStyle,
-} from "../colors"
-import { legendFor } from "../frames"
-import { TablePanel } from "../table/table-panel"
+import { readChartColors, resolveColor } from "../colors"
+import type { FieldConfig } from "../field-config"
+import { dataRenderers } from "../index"
+import { reducerLabels } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { PanelRenderer, PanelRendererProps } from "../types"
+import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
-import { Legend } from "./legend"
-import { thresholdsPlugin, tooltipPlugin } from "./plugins"
+import { Legend, rootFontSize, type LegendItem } from "./legend"
+import { LegendTable, useLegendTextMeasure } from "./legend-table"
+import { legendTableWidth, rightLegendWidth } from "./legend-width"
+import {
+  chartSeries,
+  configuredKeys,
+  ghostsDrawn,
+  legendCells,
+  plotStateFor,
+  thresholdsFor,
+  type ChartSeries,
+  type PlotState,
+  type ThresholdLines,
+} from "./plot-model"
+import { thresholdsPlugin, tooltipPlugin, type TooltipSeries } from "./plugins"
 import { isolatedPoints } from "./points"
+import {
+  axesInUse,
+  axisRange,
+  fillPercent,
+  fillStyle,
+  firstStackMode,
+  scaleOf,
+  timeseriesDisplay,
+  type AxesInUse,
+  type AxisKey,
+  type AxisSettings,
+} from "./series-config"
 import { emptySeriesState, useSeriesStore, visibleSeries } from "./series-state"
 import "./timeseries.css"
 
@@ -35,48 +53,33 @@ const legendShare = 0.4
 const minSelectWidth = 5
 const axisFontSize = 12
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
+const barSize: [number, number] = [0.6, 64]
+const pointSize = 4
+const ghostDash = [2, 3]
 
 type Latest = {
-  aligned: AlignedFrames
-  styles: SeriesStyle[]
-  hidden: ReadonlySet<string>
+  model: Model
+  state: PlotState
+  entries: TooltipSeries[]
   meta: PanelDataMeta
   width: number
   chartHeight: number
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
 }
 
+type Model = {
+  series: ChartSeries[]
+  axes: AxesInUse
+  panelAxis: AxisSettings
+  ghostCount: number
+  thresholds: ThresholdLines | null
+  tooltip: "single" | "all" | "hidden"
+}
+
 type PlotConfig = {
-  panel: Pick<DataPanel, "unit" | "decimals" | "min" | "max" | "thresholds">
   syncKey: string
   host: HTMLElement
   latest: { current: Latest }
-}
-
-function plotData(aligned: AlignedFrames): uPlot.AlignedData {
-  return [aligned.xs, ...aligned.series.map((series) => series.values)]
-}
-
-function autoRange(min: number | null, max: number | null): [number, number] {
-  if (min == null || max == null || !Number.isFinite(min + max)) return [0, 1]
-  if (min >= 0) {
-    if (max <= 0) return [0, 1]
-    return [0, max + max * 0.05]
-  }
-  const pad = max === min ? Math.abs(min) * 0.05 : (max - min) * 0.05
-  return [min - pad, max + pad]
-}
-
-function yRange(
-  panel: PlotConfig["panel"],
-  min: number | null,
-  max: number | null
-): [number, number] {
-  const [autoMin, autoMax] = autoRange(min, max)
-  const lo = panel.min ?? autoMin
-  let hi = panel.max ?? autoMax
-  if (hi <= lo) hi = lo + 1
-  return [lo, hi]
 }
 
 const dayMs = 86_400_000
@@ -101,36 +104,107 @@ const dropEdgeTicks: uPlot.Axis.Filter = (u, splits) =>
       : seconds
   })
 
+function seriesOptions(
+  entry: ChartSeries,
+  hidden: ReadonlySet<string>
+): uPlot.Series {
+  const stroke = resolveColor(entry.color)
+  const fill = fillPercent(entry.style, entry.fill)
+  const base = {
+    label: entry.label,
+    scale: scaleOf[entry.axis],
+    show: !hidden.has(entry.key),
+    stroke,
+    dash: entry.dash,
+    spanGaps: false,
+  }
+  if (entry.style === "bars") {
+    return {
+      ...base,
+      width: 1,
+      fill: fillStyle(stroke, fill),
+      paths: uPlot.paths.bars!({ size: barSize }),
+      points: { show: false },
+    }
+  }
+  if (entry.style === "points") {
+    return {
+      ...base,
+      width: 2,
+      paths: () => null,
+      points: { show: true, size: pointSize, width: 0, fill: stroke, stroke },
+    }
+  }
+  return {
+    ...base,
+    width: 2,
+    ...(fill > 0 ? { fill: fillStyle(stroke, fill) } : {}),
+    points: {
+      show: false,
+      filter: isolatedPoints,
+      size: 8,
+      fill: stroke,
+      stroke,
+    },
+  }
+}
+
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { panel, syncKey, host, latest } = config
-  const { aligned, styles, hidden, width, chartHeight } = latest.current
+  const { syncKey, host, latest } = config
+  const { model } = latest.current
+  const { series, axes, panelAxis, ghostCount } = model
+  const { state, width, chartHeight } = latest.current
+  const first = 1 + ghostCount
   const colors = readChartColors()
   const font = `${axisFontSize}px ${colors.font}`
-  const lineColors = styles.map((style) => resolveColor(style.color))
+  const ghostColor = resolveColor("var(--ghost)")
+  const leftSettings = axes.left ?? panelAxis
 
-  const plugins: uPlot.Plugin[] = [
-    tooltipPlugin(
-      host,
-      () =>
-        aligned.series.map((series, index) => ({
-          label: series.label,
-          color: styles[index].color,
-          line: styles[index].line,
-        })),
-      (values) => {
-        const decimals = commonDecimals(values, panel.unit, panel.decimals)
-        return values.map((value) => formatValue(value, panel.unit, decimals))
-      }
-    ),
-  ]
-  if (panel.thresholds) {
+  const plugins: uPlot.Plugin[] = []
+  if (model.tooltip !== "hidden") {
     plugins.push(
-      thresholdsPlugin(panel.thresholds, (color) =>
+      tooltipPlugin(host, model.tooltip, first, () => latest.current.entries)
+    )
+  }
+  if (model.thresholds) {
+    plugins.push(
+      thresholdsPlugin(model.thresholds.list, model.thresholds.mode, (color) =>
         resolveColor(thresholdColor(color))
       )
     )
   }
 
+  const valueAxis = (
+    key: AxisKey,
+    side: 1 | 3,
+    settings: AxisSettings,
+    grid: boolean,
+    show: boolean
+  ): uPlot.Axis => ({
+    scale: scaleOf[key],
+    side,
+    show,
+    stroke: colors.muted,
+    font,
+    grid: { show: grid, stroke: colors.grid, width: 1 },
+    ticks: { show: false },
+    values: (_u, splits) => {
+      const decimals = axisDecimals(splits, settings.unit, settings.decimals)
+      return splits.map((value) =>
+        formatAxisValue(value, settings.unit, decimals)
+      )
+    },
+    size: (u, values) => {
+      if (!values) return 48
+      u.ctx.font = `${axisFontSize * uPlot.pxRatio}px ${colors.font}`
+      const widest = Math.max(
+        ...values.map((text) => u.ctx.measureText(text).width)
+      )
+      return Math.ceil(widest / uPlot.pxRatio) + 14
+    },
+  })
+
+  const leftShown = axes.left !== undefined || axes.right === undefined
   const options: uPlot.Options = {
     width,
     height: chartHeight,
@@ -151,7 +225,23 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
             : [dataMin, dataMax]
         },
       },
-      y: { range: (_u, min, max) => yRange(panel, min, max) },
+      y: { range: (_u, min, max) => axisRange(leftSettings, min, max) },
+      ...(axes.right
+        ? {
+            y2: {
+              range: (_u: uPlot, min: number | null, max: number | null) =>
+                axisRange(axes.right!, min, max),
+            },
+          }
+        : {}),
+      ...(axes.hidden
+        ? {
+            y3: {
+              range: (_u: uPlot, min: number | null, max: number | null) =>
+                axisRange(axes.hidden!, min, max),
+            },
+          }
+        : {}),
     },
     axes: [
       {
@@ -164,45 +254,25 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         values: (u, splits) =>
           timeLabels(splits, (u.scales.x.max ?? 0) - (u.scales.x.min ?? 0)),
       },
-      {
-        stroke: colors.muted,
-        font,
-        grid: { stroke: colors.grid, width: 1 },
-        ticks: { show: false },
-        values: (_u, splits) => {
-          const decimals = axisDecimals(splits, panel.unit, panel.decimals)
-          return splits.map((value) =>
-            formatAxisValue(value, panel.unit, decimals)
-          )
-        },
-        size: (u, values) => {
-          if (!values) return 48
-          u.ctx.font = `${axisFontSize * uPlot.pxRatio}px ${colors.font}`
-          const widest = Math.max(
-            ...values.map((text) => u.ctx.measureText(text).width)
-          )
-          return Math.ceil(widest / uPlot.pxRatio) + 14
-        },
-      },
+      valueAxis("left", 3, leftSettings, leftShown, leftShown),
+      ...(axes.right
+        ? [valueAxis("right", 1, axes.right, !leftShown, true)]
+        : []),
     ],
     series: [
       {},
-      ...aligned.series.map((series, index) => ({
-        label: series.label,
-        show: !hidden.has(series.key),
-        stroke: lineColors[index],
-        dash: styles[index].dash,
+      ...Array.from({ length: ghostCount }, () => ({
+        label: "Saved",
+        scale: "y",
+        stroke: ghostColor,
+        dash: ghostDash,
         width: 2,
         spanGaps: false,
-        points: {
-          show: false,
-          filter: isolatedPoints,
-          size: 8,
-          fill: lineColors[index],
-          stroke: lineColors[index],
-        },
+        points: { show: false },
       })),
+      ...series.map((entry) => seriesOptions(entry, state.hidden)),
     ],
+    bands: state.bands.map((band) => ({ ...band })),
     cursor: {
       sync: {
         key: syncKey,
@@ -212,7 +282,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         },
       },
       drag: { x: true, y: false, setScale: false },
-      points: { size: 6 },
+      points: { size: (_u, index) => (index < first ? 0 : 6) },
     },
     hooks: {
       setSelect: [
@@ -230,25 +300,61 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     plugins,
   }
 
-  return new uPlot(options, plotData(aligned), container)
+  return new uPlot(options, state.data, container)
+}
+
+function modelFor(
+  panel: DataPanel,
+  series: ChartSeries[],
+  ghostCount: number,
+  tooltip: Model["tooltip"]
+): Model {
+  const axes = axesInUse(
+    series,
+    series.map(({ config }) => config),
+    panel,
+    ghostCount
+  )
+  return {
+    series,
+    axes,
+    panelAxis: {
+      unit: panel.unit,
+      decimals: panel.decimals,
+      min: panel.min,
+      max: panel.max,
+      percent: false,
+    },
+    ghostCount,
+    thresholds: thresholdsFor(series, axes.left, panel),
+    tooltip,
+  }
 }
 
 function TimeseriesChart({
   panel,
+  display,
   meta,
   width,
   height,
   syncKey,
   onTimeRangeSelect,
   aligned,
-}: PanelRendererProps & { aligned: AlignedFrames }) {
+  configs,
+}: PanelRendererProps & { aligned: AlignedFrames; configs: FieldConfig[] }) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
   const plotRef = useRef<uPlot | null>(null)
-  const appliedRef = useRef<AlignedFrames | null>(null)
+  const appliedRef = useRef<PlotState | null>(null)
   const [legendHeight, setLegendHeight] = useState(0)
+
+  const options = useMemo(() => timeseriesDisplay(display), [display])
+  const reducers = options.legendValues
+  const displayKey = stableJson(display)
+  const configsKey = stableJson(configs)
+  const thresholdsKey = stableJson(panel.thresholds ?? null)
 
   const stateKey = `${syncKey}:${panel.id}`
   const stored = useSeriesStore((store) => store.panels[stateKey])
@@ -257,42 +363,89 @@ function TimeseriesChart({
   const { slots, hidden: storedHidden } = stored ?? emptySeriesState
 
   const keys = useMemo(
-    () => aligned.series.map((series) => series.key),
-    [aligned.series]
+    () => configuredKeys(aligned.series, configs),
+    [aligned.series, configs]
   )
-  const styles = useMemo(() => {
-    const assigned = assignSlots(slots, keys)
-    return keys.map((key) => styleForSlot(assigned.get(key) ?? 0))
-  }, [slots, keys])
+  const series = useMemo(
+    () => chartSeries(aligned.series, configs, slots),
+    [aligned.series, configs, slots]
+  )
 
-  const showLegend = aligned.series.length > 1
+  const legendShown = series.length > 1 && options.legend !== "hidden"
+  const placement = options.legend === "right" ? "right" : "bottom"
   const hidden = useMemo(
-    () => visibleSeries(storedHidden, keys, showLegend),
-    [storedHidden, keys, showLegend]
+    () => visibleSeries(storedHidden, keys, legendShown),
+    [storedHidden, keys, legendShown]
   )
-  const chartHeight = Math.max(0, height - (showLegend ? legendHeight : 0))
-  const ready = width > 0 && chartHeight > 0
-  const signature = aligned.series
-    .map((series) => `${series.key}\u0001${series.label}`)
+  const cells = useMemo(() => legendCells(series, reducers), [series, reducers])
+  const rightLegend = legendShown && placement === "right"
+  const textMeasure = useLegendTextMeasure()
+  const tableWidth = useMemo(() => {
+    if (!rightLegend || reducers.length === 0) return null
+    const rem = rootFontSize()
+    return legendTableWidth(
+      series.map(({ label }) => label),
+      reducers.map((reducer) => reducerLabels[reducer]),
+      cells,
+      textMeasure(rem),
+      rem
+    )
+  }, [rightLegend, series, reducers, cells, textMeasure])
+  const legendWidth = rightLegend ? rightLegendWidth(tableWidth, width) : 0
+  const chartWidth = width - legendWidth
+  const bottomLegend = legendShown && placement === "bottom"
+  const chartHeight = Math.max(0, height - (bottomLegend ? legendHeight : 0))
+  const ready = chartWidth > 0 && chartHeight > 0
+  const signature = series
+    .map((entry) => `${entry.key}\u0001${entry.label}`)
     .join("\u0000")
-  const thresholdsKey = JSON.stringify(panel.thresholds ?? null)
+
+  const ghosts = useMemo(
+    () => ghostsDrawn(series, aligned.ghosts),
+    [series, aligned.ghosts]
+  )
+
+  const { state, entries } = useMemo(() => {
+    const { state, below, stacked } = plotStateFor(
+      aligned.xs,
+      ghosts,
+      series,
+      hidden
+    )
+    return {
+      state,
+      entries: series.map((entry, index): TooltipSeries => ({
+        label: entry.label,
+        color: entry.color,
+        line: entry.line,
+        style: entry.style,
+        scale: scaleOf[entry.axis],
+        config: entry.config,
+        values: entry.values,
+        stacked: stacked[index],
+        below: below[index],
+      })),
+    }
+  }, [aligned.xs, ghosts, series, hidden])
+
+  const model = modelFor(panel, series, ghosts.length, options.tooltip)
 
   const latest = useRef<Latest>({
-    aligned,
-    styles,
-    hidden,
+    model,
+    state,
+    entries,
     meta,
-    width,
+    width: chartWidth,
     chartHeight,
     onTimeRangeSelect,
   })
   useLayoutEffect(() => {
     latest.current = {
-      aligned,
-      styles,
-      hidden,
+      model,
+      state,
+      entries,
       meta,
-      width,
+      width: chartWidth,
       chartHeight,
       onTimeRangeSelect,
     }
@@ -304,121 +457,139 @@ function TimeseriesChart({
 
   useLayoutEffect(() => {
     const element = legendRef.current
-    if (!element) return
+    if (!element || !bottomLegend) return
     const observer = new ResizeObserver(() =>
       setLegendHeight(Math.ceil(element.getBoundingClientRect().height))
     )
     observer.observe(element)
     return () => observer.disconnect()
-  }, [showLegend])
+  }, [bottomLegend, reducers.length])
 
   useLayoutEffect(() => {
     const container = containerRef.current
     const host = hostRef.current
     if (!container || !host || !ready) return
-    const plot = createPlot(container, {
-      panel: {
-        unit: panel.unit,
-        decimals: panel.decimals,
-        min: panel.min,
-        max: panel.max,
-        thresholds: panel.thresholds,
-      },
-      syncKey,
-      host,
-      latest,
-    })
+    const plot = createPlot(container, { syncKey, host, latest })
     plotRef.current = plot
-    appliedRef.current = latest.current.aligned
+    appliedRef.current = latest.current.state
     return () => {
       plot.destroy()
       plotRef.current = null
       appliedRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- panel.thresholds is tracked through thresholdsKey so a refetched but equal Spec never re-creates the plot
   }, [
     ready,
     signature,
     theme,
     syncKey,
+    configsKey,
+    displayKey,
+    ghosts.length,
     panel.unit,
     panel.decimals,
     panel.min,
     panel.max,
+    panel.thresholdMode,
     thresholdsKey,
   ])
 
   useLayoutEffect(() => {
     const plot = plotRef.current
-    if (!plot || appliedRef.current === aligned) return
-    plot.setData(plotData(aligned))
-    appliedRef.current = aligned
-  }, [aligned])
+    if (!plot || appliedRef.current === state) return
+    const first = 1 + ghosts.length
+    plot.batch(() => {
+      series.forEach((entry, index) => {
+        const show = !state.hidden.has(entry.key)
+        if (plot.series[first + index]?.show !== show) {
+          plot.setSeries(first + index, { show })
+        }
+      })
+      plot.delBand(null)
+      state.bands.forEach((band) => plot.addBand({ ...band }))
+      plot.setData(state.data)
+    })
+    appliedRef.current = state
+  }, [state, series, ghosts.length])
 
   useLayoutEffect(() => {
     const plot = plotRef.current
     if (!plot || !ready) return
-    if (plot.width !== width || plot.height !== chartHeight) {
-      plot.setSize({ width, height: chartHeight })
+    if (plot.width !== chartWidth || plot.height !== chartHeight) {
+      plot.setSize({ width: chartWidth, height: chartHeight })
     }
-  }, [ready, width, chartHeight])
-
-  useLayoutEffect(() => {
-    const plot = plotRef.current
-    if (!plot) return
-    aligned.series.forEach((series, index) => {
-      const show = !hidden.has(series.key)
-      if (plot.series[index + 1]?.show !== show) {
-        plot.setSeries(index + 1, { show })
-      }
-    })
-  }, [hidden, aligned])
+  }, [ready, chartWidth, chartHeight])
 
   const toggle = useCallback(
     (key: string) => toggleKey(stateKey, key),
     [toggleKey, stateKey]
   )
 
+  const items: LegendItem[] = series.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    color: entry.color,
+    line: entry.line,
+    style: entry.style,
+  }))
+  const legendProps = {
+    ref: legendRef,
+    items,
+    hidden,
+    placement,
+    available: height * legendShare,
+    width: legendWidth,
+    onToggle: toggle,
+  } as const
+  const axisNames = (["left", "right", "hidden"] as const).filter(
+    (name) => model.axes[name]
+  )
+
   return (
     <div
       ref={hostRef}
-      className="relative flex flex-col"
+      className={cn(
+        "relative flex",
+        placement === "right" && legendShown ? "flex-row" : "flex-col"
+      )}
       style={{ width, height }}
     >
       <div
         ref={containerRef}
         role="img"
-        aria-label={`${panel.title}: ${aligned.series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`}
+        aria-label={`${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`}
+        data-axes={axisNames.join(" ")}
+        data-series={series.length}
+        data-ghosts={ghosts.length}
+        data-stack={firstStackMode(series)}
         className="ts-chart shrink-0 overflow-hidden"
-        style={{ width, height: chartHeight }}
+        style={{ width: chartWidth, height: chartHeight }}
       />
-      {showLegend ? (
-        <Legend
-          ref={legendRef}
-          items={aligned.series.map((series, index) => ({
-            key: series.key,
-            label: series.label,
-            style: styles[index],
-          }))}
-          hidden={hidden}
-          available={height * legendShare}
-          onToggle={toggle}
-        />
+      {legendShown && reducers.length > 0 ? (
+        <LegendTable {...legendProps} reducers={reducers} cells={cells} />
+      ) : null}
+      {legendShown && reducers.length === 0 ? (
+        <Legend {...legendProps} />
       ) : null}
     </div>
   )
 }
 
 export const TimeseriesPanel: PanelRenderer = (props) => {
-  const { frames, panel } = props
+  const { frames, ghostFrames, fields } = props
   const aligned = useMemo(
-    () => alignFrames(frames, (frame) => legendFor(panel, frame)),
-    [frames, panel]
+    () => alignFrames(frames, fields.displayName, ghostFrames),
+    [frames, fields, ghostFrames]
+  )
+  const configs = useMemo(
+    () =>
+      aligned.series.map(({ frame, field }) => fields.configFor(frame, field)),
+    [aligned.series, fields]
   )
   if (aligned.series.length === 0 || aligned.xs.length === 0) {
-    return <TablePanel {...props} />
+    const Table = dataRenderers.table
+    return Table ? <Table {...props} /> : <Unsupported />
   }
-  return <TimeseriesChart {...props} aligned={aligned} />
+  return <TimeseriesChart {...props} aligned={aligned} configs={configs} />
 }
 
 export default TimeseriesPanel

@@ -70,6 +70,24 @@
   );
 }
 
+.series-swatch[data-shape="bars"] {
+  width: 0.625rem;
+  height: 0.5rem;
+  margin-inline: 0.1875rem;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.series-swatch[data-shape="points"] {
+  height: 0.375rem;
+  background: radial-gradient(
+      circle,
+      currentColor 0 0.1875rem,
+      transparent 0.1875rem
+    )
+    center / 0.375rem 0.375rem no-repeat;
+}
+
 .ts-tooltip-label {
   min-width: 0;
   flex: 1;
