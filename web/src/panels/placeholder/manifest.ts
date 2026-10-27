@@ -2,6 +2,6 @@ import type { RendererManifest } from "../types"
 
 export const manifest: RendererManifest = {
   type: "placeholder",
-  supported: false,
+  supported: true,
   load: () => import("./placeholder-panel"),
 }
