@@ -4,7 +4,7 @@ import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 
 import type { PanelRenderer } from "../types"
-import { timeTicks } from "./heatmap-axis"
+import { timeTicks } from "@/lib/time-ticks"
 import { HeatmapCanvas, type Hover } from "./heatmap-canvas"
 import {
   formatCounts,

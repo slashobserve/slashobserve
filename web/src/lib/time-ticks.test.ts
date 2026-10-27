@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { timeLabel, timeTicks } from "./heatmap-axis"
+import { timeLabel, timeTicks } from "./time-ticks"
 
 const minute = 60_000
 

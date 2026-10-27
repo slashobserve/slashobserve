@@ -1,4 +1,4 @@
-import { formatDateTime } from "@/lib/time"
+import { formatDateTime } from "./time"
 
 const second = 1000
 const minute = 60 * second
