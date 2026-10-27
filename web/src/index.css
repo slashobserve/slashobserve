@@ -64,6 +64,10 @@
   --color-status-ok: var(--status-ok);
   --color-status-warning: var(--status-warning);
   --color-status-critical: var(--status-critical);
+  --color-diff-add: var(--diff-add);
+  --color-diff-add-foreground: var(--diff-add-foreground);
+  --color-diff-del: var(--diff-del);
+  --color-diff-del-foreground: var(--diff-del-foreground);
   --color-syntax-function: var(--syntax-function);
   --color-syntax-string: var(--syntax-string);
   --color-syntax-number: var(--syntax-number);
@@ -126,6 +130,10 @@
   --status-ok: #0ca30c;
   --status-warning: #d99a0b;
   --status-critical: #d03b3b;
+  --diff-add: #e6f4ea;
+  --diff-add-foreground: #116329;
+  --diff-del: #fbe9e9;
+  --diff-del-foreground: #a3201c;
   --syntax-function: #1f5fb4;
   --syntax-string: #0f7a52;
   --syntax-number: #9a5b00;
@@ -186,6 +194,10 @@
   --status-ok: #22b322;
   --status-warning: #fab219;
   --status-critical: #e05252;
+  --diff-add: #11301c;
+  --diff-add-foreground: #7ee2a0;
+  --diff-del: #3a1616;
+  --diff-del-foreground: #f5a3a0;
   --syntax-function: #7ab0f0;
   --syntax-string: #4fcf9c;
   --syntax-number: #e6b45a;
