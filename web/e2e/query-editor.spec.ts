@@ -14,7 +14,7 @@ import {
   panel,
   versionButton,
 } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { chunkFailureLogged, expect, test } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
 const rpsTitle = "Checkout requests per second"
@@ -1124,12 +1124,7 @@ test("offers Reload page when the panel editor chunk fails to load", async ({
     sheet(page).getByRole("button", { name: "Reload page" }).click(),
   ])
   await expect(sheet(page).locator(".cm-editor")).toBeVisible()
-  const expectedFailure = /net::ERR_FAILED|dynamically imported module/
-  consoleErrors.splice(
-    0,
-    consoleErrors.length,
-    ...consoleErrors.filter((text) => !expectedFailure.test(text))
-  )
+  chunkFailureLogged(consoleErrors)
 })
 
 test("shows the clash and sends nothing when applying my changes would make the panel invalid", async ({
