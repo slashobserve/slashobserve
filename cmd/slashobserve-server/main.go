@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -230,6 +231,8 @@ func run() error {
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger)
 	defer stopWorkers()
 
+	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
+
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -244,6 +247,7 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			users.NewHandler(database, authService, logger),
+			outbound,
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

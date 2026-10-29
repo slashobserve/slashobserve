@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 )
 
 type LogFormat string
@@ -29,6 +31,9 @@ const (
 	maxSessionTTL     = 720 * time.Hour
 	maxProviderName   = 64
 	allowAnyDomain    = "*"
+
+	outboundDomainsNone = "none"
+	MaxOutboundDomains  = 100
 
 	LLMProviderAnthropic = "anthropic"
 	LLMProviderOpenAI    = "openai"
@@ -67,6 +72,8 @@ const (
 
 	envAPIContractCheck = "SLASHOBSERVE_API_CONTRACT_CHECK"
 
+	envOutboundDomains = "SLASHOBSERVE_OUTBOUND_DOMAINS"
+
 	envLLMProvider       = "SLASHOBSERVE_LLM_PROVIDER"
 	envLLMModel          = "SLASHOBSERVE_LLM_MODEL"
 	envLLMAPIKey         = "SLASHOBSERVE_LLM_API_KEY"      //nolint:gosec // an environment variable name, not a credential
@@ -81,7 +88,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck,
+	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
 }
@@ -118,6 +125,9 @@ type Config struct {
 
 	APIContractCheck bool
 	LLM              LLM
+
+	OutboundDomainsLocked bool
+	OutboundDomains       domains.List
 }
 
 func Load(lookup func(string) (string, bool)) (Config, error) {
@@ -175,6 +185,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 	errs = append(errs, loadLLM(lookup, &cfg)...)
+	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
 
 	return cfg, errors.Join(errs...)
 }
@@ -256,6 +267,38 @@ func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {
 		cfg.AllowedEmailDomains = domains
 	}
 
+	return errs
+}
+
+func loadOutboundDomains(lookup func(string) (string, bool), cfg *Config) []error {
+	v := get(lookup, envOutboundDomains)
+	if v == "" {
+		return nil
+	}
+	cfg.OutboundDomainsLocked = true
+	if strings.EqualFold(v, outboundDomainsNone) {
+		return nil
+	}
+	var errs []error
+	seen := map[string]bool{}
+	for _, item := range strings.Split(v, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		pattern, err := domains.ParsePattern(item)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %q: %w", envOutboundDomains, item, err))
+			continue
+		}
+		if !seen[pattern.String()] {
+			seen[pattern.String()] = true
+			cfg.OutboundDomains = append(cfg.OutboundDomains, pattern)
+		}
+	}
+	if len(cfg.OutboundDomains) > MaxOutboundDomains {
+		errs = append(errs, fmt.Errorf("%s: at most %d entries, got %d", envOutboundDomains, MaxOutboundDomains, len(cfg.OutboundDomains)))
+	}
 	return errs
 }
 

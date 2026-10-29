@@ -43,6 +43,8 @@ Directories are created when their phase starts; this is where things go.
 - `internal/clientgone/`: the one mapping for a caller that went away mid-request (a `context.Canceled` error while the request context is itself done): status 499, no body, a debug line, never an ERROR; a handler's error-to-500 path calls it first.
 - `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
 - `internal/users/`: the People routes (`GET /api/v1/users`, paged newest first sign-in by `(created_at, id)`, and `DELETE /api/v1/users/{id}/sessions`, which also expires the caller's cookie when they sign themselves out), user principals only (`auth.RequireUser`).
+- `internal/egress/`: the only fetcher of user-supplied URLs: allowlisted hosts only, https on port 443, public addresses only (checked at dial), redirects rechecked hop by hop, no cookies or credentials, size and time limits, a 15 minute cache whose bodies are copied per caller.
+- `internal/egress/allowlist/`: the `outbound_domains` table, `GET|POST /api/v1/outbound-domains` and `DELETE /api/v1/outbound-domains/{domain}` (any signed-in person, never a key; 100 entries; deny-all when empty), and the `SLASHOBSERVE_OUTBOUND_DOMAINS` lock (`none` or a list; the table is then neither read nor written and changes answer 409 `managed_by_config`).
 - `internal/origin/`: the origin of a request (`web`, `cli`, `mcp` or `api`) and the cleaned MCP client name, carried in the context and recorded on versions and agent requests.
 - `internal/server/`: Gin HTTP server, routes, embedded web build (`webdist/`).
 - `internal/server/mcp/`: remote MCP at `/mcp` (stateless Streamable HTTP, JSON responses), bearer service-account keys only, origin-checked; every tool comes from `internal/agent/tools`.
@@ -102,6 +104,7 @@ Directories are created when their phase starts; this is where things go.
   `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is required: a comma-separated list of domains matched exactly against the verified email's domain, or `*` as an explicit allow-all that logs a startup warning.
   `SLASHOBSERVE_AUTH_PROVIDER_NAME` is optional: the identity provider's display name (trimmed, at most 64 characters, default empty), shown to signed-in clients as `oidc_provider_name`; the demo and e2e stacks set it to `Dex`.
   `SLASHOBSERVE_DATASOURCES_FILE` is optional: a YAML file listing datasources, and unset means none.
+  `SLASHOBSERVE_OUTBOUND_DOMAINS` is optional: unset leaves the outbound allowlist to Settings, `none` or a comma-separated list of domain patterns locks it (at most 100, validated by `domains.ParsePattern`).
   The file never holds a secret: passwords and tokens are referenced by `passwordEnv`, `bearerTokenEnv` or `headersFromEnv` (a map of header name to variable name) names that start with `SLASHOBSERVE_`, or by `passwordFile`, `bearerTokenFile` or `headersFromFile` paths.
   An env name the server's own config reads (such as `SLASHOBSERVE_DATABASE_URL`) is refused, and a header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
   The file needs a top-level `datasources` key and one YAML document; unknown fields are rejected, and `deploy/compose/datasources.yaml` is the exemplar.
@@ -197,6 +200,7 @@ Directories are created when their phase starts; this is where things go.
 - Spec defaults live in `spec/schema/defaults.json` (`spec.Defaults()`): per-type `display` defaults, `canvasElement` and `canvasConnection` defaults and `instantPanels` (`spec.InstantByDefault`, read by Go and the web); an absent value means that default, the importer drops values equal to it, and renderers read the same file.
 - Design: prefer deep modules (small interface, real behavior behind it); accept dependencies instead of creating them; add a seam only when two adapters exist.
 - ClickHouse in compose has a read-only user `slashobserve_ro`, created on first boot by `deploy/compose/clickhouse/initdb/10-readonly-user.sh` from `internal/datasource/clickhouse/testdata/readonly_user.sql` (`readonly=2` with constraints), the same definition the integration tests use.
+- Any feature that fetches a URL taken from user content goes through `egress.Client`, never its own `http.Client`.
 - Integration tests run against real Postgres, Prometheus and ClickHouse through testcontainers, never mocks.
 - Write no docstrings or comments unless they state a constraint the code cannot show.
 

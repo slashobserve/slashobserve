@@ -30,6 +30,10 @@ paths:
     $ref: "./paths/users.yaml#/users"
   /users/{id}/sessions:
     $ref: "./paths/users.yaml#/users-id-sessions"
+  /outbound-domains:
+    $ref: "./paths/outbound-domains.yaml#/outbound-domains"
+  /outbound-domains/{domain}:
+    $ref: "./paths/outbound-domains.yaml#/outbound-domains-domain"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
   /dashboards:
@@ -356,6 +360,36 @@ components:
           type: integer
           minimum: 0
           description: Unexpired sessions.
+    OutboundDomain:
+      type: object
+      additionalProperties: false
+      required: [domain, added_at, added_by]
+      properties:
+        domain:
+          type: string
+          description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
+        added_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS`.
+        added_by:
+          type: string
+          nullable: true
+          description: The name of the person who allowed the domain; null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS` and when that person was deleted.
+    OutboundDomainList:
+      type: object
+      additionalProperties: false
+      required: [managed_by, domains]
+      properties:
+        managed_by:
+          type: string
+          enum: [settings, config]
+          description: "`config` when `SLASHOBSERVE_OUTBOUND_DOMAINS` is set; the list is then read-only."
+        domains:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutboundDomain"
     DatasourceStatus:
       type: object
       additionalProperties: false

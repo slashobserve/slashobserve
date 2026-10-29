@@ -145,6 +145,12 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](#datasources-file). Unset means no datasources. |
 
+### Outbound access
+
+| Variable                        | Default | Notes                                                                                                                                                                    |
+| ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset   | Unset: signed-in people manage the allowed domains in Settings. `none`, or a comma-separated list of domains, locks the list. See [Outbound access](#outbound-access-1). |
+
 ### LLM
 
 All LLM settings are optional.
@@ -510,6 +516,37 @@ Failing queries mark their panels and variables unverified in the import report 
 Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 
+## Outbound access
+
+SlashObserve can show content that dashboards fetch from other sites, such as the feeds in news panels.
+The server fetches it only from domains that are on the allowlist.
+The list starts empty, so a new deployment makes no such request until someone allows a domain.
+Datasource queries, the identity provider and the model provider are not part of this list.
+
+An entry is `example.com`, which matches that host only, or `*.example.com`, which matches its subdomains but not `example.com` itself.
+Write the domain without a scheme, port or path; an IP address is refused, and a name with non-ASCII letters is stored in its ASCII form.
+At most 100 domains can be allowed.
+
+Every fetch follows the same rules, whatever the domain:
+
+- Only `https` on port 443.
+- Only public addresses.
+  The server checks the address it connects to, so a name that resolves to a private, loopback, link-local or cloud metadata address is refused.
+- A redirect is followed up to 5 times, and each hop must be an allowed domain on `https`.
+- No cookies, credentials or `Referer` are sent.
+- Each fetch has a size cap (1 MiB unless the feature asks for more, 8 MiB at most), a 10 second time limit and a content type check.
+- Results are cached for 15 minutes, and removing a domain stops its cached results from being served.
+
+Any signed-in person can allow or remove a domain in Settings or through `/api/v1/outbound-domains`; service-account keys cannot.
+Every change is logged at INFO as `allowed an outbound domain` or `removed an outbound domain` with the person's id (`actor_id`) and the domain.
+The table also keeps who added each entry and when, but a removed entry leaves only the log line.
+
+To take the decision away from the people who sign in, set `SLASHOBSERVE_OUTBOUND_DOMAINS`.
+`none` allows nothing.
+A comma-separated list such as `example.com,*.example.org` allows exactly those domains.
+The list is then read-only: Settings shows it, the API answers changes with `409 managed_by_config`, and the database table is neither read nor written.
+The setting never seeds the Settings list; to switch back, unset it and restart, and the Settings list is what it was before.
+
 ## Upgrades and backups
 
 ### Back up Postgres
@@ -589,6 +626,7 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
   In this release any signed-in user can read and write everything: every dashboard, comment and version.
   Any signed-in user can also create service accounts and keys, and revoke anyone's keys, so a key is as powerful as a person.
   Any signed-in user can also see everyone who has signed in and sign any of them out everywhere.
+  Any signed-in user can also change the outbound allowlist unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it.
   Roles arrive in a later milestone.
   Until then, allow into SlashObserve only the people you would trust with all of its dashboards and datasources.
 - **Datasource credentials stay on the server.**
@@ -602,6 +640,10 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
 - **The agent can only save dashboards.**
   Its only product is a dashboard definition that the server validates, and no code or markup written by the model is rendered.
   Through MCP, a key can also list datasources, run bounded queries and sample rows, and create and update dashboards.
+- **Outbound requests are allowlisted.**
+  The server fetches content from other sites only for domains on the allowlist, which starts empty, and only over `https` to public addresses; private, loopback and metadata addresses are refused even when a name resolves to one.
+  Redirects are checked hop by hop, and no cookies or credentials are sent.
+  See [Outbound access](#outbound-access-1).
 - **Framing is refused.**
   Responses carry `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`.
 - **Keep keys short-lived.**

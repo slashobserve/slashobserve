@@ -126,6 +126,13 @@ type OidcLoginState struct {
 	ExpiresAt    pgtype.Timestamptz
 }
 
+type OutboundDomain struct {
+	Domain        string
+	CreatedAt     pgtype.Timestamptz
+	CreatedByID   pgtype.UUID
+	CreatedByName string
+}
+
 type ServiceAccount struct {
 	ID          pgtype.UUID
 	Name        string
