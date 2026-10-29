@@ -6,6 +6,10 @@ import { roleLabels, type Role } from "@/lib/roles"
 import { latestDashboardQuery, type DashboardEnvelope } from "./queries"
 
 export type DashboardPermissions = components["schemas"]["Permissions"]
+export type DashboardAccess = Pick<
+  components["schemas"]["DashboardSummary"],
+  "folder" | "permissions"
+>
 const noPermissions: DashboardPermissions = {
   comment: false,
   edit: false,

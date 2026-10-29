@@ -68,6 +68,7 @@ import { MoreMenu } from "./more-menu"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import { PanelMenu } from "./panel-menu"
+import type { DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -124,6 +125,8 @@ type PanelContainerProps = {
   unverifiedReason: string | undefined
   highlighted: boolean
   editingPanel: boolean
+  canComment: boolean
+  canEdit: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -151,6 +154,8 @@ const PanelContainer = memo(function PanelContainer({
   unverifiedReason,
   highlighted,
   editingPanel,
+  canComment,
+  canEdit,
   composerRef,
 }: PanelContainerProps) {
   const panel = useMemo(
@@ -274,6 +279,8 @@ const PanelContainer = memo(function PanelContainer({
             tableView={tableView}
             onToggleTableView={() => setTableView((current) => !current)}
             inspectable={!layoutSession}
+            canComment={canComment}
+            canEdit={canEdit}
             composerRef={composerRef}
           />
         }
@@ -311,16 +318,19 @@ const PanelContainer = memo(function PanelContainer({
 function DashboardView({
   dashboardId,
   envelope,
+  access,
   latestVersion,
   liveStatus,
 }: {
   dashboardId: string
   envelope: DashboardEnvelope
+  access: DashboardAccess
   latestVersion: number
   liveStatus: LiveStatus
 }) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
+  const { permissions } = access
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -483,6 +493,7 @@ function DashboardView({
     <ThemeSwitch key="theme" />,
     <MoreMenu
       key="more"
+      mayEdit={permissions.edit}
       canEditLayout={canEdit && !editing}
       layoutBlockedByActivity={
         !canEdit && !editing && cardVisible && !cardLayout.stacked
@@ -507,6 +518,7 @@ function DashboardView({
       <div className="flex min-h-0 min-w-0 flex-[1_1_560px] flex-col">
         <DashboardTopRow
           title={spec.title}
+          folder={access.folder}
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           versionControl={
             <VersionMenu
@@ -580,8 +592,13 @@ function DashboardView({
                   item.panel.id === search.panel || item.panel.id === flashed
                 }
                 editingPanel={
-                  editingPanel && item.first && item.panel.id === search.panel
+                  permissions.edit &&
+                  editingPanel &&
+                  item.first &&
+                  item.panel.id === search.panel
                 }
+                canComment={permissions.comment}
+                canEdit={permissions.edit}
                 composerRef={composerRef}
               />
             )}
@@ -613,11 +630,13 @@ function DashboardView({
 function PinnedDashboardPage({
   dashboardId,
   version,
+  latestAccess,
   latestVersion,
   liveStatus,
 }: {
   dashboardId: string
   version: number
+  latestAccess: DashboardAccess | undefined
   latestVersion: number | undefined
   liveStatus: LiveStatus
 }) {
@@ -627,6 +646,7 @@ function PinnedDashboardPage({
     <DashboardView
       dashboardId={dashboardId}
       envelope={pinned.data}
+      access={latestAccess ?? pinned.data.dashboard}
       latestVersion={latestVersion ?? pinned.data.version.version}
       liveStatus={liveStatus}
     />
@@ -652,6 +672,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       <PinnedDashboardPage
         dashboardId={dashboardId}
         version={search.version}
+        latestAccess={latest.data?.dashboard}
         latestVersion={latestVersion}
         liveStatus={liveStatus}
       />
@@ -663,6 +684,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
       <DashboardView
         dashboardId={dashboardId}
         envelope={latest.data}
+        access={latest.data.dashboard}
         latestVersion={latestVersion ?? latest.data.version.version}
         liveStatus={liveStatus}
       />

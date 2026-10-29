@@ -1,7 +1,8 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouteContext } from "@tanstack/react-router"
 import { KeyRoundIcon } from "lucide-react"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { useSignOut } from "@/shell/use-sign-out"
@@ -10,6 +11,7 @@ import { DashboardTopRow } from "./dashboard-top-row"
 
 export function DashboardNotFound() {
   const { signOut, pending } = useSignOut()
+  const { principal } = useRouteContext({ from: "/_authed" })
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <DashboardTopRow
@@ -20,14 +22,20 @@ export function DashboardNotFound() {
         editing={null}
         actions={[
           <ThemeSwitch key="theme" />,
-          <Link
-            key="keys"
-            to="/keys"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            <KeyRoundIcon data-icon="inline-start" />
-            API keys
-          </Link>,
+          ...(roleAtLeast(principal.role, "admin")
+            ? [
+                <Link
+                  key="keys"
+                  to="/keys"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" })
+                  )}
+                >
+                  <KeyRoundIcon data-icon="inline-start" />
+                  API keys
+                </Link>,
+              ]
+            : []),
           <Button
             key="sign-out"
             variant="outline"
