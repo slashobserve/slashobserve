@@ -92,6 +92,17 @@ describe("histogramModel", () => {
     expect(model.series[0].counts).toEqual([1, 2])
   })
 
+  it.each([
+    ["a size so small the bucket count overflows", [0, 1e10], 1e-300],
+    ["a size so small the aligned start overflows", [1e10, 2e10], 1e-300],
+    ["a size that needs more than the maximum bucket count", [0, 1e6], 1],
+  ])("stays within the bucket cap for %s", (_name, values, bucketSize) => {
+    const model = build([series("a", values)], { bucketSize })
+    expect(model.edges.length).toBeLessThanOrEqual(1001)
+    expect(model.edges.every(Number.isFinite)).toBe(true)
+    expect(model.total).toBe(2)
+  })
+
   it("prefers bucketSize over bucketCount", () => {
     const model = build([series("a", [0, 100])], {
       bucketSize: 50,

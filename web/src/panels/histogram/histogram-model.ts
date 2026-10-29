@@ -79,6 +79,9 @@ function alignedBuckets(min: number, max: number, size: number): Buckets {
   for (;;) {
     const start = Math.floor(min / step) * step
     const count = Math.max(1, Math.ceil(clean((max - start) / step)))
+    if (!Number.isFinite(start) || !Number.isFinite(count)) {
+      return equalBuckets(min, max, maxBuckets)
+    }
     if (count <= maxBuckets) return { start, size: step, count }
     step *= Math.ceil(count / maxBuckets)
   }
