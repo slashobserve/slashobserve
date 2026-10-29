@@ -197,14 +197,8 @@ export default function PanelEditor({
           query.query.trim() !== "" && [...query.query].length <= maxQueryLength
       )
     : current.type !== "text" || [...current.content].length <= maxContentLength
-  const canSave =
-    dirty &&
-    !saving &&
-    !applying &&
-    !jsonBlocked &&
-    !readOnly &&
-    queriesOk &&
-    titleOk
+  const locked = readOnly || saving || applying
+  const canSave = dirty && !locked && !jsonBlocked && queriesOk && titleOk
 
   function submit(
     source: Dashboard,
@@ -356,7 +350,9 @@ export default function PanelEditor({
               version={draft.baseVersion}
               draft={draft.panel}
               dispatch={dispatch}
-              blockedReason={readOnly ? readOnlyAskReason : null}
+              blockedReason={
+                readOnly ? readOnlyAskReason : locked ? savingText : null
+              }
             />
             <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 narrow:grid-cols-1">
               <div className="flex min-w-0 flex-col gap-3">
@@ -369,7 +365,7 @@ export default function PanelEditor({
                       <DatasourceSelect
                         id={datasourceId}
                         value={data.datasource}
-                        disabled={readOnly}
+                        disabled={locked}
                         onChange={(uid) =>
                           dispatch({ type: "setPanelDatasource", uid })
                         }
@@ -391,7 +387,7 @@ export default function PanelEditor({
                   draft={draft.panel}
                   base={draft.base}
                   dispatch={dispatch}
-                  readOnly={readOnly}
+                  readOnly={locked}
                   issuesByQuery={issuesByQuery}
                   onActiveChange={setActiveQuery}
                   onRemoved={(ref) =>
@@ -407,9 +403,13 @@ export default function PanelEditor({
                           datasources.data,
                           activeUid
                         )}
-                        onInsert={(text) =>
-                          editorRefs.current[activeQuery]?.insertAtCursor(text)
-                        }
+                        onInsert={(text) => {
+                          if (!locked) {
+                            editorRefs.current[activeQuery]?.insertAtCursor(
+                              text
+                            )
+                          }
+                        }}
                       />
                     ) : null
                   }
@@ -418,7 +418,7 @@ export default function PanelEditor({
               <SettingsColumn
                 draft={draft.panel}
                 dispatch={dispatch}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
           </>
@@ -427,7 +427,7 @@ export default function PanelEditor({
             spec={spec}
             draft={draft.panel}
             dispatch={dispatch}
-            readOnly={readOnly}
+            readOnly={locked}
             onValidityChange={setJsonValid}
             onLeaveRequest={registerJsonGuard}
           />
