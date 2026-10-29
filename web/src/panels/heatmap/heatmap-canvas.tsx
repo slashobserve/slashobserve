@@ -1,9 +1,28 @@
-import { useLayoutEffect, useRef, type PointerEvent } from "react"
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react"
 
 import type { ResolvedTheme } from "@/lib/theme"
 
 import { resolveColor } from "../colors"
-import { cellOpacity, type HeatmapModel } from "./heatmap-model"
+import {
+  cellBox,
+  cellOpacity,
+  edge,
+  isHeatmapKey,
+  stepCell,
+  type HeatmapCell,
+  type HeatmapModel,
+} from "./heatmap-model"
+
+const focusLineWidth = 2
+const haloLineWidth = 1
+const keyboardHint =
+  "Arrow keys move between cells, Home and End jump to the first and last time bucket, Escape clears the focus."
 
 export type Hover = { row: number; col: number; x: number; y: number }
 
@@ -13,18 +32,35 @@ type Props = {
   height: number
   theme: ResolvedTheme
   label: string
+  focused: HeatmapCell | null
   onHover: (hover: Hover | null) => void
+  onFocusChange: (cell: HeatmapCell | null) => void
 }
 
-function edge(index: number, count: number, size: number): number {
-  return Math.round((index * size) / count)
+function strokeInset(
+  context: CanvasRenderingContext2D,
+  box: ReturnType<typeof cellBox>,
+  offset: number,
+  lineWidth: number,
+  color: string
+) {
+  const inset = offset + lineWidth / 2
+  context.lineWidth = lineWidth
+  context.strokeStyle = resolveColor(color)
+  context.strokeRect(
+    box.left + inset,
+    box.top + inset,
+    Math.max(0, box.width - 2 * inset),
+    Math.max(0, box.height - 2 * inset)
+  )
 }
 
 function draw(
   canvas: HTMLCanvasElement,
   model: HeatmapModel,
   width: number,
-  height: number
+  height: number,
+  focused: HeatmapCell | null
 ) {
   const ratio = window.devicePixelRatio || 1
   canvas.width = Math.round(width * ratio)
@@ -50,6 +86,11 @@ function draw(
       )
     })
   })
+  if (focused === null) return
+  const box = cellBox(model, focused, width, height)
+  context.globalAlpha = 1
+  strokeInset(context, box, 0, focusLineWidth, "var(--ring)")
+  strokeInset(context, box, focusLineWidth, haloLineWidth, "var(--background)")
 }
 
 export function HeatmapCanvas({
@@ -58,13 +99,16 @@ export function HeatmapCanvas({
   height,
   theme,
   label,
+  focused,
   onHover,
+  onFocusChange,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const hintId = useId()
 
   useLayoutEffect(() => {
-    if (ref.current) draw(ref.current, model, width, height)
-  }, [model, width, height, theme])
+    if (ref.current) draw(ref.current, model, width, height, focused)
+  }, [model, width, height, theme, focused])
 
   function move(event: PointerEvent<HTMLCanvasElement>) {
     const box = event.currentTarget.getBoundingClientRect()
@@ -84,15 +128,37 @@ export function HeatmapCanvas({
     onHover({ row, col, x, y })
   }
 
+  function onKeyDown(event: KeyboardEvent<HTMLCanvasElement>) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    if (isHeatmapKey(event.key)) {
+      event.preventDefault()
+      onHover(null)
+      onFocusChange(stepCell(model, focused, event.key))
+    } else if (event.key === "Escape" && focused !== null) {
+      event.preventDefault()
+      onFocusChange(null)
+    }
+  }
+
   return (
-    <canvas
-      ref={ref}
-      role="img"
-      aria-label={label}
-      className="block cursor-crosshair"
-      style={{ width, height }}
-      onPointerMove={move}
-      onPointerLeave={() => onHover(null)}
-    />
+    <>
+      <canvas
+        ref={ref}
+        tabIndex={0}
+        role="group"
+        aria-roledescription="heatmap"
+        aria-label={label}
+        aria-describedby={hintId}
+        className="block cursor-crosshair focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        style={{ width, height }}
+        onPointerMove={move}
+        onPointerLeave={() => onHover(null)}
+        onKeyDown={onKeyDown}
+        onBlur={() => onFocusChange(null)}
+      />
+      <span id={hintId} className="sr-only">
+        {keyboardHint}
+      </span>
+    </>
   )
 }

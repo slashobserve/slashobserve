@@ -6,9 +6,16 @@ import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
   calculatedRows,
+  cellBox,
+  cellCenter,
   cellOpacity,
+  cellText,
+  formatCounts,
   heatmapModel,
+  isHeatmapKey,
   legendScale,
+  stepCell,
+  type HeatmapKey,
 } from "./heatmap-model"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
@@ -232,5 +239,126 @@ describe("colour scale", () => {
     const steps = legendScale(1, 5)
     expect(steps.map((step) => step.value)).toEqual([1, 2, 3, 4, 5])
     expect(steps[4].opacity).toBeCloseTo(1)
+  })
+})
+
+const minute = 60_000
+const start = new Date(2024, 0, 2, 10, 0, 0).getTime()
+const grid = build([
+  series([start, start + minute, start + 2 * minute], [1, 2, 3], { le: "1" }),
+  series([start, start + minute, start + 2 * minute], [4, 5, 6], { le: "2" }),
+  series([start, start + minute, start + 2 * minute], [7, 8, 9], {
+    le: "+Inf",
+  }),
+])
+
+describe("keyboard stepping", () => {
+  it("recognises only the navigation keys", () => {
+    for (const key of [
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+    ]) {
+      expect(isHeatmapKey(key)).toBe(true)
+    }
+    for (const key of ["Enter", "Escape", "Tab", "a", "PageUp"]) {
+      expect(isHeatmapKey(key)).toBe(false)
+    }
+  })
+
+  it("moves one cell per arrow key, up meaning a higher bucket", () => {
+    const cases: [HeatmapKey, { row: number; col: number }][] = [
+      ["ArrowUp", { row: 2, col: 1 }],
+      ["ArrowDown", { row: 0, col: 1 }],
+      ["ArrowLeft", { row: 1, col: 0 }],
+      ["ArrowRight", { row: 1, col: 2 }],
+      ["Home", { row: 1, col: 0 }],
+      ["End", { row: 1, col: 2 }],
+    ]
+    for (const [key, expected] of cases) {
+      expect(stepCell(grid, { row: 1, col: 1 }, key)).toEqual(expected)
+    }
+  })
+
+  it("stays on the edge instead of wrapping", () => {
+    expect(stepCell(grid, { row: 2, col: 2 }, "ArrowUp")).toEqual({
+      row: 2,
+      col: 2,
+    })
+    expect(stepCell(grid, { row: 2, col: 2 }, "ArrowRight")).toEqual({
+      row: 2,
+      col: 2,
+    })
+    expect(stepCell(grid, { row: 0, col: 0 }, "ArrowDown")).toEqual({
+      row: 0,
+      col: 0,
+    })
+    expect(stepCell(grid, { row: 0, col: 0 }, "ArrowLeft")).toEqual({
+      row: 0,
+      col: 0,
+    })
+  })
+
+  it("starts at the top row, first bucket, or the last bucket for End", () => {
+    expect(stepCell(grid, null, "ArrowDown")).toEqual({ row: 2, col: 0 })
+    expect(stepCell(grid, null, "Home")).toEqual({ row: 2, col: 0 })
+    expect(stepCell(grid, null, "End")).toEqual({ row: 2, col: 2 })
+  })
+
+  it("focuses nothing when the heatmap has no cells", () => {
+    const empty = build([series([1], [null])], {}, { calculate: true })
+    expect(stepCell(empty, null, "Home")).toBeNull()
+  })
+})
+
+describe("cell geometry", () => {
+  it("places row 0 at the bottom and column 0 at the left", () => {
+    expect(cellBox(grid, { row: 0, col: 0 }, 90, 60)).toEqual({
+      left: 0,
+      top: 40,
+      width: 30,
+      height: 20,
+    })
+    expect(cellCenter(grid, { row: 2, col: 2 }, 90, 60)).toEqual({
+      x: 75,
+      y: 10,
+    })
+  })
+})
+
+describe("cell description", () => {
+  it("reads the time range, bucket range and count", () => {
+    const format = formatCounts([grid.min, grid.max])
+    expect(cellText(grid, { row: 1, col: 1 }, format)).toBe(
+      "2024-01-02 10:01:00 to 2024-01-02 10:02:00, bucket 1 - 2, count 5"
+    )
+  })
+
+  it("ends the last time bucket one step after its start", () => {
+    const format = formatCounts([grid.min, grid.max])
+    expect(cellText(grid, { row: 0, col: 2 }, format)).toBe(
+      "2024-01-02 10:02:00 to 2024-01-02 10:03:00, bucket 0 - 1, count 3"
+    )
+  })
+
+  it("names the series and value in ordinal mode, with a dash for gaps", () => {
+    const ordinal = build([
+      { ...series([start, start + minute], [1, null]), ref: "A" },
+    ])
+    const format = formatCounts([ordinal.min, ordinal.max])
+    expect(cellText(ordinal, { row: 0, col: 1 }, format)).toMatch(
+      /^2024-01-02 10:01:00 to 2024-01-02 10:02:00, series .+, value -$/
+    )
+  })
+
+  it("gives a single time bucket only its start", () => {
+    const single = build([series([start], [2], { le: "1" })])
+    const format = formatCounts([single.min, single.max])
+    expect(cellText(single, { row: 0, col: 0 }, format)).toBe(
+      "2024-01-02 10:00:00, bucket 0 - 1, count 2"
+    )
   })
 })
