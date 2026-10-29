@@ -20,6 +20,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { focusMovedOutOfMenu } from "@/lib/focus"
 import { modChordLabel } from "@/lib/shortcuts"
 import type { CursorSync } from "@/panels/shared-cursor"
 import { useSignOut } from "@/shell/use-sign-out"
@@ -71,12 +72,10 @@ export function MoreMenu({
         finalFocus={() => {
           const started = startedLayout.current
           startedLayout.current = false
-          const active = document.activeElement
-          const idle =
-            active === null ||
-            active === document.body ||
-            active.closest('[role="menu"]') !== null
-          return (started && idle && findFirstMoveHandle()) || true
+          if (focusMovedOutOfMenu(document.activeElement, document.body)) {
+            return false
+          }
+          return (started && findFirstMoveHandle()) || true
         }}
       >
         {canEditLayout || layoutBlockedByActivity ? (

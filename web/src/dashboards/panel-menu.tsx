@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
@@ -108,7 +109,8 @@ export function PanelMenu({
           const next = focusAfterClose
           focusAfterClose = null
           if (next === "composer") return composerRef.current ?? true
-          return next !== "none"
+          if (next === "none") return false
+          return !focusMovedOutOfMenu(document.activeElement, document.body)
         }}
       >
         {items.map((item) => (
