@@ -7,38 +7,19 @@ import { ApiError } from "@/api/errors"
 import { DashboardNotFound } from "@/dashboards/not-found"
 import { useDashboardEvents } from "@/dashboards/live/use-dashboard-events"
 import { latestDashboardQuery } from "@/dashboards/queries"
-import { dashboardSearchFromBack, validateBack } from "@/dashboards/search"
+import { dashboardSearchFromBack } from "@/dashboards/search"
+import { validateHistorySearch } from "@/history/search"
 import { useKnownLatestVersion } from "@/history/use-version-history"
 import { VersionDiff } from "@/history/version-diff"
 import { VersionList } from "@/history/version-list"
 import { ThemeSwitch } from "@/shell/theme-switch"
-
-type HistorySearch = { from?: number; to?: number; back?: string }
-
-const versionNumber = /^(0|[1-9][0-9]{0,8})$/
-
-function versionParam(value: unknown): number | undefined {
-  const item = Array.isArray(value) ? value[0] : value
-  if (typeof item !== "string" && typeof item !== "number") return undefined
-  const text = String(item)
-  return versionNumber.test(text) ? Number(text) : undefined
-}
 
 type FocusRequest = { from: number; to: number }
 
 export const Route = createFileRoute(
   "/_authed/dashboards/$dashboardId/versions"
 )({
-  validateSearch: (raw: Record<string, unknown>): HistorySearch => {
-    const search: HistorySearch = {}
-    const from = versionParam(raw.from)
-    if (from !== undefined) search.from = from
-    const to = versionParam(raw.to)
-    if (to !== undefined) search.to = to
-    const back = validateBack(raw.back)
-    if (back !== undefined) search.back = back
-    return search
-  },
+  validateSearch: validateHistorySearch,
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(
       latestDashboardQuery(context.queryClient, params.dashboardId)
