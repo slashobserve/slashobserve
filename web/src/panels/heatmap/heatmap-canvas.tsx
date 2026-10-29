@@ -20,6 +20,7 @@ import {
 } from "./heatmap-model"
 
 const focusLineWidth = 2
+const haloLineWidth = 1
 const keyboardHint =
   "Arrow keys move between cells, Home and End jump to the first and last time bucket, Escape clears the focus."
 
@@ -34,6 +35,24 @@ type Props = {
   focused: HeatmapCell | null
   onHover: (hover: Hover | null) => void
   onFocusChange: (cell: HeatmapCell | null) => void
+}
+
+function strokeInset(
+  context: CanvasRenderingContext2D,
+  box: ReturnType<typeof cellBox>,
+  offset: number,
+  lineWidth: number,
+  color: string
+) {
+  const inset = offset + lineWidth / 2
+  context.lineWidth = lineWidth
+  context.strokeStyle = resolveColor(color)
+  context.strokeRect(
+    box.left + inset,
+    box.top + inset,
+    Math.max(0, box.width - 2 * inset),
+    Math.max(0, box.height - 2 * inset)
+  )
 }
 
 function draw(
@@ -69,16 +88,9 @@ function draw(
   })
   if (focused === null) return
   const box = cellBox(model, focused, width, height)
-  const inset = focusLineWidth / 2
   context.globalAlpha = 1
-  context.lineWidth = focusLineWidth
-  context.strokeStyle = resolveColor("var(--ring)")
-  context.strokeRect(
-    box.left + inset,
-    box.top + inset,
-    Math.max(0, box.width - focusLineWidth),
-    Math.max(0, box.height - focusLineWidth)
-  )
+  strokeInset(context, box, 0, focusLineWidth, "var(--ring)")
+  strokeInset(context, box, focusLineWidth, haloLineWidth, "var(--background)")
 }
 
 export function HeatmapCanvas({
