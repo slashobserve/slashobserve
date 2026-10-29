@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type RefObject,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useLocation } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
@@ -19,6 +26,7 @@ import {
   useAllowDomain,
   useRemoveDomain,
   type OutboundDomain,
+  type OutboundDomains,
 } from "./outbound-domains"
 import { SettingsCard, SettingsProblem, SettingsRow } from "./settings-card"
 
@@ -62,9 +70,38 @@ export function OutboundAccessCard() {
     )
   }
 
-  const locked = list.managed_by === "config"
   return (
     <SettingsCard id={outboundAccessId} title="Outbound access" hint={hint}>
+      <AllowedDomains list={list} />
+    </SettingsCard>
+  )
+}
+
+function AllowedDomains({ list }: { list: OutboundDomains }) {
+  const remove = useRemoveDomain()
+  const removeButtons = useRef(new Map<string, HTMLButtonElement>())
+  const input = useRef<HTMLInputElement>(null)
+  const locked = list.managed_by === "config"
+
+  function removeDomain(domain: string) {
+    const names = list.domains.map((entry) => entry.domain)
+    const index = names.indexOf(domain)
+    const neighbour = names[index + 1] ?? names[index - 1]
+    remove.mutate(domain, {
+      onSuccess: () => {
+        toast.success(`Removed ${domain}`)
+        const next =
+          neighbour === undefined
+            ? input.current
+            : removeButtons.current.get(neighbour)
+        next?.focus()
+      },
+      onError: (error) => toast.error(domainProblemText(error)),
+    })
+  }
+
+  return (
+    <>
       {list.domains.length === 0 ? (
         <p className="border-b px-4 py-3 text-[13px] text-muted-foreground">
           No domains are allowed, so the server makes no outbound requests for
@@ -73,7 +110,17 @@ export function OutboundAccessCard() {
       ) : (
         <ul>
           {list.domains.map((entry) => (
-            <DomainRow key={entry.domain} entry={entry} locked={locked} />
+            <DomainRow
+              key={entry.domain}
+              entry={entry}
+              locked={locked}
+              removing={remove.isPending && remove.variables === entry.domain}
+              onRemove={() => removeDomain(entry.domain)}
+              buttonRef={(button) => {
+                if (button === null) removeButtons.current.delete(entry.domain)
+                else removeButtons.current.set(entry.domain, button)
+              }}
+            />
           ))}
         </ul>
       )}
@@ -83,29 +130,25 @@ export function OutboundAccessCard() {
           and restart.
         </p>
       ) : (
-        <AllowDomainForm />
+        <AllowDomainForm input={input} />
       )}
-    </SettingsCard>
+    </>
   )
 }
 
 function DomainRow({
   entry,
   locked,
+  removing,
+  onRemove,
+  buttonRef,
 }: {
   entry: OutboundDomain
   locked: boolean
+  removing: boolean
+  onRemove: () => void
+  buttonRef: (button: HTMLButtonElement | null) => void
 }) {
-  const remove = useRemoveDomain()
-  const removing = remove.isPending
-
-  function removeDomain() {
-    remove.mutate(entry.domain, {
-      onSuccess: () => toast.success(`Removed ${entry.domain}`),
-      onError: (error) => toast.error(domainProblemText(error)),
-    })
-  }
-
   return (
     <li className="flex items-center gap-x-4 border-b px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -127,13 +170,14 @@ function DomainRow({
       </div>
       {locked ? null : (
         <Button
+          ref={buttonRef}
           variant="outline"
           size="icon-sm"
           aria-label={`Remove ${entry.domain}`}
           disabled={removing}
           focusableWhenDisabled
           aria-busy={removing}
-          onClick={removeDomain}
+          onClick={onRemove}
         >
           {removing ? (
             <LoaderCircleIcon
@@ -149,10 +193,13 @@ function DomainRow({
   )
 }
 
-function AllowDomainForm() {
+function AllowDomainForm({
+  input,
+}: {
+  input: RefObject<HTMLInputElement | null>
+}) {
   const [draft, setDraft] = useState("")
   const [problem, setProblem] = useState<string | null>(null)
-  const input = useRef<HTMLInputElement>(null)
   const draftErrorId = useId()
   const allow = useAllowDomain()
   const draftError = domainDraftError(draft)
