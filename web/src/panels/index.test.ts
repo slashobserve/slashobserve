@@ -43,6 +43,13 @@ describe("renderer registry", () => {
     }
   })
 
+  it("has a manifest for every schema panel type", () => {
+    const manifested = entries.map(({ manifest }) => manifest.type)
+    for (const type of schemaPanelTypes) {
+      expect(manifested).toContain(type)
+    }
+  })
+
   it("keeps every manifest: no two share a type", () => {
     expect(rendererManifests.size).toBe(entries.length)
   })
