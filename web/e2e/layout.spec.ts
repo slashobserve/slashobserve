@@ -12,6 +12,7 @@ import {
   expectPanelsReady,
   openDashboard,
   panel,
+  startLayoutEditing,
   versionButton,
 } from "./dashboards"
 import { expect, test } from "./fixtures"
@@ -44,15 +45,6 @@ async function openLatest(page: Page) {
 
 function liveRegion(page: Page) {
   return page.locator('div[aria-live="polite"].sr-only')
-}
-
-async function startEditing(page: Page) {
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
-  await expect(
-    page.getByRole("button", { name: /^Move or resize / }).first()
-  ).toBeFocused()
 }
 
 function editLayoutButton(page: Page) {
@@ -135,7 +127,7 @@ test("drags and resizes a panel and saves a new version", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   const handle = await box(
     page.locator('article[data-panel-id="error_rate"] button.panel-drag-handle')
@@ -179,7 +171,7 @@ test("moves and resizes with the keyboard", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("Shift+ArrowLeft")
@@ -201,7 +193,7 @@ test("moves and resizes with the keyboard", async ({ page, request }) => {
     h: 5,
   })
 
-  await startEditing(page)
+  await startLayoutEditing(page)
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Save layout" })).toBeDisabled()
 })
@@ -214,7 +206,7 @@ test("moves a panel below and back above another with the keyboard", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   const handle = moveHandle(page, errorRateTitle)
   await handle.focus()
@@ -244,7 +236,7 @@ test("announces when a key press changes nothing and clears after a mouse drag",
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   const rpsTitle = "Checkout requests per second"
   await moveHandle(page, rpsTitle).focus()
@@ -277,7 +269,7 @@ test("pushes a neighbour down when a keyboard move overlaps it", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   const handle = moveHandle(page, errorRateTitle)
   await handle.focus()
@@ -304,7 +296,7 @@ test("reapplies the layout after a conflict", async ({
   const { id, spec } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
@@ -355,7 +347,7 @@ test("asks before discarding unsaved changes", async ({ page, request }) => {
   await openDashboard(page, id)
   await expectPanelsReady(page)
   const before = await box(panel(page, errorRateTitle))
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
@@ -406,7 +398,7 @@ test("locks the version menu while editing", async ({ page, request }) => {
   await addVersion(request, id, { ...spec, title: `${spec.title} v2` }, 1)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await versionButton(page).click()
   const menu = page.getByRole("menu", { name: "Versions" })
@@ -432,7 +424,7 @@ test("does not block time range changes while editing", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
@@ -453,7 +445,7 @@ test("returns focus to Edit layout after cancelling a clean session", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await page.getByRole("button", { name: "Cancel" }).click()
   await expect(editLayoutButton(page)).toBeFocused()
@@ -468,7 +460,7 @@ test("keeps the other version's layout changes when reapplying", async ({
   const { id, spec } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("Shift+ArrowDown")
@@ -514,7 +506,7 @@ test("shows no edit controls on a pinned version and keeps the edits", async ({
   await openLatest(page)
   await expect(page).not.toHaveURL(/version=1/)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
@@ -555,7 +547,7 @@ test("offers Try again when the server cannot check the layout right now", async
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
 
@@ -608,7 +600,7 @@ test("lists each rejected layout issue once", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
 
@@ -667,7 +659,7 @@ test("does not flash the newer version notice on its own save", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
   await moveHandle(page, errorRateTitle).focus()
   await page.keyboard.press("ArrowRight")
 
@@ -685,7 +677,7 @@ test("shows a single resize grip on hover", async ({ page, request }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   const item = gridItem(page, "rps")
   await item.hover()
@@ -742,7 +734,7 @@ test("saves a layout change on a dashboard with an expanded row", async ({
   await expect(
     page.getByRole("heading", { name: "Prometheus", level: 2 })
   ).toBeVisible()
-  await startEditing(page)
+  await startLayoutEditing(page)
 
   await moveHandle(page, "Log rows").focus()
   await page.keyboard.press("ArrowRight")

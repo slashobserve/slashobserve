@@ -1,7 +1,12 @@
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { addVersion, createDashboard, loadSpec, uniqueTitle } from "./api"
-import { expectPanelsReady, openDashboard, versionButton } from "./dashboards"
+import {
+  expectPanelsReady,
+  openDashboard,
+  startLayoutEditing,
+  versionButton,
+} from "./dashboards"
 import { expect, test } from "./fixtures"
 
 async function createLive(request: APIRequestContext) {
@@ -125,11 +130,9 @@ test("offers the latest when viewing an old version", async ({
 test("does not toast the author's own save", async ({ page, request }) => {
   const { id } = await createLive(request)
   await openDashboard(page, id)
-  const more = page.getByRole("button", { name: /^More/ })
   await expect(indicator(page, "Live")).toBeVisible()
 
-  await more.click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await startLayoutEditing(page)
   await page
     .getByRole("button", { name: "Move or resize Checkout error rate" })
     .focus()

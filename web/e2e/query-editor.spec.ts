@@ -12,6 +12,7 @@ import {
   expectPanelsReady,
   openDashboard,
   panel,
+  startLayoutEditing,
   versionButton,
 } from "./dashboards"
 import {
@@ -913,12 +914,6 @@ test("focuses the heading when a read-only panel opens", async ({
 
 function moveHandle(page: Page, title: string) {
   return page.getByRole("button", { name: `Move or resize ${title}` })
-}
-
-async function startLayoutEditing(page: Page) {
-  await page.getByRole("button", { name: /^More/ }).click()
-  await page.getByRole("menuitem", { name: "Edit layout" }).click()
-  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
 }
 
 async function nudgeErrorRate(page: Page) {

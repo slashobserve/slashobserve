@@ -11,6 +11,15 @@ export function versionButton(page: Page) {
     .getByRole("button", { name: /\. Choose a version$/ })
 }
 
+export async function startLayoutEditing(page: Page) {
+  await page.getByRole("button", { name: /^More/ }).click()
+  await page.getByRole("menuitem", { name: "Edit layout" }).click()
+  await expect(page.getByRole("button", { name: "Save layout" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: /^Move or resize / }).first()
+  ).toBeFocused()
+}
+
 export async function openVersionsFromMenu(page: Page) {
   await versionButton(page).click()
   await page.getByRole("menuitem", { name: "Compare versions" }).click()
