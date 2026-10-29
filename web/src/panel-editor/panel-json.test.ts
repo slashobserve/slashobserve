@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { Dashboard, DataPanel, TextPanel } from "@/spec"
+import type { Dashboard, DashlistPanel, DataPanel, TextPanel } from "@/spec"
 
 import {
   formatPanel,
@@ -38,6 +38,12 @@ const notes: TextPanel = {
   content: "hello",
 }
 
+const links: DashlistPanel = {
+  id: "links",
+  type: "dashlist",
+  gridPos: { x: 12, y: 0, w: 6, h: 4 },
+}
+
 const spec: Dashboard = {
   specVersion: "0",
   title: "Editor",
@@ -52,6 +58,7 @@ const spec: Dashboard = {
       gridPos: { x: 0, y: 5, w: 24, h: 1 },
       panels: [child],
     },
+    links,
   ],
 }
 
@@ -150,6 +157,22 @@ describe("parsePanelJson", () => {
     expect(
       failure(JSON.stringify({ ...notes, type: "stat" }), "notes")
     ).toEqual([{ path: "/type", message, scope: "panel" }])
+  })
+
+  it("refuses to change the type of a dashboard list panel", () => {
+    const message =
+      "Use the panel type picker in the editor to change a data panel's type."
+    const attempts = [
+      { id: "links", panel: { ...links, type: "text", content: "hello" } },
+      { id: "links", panel: { ...top, id: "links" } },
+      { id: "notes", panel: { ...links, id: "notes" } },
+      { id: "top", panel: { ...links, id: "top" } },
+    ]
+    for (const { id, panel } of attempts) {
+      expect(failure(JSON.stringify(panel), id)).toEqual([
+        { path: "/type", message, scope: "panel" },
+      ])
+    }
   })
 
   it("allows moving between data panel types", () => {

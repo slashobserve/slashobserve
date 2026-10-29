@@ -1,7 +1,6 @@
 import {
   dataPanelTypes,
   findPanel,
-  isDataPanel,
   validateSpecSchema,
   type Dashboard,
   type Panel,
@@ -61,6 +60,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+type PanelKind = "data" | "text" | "dashlist"
+
+function kindOf(type: unknown): PanelKind | null {
+  if (type === "text" || type === "dashlist") return type
+  return typeof type === "string" &&
+    (dataPanelTypes as readonly string[]).includes(type)
+    ? "data"
+    : null
+}
+
 function typeIssue(
   value: Record<string, unknown>,
   current: Panel
@@ -72,11 +81,8 @@ function typeIssue(
       scope: "panel",
     }
   }
-  const isText = value.type === "text"
-  const isData =
-    typeof value.type === "string" &&
-    (dataPanelTypes as readonly string[]).includes(value.type)
-  if ((current.type === "text" && isData) || (isDataPanel(current) && isText)) {
+  const next = kindOf(value.type)
+  if (next !== null && next !== kindOf(current.type)) {
     return {
       path: "/type",
       message:
