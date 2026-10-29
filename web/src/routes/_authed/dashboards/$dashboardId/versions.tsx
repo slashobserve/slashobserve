@@ -4,6 +4,7 @@ import { Link, createFileRoute } from "@tanstack/react-router"
 import { ArrowLeftIcon } from "lucide-react"
 
 import { ApiError } from "@/api/errors"
+import { DashboardNoAccess } from "@/dashboards/no-access"
 import { DashboardNotFound } from "@/dashboards/not-found"
 import { useDashboardEvents } from "@/dashboards/live/use-dashboard-events"
 import { latestDashboardQuery } from "@/dashboards/queries"
@@ -31,6 +32,13 @@ export const Route = createFileRoute(
       (error.status === 404 || error.status === 400)
     ) {
       return <DashboardNotFound />
+    }
+    if (
+      error instanceof ApiError &&
+      error.status === 403 &&
+      error.code === "forbidden_role"
+    ) {
+      return <DashboardNoAccess />
     }
     throw error
   },

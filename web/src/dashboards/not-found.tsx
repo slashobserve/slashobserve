@@ -9,13 +9,23 @@ import { useSignOut } from "@/shell/use-sign-out"
 
 import { DashboardTopRow } from "./dashboard-top-row"
 
-export function DashboardNotFound() {
+export function DashboardNotice({
+  title,
+  heading,
+  text,
+  backTo,
+}: {
+  title: string
+  heading: string
+  text: string
+  backTo: "/" | "/dashboards"
+}) {
   const { signOut, pending } = useSignOut()
   const { principal } = useRouteContext({ from: "/_authed" })
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       <DashboardTopRow
-        title="Not found"
+        title={title}
         madeBy={null}
         versionControl={null}
         controls={[]}
@@ -49,14 +59,26 @@ export function DashboardNotFound() {
         ]}
       />
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <h2 className="text-2xl font-semibold">Dashboard not found</h2>
-        <p className="text-sm text-muted-foreground">
-          It may have been removed, or the link is wrong.
-        </p>
-        <Link to="/" className={cn(buttonVariants({ variant: "outline" }))}>
+        <h2 className="text-2xl font-semibold">{heading}</h2>
+        <p className="text-sm text-muted-foreground">{text}</p>
+        <Link
+          to={backTo}
+          className={cn(buttonVariants({ variant: "outline" }))}
+        >
           Back to dashboards
         </Link>
       </main>
     </div>
+  )
+}
+
+export function DashboardNotFound() {
+  return (
+    <DashboardNotice
+      title="Not found"
+      heading="Dashboard not found"
+      text="It may have been removed, or the link is wrong."
+      backTo="/"
+    />
   )
 }
