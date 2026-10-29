@@ -26,6 +26,7 @@ import (
 
 const (
 	loginStateTTL   = 10 * time.Minute
+	maxLoginStates  = 10000
 	maxReturnToSize = 2048
 
 	maxDisplayNameRunes = 256
@@ -60,13 +61,19 @@ func (s *Service) login(c *gin.Context) {
 	if err := s.queries.DeleteExpiredLoginStates(ctx); err != nil {
 		s.logger.WarnContext(ctx, "delete expired login states", logattrs.Failure("login_state_cleanup_failed", err)...)
 	}
-	err = s.queries.CreateLoginState(ctx, dbsqlc.CreateLoginStateParams{
-		StateHash:    stateHash,
-		Nonce:        nonce,
-		CodeVerifier: verifier,
-		ReturnTo:     returnTo,
-		ExpiresAt:    pgtype.Timestamptz{Time: time.Now().Add(loginStateTTL), Valid: true},
+	stored, err := s.queries.CreateLoginState(ctx, dbsqlc.CreateLoginStateParams{
+		StateHash:      stateHash,
+		Nonce:          nonce,
+		CodeVerifier:   verifier,
+		ReturnTo:       returnTo,
+		ExpiresAt:      pgtype.Timestamptz{Time: time.Now().Add(loginStateTTL), Valid: true},
+		MaxOutstanding: maxLoginStates,
 	})
+	if err == nil && stored == 0 {
+		s.logger.WarnContext(ctx, "too many pending logins; refusing a new one", slog.Int("limit", maxLoginStates))
+		c.Redirect(http.StatusFound, loginErrorPath("unavailable"))
+		return
+	}
 	if err != nil {
 		if clientgone.Handle(c, s.logger, "store login state", err) {
 			return

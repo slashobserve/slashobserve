@@ -23,9 +23,10 @@ DELETE FROM sessions WHERE token_hash = $1;
 -- name: DeleteExpiredSessions :exec
 DELETE FROM sessions WHERE expires_at <= now();
 
--- name: CreateLoginState :exec
+-- name: CreateLoginState :execrows
 INSERT INTO oidc_login_states (state_hash, nonce, code_verifier, return_to, expires_at)
-VALUES ($1, $2, $3, $4, $5);
+SELECT @state_hash, @nonce, @code_verifier, @return_to, @expires_at
+WHERE (SELECT count(*) FROM oidc_login_states) < @max_outstanding::bigint;
 
 -- name: ConsumeLoginState :one
 DELETE FROM oidc_login_states

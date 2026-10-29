@@ -30,28 +30,34 @@ func (q *Queries) ConsumeLoginState(ctx context.Context, stateHash []byte) (Cons
 	return i, err
 }
 
-const createLoginState = `-- name: CreateLoginState :exec
+const createLoginState = `-- name: CreateLoginState :execrows
 INSERT INTO oidc_login_states (state_hash, nonce, code_verifier, return_to, expires_at)
-VALUES ($1, $2, $3, $4, $5)
+SELECT $1, $2, $3, $4, $5
+WHERE (SELECT count(*) FROM oidc_login_states) < $6::bigint
 `
 
 type CreateLoginStateParams struct {
-	StateHash    []byte
-	Nonce        string
-	CodeVerifier string
-	ReturnTo     string
-	ExpiresAt    pgtype.Timestamptz
+	StateHash      []byte
+	Nonce          string
+	CodeVerifier   string
+	ReturnTo       string
+	ExpiresAt      pgtype.Timestamptz
+	MaxOutstanding int64
 }
 
-func (q *Queries) CreateLoginState(ctx context.Context, arg CreateLoginStateParams) error {
-	_, err := q.db.Exec(ctx, createLoginState,
+func (q *Queries) CreateLoginState(ctx context.Context, arg CreateLoginStateParams) (int64, error) {
+	result, err := q.db.Exec(ctx, createLoginState,
 		arg.StateHash,
 		arg.Nonce,
 		arg.CodeVerifier,
 		arg.ReturnTo,
 		arg.ExpiresAt,
+		arg.MaxOutstanding,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const createSession = `-- name: CreateSession :exec
