@@ -123,6 +123,18 @@ func exitAttrs(err error) []any {
 	return logattrs.Failure(exit.code, exit.cause, exit.attrs...)
 }
 
+func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
+	policy := auth.RolePolicy{AdminEmails: cfg.AdminEmails}
+	for _, entry := range cfg.OIDCGroupRoles {
+		role, ok := auth.ParseRole(entry.Role)
+		if !ok {
+			return auth.RolePolicy{}, fmt.Errorf("SLASHOBSERVE_OIDC_GROUP_ROLES: unknown role %q", entry.Role)
+		}
+		policy.GroupRoles = append(policy.GroupRoles, auth.GroupRole{Group: entry.Group, Role: role})
+	}
+	return policy, nil
+}
+
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -174,6 +186,10 @@ func run() error {
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
+	rolePolicy, err := rolePolicyOf(cfg)
+	if err != nil {
+		return described("invalid_config", err)
+	}
 	authService, err := auth.New(auth.Config{
 		PublicURL:           cfg.PublicURL,
 		IssuerURL:           cfg.OIDCIssuerURL,
@@ -184,11 +200,15 @@ func run() error {
 		AllowedEmailDomains: cfg.AllowedEmailDomains,
 		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
 		ProviderName:        cfg.AuthProviderName,
+		RolePolicy:          rolePolicy,
 	}, database.Queries(), logger)
 	if err != nil {
 		return withheld("auth_setup_failed", err)
 	}
 	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
+	if err := authService.ReconcileRoles(ctx); err != nil {
+		return withheld("role_reconcile_failed", err)
+	}
 	if cfg.AllowAnyEmailDomain {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
