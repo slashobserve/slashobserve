@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -518,7 +519,7 @@ func TestGetSchemaTruncation(t *testing.T) {
 
 func TestListDatasourcesCanceled(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleEditor}))
 	cancel()
 	res, err := r.Call(ctx, nameListDatasources, []byte(`{}`))
 	if !errors.Is(err, context.Canceled) || res.Content != nil {

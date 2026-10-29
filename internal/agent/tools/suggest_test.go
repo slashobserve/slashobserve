@@ -39,7 +39,7 @@ type suggestRig struct {
 
 func newSuggestRig(t *testing.T) *suggestRig {
 	t.Helper()
-	rig := &suggestRig{ctx: auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada"})}
+	rig := &suggestRig{ctx: auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor})}
 	frames := func(text string) ([]datasource.Frame, error) {
 		rig.mu.Lock()
 		rig.queries = append(rig.queries, text)
@@ -67,7 +67,7 @@ func newSuggestRig(t *testing.T) *suggestRig {
 		t.Fatal(err)
 	}
 	rig.base = base
-	saved, _, err := rig.registry.deps.Dashboards.Create(rig.ctx, auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada"}, []byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))), "seed")
+	saved, _, err := rig.registry.deps.Dashboards.Create(rig.ctx, auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor}, []byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))), "seed")
 	if err != nil {
 		t.Fatal(err)
 	}

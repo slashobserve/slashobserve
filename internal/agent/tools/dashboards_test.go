@@ -102,7 +102,7 @@ func TestUpdateTarget(t *testing.T) {
 
 func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	spec := `{"spec":{"title":"t"}}`
 
 	t.Run("create in a revise run", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 		}
 	})
 	t.Run("no principal", func(t *testing.T) {
-		if _, err := r.Call(context.Background(), nameCreateDashboard, []byte(spec)); err == nil {
+		if _, err := r.Call(WithRun(context.Background(), Run{Mode: ModeCreate}), nameCreateDashboard, []byte(spec)); err == nil {
 			t.Fatal("expected an internal error")
 		}
 	})

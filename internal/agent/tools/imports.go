@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
@@ -24,7 +25,7 @@ var errImportsNotConfigured = errors.New("imports are not configured")
 
 func (r *Registry) importEntries() []entry {
 	return []entry{
-		{Tool{Name: nameImportGrafana, Description: descImportGrafana, InputSchema: json.RawMessage(schemaImportGrafana)}, r.importGrafana},
+		{Tool{Name: nameImportGrafana, Description: descImportGrafana, InputSchema: json.RawMessage(schemaImportGrafana), MinRole: auth.RoleEditor}, r.importGrafana},
 	}
 }
 

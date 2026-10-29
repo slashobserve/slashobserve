@@ -66,7 +66,7 @@ func TestUnresolvedRows(t *testing.T) {
 
 func TestImportInAgentRunNeedsGrafanaJSONFromTheRequest(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	dashboard := `{"title":"Checkout","panels":[]}`
 	prompt := "Import this please: " + dashboard
 	tests := []struct {
