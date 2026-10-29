@@ -88,6 +88,15 @@ function newerAlert(page: Page) {
   return sheet(page).getByRole("alert").filter({ hasText: newerNotice })
 }
 
+async function waitForVersionToastToClear(page: Page) {
+  await sheet(page)
+    .getByRole("heading", { name: /^Edit / })
+    .hover()
+  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, {
+    timeout: 10_000,
+  })
+}
+
 function discardDialog(page: Page) {
   return page.getByRole("alertdialog", { name: "Discard your changes?" })
 }
@@ -798,6 +807,7 @@ test("applies to the newer version when Try again follows a transient error", as
 
   await addVersion(request, id, withRps(spec, { title: "Renamed in v2" }), 1)
   await expect(newerAlert(page)).toBeVisible({ timeout: newerTimeout })
+  await waitForVersionToastToClear(page)
   await sheet(page).getByRole("button", { name: "Try again" }).click()
 
   await expect(page.getByText("Saved version 3")).toBeVisible()
