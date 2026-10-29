@@ -27,7 +27,7 @@ const (
 	corpusDir     = "corpus"
 	goldenDir     = "golden"
 	minimumRatio  = 90
-	minimumFull   = 16.9
+	minimumFull   = 17.0
 	maxLinePaths  = 100
 	tooManyPanels = "too_many_panels"
 )
@@ -480,6 +480,10 @@ func checkQueryText(t *testing.T, f corpusFile, res *grafana.Result) {
 			continue
 		}
 		targets := p.targets()
+		if p.raw["type"] == "alertlist" && len(targets) == 0 && line.Status != "placeholder" {
+			checkImporterQuery(t, p.path, entry.Panel, line)
+			continue
+		}
 		kept := 0
 		for i, ql := range line.Queries {
 			if (ql.Ref == nil) == (ql.Dropped == nil) {
@@ -507,6 +511,17 @@ func checkQueryText(t *testing.T, f corpusFile, res *grafana.Result) {
 		if kept != len(entry.Panel.Queries) {
 			t.Errorf("%s: %d kept query lines, want the %d Spec queries", p.path, kept, len(entry.Panel.Queries))
 		}
+	}
+}
+
+func checkImporterQuery(t *testing.T, path string, panel *spec.Panel, line grafana.PanelLine) {
+	t.Helper()
+	if len(panel.Queries) != 1 || len(line.Queries) != 0 {
+		t.Errorf("%s: want one Spec query and no report query lines, got %d and %d", path, len(panel.Queries), len(line.Queries))
+		return
+	}
+	if text := panel.Queries[0].Query; !strings.HasPrefix(text, "ALERTS{") || !strings.HasSuffix(text, "}") {
+		t.Errorf("%s: Spec query %q is not an ALERTS selector", path, text)
 	}
 }
 

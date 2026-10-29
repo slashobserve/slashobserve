@@ -125,7 +125,7 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
   - `panel-types-b.json`
 - `demo-shop.json` is a classic Grafana 11 dashboard authored in this repository for the demo stack.
 - `panel-types-a.json` covers the panel types missing from the upstream corpus.
-- `panel-types-b.json` covers the map, canvas, alert list, dashboard list and discrete panel types, with one panel for each case the importer converts except a Prometheus alert list, whose query the importer writes itself and so has no Grafana target to compare with.
+- `panel-types-b.json` covers the map, canvas, alert list, dashboard list and discrete panel types, with one panel for each case the importer converts; the corpus checks that the Prometheus alert list's query is the one the importer writes.
 - The ClickHouse targets set `format` to the sqlds `FormatQueryOption` value: 0 for time series, 1 for table, 2 for logs, 3 for trace.
 - The `src/types/` directory of grafana/clickhouse-datasource at the commit above declares no `Format` enum.
 - Its `CHQueryBase.format` is a bare `number` whose comment points at `FormatQueryOption` in https://github.com/grafana/sqlds (`query.go`, commit dda2dc0a54b128961fc9f7885baabf555f3ddfdc), which is where the values come from.
@@ -155,7 +155,7 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | logs | 7 |
 | heatmap | 5 |
 | barchart | 4 |
-| alertlist | 2 |
+| alertlist | 3 |
 | canvas | 2 |
 | geomap | 2 |
 | grafana-worldmap-panel | 2 |
@@ -199,7 +199,7 @@ No `table-old` panel occurs in the corpus.
 | logs | 7 |
 | heatmap | 5 |
 | barchart | 4 |
-| alertlist | 2 |
+| alertlist | 3 |
 | canvas | 2 |
 | geomap | 2 |
 | grafana-worldmap-panel | 2 |

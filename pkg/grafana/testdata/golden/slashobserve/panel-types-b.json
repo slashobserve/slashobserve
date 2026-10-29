@@ -5,8 +5,8 @@
     "title": "Panel types B",
     "uid": "panel-types-b",
     "schema_version": 39,
-    "bytes": 24774,
-    "panels": 10,
+    "bytes": 25394,
+    "panels": 11,
     "rows": 0,
     "variables": 0
   },
@@ -16,7 +16,7 @@
       "name": "Prometheus",
       "type": "prometheus",
       "kind": "prometheus",
-      "panels": 7,
+      "panels": 8,
       "match": "prom",
       "matched_by": "only",
       "candidates": [
@@ -28,8 +28,8 @@
     "importer_version": "<version>",
     "verified": false,
     "counts": {
-      "total": 10,
-      "imported": 2,
+      "total": 11,
+      "imported": 3,
       "partial": 6,
       "placeholder": 2,
       "unverified": 0
@@ -263,6 +263,19 @@
             "dropped": null
           }
         ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Firing alerts",
+        "type": "alertlist",
+        "source_type": "alertlist",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
       }
     ],
     "notes": []
@@ -649,6 +662,26 @@
             "color": "warning"
           }
         ]
+      },
+      {
+        "id": "p11",
+        "type": "alertlist",
+        "title": "Firing alerts",
+        "gridPos": {
+          "x": 0,
+          "y": 46,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "ALERTS{alertstate=~\"firing|pending\",severity=\"critical\"}"
+          }
+        ],
+        "display": {
+          "limit": 10
+        }
       }
     ]
   }
