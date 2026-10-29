@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
@@ -35,6 +36,10 @@ const (
 	outboundDomainsNone = "none"
 	MaxOutboundDomains  = 100
 
+	maxAdminEmails    = 100
+	maxGroupRoles     = 100
+	maxGroupNameBytes = 256
+
 	LLMProviderAnthropic = "anthropic"
 	LLMProviderOpenAI    = "openai"
 	LLMProviderReplay    = "replay"
@@ -48,6 +53,8 @@ const (
 	minLLMRequestTimeout     = 10 * time.Second
 	maxLLMRequestTimeout     = 10 * time.Minute
 )
+
+var instanceRoles = []string{"admin", "editor", "commenter", "viewer"}
 
 var llmEfforts = []string{"low", "medium", "high", "xhigh", "max"}
 
@@ -74,6 +81,9 @@ const (
 
 	envOutboundDomains = "SLASHOBSERVE_OUTBOUND_DOMAINS"
 
+	envAdminEmails    = "SLASHOBSERVE_ADMIN_EMAILS"
+	envOIDCGroupRoles = "SLASHOBSERVE_OIDC_GROUP_ROLES"
+
 	envLLMProvider       = "SLASHOBSERVE_LLM_PROVIDER"
 	envLLMModel          = "SLASHOBSERVE_LLM_MODEL"
 	envLLMAPIKey         = "SLASHOBSERVE_LLM_API_KEY"      //nolint:gosec // an environment variable name, not a credential
@@ -89,8 +99,14 @@ var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
 	envSessionTTL, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
+	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMReplayDir,
+}
+
+type GroupRoleSetting struct {
+	Group string
+	Role  string
 }
 
 type LLM struct {
@@ -119,6 +135,8 @@ type Config struct {
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
 	AuthProviderName    string
+	AdminEmails         []string
+	OIDCGroupRoles      []GroupRoleSetting
 
 	DatasourcesFile string
 	Datasources     []Datasource
@@ -165,6 +183,8 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
 	errs = append(errs, loadProviderName(lookup, &cfg)...)
+	errs = append(errs, loadAdminEmails(lookup, &cfg)...)
+	errs = append(errs, loadGroupRoles(lookup, &cfg)...)
 
 	if path := get(lookup, envDatasourcesFile); path != "" {
 		cfg.DatasourcesFile = path
@@ -310,6 +330,59 @@ func loadProviderName(lookup func(string) (string, bool), cfg *Config) []error {
 	cfg.AuthProviderName = name
 
 	return nil
+}
+
+func loadAdminEmails(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
+	for i, item := range strings.Split(get(lookup, envAdminEmails), ",") {
+		email := strings.ToLower(strings.TrimSpace(item))
+		if email == "" {
+			continue
+		}
+		local, domain, found := strings.Cut(email, "@")
+		if !found || local == "" || domain == "" || strings.Contains(domain, "@") {
+			errs = append(errs, fmt.Errorf("%s: entry %d is not an email address", envAdminEmails, i+1))
+			continue
+		}
+		if !slices.Contains(cfg.AdminEmails, email) {
+			cfg.AdminEmails = append(cfg.AdminEmails, email)
+		}
+	}
+	if len(cfg.AdminEmails) > maxAdminEmails {
+		errs = append(errs, fmt.Errorf("%s: at most %d entries, got %d", envAdminEmails, maxAdminEmails, len(cfg.AdminEmails)))
+	}
+	return errs
+}
+
+func loadGroupRoles(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
+	entries := 0
+	for i, item := range strings.Split(get(lookup, envOIDCGroupRoles), ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		entries++
+		cut := strings.LastIndex(item, "=")
+		if cut < 0 {
+			errs = append(errs, fmt.Errorf("%s: entry %d must be group=role", envOIDCGroupRoles, i+1))
+			continue
+		}
+		group, role := strings.TrimSpace(item[:cut]), strings.ToLower(strings.TrimSpace(item[cut+1:]))
+		if len(group) < 1 || len(group) > maxGroupNameBytes || strings.ContainsFunc(group, unicode.IsControl) {
+			errs = append(errs, fmt.Errorf("%s: entry %d needs a group name of 1 to %d bytes without control characters", envOIDCGroupRoles, i+1, maxGroupNameBytes))
+			continue
+		}
+		if !slices.Contains(instanceRoles, role) {
+			errs = append(errs, fmt.Errorf("%s: entry %d has role %q, want one of %s", envOIDCGroupRoles, i+1, role, strings.Join(instanceRoles, ", ")))
+			continue
+		}
+		cfg.OIDCGroupRoles = append(cfg.OIDCGroupRoles, GroupRoleSetting{Group: group, Role: role})
+	}
+	if entries > maxGroupRoles {
+		errs = append(errs, fmt.Errorf("%s: at most %d entries, got %d", envOIDCGroupRoles, maxGroupRoles, entries))
+	}
+	return errs
 }
 
 func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
