@@ -3,6 +3,7 @@ package grafana
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -201,8 +202,8 @@ func TestOverrideByRefIDFollowsTheFirstQueryOfADuplicatedRefID(t *testing.T) {
 	}
 }
 
-func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
-	const leaves = 200000
+func convertUnknownOptions(t *testing.T, leaves int) (PanelLine, time.Duration) {
+	t.Helper()
 	var options strings.Builder
 	options.WriteString(`"options":{`)
 	for i := range leaves {
@@ -219,9 +220,7 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 
 	start := time.Now()
 	_, line := convertedPanel(t, doc)
-	if elapsed := time.Since(start); elapsed > 10*time.Second {
-		t.Fatalf("converting %d unknown options took %s", leaves, elapsed)
-	}
+	elapsed := time.Since(start)
 	if line.Status != statusPartial || len(line.Paths) != 100 {
 		t.Fatalf("status %s with %d paths, want partial with the cap of 100", line.Status, len(line.Paths))
 	}
@@ -230,6 +229,45 @@ func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
 	}
 	if len(line.Reasons) != 2 {
 		t.Fatalf("reasons = %v, want the shared reason and the overflow count only", line.Reasons)
+	}
+	return line, elapsed
+}
+
+func TestHugeNumbersOfUnknownOptionsAreCappedWithoutSlowdown(t *testing.T) {
+	const small, large, attempts = 10_000, 100_000, 3
+	fastest := func(leaves int) time.Duration {
+		best := time.Duration(math.MaxInt64)
+		for range attempts {
+			_, elapsed := convertUnknownOptions(t, leaves)
+			best = min(best, elapsed)
+		}
+		return best
+	}
+	smallTime, largeTime := fastest(small), fastest(large)
+	growth := float64(largeTime) / float64(smallTime)
+	linearGrowth := float64(large) / float64(small)
+	if growth > 3*linearGrowth {
+		t.Fatalf("%d unknown options took %s and %d took %s: %.0fx for %.0fx the options, want linear growth",
+			small, smallTime, large, largeTime, growth, linearGrowth)
+	}
+}
+
+func TestIndexNumbersInPathsAreNormalized(t *testing.T) {
+	cases := map[string]string{
+		"":                          "",
+		"options.text":              "options.text",
+		"options.tags[0]":           "options.tags[]",
+		"a[12].b[345].c":            "a[].b[].c",
+		"a[x].b[]":                  "a[x].b[]",
+		"a[[1]":                     "a[[]",
+		"a[1":                       "a[1",
+		"targets[0].meta[1][2]":     "targets[].meta[][]",
+		"fieldConfig.overrides[10]": "fieldConfig.overrides[]",
+	}
+	for path, want := range cases {
+		if got := normalizePath(path); got != want {
+			t.Errorf("normalizePath(%q) = %q, want %q", path, got, want)
+		}
 	}
 }
 
