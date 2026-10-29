@@ -9,6 +9,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -28,12 +29,12 @@ const (
 
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true}, r.listDatasources},
-		{Tool{Name: nameListMetrics, Description: descListMetrics, InputSchema: json.RawMessage(schemaListMetrics), ReadOnly: true}, r.listMetrics},
-		{Tool{Name: nameListLabels, Description: descListLabels, InputSchema: json.RawMessage(schemaListLabels), ReadOnly: true}, r.listLabels},
-		{Tool{Name: nameListLabelValues, Description: descListLabelValues, InputSchema: json.RawMessage(schemaListLabelValues), ReadOnly: true}, r.listLabelValues},
-		{Tool{Name: nameGetSchema, Description: descGetSchema, InputSchema: json.RawMessage(schemaGetSchema), ReadOnly: true}, r.getSchema},
-		{Tool{Name: nameSampleRows, Description: descSampleRows, InputSchema: json.RawMessage(schemaSampleRows), ReadOnly: true}, r.sampleRows},
+		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleEditor}, r.listDatasources},
+		{Tool{Name: nameListMetrics, Description: descListMetrics, InputSchema: json.RawMessage(schemaListMetrics), ReadOnly: true, MinRole: auth.RoleEditor}, r.listMetrics},
+		{Tool{Name: nameListLabels, Description: descListLabels, InputSchema: json.RawMessage(schemaListLabels), ReadOnly: true, MinRole: auth.RoleEditor}, r.listLabels},
+		{Tool{Name: nameListLabelValues, Description: descListLabelValues, InputSchema: json.RawMessage(schemaListLabelValues), ReadOnly: true, MinRole: auth.RoleEditor}, r.listLabelValues},
+		{Tool{Name: nameGetSchema, Description: descGetSchema, InputSchema: json.RawMessage(schemaGetSchema), ReadOnly: true, MinRole: auth.RoleEditor}, r.getSchema},
+		{Tool{Name: nameSampleRows, Description: descSampleRows, InputSchema: json.RawMessage(schemaSampleRows), ReadOnly: true, MinRole: auth.RoleEditor}, r.sampleRows},
 	}
 }
 

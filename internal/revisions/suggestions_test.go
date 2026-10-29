@@ -46,7 +46,7 @@ func newSuggestService(t *testing.T, reviser revisions.Reviser) (*revisions.Serv
 		t.Fatal(err)
 	}
 	d := dbtest.New(t)
-	return revisions.NewService(d.DB, reviser, quietLogger(), revisions.WithSpecs(fixedSpecs{dashboard: base})), d
+	return newTestService(d.DB, reviser, quietLogger(), revisions.WithSpecs(fixedSpecs{dashboard: base})), d
 }
 
 func suggestFor(t *testing.T, svc *revisions.Service, dash pgtype.UUID, who auth.Principal) dbsqlc.AgentRequest {

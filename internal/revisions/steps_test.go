@@ -69,7 +69,7 @@ func TestReleasedRunLeavesNoStepsAndTheReplacementGetsAFreshCap(t *testing.T) {
 	<-started
 	stop()
 
-	next := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
+	next := newTestService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 		record(ctx, req, "replacement", revisions.MaxSteps+5)
 		return revisions.Result{}, errors.New("stop")
 	}), quietLogger())

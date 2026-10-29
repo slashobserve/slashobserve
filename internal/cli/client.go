@@ -31,6 +31,11 @@ type client struct {
 	http      *http.Client
 }
 
+const (
+	codeForbiddenRole = "forbidden_role"
+	forbiddenRoleHint = "This key's service account role does not allow it; an admin can change the role on the API keys page."
+)
+
 type apiError struct {
 	status  int
 	message string
@@ -45,7 +50,11 @@ func (e *apiError) Error() string {
 	case e.code == "":
 		return e.message
 	}
-	return fmt.Sprintf("%s (%s)", e.message, e.code)
+	text := fmt.Sprintf("%s (%s)", e.message, e.code)
+	if e.code == codeForbiddenRole {
+		text += "\n" + forbiddenRoleHint
+	}
+	return text
 }
 
 func (a *app) newClient() (*client, error) {

@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/spec/examples"
 )
 
 func (r *Registry) guideEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true}, r.getSpecGuide},
+		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},
 	}
 }
 

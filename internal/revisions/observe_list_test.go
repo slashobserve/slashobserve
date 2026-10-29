@@ -251,7 +251,7 @@ func (f *fakePanels) HasPanel(_ context.Context, _ pgtype.UUID, version int, pan
 func newPanelService(t *testing.T, panels *fakePanels) (*revisions.Service, *dbtest.Database) {
 	t.Helper()
 	d := dbtest.New(t)
-	return revisions.NewService(d.DB, succeedWith(2), quietLogger(), revisions.WithPanels(panels)), d
+	return newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithPanels(panels)), d
 }
 
 func TestPostStoresAKnownPanelAndRefusesAnUnknownOne(t *testing.T) {

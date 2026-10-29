@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -90,7 +91,7 @@ func newTestRegistry(t *testing.T, ds *fakeDS, logger *slog.Logger) *Registry {
 
 func call(t *testing.T, r *Registry, name, input string) (Result, error) {
 	t.Helper()
-	return r.Call(context.Background(), name, []byte(input))
+	return r.Call(auth.WithPrincipal(context.Background(), auth.Principal{Role: auth.RoleAdmin}), name, []byte(input))
 }
 
 func errorCode(t *testing.T, res Result) string {

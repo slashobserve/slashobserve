@@ -25,7 +25,7 @@ func commentCalls() map[string]string {
 
 func TestCommentToolsRejectAgentRuns(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	runs := map[string]Run{
 		"create run":       {Mode: ModeCreate},
 		"revise run":       {Mode: ModeRevise, DashboardID: dashA, ParentVersion: 1},
@@ -64,7 +64,7 @@ func TestCommentToolsAreMCPOnly(t *testing.T) {
 
 func TestCommentToolsNeedComments(t *testing.T) {
 	r := New(Deps{})
-	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n"})
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	for tool, input := range commentCalls() {
 		t.Run(tool, func(t *testing.T) {
 			res, err := r.Call(ctx, tool, []byte(input))

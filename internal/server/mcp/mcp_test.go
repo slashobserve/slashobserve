@@ -46,16 +46,16 @@ func (f *fakeAuth) BearerPrincipal(_ context.Context, header string) (auth.Princ
 	f.mu.Unlock()
 	switch header {
 	case goodKey:
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci"}, true, nil
+		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-1", Name: "ci", Role: auth.RoleEditor}, true, nil
 	case otherKey:
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other"}, true, nil
+		return auth.Principal{Kind: auth.KindServiceAccount, ID: "sa-2", Name: "other", Role: auth.RoleEditor}, true, nil
 	case errorKey:
 		return auth.Principal{}, false, errors.New("database exploded with secret-detail")
 	case goneKey:
 		return auth.Principal{}, false, fmt.Errorf("get key: %w", context.Canceled)
 	}
 	if id, ok := strings.CutPrefix(header, "Bearer pool-"); ok {
-		return auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool"}, true, nil
+		return auth.Principal{Kind: auth.KindServiceAccount, ID: "pool-" + id, Name: "pool", Role: auth.RoleEditor}, true, nil
 	}
 	return auth.Principal{}, false, nil
 }

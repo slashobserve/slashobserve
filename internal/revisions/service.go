@@ -33,6 +33,8 @@ type Service struct {
 	logger  *slog.Logger
 	panels  PanelChecker
 	specs   SpecReader
+
+	principals Principals
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {

@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -30,6 +31,7 @@ const (
 	codeUnknownTool    = "unknown_tool"
 	codeInvalidRequest = "invalid_request"
 	codeTooLarge       = "too_large"
+	codeForbiddenRole  = "forbidden_role"
 
 	MaxModelSpecBytes = 128 << 10
 	maxSuggestResult  = 64 << 10
@@ -65,6 +67,7 @@ type Tool struct {
 	InputSchema json.RawMessage
 	ReadOnly    bool
 	MCPOnly     bool
+	MinRole     auth.Role
 }
 
 type Result struct {
@@ -145,6 +148,9 @@ func New(d Deps) *Registry {
 	all = append(all, r.importEntries()...)
 	all = append(all, r.guideEntries()...)
 	for _, e := range all {
+		if e.tool.MinRole == "" {
+			panic("tools: " + e.tool.Name + " has no MinRole")
+		}
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -166,6 +172,13 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 	if !ok {
 		res := toolError(codeUnknownTool, fmt.Sprintf("unknown tool %q", clip(name, maxStepNameBytes)))
 		res.Step = "Rejected an unknown tool"
+		return res, nil
+	}
+	_, inRun := RunFrom(ctx)
+	principal, _ := auth.FromContext(ctx)
+	if !allowed(principal, inRun, e.tool.MinRole) {
+		res := toolError(codeForbiddenRole, fmt.Sprintf("this key's role (%s) cannot use %s; an admin can change the service account's role", principal.Role, name))
+		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}
 	defer func() {
@@ -196,6 +209,10 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		res.Step = errorStep(name, eb.Code)
 	}
 	return res, nil
+}
+
+func allowed(p auth.Principal, inRun bool, floor auth.Role) bool {
+	return inRun || p.Role.AtLeast(floor)
 }
 
 func errorStep(tool, code string) string {

@@ -25,7 +25,7 @@ const (
 func TestFailedRunLogsOnlyCodeTypeAndIds(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
 		return revisions.Result{}, errors.New("tool result: " + leakedDetail)
 	}), logger)
 	dash := seedDashboard(t, d, 1)
@@ -46,7 +46,7 @@ func TestFailedRunLogsOnlyCodeTypeAndIds(t *testing.T) {
 func TestTimedOutRunLogsOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
 		<-ctx.Done()
 		return revisions.Result{}, ctx.Err()
 	}), logger)
@@ -65,7 +65,7 @@ func TestTimedOutRunLogsOnlyCodeAndType(t *testing.T) {
 func TestPanicAfterTheDeadlineLogsAsPanickedAndStoresTheTimeoutMessage(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, _ revisions.Request) (revisions.Result, error) {
 		<-ctx.Done()
 		panic(leakedDetail)
 	}), logger)
@@ -84,7 +84,7 @@ func TestPanicAfterTheDeadlineLogsAsPanickedAndStoresTheTimeoutMessage(t *testin
 func TestStoreFailuresAfterARunLogOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
 		d.Close()
 		return revisions.Result{}, errors.New(leakedDetail)
 	}), logger)
@@ -107,7 +107,7 @@ func TestStoreFailuresAfterARunLogOnlyCodeAndType(t *testing.T) {
 func TestListenerFailureLogsOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, succeedWith(2), logger)
+	svc := newTestService(d.DB, succeedWith(2), logger)
 	listen := func(ctx context.Context, _ string, _ func(), _ func(string)) error {
 		if ctx.Err() == nil {
 			return &pgconn.PgError{Code: "08006", Message: leakedDetail}
@@ -134,7 +134,7 @@ func TestListenerFailureLogsOnlyCodeAndType(t *testing.T) {
 func TestRecordStepFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, succeedWith(1), quietLogger())
+	svc := newTestService(d.DB, succeedWith(1), quietLogger())
 	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +156,7 @@ func TestRecordStepFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 func TestInternalHTTPFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, succeedWith(2), logger)
+	svc := newTestService(d.DB, succeedWith(2), logger)
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, leakedPrompt)
 	r := newRouter(svc)
@@ -177,7 +177,7 @@ func TestInternalHTTPFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 func TestInternalObserveFailureLogsTheAgentRequestId(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, succeedWith(2), logger)
+	svc := newTestService(d.DB, succeedWith(2), logger)
 	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestInternalObserveFailureLogsTheAgentRequestId(t *testing.T) {
 func TestUndecodableStoredStepsAndUsageLogOnlyCodeAndType(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, succeedWith(2), logger)
+	svc := newTestService(d.DB, succeedWith(2), logger)
 	row, err := svc.SubmitObserve(context.Background(), user, leakedPrompt)
 	if err != nil {
 		t.Fatal(err)
@@ -226,7 +226,7 @@ func TestUndecodableStoredStepsAndUsageLogOnlyCodeAndType(t *testing.T) {
 func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, nil, logger)
+	svc := newTestService(d.DB, nil, logger)
 	dash := seedDashboard(t, d, 1)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()

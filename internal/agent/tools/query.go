@@ -47,9 +47,9 @@ var variableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
 
 func (r *Registry) queryEntries() []entry {
 	return []entry{
-		{Tool{Name: nameLintQuery, Description: descLintQuery, InputSchema: json.RawMessage(schemaLintQuery), ReadOnly: true}, r.lintQuery},
-		{Tool{Name: nameQueryRange, Description: descQueryRange, InputSchema: json.RawMessage(schemaQueryRange), ReadOnly: true}, r.queryRange},
-		{Tool{Name: nameQueryInstant, Description: descQueryInstant, InputSchema: json.RawMessage(schemaQueryInstant), ReadOnly: true}, r.queryInstant},
+		{Tool{Name: nameLintQuery, Description: descLintQuery, InputSchema: json.RawMessage(schemaLintQuery), ReadOnly: true, MinRole: auth.RoleEditor}, r.lintQuery},
+		{Tool{Name: nameQueryRange, Description: descQueryRange, InputSchema: json.RawMessage(schemaQueryRange), ReadOnly: true, MinRole: auth.RoleEditor}, r.queryRange},
+		{Tool{Name: nameQueryInstant, Description: descQueryInstant, InputSchema: json.RawMessage(schemaQueryInstant), ReadOnly: true, MinRole: auth.RoleEditor}, r.queryInstant},
 	}
 }
 

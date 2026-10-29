@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	os.Exit(dbtest.Main(m))
 }
 
-var placeholderUser = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
+var placeholderUser = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com", Role: auth.RoleEditor}
 
 type placeholderRig struct {
 	registry *Registry

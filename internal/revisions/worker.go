@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -28,6 +29,8 @@ const (
 	checkFailedMessage = "could not check the request's saved version"
 	timedOutMessage    = "the agent run timed out"
 	crashedMessage     = "the agent run crashed"
+
+	requesterGoneMessage = "the person or key that asked for this run no longer exists"
 
 	noSuggestionMessage = "the agent did not propose a panel"
 )
@@ -48,6 +51,9 @@ type Worker struct {
 }
 
 func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, opts WorkerOptions) *Worker {
+	if service.principals == nil {
+		panic("revisions: NewWorker needs a Service built with WithPrincipals")
+	}
 	if opts.Workers <= 0 {
 		opts.Workers = defaultWorkers
 	}
@@ -151,8 +157,21 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		}
 	}
 
+	req := requestFrom(claimed)
+	requester, err := w.service.principals.Principal(ctx, auth.PrincipalKind(claimed.RequestedByKind), claimed.RequestedByID.String())
+	switch {
+	case errors.Is(err, auth.ErrPrincipalGone):
+		w.finish(ctx, claimed, outcome{message: requesterGoneMessage, code: "agent_requester_gone"})
+		return true
+	case err != nil:
+		w.logger.ErrorContext(ctx, "load agent request requester", logattrs.Failure("agent_requester_load_failed", err, logAttrs(claimed)...)...)
+		w.release(ctx, claimed, true)
+		return false
+	}
+	req.RequestedBy = requester
+
 	runCtx, cancel := context.WithTimeout(ctx, w.opts.RunTimeout)
-	result, err := w.revise(runCtx, requestFrom(claimed))
+	result, err := w.revise(runCtx, req)
 	timedOut := errors.Is(runCtx.Err(), context.DeadlineExceeded)
 	cancel()
 
