@@ -8,6 +8,7 @@ import { api } from "@/api/client"
 import { ApiError, NetworkError, unwrap } from "@/api/errors"
 import { serviceAccountKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
+import type { Role } from "@/lib/roles"
 import { sentence } from "@/observe/queries"
 
 export type ServiceAccount =
@@ -43,8 +44,24 @@ export function useCreateServiceAccount() {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: (input: { name: string; description?: string }) =>
+    mutationFn: (input: { name: string; description?: string; role: Role }) =>
       api.POST("/service-accounts", { body: input }).then(unwrap),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: serviceAccountKeys.list() }),
+  })
+}
+
+export function useSetServiceAccountRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: ({ id, role }: { id: string; role: Role }) =>
+      api
+        .PATCH("/service-accounts/{id}", {
+          params: { path: { id } },
+          body: { role },
+        })
+        .then(unwrap),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: serviceAccountKeys.list() }),
   })
