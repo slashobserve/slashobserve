@@ -16,7 +16,8 @@ import (
 
 const (
 	defaultDatabase       = "otel"
-	defaultMaxOpenConns   = 10
+	upstreamQueries       = 32
+	defaultMaxOpenConns   = upstreamQueries + sourceCheckConcurrent
 	readOnlyCacheTTL      = 60 * time.Second
 	readOnlyTimeout       = 5 * time.Second
 	driverDeadlineSlack   = 5 * time.Second

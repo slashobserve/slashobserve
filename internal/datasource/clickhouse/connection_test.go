@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net"
 	"regexp"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -78,5 +80,41 @@ func TestCallerDeadlineExpiringDuringConnectionSetupIsATimeout(t *testing.T) {
 	}
 	if elapsed >= 2*driverDialTimeout {
 		t.Fatalf("returned after %s, want under %s", elapsed, 2*driverDialTimeout)
+	}
+}
+
+func TestDefaultPoolServesTheFullUpstreamConcurrencyAtOnce(t *testing.T) {
+	t.Parallel()
+	const concurrentQueries = 32
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var accepted atomic.Int32
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			accepted.Add(1)
+			t.Cleanup(func() { _ = c.Close() })
+		}
+	}()
+	t.Cleanup(func() { _ = l.Close() })
+	ds, err := clickhouse.New(clickhouse.Options{Addr: l.Addr().String(), Username: "u", Password: datasource.NewSecret("p")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	for range concurrentQueries {
+		wg.Go(func() { _, _ = ds.QueryInstant(ctx, query("SELECT 1"), lastHour()) })
+	}
+	wg.Wait()
+	if got := accepted.Load(); got < concurrentQueries {
+		t.Fatalf("connections opened = %d, want at least %d so no query waits for a connection", got, concurrentQueries)
 	}
 }
