@@ -108,6 +108,11 @@ export const editorKeys = {
     ["suggestions", dashboardId, suggestionId] as const,
 }
 
+export const promptKeys = {
+  all: ["prompts"] as const,
+  list: () => ["prompts", "list"] as const,
+}
+
 export const userKeys = {
   all: ["users"] as const,
   list: () => ["users", "list"] as const,

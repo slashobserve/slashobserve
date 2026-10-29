@@ -1,9 +1,11 @@
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useAgentInfo } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
+import { canDriveAgent } from "@/prompts/access"
+import { SavedPrompts } from "@/prompts/saved-prompts"
 
 import { ChatComposer, useSendExample } from "./chat-composer"
 import { examplePrompts } from "./examples"
@@ -11,6 +13,7 @@ import { RecentChats } from "./recent-chats"
 
 export function ChatHome() {
   const navigate = useNavigate()
+  const { principal } = useRouteContext({ from: "/_authed" })
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const { send, pending } = useSendExample()
@@ -37,6 +40,7 @@ export function ChatHome() {
           rows={3}
           placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
           autoFocus
+          promptPicker={canDriveAgent(principal)}
           onSent={open}
         />
       </div>
@@ -60,6 +64,7 @@ export function ChatHome() {
           ))}
         </div>
       )}
+      <SavedPrompts />
       <RecentChats />
     </div>
   )

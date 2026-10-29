@@ -20,6 +20,7 @@ type Props = {
   description?: string
   onClose: () => void
   closeDisabled?: boolean
+  hidden?: boolean
   footer?: ReactNode
   initialFocus?: RefObject<HTMLElement | null>
   trigger?: RefObject<HTMLElement | null>
@@ -38,6 +39,7 @@ function PanelCard({
   description,
   onClose,
   closeDisabled = false,
+  hidden,
   footer,
   initialFocus,
   trigger,
@@ -73,6 +75,7 @@ function PanelCard({
   return (
     <aside
       ref={asideRef}
+      hidden={hidden}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
       className="flex max-h-full min-h-0 max-w-full min-w-0 flex-[0_1_440px] flex-col border-l bg-background @max-[1000px]:max-h-none @max-[1000px]:grow @max-[1000px]:border-t @max-[1000px]:border-l-0"
