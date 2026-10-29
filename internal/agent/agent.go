@@ -336,7 +336,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 	run := runScope(t, prompt, mode, current)
 	ctx = tools.WithRun(ctx, run)
 	ctx = llm.WithAgentRequestID(ctx, t.RequestID)
-	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
+	state := &runState{tools: a.tools, known: toolNames(a.tools.List()), progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
 	defer func() { out.RepairRounds += state.repairs }()
 
 	chat, err := a.provider.Start(ctx, llm.Request{System: a.system, Tools: a.toolSpecs, Prompt: prompt, Context: contextText})

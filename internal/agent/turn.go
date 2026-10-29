@@ -35,7 +35,8 @@ const (
 	codeVersionConflict = "version_conflict"
 	codeNotFound        = "not_found"
 
-	internalStep = "internal error"
+	internalStep     = "internal error"
+	unknownToolLabel = "unknown_tool"
 
 	messageTurnLimit = "turn limit reached; only a save can run"
 )
@@ -74,6 +75,7 @@ type turnOutcome struct {
 
 type runState struct {
 	tools         ToolSet
+	known         map[string]bool
 	progress      func(Step)
 	logger        *slog.Logger
 	mode          tools.Mode
@@ -90,6 +92,21 @@ type callSlot struct {
 	duration time.Duration
 	end      time.Time
 	err      error
+}
+
+func toolNames(list []tools.Tool) map[string]bool {
+	names := make(map[string]bool, len(list))
+	for _, t := range list {
+		names[t.Name] = true
+	}
+	return names
+}
+
+func (s *runState) label(name string) string {
+	if s.known[name] {
+		return name
+	}
+	return unknownToolLabel
 }
 
 func isSave(name string) bool {
@@ -132,7 +149,7 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, lastTu
 	var wg sync.WaitGroup
 	for _, i := range reads {
 		if lastTurn {
-			slots[i] = rejectCall(calls[i], repairing, messageTurnLimit)
+			slots[i] = s.rejectCall(calls[i], repairing, messageTurnLimit)
 			continue
 		}
 		sem <- struct{}{}
@@ -166,7 +183,7 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, lastTu
 		}
 	}
 	for _, i := range extraSaves {
-		slots[i] = rejectCall(calls[i], repairing, "only one save per turn")
+		slots[i] = s.rejectCall(calls[i], repairing, "only one save per turn")
 		s.report(slots[i])
 	}
 
@@ -178,7 +195,7 @@ func (s *runState) executeTurn(ctx context.Context, calls []llm.ToolCall, lastTu
 }
 
 func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) callSlot {
-	slot := callSlot{name: c.Name, phase: phaseFor(c.Name, repairing)}
+	slot := callSlot{name: s.label(c.Name), phase: phaseFor(c.Name, repairing)}
 	start := time.Now()
 	slot.result, slot.err = s.tools.Call(ctx, c.Name, c.Input)
 	slot.end = time.Now()
@@ -190,13 +207,13 @@ func (s *runState) call(ctx context.Context, c llm.ToolCall, repairing bool) cal
 	return slot
 }
 
-func rejectCall(c llm.ToolCall, repairing bool, reason string) callSlot {
+func (s *runState) rejectCall(c llm.ToolCall, repairing bool, reason string) callSlot {
 	content, _ := json.Marshal(map[string]string{"code": codeInvalidRequest, "message": reason})
 	return callSlot{
-		name:    c.Name,
+		name:    s.label(c.Name),
 		phase:   phaseFor(c.Name, repairing),
 		content: content,
-		result:  tools.Result{IsError: true, Step: "Rejected " + c.Name + " input: " + reason},
+		result:  tools.Result{IsError: true, Step: "Rejected " + s.label(c.Name) + " input: " + reason},
 	}
 }
 
