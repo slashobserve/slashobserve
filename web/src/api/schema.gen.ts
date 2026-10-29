@@ -3358,6 +3358,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
             429: {
@@ -3759,7 +3760,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is not a signed-in user; the code is `user_session_required`. */
+            /** @description The caller is not a signed-in user (`user_session_required`), or cannot change the dashboard (`forbidden_role`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3972,6 +3973,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -4078,6 +4080,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -4118,6 +4121,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The dashboard or the version does not exist. */
             404: {
                 headers: {
@@ -4181,6 +4185,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
