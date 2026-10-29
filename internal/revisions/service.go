@@ -72,20 +72,13 @@ func (s *Service) submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequ
 	var row dbsqlc.AgentRequest
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = s.enqueue(ctx, q, p)
+		row, err = s.Enqueue(ctx, q, p)
 		return err
 	})
 	return row, err
 }
 
 func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, p.Source, p.DashboardID, p.By); err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	return s.enqueue(ctx, q, p)
-}
-
-func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}

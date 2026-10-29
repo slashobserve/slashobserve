@@ -1,18 +1,26 @@
 package dashboards
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -412,4 +420,76 @@ func TestReplyShowsTheStatusOfItsThreadAtInsertTime(t *testing.T) {
 	if got.reply.Status != CommentResolved {
 		t.Fatalf("reply status = %q, want resolved", got.reply.Status)
 	}
+}
+
+func TestRequestingARevisionNeedsEditAccess(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	commenter := auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Bo", Role: auth.RoleCommenter}
+
+	_, err := r.comments.Create(t.Context(), commenter, dash, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
+	if !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("a commenter requesting a revision gave %v, want folders.ErrForbidden", err)
+	}
+	if listed, _, err := r.comments.List(t.Context(), dash, CommentAll, "", 10, ""); err != nil || len(listed) != 0 {
+		t.Fatalf("listed = %+v, err %v", listed, err)
+	}
+	if items, _, err := r.revisions.List(t.Context(), dash, 10, ""); err != nil || len(items) != 0 {
+		t.Fatalf("queued = %v, err %v", items, err)
+	}
+
+	missing := mustParse(t, "55555555-5555-4555-8555-555555555555")
+	_, err = r.comments.Create(t.Context(), testUser, missing, NewComment{Version: 1, Body: "fix it", RequestRevision: true})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("a missing dashboard gave %v, want ErrNotFound", err)
+	}
+}
+
+func TestCommentFailuresAnswerLikeTheRestOfTheDashboards(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		status  int
+		code    string
+		message string
+	}{
+		{"role does not allow a revision", folders.ErrForbidden, http.StatusForbidden, "forbidden_role", "your role does not allow this"},
+		{"no access to the dashboard", folders.ErrNoAccess, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard"},
+		{"dashboard is gone", ErrNotFound, http.StatusNotFound, "not_found", ErrNotFound.Error()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/dashboards/x/comments", nil)
+			(&Comments{dashboards: &Service{}}).fail(c, "create comment", tt.err)
+			var body struct{ Error, Code string }
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if rec.Code != tt.status || body.Code != tt.code || body.Error != tt.message {
+				t.Errorf("answered %d %+v, want %d %s %q", rec.Code, body, tt.status, tt.code, tt.message)
+			}
+		})
+	}
+}
+
+func TestConcurrentRevisionCommentsNeverExhaustThePool(t *testing.T) {
+	r := newRig(t, true)
+	dash := r.createDashboard(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	for i := range 4 * max(runtime.NumCPU(), 16) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := r.comments.Create(ctx, testUser, dash, NewComment{Version: 1, PanelID: new("rps"), Body: fmt.Sprintf("note %d", i), RequestRevision: true})
+			if err != nil && !errors.Is(err, revisions.ErrTooManyRevisions) {
+				t.Errorf("create %d: %v", i, err)
+			}
+		}()
+	}
+	wg.Wait()
 }
