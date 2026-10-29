@@ -1,8 +1,11 @@
-type Principal = {
+import type { Role } from "./roles"
+
+export type Principal = {
   kind: "user" | "service_account"
   id: string
   email?: string
   name: string
+  role: Role
 }
 
 export type Session =
@@ -50,7 +53,9 @@ export function invalidateSession(): void {
 function sameSession(a: Session | undefined, b: Session): boolean {
   if (!a || a.authenticated !== b.authenticated) return false
   if (!a.authenticated || !b.authenticated) return true
-  return a.principal.id === b.principal.id
+  return (
+    a.principal.id === b.principal.id && a.principal.role === b.principal.role
+  )
 }
 
 async function apiFetch(input: string, init?: RequestInit): Promise<Response> {

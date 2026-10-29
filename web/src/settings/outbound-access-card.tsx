@@ -7,7 +7,7 @@ import {
   type RefObject,
 } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useLocation } from "@tanstack/react-router"
+import { useLocation, useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
+import { RoleNote } from "@/components/role-note"
+import { roleAtLeast } from "@/lib/roles"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import {
@@ -81,7 +83,10 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
   const remove = useRemoveDomain()
   const removeButtons = useRef(new Map<string, HTMLButtonElement>())
   const input = useRef<HTMLInputElement>(null)
-  const locked = list.managed_by === "config"
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const managedByConfig = list.managed_by === "config"
+  const isAdmin = roleAtLeast(principal.role, "admin")
+  const locked = managedByConfig || !isAdmin
 
   function removeDomain(domain: string) {
     const names = list.domains.map((entry) => entry.domain)
@@ -124,13 +129,17 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
           ))}
         </ul>
       )}
-      {locked ? (
+      {managedByConfig ? (
         <p className="px-4 py-3 text-[13px] text-muted-foreground">
           Set by SLASHOBSERVE_OUTBOUND_DOMAINS on the server. Change it there
           and restart.
         </p>
-      ) : (
+      ) : isAdmin ? (
         <AllowDomainForm input={input} />
+      ) : (
+        <RoleNote className="px-4 py-3">
+          Only Admins can change outbound access.
+        </RoleNote>
       )}
     </>
   )

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { RoleGate } from "@/components/role-gate"
 import { PageHeader } from "@/components/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { DatasourceTable } from "@/datasources/datasource-table"
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_authed/_shell/datasources")({
 function DatasourcesPage() {
   useDocumentTitle("Datasources - SlashObserve")
   return (
-    <>
+    <RoleGate min="admin">
       <PageHeader
         title="Datasources"
         description="Defined in the datasources file on the server. Edit that file and restart to add or change one."
@@ -38,6 +39,6 @@ function DatasourcesPage() {
         Addresses, users and secrets stay on the server and never reach the
         browser.
       </p>
-    </>
+    </RoleGate>
   )
 }

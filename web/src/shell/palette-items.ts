@@ -1,4 +1,6 @@
-import { navItems, type NavPath } from "./nav"
+import type { Role } from "@/lib/roles"
+
+import { visibleNavItems, type NavPath } from "./nav"
 
 type PageEntry = {
   kind: "page"
@@ -18,12 +20,14 @@ export type PaletteGroup = {
   items: PaletteEntry[]
 }
 
-const pageEntries: PageEntry[] = navItems.map((item) => ({
-  kind: "page",
-  id: `page:${item.to}`,
-  label: item.label,
-  to: item.to,
-}))
+function pageEntries(role: Role): PageEntry[] {
+  return visibleNavItems(role).map((item) => ({
+    kind: "page",
+    id: `page:${item.to}`,
+    label: item.label,
+    to: item.to,
+  }))
+}
 
 const signOutEntry: ActionEntry = {
   kind: "action",
@@ -36,7 +40,8 @@ const dashboardLimitWithoutQuery = 8
 
 export function filterPalette(
   query: string,
-  dashboards: { id: string; title: string }[]
+  dashboards: { id: string; title: string }[],
+  role: Role
 ): PaletteGroup[] {
   const needle = query.trim().toLowerCase()
   const matches = (label: string) => label.toLowerCase().includes(needle)
@@ -49,7 +54,10 @@ export function filterPalette(
       label: dashboard.title,
     }))
   const groups: PaletteGroup[] = [
-    { value: "Pages", items: pageEntries.filter((e) => matches(e.label)) },
+    {
+      value: "Pages",
+      items: pageEntries(role).filter((e) => matches(e.label)),
+    },
     { value: "Dashboards", items: dashboardEntries },
     {
       value: "Account",

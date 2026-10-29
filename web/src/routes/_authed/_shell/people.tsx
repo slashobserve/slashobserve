@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { RoleGate } from "@/components/role-gate"
 import { PageHeader } from "@/components/page-header"
 import { useDocumentTitle } from "@/lib/document-title"
 import { PeopleTable } from "@/people/people-table"
@@ -13,13 +14,13 @@ export const Route = createFileRoute("/_authed/_shell/people")({
 function PeoplePage() {
   useDocumentTitle("People - SlashObserve")
   return (
-    <>
+    <RoleGate min="admin">
       <PageHeader
         title="People"
         description="Everyone who has signed in. Access comes from your identity provider, not from invites."
       />
       <SignInBanner />
       <PeopleTable />
-    </>
+    </RoleGate>
   )
 }

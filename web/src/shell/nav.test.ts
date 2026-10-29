@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { isNavItemActive, navItems } from "./nav"
+import { isNavItemActive, visibleNavItems } from "./nav"
 
 describe("isNavItemActive", () => {
   test("Observe covers the chat, the importer and requests", () => {
@@ -18,8 +18,31 @@ describe("isNavItemActive", () => {
   })
 
   test("no item is active on the login page", () => {
-    for (const item of navItems) {
+    for (const item of visibleNavItems("admin")) {
       expect(isNavItemActive(item.to, "/login")).toBe(false)
     }
   })
+})
+
+describe("visibleNavItems", () => {
+  const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
+    visibleNavItems(role).map((item) => item.label)
+
+  test("an Admin sees all six pages", () => {
+    expect(labels("admin")).toEqual([
+      "Observe",
+      "Dashboards",
+      "Datasources",
+      "API keys",
+      "People",
+      "Settings",
+    ])
+  })
+
+  test.each(["editor", "commenter", "viewer"] as const)(
+    "%s sees Observe, Dashboards and Settings only",
+    (role) => {
+      expect(labels(role)).toEqual(["Observe", "Dashboards", "Settings"])
+    }
+  )
 })
