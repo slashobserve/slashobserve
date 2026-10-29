@@ -34,6 +34,8 @@ paths:
     $ref: "./paths/datasources.yaml#/datasources"
   /dashboards:
     $ref: "./paths/dashboards.yaml#/dashboards"
+  /dashboards/tags:
+    $ref: "./paths/dashboards.yaml#/dashboards-tags"
   /dashboards/{id}:
     $ref: "./paths/dashboards.yaml#/dashboards-id"
   /dashboards/{id}/versions:

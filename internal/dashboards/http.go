@@ -53,6 +53,7 @@ func (s *Service) Register(api *gin.RouterGroup) {
 	g := api.Group("/dashboards")
 	g.POST("", s.createDashboard)
 	g.GET("", s.listDashboards)
+	g.GET("/tags", s.listTags)
 	g.GET("/:id", s.getDashboard)
 	g.GET("/:id/versions", s.listVersions)
 	g.GET("/:id/versions/:version", s.getVersion)
@@ -95,6 +96,28 @@ func (s *Service) listDashboards(c *gin.Context) {
 		body.Dashboards = append(body.Dashboards, newDashboardListItemJSON(item))
 	}
 	c.JSON(http.StatusOK, body)
+}
+
+type tagCountJSON struct {
+	Tag        string `json:"tag"`
+	Dashboards int    `json:"dashboards"`
+}
+
+func newTagsJSON(tags []TagCount) []tagCountJSON {
+	out := make([]tagCountJSON, 0, len(tags))
+	for _, t := range tags {
+		out = append(out, tagCountJSON(t))
+	}
+	return out
+}
+
+func (s *Service) listTags(c *gin.Context) {
+	tags, err := s.Tags(c.Request.Context())
+	if err != nil {
+		s.fail(c, "list dashboard tags", err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"tags": newTagsJSON(tags)})
 }
 
 func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {

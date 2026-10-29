@@ -97,6 +97,14 @@ JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_vers
 CROSS JOIN LATERAL unnest(v.datasource_uids) AS uid
 GROUP BY uid;
 
+-- name: ListDashboardTags :many
+SELECT tag::text AS tag, count(*)::integer AS dashboards
+FROM dashboards d
+CROSS JOIN LATERAL unnest(d.tags) AS tag
+GROUP BY tag
+ORDER BY tag COLLATE "C"
+LIMIT 500;
+
 -- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
   author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at

@@ -358,6 +358,23 @@ func (s *Service) DatasourceUsage(ctx context.Context) (map[string]int, error) {
 	return usage, nil
 }
 
+type TagCount struct {
+	Tag        string
+	Dashboards int
+}
+
+func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
+	rows, err := s.store.db.Queries().ListDashboardTags(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboard tags: %w", err)
+	}
+	tags := make([]TagCount, 0, len(rows))
+	for _, row := range rows {
+		tags = append(tags, TagCount{Tag: row.Tag, Dashboards: int(row.Dashboards)})
+	}
+	return tags, nil
+}
+
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {
 	before, err := decodeVersionCursor(cursor)
 	if err != nil {

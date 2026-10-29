@@ -17,6 +17,7 @@ export type DashboardListFilters = {
   q?: string
   madeBy?: string
   datasource?: string
+  tags?: string[]
 }
 
 export const dashboardKeys = {
@@ -25,6 +26,7 @@ export const dashboardKeys = {
   filtered: (filters: DashboardListFilters) =>
     ["dashboards", "list", filters] as const,
   titles: () => ["dashboards", "titles"] as const,
+  tags: () => ["dashboards", "tags"] as const,
   latest: (id: string) => ["dashboards", id, "latest"] as const,
   version: (id: string, version: number) =>
     ["dashboards", id, "versions", version] as const,

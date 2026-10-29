@@ -420,6 +420,40 @@ func (q *Queries) InsertDashboardVersion(ctx context.Context, arg InsertDashboar
 	return i, err
 }
 
+const listDashboardTags = `-- name: ListDashboardTags :many
+SELECT tag::text AS tag, count(*)::integer AS dashboards
+FROM dashboards d
+CROSS JOIN LATERAL unnest(d.tags) AS tag
+GROUP BY tag
+ORDER BY tag COLLATE "C"
+LIMIT 500
+`
+
+type ListDashboardTagsRow struct {
+	Tag        string
+	Dashboards int32
+}
+
+func (q *Queries) ListDashboardTags(ctx context.Context) ([]ListDashboardTagsRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardTags)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDashboardTagsRow
+	for rows.Next() {
+		var i ListDashboardTagsRow
+		if err := rows.Scan(&i.Tag, &i.Dashboards); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDashboardVersions = `-- name: ListDashboardVersions :many
 SELECT dashboard_id, version, parent_version, restored_from, summary,
   author_kind, author_id, author_name, author_email, origin, origin_client, agent_request_id, created_at
