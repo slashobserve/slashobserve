@@ -31,7 +31,7 @@ prompts:
     summary: Save a prompt.
     description: >-
       Saves a prompt owned by the caller.
-      Service accounts cannot (403 `forbidden`).
+      Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`).
       At most 100 prompts per person.
     requestBody:
       required: true
@@ -96,8 +96,9 @@ prompts-id:
     operationId: updateSavedPrompt
     summary: Change a saved prompt.
     description: >-
-      Changes the name, body or sharing of a prompt the caller can edit.
+      Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared.
       Only the fields sent change.
+      Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
     requestBody:
       required: true
       content:
@@ -125,7 +126,7 @@ prompts-id:
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
-        description: The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`).
+        description: The caller is a service account (`forbidden`), has a role below Editor (`forbidden_role`), or can see the prompt but cannot edit it (`not_owner`).
         content:
           application/json:
             schema:
@@ -156,8 +157,8 @@ prompts-id:
     operationId: deleteSavedPrompt
     summary: Delete a saved prompt.
     description: >-
-      Deletes a prompt the caller can edit.
-      A service account gets 403 `forbidden`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+      Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared.
+      A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
     responses:
       "204":
         description: The prompt is deleted.
@@ -166,7 +167,7 @@ prompts-id:
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
-        description: The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`).
+        description: The caller is a service account (`forbidden`), has a role below Editor (`forbidden_role`), or can see the prompt but cannot edit it (`not_owner`).
         content:
           application/json:
             schema:

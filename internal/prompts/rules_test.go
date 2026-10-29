@@ -63,18 +63,27 @@ func TestCleanBody(t *testing.T) {
 
 func TestCanEdit(t *testing.T) {
 	const owner = "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11"
+	const other = "0a1b2c3d-0000-4000-8000-000000000001"
 	cases := []struct {
 		name   string
 		caller auth.Principal
+		shared bool
 		want   bool
 	}{
-		{"the owner", auth.Principal{Kind: auth.KindUser, ID: owner}, true},
-		{"another person", auth.Principal{Kind: auth.KindUser, ID: "0a1b2c3d-0000-4000-8000-000000000001"}, false},
-		{"a service account with the owner's id", auth.Principal{Kind: auth.KindServiceAccount, ID: owner}, false},
+		{"the owner editor on a private prompt", auth.Principal{Kind: auth.KindUser, ID: owner, Role: auth.RoleEditor}, false, true},
+		{"the owner editor on a shared prompt", auth.Principal{Kind: auth.KindUser, ID: owner, Role: auth.RoleEditor}, true, true},
+		{"the owner admin on a private prompt", auth.Principal{Kind: auth.KindUser, ID: owner, Role: auth.RoleAdmin}, false, true},
+		{"the owner demoted to commenter", auth.Principal{Kind: auth.KindUser, ID: owner, Role: auth.RoleCommenter}, true, false},
+		{"the owner demoted to viewer", auth.Principal{Kind: auth.KindUser, ID: owner, Role: auth.RoleViewer}, false, false},
+		{"an admin on another person's shared prompt", auth.Principal{Kind: auth.KindUser, ID: other, Role: auth.RoleAdmin}, true, true},
+		{"an admin on another person's private prompt", auth.Principal{Kind: auth.KindUser, ID: other, Role: auth.RoleAdmin}, false, false},
+		{"an editor on another person's shared prompt", auth.Principal{Kind: auth.KindUser, ID: other, Role: auth.RoleEditor}, true, false},
+		{"a service account with the owner's id", auth.Principal{Kind: auth.KindServiceAccount, ID: owner, Role: auth.RoleAdmin}, true, false},
+		{"a service account admin on a shared prompt", auth.Principal{Kind: auth.KindServiceAccount, ID: other, Role: auth.RoleAdmin}, true, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := CanEdit(tc.caller, owner); got != tc.want {
+			if got := CanEdit(tc.caller, owner, tc.shared); got != tc.want {
 				t.Fatalf("CanEdit = %v, want %v", got, tc.want)
 			}
 		})

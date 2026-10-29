@@ -20,7 +20,7 @@ const (
 	messageOwnNameTaken    = "you already have a prompt with that name"
 	messageSharedNameTaken = "another shared prompt has that name"
 	messageTooMany         = "a person can save at most 100 prompts"
-	messageNotOwner        = "only the owner can change this prompt"
+	messageNotOwner        = "only the owner or an admin can change this prompt"
 )
 
 var namePattern = regexp.MustCompile(`^[\p{L}\p{N}](?:[\p{L}\p{N} _-]*[\p{L}\p{N}])?$`)
@@ -37,8 +37,11 @@ func CleanBody(raw string) (string, bool) {
 	return revisions.CleanPrompt(raw)
 }
 
-func CanEdit(caller auth.Principal, ownerID string) bool {
-	return caller.Kind == auth.KindUser && caller.ID == ownerID
+func CanEdit(caller auth.Principal, ownerID string, shared bool) bool {
+	if caller.Kind != auth.KindUser || !caller.Role.AtLeast(auth.RoleEditor) {
+		return false
+	}
+	return caller.ID == ownerID || (shared && caller.Role == auth.RoleAdmin)
 }
 
 type Patch struct {

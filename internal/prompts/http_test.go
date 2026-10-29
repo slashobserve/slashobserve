@@ -15,12 +15,12 @@ import (
 
 const callerID = "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11"
 
-func serve(t *testing.T, kind auth.PrincipalKind, method, path, body string) *httptest.ResponseRecorder {
+func serve(t *testing.T, kind auth.PrincipalKind, role auth.Role, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		p := auth.Principal{Kind: kind, ID: callerID, Name: "Ada", Role: auth.RoleAdmin}
+		p := auth.Principal{Kind: kind, ID: callerID, Name: "Ada", Role: role}
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 	})
 	NewHandler(nil, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
@@ -68,7 +68,7 @@ func TestRefusalsThatNeverReachTheDatabase(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := serve(t, tc.kind, tc.method, tc.path, tc.body)
+			rec := serve(t, tc.kind, auth.RoleAdmin, tc.method, tc.path, tc.body)
 			if rec.Code != tc.status || code(t, rec) != tc.code {
 				t.Fatalf("got %d %s, want %d %s", rec.Code, rec.Body, tc.status, tc.code)
 			}
@@ -78,9 +78,41 @@ func TestRefusalsThatNeverReachTheDatabase(t *testing.T) {
 
 func TestNameFilterThatCannotMatchAnswersAnEmptyList(t *testing.T) {
 	for _, query := range []string{"?name=", "?name=-bad", "?name=" + strings.Repeat("a", 65)} {
-		rec := serve(t, auth.KindUser, http.MethodGet, query, "")
+		rec := serve(t, auth.KindUser, auth.RoleAdmin, http.MethodGet, query, "")
 		if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"prompts":[]}` {
 			t.Fatalf("%s: got %d %s, want 200 with an empty list", query, rec.Code, rec.Body)
 		}
+	}
+}
+
+func TestMutationsNeedTheEditorRole(t *testing.T) {
+	const id = "/0a1b2c3d-0000-4000-8000-000000000001"
+	mutations := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"save", http.MethodPost, "", `{"name":"-bad","body":"b"}`},
+		{"change", http.MethodPatch, id, `{"name":"-bad"}`},
+		{"delete", http.MethodDelete, id, ""},
+	}
+	for _, m := range mutations {
+		for _, role := range []auth.Role{auth.RoleViewer, auth.RoleCommenter} {
+			t.Run(string(role)+" cannot "+m.name, func(t *testing.T) {
+				rec := serve(t, auth.KindUser, role, m.method, m.path, m.body)
+				if rec.Code != http.StatusForbidden || code(t, rec) != "forbidden_role" {
+					t.Fatalf("got %d %s, want 403 forbidden_role", rec.Code, rec.Body)
+				}
+			})
+		}
+	}
+	for _, role := range []auth.Role{auth.RoleEditor, auth.RoleAdmin} {
+		t.Run(string(role)+" passes the role check on save", func(t *testing.T) {
+			rec := serve(t, auth.KindUser, role, http.MethodPost, "", `{"name":"-bad","body":"b"}`)
+			if rec.Code != http.StatusUnprocessableEntity || code(t, rec) != "invalid_name" {
+				t.Fatalf("got %d %s, want 422 invalid_name", rec.Code, rec.Body)
+			}
+		})
 	}
 }
