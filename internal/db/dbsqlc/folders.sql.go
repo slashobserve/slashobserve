@@ -89,6 +89,17 @@ func (q *Queries) DeleteFolderPermissions(ctx context.Context, folderID pgtype.U
 	return err
 }
 
+const folderByTitle = `-- name: FolderByTitle :one
+SELECT id FROM folders WHERE lower(title) = lower($1)
+`
+
+func (q *Queries) FolderByTitle(ctx context.Context, title string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, folderByTitle, title)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const folderFacts = `-- name: FolderFacts :many
 SELECT f.id, f.title, f.general,
   EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,

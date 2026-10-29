@@ -83,3 +83,6 @@ VALUES (@folder_id, sqlc.narg('user_id'), sqlc.narg('group_name'), @level, sqlc.
 
 -- name: UsersByEmail :many
 SELECT id FROM users WHERE lower(email) = lower(@email::text);
+
+-- name: FolderByTitle :one
+SELECT id FROM folders WHERE lower(title) = lower(@title);
