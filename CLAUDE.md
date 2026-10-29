@@ -85,7 +85,7 @@ Directories are created when their phase starts; this is where things go.
   A dashboard list is a static panel and never needs a datasource match.
   ClickHouse trace queries (`queryType` `traces`, `format` 3) import as `table` queries.
   Goldens are reviewed diffs: run `make golden`, read every changed golden, and say in the commit message which converter rule changed them.
-  `TestCorpusRatio` holds the gate: at least 90% of corpus panels are imported or partial, and a floor: the share of fully imported panels never drops below `minimumFull` (16.9% today); raise the constant when the share grows, never lower it.
+  `TestCorpusRatio` holds the gate: at least 90% of corpus panels are imported or partial, and a floor: the share of fully imported panels never drops below `minimumFull` (18.0% today); raise the constant when the share grows, never lower it.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.

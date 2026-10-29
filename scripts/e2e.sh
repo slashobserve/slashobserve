@@ -1047,13 +1047,13 @@ imports_suite() {
   import_body "$demo"
   out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
   [[ "$out" == 200 ]] || fail "preview demo-shop ($out: $(head -c 300 "$TMP/api.body"))"
-  import_check "d['ready'] is True and d['report']['verified'] is False and d['report']['counts']['total'] == 9 and d['report']['counts']['placeholder'] == 0" \
-    || fail "demo-shop preview should be ready with 9 panels and no placeholder ($(head -c 600 "$TMP/api.body"))"
+  import_check "d['ready'] is True and d['report']['verified'] is False and d['report']['counts']['total'] == 26 and d['report']['counts']['placeholder'] == 2" \
+    || fail "demo-shop preview should be ready with 26 panels and 2 placeholders ($(head -c 600 "$TMP/api.body"))"
   import_check "{x['key']: (x['match'], x['matched_by']) for x in d['datasources']} == {'prometheus': ('prom', 'alias'), 'clickhouse': ('ch', 'alias')}" \
     || fail "demo-shop datasources should match prom and ch by alias ($(python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["datasources"]))' "$TMP/api.body"))"
   import_check "[(p['source_type'], p['type']) for p in d['report']['panels'] if p['source_type'] == 'barchart'] == [('barchart', 'barchart')]" \
     || fail "the barchart panel should import as a barchart panel"
-  import_check "len([p for p in d['spec']['panels'] if p['type'] == 'row']) == 2" || fail "demo-shop preview Spec should hold 2 rows"
+  import_check "len([p for p in d['spec']['panels'] if p['type'] == 'row']) == 6" || fail "demo-shop preview Spec should hold 6 rows"
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
   [[ -z "$leak" ]] || fail "preview exposes connection details ($leak)"
   pass "previewing the demo shop dashboard matches its datasources by alias and counts its panels without running queries"
