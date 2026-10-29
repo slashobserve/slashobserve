@@ -78,6 +78,33 @@ describe("rebase", () => {
     expect(pos(layout, "c")).toEqual({ x: 0, y: 4, w: 24, h: 5 })
   })
 
+  it("keeps the other version's width of a panel that only shifted down", () => {
+    state().start(
+      "d1",
+      1,
+      specOf(["a", 0, 0, 24, 4], ["b", 0, 4, 12, 4], ["c", 12, 4, 12, 4])
+    )
+    state().commitLayout(
+      settle(
+        session().layout.map((entry) =>
+          entry.i === "a" ? { ...entry, h: 6 } : entry
+        ),
+        session().membership
+      ),
+      "a"
+    )
+    expect(pos(session().layout, "c")).toEqual({ x: 12, y: 6, w: 12, h: 4 })
+
+    state().rebase(
+      2,
+      specOf(["a", 0, 0, 24, 4], ["b", 0, 4, 12, 4], ["c", 12, 4, 8, 4])
+    )
+
+    const { layout } = session()
+    expect(pos(layout, "a")).toEqual({ x: 0, y: 0, w: 24, h: 6 })
+    expect(pos(layout, "c")).toEqual({ x: 12, y: 6, w: 8, h: 4 })
+  })
+
   it("settles an edit that collides with a panel the other version added", () => {
     const base = specOf(
       ["a", 0, 0, 12, 4],

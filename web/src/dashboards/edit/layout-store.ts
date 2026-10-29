@@ -48,21 +48,25 @@ function mergeEdits(
 ): Layout {
   const before = new Map(oldBaseline.map((item) => [item.i, item]))
   const changed = new Map(
-    edited
-      .filter((item) => {
-        const original = before.get(item.i)
-        return (
-          original !== undefined && !item.static && !sameBox(original, item)
-        )
-      })
-      .map((item) => [item.i, item])
+    edited.flatMap((item) => {
+      const original = before.get(item.i)
+      return original !== undefined && !item.static && !sameBox(original, item)
+        ? [[item.i, { item, original }] as const]
+        : []
+    })
   )
   return settle(
     newBase.map((item) => {
       const kept = changed.get(item.i)
-      return kept
-        ? { ...item, x: kept.x, y: kept.y, w: kept.w, h: kept.h }
-        : item
+      if (!kept) return item
+      const { item: edit, original } = kept
+      return {
+        ...item,
+        x: edit.x !== original.x ? edit.x : item.x,
+        y: edit.y !== original.y ? edit.y : item.y,
+        w: edit.w !== original.w ? edit.w : item.w,
+        h: edit.h !== original.h ? edit.h : item.h,
+      }
     }),
     membership
   )
