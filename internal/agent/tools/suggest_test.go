@@ -11,10 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -61,13 +64,14 @@ func newSuggestRig(t *testing.T) *suggestRig {
 		},
 	}
 	rig.registry = newTestRegistry(t, ds, nil)
-	rig.registry.deps.Dashboards = dashboards.New(dbtest.New(t).DB, rig.registry.deps.Runner, slog.New(slog.DiscardHandler))
+	database := dbtest.New(t).DB
+	rig.registry.deps.Dashboards = dashboards.New(database, rig.registry.deps.Runner, folders.NewAccess(database), slog.New(slog.DiscardHandler))
 	base, err := spec.Parse([]byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))))
 	if err != nil {
 		t.Fatal(err)
 	}
 	rig.base = base
-	saved, _, err := rig.registry.deps.Dashboards.Create(rig.ctx, auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor}, []byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))), "seed")
+	saved, _, err := rig.registry.deps.Dashboards.Create(rig.ctx, auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "Ada", Role: auth.RoleEditor}, pgtype.UUID{}, []byte(specOf(suggestStat("p1", "One", "count(up)", 0), suggestStat("p2", "Two", "sum(up)", 4), suggestText("t1", "hello", 0))), "seed")
 	if err != nil {
 		t.Fatal(err)
 	}

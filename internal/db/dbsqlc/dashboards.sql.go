@@ -56,19 +56,23 @@ const countDashboards = `-- name: CountDashboards :one
 SELECT count(*)
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
-WHERE ($1::text IS NULL
-    OR (d.created_by_kind = $1::text AND d.created_by_id = $2::uuid))
-  AND (NOT $3::boolean OR d.created_via = 'agent')
-  AND (NOT $4::boolean OR d.created_origin = 'mcp')
-  AND ($5::text IS NULL OR d.created_origin_client = $5::text)
-  AND ($6::text IS NULL OR v.datasource_uids @> ARRAY[$6::text])
-  AND ($7::text[] IS NULL OR d.tags @> $7::text[])
-  AND ($8::text IS NULL
-    OR strpos(lower(d.title), lower($8::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($8::text)) > 0)
+WHERE d.folder_id = ANY($1::uuid[])
+  AND ($2::uuid IS NULL OR d.folder_id = $2::uuid)
+  AND ($3::text IS NULL
+    OR (d.created_by_kind = $3::text AND d.created_by_id = $4::uuid))
+  AND (NOT $5::boolean OR d.created_via = 'agent')
+  AND (NOT $6::boolean OR d.created_origin = 'mcp')
+  AND ($7::text IS NULL OR d.created_origin_client = $7::text)
+  AND ($8::text IS NULL OR v.datasource_uids @> ARRAY[$8::text])
+  AND ($9::text[] IS NULL OR d.tags @> $9::text[])
+  AND ($10::text IS NULL
+    OR strpos(lower(d.title), lower($10::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($10::text)) > 0)
 `
 
 type CountDashboardsParams struct {
+	Folders     []pgtype.UUID
+	Folder      pgtype.UUID
 	CreatorKind pgtype.Text
 	CreatorID   pgtype.UUID
 	OnlyAgent   bool
@@ -81,6 +85,8 @@ type CountDashboardsParams struct {
 
 func (q *Queries) CountDashboards(ctx context.Context, arg CountDashboardsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countDashboards,
+		arg.Folders,
+		arg.Folder,
 		arg.CreatorKind,
 		arg.CreatorID,
 		arg.OnlyAgent,
@@ -100,6 +106,7 @@ SELECT uid::text AS uid, count(*)::integer AS dashboards
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 CROSS JOIN LATERAL unnest(v.datasource_uids) AS uid
+WHERE d.folder_id = ANY($1::uuid[])
 GROUP BY uid
 `
 
@@ -108,8 +115,8 @@ type CountDashboardsByDatasourceRow struct {
 	Dashboards int32
 }
 
-func (q *Queries) CountDashboardsByDatasource(ctx context.Context) ([]CountDashboardsByDatasourceRow, error) {
-	rows, err := q.db.Query(ctx, countDashboardsByDatasource)
+func (q *Queries) CountDashboardsByDatasource(ctx context.Context, folders []pgtype.UUID) ([]CountDashboardsByDatasourceRow, error) {
+	rows, err := q.db.Query(ctx, countDashboardsByDatasource, folders)
 	if err != nil {
 		return nil, err
 	}
@@ -187,15 +194,18 @@ func (q *Queries) CreateDashboard(ctx context.Context, arg CreateDashboardParams
 }
 
 const getDashboard = `-- name: GetDashboard :one
-SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified, f.title AS folder_title, f.general AS folder_general
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
 WHERE d.id = $1
 `
 
 type GetDashboardRow struct {
 	Dashboard        Dashboard
 	DashboardVersion DashboardVersion
+	FolderTitle      string
+	FolderGeneral    bool
 }
 
 func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboardRow, error) {
@@ -232,6 +242,8 @@ func (q *Queries) GetDashboard(ctx context.Context, id pgtype.UUID) (GetDashboar
 		&i.DashboardVersion.OriginClient,
 		&i.DashboardVersion.DatasourceUids,
 		&i.DashboardVersion.Unverified,
+		&i.FolderTitle,
+		&i.FolderGeneral,
 	)
 	return i, err
 }
@@ -250,8 +262,10 @@ func (q *Queries) GetDashboardLatestVersion(ctx context.Context, id pgtype.UUID)
 const getDashboardVersion = `-- name: GetDashboardVersion :one
 SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id, v.dashboard_id, v.version, v.parent_version, v.restored_from, v.spec, v.summary, v.author_kind, v.author_id, v.author_name, v.author_email, v.created_at, v.agent_request_id, v.origin, v.origin_client, v.datasource_uids, v.unverified,
   lv.author_kind AS updated_by_kind, lv.author_id AS updated_by_id,
-  lv.author_name AS updated_by_name, lv.author_email AS updated_by_email
+  lv.author_name AS updated_by_name, lv.author_email AS updated_by_email,
+  f.title AS folder_title, f.general AS folder_general
 FROM dashboards d
+JOIN folders f ON f.id = d.folder_id
 JOIN dashboard_versions lv ON lv.dashboard_id = d.id AND lv.version = d.latest_version
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = $1
 WHERE d.id = $2
@@ -269,6 +283,8 @@ type GetDashboardVersionRow struct {
 	UpdatedByID      pgtype.UUID
 	UpdatedByName    string
 	UpdatedByEmail   pgtype.Text
+	FolderTitle      string
+	FolderGeneral    bool
 }
 
 func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersionParams) (GetDashboardVersionRow, error) {
@@ -309,6 +325,8 @@ func (q *Queries) GetDashboardVersion(ctx context.Context, arg GetDashboardVersi
 		&i.UpdatedByID,
 		&i.UpdatedByName,
 		&i.UpdatedByEmail,
+		&i.FolderTitle,
+		&i.FolderGeneral,
 	)
 	return i, err
 }
@@ -431,6 +449,7 @@ const listDashboardTags = `-- name: ListDashboardTags :many
 SELECT tag::text AS tag, count(*)::integer AS dashboards
 FROM dashboards d
 CROSS JOIN LATERAL unnest(d.tags) AS tag
+WHERE d.folder_id = ANY($1::uuid[])
 GROUP BY tag
 ORDER BY tag COLLATE "C"
 LIMIT 500
@@ -441,8 +460,8 @@ type ListDashboardTagsRow struct {
 	Dashboards int32
 }
 
-func (q *Queries) ListDashboardTags(ctx context.Context) ([]ListDashboardTagsRow, error) {
-	rows, err := q.db.Query(ctx, listDashboardTags)
+func (q *Queries) ListDashboardTags(ctx context.Context, folders []pgtype.UUID) ([]ListDashboardTagsRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardTags, folders)
 	if err != nil {
 		return nil, err
 	}
@@ -533,28 +552,34 @@ SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.cr
   v.datasource_uids,
   coalesce(v.spec ->> 'description', '')::text AS description,
   (SELECT count(*) FROM dashboard_comments c
-    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count
+    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
+  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
 WHERE ($1::timestamptz IS NULL
     OR (d.updated_at, d.id) < ($1::timestamptz, $2::uuid))
-  AND ($3::text IS NULL
-    OR (d.created_by_kind = $3::text AND d.created_by_id = $4::uuid))
-  AND (NOT $5::boolean OR d.created_via = 'agent')
-  AND (NOT $6::boolean OR d.created_origin = 'mcp')
-  AND ($7::text IS NULL OR d.created_origin_client = $7::text)
-  AND ($8::text IS NULL OR v.datasource_uids @> ARRAY[$8::text])
-  AND ($9::text[] IS NULL OR d.tags @> $9::text[])
-  AND ($10::text IS NULL
-    OR strpos(lower(d.title), lower($10::text)) > 0
-    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($10::text)) > 0)
+  AND d.folder_id = ANY($3::uuid[])
+  AND ($4::uuid IS NULL OR d.folder_id = $4::uuid)
+  AND ($5::text IS NULL
+    OR (d.created_by_kind = $5::text AND d.created_by_id = $6::uuid))
+  AND (NOT $7::boolean OR d.created_via = 'agent')
+  AND (NOT $8::boolean OR d.created_origin = 'mcp')
+  AND ($9::text IS NULL OR d.created_origin_client = $9::text)
+  AND ($10::text IS NULL OR v.datasource_uids @> ARRAY[$10::text])
+  AND ($11::text[] IS NULL OR d.tags @> $11::text[])
+  AND ($12::text IS NULL
+    OR strpos(lower(d.title), lower($12::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($12::text)) > 0)
 ORDER BY d.updated_at DESC, d.id DESC
-LIMIT $11
+LIMIT $13
 `
 
 type ListDashboardsParams struct {
 	CursorUpdatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
+	Folders         []pgtype.UUID
+	Folder          pgtype.UUID
 	CreatorKind     pgtype.Text
 	CreatorID       pgtype.UUID
 	OnlyAgent       bool
@@ -575,12 +600,17 @@ type ListDashboardsRow struct {
 	DatasourceUids   []string
 	Description      string
 	OpenCommentCount int64
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderSortTitle  string
 }
 
 func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) ([]ListDashboardsRow, error) {
 	rows, err := q.db.Query(ctx, listDashboards,
 		arg.CursorUpdatedAt,
 		arg.CursorID,
+		arg.Folders,
+		arg.Folder,
 		arg.CreatorKind,
 		arg.CreatorID,
 		arg.OnlyAgent,
@@ -620,6 +650,9 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 			&i.DatasourceUids,
 			&i.Description,
 			&i.OpenCommentCount,
+			&i.FolderTitle,
+			&i.FolderGeneral,
+			&i.FolderSortTitle,
 		); err != nil {
 			return nil, err
 		}
@@ -629,6 +662,164 @@ func (q *Queries) ListDashboards(ctx context.Context, arg ListDashboardsParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const listDashboardsByFolder = `-- name: ListDashboardsByFolder :many
+SELECT d.id, d.title, d.tags, d.latest_version, d.created_at, d.updated_at, d.created_by_kind, d.created_by_id, d.created_by_name, d.created_by_email, d.created_origin, d.created_origin_client, d.created_via, d.folder_id,
+  v.author_kind AS updated_by_kind, v.author_id AS updated_by_id,
+  v.author_name AS updated_by_name, v.author_email AS updated_by_email,
+  v.datasource_uids,
+  coalesce(v.spec ->> 'description', '')::text AS description,
+  (SELECT count(*) FROM dashboard_comments c
+    WHERE c.dashboard_id = d.id AND c.parent_id IS NULL AND c.status = 'open') AS open_comment_count,
+  f.title AS folder_title, f.general AS folder_general, lower(f.title)::text AS folder_sort_title
+FROM dashboards d
+JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
+JOIN folders f ON f.id = d.folder_id
+WHERE ($1::uuid IS NULL
+    OR (f.general, lower(f.title), f.id) > ($2::boolean, $3::text, $1::uuid)
+    OR ((f.general, lower(f.title), f.id) = ($2::boolean, $3::text, $1::uuid)
+      AND (d.updated_at, d.id) < ($4::timestamptz, $5::uuid)))
+  AND d.folder_id = ANY($6::uuid[])
+  AND ($7::uuid IS NULL OR d.folder_id = $7::uuid)
+  AND ($8::text IS NULL
+    OR (d.created_by_kind = $8::text AND d.created_by_id = $9::uuid))
+  AND (NOT $10::boolean OR d.created_via = 'agent')
+  AND (NOT $11::boolean OR d.created_origin = 'mcp')
+  AND ($12::text IS NULL OR d.created_origin_client = $12::text)
+  AND ($13::text IS NULL OR v.datasource_uids @> ARRAY[$13::text])
+  AND ($14::text[] IS NULL OR d.tags @> $14::text[])
+  AND ($15::text IS NULL
+    OR strpos(lower(d.title), lower($15::text)) > 0
+    OR strpos(lower(coalesce(v.spec ->> 'description', '')), lower($15::text)) > 0)
+ORDER BY f.general, lower(f.title), f.id, d.updated_at DESC, d.id DESC
+LIMIT $16
+`
+
+type ListDashboardsByFolderParams struct {
+	CFolder     pgtype.UUID
+	CGeneral    pgtype.Bool
+	CTitle      pgtype.Text
+	CUpdatedAt  pgtype.Timestamptz
+	CID         pgtype.UUID
+	Folders     []pgtype.UUID
+	Folder      pgtype.UUID
+	CreatorKind pgtype.Text
+	CreatorID   pgtype.UUID
+	OnlyAgent   bool
+	OnlyMcp     bool
+	McpClient   pgtype.Text
+	Datasource  pgtype.Text
+	Tags        []string
+	Q           pgtype.Text
+	RowLimit    int32
+}
+
+type ListDashboardsByFolderRow struct {
+	Dashboard        Dashboard
+	UpdatedByKind    string
+	UpdatedByID      pgtype.UUID
+	UpdatedByName    string
+	UpdatedByEmail   pgtype.Text
+	DatasourceUids   []string
+	Description      string
+	OpenCommentCount int64
+	FolderTitle      string
+	FolderGeneral    bool
+	FolderSortTitle  string
+}
+
+func (q *Queries) ListDashboardsByFolder(ctx context.Context, arg ListDashboardsByFolderParams) ([]ListDashboardsByFolderRow, error) {
+	rows, err := q.db.Query(ctx, listDashboardsByFolder,
+		arg.CFolder,
+		arg.CGeneral,
+		arg.CTitle,
+		arg.CUpdatedAt,
+		arg.CID,
+		arg.Folders,
+		arg.Folder,
+		arg.CreatorKind,
+		arg.CreatorID,
+		arg.OnlyAgent,
+		arg.OnlyMcp,
+		arg.McpClient,
+		arg.Datasource,
+		arg.Tags,
+		arg.Q,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDashboardsByFolderRow
+	for rows.Next() {
+		var i ListDashboardsByFolderRow
+		if err := rows.Scan(
+			&i.Dashboard.ID,
+			&i.Dashboard.Title,
+			&i.Dashboard.Tags,
+			&i.Dashboard.LatestVersion,
+			&i.Dashboard.CreatedAt,
+			&i.Dashboard.UpdatedAt,
+			&i.Dashboard.CreatedByKind,
+			&i.Dashboard.CreatedByID,
+			&i.Dashboard.CreatedByName,
+			&i.Dashboard.CreatedByEmail,
+			&i.Dashboard.CreatedOrigin,
+			&i.Dashboard.CreatedOriginClient,
+			&i.Dashboard.CreatedVia,
+			&i.Dashboard.FolderID,
+			&i.UpdatedByKind,
+			&i.UpdatedByID,
+			&i.UpdatedByName,
+			&i.UpdatedByEmail,
+			&i.DatasourceUids,
+			&i.Description,
+			&i.OpenCommentCount,
+			&i.FolderTitle,
+			&i.FolderGeneral,
+			&i.FolderSortTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const moveDashboard = `-- name: MoveDashboard :one
+UPDATE dashboards SET folder_id = $1 WHERE id = $2 RETURNING id, title, tags, latest_version, created_at, updated_at, created_by_kind, created_by_id, created_by_name, created_by_email, created_origin, created_origin_client, created_via, folder_id
+`
+
+type MoveDashboardParams struct {
+	FolderID pgtype.UUID
+	ID       pgtype.UUID
+}
+
+func (q *Queries) MoveDashboard(ctx context.Context, arg MoveDashboardParams) (Dashboard, error) {
+	row := q.db.QueryRow(ctx, moveDashboard, arg.FolderID, arg.ID)
+	var i Dashboard
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Tags,
+		&i.LatestVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedByKind,
+		&i.CreatedByID,
+		&i.CreatedByName,
+		&i.CreatedByEmail,
+		&i.CreatedOrigin,
+		&i.CreatedOriginClient,
+		&i.CreatedVia,
+		&i.FolderID,
+	)
+	return i, err
 }
 
 const notifyEvent = `-- name: NotifyEvent :exec

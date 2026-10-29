@@ -13,6 +13,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -187,7 +188,7 @@ func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, specWith("up"), "create", row.ID); err != nil {
+	if _, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create", row.ID); err != nil {
 		t.Fatal(err)
 	}
 	replayed, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "prom", 1), RequestID: row.ID})

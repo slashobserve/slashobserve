@@ -1,6 +1,7 @@
 package dashboards
 
 import (
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -19,29 +20,39 @@ type creatorJSON struct {
 	Via          string     `json:"via"`
 }
 
+type dashboardFolderJSON struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	General bool   `json:"general"`
+}
+
 type dashboardJSON struct {
-	ID            string      `json:"id"`
-	Title         string      `json:"title"`
-	Tags          []string    `json:"tags"`
-	LatestVersion int         `json:"latest_version"`
-	CreatedAt     string      `json:"created_at"`
-	UpdatedAt     string      `json:"updated_at"`
-	UpdatedBy     authorJSON  `json:"updated_by"`
-	Creator       creatorJSON `json:"creator"`
+	ID            string              `json:"id"`
+	Title         string              `json:"title"`
+	Tags          []string            `json:"tags"`
+	LatestVersion int                 `json:"latest_version"`
+	CreatedAt     string              `json:"created_at"`
+	UpdatedAt     string              `json:"updated_at"`
+	UpdatedBy     authorJSON          `json:"updated_by"`
+	Creator       creatorJSON         `json:"creator"`
+	Folder        dashboardFolderJSON `json:"folder"`
+	Permissions   folders.Permissions `json:"permissions"`
 }
 
 type dashboardListItemJSON struct {
-	ID               string      `json:"id"`
-	Title            string      `json:"title"`
-	Description      *string     `json:"description"`
-	Tags             []string    `json:"tags"`
-	LatestVersion    int         `json:"latest_version"`
-	CreatedAt        string      `json:"created_at"`
-	UpdatedAt        string      `json:"updated_at"`
-	UpdatedBy        authorJSON  `json:"updated_by"`
-	Creator          creatorJSON `json:"creator"`
-	DatasourceUIDs   []string    `json:"datasource_uids"`
-	OpenCommentCount int         `json:"open_comment_count"`
+	ID               string              `json:"id"`
+	Title            string              `json:"title"`
+	Description      *string             `json:"description"`
+	Tags             []string            `json:"tags"`
+	LatestVersion    int                 `json:"latest_version"`
+	CreatedAt        string              `json:"created_at"`
+	UpdatedAt        string              `json:"updated_at"`
+	UpdatedBy        authorJSON          `json:"updated_by"`
+	Creator          creatorJSON         `json:"creator"`
+	DatasourceUIDs   []string            `json:"datasource_uids"`
+	OpenCommentCount int                 `json:"open_comment_count"`
+	Folder           dashboardFolderJSON `json:"folder"`
+	Permissions      folders.Permissions `json:"permissions"`
 }
 
 type versionMetaJSON struct {
@@ -104,7 +115,13 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		UpdatedAt:     httpapi.FormatTime(d.UpdatedAt),
 		UpdatedBy:     newAuthorJSON(d.UpdatedBy),
 		Creator:       newCreatorJSON(d.Creator),
+		Folder:        newDashboardFolderJSON(d.Folder),
+		Permissions:   folders.PermissionsJSON(d.Abilities),
 	}
+}
+
+func newDashboardFolderJSON(f folders.Folder) dashboardFolderJSON {
+	return dashboardFolderJSON{ID: f.ID.String(), Title: f.Title, General: f.General}
 }
 
 func newCreatorJSON(c Creator) creatorJSON {
@@ -130,6 +147,8 @@ func newDashboardListItemJSON(item ListItem) dashboardListItemJSON {
 		Creator:          newCreatorJSON(d.Creator),
 		DatasourceUIDs:   item.DatasourceUIDs,
 		OpenCommentCount: item.OpenComments,
+		Folder:           newDashboardFolderJSON(d.Folder),
+		Permissions:      folders.PermissionsJSON(d.Abilities),
 	}
 }
 

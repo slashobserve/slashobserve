@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -140,7 +141,7 @@ func newRigWith(t *testing.T, ds datasource.Datasource) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), logger)
+	dash := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), folders.NewAccess(database.DB), logger)
 	return &rig{
 		db:        database,
 		dashboard: dash,
@@ -231,7 +232,7 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 		seen, seenVersion = issues, ver.Number
 		return nil
 	}
-	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, specWith(brokenQuery), "Imported", pgtype.UUID{}, hook)
+	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, hook)
 	if err != nil || replayed || ver.Number != 1 {
 		t.Fatalf("version %d, replayed %t, err %v", ver.Number, replayed, err)
 	}
@@ -242,7 +243,7 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 		t.Fatalf("latest = %d, err %v", latest, err)
 	}
 
-	_, _, err = r.dashboard.Create(t.Context(), ada, specWith(brokenQuery), "create")
+	_, _, err = r.dashboard.Create(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "create")
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("Create with the same spec: err = %v, want InvalidSpecError", err)
@@ -255,7 +256,7 @@ func TestCreateImportedKeepsFailingQueriesAsIssues(t *testing.T) {
 
 func TestCreateImportedWithoutAHookSavesAndReportsIssues(t *testing.T) {
 	r := newRig(t)
-	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, specWith(brokenQuery), "Imported", pgtype.UUID{}, nil)
+	dash, ver, issues, replayed, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith(brokenQuery), "Imported", pgtype.UUID{}, nil)
 	if err != nil || replayed || ver.Number != 1 || dash.ID == "" || len(issues) == 0 {
 		t.Fatalf("version %d, replayed %t, issues %d, err %v", ver.Number, replayed, len(issues), err)
 	}
@@ -267,7 +268,7 @@ func TestCreateImportedStillRejectsAnInvalidSpec(t *testing.T) {
 		t.Error("the hook ran for an invalid spec")
 		return nil
 	}
-	_, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, []byte(`{"specVersion":"0"}`), "", pgtype.UUID{}, hook)
+	_, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, []byte(`{"specVersion":"0"}`), "", pgtype.UUID{}, hook)
 	var invalid *dashboards.InvalidSpecError
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want InvalidSpecError", err)
@@ -280,10 +281,10 @@ func TestAFailingHookRollsTheSaveBack(t *testing.T) {
 	hook := func(context.Context, *dbsqlc.Queries, dashboards.Dashboard, dashboards.Version, []spec.Issue) error {
 		return boom
 	}
-	if _, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, specWith("up"), "Imported", pgtype.UUID{}, hook); !errors.Is(err, boom) {
+	if _, _, _, _, err := r.dashboard.CreateImported(t.Context(), ada, pgtype.UUID{}, specWith("up"), "Imported", pgtype.UUID{}, hook); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want the hook's error", err)
 	}
-	page, err := r.dashboard.List(t.Context(), dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after a failed hook: %d, %v", len(page.Items), err)
 	}
@@ -302,7 +303,7 @@ func TestPreviewWritesNothing(t *testing.T) {
 	if err != nil || len(metas) != 0 || next != "" {
 		t.Fatalf("list after preview: %v, %q, %v", metas, next, err)
 	}
-	page, err := r.dashboard.List(t.Context(), dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after preview: %d, %v", len(page.Items), err)
 	}
@@ -334,7 +335,7 @@ func TestImportNeedsEveryDatasourceMatched(t *testing.T) {
 
 func TestForDashboardTellsMissingFromNotImported(t *testing.T) {
 	r := newRig(t)
-	plain, _, err := r.dashboard.Create(t.Context(), ada, specWith("up"), "create")
+	plain, _, err := r.dashboard.Create(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,7 +544,7 @@ func TestAnImportReplacesANULFromAPanelQueryErrorInTheReason(t *testing.T) {
 
 func assertNothingSaved(t *testing.T, r *rig) {
 	t.Helper()
-	page, err := r.dashboard.List(t.Context(), dashboards.ListParams{Limit: 10})
+	page, err := r.dashboard.List(t.Context(), ada, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after a refused import: %d, %v", len(page.Items), err)
 	}
@@ -639,7 +640,7 @@ func TestReplayOfADashboardTheAgentCreatedHasNoRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, specWith("up"), "create", row.ID)
+	created, _, _, err := r.dashboard.CreateRequestDashboard(t.Context(), ada, pgtype.UUID{}, specWith("up"), "create", row.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,19 +13,22 @@ import (
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
-	maxBodyBytes = spec.MaxBytes + 64<<10
-	defaultLimit = 50
-	maxLimit     = 200
+	maxBodyBytes     = spec.MaxBytes + 64<<10
+	maxMoveBodyBytes = 1 << 10
+	defaultLimit     = 50
+	maxLimit         = 200
 
 	maxDatasourceRunes = 64
 	maxQueryRunes      = 200
@@ -35,8 +38,13 @@ const (
 var tagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
 
 type createRequest struct {
-	Spec    json.RawMessage `json:"spec"`
-	Summary string          `json:"summary"`
+	Spec     json.RawMessage `json:"spec"`
+	Summary  string          `json:"summary"`
+	FolderID *string         `json:"folder_id"`
+}
+
+type moveRequest struct {
+	FolderID *string `json:"folder_id"`
 }
 
 type versionRequest struct {
@@ -55,12 +63,15 @@ func (s *Service) Register(api auth.Routes) {
 	g.POST("", auth.RoleEditor, s.createDashboard)
 	g.GET("", auth.RoleViewer, s.listDashboards)
 	g.GET("/tags", auth.RoleViewer, s.listTags)
-	g.GET("/:id", auth.RoleViewer, s.getDashboard)
-	g.GET("/:id/versions", auth.RoleViewer, s.listVersions)
-	g.GET("/:id/versions/:version", auth.RoleViewer, s.getVersion)
-	g.POST("/:id/versions", auth.RoleViewer, s.addVersion)
-	g.POST("/:id/versions/:version/restore", auth.RoleViewer, s.restoreVersion)
-	g.GET("/:id/diff", auth.RoleViewer, s.diff)
+	view := s.access.RequireDashboard(folders.NeedView)
+	edit := s.access.RequireDashboard(folders.NeedEdit)
+	g.GET("/:id", auth.RoleViewer, view, s.getDashboard)
+	g.PATCH("/:id", auth.RoleViewer, edit, s.moveDashboard)
+	g.GET("/:id/versions", auth.RoleViewer, view, s.listVersions)
+	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
+	g.POST("/:id/versions", auth.RoleViewer, edit, s.addVersion)
+	g.POST("/:id/versions/:version/restore", auth.RoleViewer, edit, s.restoreVersion)
+	g.GET("/:id/diff", auth.RoleViewer, view, s.diff)
 }
 
 func (s *Service) createDashboard(c *gin.Context) {
@@ -68,7 +79,11 @@ func (s *Service) createDashboard(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) || !requireSpec(c, req.Spec) {
 		return
 	}
-	dash, ver, err := s.Create(c.Request.Context(), httpapi.Caller(c), req.Spec, req.Summary)
+	folderID, ok := optionalFolderID(c, req.FolderID)
+	if !ok {
+		return
+	}
+	dash, ver, err := s.Create(c.Request.Context(), httpapi.Caller(c), folderID, req.Spec, req.Summary)
 	if err != nil {
 		s.fail(c, "create dashboard", err)
 		return
@@ -87,7 +102,7 @@ func (s *Service) listDashboards(c *gin.Context) {
 		return
 	}
 	params.Limit, params.Cursor = limit, c.Query("cursor")
-	page, err := s.List(c.Request.Context(), params)
+	page, err := s.List(c.Request.Context(), httpapi.Caller(c), params)
 	if err != nil {
 		s.fail(c, "list dashboards", err)
 		return
@@ -113,7 +128,7 @@ func newTagsJSON(tags []TagCount) []tagCountJSON {
 }
 
 func (s *Service) listTags(c *gin.Context) {
-	tags, err := s.Tags(c.Request.Context())
+	tags, err := s.Tags(c.Request.Context(), httpapi.Caller(c))
 	if err != nil {
 		s.fail(c, "list dashboard tags", err)
 		return
@@ -162,7 +177,40 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.Query = trimmed
 	}
-	return params, true
+	ok = folderFilters(c, &params)
+	return params, ok
+}
+
+func folderFilters(c *gin.Context, params *ListParams) bool {
+	if raw, present := c.GetQuery("folder"); present {
+		folder, err := db.ParseUUID(raw)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "folder must be a UUID")
+			return false
+		}
+		params.Folder = folder
+	}
+	switch c.DefaultQuery("order", "updated") {
+	case "updated":
+	case "folder":
+		params.ByFolder = true
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "order must be updated or folder")
+		return false
+	}
+	return true
+}
+
+func optionalFolderID(c *gin.Context, raw *string) (pgtype.UUID, bool) {
+	if raw == nil {
+		return pgtype.UUID{}, true
+	}
+	id, err := db.ParseUUID(*raw)
+	if err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "folder_id must be a UUID")
+		return pgtype.UUID{}, false
+	}
+	return id, true
 }
 
 func cleanText(v string) bool {
@@ -177,6 +225,32 @@ func (s *Service) getDashboard(c *gin.Context) {
 	dash, ver, err := s.Get(c.Request.Context(), id)
 	if err != nil {
 		s.fail(c, "get dashboard", err)
+		return
+	}
+	dash.Abilities = folders.DashboardFrom(c).Abilities
+	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
+}
+
+func (s *Service) moveDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req moveRequest
+	if !httpapi.DecodeBody(c, &req, maxMoveBodyBytes) {
+		return
+	}
+	if req.FolderID == nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "folder_id is required")
+		return
+	}
+	folderID, ok := optionalFolderID(c, req.FolderID)
+	if !ok {
+		return
+	}
+	dash, ver, err := s.move(c.Request.Context(), httpapi.Caller(c), id, folderID)
+	if err != nil {
+		s.fail(c, "move dashboard", err)
 		return
 	}
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
@@ -217,6 +291,7 @@ func (s *Service) getVersion(c *gin.Context) {
 		s.fail(c, "get dashboard version", err)
 		return
 	}
+	dash.Abilities = folders.DashboardFrom(c).Abilities
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 
@@ -308,8 +383,12 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		return
 	}
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrFolderNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, folders.ErrNoAccess):
+		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard")
+	case errors.Is(err, folders.ErrForbidden):
+		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 	case errors.As(err, &conflict):
 		c.AbortWithStatusJSON(http.StatusConflict, conflictJSON{Error: "dashboard has a newer version", Code: "version_conflict", LatestVersion: conflict.Latest})
 	case errors.As(err, &invalid):

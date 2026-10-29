@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -33,9 +34,10 @@ const (
 )
 
 var (
-	ErrNotFound      = errors.New("dashboard not found")
-	ErrInvalidCursor = errors.New("invalid cursor")
-	ErrInvalidRange  = errors.New("from must be less than to")
+	ErrNotFound       = errors.New("dashboard not found")
+	ErrFolderNotFound = errors.New("folder not found")
+	ErrInvalidCursor  = errors.New("invalid cursor")
+	ErrInvalidRange   = errors.New("from must be less than to")
 )
 
 type ConflictError struct {
@@ -57,15 +59,16 @@ func (e *InvalidSpecError) Error() string {
 type Service struct {
 	store  store
 	runner *queryproxy.Runner
+	access *folders.Access
 	logger *slog.Logger
 }
 
-func New(database *db.DB, runner *queryproxy.Runner, logger *slog.Logger) *Service {
-	return &Service{store: store{db: database}, runner: runner, logger: logger}
+func New(database *db.DB, runner *queryproxy.Runner, access *folders.Access, logger *slog.Logger) *Service {
+	return &Service{store: store{db: database}, runner: runner, access: access, logger: logger}
 }
 
-func (s *Service) Create(ctx context.Context, by auth.Principal, rawSpec []byte, summary string) (Dashboard, Version, error) {
-	return s.create(ctx, by, rawSpec, summary, pgtype.UUID{})
+func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string) (Dashboard, Version, error) {
+	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{})
 }
 
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
@@ -78,15 +81,15 @@ func (s *Service) AddRequestVersion(ctx context.Context, by auth.Principal, id p
 	return s.saveVersion(ctx, by, id, parent, rawSpec, summary, requestID)
 }
 
-func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if !requestID.Valid {
-		dash, ver, err := s.Create(ctx, by, rawSpec, summary)
+		dash, ver, err := s.Create(ctx, by, folderID, rawSpec, summary)
 		return dash, ver, false, err
 	}
 	if dash, ver, found, err := s.CreatedByRequest(ctx, requestID); err != nil || found {
 		return dash, ver, found, err
 	}
-	dash, ver, err := s.create(ctx, by, rawSpec, summary, requestID)
+	dash, ver, err := s.create(ctx, by, folderID, rawSpec, summary, requestID)
 	if !errors.Is(err, errRequestSaved) {
 		return dash, ver, false, err
 	}
@@ -95,11 +98,15 @@ func (s *Service) CreateRequestDashboard(ctx context.Context, by auth.Principal,
 
 type ImportHook func(ctx context.Context, q *dbsqlc.Queries, dash Dashboard, ver Version, issues []spec.Issue) error
 
-func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID, hook ImportHook) (Dashboard, Version, []spec.Issue, bool, error) {
+func (s *Service) CreateImported(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID, hook ImportHook) (Dashboard, Version, []spec.Issue, bool, error) {
 	if requestID.Valid {
 		if dash, ver, found, err := s.CreatedByRequest(ctx, requestID); err != nil || found {
 			return dash, ver, nil, found, err
 		}
+	}
+	target, err := s.creationTarget(ctx, by, folderID)
+	if err != nil {
+		return Dashboard{}, Version{}, nil, false, err
 	}
 	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
 	if err != nil {
@@ -110,7 +117,7 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec
 		return Dashboard{}, Version{}, nil, false, err
 	}
 	unverified, _ := UnverifiedOf(parsed, issues)
-	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: unverified}
+	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), unverified: unverified, folder: target.folder}
 	var inTx func(q *dbsqlc.Queries, dash Dashboard, ver Version) error
 	if hook != nil {
 		inTx = func(q *dbsqlc.Queries, dash Dashboard, ver Version) error {
@@ -122,7 +129,11 @@ func (s *Service) CreateImported(ctx context.Context, by auth.Principal, rawSpec
 		dash, ver, replayed, err := s.replayedCreate(ctx, requestID)
 		return dash, ver, nil, replayed, err
 	}
-	return dash, ver, issues, false, err
+	if err != nil {
+		return Dashboard{}, Version{}, nil, false, err
+	}
+	dash.Abilities = target.abilities
+	return dash, ver, issues, false, nil
 }
 
 func (s *Service) replayedCreate(ctx context.Context, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
@@ -147,7 +158,11 @@ func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (
 	return dash, ver, true, nil
 }
 
-func (s *Service) create(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+	target, err := s.creationTarget(ctx, by, folderID)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
 	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -155,10 +170,27 @@ func (s *Service) create(ctx context.Context, by auth.Principal, rawSpec []byte,
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	return s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx)})
+	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), folder: target.folder})
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	dash.Abilities = target.abilities
+	return dash, ver, nil
 }
 
 func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
+	access, err := s.need(ctx, by, id, folders.NeedEdit)
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	dash, ver, replayed, err := s.persistVersion(ctx, by, id, parent, rawSpec, summary, requestID)
+	if err != nil {
+		return Dashboard{}, Version{}, false, err
+	}
+	return withAccess(dash, access), ver, replayed, nil
+}
+
+func (s *Service) persistVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, bool, error) {
 	if requestID.Valid {
 		if dash, ver, found, err := s.store.savedByRequest(ctx, requestID, id); err != nil || found {
 			return dash, ver, found, err
@@ -187,6 +219,18 @@ func (s *Service) saveVersion(ctx context.Context, by auth.Principal, id pgtype.
 }
 
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
+	access, err := s.need(ctx, by, id, folders.NeedEdit)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	dash, ver, err := s.restore(ctx, by, id, from, parent, summary)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	return withAccess(dash, access), ver, nil
+}
+
+func (s *Service) restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
 	summary, issues := checkSummary(summary, "Restore version "+strconv.Itoa(from))
 	if len(issues) > 0 {
 		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
@@ -272,6 +316,8 @@ type ListParams struct {
 	Query      string
 	Tags       []string
 	SkipTotal  bool
+	Folder     pgtype.UUID
+	ByFolder   bool
 }
 
 type ListItem struct {
@@ -279,6 +325,7 @@ type ListItem struct {
 	Description    string
 	DatasourceUIDs []string
 	OpenComments   int
+	sortTitle      string
 }
 
 type ListPage struct {
@@ -319,18 +366,26 @@ func ParseMadeBy(raw string, caller auth.Principal) (MadeBy, error) {
 	return MadeBy{}, invalid
 }
 
-func (s *Service) List(ctx context.Context, p ListParams) (ListPage, error) {
-	after, ok := httpapi.DecodeTimeCursor(p.Cursor)
-	if !ok {
-		return ListPage{}, ErrInvalidCursor
-	}
-	filter, err := filterOf(p)
+func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (ListPage, error) {
+	levels, err := s.access.Levels(ctx, by)
 	if err != nil {
 		return ListPage{}, err
 	}
-	items, err := s.store.list(ctx, after, p.Limit+1, filter)
+	filter, err := filterOf(p, levels.Visible())
 	if err != nil {
 		return ListPage{}, err
+	}
+	var items []ListItem
+	if p.ByFolder {
+		items, err = s.listByFolder(ctx, p, filter)
+	} else {
+		items, err = s.listByRecency(ctx, p, filter)
+	}
+	if err != nil {
+		return ListPage{}, err
+	}
+	for i := range items {
+		items[i].Abilities = levels.Of(items[i].Folder.ID)
 	}
 	page := ListPage{Items: items}
 	if !p.SkipTotal {
@@ -340,14 +395,44 @@ func (s *Service) List(ctx context.Context, p ListParams) (ListPage, error) {
 	}
 	if len(items) > p.Limit {
 		page.Items = items[:p.Limit]
-		last := page.Items[len(page.Items)-1]
-		page.NextCursor = httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p.ByFolder)
 	}
 	return page, nil
 }
 
-func (s *Service) DatasourceUsage(ctx context.Context) (map[string]int, error) {
-	rows, err := s.store.db.Queries().CountDashboardsByDatasource(ctx)
+func (s *Service) listByRecency(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	after, ok := httpapi.DecodeTimeCursor(p.Cursor)
+	if !ok {
+		return nil, ErrInvalidCursor
+	}
+	return s.store.list(ctx, after, p.Limit+1, filter)
+}
+
+func (s *Service) listByFolder(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	var after *folderCursor
+	if p.Cursor != "" {
+		decoded, err := decodeFolderCursor(p.Cursor)
+		if err != nil {
+			return nil, err
+		}
+		after = &decoded
+	}
+	return s.store.listByFolder(ctx, after, p.Limit+1, filter)
+}
+
+func nextCursor(last ListItem, byFolder bool) string {
+	if !byFolder {
+		return httpapi.EncodeTimeCursor(last.UpdatedAt, last.ID)
+	}
+	return encodeFolderCursor(last.Folder.General, last.sortTitle, last.Folder.ID, last.UpdatedAt, last.ID)
+}
+
+func (s *Service) DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error) {
+	levels, err := s.access.Levels(ctx, by)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.db.Queries().CountDashboardsByDatasource(ctx, levels.Visible())
 	if err != nil {
 		return nil, fmt.Errorf("count dashboards by datasource: %w", err)
 	}
@@ -363,8 +448,12 @@ type TagCount struct {
 	Dashboards int
 }
 
-func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
-	rows, err := s.store.db.Queries().ListDashboardTags(ctx)
+func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, error) {
+	levels, err := s.access.Levels(ctx, by)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.db.Queries().ListDashboardTags(ctx, levels.Visible())
 	if err != nil {
 		return nil, fmt.Errorf("list dashboard tags: %w", err)
 	}
@@ -373,6 +462,38 @@ func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
 		tags = append(tags, TagCount{Tag: row.Tag, Dashboards: int(row.Dashboards)})
 	}
 	return tags, nil
+}
+
+func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, error) {
+	dash, _, err := s.move(ctx, by, id, folderID)
+	return dash, err
+}
+
+func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
+	if _, err := s.need(ctx, by, id, folders.NeedEdit); err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	target, abilities, err := s.access.Folder(ctx, by, folderID)
+	if errors.Is(err, folders.ErrNotFound) {
+		return Dashboard{}, Version{}, ErrFolderNotFound
+	}
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	if !abilities.Edit {
+		return Dashboard{}, Version{}, folders.ErrForbidden
+	}
+	if err := s.store.move(ctx, id, folderID); err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	dash, ver, err := s.store.latest(ctx, id)
+	if err != nil {
+		return Dashboard{}, Version{}, err
+	}
+	dash.Abilities = abilities
+	s.logger.InfoContext(ctx, "dashboard moved",
+		slog.String("actor_id", by.ID), slog.String("dashboard_id", dash.ID), slog.String("folder_id", target.ID.String()))
+	return dash, ver, nil
 }
 
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {

@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -25,6 +26,8 @@ const (
 	defaultListDashboards = 20
 	maxListDashboards     = 50
 	maxStepCodes          = 3
+
+	roleDeniedMessage = "your role does not allow changing this dashboard"
 
 	codeInvalidSpec     = "invalid_spec"
 	codeVersionConflict = "version_conflict"
@@ -76,12 +79,13 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
 		return res, nil
 	}
+	principal, _ := auth.FromContext(ctx)
 	var (
 		items []dashboardItemOut
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}
@@ -350,7 +354,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 			return placeholderFailure(issues), nil
 		}
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
+	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, pgtype.UUID{}, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
 	if err != nil {
 		return saveFailure(err)
 	}
@@ -518,8 +522,10 @@ func saveFailure(err error) (Result, error) {
 		return failure(step, invalidSpecOut{Code: codeInvalidSpec, Issues: issues, Truncated: truncated}), nil
 	case errors.As(err, &conflict):
 		return failure("Save rejected: version conflict", conflictOut{Code: codeVersionConflict, LatestVersion: conflict.Latest}), nil
-	case errors.Is(err, dashboards.ErrNotFound):
+	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound):
 		return failure("Save rejected: dashboard not found", errorBody{Code: codeNotFound}), nil
+	case errors.Is(err, folders.ErrForbidden):
+		return failure("Save rejected: "+codeForbiddenRole, errorBody{Code: codeForbiddenRole, Message: roleDeniedMessage}), nil
 	}
 	return Result{}, err
 }

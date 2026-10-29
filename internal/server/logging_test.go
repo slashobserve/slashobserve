@@ -57,7 +57,9 @@ func TestPanicLogsTheTypeNotTheValue(t *testing.T) {
 
 type fakeUsage struct{ err error }
 
-func (f fakeUsage) DatasourceUsage(context.Context) (map[string]int, error) { return nil, f.err }
+func (f fakeUsage) DatasourceUsage(context.Context, auth.Principal) (map[string]int, error) {
+	return nil, f.err
+}
 
 func TestDatasourceListIgnoresAClientThatWentAway(t *testing.T) {
 	cases := []struct {
