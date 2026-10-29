@@ -139,7 +139,7 @@ export function useVariables({
 
   const valueLists: Record<string, string[] | undefined> = {}
   variables.forEach((variable, index) => {
-    valueLists[variable.name] = displays[index].shown?.values
+    valueLists[variable.name] = displays[index].selectable
   })
   const valuesKey = JSON.stringify(valueLists)
   const [stableValues, setStableValues] = useState({
