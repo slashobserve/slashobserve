@@ -32,7 +32,7 @@ If ClickHouse stays unhealthy after an upgrade, an old demo volume predates the 
 ## CLI
 
 `make cli` builds `bin/observe`, a thin client of the public API that uses a service-account key.
-Create a key on the web page `/keys` (**API keys** in the sidebar; a key is shown once), then sign in once:
+An Admin creates a key on the web page `/keys` (**API keys** in the sidebar; a key is shown once), then you sign in once:
 
     bin/observe login --server http://localhost:8080 --with-token
 

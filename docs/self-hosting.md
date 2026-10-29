@@ -6,7 +6,7 @@ This guide covers running the Community Edition yourself: what to run, how to co
 
 SlashObserve is one container plus one Postgres database.
 The container is a single Go binary with the web UI embedded; it has no other runtime dependencies.
-Postgres holds everything the server owns: dashboards and their versions, comments, users and sessions, service accounts and key hashes, and the agent request queue.
+Postgres holds everything the server owns: dashboards and their versions, folders and their access lists, comments, users and sessions, service accounts and key hashes, and the agent request queue.
 Your Prometheus and ClickHouse servers stay where they are; SlashObserve only reads from them.
 
 You also need:
@@ -109,7 +109,7 @@ That address matters beyond links:
 - It is the trusted origin for the cross-origin check on cookie-authenticated writes.
 
 Do not buffer or time out `GET /api/v1/dashboards/{id}/events`.
-It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid, and ends after 30 minutes; browsers reconnect on their own.
+It is a Server-Sent Events stream that sends a ping every 15 seconds, ends at the first ping after its session or key stops being valid or the person can no longer see the dashboard, and ends after 30 minutes; browsers reconnect on their own.
 The server ignores `X-Forwarded-For`.
 
 ### Health endpoints
@@ -319,12 +319,12 @@ Users are identified by the provider's issuer and subject, and are created on fi
 
 Every person and every service account has one of four instance roles, from the most to the least permitted: Admin, Editor, Commenter and Viewer.
 
-| Role      | May                                                                                                                     |
-| --------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Admin     | Everything an Editor may, plus People (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
-| Editor    | Create, edit, import and restore dashboards, chat and send requests to the agent, comment, and keep their own saved prompts. |
-| Commenter | View dashboards and versions, and add comments. Cannot send requests to the agent, import or edit.                       |
-| Viewer    | View dashboards and versions only. Cannot comment.                                                                       |
+| Role      | May                                                                                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin     | Everything an Editor may, in every folder, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
+| Editor    | Create, edit, import and restore dashboards, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                           |
+| Commenter | View dashboards and versions, and add comments. Cannot create or import dashboards, and cannot edit or send requests to the agent unless a folder grants Edit.        |
+| Viewer    | View dashboards and versions only. Cannot comment, unless a folder grants Edit.                                                                                        |
 
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 A service-account key can never create or revoke keys, whatever its role.
@@ -359,6 +359,56 @@ Without a `groups` claim a person has no groups.
 A role is recomputed every time the person signs in, and for everyone when the server starts.
 Changing `SLASHOBSERVE_ADMIN_EMAILS` or `SLASHOBSERVE_OIDC_GROUP_ROLES` therefore applies at the next restart, and a group change reaches a person at their next sign-in.
 Existing people become Editors when you upgrade, and the rules above are applied at the first start.
+
+### Folders and access
+
+Every dashboard lives in one folder.
+A new install has one folder, General, and every dashboard that existed before folders is in it.
+General is open to everyone by role, and it cannot be renamed, deleted or restricted.
+
+Editors and Admins create folders and move dashboards between them on the Dashboards page.
+A move needs Edit on both folders and saves no version.
+A folder can be deleted only when it is empty.
+A title is 1 to 100 characters and unique without regard to case.
+
+A folder is open or restricted, and the folder's settings page (**Folder settings** on the Dashboards page) switches it:
+
+- An open folder has no list.
+  Everyone sees it and has the access their role gives: Admins manage it, Editors edit, Commenters comment and Viewers view.
+- A restricted folder has a list of people and groups, at most 50.
+  Only the people on the list, the person who created the folder and Admins see it.
+  Everyone else gets no trace of its dashboards: they are missing from lists, search, tags and datasource counts, their panel data, events and comments are refused, and the agent cannot reach them.
+  Removing the last entry opens the folder to everyone again.
+
+Each entry gives a level, and a person gets the higher of the level their role gives and the levels of the entries that match them, so an entry never lowers access:
+
+| Level | May                                                                              |
+| ----- | -------------------------------------------------------------------------------- |
+| View  | See the folder and its dashboards.                                               |
+| Edit  | Also change dashboards, comment, send requests to the agent and move dashboards. |
+| Admin | Also rename the folder, delete it and change its list.                           |
+
+Some rules that follow from the roles:
+
+- A Commenter or Viewer can be given up to Edit, never Admin.
+  They then edit and comment in that folder but cannot manage it.
+- Creating a dashboard, in the web, through the API or by importing, needs the Editor role as well as Edit on the folder.
+- The person who created a folder is its Admin and keeps seeing it when it is restricted, even if the list does not name them.
+- Admins have the Admin level on every folder.
+
+An entry names a person by email address or a group by its name.
+A person has to have signed in once before an entry can name them, and an unknown address is refused with `422 unknown_user`.
+Groups come from the `groups` claim of the ID token, as in [Roles](#roles), and a person's groups are read at each sign-in, so a change to a group reaches folder access at the person's next sign-in.
+
+A service-account key matches no entry, because entries name people and groups.
+A key therefore sees a restricted folder only when its service account is an Admin or created the folder.
+To let automation work in a restricted folder, use a key of an Admin service account.
+
+The agent works as the person or key that asked.
+The request needs Edit on the dashboard, and the server checks it when the request is queued and again when a worker starts it.
+A request whose person lost access or was deleted in between fails with a message saying so.
+
+Over the API, a dashboard in a folder the caller cannot see answers `403 forbidden_role` and a folder answers `404 not_found`; MCP tools answer `not_found` for both.
 
 ## LLM providers
 
@@ -413,8 +463,8 @@ The project does not vouch for any particular local model, and dashboard quality
 
 The CLI, MCP clients and scripts authenticate with a service-account key, not a browser session.
 
-1. Sign in to the web app and choose **API keys** in the sidebar, or open `<public url>/keys` (the old `/settings/keys` address redirects).
-2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
+1. Sign in to the web app as an Admin and choose **API keys** in the sidebar, or open `<public url>/keys` (the old `/settings/keys` address redirects).
+2. Choose **Create key**, name the key, pick a service account or **New service account** (lowercase letters, digits and dashes, up to 63 characters, for example `ci-bot`), a role, and an expiry: in 90 days (the default), in 30 days, in 1 year, or never.
 3. Choose **Create key** in the panel and copy the key.
    It is shown once, in that panel, with an `export OBSERVE_TOKEN=…` line to paste into your shell.
    The server stores only a hash of the key, so a lost key cannot be recovered; create a new one and revoke the old one.
@@ -424,8 +474,10 @@ Add more keys to an account, and revoke a key, from the same page.
 A revoked or expired key is refused immediately.
 The page also shows ready-made client setup snippets for your server's address; they refer to `OBSERVE_TOKEN` and never contain the key.
 
-Only a signed-in Admin can create service accounts and keys; a service-account key cannot create more keys.
-A key acts with its service account's role, which starts as Editor.
+Only a signed-in Admin can create service accounts and keys, and only an Admin sees the API keys page; a service-account key cannot create more keys, whatever its role.
+A key acts with its service account's role, which starts as Editor for a new account.
+Choosing another role for an existing account in the Create key panel changes the role of every key of that account.
+Folder access applies to a key as it does to a person, except that a key matches no folder entry: a restricted folder is invisible to it unless its service account is an Admin or created the folder (see [Folders and access](#folders-and-access)).
 Beyond that, see [the security model](#security-model) for what any key can do.
 
 ## CLI
@@ -450,7 +502,12 @@ Then give it a prompt:
 
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
-`bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one and `--preview` shows the report without saving.
+`bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one, `--folder <title>` chooses the folder (see [Import Grafana dashboards](#import-grafana-dashboards)) and `--preview` shows the report without saving.
+The import report, the `Folder:` line and the folder note, if any, go to standard error, so standard output stays the address.
+To import a directory of exports into one folder:
+
+    for f in dashboards/*.json; do bin/observe import "$f" --folder Platform || echo "failed: $f" >&2; done
+
 `bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
 A key never sees private prompts, so share a prompt from the chat home before running it from the CLI.
 
@@ -473,6 +530,9 @@ The CLI reads its settings in this order: flags, the environment, then the saved
 | Server  | `--server` | `OBSERVE_SERVER`     |
 | Key     | `--token`  | `OBSERVE_TOKEN`      |
 
+A refusal with the code `forbidden_role` prints a hint that an Admin can change the key's role on the API keys page.
+The same code also covers a dashboard or folder the key cannot see or change, so check the folder access before the role.
+
 A saved key is sent only to the server it was saved for.
 To use another server, pass `--token` or set `OBSERVE_TOKEN`.
 Prefer `OBSERVE_TOKEN` to `--token`, since flags end up in shell history and the process list.
@@ -489,10 +549,28 @@ The endpoint is stateless, refuses an `Origin` that is not `SLASHOBSERVE_PUBLIC_
 On `initialize` the server returns an `Mcp-Session-Id` that only carries the client's self-reported name and holds no state.
 Each version and agent request records its origin (`web`, `cli`, `mcp` or `api`) and, for `mcp`, that client name.
 
+The server offers 19 tools.
+Each has a lowest role, which the server checks when a client calls it, using the role of the key's service account:
+
+| Role      | Tools                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewer    | `list_dashboards`, `get_dashboard`, `get_spec_guide`, `list_comments`, `list_folders`                                                                         |
+| Commenter | `reply_to_comment`, `resolve_comment`                                                                                                                         |
+| Editor    | `create_dashboard`, `update_dashboard`, `import_grafana_dashboard`, `list_datasources`, `list_metrics`, `list_labels`, `list_label_values`, `get_schema`, `sample_rows`, `lint_query`, `query_range`, `query_instant` |
+
+A call below the key's role returns the tool error `forbidden_role`.
+Folder access applies on top: a tool that names a dashboard or folder the key cannot see returns `not_found`, and changing a dashboard needs Edit on its folder.
+
+`list_folders` is available over MCP only.
+It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
+`create_dashboard` takes an optional `folder_id` from that list; without it, the dashboard goes to the folder the key last created a dashboard in, else General.
+A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
+
 MCP clients can read open comments with `list_comments`, reply with `reply_to_comment` and resolve with `resolve_comment`, passing the version that fixed the comment.
 A dashboard made by Claude Code can then be reviewed by the team without a model on the server.
 
-MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
+MCP clients can also hand the server a Grafana dashboard with `import_grafana_dashboard`: pass the dashboard JSON text, optionally a `folder` title, and a `mapping` from Grafana datasource keys to your datasource uids when the result says they could not be matched; panels whose queries fail are saved as unverified and listed in the result so the client can fix them with `update_dashboard`.
+The result names the folder the dashboard went to in `folder`, and `folder_note` says why when it is not the one requested.
 See [Import Grafana dashboards](#import-grafana-dashboards).
 
 Export the key in the shell that starts your client, so the key never lands in a config file:
@@ -570,6 +648,19 @@ The JSON can be the classic dashboard model, an export that shares a dashboard e
 
 Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](#datasources-file).
 An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
+
+The dashboard goes into a folder, chosen in this order:
+
+1. The request's `folder` title: `--folder` for `observe import`, `folder` for the API and the MCP tool.
+   The web page does not send one.
+2. The `meta.folderTitle` of an export taken from Grafana's dashboard API, which names the folder the dashboard had in Grafana.
+3. Your default folder: the folder you last created a dashboard in, else General.
+
+A title matches an existing folder without regard to case.
+A title of `General`, or an export title that is empty or not a valid folder title, means the default; an invalid `folder` in the request is refused with `400 invalid_request`.
+When no folder has the title, an Editor or Admin creates it.
+When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error).
+The folder is chosen before the dashboard is saved, so an import that then fails can leave a new, empty folder behind; delete it from its settings page.
 
 The request body, with the dashboard JSON as a string, can be at most 8 MiB.
 It saves the dashboard as version 1 and runs every query once.
@@ -693,8 +784,14 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
   Session cookies are `HttpOnly` and `SameSite=Lax`, and a cross-origin write made with a cookie is refused; `SLASHOBSERVE_PUBLIC_URL` is a trusted origin.
 - **Roles.**
   Every person and service account has an instance role (see [Roles](#roles)), and the server checks it on every API route.
-  Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
+  Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, open the Datasources page, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
   New people are Editors by default, so allow into SlashObserve only the people you would trust to create and change dashboards.
+- **Folders hide dashboards.**
+  A restricted folder (see [Folders and access](#folders-and-access)) is hidden from everyone who is not on its list, did not create it and is not an Admin, in lists, search, tags, datasource dashboard counts, panel data, comments, events, import records and the agent.
+  The server filters lists by the folders the caller can see, so a failed lookup shows nothing rather than everything, and re-checks access on each request, including at every ping of an event stream.
+  A key matches no folder entry, so only an Admin key reaches a restricted folder.
+- **Share links need sign-in.**
+  The Share pane copies a dashboard or panel address with the time range and variable values, and grants nothing: someone without access to the folder sees "You don't have access to this dashboard" after they sign in.
 - **Datasource credentials stay on the server.**
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.
@@ -718,4 +815,4 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
 ## Not covered here
 
 - Evals, the scored prompt suite for model quality, are a development tool and not part of running SlashObserve.
-- Roles and access control, and a Helm chart, are planned for later milestones.
+- A Helm chart is planned for a later milestone.
