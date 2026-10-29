@@ -3,6 +3,8 @@ package ttlcache
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -11,6 +13,7 @@ var ErrPanic = errors.New("internal error")
 
 type Group[V any] struct {
 	timeout time.Duration
+	logger  *slog.Logger
 
 	mu    sync.Mutex
 	calls map[string]*call[V]
@@ -30,8 +33,11 @@ func newCall[V any](ctx context.Context, timeout time.Duration) *call[V] {
 	return &call[V]{ctx: shared, cancel: cancel, done: make(chan struct{})}
 }
 
-func NewGroup[V any](timeout time.Duration) *Group[V] {
-	return &Group[V]{timeout: timeout, calls: map[string]*call[V]{}}
+func NewGroup[V any](timeout time.Duration, logger *slog.Logger) *Group[V] {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Group[V]{timeout: timeout, logger: logger, calls: map[string]*call[V]{}}
 }
 
 // The shared call runs on a context detached from every caller, so one caller going away does not fail the others,
@@ -59,7 +65,8 @@ func (g *Group[V]) Do(ctx context.Context, key string, fn func(context.Context) 
 
 func (g *Group[V]) run(key string, c *call[V], fn func(context.Context) (V, error)) {
 	defer func() {
-		if recover() != nil {
+		if p := recover(); p != nil {
+			g.logger.ErrorContext(c.ctx, "coalesced call panicked", slog.String("panic_type", fmt.Sprintf("%T", p)))
 			var zero V
 			c.value, c.err = zero, ErrPanic
 		}

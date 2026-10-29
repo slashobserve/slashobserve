@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"slices"
 	"time"
@@ -73,11 +74,11 @@ type caches struct {
 	values      *ttlcache.Cache[cacheKey, valuesEntry]
 }
 
-func newCaches() *caches {
+func newCaches(logger *slog.Logger) *caches {
 	return &caches{
 		specs:       ttlcache.New[specKey, loadedVersion](0, specCacheEntries),
 		data:        ttlcache.New[cacheKey, dataEntry](resultTTL, resultMaxCost),
-		dataFlights: ttlcache.NewGroup[dataEntry](runTimeout),
+		dataFlights: ttlcache.NewGroup[dataEntry](runTimeout, logger),
 		values:      ttlcache.New[cacheKey, valuesEntry](resultTTL, valuesMaxCost),
 	}
 }

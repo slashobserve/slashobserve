@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -26,10 +27,10 @@ type valueCache struct {
 	flights *ttlcache.Group[[]string]
 }
 
-func newValueCache() *valueCache {
+func newValueCache(logger *slog.Logger) *valueCache {
 	return &valueCache{
 		entries: ttlcache.New[[sha256.Size]byte, []string](valueCacheTTL, valueCacheMaxCost),
-		flights: ttlcache.NewGroup[[]string](valueFetchTimeout),
+		flights: ttlcache.NewGroup[[]string](valueFetchTimeout, logger),
 	}
 }
 

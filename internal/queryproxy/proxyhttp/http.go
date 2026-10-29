@@ -65,7 +65,7 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, registry *datasourc
 		specs:    specs,
 		registry: registry,
 		logger:   logger,
-		caches:   newCaches(),
+		caches:   newCaches(logger),
 		slots:    &slots{held: map[string]int{}},
 
 		lintTimeout: lintTimeout,

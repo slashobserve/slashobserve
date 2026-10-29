@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -63,6 +64,7 @@ type Response struct {
 type Options struct {
 	UserAgent string
 	CacheTTL  time.Duration
+	Logger    *slog.Logger
 }
 
 type HostError struct {
@@ -115,7 +117,7 @@ func newClient(allow Allowlist, opts Options, dial dialFunc, roots *x509.CertPoo
 		transport: newTransport(dial, roots),
 		hits:      ttlcache.New[string, visited](opts.CacheTTL, cacheBytes),
 		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
-		group:     ttlcache.NewGroup[visited](fetchTimeout),
+		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
 		slots:     make(chan struct{}, maxConcurrent),
 	}
 }

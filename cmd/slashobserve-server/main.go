@@ -234,7 +234,7 @@ func run() error {
 	defer stopWorkers()
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
-	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version})
+	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 
 	handler, err := server.New(server.Options{
 		Logger:          logger,

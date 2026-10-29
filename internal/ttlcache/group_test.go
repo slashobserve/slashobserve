@@ -6,9 +6,13 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
 const testKey = "k"
+
+type panicValue struct{ text string }
 
 func waiters(g *Group[string], key string) int {
 	g.mu.Lock()
@@ -57,7 +61,7 @@ func receive(t *testing.T, ch <-chan outcome) outcome {
 
 func TestGroupConcurrentCallersRunOnce(t *testing.T) {
 	const callers = 20
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	release := make(chan struct{})
 	var mu sync.Mutex
 	runs := 0
@@ -89,7 +93,7 @@ func TestGroupConcurrentCallersRunOnce(t *testing.T) {
 }
 
 func TestGroupLeaderCancelDoesNotFailOthers(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	release := make(chan struct{})
 	sharedErr := make(chan error, 1)
 	fn := func(ctx context.Context) (string, error) {
@@ -126,7 +130,7 @@ func TestGroupLeaderCancelDoesNotFailOthers(t *testing.T) {
 }
 
 func TestGroupCallerCancelReturnsItsContextError(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	release := make(chan struct{})
 	defer close(release)
 	fn := func(context.Context) (string, error) { <-release; return "late", nil }
@@ -143,7 +147,7 @@ func TestGroupCallerCancelReturnsItsContextError(t *testing.T) {
 }
 
 func TestGroupLastCallerLeavingCancelsSharedContext(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	started := make(chan struct{})
 	canceled := make(chan struct{})
 	fn := func(ctx context.Context) (string, error) {
@@ -178,7 +182,7 @@ func TestGroupLastCallerLeavingCancelsSharedContext(t *testing.T) {
 }
 
 func TestGroupNewCallerAfterAbandonedCallStartsFreshCall(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	oldCanceled := make(chan struct{})
 	releaseOld := make(chan struct{})
 	old := func(ctx context.Context) (string, error) {
@@ -203,7 +207,7 @@ func TestGroupNewCallerAfterAbandonedCallStartsFreshCall(t *testing.T) {
 }
 
 func TestGroupTimeoutCancelsTheSharedCall(t *testing.T) {
-	g := NewGroup[string](20 * time.Millisecond)
+	g := NewGroup[string](20*time.Millisecond, nil)
 	_, err := g.Do(context.Background(), testKey, func(ctx context.Context) (string, error) {
 		<-ctx.Done()
 		return "", ctx.Err()
@@ -213,12 +217,13 @@ func TestGroupTimeoutCancelsTheSharedCall(t *testing.T) {
 	}
 }
 
-func TestGroupPanicBecomesAnError(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+func TestGroupPanicBecomesAnErrorAndIsLoggedOnce(t *testing.T) {
+	logger, logs := logtest.New()
+	g := NewGroup[string](time.Minute, logger)
 	release := make(chan struct{})
 	fn := func(context.Context) (string, error) {
 		<-release
-		panic("boom")
+		panic(panicValue{"UNIQUE-PANIC-TEXT"})
 	}
 
 	a := doAsync(context.Background(), g, testKey, fn)
@@ -232,6 +237,11 @@ func TestGroupPanicBecomesAnError(t *testing.T) {
 			t.Fatalf("caller = %+v, want ErrPanic", o)
 		}
 	}
+	record := logs.Find(t, "coalesced call panicked")
+	if record["panic_type"] != "ttlcache.panicValue" {
+		t.Errorf("panic_type = %v, want ttlcache.panicValue", record["panic_type"])
+	}
+	logs.AssertAbsent(t, "UNIQUE-PANIC-TEXT")
 	v, err := g.Do(context.Background(), testKey, func(context.Context) (string, error) { return "after", nil })
 	if err != nil || v != "after" {
 		t.Fatalf("group unusable after a panic: %q, %v", v, err)
@@ -239,7 +249,7 @@ func TestGroupPanicBecomesAnError(t *testing.T) {
 }
 
 func TestGroupCleansUpFinishedCalls(t *testing.T) {
-	g := NewGroup[string](time.Minute)
+	g := NewGroup[string](time.Minute, nil)
 	if _, err := g.Do(context.Background(), testKey, func(context.Context) (string, error) { return "v", nil }); err != nil {
 		t.Fatal(err)
 	}

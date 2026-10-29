@@ -112,7 +112,7 @@ type Runner struct {
 type RunnerOption func(*Runner)
 
 func WithValueCache() RunnerOption {
-	return func(r *Runner) { r.values = newValueCache() }
+	return func(r *Runner) { r.values = newValueCache(r.logger) }
 }
 
 func WithUpstreamWait(d time.Duration) RunnerOption {
