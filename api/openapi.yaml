@@ -151,10 +151,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Issue"
+    Role:
+      type: string
+      enum: [admin, editor, commenter, viewer]
     Principal:
       type: object
       additionalProperties: false
-      required: [kind, id, name]
+      required: [kind, id, name, role]
       properties:
         kind:
           type: string
@@ -166,6 +169,8 @@ components:
           type: string
         email:
           type: string
+        role:
+          $ref: "#/components/schemas/Role"
     Instance:
       type: object
       additionalProperties: false
@@ -1821,7 +1826,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     Forbidden:
-      description: The caller is not allowed to perform the request.
+      description: The caller is not allowed to perform the request; a role that is too low is code `forbidden_role`.
       content:
         application/json:
           schema:

@@ -940,6 +940,8 @@ export interface components {
             code: string;
             issues: components["schemas"]["Issue"][];
         };
+        /** @enum {string} */
+        Role: "admin" | "editor" | "commenter" | "viewer";
         Principal: {
             /** @enum {string} */
             kind: "user" | "service_account";
@@ -947,6 +949,7 @@ export interface components {
             id: string;
             name: string;
             email?: string;
+            role: components["schemas"]["Role"];
         };
         Instance: {
             /** Format: uri */
@@ -1730,7 +1733,7 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The caller is not allowed to perform the request. */
+        /** @description The caller is not allowed to perform the request; a role that is too low is code `forbidden_role`. */
         Forbidden: {
             headers: {
                 [name: string]: unknown;
@@ -3871,6 +3874,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             413: components["responses"]["TooLarge"];
             /** @description The JSON is not a Grafana dashboard the importer accepts (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`) or the mapping is wrong (`invalid_mapping`). */
             422: {
@@ -3957,6 +3961,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             413: components["responses"]["TooLarge"];
             /** @description The importer's codes as for the preview (`invalid_json`, `not_a_dashboard`, `unsupported_format`, `too_many_panels`, `invalid_mapping`), `datasources_unresolved` while a source datasource has no match (`datasources` lists every one, `candidates` the choices), or `invalid_spec` when the converted Spec cannot be saved (for example a NUL character; `issues` lists the problems). */
             422: {
