@@ -19,6 +19,7 @@ import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/key
 import { Route as AuthedShellPeopleRouteImport } from './routes/_authed/_shell/people'
 import { Route as AuthedShellChatIndexRouteImport } from './routes/_authed/_shell/_chat/index'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
+import { Route as AuthedShellFoldersFolderIdRouteImport } from './routes/_authed/_shell/folders/$folderId'
 import { Route as AuthedShellSettingsIndexRouteImport } from './routes/_authed/_shell/settings/index'
 import { Route as AuthedShellSettingsKeysRouteImport } from './routes/_authed/_shell/settings/keys'
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
@@ -73,6 +74,12 @@ const AuthedShellDashboardsIndexRoute =
     path: '/dashboards/',
     getParentRoute: () => AuthedShellRoute,
   } as any)
+const AuthedShellFoldersFolderIdRoute =
+  AuthedShellFoldersFolderIdRouteImport.update({
+    id: '/folders/$folderId',
+    path: '/folders/$folderId',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellSettingsIndexRoute =
   AuthedShellSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
@@ -124,6 +132,7 @@ export interface FileRoutesByTo {
   '/import': typeof AuthedShellImportRoute
   '/keys': typeof AuthedShellKeysRoute
   '/people': typeof AuthedShellPeopleRoute
+  '/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
@@ -141,6 +150,7 @@ export interface FileRoutesById {
   '/_authed/_shell/import': typeof AuthedShellImportRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
   '/_authed/_shell/people': typeof AuthedShellPeopleRoute
+  '/_authed/_shell/folders/$folderId': typeof AuthedShellFoldersFolderIdRoute
   '/_authed/_shell/settings/keys': typeof AuthedShellSettingsKeysRoute
   '/_authed/dashboards/$dashboardId/versions': typeof AuthedDashboardsDashboardIdVersionsRoute
   '/_authed/_shell/_chat/': typeof AuthedShellChatIndexRoute
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/keys'
     | '/people'
+    | '/folders/$folderId'
     | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards/'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/keys'
     | '/people'
+    | '/folders/$folderId'
     | '/settings/keys'
     | '/dashboards/$dashboardId/versions'
     | '/dashboards'
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/import'
     | '/_authed/_shell/keys'
     | '/_authed/_shell/people'
+    | '/_authed/_shell/folders/$folderId'
     | '/_authed/_shell/settings/keys'
     | '/_authed/dashboards/$dashboardId/versions'
     | '/_authed/_shell/_chat/'
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellDashboardsIndexRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/folders/$folderId': {
+      id: '/_authed/_shell/folders/$folderId'
+      path: '/folders/$folderId'
+      fullPath: '/folders/$folderId'
+      preLoaderRoute: typeof AuthedShellFoldersFolderIdRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/settings/': {
       id: '/_authed/_shell/settings/'
       path: '/settings'
@@ -332,6 +352,7 @@ interface AuthedShellRouteChildren {
   AuthedShellImportRoute: typeof AuthedShellImportRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
   AuthedShellPeopleRoute: typeof AuthedShellPeopleRoute
+  AuthedShellFoldersFolderIdRoute: typeof AuthedShellFoldersFolderIdRoute
   AuthedShellSettingsKeysRoute: typeof AuthedShellSettingsKeysRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
@@ -343,6 +364,7 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellImportRoute: AuthedShellImportRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
   AuthedShellPeopleRoute: AuthedShellPeopleRoute,
+  AuthedShellFoldersFolderIdRoute: AuthedShellFoldersFolderIdRoute,
   AuthedShellSettingsKeysRoute: AuthedShellSettingsKeysRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
