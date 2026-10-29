@@ -13,6 +13,7 @@ import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
 import { useAgentInfo } from "@/observe/queries"
 import { cn } from "@/lib/utils"
 import type { EditorView } from "@/panel-editor/panel-editor"
+import { SharePane } from "@/share/share-pane"
 import type { Dashboard } from "@/spec"
 
 import { CardHeader } from "./card-header"
@@ -32,6 +33,8 @@ type Props = {
   latestVersion: number
   pinned: boolean
   canEdit: boolean
+  folder: { id: string; title: string }
+  canManage: boolean
   madeBy: string | null
   back: string | undefined
   timeRange: { from?: string; to?: string }
@@ -50,6 +53,8 @@ export function ActivityCard({
   latestVersion,
   pinned,
   canEdit,
+  folder,
+  canManage,
   madeBy,
   back,
   timeRange,
@@ -72,20 +77,28 @@ export function ActivityCard({
   const panelId = search.panel
   const editingId = canEdit && search.edit !== undefined ? panelId : undefined
   const editing = editingId !== undefined
+  const sharing = search.share === true && !editing
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
-  const shown = useRef<{ panelId: string | undefined; editing: boolean }>({
-    panelId: undefined,
-    editing: false,
-  })
+  const shown = useRef<{
+    panelId: string | undefined
+    editing: boolean
+    sharing: boolean
+  }>({ panelId: undefined, editing: false, sharing: false })
   useEffect(() => {
     const before = shown.current
-    shown.current = { panelId, editing }
-    if (before.panelId === panelId && before.editing === editing) return
+    shown.current = { panelId, editing, sharing }
+    if (
+      before.panelId === panelId &&
+      before.editing === editing &&
+      before.sharing === sharing
+    ) {
+      return
+    }
     if (card.current?.contains(document.activeElement)) return
     heading.current?.focus()
-  }, [panelId, editing])
+  }, [panelId, editing, sharing])
 
   const onScopeChange = useCallback(
     (next: string | null) =>
@@ -171,6 +184,23 @@ export function ActivityCard({
           headingRef={heading}
           guardRef={guardRef}
         />
+      ) : sharing ? (
+        <>
+          <CardHeader
+            headingId={headingId}
+            headingRef={heading}
+            title="Share"
+            description="Copy a link for people on this server."
+            close={onClose}
+          />
+          <SharePane
+            dashboardId={dashboardId}
+            spec={spec}
+            search={search}
+            folder={folder}
+            canManage={canManage}
+          />
+        </>
       ) : (
         <>
           <CardHeader

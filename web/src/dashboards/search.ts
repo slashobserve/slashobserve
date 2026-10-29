@@ -41,7 +41,7 @@ export const ALL = "$__all"
 const panelIdPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 const variableNamePattern = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const versionPattern = /^[1-9][0-9]{0,8}$/
-const variablePrefix = "var-"
+export const variablePrefix = "var-"
 
 function firstString(value: unknown): string | undefined {
   const item = Array.isArray(value) ? value[0] : value
