@@ -60,10 +60,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-type PanelKind = "data" | "text" | "dashlist"
+type PanelKind = "data" | "text" | "dashlist" | "news"
 
 function kindOf(type: unknown): PanelKind | null {
-  if (type === "text" || type === "dashlist") return type
+  if (type === "text" || type === "dashlist" || type === "news") return type
   return typeof type === "string" &&
     (dataPanelTypes as readonly string[]).includes(type)
     ? "data"

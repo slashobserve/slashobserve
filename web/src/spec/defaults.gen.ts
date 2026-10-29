@@ -125,7 +125,8 @@ export const specDefaults = {
       "limit": 10,
       "keepTime": false,
       "includeVars": false
-    }
+    },
+    "news": {}
   },
   "canvasElement": {
     "fontSize": 14,

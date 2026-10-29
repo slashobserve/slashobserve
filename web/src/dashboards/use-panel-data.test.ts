@@ -60,6 +60,7 @@ describe("maxDataPointsFor", () => {
     ["geomap", 640, undefined],
     ["alertlist", 640, undefined],
     ["dashlist", 640, undefined],
+    ["news", 640, undefined],
     ["logs", 640, undefined],
     ["text", 640, undefined],
     ["row", 640, undefined],

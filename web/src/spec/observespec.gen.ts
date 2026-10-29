@@ -25,7 +25,7 @@ export type Query = string;
  * Default selection: one value, several for a multi variable, or $__all.
  */
 export type Selection = string | string[];
-export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel | DashlistPanel;
+export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel | DashlistPanel | NewsPanel;
 export type DataPanel = FieldProps & DataPanel1;
 /**
  * A Grafana unit id, or a custom suffix:/prefix: unit.
@@ -573,7 +573,7 @@ export interface RowPanel {
   /**
    * @maxItems 200
    */
-  panels?: (DataPanel | TextPanel | PlaceholderPanel | DashlistPanel)[];
+  panels?: (DataPanel | TextPanel | PlaceholderPanel | DashlistPanel | NewsPanel)[];
 }
 /**
  * Links to other dashboards on this server; no datasource or queries.
@@ -596,5 +596,24 @@ export interface DashlistPanel {
     limit?: number;
     keepTime?: boolean;
     includeVars?: boolean;
+  };
+}
+/**
+ * The latest items of one RSS or Atom feed, fetched by the server for allowlisted domains; no datasource or queries.
+ */
+export interface NewsPanel {
+  /**
+   * Stable across versions; comments anchor to it.
+   */
+  id: string;
+  title?: string;
+  description?: string;
+  gridPos: GridPos;
+  type: "news";
+  display?: {
+    /**
+     * An https RSS or Atom feed URL. The server fetches it only when its domain is on the outbound allowlist.
+     */
+    feedUrl?: string;
   };
 }

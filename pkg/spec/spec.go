@@ -51,6 +51,7 @@ const (
 	Canvas        PanelType = "canvas"
 	AlertList     PanelType = "alertlist"
 	DashList      PanelType = "dashlist"
+	News          PanelType = "news"
 	Text          PanelType = "text"
 	Row           PanelType = "row"
 	Placeholder   PanelType = "placeholder"
@@ -66,7 +67,7 @@ func (t PanelType) IsData() bool {
 }
 
 func (t PanelType) IsEditable() bool {
-	return t.IsData() || t == Text || t == DashList
+	return t.IsData() || t == Text || t == DashList || t == News
 }
 
 type VariableType string
@@ -317,6 +318,7 @@ type Display struct {
 	Tags             []string           `json:"tags,omitempty"`
 	KeepTime         *bool              `json:"keepTime,omitempty"`
 	IncludeVars      *bool              `json:"includeVars,omitempty"`
+	FeedURL          string             `json:"feedUrl,omitempty"`
 }
 
 type CanvasElement struct {

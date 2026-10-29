@@ -23,6 +23,7 @@ Leave out every value that equals its default.
 - `canvas`: a diagram of positioned `display.elements` (`metric`, `text`, `rectangle`, `ellipse`; positions in percent) bound to fields, with `"fill": "field"` for threshold colors and `display.connections` between elements; only when the request asks for a diagram.
 - `alertlist`: firing or pending Prometheus alerts from an instant query on `ALERTS`; an empty list is valid.
 - `dashlist`: links to other dashboards matching `display.query` or `display.tags`; it has no datasource or queries.
+- `news`: the latest items of one RSS or Atom feed at `display.feedUrl` (https only); it has no datasource or queries, and it shows items only when the feed's domain is on the server's outbound allowlist, so add one only when asked.
 - Panel ids are unique across the dashboard, row children included, lowercase snake case, prefixed `p_`.
 - A `row` groups the panels after it under a title: put them in the row's `panels`, each with its own `gridPos` below the row.
 - Never create a `placeholder` panel; they come only from Grafana imports. You may move one (its `gridPos`, or into or out of a row) or delete it, and must leave its other fields unchanged; to implement one, replace it with a real panel that keeps its id.

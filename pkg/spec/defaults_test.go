@@ -39,12 +39,19 @@ func schemaDisplayPanelTypes(t *testing.T) []string {
 					} `json:"type"`
 				} `json:"properties"`
 			} `json:"dashlistPanel"`
+			NewsPanel struct {
+				Properties struct {
+					Type struct {
+						Const string `json:"const"`
+					} `json:"type"`
+				} `json:"properties"`
+			} `json:"newsPanel"`
 		} `json:"$defs"`
 	}
 	if err := json.Unmarshal(spec.Schema(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	return append(schemaDataPanelTypes(t), doc.Defs.DashlistPanel.Properties.Type.Const)
+	return append(schemaDataPanelTypes(t), doc.Defs.DashlistPanel.Properties.Type.Const, doc.Defs.NewsPanel.Properties.Type.Const)
 }
 
 func schemaDataPanelTypes(t *testing.T) []string {
@@ -158,7 +165,7 @@ func TestInstantByDefault(t *testing.T) {
 			t.Errorf("InstantByDefault(%q) = false, want true", panelType)
 		}
 	}
-	for _, panelType := range []spec.PanelType{spec.Timeseries, spec.BarChart, spec.Canvas, spec.Text, spec.DashList} {
+	for _, panelType := range []spec.PanelType{spec.Timeseries, spec.BarChart, spec.Canvas, spec.Text, spec.DashList, spec.News} {
 		if spec.InstantByDefault(panelType) {
 			t.Errorf("InstantByDefault(%q) = true, want false", panelType)
 		}
@@ -183,7 +190,7 @@ func TestDefaultValuesAreSchemaValid(t *testing.T) {
 	for _, panelType := range slices.Sorted(maps.Keys(display)) {
 		t.Run("display "+panelType, func(t *testing.T) {
 			panel := defaultsPanel("p1", panelType)
-			if panelType == "dashlist" {
+			if panelType == "dashlist" || panelType == "news" {
 				delete(panel, "datasource")
 				delete(panel, "queries")
 			}
@@ -243,4 +250,39 @@ func rawQueryWithDefaults(t *testing.T, raw map[string]json.RawMessage) map[stri
 	query := map[string]any{"query": "up"}
 	maps.Copy(query, rawObject(t, raw["query"]))
 	return query
+}
+
+func TestNewsPanelFeedURL(t *testing.T) {
+	cases := []struct {
+		name    string
+		display map[string]any
+		valid   bool
+	}{
+		{"https feed", map[string]any{"feedUrl": "https://grafana.com/blog/news.xml"}, true},
+		{"no display options", map[string]any{}, true},
+		{"http feed", map[string]any{"feedUrl": "http://grafana.com/blog/news.xml"}, false},
+		{"scheme only", map[string]any{"feedUrl": "https://"}, false},
+		{"whitespace in url", map[string]any{"feedUrl": "https://example.com/a b"}, false},
+		{"relative url", map[string]any{"feedUrl": "/blog/news.xml"}, false},
+		{"unknown option", map[string]any{"feedUrl": "https://example.com/feed", "limit": 5}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			panel := defaultsPanel("p1", "news")
+			delete(panel, "datasource")
+			delete(panel, "queries")
+			panel["display"] = c.display
+			data, err := json.Marshal(defaultsDoc(panel))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = spec.Parse(data)
+			if c.valid && err != nil {
+				t.Fatalf("Parse() = %v, want valid", err)
+			}
+			if !c.valid && err == nil {
+				t.Fatal("Parse() accepted an invalid news panel")
+			}
+		})
+	}
 }

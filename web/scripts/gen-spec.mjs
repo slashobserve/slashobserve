@@ -35,6 +35,7 @@ let code = standaloneCode(ajv, {
   textPanel: `${schema.$id}#/$defs/textPanel`,
   placeholderPanel: `${schema.$id}#/$defs/placeholderPanel`,
   dashlistPanel: `${schema.$id}#/$defs/dashlistPanel`,
+  newsPanel: `${schema.$id}#/$defs/newsPanel`,
   rowPanel: `${schema.$id}#/$defs/rowPanel`,
 })
 code = code.replace(
@@ -80,6 +81,7 @@ const displayKeysByType = Object.fromEntries([
     "dashlist",
     Object.keys(schema.$defs.dashlistPanel.properties.display.properties),
   ],
+  ["news", Object.keys(schema.$defs.newsPanel.properties.display.properties)],
 ])
 const displayKeysModule = `${banner}\nexport const displayKeysByType: Record<string, readonly string[]> = ${JSON.stringify(displayKeysByType, null, 2)}\n`
 

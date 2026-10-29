@@ -128,3 +128,7 @@ export const importKeys = {
 export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }
+
+export const newsKeys = {
+  feed: (url: string) => ["news", url] as const,
+}

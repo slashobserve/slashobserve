@@ -6,6 +6,7 @@ import type {
   DashlistPanel,
   DataPanel,
   DataPanelType,
+  NewsPanel,
   PlaceholderPanel,
   TextPanel,
 } from "@/spec"
@@ -32,10 +33,10 @@ export type PanelRendererProps = {
 
 export type PanelRenderer = ComponentType<PanelRendererProps>
 
-export type StaticPanelType = "text" | "placeholder" | "dashlist"
+export type StaticPanelType = "text" | "placeholder" | "dashlist" | "news"
 
 export type StaticPanelProps = {
-  panel: TextPanel | PlaceholderPanel | DashlistPanel
+  panel: TextPanel | PlaceholderPanel | DashlistPanel | NewsPanel
   width: number
   height: number
   vars: Selections

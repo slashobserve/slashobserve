@@ -42,10 +42,10 @@ function dataPanel(type: string, extras: Record<string, unknown> = {}) {
   }
 }
 
-function dashlistPanel(extras: Record<string, unknown> = {}) {
+function staticPanel(type: string, extras: Record<string, unknown> = {}) {
   return {
     id: "p",
-    type: "dashlist",
+    type,
     title: "t",
     gridPos: { x: 0, y: 0, w: 12, h: 8 },
     ...extras,
@@ -67,7 +67,9 @@ describe("spec defaults", () => {
     const extras = Object.keys(display).length > 0 ? { display } : {}
     expectValid(
       dashboard([
-        type === "dashlist" ? dashlistPanel(extras) : dataPanel(type, extras),
+        type === "dashlist" || type === "news"
+          ? staticPanel(type, extras)
+          : dataPanel(type, extras),
       ])
     )
   })

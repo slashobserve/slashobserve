@@ -5,6 +5,7 @@ import {
   type DashlistPanel,
   type DataPanel,
   type DataPanelType,
+  type NewsPanel,
   type Panel,
   type PanelQuery,
   type TextPanel,
@@ -12,11 +13,14 @@ import {
   type Unit,
 } from "@/spec"
 
-export type EditablePanel = DataPanel | TextPanel | DashlistPanel
+export type EditablePanel = DataPanel | TextPanel | DashlistPanel | NewsPanel
 
 export function isEditablePanel(panel: Panel): panel is EditablePanel {
   return (
-    isDataPanel(panel) || panel.type === "text" || panel.type === "dashlist"
+    isDataPanel(panel) ||
+    panel.type === "text" ||
+    panel.type === "dashlist" ||
+    panel.type === "news"
   )
 }
 
@@ -102,7 +106,7 @@ function removeQuery(panel: DataPanel, index: number) {
 }
 
 function setDisplay(
-  panel: DataPanel | DashlistPanel,
+  panel: DataPanel | DashlistPanel | NewsPanel,
   key: string,
   value: unknown
 ) {

@@ -80,6 +80,11 @@ func displayNode(t *testing.T, doc schemaDoc) schemaNode {
 		t.Fatalf("decode dashlistPanel display: %v", err)
 	}
 	maps.Copy(props, dashlistDisplay.Properties)
+	var newsDisplay schemaNode
+	if err := json.Unmarshal(doc.Defs["newsPanel"].Properties["display"], &newsDisplay); err != nil {
+		t.Fatalf("decode newsPanel display: %v", err)
+	}
+	maps.Copy(props, newsDisplay.Properties)
 	if len(props) == 0 {
 		t.Fatal("dataPanel has no display properties")
 	}
@@ -91,7 +96,7 @@ func TestTypesMatchSchema(t *testing.T) {
 	d := doc.Defs
 	fieldProps := d["fieldProps"]
 	variables := []schemaNode{d["queryVariable"], d["customVariable"], d["constantVariable"], d["intervalVariable"], d["textboxVariable"], d["datasourceVariable"], d["adhocVariable"]}
-	panels := []schemaNode{mergeProps(d["dataPanel"], fieldProps), d["textPanel"], d["dashlistPanel"], d["placeholderPanel"], d["rowPanel"]}
+	panels := []schemaNode{mergeProps(d["dataPanel"], fieldProps), d["textPanel"], d["dashlistPanel"], d["newsPanel"], d["placeholderPanel"], d["rowPanel"]}
 	cases := []struct {
 		name  string
 		typ   reflect.Type

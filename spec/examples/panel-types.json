@@ -68,6 +68,9 @@
       "display": { "limit": 10, "sort": "importance", "viewMode": "list" } },
     { "id": "p_dashboards", "type": "dashlist", "title": "Related dashboards",
       "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
-      "display": { "tags": ["example"], "limit": 5 } }
+      "display": { "tags": ["example"], "limit": 5 } },
+    { "id": "p_news", "type": "news", "title": "Grafana blog",
+      "gridPos": { "x": 0, "y": 48, "w": 12, "h": 8 },
+      "display": { "feedUrl": "https://grafana.com/blog/news.xml" } }
   ]
 }

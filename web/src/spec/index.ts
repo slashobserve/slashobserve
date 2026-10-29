@@ -1,6 +1,7 @@
 import {
   dashlistPanel,
   dataPanel,
+  newsPanel,
   placeholderPanel,
   rowPanel,
   textPanel,
@@ -42,6 +43,7 @@ const panelBranches: Record<string, AjvValidate> = {
   placeholder: placeholderPanel as unknown as AjvValidate,
   row: rowPanel as unknown as AjvValidate,
   dashlist: dashlistPanel as unknown as AjvValidate,
+  news: newsPanel as unknown as AjvValidate,
 }
 
 function branchFor(panel: Record<string, unknown>): AjvValidate | undefined {

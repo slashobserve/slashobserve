@@ -26,7 +26,8 @@
     "geomap": {"view": "fit", "location": "auto", "markerSize": 5, "markerSizeMax": 15},
     "canvas": {"reduce": "lastNotNull", "elements": [], "connections": []},
     "alertlist": {"limit": 20, "sort": "alphaAsc", "viewMode": "list"},
-    "dashlist": {"tags": [], "limit": 10, "keepTime": false, "includeVars": false}
+    "dashlist": {"tags": [], "limit": 10, "keepTime": false, "includeVars": false},
+    "news": {}
   },
   "canvasElement": {"fontSize": 14, "align": "center"},
   "canvasConnection": {"width": 2},
