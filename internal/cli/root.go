@@ -35,6 +35,7 @@ type app struct {
 	commentList    commentListOptions
 	commentResolve commentResolveOptions
 	importing      importOptions
+	run            runOptions
 	withToken      bool
 }
 
@@ -71,8 +72,8 @@ func (a *app) command() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "observe [flags] <prompt words...>",
 		Short:         "Turn a prompt into a dashboard",
-		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.\nA prompt whose first word is a command name (dashboards, comments, import, status, login, logout, version, help) must be quoted as one argument.",
-		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list\n  observe comments list <dashboard-id>\n  observe import dashboard.json",
+		Long:          "observe sends a prompt to a SlashObserve server and prints the address of the dashboard the agent builds.\nA prompt whose first word is a command name (dashboards, comments, import, run, status, login, logout, version, help) must be quoted as one argument.",
+		Example:       "  observe checkout p99 latency, last 6h\n  observe --dashboard <id> add a panel for errors by pod\n  observe dashboards list\n  observe comments list <dashboard-id>\n  observe import dashboard.json\n  observe run Checkout health",
 		Args:          cobra.ArbitraryArgs,
 		RunE:          a.runPrompt,
 		SilenceUsage:  true,
@@ -91,7 +92,7 @@ func (a *app) command() *cobra.Command {
 	flags.BoolVarP(&a.quiet, "quiet", "q", false, "hide progress and confirmations; results and errors still print")
 	a.addPromptFlags(root)
 
-	root.AddCommand(a.statusCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand())
+	root.AddCommand(a.statusCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand())
 	return root
 }
 

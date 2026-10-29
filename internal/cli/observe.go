@@ -81,7 +81,10 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ctx := cmd.Context()
+	return a.submit(cmd.Context(), c, payload, a.prompt.noWait, a.prompt.timeout)
+}
+
+func (a *app) submit(ctx context.Context, c *client, payload map[string]any, noWait bool, timeout time.Duration) error {
 	data, err := c.post(ctx, "observe", payload)
 	if err != nil {
 		return err
@@ -91,7 +94,7 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out := a.output()
-	if a.prompt.noWait {
+	if noWait {
 		if a.json {
 			out.body(data)
 		} else {
@@ -99,7 +102,7 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 		}
 		return nil
 	}
-	return a.waitAndReport(ctx, c, queued.Request.ID, a.prompt.timeout)
+	return a.waitAndReport(ctx, c, queued.Request.ID, timeout)
 }
 
 func (a *app) statusCommand() *cobra.Command {

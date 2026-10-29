@@ -28,6 +28,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/news"
+	"github.com/slashobserve/slashobserve/internal/prompts"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -251,6 +252,7 @@ func run() error {
 			proxyHandler,
 			users.NewHandler(database, authService, logger),
 			outbound,
+			prompts.NewHandler(database, logger),
 			news.NewHandler(egressClient, logger),
 		},
 		Mounts: []server.Mount{{

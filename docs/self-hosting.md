@@ -402,6 +402,8 @@ Then give it a prompt:
 It prints progress and then the dashboard address.
 `bin/observe dashboards list` lists dashboards, and `bin/observe --help` shows the rest.
 `bin/observe import dashboard.json` imports a Grafana dashboard and prints its address; `--map '<grafana>=<uid>'` picks our datasource for a Grafana one and `--preview` shows the report without saving.
+`bin/observe run <name>` runs a saved prompt that someone shared with everyone on the server, waits like a prompt does and prints the dashboard address; the name ignores case and its words need no quotes, and `bin/observe run` alone lists the shared prompts.
+A key never sees private prompts, so share a prompt from the chat home before running it from the CLI.
 
 Comments on a dashboard can be worked from the terminal:
 
