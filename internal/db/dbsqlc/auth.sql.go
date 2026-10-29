@@ -148,7 +148,7 @@ func (q *Queries) TouchUserSeen(ctx context.Context, arg TouchUserSeenParams) er
 
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups)
-VALUES ($1, $2, $3, $4, $5::text[])
+VALUES ($1, $2, $3, $4, coalesce($5::text[], '{}'))
 ON CONFLICT (oidc_issuer, oidc_subject)
 DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, groups = EXCLUDED.groups, last_login_at = now(), last_seen_at = now()
 RETURNING id, email, name, created_at, manual_role
