@@ -26,6 +26,7 @@ import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
+import { createSharedCursor, type SharedCursor } from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -87,6 +88,7 @@ function pageClass(stacked: boolean) {
 
 type PanelContainerProps = {
   dashboardId: string
+  cursor: SharedCursor
   version: number
   panel: LayoutPanel
   title: string
@@ -113,6 +115,7 @@ type PanelContainerProps = {
 
 const PanelContainer = memo(function PanelContainer({
   dashboardId,
+  cursor,
   version,
   panel: sourcePanel,
   title,
@@ -267,7 +270,8 @@ const PanelContainer = memo(function PanelContainer({
             data={query.data}
             width={body.width}
             height={body.height}
-            syncKey={dashboardId}
+            stateScope={dashboardId}
+            cursor={cursor}
             onTimeRangeSelect={onTimeRangeSelect}
             vars={selections}
             from={rangeFrom}
@@ -372,6 +376,7 @@ function DashboardView({
   const cardLayout = useActivityLayout(editingPanel)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
+  const [cursor] = useState(createSharedCursor)
   const [flashed, setFlashed] = useState<string | null>(null)
   const flashTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
@@ -515,6 +520,7 @@ function DashboardView({
             renderPanel={(item, size) => (
               <PanelContainer
                 dashboardId={dashboardId}
+                cursor={cursor}
                 version={version}
                 panel={item.panel}
                 title={item.title}

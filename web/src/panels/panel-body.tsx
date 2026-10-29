@@ -9,6 +9,7 @@ import { createFieldResolver, type FieldResolver } from "./field-config"
 import { dataRenderers, staticRenderers } from "./index"
 import { PanelSkeleton } from "./panel-skeleton"
 import { RendererBoundary } from "./renderer-boundary"
+import type { SharedCursor } from "./shared-cursor"
 import { prepareFrames, type DatasourceTypeOf } from "./transforms"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
@@ -42,7 +43,8 @@ type Props = {
   ghost?: PanelDataResponse
   width: number
   height: number
-  syncKey: string
+  stateScope: string
+  cursor: SharedCursor
   onTimeRangeSelect: PanelRendererProps["onTimeRangeSelect"]
   vars: Selections
   from: string | undefined
@@ -56,7 +58,8 @@ export function PanelBody({
   ghost,
   width,
   height,
-  syncKey,
+  stateScope,
+  cursor,
   onTimeRangeSelect,
   vars,
   from,
@@ -99,7 +102,8 @@ export function PanelBody({
             meta={data.meta}
             width={width}
             height={height}
-            syncKey={syncKey}
+            stateScope={stateScope}
+            cursor={cursor}
             onTimeRangeSelect={onTimeRangeSelect}
             links={links}
             ghostFrames={ghostFrames}

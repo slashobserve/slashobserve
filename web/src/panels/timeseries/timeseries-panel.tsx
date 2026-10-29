@@ -16,6 +16,7 @@ import type { FieldConfig } from "../field-config"
 import { dataRenderers } from "../index"
 import { reducerLabels } from "../reducers"
 import { thresholdColor } from "../thresholds"
+import type { CursorMember } from "../shared-cursor"
 import type { PanelRenderer, PanelRendererProps } from "../types"
 import { Unsupported } from "../unsupported"
 import { alignFrames, type AlignedFrames } from "./align"
@@ -27,6 +28,7 @@ import {
   configuredKeys,
   ghostsDrawn,
   legendCells,
+  peerCursorAt,
   plotStateFor,
   thresholdsFor,
   timeAxis,
@@ -35,7 +37,12 @@ import {
   type ThresholdLines,
   type XAxis,
 } from "./plot-model"
-import { thresholdsPlugin, tooltipPlugin, type TooltipSeries } from "./plugins"
+import {
+  cursorPlugin,
+  thresholdsPlugin,
+  tooltipPlugin,
+  type TooltipSeries,
+} from "./plugins"
 import { isolatedPoints } from "./points"
 import {
   axesInUse,
@@ -80,7 +87,8 @@ type Model = {
 }
 
 type PlotConfig = {
-  syncKey: string
+  member: { current: CursorMember | null }
+  peerTooltip: { current: boolean }
   host: HTMLElement
   latest: { current: Latest }
   xAxis: XAxis
@@ -154,7 +162,7 @@ function seriesOptions(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { syncKey, host, latest, xAxis, draw } = config
+  const { member, peerTooltip, host, latest, xAxis, draw } = config
   const timed = xAxis.kind === "time"
   const customPainted = draw !== undefined
   const { model } = latest.current
@@ -175,7 +183,8 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         first,
         () => latest.current.entries,
         (x) =>
-          xAxis.kind === "time" ? formatDateTime(x * 1000) : xAxis.format(x)
+          xAxis.kind === "time" ? formatDateTime(x * 1000) : xAxis.format(x),
+        () => peerTooltip.current
       )
     )
   }
@@ -187,6 +196,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     )
   }
   if (draw) plugins.push(draw)
+  if (timed) plugins.push(cursorPlugin(member))
 
   const valueAxis = (
     key: AxisKey,
@@ -297,19 +307,6 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     ],
     bands: state.bands.map((band) => ({ ...band })),
     cursor: {
-      ...(timed
-        ? {
-            sync: {
-              key: syncKey,
-              filters: {
-                sub: (type: string) =>
-                  type !== "mousedown" &&
-                  type !== "mouseup" &&
-                  type !== "dblclick",
-              },
-            },
-          }
-        : {}),
       drag: { x: timed, y: false, setScale: false },
       points: {
         size: (_u, index) => (index < first || customPainted ? 0 : 6),
@@ -383,7 +380,8 @@ export function TimeseriesChart({
   meta,
   width,
   height,
-  syncKey,
+  stateScope,
+  cursor,
   onTimeRangeSelect,
   aligned,
   configs,
@@ -405,7 +403,7 @@ export function TimeseriesChart({
   const configsKey = stableJson(configs)
   const thresholdsKey = stableJson(panel.thresholds ?? null)
 
-  const stateKey = `${syncKey}:${panel.id}`
+  const stateKey = `${stateScope}:${panel.id}`
   const stored = useSeriesStore((store) => store.panels[stateKey])
   const commitKeys = useSeriesStore((store) => store.commit)
   const toggleKey = useSeriesStore((store) => store.toggle)
@@ -525,16 +523,34 @@ export function TimeseriesChart({
     const container = containerRef.current
     const host = hostRef.current
     if (!container || !host || !ready) return
+    const member = { current: null as CursorMember | null }
+    const peerTooltip = { current: false }
     const plot = createPlot(container, {
-      syncKey,
+      member,
+      peerTooltip,
       host,
       latest,
       xAxis,
       draw,
     })
+    if (xAxis.kind === "time") {
+      member.current = cursor.join((peer) => {
+        const width = plot.bbox.width / uPlot.pxRatio
+        const height = plot.bbox.height / uPlot.pxRatio
+        const position = peerCursorAt(
+          peer ? plot.valToPos(peer.x / 1000, "x") : null,
+          width,
+          height
+        )
+        peerTooltip.current =
+          peer !== null && peer.tooltip && position.left >= 0
+        plot.setCursor(position)
+      })
+    }
     plotRef.current = plot
     appliedRef.current = latest.current.state
     return () => {
+      member.current?.leave()
       plot.destroy()
       plotRef.current = null
       appliedRef.current = null
@@ -543,7 +559,7 @@ export function TimeseriesChart({
     ready,
     signature,
     theme,
-    syncKey,
+    cursor,
     xAxis,
     draw,
     configsKey,
