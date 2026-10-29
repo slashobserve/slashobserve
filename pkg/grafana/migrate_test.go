@@ -149,7 +149,6 @@ func TestDatagridOptionsAreReportedBecauseCellsCannotBeEdited(t *testing.T) {
 func TestPanelTypesWithoutAnEquivalentSayWhy(t *testing.T) {
 	cases := []struct{ typ, reason string }{
 		{"annolist", "SlashObserve has no annotations yet, so an annotation list has nothing to show."},
-		{"news", "SlashObserve does not fetch RSS feeds yet."},
 		{"welcome", "Grafana's home page panels have no SlashObserve equivalent."},
 		{"gettingstarted", "Grafana's home page panels have no SlashObserve equivalent."},
 		{"debug", "Grafana's debug and live panels have no SlashObserve equivalent."},
@@ -169,10 +168,10 @@ func TestPanelTypesWithoutAnEquivalentSayWhy(t *testing.T) {
 }
 
 func TestDatasourceReasonBeatsThePanelTypeReason(t *testing.T) {
-	doc := dashboardJSON("", `{"id":1,"type":"news","title":"N","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"influxdb","uid":"flux"}}`)
+	doc := dashboardJSON("", `{"id":1,"type":"annolist","title":"N","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"influxdb","uid":"flux"}}`)
 	res := convertDoc(t, doc)
 	line := panelLine(t, res, "p1")
-	if line.Status != statusPlaceholder || line.Reasons[0] == "SlashObserve does not fetch RSS feeds yet." {
+	if line.Status != statusPlaceholder || line.Reasons[0] == "SlashObserve has no annotations yet, so an annotation list has nothing to show." {
 		t.Fatalf("reasons = %v, want the datasource reason first", line.Reasons)
 	}
 }

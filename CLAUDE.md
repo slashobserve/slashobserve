@@ -81,14 +81,15 @@ Directories are created when their phase starts; this is where things go.
 - `pkg/grafana/`: the Grafana importer (pure: no network, no database): `Detect`, `Convert` (Spec, source datasources with matches, report) and `Result.Verify`; `testdata/corpus/` holds the golden corpus with its sources and licences.
   A Grafana option is handled in this order: converted when the Spec has the field; else silent only when it equals a Grafana default (`grafanaDefaults`) or is listed in `cosmeticOptions` with the renderer behaviour that makes it invisible; else reported as a path.
   A datasource variable is one dashboard note, never a panel path, and a panel lists at most 100 paths.
-  Grafana's renamed and retired panel types import as their modern type (`graph`, `table-old`, `singlestat`, `grafana-singlestat-panel`, `datagrid`, `logs-new`, `logstable`, `grafana-piechart-panel`), and `annolist`, `news`, `welcome`, `gettingstarted`, `debug`, `live` and `alertGroups` become placeholders with their own reason.
+  Grafana's renamed and retired panel types import as their modern type (`graph`, `table-old`, `singlestat`, `grafana-singlestat-panel`, `datagrid`, `logs-new`, `logstable`, `grafana-piechart-panel`), and `annolist`, `welcome`, `gettingstarted`, `debug`, `live` and `alertGroups` become placeholders with their own reason.
   `grafana-worldmap-panel` imports as `geomap` and `natel-discrete-panel` as `state-timeline`.
   Alert lists import as one Prometheus `ALERTS` query, and Grafana-managed or legacy ones become placeholders.
   Canvas element positions are converted to percent of the panel and reported, and no element link or action is imported.
   A dashboard list is a static panel and never needs a datasource match.
+  A news panel imports its `feedUrl` (http upgraded to https and reported; empty means Grafana's own blog feed, `https://grafana.com/blog/news.xml`); `showImage` and `useProxy` are dropped silently.
   ClickHouse trace queries (`queryType` `traces`, `format` 3) import as `table` queries.
   Goldens are reviewed diffs: run `make golden`, read every changed golden, and say in the commit message which converter rule changed them.
-  `TestCorpusRatio` holds the gate: at least 90% of corpus panels are imported or partial, and a floor: the share of fully imported panels never drops below `minimumFull` (16.9% today); raise the constant when the share grows, never lower it.
+  `TestCorpusRatio` holds the gate: at least 90% of corpus panels are imported or partial, and a floor: the share of fully imported panels never drops below `minimumFull` (18.1% today); raise the constant when the share grows, never lower it.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
@@ -455,7 +456,7 @@ Directories are created when their phase starts; this is where things go.
 - Imports are the one tolerant first save: `POST /api/v1/imports` saves version 1 even when queries fail and records those panels and variables in `version.unverified` and the import report.
   Later saves run every query; a failing panel or variable is kept only while the parent version lists it as unverified and it is unchanged (see Dashboards), and the agent is told never to delete an unverified panel unless asked.
   The original Grafana JSON is stored in `imports.original` and is never returned by the API or shown to the agent.
-- Every Grafana built-in panel type is a Spec type, an import-time mapping onto one, or a placeholder with a stated reason (`annolist`, `news`, `welcome`, `gettingstarted`, `debug`, `live`, `alertGroups`).
+- Every Grafana built-in panel type is a Spec type, an import-time mapping onto one, or a placeholder with a stated reason (`annolist`, `welcome`, `gettingstarted`, `debug`, `live`, `alertGroups`).
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.
 

@@ -1517,6 +1517,77 @@ func TestDashListOptionsWithoutACounterpartAreReported(t *testing.T) {
 	}
 }
 
+func newsPanel(t *testing.T, members string) (spec.Panel, PanelLine) {
+	t.Helper()
+	return convertedPanel(t, panelDoc("news", members))
+}
+
+func TestNewsImportsAsANewsPanel(t *testing.T) {
+	longFeed := "https://example.com/" + strings.Repeat("a", 2001-len("https://example.com/"))
+	cases := []struct {
+		name    string
+		members string
+		feed    string
+		paths   []string
+		reason  string
+	}{
+		{"explicit https url", `"options":{"feedUrl":"https://example.com/feed.xml"}`, "https://example.com/feed.xml", nil, ""},
+		{"surrounding spaces are trimmed", `"options":{"feedUrl":"  https://example.com/feed.xml\n"}`, "https://example.com/feed.xml", nil, ""},
+		{"empty url is Grafana's blog", `"options":{"feedUrl":""}`, "https://grafana.com/blog/news.xml", nil, ""},
+		{"blank url is Grafana's blog", `"options":{"feedUrl":"   "}`, "https://grafana.com/blog/news.xml", nil, ""},
+		{"absent url is Grafana's blog", `"options":{"showImage":true}`, "https://grafana.com/blog/news.xml", nil, ""},
+		{"no options is Grafana's blog", `"description":"d"`, "https://grafana.com/blog/news.xml", nil, ""},
+		{"http is upgraded and reported", `"options":{"feedUrl":"http://example.com/feed.xml"}`, "https://example.com/feed.xml", []string{"options.feedUrl"}, newsHTTPOnly},
+		{"uppercase http is upgraded and reported", `"options":{"feedUrl":"HTTP://example.com/feed.xml"}`, "https://example.com/feed.xml", []string{"options.feedUrl"}, newsHTTPOnly},
+		{"ftp is dropped", `"options":{"feedUrl":"ftp://x"}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"scheme only is dropped", `"options":{"feedUrl":"https://"}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"url with a space is dropped", `"options":{"feedUrl":"https://example.com/a b"}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"relative url is dropped", `"options":{"feedUrl":"/blog/news.xml"}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"non-string url is dropped", `"options":{"feedUrl":5}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"url of 2001 bytes is dropped", `"options":{"feedUrl":"` + longFeed + `"}`, "", []string{"options.feedUrl"}, newsFeedBad},
+		{"url of 2000 bytes is kept", `"options":{"feedUrl":"` + longFeed[:2000] + `"}`, longFeed[:2000], nil, ""},
+		{"showImage false and useProxy true are silent", `"options":{"feedUrl":"https://example.com/feed.xml","showImage":false,"useProxy":true}`, "https://example.com/feed.xml", nil, ""},
+		{"repeat is reported", `"repeat":"host","options":{"feedUrl":"https://example.com/feed.xml"}`, "https://example.com/feed.xml", []string{"repeat"}, newsRepeat},
+		{"links are reported", `"links":[{"title":"x","url":"https://example.com"}]`, "https://grafana.com/blog/news.xml", []string{"links"}, "Links on news panels are not supported yet."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := newsPanel(t, tc.members)
+			if panel.Type != spec.News || panel.Datasource != "" || len(panel.Queries) != 0 {
+				t.Fatalf("panel = %+v, want a static news panel", panel)
+			}
+			got := ""
+			if panel.Display != nil {
+				got = panel.Display.FeedURL
+			}
+			if got != tc.feed {
+				t.Errorf("feedUrl = %q, want %q", got, tc.feed)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v", line.Paths, tc.paths)
+			}
+			if tc.reason != "" && !slices.Contains(line.Reasons, tc.reason) {
+				t.Errorf("reasons = %v, want %q", line.Reasons, tc.reason)
+			}
+			wantStatus := statusImported
+			if len(tc.paths) > 0 {
+				wantStatus = statusPartial
+			}
+			if line.Status != wantStatus {
+				t.Errorf("status = %s, want %s", line.Status, wantStatus)
+			}
+		})
+	}
+}
+
+func TestNewsNeverNeedsADatasourceMatch(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"T","type":"news","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"grafana","uid":"-- Grafana --"},"options":{"feedUrl":"https://example.com/feed.xml"}}]}`
+	_, line := convertedPanel(t, doc)
+	if line.Status != statusImported {
+		t.Fatalf("line = %+v", line)
+	}
+}
+
 func TestDiscretePanelImportsAsAStateTimeline(t *testing.T) {
 	members := `"units":"percent","decimals":1,"valueMaps":[{"value":"null","op":"=","text":"N/A"},{"value":"1","op":"=","text":"UP"},{"value":"0","op":"!=","text":"nonzero"}],` +
 		`"rangeMaps":[{"from":"null","to":"null","text":"N/A"},{"from":"2","to":"5","text":"SLOW"}],` +

@@ -41,9 +41,9 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 6,
+      "imported": 7,
       "partial": 6,
-      "placeholder": 7,
+      "placeholder": 6,
       "unverified": 0
     },
     "panels": [
@@ -375,13 +375,11 @@
         "grafana_id": 14,
         "grafana_path": "panels[13]",
         "title": "Grafana news",
-        "type": "placeholder",
+        "type": "news",
         "source_type": "news",
         "row": null,
-        "status": "placeholder",
-        "reasons": [
-          "SlashObserve does not fetch RSS feeds yet."
-        ],
+        "status": "imported",
+        "reasons": [],
         "paths": [],
         "queries": []
       },
@@ -858,7 +856,7 @@
       },
       {
         "id": "p14",
-        "type": "placeholder",
+        "type": "news",
         "title": "Grafana news",
         "gridPos": {
           "x": 0,
@@ -866,8 +864,9 @@
           "w": 6,
           "h": 4
         },
-        "reason": "SlashObserve does not fetch RSS feeds yet.",
-        "sourceType": "news"
+        "display": {
+          "feedUrl": "https://grafana.com/blog/news.xml"
+        }
       },
       {
         "id": "p15",

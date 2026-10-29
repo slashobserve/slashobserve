@@ -124,6 +124,10 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
   - `panel-types-a.json`
   - `panel-types-b.json`
 - `demo-shop.json` is a classic Grafana 11 dashboard authored in this repository for the demo stack.
+- It holds one panel of every Grafana panel type SlashObserve supports, in six rows, each backed by demo shop data: Prometheus metrics, and ClickHouse queries over the `otel_logs` and `otel_traces` tables.
+- The annotation list and Alertmanager groups panels import as placeholders, because SlashObserve has no annotations or Alertmanager yet.
+- The news panel reads the Grafana blog feed, `https://grafana.com/blog/news.xml`, which is the feed Grafana's own news panel shows when no feed URL is set (`DEFAULT_FEED_URL` in `public/app/plugins/panel/news/constants.ts` of grafana/grafana).
+- The geomap places each service on an example region with a fixed mapping in its SQL, because the shop reports no location.
 - `panel-types-a.json` covers the panel types missing from the upstream corpus.
 - `panel-types-b.json` covers the map, canvas, alert list, dashboard list and discrete panel types, with one panel for each case the importer converts; the corpus checks that the Prometheus alert list's query is the one the importer writes.
 - The ClickHouse targets set `format` to the sqlds `FormatQueryOption` value: 0 for time series, 1 for table, 2 for logs, 3 for trace.
@@ -136,8 +140,8 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 
 Counted over every corpus JSON file: top-level `panels`, nested row `panels`, and legacy `rows[].panels`.
 Each legacy `rows[]` entry is also counted as one `row`, although it is a dashboard-level object and not a panel.
-Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1321 panels and the stated 1340, and between 172 and the stated 191 for that file.
-The corpus holds 61 dashboards and 1340 panels including rows.
+Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1344 panels and the stated 1363, and between 172 and the stated 191 for that file.
+The corpus holds 61 dashboards and 1363 panels including rows.
 Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141) and `rfmoz/haproxy.json` (113).
 
 ### As written
@@ -146,43 +150,43 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | --- | --- |
 | timeseries | 762 |
 | graph | 173 |
-| row | 141 |
+| row | 145 |
 | stat | 93 |
 | table | 60 |
 | gauge | 27 |
 | bargauge | 21 |
 | singlestat | 12 |
 | logs | 7 |
-| heatmap | 5 |
+| heatmap | 6 |
 | barchart | 4 |
-| alertlist | 3 |
-| canvas | 2 |
-| geomap | 2 |
+| alertlist | 4 |
+| canvas | 3 |
+| geomap | 3 |
 | grafana-worldmap-panel | 2 |
-| nodeGraph | 2 |
-| piechart | 2 |
+| nodeGraph | 3 |
+| piechart | 3 |
 | text | 2 |
-| alertGroups | 1 |
-| annolist | 1 |
-| candlestick | 1 |
-| dashlist | 1 |
+| alertGroups | 2 |
+| annolist | 2 |
+| candlestick | 2 |
+| dashlist | 2 |
 | datagrid | 1 |
 | debug | 1 |
-| flamegraph | 1 |
+| flamegraph | 2 |
 | gettingstarted | 1 |
 | grafana-singlestat-panel | 1 |
-| histogram | 1 |
+| histogram | 2 |
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
 | natel-discrete-panel | 1 |
-| news | 1 |
-| state-timeline | 1 |
-| status-history | 1 |
-| traces | 1 |
-| trend | 1 |
+| news | 2 |
+| state-timeline | 2 |
+| status-history | 2 |
+| traces | 2 |
+| trend | 2 |
 | welcome | 1 |
-| xychart | 1 |
+| xychart | 2 |
 
 ### With `graph` folded into `timeseries`, `singlestat` into `stat` and `table-old` into `table`
 
@@ -191,39 +195,39 @@ No `table-old` panel occurs in the corpus.
 | Type | Count |
 | --- | --- |
 | timeseries | 935 |
-| row | 141 |
+| row | 145 |
 | stat | 105 |
 | table | 60 |
 | gauge | 27 |
 | bargauge | 21 |
 | logs | 7 |
-| heatmap | 5 |
+| heatmap | 6 |
 | barchart | 4 |
-| alertlist | 3 |
-| canvas | 2 |
-| geomap | 2 |
+| alertlist | 4 |
+| canvas | 3 |
+| geomap | 3 |
 | grafana-worldmap-panel | 2 |
-| nodeGraph | 2 |
-| piechart | 2 |
+| nodeGraph | 3 |
+| piechart | 3 |
 | text | 2 |
-| alertGroups | 1 |
-| annolist | 1 |
-| candlestick | 1 |
-| dashlist | 1 |
+| alertGroups | 2 |
+| annolist | 2 |
+| candlestick | 2 |
+| dashlist | 2 |
 | datagrid | 1 |
 | debug | 1 |
-| flamegraph | 1 |
+| flamegraph | 2 |
 | gettingstarted | 1 |
 | grafana-singlestat-panel | 1 |
-| histogram | 1 |
+| histogram | 2 |
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
 | natel-discrete-panel | 1 |
-| news | 1 |
-| state-timeline | 1 |
-| status-history | 1 |
-| traces | 1 |
-| trend | 1 |
+| news | 2 |
+| state-timeline | 2 |
+| status-history | 2 |
+| traces | 2 |
+| trend | 2 |
 | welcome | 1 |
-| xychart | 1 |
+| xychart | 2 |
