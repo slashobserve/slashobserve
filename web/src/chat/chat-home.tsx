@@ -35,34 +35,43 @@ export function ChatHome() {
       <h1 className="mb-1.5 text-center text-[26px] font-semibold tracking-[-0.01em]">
         What do you want to see?
       </h1>
-      <div className="w-full max-w-[720px]">
-        <ChatComposer
-          rows={3}
-          placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
-          autoFocus
-          promptPicker={canDriveAgent(principal)}
-          onSent={open}
-        />
-      </div>
-      {!agentReady || examples.length === 0 ? null : (
-        <div
-          role="group"
-          aria-label="Example prompts"
-          className="flex max-w-[720px] flex-wrap justify-center gap-2"
-        >
-          {examples.map((example) => (
-            <Button
-              key={example}
-              type="button"
-              variant="outline"
-              className="font-normal text-muted-foreground"
-              disabled={pending}
-              onClick={() => void send(example)}
+      {canDriveAgent(principal) ? (
+        <>
+          <div className="w-full max-w-[720px]">
+            <ChatComposer
+              rows={3}
+              placeholder="Describe a dashboard, like: checkout health by pod, last 6h"
+              autoFocus
+              promptPicker
+              onSent={open}
+            />
+          </div>
+          {!agentReady || examples.length === 0 ? null : (
+            <div
+              role="group"
+              aria-label="Example prompts"
+              className="flex max-w-[720px] flex-wrap justify-center gap-2"
             >
-              {example}
-            </Button>
-          ))}
-        </div>
+              {examples.map((example) => (
+                <Button
+                  key={example}
+                  type="button"
+                  variant="outline"
+                  className="font-normal text-muted-foreground"
+                  disabled={pending}
+                  onClick={() => void send(example)}
+                >
+                  {example}
+                </Button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="max-w-[720px] text-center text-[13px] text-muted-foreground">
+          Starting dashboards needs the Editor role. Ask an Admin if you need
+          it.
+        </p>
       )}
       <SavedPrompts />
       <RecentChats />
