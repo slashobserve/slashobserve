@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const (
@@ -274,6 +276,10 @@ func (r *registry) variableRef(v any) dsRef {
 }
 
 func (r *registry) scanPanel(n *panelNode) {
+	if spec.PanelType(n.typ) == spec.AlertList {
+		r.scanAlertList(n)
+		return
+	}
 	own := r.classify(n.raw["datasource"])
 	n.ds.own = own
 	targets, _ := asArray(n.raw["targets"])

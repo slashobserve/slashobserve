@@ -84,12 +84,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
           "Row height and column width are fixed.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.color",
           "options.rowHeight",
           "options.legend.showLegend"
         ],

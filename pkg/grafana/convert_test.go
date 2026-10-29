@@ -925,3 +925,621 @@ func TestAutoLegendIsKeptVerbatim(t *testing.T) {
 		t.Fatalf("queries = %+v, want legend __auto", panel.Queries)
 	}
 }
+
+func TestSourcePanelTypesMapToTheirModernType(t *testing.T) {
+	cases := []struct{ source, want string }{
+		{"grafana-worldmap-panel", "geomap"},
+		{"natel-discrete-panel", "state-timeline"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.source, func(t *testing.T) {
+			typ, sourceType := panelTypeOf(map[string]any{"type": tc.source})
+			if typ != tc.want || sourceType != tc.source {
+				t.Fatalf("panelTypeOf = %s, %s, want %s, %s", typ, sourceType, tc.want, tc.source)
+			}
+		})
+	}
+}
+
+func geomapLayer(location, style string) string {
+	return fmt.Sprintf(`{"type":"markers","name":"Markers","location":%s,"tooltip":true,"config":{"showLegend":true,"style":%s}}`, location, style)
+}
+
+func geomapOptions(view, layers string) string {
+	return fmt.Sprintf(`"options":{"view":%s,"layers":[%s],"controls":{"mouseWheelZoom":true,"showZoom":true,"showAttribution":true},"tooltip":{"mode":"details"}}`, view, layers)
+}
+
+func TestGeomapImportsItsFirstMarkersLayer(t *testing.T) {
+	const plainStyle = `{"color":{"fixed":"dark-green"},"opacity":0.4,"size":{"fixed":5,"min":2,"max":15}}`
+	cases := []struct {
+		name, options string
+		display       string
+		color         string
+		paths         []string
+	}{
+		{
+			name:    "coordinates with a sized and colored field",
+			options: geomapOptions(`{"id":"coords","lat":52,"lon":5,"zoom":4}`, geomapLayer(`{"mode":"coords","latitude":"lat","longitude":"lon"}`, `{"color":{"field":"Value","fixed":"red"},"size":{"field":"Value","min":3,"max":20}}`)),
+			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,"location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20}`,
+		},
+		{
+			name:    "geohash with a fixed size and color",
+			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"geohash","geohash":"hash"}`, `{"color":{"fixed":"blue"},"size":{"fixed":9,"min":2,"max":15}}`)),
+			display: `{"location":"geohash","geohashField":"hash","markerSize":9}`,
+			color:   "#5794F2",
+		},
+		{
+			name:    "world view and automatic location",
+			options: geomapOptions(`{"id":"zero","lat":0,"lon":0,"zoom":1}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
+			display: `{"view":"world"}`,
+			color:   "#37872D",
+		},
+		{
+			name:    "a lookup layer is reported",
+			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/countries.json"}`, plainStyle)),
+			display: "null",
+			color:   "#37872D",
+			paths:   []string{"options.layers[0].location"},
+		},
+		{
+			name:    "a named region is reported",
+			options: geomapOptions(`{"id":"europe","lat":46,"lon":14,"zoom":4}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
+			display: "null",
+			color:   "#37872D",
+			paths:   []string{"options.view.id"},
+		},
+		{
+			name:    "coordinates outside the range are reported",
+			options: geomapOptions(`{"id":"coords","lat":120,"lon":5,"zoom":30}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
+			display: `{"view":"coords","lon":5}`,
+			color:   "#37872D",
+			paths:   []string{"options.view.lat", "options.view.zoom"},
+		},
+		{
+			name:    "a second markers layer and a heatmap layer are reported",
+			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"auto"}`, plainStyle)+","+geomapLayer(`{"mode":"auto"}`, plainStyle)+`,{"type":"heatmap","config":{}}`),
+			display: "null",
+			color:   "#37872D",
+			paths:   []string{"options.layers[1]", "options.layers[2]"},
+		},
+		{
+			name:    "the base map and non-default controls are reported",
+			options: `"options":{"basemap":{"type":"default"},"controls":{"mouseWheelZoom":false,"showScale":true},"layers":[],"view":{"id":"fit"}}`,
+			display: "null",
+			paths:   []string{"options.basemap", "options.controls.mouseWheelZoom", "options.controls.showScale"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("geomap", upTarget+","+tc.options))
+			if got := displayJSON(t, panel); got != tc.display {
+				t.Errorf("display = %s, want %s", got, tc.display)
+			}
+			if panel.Color != tc.color {
+				t.Errorf("color = %q, want %q", panel.Color, tc.color)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestGeomapThresholdColorModeIsNotReported(t *testing.T) {
+	panel, line := convertedPanel(t, panelDoc("geomap", upTarget+`,"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":80}]}},"overrides":[]}`))
+	if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{"ok", "critical@80"}) {
+		t.Fatalf("thresholds = %v", got)
+	}
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v", line.Paths)
+	}
+}
+
+func TestWorldmapImportsAsAGeomap(t *testing.T) {
+	const centered = `"mapCenter":"custom","mapCenterLatitude":20,"mapCenterLongitude":10,"initialZoom":"3"`
+	cases := []struct {
+		name, members, display string
+		thresholds             []string
+		paths                  []string
+	}{
+		{
+			name: "table with coordinates",
+			members: centered + `,"locationData":"table","tableQueryOptions":{"queryType":"coordinates","latitudeField":"lat","longitudeField":"lon","metricField":"hits","geohashField":"geohash","labelField":""},` +
+				`"circleMinSize":2,"circleMaxSize":30,"thresholds":"10,100","colors":["rgba(245, 54, 54, 0.9)","#fade2a","#32ac2d"],"valueName":"current","maxDataPoints":1`,
+			display:    `{"view":"coords","lat":20,"lon":10,"zoom":3,"location":"coords","latField":"lat","lonField":"lon","sizeField":"hits","colorField":"hits","markerSize":2,"markerSizeMax":30}`,
+			thresholds: []string{"#f53636", "warning@10", "#32ac2d@100"},
+		},
+		{
+			name:    "table with geohash",
+			members: `"mapCenter":"(0°, 0°)","locationData":"table","tableQueryOptions":{"queryType":"geohash","geohashField":"hash","metricField":"hits"}`,
+			display: `{"view":"world","location":"geohash","geohashField":"hash","sizeField":"hits","colorField":"hits"}`,
+		},
+		{
+			name:    "countries are looked up by name",
+			members: `"mapCenter":"(0°, 0°)","locationData":"countries","tableQueryOptions":{"queryType":"geohash","geohashField":"geohash"}`,
+			display: `{"view":"world"}`,
+			paths:   []string{"locationData"},
+		},
+		{
+			name:    "other locations and centers are reported",
+			members: `"mapCenter":"Europe","locationData":"json endpoint","valueName":"max"`,
+			display: "null",
+			paths:   []string{"locationData", "mapCenter", "valueName"},
+		},
+		{
+			name:    "thresholds without matching colors are reported",
+			members: `"thresholds":"10,100","colors":["red","green"]`,
+			display: "null",
+			paths:   []string{"colors"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("grafana-worldmap-panel", upTarget+","+tc.members))
+			if panel.Type != spec.Geomap || line.SourceType != "grafana-worldmap-panel" {
+				t.Fatalf("type = %s, source type %s", panel.Type, line.SourceType)
+			}
+			if got := displayJSON(t, panel); got != tc.display {
+				t.Errorf("display = %s, want %s", got, tc.display)
+			}
+			if got := thresholdText(panel.Thresholds); !slices.Equal(got, tc.thresholds) && len(tc.thresholds) > 0 {
+				t.Errorf("thresholds = %v, want %v", got, tc.thresholds)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
+			}
+		})
+	}
+}
+
+func canvasPanel(t *testing.T, w, h int, elements string) (spec.Panel, PanelLine) {
+	t.Helper()
+	doc := fmt.Sprintf(`{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"T","gridPos":{"x":0,"y":0,"w":%d,"h":%d},"datasource":{"type":"prometheus","uid":"prom"},"type":"canvas",%s,"options":{"root":{"type":"frame","name":"root","elements":[%s]}}}]}`, w, h, upTarget, elements)
+	return convertedPanel(t, doc)
+}
+
+func canvasElements(t *testing.T, panel spec.Panel) []spec.CanvasElement {
+	t.Helper()
+	return displayOf(t, panel).Elements
+}
+
+func TestCanvasPlacementInPercentIsKept(t *testing.T) {
+	panel, line := canvasPanel(t, 12, 10, `{"type":"rectangle","name":"Box","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":10,"top":20,"width":30,"height":40},"config":{"text":{"mode":"fixed","fixed":"Hi"}}}`)
+	want := []spec.CanvasElement{{ID: "Box", Kind: "rectangle", Left: 10, Top: 20, Width: 30, Height: 40, Text: "Hi"}}
+	if got := canvasElements(t, panel); !reflect.DeepEqual(got, want) {
+		t.Fatalf("elements = %+v, want %+v", got, want)
+	}
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v", line.Paths)
+	}
+}
+
+func TestCanvasPixelPlacementBecomesPercentAndIsReported(t *testing.T) {
+	cases := []struct {
+		name, placement, constraint string
+		want                        [4]float64
+	}{
+		{"left and top", `{"left":72,"top":34,"width":144,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{10, 10, 20, 20}},
+		{"right and bottom", `{"right":72,"bottom":34,"width":144,"height":68}`, `{"horizontal":"right","vertical":"bottom"}`, [4]float64{70, 70, 20, 20}},
+		{"left and right", `{"left":72,"right":72,"top":0,"height":340}`, `{"horizontal":"leftright","vertical":"top"}`, [4]float64{10, 0, 80, 100}},
+		{"past the panel", `{"left":1000,"top":-50,"width":2000,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{100, 0, 100, 20}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := canvasPanel(t, 12, 10, `{"type":"rectangle","name":"Box","constraint":`+tc.constraint+`,"placement":`+tc.placement+`}`)
+			els := canvasElements(t, panel)
+			if len(els) != 1 {
+				t.Fatalf("elements = %+v", els)
+			}
+			if got := [4]float64{els[0].Left, els[0].Top, els[0].Width, els[0].Height}; got != tc.want {
+				t.Errorf("box = %v, want %v", got, tc.want)
+			}
+			if !slices.Contains(line.Paths, "options.root.elements[0].placement") || !slices.Contains(line.Reasons, canvasPixelReason) {
+				t.Errorf("paths = %v, reasons = %v, want the pixel conversion reported", line.Paths, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestCanvasElementKindsTextsAndFields(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	cases := []struct {
+		name, element string
+		want          spec.CanvasElement
+	}{
+		{"metric value", `{"type":"metric-value","name":"m",` + scaled + `,"config":{"text":{"mode":"field","field":"cpu"}}}`, spec.CanvasElement{Kind: "metric", Field: "cpu"}},
+		{"text with fixed text", `{"type":"text","name":"t",` + scaled + `,"config":{"text":{"mode":"fixed","fixed":"Label"}}}`, spec.CanvasElement{Kind: "text", Text: "Label"}},
+		{"text with a field", `{"type":"text","name":"t",` + scaled + `,"config":{"text":{"mode":"field","field":"cpu"}}}`, spec.CanvasElement{Kind: "metric", Field: "cpu"}},
+		{"ellipse with a field", `{"type":"ellipse","name":"t",` + scaled + `,"config":{"text":{"mode":"field","field":"cpu"}}}`, spec.CanvasElement{Kind: "ellipse", Field: "cpu"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, _ := canvasPanel(t, 12, 10, tc.element)
+			els := canvasElements(t, panel)
+			if len(els) != 1 || els[0].Kind != tc.want.Kind || els[0].Text != tc.want.Text || els[0].Field != tc.want.Field {
+				t.Fatalf("elements = %+v, want %+v", els, tc.want)
+			}
+		})
+	}
+}
+
+func TestCanvasColorsStyleAndFieldColors(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	element := `{"type":"metric-value","name":"m",` + scaled + `,"config":{"text":{"mode":"field","field":"cpu"},"color":{"fixed":"#ffffff"},"size":30,"align":"left","valign":"middle"},` +
+		`"background":{"color":{"field":"cpu"}},"border":{"width":1,"color":{"fixed":"red"}}}`
+	panel, line := canvasPanel(t, 12, 10, element)
+	want := spec.CanvasElement{ID: "m", Kind: "metric", Width: 10, Height: 10, Field: "cpu", Fill: "field", Stroke: "#F2495C", TextColor: "#ffffff", FontSize: 30, Align: "left"}
+	if got := canvasElements(t, panel); !reflect.DeepEqual(got, []spec.CanvasElement{want}) {
+		t.Fatalf("elements = %+v, want %+v", got, want)
+	}
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v, reasons = %v", line.Paths, line.Reasons)
+	}
+}
+
+func TestCanvasOptionsWithoutACounterpartAreReported(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":45}`
+	element := `{"type":"rectangle","name":"m",` + scaled + `,"config":{"size":100,"valign":"top"},` +
+		`"background":{"color":{"field":"other"},"image":{"fixed":"img/a.png"}},"border":{"width":3,"radius":4,"color":{"fixed":"red"}}}`
+	_, line := canvasPanel(t, 12, 10, element)
+	want := []string{
+		"options.root.elements[0].placement.rotation",
+		"options.root.elements[0].background.color.field",
+		"options.root.elements[0].border.width",
+		"options.root.elements[0].border.radius",
+		"options.root.elements[0].background.image",
+		"options.root.elements[0].config.size",
+		"options.root.elements[0].config.valign",
+	}
+	for _, path := range want {
+		if !slices.Contains(line.Paths, path) {
+			t.Errorf("paths = %v, want %s reported", line.Paths, path)
+		}
+	}
+}
+
+func TestCanvasLeavesOutUnsupportedElementsAndNeverImportsLinksOrActions(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	elements := `{"type":"server","name":"s",` + scaled + `},` +
+		`{"type":"rectangle","name":"r",` + scaled + `,"links":[{"title":"Docs","url":"https://example.com"}],"actions":[{"type":"fetch","fetch":{"url":"https://example.com/restart","method":"POST"}}]}`
+	panel, line := canvasPanel(t, 12, 10, elements)
+	if els := canvasElements(t, panel); len(els) != 1 || els[0].ID != "r" {
+		t.Fatalf("elements = %+v, want only the rectangle", els)
+	}
+	for _, path := range []string{"options.root.elements[0]", "options.root.elements[1].links", "options.root.elements[1].actions"} {
+		if !slices.Contains(line.Paths, path) {
+			t.Errorf("paths = %v, want %s reported", line.Paths, path)
+		}
+	}
+	if !slices.Contains(line.Reasons, fmt.Sprintf(canvasTypeReason, "server")) {
+		t.Errorf("reasons = %v", line.Reasons)
+	}
+	data, err := json.Marshal(panel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, word := range []string{"actions", "links", "fetch", "example.com"} {
+		if strings.Contains(string(data), word) {
+			t.Errorf("the imported panel holds %q: %s", word, data)
+		}
+	}
+}
+
+func TestCanvasIdsAreCleanedAndUnique(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	names := []string{"Web server", "Web server", "1st", "", strings.Repeat("a", 80)}
+	var elements []string
+	for _, name := range names {
+		elements = append(elements, fmt.Sprintf(`{"type":"rectangle","name":%q,%s}`, name, scaled))
+	}
+	panel, _ := canvasPanel(t, 12, 10, strings.Join(elements, ","))
+	var ids []string
+	for _, el := range canvasElements(t, panel) {
+		ids = append(ids, el.ID)
+	}
+	want := []string{"Web_server", "Web_server_2", "e_1st", "e_", strings.Repeat("a", 64)}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("ids = %v, want %v", ids, want)
+	}
+}
+
+func TestCanvasConnectionsFollowElementNames(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	elements := `{"type":"rectangle","name":"A",` + scaled + `,"connections":[` +
+		`{"targetName":"B","color":{"fixed":"blue"},"size":{"fixed":4},"path":"straight","lineStyle":{"style":"solid"},"source":{"x":1,"y":0},"target":{"x":0,"y":0}},` +
+		`{"targetName":"B","color":{"field":"cpu"},"size":{"fixed":2},"path":"curved","lineStyle":{"style":"dashed"}},` +
+		`{"targetName":"Gone"},` +
+		`{"targetName":"Icon"},` +
+		`{"targetName":"B","size":{"fixed":5,"field":"cpu"}}]},` +
+		`{"type":"rectangle","name":"B",` + scaled + `},` +
+		`{"type":"icon","name":"Icon",` + scaled + `}`
+	panel, line := canvasPanel(t, 12, 10, elements)
+	want := []spec.CanvasConnection{
+		{From: "A", To: "B", Color: "#5794F2", Width: 4},
+		{From: "A", To: "B", Color: "field", Field: "cpu"},
+		{From: "A", To: "B", Width: 5},
+	}
+	if got := displayOf(t, panel).Connections; !reflect.DeepEqual(got, want) {
+		t.Fatalf("connections = %+v, want %+v", got, want)
+	}
+	for _, path := range []string{
+		"options.root.elements[0].connections[1].path", "options.root.elements[0].connections[1].lineStyle.style",
+		"options.root.elements[0].connections[2]", "options.root.elements[0].connections[3]", "options.root.elements[0].connections[4].size.field",
+	} {
+		if !slices.Contains(line.Paths, path) {
+			t.Errorf("paths = %v, want %s reported", line.Paths, path)
+		}
+	}
+}
+
+func TestCanvasGroupsAreFlattenedIntoTheRoot(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"}`
+	group := `{"type":"frame","name":"Group",` + scaled + `,"placement":{"left":50,"top":50,"width":50,"height":50},"elements":[` +
+		`{"type":"rectangle","name":"Inner",` + scaled + `,"placement":{"left":50,"top":0,"width":50,"height":100}}]}`
+	panel, line := canvasPanel(t, 12, 10, group)
+	want := []spec.CanvasElement{{ID: "Inner", Kind: "rectangle", Left: 75, Top: 50, Width: 25, Height: 50}}
+	if got := canvasElements(t, panel); !reflect.DeepEqual(got, want) {
+		t.Fatalf("elements = %+v, want %+v", got, want)
+	}
+	if !slices.Contains(line.Reasons, canvasFrameReason) {
+		t.Fatalf("reasons = %v", line.Reasons)
+	}
+}
+
+func TestCanvasKeepsTheFirstFiftyElementsAndHundredConnections(t *testing.T) {
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
+	var elements []string
+	for i := range 52 {
+		connections := ""
+		if i == 0 {
+			var items []string
+			for range 101 {
+				items = append(items, `{"targetName":"e1"}`)
+			}
+			connections = `,"connections":[` + strings.Join(items, ",") + `]`
+		}
+		elements = append(elements, fmt.Sprintf(`{"type":"rectangle","name":"e%d",%s%s}`, i, scaled, connections))
+	}
+	panel, line := canvasPanel(t, 12, 10, strings.Join(elements, ","))
+	if n := len(canvasElements(t, panel)); n != 50 {
+		t.Errorf("elements = %d, want 50", n)
+	}
+	if n := len(displayOf(t, panel).Connections); n != 100 {
+		t.Errorf("connections = %d, want 100", n)
+	}
+	for _, reason := range []string{canvasElementsReason, canvasConnLimitReason} {
+		if !slices.Contains(line.Reasons, reason) {
+			t.Errorf("reasons = %v, want %q", line.Reasons, reason)
+		}
+	}
+}
+
+func alertListPanel(t *testing.T, options string) (spec.Panel, PanelLine) {
+	t.Helper()
+	return convertedPanel(t, panelDoc("alertlist", `"options":{`+options+`}`))
+}
+
+func TestAlertListBecomesAPrometheusAlertsQuery(t *testing.T) {
+	cases := []struct {
+		name, options, query, display string
+		paths                         []string
+	}{
+		{
+			name:    "defaults",
+			options: `"datasource":"prom","maxItems":20,"sortOrder":1,"viewMode":"list","dashboardAlerts":false,"groupMode":"default","groupBy":[],"alertName":"","alertInstanceLabelFilter":"","showInstances":false,"stateFilter":{"firing":true,"pending":true,"recovering":true,"error":true,"noData":false,"normal":false},"statColorMode":"none","statValueMappings":[]`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: "null",
+		},
+		{
+			name:    "only firing alerts",
+			options: `"datasource":"prom","stateFilter":{"firing":true,"pending":false}`,
+			query:   `ALERTS{alertstate="firing"}`,
+			display: "null",
+		},
+		{
+			name:    "only pending alerts",
+			options: `"datasource":"prom","stateFilter":{"firing":false,"pending":true}`,
+			query:   `ALERTS{alertstate="pending"}`,
+			display: "null",
+		},
+		{
+			name:    "states Prometheus does not have",
+			options: `"datasource":"prom","stateFilter":{"firing":true,"pending":true,"normal":true,"noData":true}`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: "null",
+			paths:   []string{"options.stateFilter.noData", "options.stateFilter.normal"},
+		},
+		{
+			name:    "label filter in braces",
+			options: `"datasource":"prom","alertInstanceLabelFilter":"{team=\"web\",severity=~\"warn.*\"}"`,
+			query:   `ALERTS{alertstate=~"firing|pending",team="web",severity=~"warn.*"}`,
+			display: "null",
+		},
+		{
+			name:    "bare label matchers",
+			options: `"datasource":"prom","alertInstanceLabelFilter":"team=\"web\", env!=\"dev\""`,
+			query:   `ALERTS{alertstate=~"firing|pending",team="web", env!="dev"}`,
+			display: "null",
+		},
+		{
+			name:    "label filter that is not a matcher list",
+			options: `"datasource":"prom","alertInstanceLabelFilter":"team=web"`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: "null",
+			paths:   []string{"options.alertInstanceLabelFilter"},
+		},
+		{
+			name:    "alert name",
+			options: `"datasource":"prom","alertName":"high.latency \"p99\""`,
+			query:   `ALERTS{alertstate=~"firing|pending",alertname=~"(?i).*high\\.latency \"p99\".*"}`,
+			display: "null",
+		},
+		{
+			name:    "limit, sort and stat view",
+			options: `"datasource":"prom","maxItems":5,"sortOrder":5,"viewMode":"stat"`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: `{"limit":5,"sort":"timeDesc","viewMode":"stat"}`,
+		},
+		{
+			name:    "limit and sort out of range",
+			options: `"datasource":"prom","maxItems":500,"sortOrder":9`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: "null",
+			paths:   []string{"options.maxItems", "options.sortOrder"},
+		},
+		{
+			name:    "options with no counterpart",
+			options: `"datasource":"prom","dashboardAlerts":true,"groupMode":"custom","groupBy":["alertname"],"folder":{"uid":"f","title":"F"},"showInstances":true,"statColorMode":"background"`,
+			query:   `ALERTS{alertstate=~"firing|pending"}`,
+			display: "null",
+			paths:   []string{"options.dashboardAlerts", "options.folder.title", "options.folder.uid", "options.groupBy", "options.groupMode", "options.showInstances", "options.statColorMode"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := alertListPanel(t, tc.options)
+			if panel.Type != spec.AlertList || len(panel.Queries) != 1 || panel.Queries[0].Query != tc.query {
+				t.Fatalf("panel = %+v, want one query %s", panel, tc.query)
+			}
+			if panel.Datasource != "prom" {
+				t.Errorf("datasource = %q", panel.Datasource)
+			}
+			if got := displayJSON(t, panel); got != tc.display {
+				t.Errorf("display = %s, want %s", got, tc.display)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
+			}
+		})
+	}
+}
+
+func TestAlertListsThatPrometheusCannotListArePlaceholders(t *testing.T) {
+	cases := []struct{ name, options, reason string }{
+		{"legacy show option", `"show":"current","maxItems":10`, legacyAlertListReason},
+		{"legacy state array", `"stateFilter":["alerting","pending"],"datasource":"prom"`, legacyAlertListReason},
+		{"grafana-managed alerts", `"datasource":""`, managedAlertListReason},
+		{"no datasource", `"maxItems":10`, managedAlertListReason},
+		{"the grafana rule source", `"datasource":"grafana"`, managedAlertListReason},
+		{"a source that is not Prometheus", `"datasource":{"type":"grafana-clickhouse-datasource","uid":"ch"}`, alertSourceReason},
+		{"a source that is not supported", `"datasource":{"type":"loki","uid":"loki1"}`, "Loki is not supported yet."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := alertListPanel(t, tc.options)
+			if panel.Type != spec.Placeholder || panel.Reason != tc.reason || line.Status != statusPlaceholder {
+				t.Fatalf("panel = %+v, line status %s, want a placeholder with %q", panel, line.Status, tc.reason)
+			}
+		})
+	}
+}
+
+func TestAlertListNeverGuessesBetweenTwoPrometheusDatasources(t *testing.T) {
+	doc := panelDoc("alertlist", `"options":{"datasource":"Rules"}`)
+	res := convertWith(t, doc, Options{Datasources: []Datasource{{UID: "a", Type: "prometheus"}, {UID: "b", Type: "prometheus"}}})
+	if res.Ready() {
+		t.Fatalf("result is ready without a choice between %v", res.Datasources)
+	}
+	var found bool
+	for _, source := range res.Datasources {
+		if source.Key == "Rules" {
+			found = true
+			if source.Match != nil || len(source.Candidates) != 2 {
+				t.Errorf("source = %+v, want no match and two candidates", source)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("datasources = %+v, want the alert list's source", res.Datasources)
+	}
+	mapped := convertWith(t, doc, Options{Datasources: []Datasource{{UID: "a", Type: "prometheus"}, {UID: "b", Type: "prometheus"}}, Mapping: map[string]string{"Rules": "b"}})
+	entry, ok := mapped.Spec.FindPanel("p1")
+	if !ok || entry.Panel.Datasource != "b" {
+		t.Fatalf("panel = %+v, want datasource b", entry)
+	}
+}
+
+func dashListPanel(t *testing.T, options string) (spec.Panel, PanelLine) {
+	t.Helper()
+	return convertedPanel(t, panelDoc("dashlist", `"options":{`+options+`}`))
+}
+
+func TestDashListImportsAsAStaticPanel(t *testing.T) {
+	panel, line := dashListPanel(t, `"query":"checkout","tags":["Prod","slo.v2","","a b"],"maxItems":15,"keepTime":true,"includeVars":true,"showHeadings":true,"showFolderNames":false,"showSearch":true,"showStarred":false,"showRecentlyViewed":false,"folderUID":"","folderId":0`)
+	if panel.Type != spec.DashList || panel.Datasource != "" || len(panel.Queries) != 0 {
+		t.Fatalf("panel = %+v, want a static panel", panel)
+	}
+	want := `{"limit":15,"query":"checkout","tags":["prod","slo.v2","a-b"],"keepTime":true,"includeVars":true}`
+	if got := displayJSON(t, panel); got != want {
+		t.Errorf("display = %s, want %s", got, want)
+	}
+	if !slices.Equal(line.Paths, []string{"options.tags[2]"}) {
+		t.Errorf("paths = %v, want only the empty tag reported", line.Paths)
+	}
+}
+
+func TestDashListNeverNeedsADatasourceMatch(t *testing.T) {
+	doc := `{"title":"T","schemaVersion":39,"panels":[{"id":1,"title":"T","type":"dashlist","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"loki","uid":"l"},"options":{"maxItems":10}}]}`
+	_, line := convertedPanel(t, doc)
+	if line.Status != statusImported {
+		t.Fatalf("line = %+v", line)
+	}
+}
+
+func TestDashListOptionsWithoutACounterpartAreReported(t *testing.T) {
+	_, line := dashListPanel(t, `"showStarred":true,"showRecentlyViewed":true,"folderUID":"abc","maxItems":500,"tags":["a","b","c","d","e","f","g","h","i","j","k"]`)
+	for _, path := range []string{"options.showStarred", "options.showRecentlyViewed", "options.folderUID", "options.maxItems", "options.tags[10]"} {
+		if !slices.Contains(line.Paths, path) {
+			t.Errorf("paths = %v, want %s reported", line.Paths, path)
+		}
+	}
+	if !slices.Contains(line.Reasons, dashListSources) || !slices.Contains(line.Reasons, dashListFolders) {
+		t.Errorf("reasons = %v", line.Reasons)
+	}
+}
+
+func TestDiscretePanelImportsAsAStateTimeline(t *testing.T) {
+	members := `"units":"percent","decimals":1,"valueMaps":[{"value":"null","op":"=","text":"N/A"},{"value":"1","op":"=","text":"UP"},{"value":"0","op":"!=","text":"nonzero"}],` +
+		`"rangeMaps":[{"from":"null","to":"null","text":"N/A"},{"from":"2","to":"5","text":"SLOW"}],` +
+		`"colorMaps":[{"text":"N/A","color":"#CCC"},{"text":"UP","color":"green"},{"text":"SLOW","color":"orange"},{"text":"unmapped","color":"#ff0000"},{"text":"bad","color":"nonsense"}],` +
+		`"rowHeight":50,"textSize":24,"showLegend":true,"display":"timeline","timeOptions":[{"name":"Years","value":"years"}],"timePrecision":{"name":"Minutes","value":"minutes"}`
+	panel, line := convertedPanel(t, panelDoc("natel-discrete-panel", upTarget+","+members))
+	if panel.Type != spec.StateTimeline || line.SourceType != "natel-discrete-panel" {
+		t.Fatalf("type = %s, source type %s", panel.Type, line.SourceType)
+	}
+	if panel.Unit != "percent" || panel.Decimals == nil || *panel.Decimals != 1 {
+		t.Errorf("unit = %q, decimals = %v", panel.Unit, panel.Decimals)
+	}
+	two, five := 2.0, 5.0
+	want := []spec.Mapping{
+		{Special: "null", Text: "N/A", Color: "#CCCCCC"},
+		{Value: "1", Text: "UP", Color: "ok"},
+		{Range: &[2]*float64{&two, &five}, Text: "SLOW", Color: "warning"},
+		{Value: "unmapped", Color: "#ff0000"},
+	}
+	if !reflect.DeepEqual(panel.Mappings, want) {
+		t.Errorf("mappings = %+v, want %+v", panel.Mappings, want)
+	}
+	wantPaths := []string{"valueMaps[2]", "colorMaps[4]"}
+	if !slices.Equal(line.Paths, wantPaths) {
+		t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, wantPaths, line.Reasons)
+	}
+}
+
+func TestDiscreteLayoutOptionsAreReportedUnlessTheyAreDefaults(t *testing.T) {
+	_, line := convertedPanel(t, panelDoc("natel-discrete-panel", upTarget+`,"rowHeight":80,"writeAllValues":true,"extendLastValue":true,"showTimeAxis":false`))
+	want := []string{"rowHeight", "showTimeAxis", "writeAllValues"}
+	if !slices.Equal(line.Paths, want) {
+		t.Fatalf("paths = %v, want %v", line.Paths, want)
+	}
+}
+
+func TestStatusHistoryColoredByThresholdsIsNotReported(t *testing.T) {
+	panel, line := convertedPanel(t, panelDoc("status-history", upTarget+`,"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":80}]}},"overrides":[]}`))
+	if got := thresholdText(panel.Thresholds); !slices.Equal(got, []string{"ok", "critical@80"}) {
+		t.Fatalf("thresholds = %v", got)
+	}
+	if len(line.Paths) != 0 {
+		t.Fatalf("paths = %v, reasons = %v", line.Paths, line.Reasons)
+	}
+}
