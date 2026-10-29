@@ -26,6 +26,14 @@ const (
 	ClickHouse DatasourceType = "clickhouse"
 )
 
+type CursorSync string
+
+const (
+	CursorSyncOff       CursorSync = "off"
+	CursorSyncCrosshair CursorSync = "crosshair"
+	CursorSyncTooltip   CursorSync = "tooltip"
+)
+
 type PanelType string
 
 const (
@@ -90,6 +98,7 @@ type Dashboard struct {
 	Time        TimeRange  `json:"time"`
 	Refresh     string     `json:"refresh,omitempty"`
 	Timezone    string     `json:"timezone,omitempty"`
+	CursorSync  CursorSync `json:"cursorSync,omitempty"`
 	Variables   []Variable `json:"variables,omitempty"`
 	Links       []Link     `json:"links,omitempty"`
 	Panels      []Panel    `json:"panels"`

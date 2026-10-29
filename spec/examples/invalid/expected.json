@@ -9,6 +9,7 @@
     { "file": "schema/custom-variable-without-options.json", "layer": "schema", "code": "schema", "path": "/variables/0" },
     { "file": "schema/grid-width.json", "layer": "schema", "code": "schema", "path": "/panels/0/gridPos/w" },
     { "file": "schema/wrong-spec-version.json", "layer": "schema", "code": "schema", "path": "/specVersion" },
+    { "file": "schema/bad-cursor-sync.json", "layer": "schema", "code": "schema", "path": "/cursorSync" },
     { "file": "schema/unknown-variable-type.json", "layer": "schema", "code": "schema", "path": "/variables/0" },
     { "file": "schema/override-match-two-keys.json", "layer": "schema", "code": "schema", "path": "/panels/0/overrides/0/match" },
     { "file": "schema/mapping-two-keys.json", "layer": "schema", "code": "schema", "path": "/panels/0/mappings/0" },

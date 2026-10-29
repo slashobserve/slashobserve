@@ -6,6 +6,7 @@
   "time": { "from": "now-6h", "to": "now" },
   "refresh": "30s",
   "timezone": "utc",
+  "cursorSync": "crosshair",
   "links": [{ "title": "Runbook", "url": "https://example.com/runbook", "newTab": true }],
   "variables": [
     { "name": "pod", "type": "query", "datasource": "prom", "multi": true, "includeAll": true,

@@ -25,6 +25,9 @@ export const specDefaults = {
   "link": {
     "newTab": false
   },
+  "dashboard": {
+    "cursorSync": "off"
+  },
   "display": {
     "timeseries": {
       "legend": "bottom",

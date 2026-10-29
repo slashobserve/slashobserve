@@ -4,6 +4,7 @@
   "variable": {"refresh": "load", "multi": false, "includeAll": false},
   "row": {"collapsed": false},
   "link": {"newTab": false},
+  "dashboard": {"cursorSync": "off"},
   "display": {
     "timeseries": {"legend": "bottom", "legendValues": [], "tooltip": "single"},
     "stat": {"reduce": "lastNotNull", "colorMode": "value", "graph": true, "orientation": "auto"},

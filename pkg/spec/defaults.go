@@ -40,6 +40,10 @@ type LinkDefaults struct {
 	NewTab bool `json:"newTab"`
 }
 
+type DashboardDefaults struct {
+	CursorSync CursorSync `json:"cursorSync"`
+}
+
 type CanvasElementDefaults struct {
 	FontSize int    `json:"fontSize"`
 	Align    string `json:"align"`
@@ -55,6 +59,7 @@ type DefaultsTable struct {
 	Variable         VariableDefaults         `json:"variable"`
 	Row              RowDefaults              `json:"row"`
 	Link             LinkDefaults             `json:"link"`
+	Dashboard        DashboardDefaults        `json:"dashboard"`
 	Display          map[PanelType]Display    `json:"display"`
 	CanvasElement    CanvasElementDefaults    `json:"canvasElement"`
 	CanvasConnection CanvasConnectionDefaults `json:"canvasConnection"`
