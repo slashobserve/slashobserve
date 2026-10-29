@@ -1,5 +1,5 @@
 -- name: CreateServiceAccount :one
-INSERT INTO service_accounts (name, description, created_by) VALUES ($1, $2, $3)
+INSERT INTO service_accounts (name, description, created_by, role) VALUES (@name, @description, @created_by, @role)
 RETURNING id, name, description, created_by, created_at, role;
 
 -- name: ListServiceAccounts :many
@@ -7,6 +7,10 @@ SELECT id, name, description, created_by, created_at, role FROM service_accounts
 
 -- name: GetServiceAccount :one
 SELECT id, name, description, created_by, created_at, role FROM service_accounts WHERE id = $1;
+
+-- name: SetServiceAccountRole :one
+UPDATE service_accounts SET role = @role WHERE id = @id
+RETURNING id, name, description, created_by, created_at, role;
 
 -- name: CreateServiceAccountKey :one
 INSERT INTO service_account_keys (service_account_id, name, display_prefix, token_hash, created_by, expires_at)

@@ -12,7 +12,7 @@ import (
 )
 
 const createServiceAccount = `-- name: CreateServiceAccount :one
-INSERT INTO service_accounts (name, description, created_by) VALUES ($1, $2, $3)
+INSERT INTO service_accounts (name, description, created_by, role) VALUES ($1, $2, $3, $4)
 RETURNING id, name, description, created_by, created_at, role
 `
 
@@ -20,10 +20,16 @@ type CreateServiceAccountParams struct {
 	Name        string
 	Description string
 	CreatedBy   pgtype.UUID
+	Role        string
 }
 
 func (q *Queries) CreateServiceAccount(ctx context.Context, arg CreateServiceAccountParams) (ServiceAccount, error) {
-	row := q.db.QueryRow(ctx, createServiceAccount, arg.Name, arg.Description, arg.CreatedBy)
+	row := q.db.QueryRow(ctx, createServiceAccount,
+		arg.Name,
+		arg.Description,
+		arg.CreatedBy,
+		arg.Role,
+	)
 	var i ServiceAccount
 	err := row.Scan(
 		&i.ID,
@@ -243,6 +249,30 @@ func (q *Queries) RevokeServiceAccountKey(ctx context.Context, arg RevokeService
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setServiceAccountRole = `-- name: SetServiceAccountRole :one
+UPDATE service_accounts SET role = $1 WHERE id = $2
+RETURNING id, name, description, created_by, created_at, role
+`
+
+type SetServiceAccountRoleParams struct {
+	Role string
+	ID   pgtype.UUID
+}
+
+func (q *Queries) SetServiceAccountRole(ctx context.Context, arg SetServiceAccountRoleParams) (ServiceAccount, error) {
+	row := q.db.QueryRow(ctx, setServiceAccountRole, arg.Role, arg.ID)
+	var i ServiceAccount
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Role,
+	)
+	return i, err
 }
 
 const touchServiceAccountKey = `-- name: TouchServiceAccountKey :exec

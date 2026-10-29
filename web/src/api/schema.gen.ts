@@ -120,6 +120,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/service-accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the role a service account's keys act with.
+         * @description Service accounts cannot call this endpoint.
+         */
+        patch: operations["updateServiceAccountRole"];
+        trace?: never;
+    };
     "/service-accounts/{id}/keys": {
         parameters: {
             query?: never;
@@ -178,6 +200,28 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set or clear the role an Admin chose for a person.
+         * @description A role value sets the chosen role and null clears it, after which the role is computed again from the server settings, the identity provider's groups and the default. A role decided by SLASHOBSERVE_ADMIN_EMAILS, by being the first person, or by an identity-provider group is locked and answers 409 with code role_locked. Lowering the last Admin answers 409 with code last_admin. Service accounts cannot call this endpoint.
+         */
+        patch: operations["updatePersonRole"];
         trace?: never;
     };
     "/users/{id}/sessions": {
@@ -942,6 +986,11 @@ export interface components {
         };
         /** @enum {string} */
         Role: "admin" | "editor" | "commenter" | "viewer";
+        /**
+         * @description Where a person's role comes from. admin_emails, first_user and group are decided by the server settings or the identity provider and cannot be changed through the API.
+         * @enum {string}
+         */
+        RoleSource: "admin_emails" | "first_user" | "group" | "manual" | "default";
         Principal: {
             /** @enum {string} */
             kind: "user" | "service_account";
@@ -978,6 +1027,7 @@ export interface components {
             created_by: string | null;
             /** Format: date-time */
             created_at: string;
+            role: components["schemas"]["Role"];
         };
         ServiceAccountList: {
             items: components["schemas"]["ServiceAccount"][];
@@ -985,6 +1035,11 @@ export interface components {
         CreateServiceAccountRequest: {
             name: string;
             description?: string;
+            /** @description The role the account's keys act with; editor when omitted. */
+            role?: components["schemas"]["Role"];
+        };
+        UpdateServiceAccountRequest: {
+            role: components["schemas"]["Role"];
         };
         ServiceAccountKey: {
             /** Format: uuid */
@@ -1037,6 +1092,18 @@ export interface components {
             key_count: number;
             /** @description Unexpired sessions. */
             session_count: number;
+            role: components["schemas"]["Role"];
+            role_source: components["schemas"]["RoleSource"];
+            /** @description The identity-provider group that decided the role when role_source is group. */
+            role_group: string | null;
+            /** @description The name of the Admin who chose the role when role_source is manual. */
+            role_set_by: string | null;
+            /** @description True when the role cannot be changed through the API. */
+            role_locked: boolean;
+        };
+        UpdatePersonRequest: {
+            /** @description The role to set, or null to clear the chosen role and fall back to the computed one. */
+            role: components["schemas"]["Role"] | null;
         };
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
@@ -2024,6 +2091,37 @@ export interface operations {
             500: components["responses"]["Internal"];
         };
     };
+    updateServiceAccountRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateServiceAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description The service account with its new role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
     listServiceAccountKeys: {
         parameters: {
             query?: never;
@@ -2135,6 +2233,39 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updatePersonRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePersonRequest"];
+            };
+        };
+        responses: {
+            /** @description The person with the resulting role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["TooLarge"];
             500: components["responses"]["Internal"];
         };
     };
