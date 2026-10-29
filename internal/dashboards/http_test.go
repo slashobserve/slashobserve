@@ -1,6 +1,7 @@
 package dashboards
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -88,6 +89,41 @@ func TestListFiltersAcceptRepeatedTags(t *testing.T) {
 		code, params := listFilterStatus(t, tt.raw)
 		if code != http.StatusOK || !slices.Equal(params.Tags, tt.want) {
 			t.Errorf("%.40s answered %d with tags %v, want %v", tt.raw, code, params.Tags, tt.want)
+		}
+	}
+}
+
+func TestTagsJSONIsAnEmptyArrayWhenThereAreNoTags(t *testing.T) {
+	raw, err := json.Marshal(newTagsJSON(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(raw) != "[]" {
+		t.Fatalf("got %s, want []", raw)
+	}
+}
+
+func TestTagsJSONCarriesNameAndCount(t *testing.T) {
+	raw, err := json.Marshal(newTagsJSON([]TagCount{{Tag: "checkout", Dashboards: 3}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `[{"tag":"checkout","dashboards":3}]`; string(raw) != want {
+		t.Fatalf("got %s, want %s", raw, want)
+	}
+}
+
+func TestTagsRouteCoexistsWithTheIDRoute(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	(&Service{}).Register(router.Group("/api/v1"))
+	routes := map[string]bool{}
+	for _, r := range router.Routes() {
+		routes[r.Method+" "+r.Path] = true
+	}
+	for _, want := range []string{"GET /api/v1/dashboards/tags", "GET /api/v1/dashboards/:id"} {
+		if !routes[want] {
+			t.Fatalf("route %q is not registered", want)
 		}
 	}
 }

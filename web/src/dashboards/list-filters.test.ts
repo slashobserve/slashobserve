@@ -6,6 +6,8 @@ import {
   hasFilters,
   madeByText,
   maxQueryLength,
+  maxTags,
+  tagsText,
   toFilters,
   validateListSearch,
 } from "./list-filters"
@@ -26,7 +28,7 @@ describe("validateListSearch", () => {
   it("names every filter so a dropped value overrides the raw URL", () => {
     expect(
       Object.keys(validateListSearch({ made_by: "bogus" })).sort()
-    ).toEqual(["datasource", "made_by", "q"])
+    ).toEqual(["datasource", "made_by", "q", "tag"])
   })
 
   it("takes the first value of a repeated key", () => {
@@ -141,6 +143,71 @@ describe("validateListSearch", () => {
   })
 })
 
+describe("validateListSearch tags", () => {
+  it("reads a single tag or a repeated tag", () => {
+    expect(validateListSearch({ tag: "checkout" }).tag).toEqual(["checkout"])
+    expect(validateListSearch({ tag: ["prod", "checkout"] }).tag).toEqual([
+      "checkout",
+      "prod",
+    ])
+  })
+
+  it("drops invalid and duplicate values", () => {
+    expect(
+      validateListSearch({
+        tag: [
+          "Prod",
+          "-x",
+          "a b",
+          "",
+          7,
+          "a".repeat(41),
+          "ok",
+          "ok",
+          "v1.2_x-y",
+        ],
+      }).tag
+    ).toEqual(["ok", "v1.2_x-y"])
+    expect(validateListSearch({ tag: ["BAD", ""] }).tag).toBeUndefined()
+    expect(validateListSearch({ tag: 7 }).tag).toBeUndefined()
+    expect(validateListSearch({}).tag).toBeUndefined()
+  })
+
+  it("keeps a 40 character tag", () => {
+    expect(validateListSearch({ tag: "a".repeat(40) }).tag).toEqual([
+      "a".repeat(40),
+    ])
+  })
+
+  it("cuts more than the maximum to the first sorted ones", () => {
+    const tags = Array.from(
+      { length: 12 },
+      (_, i) => `t${String(i).padStart(2, "0")}`
+    )
+    const kept = validateListSearch({ tag: [...tags].reverse() }).tag
+    expect(maxTags).toBe(10)
+    expect(kept).toEqual(tags.slice(0, 10))
+  })
+
+  it("normalizes the order", () => {
+    expect(validateListSearch({ tag: ["b", "c", "a"] }).tag).toEqual([
+      "a",
+      "b",
+      "c",
+    ])
+  })
+})
+
+describe("tagsText", () => {
+  it("describes the selection", () => {
+    expect(tagsText(undefined)).toBe("any")
+    expect(tagsText([])).toBe("any")
+    expect(tagsText(["checkout"])).toBe("checkout")
+    expect(tagsText(["checkout", "prod"])).toBe("checkout +1")
+    expect(tagsText(["a", "b", "c"])).toBe("a +2")
+  })
+})
+
 describe("clampQuery", () => {
   it("cuts text to the validator's limit in code points", () => {
     const text = "😀".repeat(maxQueryLength + 5)
@@ -159,11 +226,17 @@ describe("toFilters and hasFilters", () => {
     })
   })
 
+  it("passes tags through", () => {
+    expect(toFilters({ tag: ["a", "b"] }).tags).toEqual(["a", "b"])
+  })
+
   it("reports whether any filter is set", () => {
     expect(hasFilters({})).toBe(false)
     expect(hasFilters({ q: "a" })).toBe(true)
     expect(hasFilters({ made_by: "me" })).toBe(true)
     expect(hasFilters({ datasource: "prom" })).toBe(true)
+    expect(hasFilters({ tag: ["a"] })).toBe(true)
+    expect(hasFilters({ tag: undefined })).toBe(false)
   })
 })
 

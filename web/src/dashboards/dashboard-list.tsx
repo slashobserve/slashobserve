@@ -19,7 +19,7 @@ import {
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
-import { DatasourceMenu, MadeByMenu } from "./list-filter-menus"
+import { DatasourceMenu, MadeByMenu, TagsMenu } from "./list-filter-menus"
 import {
   clampQuery,
   countText,
@@ -49,6 +49,7 @@ function useDashboardList(search: ListSearch) {
               q: filters.q,
               made_by: filters.madeBy,
               datasource: filters.datasource,
+              tag: filters.tags,
             },
           },
           signal,
@@ -125,6 +126,10 @@ function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
         value={search.datasource}
         onChange={(datasource) => onSearchChange({ ...search, datasource })}
       />
+      <TagsMenu
+        value={search.tag}
+        onChange={(tag) => onSearchChange({ ...search, tag })}
+      />
       <span role="status" className="ml-auto text-xs text-muted-foreground">
         {total !== undefined ? countText(total) : null}
       </span>
@@ -163,9 +168,10 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
   const rowCount = dashboards.length
 
   const { q, made_by: madeBy, datasource } = search
+  const tags = search.tag?.join(",")
   useEffect(() => {
     focusFrom.current = null
-  }, [q, madeBy, datasource])
+  }, [q, madeBy, datasource, tags])
 
   const fetchingNextPage = query.isFetchingNextPage
   useEffect(() => {

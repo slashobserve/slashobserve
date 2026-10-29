@@ -115,6 +115,37 @@ dashboards:
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+dashboards-tags:
+  get:
+    operationId: listDashboardTags
+    summary: List every dashboard tag with its dashboard count, by tag name.
+    responses:
+      "200":
+        description: Every tag in use, at most 500, ordered by name.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [tag, dashboards]
+                    properties:
+                      tag:
+                        type: string
+                        pattern: "^[a-z0-9][a-z0-9_.-]{0,39}$"
+                      dashboards:
+                        type: integer
+                        minimum: 1
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 dashboards-id:
   parameters:
     - name: id

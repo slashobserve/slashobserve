@@ -1,7 +1,12 @@
 import type { DashboardListFilters } from "@/api/keys"
 import { clientDisplayName } from "@/lib/origin"
 
-export type ListSearch = { q?: string; made_by?: string; datasource?: string }
+export type ListSearch = {
+  q?: string
+  made_by?: string
+  datasource?: string
+  tag?: string[]
+}
 
 const uuid =
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
@@ -12,8 +17,10 @@ const madeByPattern = new RegExp(
 const maxClientLength = 64
 const unsafeClientPattern = /[\p{Cc}\p{Cf}\p{Cs}]|^\s|\s$/u
 const datasourcePattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
+const tagPattern = /^[a-z0-9][a-z0-9_.-]{0,39}$/
 
 export const maxQueryLength = 200
+export const maxTags = 10
 
 function validMadeBy(value: string): boolean {
   const match = madeByPattern.exec(value)
@@ -38,12 +45,23 @@ function firstString(value: unknown): string | undefined {
   return typeof item === "string" ? item : undefined
 }
 
+function validTags(value: unknown): string[] | undefined {
+  const items = Array.isArray(value) ? value : [value]
+  const tags = new Set<string>()
+  for (const item of items) {
+    if (typeof item === "string" && tagPattern.test(item)) tags.add(item)
+  }
+  if (tags.size === 0) return undefined
+  return [...tags].sort().slice(0, maxTags)
+}
+
 export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   // The router merges the raw URL under a route's validated search, so a dropped key must be present as undefined to override it.
   const search: ListSearch = {
     q: undefined,
     made_by: undefined,
     datasource: undefined,
+    tag: undefined,
   }
   const q = firstString(raw.q)?.trim()
   if (
@@ -64,6 +82,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
   if (datasource !== undefined && datasourcePattern.test(datasource)) {
     search.datasource = datasource
   }
+  search.tag = validTags(raw.tag)
   return search
 }
 
@@ -72,6 +91,7 @@ export function toFilters(search: ListSearch): DashboardListFilters {
     q: search.q,
     madeBy: search.made_by,
     datasource: search.datasource,
+    tags: search.tag,
   }
 }
 
@@ -79,7 +99,8 @@ export function hasFilters(search: ListSearch): boolean {
   return (
     search.q !== undefined ||
     search.made_by !== undefined ||
-    search.datasource !== undefined
+    search.datasource !== undefined ||
+    search.tag !== undefined
   )
 }
 
@@ -97,6 +118,12 @@ export function madeByText(
     return users.find((user) => user.id === id)?.name ?? "a person"
   }
   return "a service account"
+}
+
+export function tagsText(tags: string[] | undefined): string {
+  if (tags === undefined || tags.length === 0) return "any"
+  if (tags.length === 1) return tags[0]
+  return `${tags[0]} +${tags.length - 1}`
 }
 
 export function countText(n: number): string {
