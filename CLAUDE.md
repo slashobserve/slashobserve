@@ -438,7 +438,8 @@ Directories are created when their phase starts; this is where things go.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
   Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
-- Every change that a user can see or call adds or updates an e2e check in the same PR; a feature is not done until both suites cover it.
+- A change that a user can see or call adds no new e2e check: workers write unit tests for pure logic only, and neither suite is extended unless the owner asks for a specific e2e test.
+  Fixing an existing failing check is allowed.
 - `deploy/compose/datasources.e2e.yaml` (mounted through `SLASHOBSERVE_DATASOURCES_HOST_FILE`, which `scripts/e2e.sh` sets) adds `prom_tight` and `ch_tight` to `prom` and `ch` for deterministic limit checks; `make demo` uses `datasources.yaml`.
 - `scripts/e2e.sh` `api_token` creates the service account `e2e-api` and sets `API_TOKEN` once, so API checks send `Authorization: Bearer $API_TOKEN`; request bodies live in `e2e/fixtures/api/`.
 - E2E tests never call a live model: they use the replay LLM provider (`SLASHOBSERVE_LLM_PROVIDER=replay`, fixtures in `e2e/fixtures/llm/`).
