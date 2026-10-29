@@ -345,17 +345,19 @@ export default function PanelEditor({
           timeRange={timeRange}
           selections={selections}
         />
+        <div className={view === "editor" ? "contents" : "hidden"}>
+          <AskAgent
+            dashboardId={dashboardId}
+            version={draft.baseVersion}
+            draft={draft.panel}
+            dispatch={dispatch}
+            blockedReason={
+              readOnly ? readOnlyAskReason : locked ? savingText : null
+            }
+          />
+        </div>
         {view === "editor" ? (
           <>
-            <AskAgent
-              dashboardId={dashboardId}
-              version={draft.baseVersion}
-              draft={draft.panel}
-              dispatch={dispatch}
-              blockedReason={
-                readOnly ? readOnlyAskReason : locked ? savingText : null
-              }
-            />
             <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 narrow:grid-cols-1">
               <div className="flex min-w-0 flex-col gap-3">
                 {data ? (
