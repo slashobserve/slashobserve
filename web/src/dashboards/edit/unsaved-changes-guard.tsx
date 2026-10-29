@@ -51,14 +51,25 @@ export function DiscardLayoutDialog({
   )
 }
 
-function shouldBlockNavigation({
+type GuardedLocation = { pathname: string; search: unknown }
+
+function pinnedVersion(location: GuardedLocation): string | undefined {
+  const { version } = (location.search ?? {}) as { version?: unknown }
+  return version === undefined ? undefined : String(version)
+}
+
+export function shouldBlockNavigation({
   current,
   next,
 }: {
-  current: { pathname: string }
-  next: { pathname: string }
+  current: GuardedLocation
+  next: GuardedLocation
 }) {
-  return isDirtyNow() && current.pathname !== next.pathname
+  return (
+    isDirtyNow() &&
+    (current.pathname !== next.pathname ||
+      pinnedVersion(current) !== pinnedVersion(next))
+  )
 }
 
 function beforeUnload() {
