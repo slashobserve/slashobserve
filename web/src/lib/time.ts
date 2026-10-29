@@ -227,8 +227,8 @@ export function formatRelative(iso: string, now = Date.now()): string {
   return relativeFormat.format(seconds, "second")
 }
 
-export const slowRelativeTickMs = 30_000
-export const fastRelativeTickMs = 1000
+const slowRelativeTickMs = 30_000
+const fastRelativeTickMs = 1000
 
 export function isSubMinuteOffset(iso: string, now: number): boolean {
   const target = Date.parse(iso)

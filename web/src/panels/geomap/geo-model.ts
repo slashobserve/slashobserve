@@ -18,7 +18,7 @@ import {
 } from "./projection"
 import { decodeGeohash } from "./geohash"
 
-export type Detail = { name: string; text: string }
+type Detail = { name: string; text: string }
 
 export type Marker = {
   key: string
@@ -40,7 +40,7 @@ export type GeoModel = {
   reason: string | null
 }
 
-export type ViewMode = "fit" | "world" | "coords"
+type ViewMode = "fit" | "world" | "coords"
 
 export type ViewOptions = {
   mode: ViewMode

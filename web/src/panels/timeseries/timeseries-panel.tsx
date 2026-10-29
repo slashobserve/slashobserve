@@ -7,7 +7,7 @@ import { stableJson } from "@/lib/json"
 import { formatDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
-import { axisDecimals, formatAxisValue } from "@/lib/units"
+import { axisDecimals, formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import type { DataPanel } from "@/spec"
 
@@ -204,9 +204,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     ticks: { show: false },
     values: (_u, splits) => {
       const decimals = axisDecimals(splits, settings.unit, settings.decimals)
-      return splits.map((value) =>
-        formatAxisValue(value, settings.unit, decimals)
-      )
+      return splits.map((value) => formatValue(value, settings.unit, decimals))
     },
     size: (u, values) => {
       if (!values) return 48
@@ -644,7 +642,7 @@ export function TimeseriesChart({
   )
 }
 
-export const TimeseriesPanel: PanelRenderer = (props) => {
+const TimeseriesPanel: PanelRenderer = (props) => {
   const { frames, ghostFrames, fields } = props
   const aligned = useMemo(
     () => alignFrames(frames, fields.displayName, ghostFrames),

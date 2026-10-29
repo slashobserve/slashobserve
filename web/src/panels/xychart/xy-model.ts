@@ -20,9 +20,9 @@ export type XyShow = "points" | "lines" | "points+lines"
 export type XyLegend = "bottom" | "right" | "hidden"
 export type XyTooltip = "single" | "all" | "hidden"
 
-export type XyPoint = readonly [x: number, y: number, color: string]
+type XyPoint = readonly [x: number, y: number, color: string]
 
-export type XySeries = {
+type XySeries = {
   key: string
   name: string
   color: string
@@ -33,7 +33,7 @@ export type XySeries = {
 
 export type XyRange = { min: number; max: number }
 
-export type XyAxis = { name: string; config: FieldConfig }
+type XyAxis = { name: string; config: FieldConfig }
 
 export type XyModel = {
   series: XySeries[]

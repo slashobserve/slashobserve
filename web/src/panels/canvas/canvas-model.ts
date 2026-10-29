@@ -15,11 +15,11 @@ import { reduce } from "../reducers"
 import { thresholdColor, type ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
-export type CanvasKind = "text" | "metric" | "rectangle" | "ellipse"
+type CanvasKind = "text" | "metric" | "rectangle" | "ellipse"
 export type CanvasAlign = "left" | "center" | "right"
 export type RgbOf = (color: string) => Rgb | null
 
-export type Box = { left: number; top: number; width: number; height: number }
+type Box = { left: number; top: number; width: number; height: number }
 
 export type MetricState = {
   level: ThresholdLevel
@@ -55,7 +55,7 @@ export type CanvasLine = {
 
 export type CanvasModel = { elements: CanvasElement[]; lines: CanvasLine[] }
 
-export const noDataText = "No data"
+const noDataText = "No data"
 export const defaultLineColor = "var(--muted-foreground)"
 export const foregroundColor = "var(--foreground)"
 

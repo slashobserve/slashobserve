@@ -136,7 +136,7 @@ function withoutRef(query: PanelQuery): Fields {
   return rest
 }
 
-export function normaliseQuery(query: PanelQuery): PanelQuery {
+function normaliseQuery(query: PanelQuery): PanelQuery {
   const next = { ...query }
   const legend = next.legend?.trim()
   if (legend) next.legend = legend

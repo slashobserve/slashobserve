@@ -7,10 +7,10 @@ import { isNumber } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { PreparedFrame } from "../transforms"
 
-export const defaultBucketCount = 20
-export const maxBuckets = 1000
+const defaultBucketCount = 20
+const maxBuckets = 1000
 
-export type HistogramSeries = {
+type HistogramSeries = {
   key: string
   name: string
   color: string

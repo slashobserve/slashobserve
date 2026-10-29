@@ -275,12 +275,7 @@ function Trace({ model, width, height }: TraceProps) {
   )
 }
 
-export const TracesPanel: PanelRenderer = ({
-  frames,
-  fields,
-  width,
-  height,
-}) => {
+const TracesPanel: PanelRenderer = ({ frames, fields, width, height }) => {
   const model = useMemo(() => traceModel(frames, fields), [frames, fields])
   if (model.reason !== null) {
     return (

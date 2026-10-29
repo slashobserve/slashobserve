@@ -19,7 +19,7 @@ export const maxQueuedRevisions = 5
 export const maxPromptLength = 4000
 
 const waitingText = `This dashboard already has ${maxQueuedRevisions} revisions waiting.`
-export const tooManyRevisionsText = `${waitingText} Try again when one finishes.`
+const tooManyRevisionsText = `${waitingText} Try again when one finishes.`
 
 const pageSize = 50
 const safetyPollMs = 5000
@@ -58,7 +58,7 @@ export function isAgentUnavailable(error: unknown): boolean {
   )
 }
 
-export function isTooManyRevisions(error: unknown): boolean {
+function isTooManyRevisions(error: unknown): boolean {
   return (
     error instanceof ApiError &&
     error.status === 429 &&
@@ -66,7 +66,7 @@ export function isTooManyRevisions(error: unknown): boolean {
   )
 }
 
-export function markAgentUnavailable(queryClient: QueryClient) {
+function markAgentUnavailable(queryClient: QueryClient) {
   queryClient.setQueryData<components["schemas"]["AgentInfo"]>(
     observeKeys.agent(),
     { available: false, provider: null, model: null, effort: null }

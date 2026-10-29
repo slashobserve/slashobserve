@@ -18,7 +18,7 @@ import { reduce, reducerLabels } from "../reducers"
 import type { ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
-export type ColumnSource = { frame: PreparedFrame; field: PreparedField }
+type ColumnSource = { frame: PreparedFrame; field: PreparedField }
 
 export type TableColumn = {
   key: string
@@ -30,8 +30,8 @@ export type TableColumn = {
   range: Pick<DisplayOptions, "fieldMin" | "fieldMax">
 }
 
-export type RowAt = { frame: PreparedFrame; index: number }
-export type RowSource = {
+type RowAt = { frame: PreparedFrame; index: number }
+type RowSource = {
   frame: PreparedFrame
   fields: Record<string, PreparedField>
 }
@@ -41,7 +41,7 @@ export type TableRow = {
   at: RowAt
   source: RowSource
 }
-export type FooterRow = { label: string; cells: (string | null)[] }
+type FooterRow = { label: string; cells: (string | null)[] }
 export type TableModel = {
   columns: TableColumn[]
   rows: TableRow[]
@@ -227,7 +227,7 @@ function isColored(config: FieldConfig): boolean {
   )
 }
 
-export function configAt(
+function configAt(
   fields: FieldResolver,
   column: Pick<TableColumn, "key" | "config">,
   row: TableRow

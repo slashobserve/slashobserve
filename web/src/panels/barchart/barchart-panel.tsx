@@ -544,7 +544,7 @@ function Plot({
   )
 }
 
-export const BarchartPanel: PanelRenderer = ({
+const BarchartPanel: PanelRenderer = ({
   frames,
   fields,
   display,

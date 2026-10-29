@@ -91,25 +91,6 @@ export async function getDashboard(
   }
 }
 
-export async function restoreVersion(
-  request: APIRequestContext,
-  id: string,
-  version: number,
-  parentVersion: number
-): Promise<number> {
-  const response = await request.post(
-    `/api/v1/dashboards/${id}/versions/${version}/restore`,
-    {
-      headers: mutationHeaders,
-      data: { parent_version: parentVersion },
-    }
-  )
-  const body = (await expectStatus(response, 201, "restore version")) as {
-    version: { version: number }
-  }
-  return body.version.version
-}
-
 export async function createComment(
   request: APIRequestContext,
   id: string,
@@ -131,22 +112,6 @@ export async function createComment(
     comment: { id: string }
   }
   return created.comment.id
-}
-
-export async function requestRevision(
-  request: APIRequestContext,
-  id: string,
-  prompt: string,
-  baseVersion: number
-): Promise<{ status: number; id?: string }> {
-  const response = await request.post(`/api/v1/dashboards/${id}/revisions`, {
-    headers: mutationHeaders,
-    data: { prompt, base_version: baseVersion },
-  })
-  const status = response.status()
-  if (status !== 202) return { status }
-  const body = (await response.json()) as { revision: { id: string } }
-  return { status, id: body.revision.id }
 }
 
 export function uniqueAccountName(base = "e2e-keys"): string {

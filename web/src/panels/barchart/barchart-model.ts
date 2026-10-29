@@ -19,12 +19,12 @@ import {
 } from "../transforms"
 
 export type Orientation = "horizontal" | "vertical"
-export type Stack = FieldConfig["stack"]
+type Stack = FieldConfig["stack"]
 export type BarchartLegend = "bottom" | "right" | "hidden"
 export type BarchartTooltip = "single" | "all" | "hidden"
 export type ShowValues = "auto" | "always" | "never"
 
-export type Category = { key: string; label: string; title: string }
+type Category = { key: string; label: string; title: string }
 
 export type BarSeries = {
   key: string
@@ -431,7 +431,7 @@ export function barRect(
 }
 
 export const labelHeight = 16
-export const minLabeledThickness = 16
+const minLabeledThickness = 16
 const labelPadding = 4
 
 export type LabelSpot = "inside" | "outside" | null

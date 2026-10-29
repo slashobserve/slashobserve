@@ -157,7 +157,7 @@ const BodyRow = memo(function BodyRow({
   )
 })
 
-export const TablePanel: PanelRenderer = ({
+const TablePanel: PanelRenderer = ({
   panel,
   frames,
   fields,

@@ -182,7 +182,7 @@ function priceConfig(config: FieldConfig, role: CandleRole): FieldConfig {
   }
 }
 
-export const CandlestickPanel: PanelRenderer = (props) => {
+const CandlestickPanel: PanelRenderer = (props) => {
   const { frames, fields, display, width, height } = props
   const options = useMemo(() => candleOptions(display), [display])
   const optionsKey = useMemo(() => stableJson(options), [options])

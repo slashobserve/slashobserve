@@ -592,7 +592,7 @@ function Graph({ nodes, edges, note, display, width, height }: GraphProps) {
   )
 }
 
-export const NodeGraphPanel: PanelRenderer = ({
+const NodeGraphPanel: PanelRenderer = ({
   frames,
   fields,
   display,

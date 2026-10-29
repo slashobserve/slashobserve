@@ -253,7 +253,7 @@ function useMeasuredHeight(): [
   return [measured, ref]
 }
 
-export const HistogramPanel: PanelRenderer = ({
+const HistogramPanel: PanelRenderer = ({
   frames,
   fields,
   display,

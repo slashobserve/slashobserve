@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/panels/*/manifest.ts",
+    "src/spec/index.ts",
+    "scripts/*.mjs",
+    "e2e/*.setup.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx,css}", "scripts/**/*.mjs", "e2e/**/*.ts"],
+  "ignoreIssues": {
+    "src/api/schema.gen.ts": ["exports", "types"],
+    "src/spec/*.gen.ts": ["exports", "types"],
+    "src/components/ui/**": ["files", "exports", "types"]
+  }
+}

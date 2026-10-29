@@ -17,8 +17,6 @@ export type PanelDataResponse =
   paths["/dashboards/{id}/versions/{version}/panels/{panel_id}/data"]["get"]["responses"][200]["content"]["application/json"]
 export type WireFrame = PanelDataResponse["frames"][number]
 export type PanelDataMeta = PanelDataResponse["meta"]
-export type VariableValuesResponse =
-  paths["/dashboards/{id}/versions/{version}/variables/{name}/values"]["get"]["responses"][200]["content"]["application/json"]
 
 export function asDashboardSpec(raw: unknown): Dashboard {
   const result = validateSpecSchema(raw)

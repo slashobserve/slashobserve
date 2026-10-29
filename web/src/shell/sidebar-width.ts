@@ -2,8 +2,8 @@ export const sidebarMinWidth = 200
 export const sidebarMaxWidth = 360
 export const sidebarDefaultWidth = 240
 export const sidebarCollapsedWidth = 44
-export const sidebarKeyStep = 8
-export const sidebarShiftKeyStep = 40
+const sidebarKeyStep = 8
+const sidebarShiftKeyStep = 40
 
 export function clampSidebarWidth(width: number): number {
   if (!Number.isFinite(width)) return sidebarDefaultWidth

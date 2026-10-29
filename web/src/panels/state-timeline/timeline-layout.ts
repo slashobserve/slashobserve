@@ -2,10 +2,10 @@ import type { TimelineState } from "./timeline-model"
 
 export type ShowValues = "auto" | "always" | "never"
 
-export const maxRowHeight = 32
+const maxRowHeight = 32
 export const rowGap = 2
-export const maxLegendItems = 12
-export const autoTextMinWidth = 40
+const maxLegendItems = 12
+const autoTextMinWidth = 40
 const alwaysTextMinWidth = 4
 const textMinHeight = 14
 const minLabelWidth = 80

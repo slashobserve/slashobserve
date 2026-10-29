@@ -7,7 +7,7 @@ import { ApiError, unwrap } from "@/api/errors"
 
 import { byteRangeToIndices } from "./byte-offsets"
 
-export type LintItem = {
+type LintItem = {
   severity: "error" | "warning"
   message: string
   from: number

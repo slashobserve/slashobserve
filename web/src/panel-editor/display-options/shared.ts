@@ -82,7 +82,7 @@ export const showValues: DisplayOption = {
   ],
 }
 
-export const maxFieldNameLength = 200
+const maxFieldNameLength = 200
 
 export function fieldOption(
   key: string,

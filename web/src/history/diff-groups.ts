@@ -24,7 +24,7 @@ export type TitleMaps = {
   to: Map<string, string>
 }
 
-export function unescapePointer(token: string): string {
+function unescapePointer(token: string): string {
   return token.replaceAll("~1", "/").replaceAll("~0", "~")
 }
 

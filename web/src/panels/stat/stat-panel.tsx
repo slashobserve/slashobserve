@@ -55,7 +55,7 @@ function tileColumns(width: number, count: number, orientation: string) {
   return Math.ceil(width / Math.max(1, across))
 }
 
-export const StatPanel: PanelRenderer = ({
+const StatPanel: PanelRenderer = ({
   panel,
   frames,
   fields,

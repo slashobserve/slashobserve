@@ -39,7 +39,7 @@ export const donutRatio = 0.6
 
 const fullTurn = Math.PI * 2
 
-export function reducerOf(display: Record<string, unknown>): Reducer {
+function reducerOf(display: Record<string, unknown>): Reducer {
   return display.reduce as Reducer
 }
 

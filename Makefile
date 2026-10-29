@@ -53,6 +53,7 @@ lint: web-deps
 	cd web && bun run spec:check
 	cd web && bun run api:check
 	cd web && bun run lint
+	cd web && bun run knip
 	cd web && bun run format:check
 
 golden:

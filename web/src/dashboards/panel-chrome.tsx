@@ -33,8 +33,8 @@ import { VariableLoadError } from "./variables"
 
 export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
-export const panelHeaderHeight = 39
-export const panelBorderWidth = 1
+const panelHeaderHeight = 39
+const panelBorderWidth = 1
 
 export function panelBodySize(width: number, height: number) {
   return {
@@ -52,7 +52,7 @@ const errorTitles: Record<string, string> = {
   variable_empty: "Variable has no values",
 }
 
-export function errorTitle(error: unknown): string {
+function errorTitle(error: unknown): string {
   if (error instanceof VariableLoadError) return "Variable failed to load"
   if (error instanceof ApiError && Object.hasOwn(errorTitles, error.code)) {
     return errorTitles[error.code]

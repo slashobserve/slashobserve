@@ -117,7 +117,7 @@ const LogRow = memo(function LogRow({
   )
 })
 
-export const LogsPanel: PanelRenderer = ({
+const LogsPanel: PanelRenderer = ({
   panel,
   frames,
   fields,

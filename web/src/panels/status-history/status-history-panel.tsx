@@ -4,7 +4,7 @@ import { TimelineChart } from "../state-timeline/timeline-chart"
 import { timelineModel } from "../state-timeline/timeline-model"
 import type { PanelRenderer } from "../types"
 
-export const StatusHistoryPanel: PanelRenderer = ({
+const StatusHistoryPanel: PanelRenderer = ({
   frames,
   fields,
   display,

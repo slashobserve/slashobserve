@@ -11,7 +11,7 @@ import { sentence } from "@/observe/queries"
 
 import { initialOf } from "./initial"
 
-export type EntryAvatar = { kind: "person"; name: string } | { kind: "agent" }
+type EntryAvatar = { kind: "person"; name: string } | { kind: "agent" }
 
 type Props = {
   avatar: EntryAvatar

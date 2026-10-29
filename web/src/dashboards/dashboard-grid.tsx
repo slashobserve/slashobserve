@@ -9,13 +9,13 @@ import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
 
-export const gridColumns = 24
+const gridColumns = 24
 export const gridRowHeight = 30
 export const gridMargin = 10
 const singleColumnBelow = 768
 
 type Size = { width: number; height: number }
-export type PanelItem = Extract<LayoutItem, { kind: "panel" }>
+type PanelItem = Extract<LayoutItem, { kind: "panel" }>
 
 type Props = {
   dashboardId: string

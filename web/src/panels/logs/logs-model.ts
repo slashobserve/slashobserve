@@ -129,7 +129,7 @@ export function logLevel(value: unknown): LogLevel | null {
   )
 }
 
-export function severityLevel(value: unknown): LogLevel | null {
+function severityLevel(value: unknown): LogLevel | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null
   return severityBands[Math.floor((value - 1) / 4)] ?? null
 }

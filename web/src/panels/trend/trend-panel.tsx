@@ -15,7 +15,7 @@ import {
   xFieldName,
 } from "./trend-model"
 
-export const TrendPanel: PanelRenderer = (props) => {
+const TrendPanel: PanelRenderer = (props) => {
   const { frames, fields, display } = props
   const xField = xFieldName(display)
   const source = useMemo(() => trendSource(xField), [xField])

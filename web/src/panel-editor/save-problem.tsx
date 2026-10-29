@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 
 import type { JsonIssue } from "./panel-json"
 
-export const transientText = "The panel could not be checked right now."
+const transientText = "The panel could not be checked right now."
 const unknownDatasourceText =
   "A datasource this panel uses is not configured anymore."
 
