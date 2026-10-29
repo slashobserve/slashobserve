@@ -10,6 +10,7 @@ import {
   cellCenter,
   cellOpacity,
   cellText,
+  columnAt,
   formatCounts,
   heatmapModel,
   isHeatmapKey,
@@ -360,5 +361,33 @@ describe("cell description", () => {
     expect(cellText(single, { row: 0, col: 0 }, format)).toBe(
       "2024-01-02 10:00:00, bucket 0 - 1, count 2"
     )
+  })
+})
+
+describe("columnAt", () => {
+  const xs = [1000, 2000, 3000, 4000]
+
+  it("finds nothing without columns", () => {
+    expect(columnAt([], 1000)).toBeNull()
+  })
+
+  it("matches a single column only at its own time", () => {
+    expect(columnAt([5000], 5000)).toBe(0)
+    expect(columnAt([5000], 5001)).toBeNull()
+    expect(columnAt([5000], 4999)).toBeNull()
+  })
+
+  it("picks the nearest column", () => {
+    expect(columnAt(xs, 1000)).toBe(0)
+    expect(columnAt(xs, 2400)).toBe(1)
+    expect(columnAt(xs, 2600)).toBe(2)
+    expect(columnAt(xs, 4000)).toBe(3)
+  })
+
+  it("accepts up to half a step beyond each end", () => {
+    expect(columnAt(xs, 500)).toBe(0)
+    expect(columnAt(xs, 499)).toBeNull()
+    expect(columnAt(xs, 4500)).toBe(3)
+    expect(columnAt(xs, 4501)).toBeNull()
   })
 })

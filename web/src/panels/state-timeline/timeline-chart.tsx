@@ -7,6 +7,8 @@ import { formatValue } from "@/lib/units"
 
 import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText } from "../contrast"
+import { CursorLine, useCursorLine } from "../cursor-line"
+import type { SharedCursor } from "../shared-cursor"
 import {
   labelWidth,
   legendHeight,
@@ -18,6 +20,7 @@ import {
   showsText,
   showValuesOf,
   type ShowValues,
+  timeToX,
 } from "./timeline-layout"
 import {
   segmentAt,
@@ -203,6 +206,7 @@ export function TimelineChart({
   width,
   height,
   variant,
+  cursor,
 }: {
   model: TimelineModel
   display: Record<string, unknown>
@@ -211,6 +215,7 @@ export function TimelineChart({
   width: number
   height: number
   variant: TimelineVariant
+  cursor: SharedCursor
 }) {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -236,12 +241,16 @@ export function TimelineChart({
   const plotHeight = rowSize * rows
   const span = Math.max(1, to - from)
   const ready = rows > 0 && plotWidth > 0 && available > 0
+  const { lineRef, move: moveCursor } = useCursorLine(cursor, (x) =>
+    timeToX(x, from, to, plotWidth)
+  )
 
   function move(event: PointerEvent<SVGSVGElement>) {
     const box = event.currentTarget.getBoundingClientRect()
     const x = event.clientX - box.left
     const y = event.clientY - box.top
     const row = Math.floor(y / rowSize)
+    moveCursor(from + (x / plotWidth) * span)
     const segment =
       row >= 0 && row < rows
         ? segmentAt(model.rows[row].segments, from + (x / plotWidth) * span)
@@ -269,7 +278,10 @@ export function TimelineChart({
                 height={plotHeight}
                 className="block cursor-crosshair"
                 onPointerMove={move}
-                onPointerLeave={() => setHover(null)}
+                onPointerLeave={() => {
+                  setHover(null)
+                  moveCursor(null)
+                }}
               >
                 {model.rows.map((row, index) =>
                   row.segments.map((segment) => {
@@ -314,6 +326,7 @@ export function TimelineChart({
                   })
                 )}
               </svg>
+              <CursorLine lineRef={lineRef} height={plotHeight} />
               {hover ? (
                 <Tooltip
                   name={model.rows[hover.row].name}

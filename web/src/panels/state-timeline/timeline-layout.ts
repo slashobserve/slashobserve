@@ -28,6 +28,16 @@ export function labelWidth(innerWidth: number): number {
   )
 }
 
+export function timeToX(
+  x: number,
+  from: number,
+  to: number,
+  width: number
+): number | null {
+  if (!(from < to) || x < from || x > to) return null
+  return ((x - from) / (to - from)) * width
+}
+
 export function rowHeight(available: number, rows: number): number {
   if (rows < 1) return 0
   return Math.max(1, Math.min(maxRowHeight, available / rows))
