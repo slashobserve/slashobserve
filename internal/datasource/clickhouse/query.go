@@ -11,7 +11,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 )
 
-const variableMaxRows = 10000
+const (
+	variableMaxRows = 10000
+	maxResultBytes  = 32 << 20
+)
 
 func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
 	if step < time.Second {
@@ -126,6 +129,7 @@ func queryOptions(lim datasource.Limits, params ch.Parameters) []ch.QueryOption 
 	opts := []ch.QueryOption{ch.WithSettings(ch.Settings{
 		"max_execution_time":   int(max(1, (lim.Timeout+time.Second-1)/time.Second)),
 		"max_result_rows":      lim.MaxRows,
+		"max_result_bytes":     maxResultBytes,
 		"result_overflow_mode": "throw",
 	})}
 	if len(params) > 0 {

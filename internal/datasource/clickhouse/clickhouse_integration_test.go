@@ -649,6 +649,13 @@ func TestLimits(t *testing.T) {
 			t.Fatalf("took %s", elapsed)
 		}
 	})
+	t.Run("max result bytes", func(t *testing.T) {
+		ds := newDS(t, roUser, roPass, datasource.Limits{})
+		_, err := ds.QueryInstant(ctx, query("SELECT repeat('a', 500000 + number) FROM numbers(70)"), lastHour())
+		if !errors.Is(err, datasource.ErrLimitExceeded) {
+			t.Fatalf("err = %v, want ErrLimitExceeded", err)
+		}
+	})
 	t.Run("max series", func(t *testing.T) {
 		ds := newDS(t, roUser, roPass, datasource.Limits{MaxSeries: 1})
 		_, err := ds.QueryRange(ctx, query(rangeQuery), lastHour(), time.Minute)
