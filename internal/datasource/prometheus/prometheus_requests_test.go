@@ -2,6 +2,7 @@ package prometheus_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -502,5 +503,49 @@ func TestAdhocFilterWithABadRegexIsInvalid(t *testing.T) {
 	}
 	if n := len(rec.all()); n != 0 {
 		t.Errorf("%d upstream requests, want none", n)
+	}
+}
+
+func TestUpstreamErrorTextNeverNamesAnAddress(t *testing.T) {
+	tests := []struct {
+		name        string
+		errorType   string
+		text        string
+		wantKind    error
+		wantMessage string
+	}{
+		{name: "parse error is shown", errorType: "bad_data", text: `1:5: parse error: unexpected end of input`, wantKind: datasource.ErrInvalidQuery, wantMessage: `1:5: parse error: unexpected end of input`},
+		{name: "timeout text is shown", errorType: "timeout", text: "query timed out in expression evaluation", wantKind: datasource.ErrTimeout, wantMessage: "query timed out in expression evaluation"},
+		{name: "limit text is shown", errorType: "execution", text: "query processing would load too many samples into memory", wantKind: datasource.ErrLimitExceeded, wantMessage: "query processing would load too many samples into memory"},
+		{name: "other errors without an address are shown", errorType: "internal", text: "storage is closing", wantKind: datasource.ErrUnavailable, wantMessage: "storage is closing"},
+		{name: "address in a bad query error", errorType: "bad_data", text: "dial tcp 10.1.2.3:9095: bad", wantKind: datasource.ErrInvalidQuery, wantMessage: "query rejected by the datasource"},
+		{name: "address in a timeout", errorType: "timeout", text: "store 10.1.2.3:10901 did not answer", wantKind: datasource.ErrTimeout, wantMessage: "query timed out"},
+		{name: "address in a limit error", errorType: "execution", text: "store-gateway-0.mimir.svc:9095 exceeded the series limit", wantKind: datasource.ErrLimitExceeded, wantMessage: "query limit exceeded"},
+		{name: "address in an internal error", errorType: "internal", text: "rpc error: dial tcp [fd00::5]:9095: connection refused", wantKind: datasource.ErrUnavailable, wantMessage: "upstream error"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				body, _ := json.Marshal(map[string]string{"status": "error", "errorType": tt.errorType, "error": tt.text})
+				_, _ = w.Write(body)
+			}))
+			t.Cleanup(server.Close)
+			ds, err := prometheus.New(prometheus.Options{URL: server.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = ds.Close() })
+
+			_, err = ds.QueryInstant(context.Background(), datasource.Query{Text: "up"}, lastMinutes(1))
+			if !errors.Is(err, tt.wantKind) {
+				t.Fatalf("error = %v, want kind %v", err, tt.wantKind)
+			}
+			var ue *datasource.UpstreamError
+			if !errors.As(err, &ue) || ue.Message != tt.wantMessage {
+				t.Fatalf("error = %v, want message %q", err, tt.wantMessage)
+			}
+		})
 	}
 }

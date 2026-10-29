@@ -8,9 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/netip"
-	"regexp"
-	"strings"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -21,11 +18,6 @@ import (
 )
 
 const maxExceptionMessage = 512
-
-var (
-	addressToken = regexp.MustCompile(`[0-9A-Za-z:.\[\]%_-]+`)
-	hostPort     = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*:\d{2,5}$`)
-)
 
 // Exceptions a query author can act on and that never carry infrastructure details by themselves.
 var queryErrorCodes = map[int32]bool{
@@ -83,26 +75,10 @@ func mapException(ex *ch.Exception) error {
 }
 
 func safeMessage(ex *ch.Exception, fallback string) string {
-	if leaksAddress(ex.Message) {
+	if datasource.NamesAddress(ex.Message) {
 		return fallback
 	}
 	return truncate(ex.Message)
-}
-
-func leaksAddress(message string) bool {
-	for _, token := range addressToken.FindAllString(message, -1) {
-		token = strings.Trim(token, ".:,")
-		if token == "" {
-			continue
-		}
-		if _, err := netip.ParseAddr(token); err == nil {
-			return true
-		}
-		if _, err := netip.ParseAddrPort(token); err == nil || hostPort.MatchString(token) {
-			return true
-		}
-	}
-	return false
 }
 
 func isTransportError(err error) bool {

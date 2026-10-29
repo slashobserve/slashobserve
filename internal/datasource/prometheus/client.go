@@ -114,20 +114,21 @@ func decodeResponse(status int, raw []byte) (json.RawMessage, error) {
 }
 
 func upstreamError(env envelope) error {
-	text := truncateText(env.Error)
-	if text == "" {
-		text = "upstream error"
-	}
+	kind, fallback := datasource.ErrUnavailable, "upstream error"
 	lower := strings.ToLower(env.Error)
 	switch {
 	case env.ErrorType == "bad_data":
-		return datasource.Errorf(datasource.ErrInvalidQuery, "%s", text)
+		kind, fallback = datasource.ErrInvalidQuery, "query rejected by the datasource"
 	case env.ErrorType == "timeout":
-		return datasource.Errorf(datasource.ErrTimeout, "%s", text)
+		kind, fallback = datasource.ErrTimeout, "query timed out"
 	case env.ErrorType == "execution" && (strings.Contains(lower, "too many") || strings.Contains(lower, "limit")):
-		return datasource.Errorf(datasource.ErrLimitExceeded, "%s", text)
+		kind, fallback = datasource.ErrLimitExceeded, "query limit exceeded"
 	}
-	return datasource.Errorf(datasource.ErrUnavailable, "%s", text)
+	text := truncateText(env.Error)
+	if text == "" || datasource.NamesAddress(env.Error) {
+		text = fallback
+	}
+	return datasource.Errorf(kind, "%s", text)
 }
 
 func truncateText(s string) string {
