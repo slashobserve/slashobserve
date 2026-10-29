@@ -1,0 +1,102 @@
+outbound-domains:
+  get:
+    operationId: listOutboundDomains
+    summary: List the domains the server may fetch content from.
+    description: >-
+      The list is empty until a person allows a domain.
+      When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`.
+      Entries are sorted by `domain` in byte order.
+      Service accounts cannot call this endpoint.
+    responses:
+      "200":
+        description: The allowed domains.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/OutboundDomainList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: allowOutboundDomain
+    summary: Allow a domain.
+    description: >-
+      Any signed-in person may allow a domain; service accounts cannot.
+      Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself).
+      The entry is stored in its lower case ASCII form.
+      At most 100 domains can be allowed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [domain]
+            properties:
+              domain:
+                type: string
+    responses:
+      "201":
+        description: The domain is allowed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/OutboundDomain"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The domain is not a valid host name or pattern (`invalid_domain`), or 100 domains are already allowed (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+outbound-domains-domain:
+  parameters:
+    - name: domain
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
+  delete:
+    operationId: removeOutboundDomain
+    summary: Stop allowing a domain.
+    description: The path value is normalized like a new entry, so `Example.COM` removes `example.com`, and `*.example.com` removes the subdomain entry. Service accounts cannot.
+    responses:
+      "204":
+        description: The domain is no longer allowed.
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        $ref: "../openapi.yaml#/components/responses/Conflict"
+      "422":
+        description: The value is not a valid host name or pattern (`invalid_domain`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

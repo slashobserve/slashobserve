@@ -1,6 +1,7 @@
 package egress
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"errors"
@@ -144,6 +145,7 @@ func (c *Client) Fetch(ctx context.Context, req Request) (Response, error) {
 			}
 		}
 		hit.resp.FetchedAt = at
+		hit.resp.Body = bytes.Clone(hit.resp.Body)
 		return hit.resp, nil
 	}
 	if cached, _, ok := c.failures.Get(j.key); ok {
@@ -153,6 +155,7 @@ func (c *Client) Fetch(ctx context.Context, req Request) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
+	got.resp.Body = bytes.Clone(got.resp.Body)
 	return got.resp, nil
 }
 

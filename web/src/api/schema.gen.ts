@@ -202,6 +202,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/outbound-domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the domains the server may fetch content from.
+         * @description The list is empty until a person allows a domain. When `SLASHOBSERVE_OUTBOUND_DOMAINS` is set, `managed_by` is `config`, the entries come from the setting and carry no `added_at` or `added_by`. Entries are sorted by `domain` in byte order. Service accounts cannot call this endpoint.
+         */
+        get: operations["listOutboundDomains"];
+        put?: never;
+        /**
+         * Allow a domain.
+         * @description Any signed-in person may allow a domain; service accounts cannot. Write `example.com` for that host only, or `*.example.com` for its subdomains only (not `example.com` itself). The entry is stored in its lower case ASCII form. At most 100 domains can be allowed.
+         */
+        post: operations["allowOutboundDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outbound-domains/{domain}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domain: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop allowing a domain.
+         * @description The path value is normalized like a new entry, so `Example.COM` removes `example.com`, and `*.example.com` removes the subdomain entry. Service accounts cannot.
+         */
+        delete: operations["removeOutboundDomain"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources": {
         parameters: {
             query?: never;
@@ -918,6 +964,25 @@ export interface components {
             key_count: number;
             /** @description Unexpired sessions. */
             session_count: number;
+        };
+        OutboundDomain: {
+            /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
+            domain: string;
+            /**
+             * Format: date-time
+             * @description Null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS`.
+             */
+            added_at: string | null;
+            /** @description The name of the person who allowed the domain; null for an entry set by `SLASHOBSERVE_OUTBOUND_DOMAINS` and when that person was deleted. */
+            added_by: string | null;
+        };
+        OutboundDomainList: {
+            /**
+             * @description `config` when `SLASHOBSERVE_OUTBOUND_DOMAINS` is set; the list is then read-only.
+             * @enum {string}
+             */
+            managed_by: "settings" | "config";
+            domains: components["schemas"]["OutboundDomain"][];
         };
         DatasourceStatus: {
             uid: string;
@@ -1976,6 +2041,112 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listOutboundDomains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The allowed domains. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundDomainList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    allowOutboundDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    domain: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The domain is allowed. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundDomain"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The list is set by `SLASHOBSERVE_OUTBOUND_DOMAINS` (`managed_by_config`), or the domain is already allowed (`domain_exists`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The domain is not a valid host name or pattern (`invalid_domain`), or 100 domains are already allowed (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    removeOutboundDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The domain is no longer allowed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description The value is not a valid host name or pattern (`invalid_domain`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

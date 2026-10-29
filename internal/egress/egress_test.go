@@ -377,6 +377,21 @@ func TestFetchServesRepeatsFromCache(t *testing.T) {
 	}
 }
 
+func TestCallerMutatingABodyDoesNotCorruptTheCache(t *testing.T) {
+	_, c := newUpstream(t, newAllow(t, "feed.test"), newFeedMux())
+	req := Request{URL: fetchURL("feed.test", "/feed"), Accept: rssTypes}
+	for i := range 3 {
+		resp, err := c.Fetch(context.Background(), req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(resp.Body) != feedXML {
+			t.Fatalf("fetch %d body = %q, want the feed unchanged by earlier callers", i+1, resp.Body)
+		}
+		clear(resp.Body)
+	}
+}
+
 func TestCachedEntryIsServedOnlyWhileEveryVisitedHostIsAllowed(t *testing.T) {
 	cases := []struct {
 		name     string
