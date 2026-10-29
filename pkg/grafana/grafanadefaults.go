@@ -324,7 +324,30 @@ func isCosmetic(path string, value any) bool {
 var indexPattern = regexp.MustCompile(`\[[0-9]+\]`)
 
 func normalizePath(path string) string {
-	return indexPattern.ReplaceAllString(path, "[]")
+	open := strings.IndexByte(path, '[')
+	if open < 0 {
+		return path
+	}
+	var out strings.Builder
+	out.Grow(len(path))
+	for open >= 0 {
+		out.WriteString(path[:open])
+		path = path[open:]
+		digits := 1
+		for digits < len(path) && path[digits] >= '0' && path[digits] <= '9' {
+			digits++
+		}
+		if digits > 1 && digits < len(path) && path[digits] == ']' {
+			out.WriteString("[]")
+			path = path[digits+1:]
+		} else {
+			out.WriteByte('[')
+			path = path[1:]
+		}
+		open = strings.IndexByte(path, '[')
+	}
+	out.WriteString(path)
+	return out.String()
 }
 
 func partialReason(path string) string {
