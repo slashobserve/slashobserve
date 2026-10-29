@@ -1,4 +1,4 @@
-import { lowerFirst } from "@/observe/conversation"
+import { lowerFirst } from "@/lib/text"
 
 export type ApiIssue = { path: string; code: string; message: string }
 

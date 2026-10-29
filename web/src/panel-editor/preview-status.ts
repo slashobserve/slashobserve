@@ -1,7 +1,7 @@
 import { ApiError, failedQueryText } from "@/api/errors"
 import type { WireFrame } from "@/dashboards/queries"
+import { lowerFirst } from "@/lib/text"
 import { formatShortRelative } from "@/lib/time"
-import { lowerFirst } from "@/observe/conversation"
 
 export type PreviewStatus =
   | { kind: "invalid" }

@@ -39,7 +39,9 @@ export function SourceCard({
   onRetry,
 }: Props) {
   const input = useRef<HTMLInputElement>(null)
-  const [pasting, setPasting] = useState(false)
+  const sourceId = source?.id ?? 0
+  const [pasteOver, setPasteOver] = useState<number | null>(null)
+  const pasting = pasteOver === sourceId
   const [draft, setDraft] = useState("")
 
   const choose = () => input.current?.click()
@@ -49,7 +51,7 @@ export function SourceCard({
     if (file) onFile(file)
   }
   const closePaste = () => {
-    setPasting(false)
+    setPasteOver(null)
     setDraft("")
   }
 
@@ -111,7 +113,7 @@ export function SourceCard({
           <Button
             variant="outline"
             className="font-normal"
-            onClick={() => setPasting(true)}
+            onClick={() => setPasteOver(sourceId)}
           >
             Paste JSON
           </Button>
@@ -136,7 +138,7 @@ export function SourceCard({
           <Button
             variant="outline"
             className="font-normal"
-            onClick={() => setPasting(true)}
+            onClick={() => setPasteOver(sourceId)}
           >
             Paste JSON
           </Button>

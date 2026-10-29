@@ -33,7 +33,3 @@ export function joinNames(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? ""
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
 }
-
-export function lowerFirst(text: string): string {
-  return text.charAt(0).toLowerCase() + text.slice(1)
-}
