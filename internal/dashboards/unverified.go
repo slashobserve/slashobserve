@@ -193,6 +193,9 @@ func reachedByPanel(d *spec.Dashboard, p *spec.Panel) (map[string]string, bool) 
 	for j, q := range p.Queries {
 		names = append(names, variableNames(q.Query)...)
 		datasources[p.QueryDatasource(j)] = true
+		if name, ok := spec.DatasourceVariableName(p.QueryDatasource(j)); ok {
+			names = append(names, name)
+		}
 	}
 	return reached(d, names, datasources)
 }
@@ -203,8 +206,9 @@ func reached(d *spec.Dashboard, names []string, datasources map[string]bool) (ma
 		declared[d.Variables[i].Name] = &d.Variables[i]
 	}
 	queue := slices.Clone(names)
+	someReferenced := slices.ContainsFunc(slices.Collect(maps.Keys(datasources)), isDatasourceReference)
 	for _, v := range d.Variables {
-		if v.Type == spec.AdhocVariable && datasources[v.Datasource] {
+		if v.Type == spec.AdhocVariable && len(datasources) > 0 && (datasources[v.Datasource] || someReferenced || isDatasourceReference(v.Datasource)) {
 			queue = append(queue, v.Name)
 		}
 	}
@@ -226,8 +230,16 @@ func reached(d *spec.Dashboard, names []string, datasources map[string]bool) (ma
 		out[name] = string(raw)
 		queue = append(queue, variableNames(v.Query)...)
 		queue = append(queue, variableNames(v.Regex)...)
+		if ref, ok := spec.DatasourceVariableName(v.Datasource); ok {
+			queue = append(queue, ref)
+		}
 	}
 	return out, true
+}
+
+func isDatasourceReference(ref string) bool {
+	_, ok := spec.DatasourceVariableName(ref)
+	return ok
 }
 
 func variableNames(text string) []string {

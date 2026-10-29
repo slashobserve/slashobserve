@@ -220,6 +220,49 @@ func TestCarryUnverifiedCountsAdhocVariablesOnTheQueryDatasource(t *testing.T) {
 	}
 }
 
+func TestCarryUnverifiedFollowsTheDatasourceVariableAPanelReferences(t *testing.T) {
+	ds := func(extra string) string {
+		return `{"name":"ds","type":"datasource","datasourceType":"prometheus","default":"prom"` + extra + `}`
+	}
+	panel := testPanel{id: "p", title: "P", datasource: "${ds}", query: "sum(nope)"}
+	base := testDashboard(t, ds(``), panel)
+	prev := Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries")}}}}
+	fails := []spec.Issue{issueAt("/panels/0/queries")}
+
+	if carried, blocking := CarryUnverified(base, prev, base, fails); len(blocking) != 0 || len(carried.Panels) != 1 {
+		t.Fatalf("unchanged datasource variable: carried %+v blocking %v, want carried", carried, blocking)
+	}
+	for name, changed := range map[string]string{
+		"default": `{"name":"ds","type":"datasource","datasourceType":"prometheus","default":"prom2"}`,
+		"regex":   ds(`,"regex":"/^prom/"`),
+	} {
+		if carried, blocking := CarryUnverified(base, prev, testDashboard(t, changed, panel), fails); len(blocking) != 1 || !carried.Empty() {
+			t.Fatalf("changed %s: carried %+v blocking %v, want the panel blocking", name, carried, blocking)
+		}
+	}
+	if _, blocking := CarryUnverified(base, prev, testDashboard(t, ds(``), testPanel{id: "p", title: "P", datasource: "prom", query: "sum(nope)"}), fails); len(blocking) != 1 {
+		t.Fatalf("panel moved from the variable to a uid: blocking %v, want the panel blocking", blocking)
+	}
+}
+
+func TestCarryUnverifiedCountsAdhocVariablesAgainstAReferencedDatasource(t *testing.T) {
+	const ds = `{"name":"ds","type":"datasource","datasourceType":"prometheus","default":"prom"}`
+	adhoc := func(datasource string) string {
+		return `{"name":"filters","type":"adhoc","datasource":"` + datasource + `"}`
+	}
+	panel := testPanel{id: "p", title: "P", datasource: "${ds}", query: "sum(nope)"}
+	base := testDashboard(t, ds+`,`+adhoc("prom"), panel)
+	prev := Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries")}}}}
+	fails := []spec.Issue{issueAt("/panels/0/queries")}
+
+	if carried, blocking := CarryUnverified(base, prev, base, fails); len(blocking) != 0 || len(carried.Panels) != 1 {
+		t.Fatalf("unchanged adhoc variable: carried %+v blocking %v, want carried", carried, blocking)
+	}
+	if _, blocking := CarryUnverified(base, prev, testDashboard(t, ds+`,`+adhoc("prom2"), panel), fails); len(blocking) != 1 {
+		t.Fatalf("adhoc variable changed: blocking %v, want the panel blocking", blocking)
+	}
+}
+
 func TestCarryUnverifiedKeepsOnlyUnchangedFailingVariables(t *testing.T) {
 	const inst = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(nope, instance)"}`
 	base := testDashboard(t, inst, testPanel{id: "p", title: "P", datasource: "prom", query: "up"})

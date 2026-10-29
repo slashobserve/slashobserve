@@ -102,6 +102,9 @@ func (h *Handler) preview(c *gin.Context) {
 		h.previewFail(c, uid, err)
 		return
 	}
+	if h.refuseResolvedElsewhere(c, uid, d, draft, selections) {
+		return
+	}
 	entry, err := h.render(ctx, queryproxy.Request{
 		Dashboard:     d,
 		PanelID:       req.PanelID,
@@ -150,21 +153,54 @@ func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewR
 		return invalidRequest("only data panels can be previewed")
 	case draft.ID != req.PanelID:
 		return invalidRequest("the panel's id must be " + req.PanelID)
-	case draft.Datasource != uid:
-		return invalidRequest("the panel's datasource must be " + uid)
-	case usesOtherDatasource(draft, uid):
-		return invalidRequest("every query of the panel must use datasource " + uid)
+	case isOtherUID(draft.Datasource, uid):
+		return invalidRequest(panelDatasourceMessage(uid))
+	case slices.ContainsFunc(draft.Queries, func(q spec.Query) bool { return q.Datasource != "" && isOtherUID(q.Datasource, uid) }):
+		return invalidRequest(queryDatasourceMessage(uid))
 	}
 	return d, draft, true
 }
 
-func usesOtherDatasource(p *spec.Panel, uid string) bool {
-	for i := range p.Queries {
-		if p.QueryDatasource(i) != uid {
-			return true
+func isOtherUID(ref, uid string) bool {
+	_, referenced := spec.DatasourceVariableName(ref)
+	return !referenced && ref != uid
+}
+
+func panelDatasourceMessage(uid string) string {
+	return "the panel's datasource must be " + uid
+}
+
+func queryDatasourceMessage(uid string) string {
+	return "every query of the panel must use datasource " + uid
+}
+
+func (h *Handler) refuseResolvedElsewhere(c *gin.Context, uid string, d *spec.Dashboard, draft *spec.Panel, selections map[string]queryproxy.Selection) bool {
+	message, err := resolvedElsewhere(d, draft, selections, uid)
+	switch {
+	case err != nil:
+		h.previewFail(c, uid, err)
+	case message != "":
+		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
+	default:
+		return false
+	}
+	return true
+}
+
+func resolvedElsewhere(d *spec.Dashboard, draft *spec.Panel, selections map[string]queryproxy.Selection, uid string) (message string, err error) {
+	resolvesElsewhere := func(ref string) (bool, error) {
+		resolved, err := queryproxy.ResolveDatasourceUID(d, ref, selections)
+		return resolved != uid, err
+	}
+	if elsewhere, err := resolvesElsewhere(draft.Datasource); err != nil || elsewhere {
+		return panelDatasourceMessage(uid), err
+	}
+	for i := range draft.Queries {
+		if elsewhere, err := resolvesElsewhere(draft.QueryDatasource(i)); err != nil || elsewhere {
+			return queryDatasourceMessage(uid), err
 		}
 	}
-	return false
+	return "", nil
 }
 
 func (r previewRequest) validate() (id pgtype.UUID, message string) {

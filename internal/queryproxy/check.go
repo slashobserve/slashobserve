@@ -100,7 +100,7 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 			if skip[j] {
 				continue
 			}
-			if name := failedReference(q.Query, failed); name != "" {
+			if name := cmp.Or(failedReference(q.Query, failed), failedDatasource(e.Panel.QueryDatasource(j), failed)); name != "" {
 				skip[j] = true
 				panelIssues[i] = append(panelIssues[i], issue(queryPath(e.Pointer, j), CodeVariableUnresolved, "variable %q could not be resolved", name))
 			}
@@ -146,7 +146,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		}
 	}
 	for i, v := range d.Variables {
-		found := r.checkVariableDatasource(i, v)
+		found := r.checkVariableDatasource(d, i, v)
 		badVariables[i] = len(found) > 0
 		issues = append(issues, found...)
 	}
@@ -158,7 +158,7 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 			if q.Datasource != "" {
 				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
 			}
-			found := r.checkRef(base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
+			found := r.checkRef(d, base, e.Panel.QueryDatasource(j), queryPath(e.Pointer, j), q.Query, adhoc)
 			bad[j] = len(found) > 0
 			if q.Datasource == "" && len(found) == 1 && found[0].Path == base {
 				if panelDatasourceReported {
@@ -173,14 +173,17 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 	return issues, badVariables, badQueries
 }
 
-func (r *Runner) checkVariableDatasource(i int, v spec.Variable) []spec.Issue {
+func (r *Runner) checkVariableDatasource(d *spec.Dashboard, i int, v spec.Variable) []spec.Issue {
 	path := itemPath("variables", i)
 	switch v.Type {
 	case spec.QueryVariable:
 		if v.Datasource != "" {
-			return r.checkRef(path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
+			return r.checkRef(d, path+"/datasource", v.Datasource, path+"/query", v.Query, nil)
 		}
 	case spec.AdhocVariable:
+		if _, referenced := spec.DatasourceVariableName(v.Datasource); referenced {
+			return nil
+		}
 		if _, err := r.instance(v.Datasource); err != nil {
 			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
 		}
@@ -214,17 +217,17 @@ func regexIsStatic(regex string) bool {
 	return err == nil && !slices.ContainsFunc(refs, func(ref spec.Reference) bool { return ref.Kind == spec.VariableRef })
 }
 
-func (r *Runner) checkRef(path, uid, queryAt, query string, adhoc map[string]bool) []spec.Issue {
-	inst, err := r.instance(uid)
+func (r *Runner) checkRef(d *spec.Dashboard, path, ref, queryAt, query string, adhoc map[string]bool) []spec.Issue {
+	typ, err := r.datasourceType(d, ref)
 	if errors.Is(err, ErrUnknownDatasource) {
-		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", uid)}
+		return []spec.Issue{issue(path, CodeUnknownDatasource, "datasource %q is not configured", ref)}
 	}
 	refs, err := spec.ScanQuery(query)
 	if err != nil {
 		return nil
 	}
-	dsType := inst.Datasource.Type()
-	available := spec.Macros(spec.DatasourceType(dsType))
+	dsType := string(typ)
+	available := spec.Macros(typ)
 	var issues []spec.Issue
 	reported := map[string]bool{}
 	for _, ref := range spec.FlattenReferences(refs) {
@@ -253,7 +256,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 			continue
 		}
 		path := itemPath("variables", i)
-		if name := cmp.Or(failedReference(v.Query, failed), failedReference(v.Regex, failed)); name != "" {
+		if name := cmp.Or(failedReference(v.Query, failed), failedReference(v.Regex, failed), failedDatasource(v.Datasource, failed)); name != "" {
 			failed[v.Name] = true
 			issues = append(issues, issue(path, CodeVariableUnresolved, "variable %q could not be resolved", name))
 			continue
@@ -401,6 +404,13 @@ func guardOnlyVariables(d *spec.Dashboard) map[string]bool {
 		out[name] = !listed[name]
 	}
 	return out
+}
+
+func failedDatasource(ref string, failed map[string]bool) string {
+	if name, ok := spec.DatasourceVariableName(ref); ok && failed[name] {
+		return name
+	}
+	return ""
 }
 
 func failedReference(text string, failed map[string]bool) string {

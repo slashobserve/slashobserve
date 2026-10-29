@@ -333,7 +333,7 @@ func skipped(req Request, j int, q spec.Query) bool {
 
 func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {
 	q := panel.Queries[j]
-	inst, err := r.instance(panel.QueryDatasource(j))
+	inst, err := r.selectedDatasource(ctx, req.Dashboard, panel.QueryDatasource(j), req.Range, req.Selections, req.User, st)
 	if err != nil {
 		return nil, err
 	}

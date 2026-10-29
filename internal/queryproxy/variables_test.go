@@ -1227,16 +1227,17 @@ func TestAdhocFiltersAndDatasourceRegexesAreParsedOncePerRequest(t *testing.T) {
 	runner := newTypesRunner(t)
 	st := newVarState()
 	adhoc := adhocVariable("f", "prom")
+	d := dashboardOf(nil, adhoc)
 	sel := Selection{Values: []string{"job|=|api", "job|!=|web"}}
-	first, err := runner.adhocFilters(st, adhoc, sel)
+	first, err := runner.adhocFilters(st, d, adhoc, sel)
 	if err != nil || len(first) != 2 {
 		t.Fatalf("adhocFilters = %+v, %v", first, err)
 	}
-	second, err := runner.adhocFilters(st, adhoc, sel)
+	second, err := runner.adhocFilters(st, d, adhoc, sel)
 	if err != nil || &first[0] != &second[0] {
 		t.Fatalf("a second lookup parsed the filters again: %v", err)
 	}
-	other, err := runner.adhocFilters(st, adhoc, Selection{Values: []string{"job|=|db"}})
+	other, err := runner.adhocFilters(st, d, adhoc, Selection{Values: []string{"job|=|db"}})
 	if err != nil || len(other) != 1 || other[0].Value != "db" {
 		t.Fatalf("a different selection must not reuse the cached filters: %+v, %v", other, err)
 	}
