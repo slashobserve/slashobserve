@@ -51,6 +51,7 @@ type Dashboard struct {
 	CreatedOrigin       pgtype.Text
 	CreatedOriginClient pgtype.Text
 	CreatedVia          string
+	FolderID            pgtype.UUID
 }
 
 type DashboardComment struct {
@@ -91,6 +92,26 @@ type DashboardVersion struct {
 	OriginClient   pgtype.Text
 	DatasourceUids []string
 	Unverified     []byte
+}
+
+type Folder struct {
+	ID            pgtype.UUID
+	Title         string
+	General       bool
+	CreatedByKind pgtype.Text
+	CreatedByID   pgtype.UUID
+	CreatedByName pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type FolderPermission struct {
+	FolderID    pgtype.UUID
+	UserID      pgtype.UUID
+	GroupName   pgtype.Text
+	Level       string
+	CreatedByID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
 }
 
 type Import struct {

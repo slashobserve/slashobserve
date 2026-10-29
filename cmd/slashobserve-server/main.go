@@ -25,6 +25,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -222,6 +223,8 @@ func run() error {
 		return err
 	}
 
+	folderAccess := folders.NewAccess(database)
+
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, logger)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
@@ -273,6 +276,7 @@ func run() error {
 		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
+			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService),
 			stream.NewHandler(broker, dashboardsService, authService, logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),

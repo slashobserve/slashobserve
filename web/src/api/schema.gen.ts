@@ -359,6 +359,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the folders the caller can see.
+         * @description A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone. Folders are sorted by title without regard to case, with General last. Each folder carries the caller's own `permissions` on it.
+         */
+        get: operations["listFolders"];
+        put?: never;
+        /**
+         * Create a folder.
+         * @description Needs the Editor role. The title is trimmed, 1 to 100 characters with no control characters, and unique without regard to case. The caller becomes the folder's creator and manages it, whatever its permissions list.
+         */
+        post: operations["createFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a folder.
+         * @description A folder the caller cannot see answers 404, as if it did not exist.
+         */
+        get: operations["getFolder"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an empty folder.
+         * @description Needs the Manage permission on the folder. The General folder cannot be deleted, and a folder that holds dashboards must be emptied first.
+         */
+        delete: operations["deleteFolder"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a folder.
+         * @description Needs the Manage permission on the folder. The General folder cannot be renamed.
+         */
+        patch: operations["renameFolder"];
+        trace?: never;
+    };
+    "/folders/{id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List who a folder is restricted to.
+         * @description An empty list means the folder is open to everyone by instance role. Users come first by name, then groups by name.
+         */
+        get: operations["getFolderPermissions"];
+        /**
+         * Replace the people and groups a folder is restricted to.
+         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A level never raises an instance role past Edit for Viewers and Commenters. The General folder is never restricted.
+         */
+        put: operations["setFolderPermissions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboards": {
         parameters: {
             query?: never;
@@ -1123,6 +1203,56 @@ export interface components {
              */
             managed_by: "settings" | "config";
             domains: components["schemas"]["OutboundDomain"][];
+        };
+        /** @description What the caller may do with the object; being able to read it implies viewing. */
+        Permissions: {
+            comment: boolean;
+            edit: boolean;
+            /** @description Rename, change the permissions of and delete a folder. */
+            manage: boolean;
+            /** @description Create dashboards in the folder (needs the Editor role as well as Edit on the folder). */
+            create: boolean;
+        };
+        /** @enum {string} */
+        FolderLevel: "view" | "edit" | "admin";
+        Folder: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted. */
+            general: boolean;
+            /** @description True when the folder lists people or groups; false means open to everyone by instance role. */
+            restricted: boolean;
+            /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
+            dashboard_count: number;
+            /** @description The names of up to 5 listed people, then groups. */
+            grantees: string[];
+            /** @description How many people and groups are listed. */
+            grantee_count: number;
+            /** @description Null for General and for folders made before creators were recorded. */
+            created_by: components["schemas"]["Author"] | null;
+            permissions: components["schemas"]["Permissions"];
+        };
+        FolderPermissionEntry: {
+            /** @enum {string} */
+            kind: "user" | "group";
+            /** @description Present when `kind` is `user`. */
+            user?: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                email: string;
+                role: components["schemas"]["Role"];
+            };
+            /** @description Present when `kind` is `group`. */
+            group?: string;
+            /** @description Present when `kind` is `group`; people who signed in with the group in their stored claims. */
+            member_count?: number;
+            level: components["schemas"]["FolderLevel"];
+        };
+        FolderPermissions: {
+            restricted: boolean;
+            entries: components["schemas"]["FolderPermissionEntry"][];
         };
         SavedPrompt: {
             /** Format: uuid */
@@ -2601,6 +2731,267 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    listFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The visible folders. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        folders: components["schemas"]["Folder"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Trimmed before it is stored; 1 to 100 characters with no control characters. */
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The folder was created. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description A folder with that title already exists (`folder_exists`), ignoring case. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folder and its permissions are deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The folder still holds dashboards (`folder_not_empty`), or it is General (`general_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    renameFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Trimmed before it is stored; 1 to 100 characters with no control characters. */
+                    title: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The renamed folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Another folder has that title (`folder_exists`), or the folder is General (`general_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    getFolderPermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The folder's permission entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderPermissions"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    setFolderPermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    entries: {
+                        /** Format: uuid */
+                        user_id?: string;
+                        email?: string;
+                        group?: string;
+                        level: components["schemas"]["FolderLevel"];
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description The folder's permission entries after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderPermissions"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The folder is General (`general_folder`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description No signed-in person matches an entry (`unknown_user`), or an email belongs to more than one person. `email` is set when the entry was an email. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                        code: string;
+                        email?: string;
+                    };
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };

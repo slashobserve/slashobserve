@@ -1,10 +1,11 @@
 -- name: CreateDashboard :one
 INSERT INTO dashboards (
   title, tags, latest_version, created_by_kind, created_by_id, created_by_name, created_by_email,
-  created_origin, created_origin_client, created_via
+  created_origin, created_origin_client, created_via, folder_id
 ) VALUES (
   @title, @tags, 1, @created_by_kind, @created_by_id, @created_by_name, sqlc.narg('created_by_email')::text,
-  sqlc.narg('created_origin')::text, sqlc.narg('created_origin_client')::text, @created_via
+  sqlc.narg('created_origin')::text, sqlc.narg('created_origin_client')::text, @created_via,
+  coalesce(sqlc.narg('folder_id')::uuid, general_folder_id())
 )
 RETURNING *;
 

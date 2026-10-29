@@ -1,0 +1,277 @@
+folders:
+  get:
+    operationId: listFolders
+    summary: List the folders the caller can see.
+    description: >-
+      A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone.
+      Folders are sorted by title without regard to case, with General last.
+      Each folder carries the caller's own `permissions` on it.
+    responses:
+      "200":
+        description: The visible folders.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [folders]
+              properties:
+                folders:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Folder"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createFolder
+    summary: Create a folder.
+    description: >-
+      Needs the Editor role.
+      The title is trimmed, 1 to 100 characters with no control characters, and unique without regard to case.
+      The caller becomes the folder's creator and manages it, whatever its permissions list.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [title]
+            properties:
+              title:
+                type: string
+                description: Trimmed before it is stored; 1 to 100 characters with no control characters.
+    responses:
+      "201":
+        description: The folder was created.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Folder"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: A folder with that title already exists (`folder_exists`), ignoring case.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+folders-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getFolder
+    summary: Get a folder.
+    description: A folder the caller cannot see answers 404, as if it did not exist.
+    responses:
+      "200":
+        description: The folder.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Folder"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  patch:
+    operationId: renameFolder
+    summary: Rename a folder.
+    description: Needs the Manage permission on the folder. The General folder cannot be renamed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [title]
+            properties:
+              title:
+                type: string
+                description: Trimmed before it is stored; 1 to 100 characters with no control characters.
+    responses:
+      "200":
+        description: The renamed folder.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Folder"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: Another folder has that title (`folder_exists`), or the folder is General (`general_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteFolder
+    summary: Delete an empty folder.
+    description: Needs the Manage permission on the folder. The General folder cannot be deleted, and a folder that holds dashboards must be emptied first.
+    responses:
+      "204":
+        description: The folder and its permissions are deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The folder still holds dashboards (`folder_not_empty`), or it is General (`general_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+folders-id-permissions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getFolderPermissions
+    summary: List who a folder is restricted to.
+    description: >-
+      An empty list means the folder is open to everyone by instance role.
+      Users come first by name, then groups by name.
+    responses:
+      "200":
+        description: The folder's permission entries.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/FolderPermissions"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  put:
+    operationId: setFolderPermissions
+    summary: Replace the people and groups a folder is restricted to.
+    description: >-
+      Needs the Manage permission on the folder.
+      The entries replace every existing row in one transaction.
+      An empty `entries` list makes the folder open to everyone by instance role again.
+      Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group.
+      A level never raises an instance role past Edit for Viewers and Commenters.
+      The General folder is never restricted.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [entries]
+            properties:
+              entries:
+                type: array
+                maxItems: 50
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [level]
+                  properties:
+                    user_id:
+                      type: string
+                      format: uuid
+                    email:
+                      type: string
+                    group:
+                      type: string
+                    level:
+                      $ref: "../openapi.yaml#/components/schemas/FolderLevel"
+    responses:
+      "200":
+        description: The folder's permission entries after the change.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/FolderPermissions"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The folder is General (`general_folder`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          No signed-in person matches an entry (`unknown_user`), or an email belongs to more than one person.
+          `email` is set when the entry was an email.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [error, code]
+              properties:
+                error:
+                  type: string
+                code:
+                  type: string
+                email:
+                  type: string
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
