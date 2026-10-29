@@ -11,6 +11,7 @@ const StatusHistoryPanel: PanelRenderer = ({
   meta,
   width,
   height,
+  cursor,
 }) => {
   const from = Date.parse(meta.from)
   const to = Date.parse(meta.to)
@@ -27,6 +28,7 @@ const StatusHistoryPanel: PanelRenderer = ({
       width={width}
       height={height}
       variant="cells"
+      cursor={cursor}
     />
   )
 }

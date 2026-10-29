@@ -6,6 +6,7 @@ import {
   legendItems,
   rowHeight,
   showsText,
+  timeToX,
 } from "./timeline-layout"
 
 describe("timeline layout", () => {
@@ -20,6 +21,15 @@ describe("timeline layout", () => {
     expect(rowHeight(90, 3)).toBe(30)
     expect(rowHeight(1, 5)).toBe(1)
     expect(rowHeight(100, 0)).toBe(0)
+  })
+
+  it("places a time inside the range across the plot width", () => {
+    expect(timeToX(1500, 1000, 2000, 400)).toBe(200)
+    expect(timeToX(1000, 1000, 2000, 400)).toBe(0)
+    expect(timeToX(2000, 1000, 2000, 400)).toBe(400)
+    expect(timeToX(999, 1000, 2000, 400)).toBeNull()
+    expect(timeToX(2001, 1000, 2000, 400)).toBeNull()
+    expect(timeToX(1000, 1000, 1000, 400)).toBeNull()
   })
 
   it("shows text by mode and segment width", () => {

@@ -310,6 +310,16 @@ export function stepCell(
   }
 }
 
+export function columnAt(xs: readonly number[], x: number): number | null {
+  if (xs.length === 0) return null
+  const first = xs[0]
+  const step = (xs[xs.length - 1] - first) / (xs.length - 1)
+  if (!(step > 0)) return x === first ? 0 : null
+  const position = (x - first) / step
+  if (position < -0.5 || position > xs.length - 0.5) return null
+  return Math.min(xs.length - 1, Math.max(0, Math.round(position)))
+}
+
 export function edge(index: number, count: number, size: number): number {
   return Math.round((index * size) / count)
 }

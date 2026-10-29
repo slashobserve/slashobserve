@@ -3,12 +3,14 @@ import { useMemo, useState } from "react"
 import { formatDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 
+import { CursorLine, useCursorLine } from "../cursor-line"
 import type { PanelRenderer } from "../types"
 import { timeTicks } from "@/lib/time-ticks"
 import { HeatmapCanvas, type Hover } from "./heatmap-canvas"
 import {
   cellCenter,
   cellText,
+  columnAt,
   formatCounts,
   heatmapModel,
   type HeatmapCell,
@@ -171,6 +173,7 @@ const HeatmapPanel: PanelRenderer = ({
   display,
   width,
   height,
+  cursor,
 }) => {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
@@ -198,6 +201,10 @@ const HeatmapPanel: PanelRenderer = ({
       ? null
       : { ...focused, ...cellCenter(model, focused, plotWidth, plotHeight) })
   const ready = rows > 0 && columns > 0 && plotWidth > 0 && plotHeight > 0
+  const { lineRef, move } = useCursorLine(cursor, (x) => {
+    const col = columnAt(model.xs, x)
+    return col === null ? null : ((col + 0.5) * plotWidth) / columns
+  })
   return (
     <div
       data-rows={rows}
@@ -219,8 +226,10 @@ const HeatmapPanel: PanelRenderer = ({
                 label={`Heatmap with ${rows} rows over ${columns} time steps; highest count ${format(model.max)}`}
                 focused={focused}
                 onHover={setHover}
+                onCursorMove={move}
                 onFocusChange={(cell) => setFocus({ model, cell })}
               />
+              <CursorLine lineRef={lineRef} height={plotHeight} />
               <div aria-live="polite" className="sr-only">
                 {focused === null ? "" : cellText(model, focused, format)}
               </div>

@@ -34,6 +34,7 @@ type Props = {
   label: string
   focused: HeatmapCell | null
   onHover: (hover: Hover | null) => void
+  onCursorMove: (x: number | null) => void
   onFocusChange: (cell: HeatmapCell | null) => void
 }
 
@@ -101,6 +102,7 @@ export function HeatmapCanvas({
   label,
   focused,
   onHover,
+  onCursorMove,
   onFocusChange,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -126,6 +128,7 @@ export function HeatmapCanvas({
       )
     )
     onHover({ row, col, x, y })
+    onCursorMove(model.xs[col])
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLCanvasElement>) {
@@ -152,7 +155,10 @@ export function HeatmapCanvas({
         className="block cursor-crosshair focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         style={{ width, height }}
         onPointerMove={move}
-        onPointerLeave={() => onHover(null)}
+        onPointerLeave={() => {
+          onHover(null)
+          onCursorMove(null)
+        }}
         onKeyDown={onKeyDown}
         onBlur={() => onFocusChange(null)}
       />
