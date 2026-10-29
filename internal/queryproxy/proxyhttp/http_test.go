@@ -1740,3 +1740,39 @@ func TestPanelDataWithTheNewVariableTypes(t *testing.T) {
 		})
 	}
 }
+
+func referencingPreviewHarness(t *testing.T, selected string) *harness {
+	t.Helper()
+	hn := newPreviewHarness(t)
+	d := previewDashboard()
+	ds := spec.Variable{Name: "ds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus, Default: &spec.Selection{Values: []string{selected}}}
+	d.Variables = append([]spec.Variable{ds}, d.Variables...)
+	hn.specs.known[specKey{id: hn.id, version: 1}] = d
+	return hn
+}
+
+func TestPreviewAcceptsADatasourceReferenceThatResolvesToThePathUID(t *testing.T) {
+	hn := referencingPreviewHarness(t, "prom")
+	rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) { p.Datasource = "${ds}" })
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 1 {
+		t.Fatalf("the path's datasource ran %d queries, want 1", ranges)
+	}
+}
+
+func TestPreviewRefusesADatasourceReferenceThatResolvesElsewhere(t *testing.T) {
+	hn := referencingPreviewHarness(t, "other")
+	rec := hn.previewAs(auth.KindUser, "prom", func(p *spec.Panel) { p.Datasource = "${ds}" })
+	expectError(t, rec, http.StatusBadRequest, "invalid_request")
+	if got := decodeError(t, rec).Error; got != "the panel's datasource must be prom" {
+		t.Fatalf("message = %q", got)
+	}
+	if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+		t.Fatalf("the path's datasource ran %d queries", ranges)
+	}
+	if ranges, _, _, _ := hn.other.counts(); ranges != 0 {
+		t.Fatalf("the resolved datasource ran %d queries", ranges)
+	}
+}
