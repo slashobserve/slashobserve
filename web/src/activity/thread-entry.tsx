@@ -23,6 +23,7 @@ type Props = {
   panelTitle: string | null
   onSelectPanel: (panelId: string) => void
   gate: AgentGate
+  canComment: boolean
   latestVersion: number
   clientName: string
 }
@@ -46,6 +47,7 @@ export function ThreadEntry({
   panelTitle,
   onSelectPanel,
   gate,
+  canComment,
   latestVersion,
   clientName,
 }: Props) {
@@ -101,14 +103,16 @@ export function ThreadEntry({
       <EntryBody>{root.body}</EntryBody>
       <EntryMeta>
         {state}
-        <MetaButton
-          ref={replyButton}
-          aria-expanded={replying}
-          onClick={() => setReplying(true)}
-        >
-          Reply
-        </MetaButton>
-        {canResolveThread(request) ? (
+        {canComment ? (
+          <MetaButton
+            ref={replyButton}
+            aria-expanded={replying}
+            onClick={() => setReplying(true)}
+          >
+            Reply
+          </MetaButton>
+        ) : null}
+        {canComment && canResolveThread(request) ? (
           <MetaButton
             ref={resolveButton}
             aria-disabled={setStatus.isPending || undefined}
@@ -141,7 +145,7 @@ export function ThreadEntry({
           ))}
         </ol>
       )}
-      {replying ? (
+      {canComment && replying ? (
         <ReplyForm
           dashboardId={dashboardId}
           rootId={root.id}

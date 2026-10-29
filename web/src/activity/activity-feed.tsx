@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
+import { useRouteContext } from "@tanstack/react-router"
 import {
   useInfiniteQuery,
   useQuery,
@@ -13,6 +14,12 @@ import {
 
 import type { components } from "@/api/schema.gen"
 import { commentsQuery, useComments } from "@/comments/queries"
+import { RoleNote } from "@/components/role-note"
+import {
+  composerMode,
+  readerNote,
+  useLatestPermissions,
+} from "@/dashboards/permissions"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
 import { importForDashboardQuery } from "@/import/record-queries"
@@ -206,7 +213,12 @@ export function ActivityFeed({
     [comments.comments, requests, versions, imported, show, scopePanelId]
   )
 
+  const permissions = useLatestPermissions(dashboardId)
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const mode = composerMode(permissions)
+  const note = readerNote(mode, principal.role)
   const gate = sendToAgentState({
+    canEdit: permissions.edit,
     agentAvailable: agent.data?.available,
     pinned,
     layoutEditing,
@@ -263,6 +275,7 @@ export function ActivityFeed({
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}
+            canComment={permissions.comment}
             latestVersion={latestVersion}
             clientName={clientName}
           />
@@ -339,31 +352,39 @@ export function ActivityFeed({
           renderEntry={renderEntry}
         />
       </div>
-      <ActivityComposer
-        dashboardId={dashboardId}
-        latestVersion={latestVersion}
-        panels={panelList}
-        target={target}
-        onTargetChange={onTargetChange}
-        draft={draft}
-        onDraftChange={onDraftChange}
-        gate={gate}
-        placeholder={
-          noModel
-            ? "Leave a comment for the team and Claude Code"
-            : "Write a comment, or tell the agent what to change"
-        }
-        textareaRef={composerRef}
-        notice={
-          noModel && madeBy !== null ? (
-            <ExternalAgentNote
-              dashboardId={apiId}
-              title={spec.title}
-              clientName={clientName}
-            />
-          ) : null
-        }
-      />
+      {mode === "read-only" ? (
+        <RoleNote className="border-t px-4 py-3">{note}</RoleNote>
+      ) : (
+        <ActivityComposer
+          dashboardId={dashboardId}
+          latestVersion={latestVersion}
+          panels={panelList}
+          target={target}
+          onTargetChange={onTargetChange}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          gate={gate}
+          placeholder={
+            mode === "comment-only"
+              ? "Write a comment"
+              : noModel
+                ? "Leave a comment for the team and Claude Code"
+                : "Write a comment, or tell the agent what to change"
+          }
+          textareaRef={composerRef}
+          notice={
+            mode === "comment-only" ? (
+              <RoleNote>{note}</RoleNote>
+            ) : noModel && madeBy !== null ? (
+              <ExternalAgentNote
+                dashboardId={apiId}
+                title={spec.title}
+                clientName={clientName}
+              />
+            ) : null
+          }
+        />
+      )}
     </div>
   )
 }

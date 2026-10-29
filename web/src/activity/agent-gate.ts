@@ -1,16 +1,19 @@
 import { maxQueuedRevisions } from "@/revisions/queries"
 
 export type AgentGate =
+  | { kind: "hidden" }
   | { kind: "allowed" }
   | { kind: "no-model" }
   | { kind: "blocked"; reason: string }
 
 export function sendToAgentState(input: {
+  canEdit: boolean
   agentAvailable: boolean | undefined
   pinned: boolean
   layoutEditing: boolean
   activeRequests: number
 }): AgentGate {
+  if (!input.canEdit) return { kind: "hidden" }
   if (input.agentAvailable === false) return { kind: "no-model" }
   if (input.pinned) {
     return {
