@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -43,6 +44,7 @@ type importedOut struct {
 	Version     int            `json:"version"`
 	URL         string         `json:"url"`
 	Title       string         `json:"title"`
+	Folder      string         `json:"folder"`
 	Replayed    bool           `json:"replayed"`
 	Counts      grafana.Counts `json:"counts"`
 	Attention   []Attention    `json:"attention"`
@@ -153,18 +155,27 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	if imported.Replayed {
 		step = "Imported again"
 	}
-	attention, truncated := fit(attentionOf(imported.Record.Report), listBudget)
-	return success(step, importedOut{
+	return success(step, newImportedOut(r.deps.PublicURL, imported)), nil
+}
+
+func newImportedOut(publicURL *url.URL, imported imports.Imported) importedOut {
+	out := importedOut{
 		DashboardID: imported.Dashboard.ID,
 		Version:     imported.Version.Number,
-		URL:         DashboardURL(r.deps.PublicURL, imported.Dashboard.ID),
+		URL:         DashboardURL(publicURL, imported.Dashboard.ID),
 		Title:       imported.Dashboard.Title,
+		Folder:      imported.Dashboard.Folder.Title,
 		Replayed:    imported.Replayed,
 		Counts:      imported.Record.Report.Counts,
-		Attention:   attention,
-		Truncated:   truncated,
+		Attention:   []Attention{},
 		FolderNote:  httpapi.OptionalString(imported.FolderNote),
-	}), nil
+	}
+	envelope, err := json.Marshal(out)
+	if err != nil {
+		return out
+	}
+	out.Attention, out.Truncated = fit(attentionOf(imported.Record.Report), listBudget-len(envelope))
+	return out
 }
 
 func parseImportFolder(raw *string) (string, Result, bool) {

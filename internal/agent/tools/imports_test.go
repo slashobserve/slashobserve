@@ -3,10 +3,16 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
@@ -92,5 +98,70 @@ func TestImportInAgentRunNeedsGrafanaJSONFromTheRequest(t *testing.T) {
 				t.Fatalf("rejected = %v, want %v (res = %#v, err = %v)", rejected, tt.rejected, res, err)
 			}
 		})
+	}
+}
+
+func TestImportedOutNamesTheChosenFolder(t *testing.T) {
+	note := `Folder "Secret" is not available to you, so the dashboard went to "General".`
+	tests := []struct {
+		name       string
+		folder     string
+		folderNote string
+	}{
+		{"folder the dashboard was asked for", "Checkout", ""},
+		{"default folder with a note", "General", note},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			imported := imports.Imported{
+				Dashboard:  dashboards.Dashboard{ID: dashA, Title: "Shop", Folder: folders.Folder{Title: tt.folder}},
+				Version:    dashboards.Version{Number: 1},
+				FolderNote: tt.folderNote,
+			}
+			body, err := json.Marshal(newImportedOut(&url.URL{Scheme: "https", Host: "so.example"}, imported))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(body, &got); err != nil {
+				t.Fatal(err)
+			}
+			if got["folder"] != tt.folder {
+				t.Errorf("folder = %v, want %q", got["folder"], tt.folder)
+			}
+			gotNote, hasNote := got["folder_note"]
+			if (tt.folderNote != "") != hasNote || (hasNote && gotNote != tt.folderNote) {
+				t.Errorf("folder_note = %v (present %t), want %q", gotNote, hasNote, tt.folderNote)
+			}
+		})
+	}
+}
+
+func TestImportedOutStaysInsideTheResultCapWithALongFolderTitle(t *testing.T) {
+	report := grafana.Report{}
+	for i := range 400 {
+		report.Panels = append(report.Panels, grafana.PanelLine{
+			PanelID: fmt.Sprintf("p%d", i),
+			Title:   strings.Repeat("t", 100),
+			Status:  "partial",
+			Reasons: []string{strings.Repeat("r", 200)},
+		})
+	}
+	title := strings.Repeat("<", 100)
+	imported := imports.Imported{
+		Dashboard:  dashboards.Dashboard{ID: dashA, Title: strings.Repeat("&", 200), Folder: folders.Folder{Title: title}},
+		FolderNote: `Folder "` + title + `" is not available to you, so the dashboard went to "` + title + `".`,
+		Record:     imports.Record{Report: report},
+	}
+	out := newImportedOut(&url.URL{Scheme: "https", Host: "so.example"}, imported)
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) > maxContentBytes {
+		t.Fatalf("result is %d bytes, over %d", len(body), maxContentBytes)
+	}
+	if !out.Truncated || len(out.Attention) == 0 || len(out.Attention) >= 400 {
+		t.Fatalf("attention rows = %d, truncated = %t, want a cut list", len(out.Attention), out.Truncated)
 	}
 }
