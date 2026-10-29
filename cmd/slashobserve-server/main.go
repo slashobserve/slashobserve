@@ -20,12 +20,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -232,6 +234,7 @@ func run() error {
 	defer stopWorkers()
 
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
+	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version})
 
 	handler, err := server.New(server.Options{
 		Logger:          logger,
@@ -248,6 +251,7 @@ func run() error {
 			proxyHandler,
 			users.NewHandler(database, authService, logger),
 			outbound,
+			news.NewHandler(egressClient, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",

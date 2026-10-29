@@ -547,6 +547,14 @@ A comma-separated list such as `example.com,*.example.org` allows exactly those 
 The list is then read-only: Settings shows it, the API answers changes with `409 managed_by_config`, and the database table is neither read nor written.
 The setting never seeds the Settings list; to switch back, unset it and restart, and the Settings list is what it was before.
 
+## News feeds
+
+News panels read their feed through the server, never from the browser, with `GET /api/v1/news?url=<feed address>`; only signed-in people can call it, not service-account keys.
+The feed must be an RSS or Atom feed on an https address, up to 1 MiB, and its domain must be on the outbound allowlist.
+The server caches a feed for 15 minutes and returns at most 50 items as plain text.
+A feed whose domain is not allowed shows a message naming the domain.
+Item links open in a new tab and are not limited by the allowlist: the allowlist controls what the server fetches, not where a person may click.
+
 ## Upgrades and backups
 
 ### Back up Postgres

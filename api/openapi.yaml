@@ -86,6 +86,8 @@ paths:
     $ref: "./paths/observe.yaml#/observe"
   /observe/{id}:
     $ref: "./paths/observe.yaml#/observe-id"
+  /news:
+    $ref: "./paths/news.yaml#/news"
   /imports/preview:
     $ref: "./paths/imports.yaml#/imports-preview"
   /imports:
@@ -390,6 +392,46 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OutboundDomain"
+    NewsItem:
+      type: object
+      additionalProperties: false
+      required: [title, link, published, summary]
+      properties:
+        title:
+          type: string
+          maxLength: 300
+          description: Plain text, never markup.
+        link:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: An absolute http or https URL without user info, or null when the feed gave none or an unsafe one.
+        published:
+          type: string
+          format: date-time
+          nullable: true
+        summary:
+          type: string
+          maxLength: 500
+          description: Plain text, never markup; may be empty.
+    NewsFeed:
+      type: object
+      additionalProperties: false
+      required: [title, items, fetched_at]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        items:
+          type: array
+          maxItems: 50
+          description: In feed order, at most 50.
+          items:
+            $ref: "#/components/schemas/NewsItem"
+        fetched_at:
+          type: string
+          format: date-time
+          description: When the server fetched the feed; a cached feed keeps the time of its fetch.
     DatasourceStatus:
       type: object
       additionalProperties: false
