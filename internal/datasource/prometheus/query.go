@@ -62,15 +62,16 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "step must be at least 1ms")
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	points := int64(r.To.Sub(r.From)/step) + 1
+	steps := int64(r.To.Sub(r.From) / step)
+	points := steps + 1
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := d.expand(q, r, step)
 	if err != nil {
 		return nil, err
 	}
-	if points > maxStepPoints {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "step too small: %d points per series, max %d", points, maxStepPoints)
+	if steps > maxStepPoints {
+		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "step too small: %d steps, max %d", steps, maxStepPoints)
 	}
 	if points > int64(lim.MaxPoints) {
 		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "step too small: %d points per series, max points is %d", points, lim.MaxPoints)
@@ -137,31 +138,17 @@ func (d *Datasource) runQuery(ctx context.Context, path string, form url.Values,
 	if err != nil {
 		return nil, err
 	}
-	frames, err := convert(raw)
-	if err != nil {
-		return nil, err
-	}
-	if len(frames) > lim.MaxSeries {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "series limit exceeded: %d series, max %d", len(frames), lim.MaxSeries)
-	}
-	if n := datasource.Points(frames); n > lim.MaxPoints {
-		return nil, datasource.Errorf(datasource.ErrLimitExceeded, "points limit exceeded: %d points, max %d", n, lim.MaxPoints)
-	}
-	return frames, nil
+	return convert(raw, lim)
 }
 
-func convert(raw json.RawMessage) ([]datasource.Frame, error) {
+func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {
 	var data queryData
 	if err := json.Unmarshal(raw, &data); err != nil {
 		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
 	}
 	switch data.ResultType {
 	case "matrix", "vector":
-		var result []series
-		if err := json.Unmarshal(data.Result, &result); err != nil {
-			return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
-		}
-		return seriesFrames(result)
+		return seriesFrames(data.Result, lim)
 	case "scalar", "string":
 		var s sample
 		if err := json.Unmarshal(data.Result, &s); err != nil {
@@ -181,13 +168,33 @@ func hasContent(b json.RawMessage) bool {
 	return len(t) > 0 && !bytes.Equal(t, []byte("null"))
 }
 
-func seriesFrames(result []series) ([]datasource.Frame, error) {
+func seriesFrames(result json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {
+	unreadable := datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+	dec := json.NewDecoder(bytes.NewReader(result))
+	open, err := dec.Token()
+	if err != nil {
+		return nil, unreadable
+	}
+	if open == nil {
+		return []datasource.Frame{}, nil
+	}
+	if open != json.Delim('[') {
+		return nil, unreadable
+	}
 	type keyed struct {
 		key   string
 		frame datasource.Frame
 	}
-	out := make([]keyed, 0, len(result))
-	for _, s := range result {
+	var out []keyed
+	points := 0
+	for dec.More() {
+		if len(out) == lim.MaxSeries {
+			return nil, datasource.Errorf(datasource.ErrLimitExceeded, "series limit exceeded: more than %d series", lim.MaxSeries)
+		}
+		var s series
+		if err := dec.Decode(&s); err != nil {
+			return nil, unreadable
+		}
 		if hasContent(s.Histogram) || hasContent(s.Histograms) {
 			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "native histogram samples are not supported; aggregate with histogram_quantile, histogram_count or histogram_sum")
 		}
@@ -196,7 +203,13 @@ func seriesFrames(result []series) ([]datasource.Frame, error) {
 			samples = []sample{*s.Value}
 		}
 		f := sampleFrame(s.Metric, datasource.FieldNumber, samples)
+		if points += datasource.Points([]datasource.Frame{f}); points > lim.MaxPoints {
+			return nil, datasource.Errorf(datasource.ErrLimitExceeded, "points limit exceeded: more than %d points", lim.MaxPoints)
+		}
 		out = append(out, keyed{key: labelKey(f.Labels), frame: f})
+	}
+	if _, err := dec.Token(); err != nil {
+		return nil, unreadable
 	}
 	slices.SortStableFunc(out, func(a, b keyed) int {
 		if c := strings.Compare(a.frame.Name, b.frame.Name); c != 0 {
