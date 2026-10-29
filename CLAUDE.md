@@ -329,6 +329,7 @@ Directories are created when their phase starts; this is where things go.
   The page holds its own `useDashboardEvents` stream, so versions saved elsewhere appear live.
 - Layout editing keeps the base Spec and the edited layout in the Zustand `useLayoutStore`; saving sends `applyLayout(baseSpec, layout)` with `parent_version = baseVersion`, and a 409 offers to reapply the layout onto the latest version, carrying over only the panels the user changed and settling the result.
   Saving a Spec that has vertical gaps compacts it to the layout the user saw.
+  Rows are barriers: `rowCompactor` (`web/src/dashboards/edit/layout.ts`, passed to the grid while editing and used by `settle`) compacts each row's children, taken from the base Spec by `membershipOf`, inside their own row and stacks the rows below, so a panel resized, moved or widened in a row stays in it and the rows below shift; `applyLayout` writes the shifted row positions and moves the stored children of collapsed rows with their row.
   The grid renders from the session's base Spec while editing, so a version that arrives over the event stream never moves panels.
   Every panel's move handle also moves (arrow keys) and resizes (Shift and arrow keys) it, and vertical moves step past the neighbouring panel because the grid compacts upward.
 - The panel editor (`web/src/panel-editor`, lazy-loaded into the activity card at `panel=<id>&edit=query|json`, behind `EditorBoundary`, whose "Reload page" button replaces "Retry" for a failed module load) edits one draft panel through `draftReducer`.

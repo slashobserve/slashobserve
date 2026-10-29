@@ -4,12 +4,19 @@ import { create } from "zustand"
 
 import type { Dashboard } from "@/spec"
 
-import { layoutFromSpec, sameLayout, settle } from "./layout"
+import {
+  layoutFromSpec,
+  membershipOf,
+  sameLayout,
+  settle,
+  type Membership,
+} from "./layout"
 
 type LayoutSession = {
   dashboardId: string
   baseVersion: number
   baseSpec: Dashboard
+  membership: Membership
   baseline: Layout
   layout: Layout
   announcement: string
@@ -25,8 +32,8 @@ type LayoutState = {
   end: () => void
 }
 
-function baselineOf(spec: Dashboard): Layout {
-  return settle(layoutFromSpec(spec))
+function baselineOf(spec: Dashboard, membership: Membership): Layout {
+  return settle(layoutFromSpec(spec), membership)
 }
 
 function sameBox(a: LayoutItem, b: LayoutItem): boolean {
@@ -36,14 +43,17 @@ function sameBox(a: LayoutItem, b: LayoutItem): boolean {
 function mergeEdits(
   oldBaseline: Layout,
   edited: Layout,
-  newBase: Layout
+  newBase: Layout,
+  membership: Membership
 ): Layout {
   const before = new Map(oldBaseline.map((item) => [item.i, item]))
   const changed = new Map(
     edited
       .filter((item) => {
         const original = before.get(item.i)
-        return original !== undefined && !sameBox(original, item)
+        return (
+          original !== undefined && !item.static && !sameBox(original, item)
+        )
       })
       .map((item) => [item.i, item])
   )
@@ -53,19 +63,22 @@ function mergeEdits(
       return kept
         ? { ...item, x: kept.x, y: kept.y, w: kept.w, h: kept.h }
         : item
-    })
+    }),
+    membership
   )
 }
 
 export const useLayoutStore = create<LayoutState>()((set) => ({
   session: null,
   start: (dashboardId, baseVersion, baseSpec) => {
-    const baseline = baselineOf(baseSpec)
+    const membership = membershipOf(baseSpec)
+    const baseline = baselineOf(baseSpec, membership)
     set({
       session: {
         dashboardId,
         baseVersion,
         baseSpec,
+        membership,
         baseline,
         layout: baseline,
         announcement: "",
@@ -95,17 +108,20 @@ export const useLayoutStore = create<LayoutState>()((set) => ({
   rebase: (baseVersion, baseSpec) =>
     set((state) => {
       if (!state.session) return state
-      const baseline = baselineOf(baseSpec)
+      const membership = membershipOf(baseSpec)
+      const baseline = baselineOf(baseSpec, membership)
       const layout = mergeEdits(
         state.session.baseline,
         state.session.layout,
-        baseline
+        baseline,
+        membership
       )
       return {
         session: {
           ...state.session,
           baseVersion,
           baseSpec,
+          membership,
           baseline,
           layout,
           announcement: "",

@@ -60,7 +60,8 @@ describe("rebase", () => {
       settle(
         session().layout.map((entry) =>
           entry.i === "c" ? { ...entry, h: 5 } : entry
-        )
+        ),
+        session().membership
       ),
       "c"
     )

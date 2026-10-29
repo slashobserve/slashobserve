@@ -35,12 +35,24 @@ export function PanelMoveHandle({
     if (!session) return
     let next
     if (event.shiftKey) {
-      next = resizeItemPushing(session.layout, panel.id, arrow.dx, arrow.dy)
+      next = resizeItemPushing(
+        session.layout,
+        session.membership,
+        panel.id,
+        arrow.dx,
+        arrow.dy
+      )
     } else if (arrow.dy !== 0) {
-      next = stepItemVertically(session.layout, panel.id, arrow.dy < 0 ? -1 : 1)
+      next = stepItemVertically(
+        session.layout,
+        session.membership,
+        panel.id,
+        arrow.dy < 0 ? -1 : 1
+      )
     } else {
       next = moveItemHorizontally(
         session.layout,
+        session.membership,
         panel.id,
         arrow.dx < 0 ? -1 : 1
       )

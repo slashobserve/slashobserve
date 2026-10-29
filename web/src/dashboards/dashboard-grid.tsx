@@ -1,10 +1,12 @@
 import { useMemo, type ReactNode } from "react"
 import { GridLayout, useContainerWidth, type Layout } from "react-grid-layout"
+import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
 
 import type { Selections } from "@/api/keys"
 import type { Dashboard } from "@/spec"
 
+import { membershipOf, rowCompactor } from "./edit/layout"
 import { expandLayout, type LayoutItem } from "./rows/expand-layout"
 import { RowHeader } from "./rows/row-header"
 import { useRowStore } from "./rows/row-store"
@@ -77,6 +79,11 @@ export function DashboardGrid({
       .sort((a, b) => a.item.y - b.item.y || a.item.x - b.item.x)
   }, [spec, layout, collapsed, selections, values, editing])
 
+  const compactor = useMemo(
+    () => (editing ? rowCompactor(membershipOf(spec)) : verticalCompactor),
+    [editing, spec]
+  )
+
   const stacked = width < singleColumnBelow
   const columns = stacked ? 1 : gridColumns
   const gridItems = useMemo(() => {
@@ -95,6 +102,7 @@ export function DashboardGrid({
         <GridLayout
           width={width}
           layout={gridItems}
+          compactor={compactor}
           gridConfig={{
             cols: columns,
             rowHeight: gridRowHeight,

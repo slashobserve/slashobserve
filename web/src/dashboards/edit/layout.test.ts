@@ -9,11 +9,15 @@ import {
   layoutFromSpec,
   layoutPanels,
   moveItem,
+  membershipOf,
   moveItemHorizontally,
   resizeItem,
   resizeItemPushing,
+  sameLayout,
   settle,
 } from "./layout"
+
+const flat = new Map<string, string | null>()
 
 function item(i: string, x: number, y: number, w: number, h: number) {
   return { i, x, y, w, h }
@@ -76,6 +80,7 @@ describe("moveItemHorizontally", () => {
   it("pushes the neighbour in both directions", () => {
     const right = moveItemHorizontally(
       [item("a", 0, 0, 6, 4), item("b", 6, 0, 6, 4)],
+      flat,
       "a",
       1
     )
@@ -84,6 +89,7 @@ describe("moveItemHorizontally", () => {
 
     const left = moveItemHorizontally(
       [item("a", 18, 0, 6, 4), item("b", 12, 0, 6, 4)],
+      flat,
       "a",
       -1
     )
@@ -95,13 +101,13 @@ describe("moveItemHorizontally", () => {
 
   it("returns the layout unchanged at the edge", () => {
     const layout = [item("a", 0, 0, 6, 4)]
-    expect(moveItemHorizontally(layout, "a", -1)).toEqual(layout)
+    expect(moveItemHorizontally(layout, flat, "a", -1)).toEqual(layout)
   })
 
   it("does not mutate its input", () => {
     const layout = [item("a", 0, 0, 6, 4), item("b", 6, 0, 6, 4)]
     const copy = structuredClone(layout)
-    moveItemHorizontally(layout, "a", 1)
+    moveItemHorizontally(layout, flat, "a", 1)
     expect(layout).toEqual(copy)
   })
 })
@@ -110,6 +116,7 @@ describe("resizeItemPushing", () => {
   it("pushes a neighbour that starts on a higher row instead of dropping the resized panel", () => {
     const resized = resizeItemPushing(
       [item("c", 0, 0, 6, 4), item("a", 0, 4, 6, 4), item("b", 6, 0, 6, 8)],
+      flat,
       "a",
       1,
       0
@@ -122,6 +129,7 @@ describe("resizeItemPushing", () => {
   it("does not drop the resized panel below a taller neighbour", () => {
     const resized = resizeItemPushing(
       [item("a", 0, 4, 6, 4), item("b", 6, 0, 6, 8)],
+      flat,
       "a",
       1,
       0
@@ -132,7 +140,7 @@ describe("resizeItemPushing", () => {
 
   it("leaves other panels alone when nothing collides", () => {
     const layout = [item("a", 0, 0, 6, 4), item("b", 12, 0, 6, 4)]
-    const resized = resizeItemPushing(layout, "a", 1, 1)
+    const resized = resizeItemPushing(layout, flat, "a", 1, 1)
     expect(find(resized, "a")).toMatchObject({ w: 7, h: 5 })
     expect(find(resized, "b")).toMatchObject({ x: 12, y: 0 })
   })
@@ -140,14 +148,17 @@ describe("resizeItemPushing", () => {
   it("does not mutate its input", () => {
     const layout = [item("a", 0, 4, 6, 4), item("b", 6, 0, 6, 8)]
     const copy = structuredClone(layout)
-    resizeItemPushing(layout, "a", 1, 0)
+    resizeItemPushing(layout, flat, "a", 1, 0)
     expect(layout).toEqual(copy)
   })
 })
 
 describe("settle", () => {
   it("pulls panels up into gaps", () => {
-    const settled = settle([item("a", 0, 0, 6, 4), item("b", 0, 10, 6, 4)])
+    const settled = settle(
+      [item("a", 0, 0, 6, 4), item("b", 0, 10, 6, 4)],
+      flat
+    )
     expect(find(settled, "b").y).toBe(4)
   })
 })
@@ -225,31 +236,36 @@ describe("rows in the layout", () => {
   })
 
   it("keeps expanded children below their row after compaction", () => {
-    const settled = settle(layoutFromSpec(expanded))
+    const settled = settle(layoutFromSpec(expanded), membershipOf(expanded))
     expect(find(settled, "r")).toMatchObject({ y: 4, h: 1 })
     expect(find(settled, "c1").y).toBe(5)
     expect(find(settled, "c2").y).toBe(5)
     expectNoOverlap(settled)
   })
 
-  it("pushes children clear of a taller panel above the row", () => {
+  it("shifts the row and its children below a taller panel above the row", () => {
     const grown = resizeItemPushing(
-      settle(layoutFromSpec(expanded)),
+      settle(layoutFromSpec(expanded), membershipOf(expanded)),
+      membershipOf(expanded),
       "top",
       0,
       3
     )
-    expect(find(grown, "r").y).toBe(4)
-    expect(find(grown, "c1").y).toBeGreaterThanOrEqual(5)
+    expect(find(grown, "r").y).toBe(7)
+    expect(find(grown, "c1").y).toBe(8)
     expectNoOverlap(grown)
   })
 
   it("saves an expanded row layout without overlap and leaves the row alone", () => {
-    const saved = applyLayout(expanded, settle(layoutFromSpec(expanded)))
+    const membership = membershipOf(expanded)
+    const saved = applyLayout(
+      expanded,
+      settle(layoutFromSpec(expanded), membership)
+    )
     expect(saved).toEqual(expanded)
     const moved = applyLayout(
       expanded,
-      moveItem(settle(layoutFromSpec(expanded)), "top", 6, 0)
+      moveItem(settle(layoutFromSpec(expanded), membership), "top", 6, 0)
     )
     const rowPanel = moved.panels[1]
     expect(rowPanel.gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
@@ -257,19 +273,26 @@ describe("rows in the layout", () => {
   })
 
   it("saves a layout pushed around a row without overlap", () => {
+    const membership = membershipOf(expanded)
     const layout = resizeItemPushing(
-      settle(layoutFromSpec(expanded)),
+      settle(layoutFromSpec(expanded), membership),
+      membership,
       "top",
       0,
       3
     )
     const saved = applyLayout(expanded, layout)
-    expect(saved.panels[1].gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
+    expect(saved.panels[1].gridPos).toEqual({ x: 0, y: 7, w: 24, h: 1 })
     expectNoOverlap(layoutFromSpec(saved))
   })
 
   it("leaves the children of a collapsed row at their stored positions", () => {
-    const layout = moveItem(settle(layoutFromSpec(collapsed)), "below", 0, 3)
+    const layout = moveItem(
+      settle(layoutFromSpec(collapsed), membershipOf(collapsed)),
+      "below",
+      0,
+      3
+    )
     const saved = applyLayout(collapsed, layout)
     const savedRow = saved.panels[1] as unknown as {
       panels: { gridPos: unknown }[]
@@ -280,5 +303,138 @@ describe("rows in the layout", () => {
     ])
     expect(saved.panels[1].gridPos).toEqual({ x: 0, y: 4, w: 24, h: 1 })
     expectNoOverlap(layoutFromSpec(saved))
+  })
+})
+
+describe("resizing inside a row", () => {
+  const spec = specOf([
+    row("r1", 0, false, [
+      panel("pressure", 0, 1, 3, 4),
+      panel("busy", 3, 1, 3, 4),
+    ]),
+    row("r2", 5, false, [
+      panel("basic", 0, 6, 12, 7),
+      panel("memory", 12, 6, 12, 7),
+    ]),
+    row("r3", 13, true, [panel("hidden", 0, 14, 12, 12)]),
+    row("r4", 14, true, [panel("hiddenToo", 0, 15, 12, 12)]),
+  ])
+  const membership = membershipOf(spec)
+  const baseline = settle(layoutFromSpec(spec), membership)
+
+  it("keeps a panel in its row when it grows taller and shifts the rows below", () => {
+    const grown = resizeItemPushing(baseline, membership, "pressure", 0, 3)
+    expect(find(grown, "pressure")).toMatchObject({ y: 1, h: 7 })
+    expect(find(grown, "r2").y).toBe(8)
+    expect(find(grown, "basic").y).toBe(9)
+    expect(find(grown, "memory").y).toBe(9)
+    expect(find(grown, "r3").y).toBe(16)
+    expect(find(grown, "r4").y).toBe(17)
+    expectNoOverlap(grown)
+  })
+
+  it("keeps a panel in its row when the grid grows it past the next row header", () => {
+    const grown = settle(resizeItem(baseline, "pressure", 0, 3), membership)
+    expect(find(grown, "pressure")).toMatchObject({ y: 1, h: 7 })
+    expect(find(grown, "r2").y).toBe(8)
+    expect(find(grown, "basic").y).toBe(9)
+    expectNoOverlap(grown)
+  })
+
+  it("pushes the neighbour down inside the row when it grows wider", () => {
+    const widened = resizeItemPushing(baseline, membership, "pressure", 3, 0)
+    expect(find(widened, "pressure")).toMatchObject({ y: 1, w: 6 })
+    expect(find(widened, "busy").y).toBe(5)
+    expect(find(widened, "r2").y).toBe(9)
+    expect(find(widened, "basic").y).toBe(10)
+    expectNoOverlap(widened)
+  })
+
+  it("keeps the last panel of a row in its row", () => {
+    const grown = resizeItemPushing(baseline, membership, "memory", 0, 2)
+    expect(find(grown, "memory")).toMatchObject({ y: 6, h: 9 })
+    expect(find(grown, "r3").y).toBe(15)
+    expect(find(grown, "r4").y).toBe(16)
+    expectNoOverlap(grown)
+  })
+
+  it("pulls the rows below up when a panel shrinks", () => {
+    const small = settle(
+      resizeItem(resizeItem(baseline, "pressure", 0, -1), "busy", 0, -1),
+      membership
+    )
+    expect(find(small, "r2").y).toBe(4)
+    expect(find(small, "basic").y).toBe(5)
+    expect(find(small, "r4").y).toBe(13)
+  })
+
+  it("keeps a panel dragged below its row at the bottom of its own row", () => {
+    const dragged = settle(moveItem(baseline, "pressure", 0, 9), membership)
+    expect(find(dragged, "pressure").y).toBe(1)
+    expect(find(dragged, "r2").y).toBe(5)
+    expect(find(dragged, "basic").y).toBe(6)
+    expectNoOverlap(dragged)
+  })
+
+  it("keeps a panel dragged above its row header just below the header", () => {
+    const dragged = settle(moveItem(baseline, "basic", 0, -4), membership)
+    expect(find(dragged, "r2").y).toBe(5)
+    expect(find(dragged, "basic").y).toBe(6)
+  })
+
+  it("moves a panel sideways inside its row without leaving it", () => {
+    const moved = moveItemHorizontally(baseline, membership, "pressure", 1)
+    expect(find(moved, "pressure")).toMatchObject({ x: 1, y: 1 })
+    expect(find(moved, "r2").y).toBeGreaterThan(find(moved, "pressure").y)
+    expectNoOverlap(moved)
+  })
+
+  it("writes the shifted rows and their collapsed children into the saved Spec", () => {
+    const saved = applyLayout(
+      spec,
+      resizeItemPushing(baseline, membership, "pressure", 0, 3)
+    )
+    const savedMembership = membershipOf(saved)
+    const rows = saved.panels as unknown as {
+      id: string
+      gridPos: { y: number }
+      panels: { id: string; gridPos: { y: number; h: number } }[]
+    }[]
+    expect(rows.map((entry) => entry.gridPos.y)).toEqual([0, 8, 16, 17])
+    expect(rows[0].panels[0].gridPos).toMatchObject({ y: 1, h: 7 })
+    expect(rows[1].panels.map((child) => child.gridPos.y)).toEqual([9, 9])
+    expect(rows[2].panels[0].gridPos.y).toBe(17)
+    expect(rows[3].panels[0].gridPos.y).toBe(18)
+    expect(
+      sameLayout(
+        settle(layoutFromSpec(saved), savedMembership),
+        layoutFromSpec(saved)
+      )
+    ).toBe(true)
+  })
+
+  it("writes nothing for a layout that did not change", () => {
+    expect(applyLayout(spec, baseline)).toEqual(spec)
+  })
+})
+
+describe("resizing a panel above the first row", () => {
+  const spec = specOf([
+    panel("top", 0, 0, 12, 4),
+    row("r", 4, false, [panel("c", 0, 5, 12, 8)]),
+  ])
+
+  it("shifts the row and its children down", () => {
+    const membership = membershipOf(spec)
+    const grown = resizeItemPushing(
+      settle(layoutFromSpec(spec), membership),
+      membership,
+      "top",
+      0,
+      3
+    )
+    expect(find(grown, "top")).toMatchObject({ y: 0, h: 7 })
+    expect(find(grown, "r").y).toBe(7)
+    expect(find(grown, "c").y).toBe(8)
   })
 })
