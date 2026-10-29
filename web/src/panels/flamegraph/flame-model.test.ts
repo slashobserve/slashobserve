@@ -8,13 +8,18 @@ import {
   brokenOrderReason,
   colorOf,
   flameModel,
+  focusText,
   fullRange,
+  isFlameKey,
   missingFieldsReason,
   nodeAt,
   packagePrefix,
   search,
   shareText,
+  stepFocus,
+  zoomForFocus,
   zoomTo,
+  type FlameKey,
   type FlameModel,
   type FlameProfile,
 } from "./flame-model"
@@ -250,5 +255,110 @@ describe("shareText", () => {
   it("shows two decimals", () => {
     expect(shareText(0.6)).toBe("60.00%")
     expect(shareText(0.00042)).toBe("0.04%")
+  })
+})
+
+describe("stepFocus", () => {
+  const rows: Row[] = [
+    [0, 10, 0, "root"],
+    [1, 4, 0, "a"],
+    [2, 4, 4, "a.leaf"],
+    [1, 6, 1, "b"],
+    [2, 2, 2, "b.first"],
+    [2, 3, 3, "b.second"],
+  ]
+  const profile = profileOf(rows)
+  const [root, a, aLeaf, b, bFirst, bSecond] = [0, 1, 2, 3, 4, 5]
+
+  const cases: [string, number | null, FlameKey, number][] = [
+    ["nothing focused enters at the root on Down", null, "ArrowDown", root],
+    ["nothing focused enters at the root on Left", null, "ArrowLeft", root],
+    ["Home from a leaf goes to the root", bSecond, "Home", root],
+    ["Up at the root stays", root, "ArrowUp", root],
+    ["Left at the root stays", root, "ArrowLeft", root],
+    ["Right at the root stays", root, "ArrowRight", root],
+    ["Down from the root goes to the first child", root, "ArrowDown", a],
+    ["Up from a middle node goes to its parent", b, "ArrowUp", root],
+    ["Down from a middle node goes to its first child", b, "ArrowDown", bFirst],
+    ["Right from a middle node goes to the next sibling", a, "ArrowRight", b],
+    ["Left from a middle node goes to the previous one", b, "ArrowLeft", a],
+    ["Right crosses parents along the row", aLeaf, "ArrowRight", bFirst],
+    ["Left crosses parents along the row", bFirst, "ArrowLeft", aLeaf],
+    ["Right at the end of a row stays", bSecond, "ArrowRight", bSecond],
+    ["Left at the start of a row stays", aLeaf, "ArrowLeft", aLeaf],
+    ["Down on a leaf stays", aLeaf, "ArrowDown", aLeaf],
+    ["Up from a leaf goes to its parent", bSecond, "ArrowUp", b],
+  ]
+
+  it.each(cases)("%s", (_name, from, key, expected) => {
+    expect(stepFocus(profile, from, key)).toBe(expected)
+  })
+
+  it("treats an index outside the profile like nothing focused", () => {
+    expect(stepFocus(profile, 99, "ArrowDown")).toBe(root)
+  })
+})
+
+describe("isFlameKey", () => {
+  it("accepts the arrows and Home only", () => {
+    expect(
+      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home"].every(
+        isFlameKey
+      )
+    ).toBe(true)
+    expect(["Enter", " ", "Escape", "a"].some(isFlameKey)).toBe(false)
+  })
+})
+
+describe("focusText", () => {
+  it("reads the label, total with share, self and one-based level", () => {
+    const profile = profileOf(sample)
+    expect(focusText(profile, 1)).toBe(
+      "http.serve, total 6 ms (60.00%), self 2 ms, level 2"
+    )
+  })
+})
+
+describe("zoomForFocus", () => {
+  const profile = profileOf([
+    [0, 10, 0, "root"],
+    [1, 4, 0, "a"],
+    [2, 4, 4, "a.leaf"],
+    [1, 6, 1, "b"],
+    [2, 2, 2, "b.first"],
+    [2, 3, 3, "b.second"],
+    [1, 0, 0, "idle"],
+  ])
+  const [root, a, aLeaf, b, bFirst, bSecond, idle] = [0, 1, 2, 3, 4, 5, 6]
+
+  const cases: [string, number | null, number, number | null][] = [
+    ["keeps the full view for any frame", null, bSecond, null],
+    ["keeps a zoom when the frame lies inside it", a, aLeaf, a],
+    ["keeps a zoom when the frame is an ancestor that covers it", a, root, a],
+    ["keeps a zoom when the frame is the zoomed one", b, b, b],
+    [
+      "goes back to the full view for a sibling of a top level zoom",
+      a,
+      b,
+      null,
+    ],
+    ["zooms to the shared parent for a sibling frame", bFirst, bSecond, b],
+    ["goes to the nearest ancestor that covers the zoom", aLeaf, bSecond, null],
+    ["keeps the zoom for a frame with no width", a, idle, a],
+    ["keeps the full view for a frame with no width", null, idle, null],
+    [
+      "goes to the full view when the zoom sits in another branch",
+      bFirst,
+      aLeaf,
+      null,
+    ],
+  ]
+
+  it.each(cases)("%s", (_name, zoomed, focused, expected) => {
+    expect(zoomForFocus(profile, zoomed, focused)).toBe(expected)
+  })
+
+  it("ignores an index outside the profile", () => {
+    expect(zoomForFocus(profile, a, 99)).toBe(a)
   })
 })

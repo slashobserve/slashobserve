@@ -1,5 +1,9 @@
 import { styleForSlot } from "../colors"
-import type { FieldConfig, FieldResolver } from "../field-config"
+import {
+  displayValue,
+  type FieldConfig,
+  type FieldResolver,
+} from "../field-config"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
 export type FlameNode = {
@@ -208,4 +212,72 @@ export function search(
 
 export function shareText(share: number): string {
   return `${(share * 100).toFixed(2)}%`
+}
+
+const flameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home"]
+
+export type FlameKey =
+  "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home"
+
+export function isFlameKey(key: string): key is FlameKey {
+  return flameKeys.includes(key)
+}
+
+export function stepFocus(
+  profile: FlameProfile,
+  index: number | null,
+  key: FlameKey
+): number | null {
+  const root = profile.levels[0]?.[0] ?? null
+  const node = index === null ? undefined : profile.nodes[index]
+  if (!node || key === "Home") return root
+  switch (key) {
+    case "ArrowUp":
+      return node.parent === -1 ? node.index : node.parent
+    case "ArrowDown":
+      return (
+        profile.levels[node.level + 1]?.find(
+          (child) => profile.nodes[child].parent === node.index
+        ) ?? node.index
+      )
+    case "ArrowLeft":
+    case "ArrowRight": {
+      const row = profile.levels[node.level]
+      const next = row.indexOf(node.index) + (key === "ArrowLeft" ? -1 : 1)
+      return row[next] ?? node.index
+    }
+  }
+}
+
+export function focusText(profile: FlameProfile, index: number): string {
+  const node = profile.nodes[index]
+  const total = displayValue(node.value, profile.config).text
+  const self = displayValue(node.self, profile.config).text
+  return `${node.label}, total ${total} (${shareText(node.share)}), self ${self}, level ${node.level + 1}`
+}
+
+export function zoomForFocus(
+  profile: FlameProfile,
+  zoomed: number | null,
+  focused: number
+): number | null {
+  const node = profile.nodes[focused]
+  if (!node || node.value <= 0) return zoomed
+  const range = zoomed === null ? fullRange(profile) : zoomTo(profile, zoomed)
+  if (node.start < range.end && node.start + node.value > range.start) {
+    return zoomed
+  }
+  let ancestor = node.parent
+  while (ancestor !== -1) {
+    const candidate = profile.nodes[ancestor]
+    if (
+      candidate.parent !== -1 &&
+      candidate.start <= range.start &&
+      candidate.start + candidate.value >= range.end
+    ) {
+      return ancestor
+    }
+    ancestor = candidate.parent
+  }
+  return null
 }

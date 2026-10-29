@@ -73,3 +73,24 @@ export function fitBounds(
     zoom: Math.max(minZoom(width, height), Math.min(fitMaxZoom, fitted.zoom)),
   }
 }
+
+export function clampCenter(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+export function panBy(
+  view: View,
+  dx: number,
+  dy: number,
+  width: number,
+  height: number
+): View {
+  const size = worldSize(view.zoom)
+  return {
+    zoom: view.zoom,
+    center: {
+      x: clampCenter(view.center.x + (dx * width) / size),
+      y: clampCenter(view.center.y + (dy * height) / size),
+    },
+  }
+}
