@@ -32,14 +32,15 @@ type fakeDashboards struct{}
 func (fakeDashboards) LatestVersion(context.Context, pgtype.UUID) (int, error) { return 1, nil }
 
 type fakeSessions struct {
-	valid atomic.Bool
-	fail  atomic.Bool
-	calls atomic.Int32
+	valid    atomic.Bool
+	failNext atomic.Int32
+	calls    atomic.Int32
 }
 
 func (f *fakeSessions) Valid(*http.Request) (bool, error) {
 	f.calls.Add(1)
-	if f.fail.Load() {
+	if f.failNext.Load() > 0 {
+		f.failNext.Add(-1)
 		return false, errors.New("database unavailable")
 	}
 	return f.valid.Load(), nil
@@ -125,26 +126,33 @@ func TestStreamEndsWhenTheCredentialStopsBeingValid(t *testing.T) {
 	}
 }
 
-func TestStreamSurvivesATransientCheckFailure(t *testing.T) {
+func TestStreamSurvivesASingleCheckFailure(t *testing.T) {
 	sessions := &fakeSessions{}
 	sessions.valid.Store(true)
 	s := openEventStream(t, sessions)
 	s.waitFor(t, "event: ready")
 
-	sessions.fail.Store(true)
-	before := sessions.calls.Load()
-	deadline := time.Now().Add(waitTimeout)
-	for sessions.calls.Load() < before+3 {
-		if time.Now().After(deadline) {
-			t.Fatal("the stream never re-checked its credentials")
-		}
+	sessions.failNext.Store(1)
+	for sessions.failNext.Load() > 0 {
 		time.Sleep(testPing)
 	}
-	if s.closedWithin(5 * testPing) {
-		t.Fatal("a failed lookup must not close the stream")
-	}
-	sessions.fail.Store(false)
 	s.waitFor(t, ": ping")
+	s.waitFor(t, ": ping")
+	if s.closedWithin(5 * testPing) {
+		t.Fatal("one failed lookup must not close the stream")
+	}
+}
+
+func TestStreamEndsAfterConsecutiveCheckFailures(t *testing.T) {
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	s := openEventStream(t, sessions)
+	s.waitFor(t, "event: ready")
+
+	sessions.failNext.Store(1000)
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream stayed open while its credentials could not be checked")
+	}
 }
 
 type failingDashboards struct{ err error }

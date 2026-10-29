@@ -30,6 +30,7 @@ const (
 	eventStreamContent  = "text/event-stream"
 	writeTimeout        = 30 * time.Second
 	sessionCheckTimeout = 5 * time.Second
+	maxFailedChecks     = 2
 )
 
 type Dashboards interface {
@@ -131,6 +132,7 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
 	defer ping.Stop()
 	lifetime := time.NewTimer(maxStreamLifetime)
 	defer lifetime.Stop()
+	failedChecks := 0
 	for {
 		select {
 		case ev := <-sub.Events():
@@ -142,7 +144,13 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
 				return
 			}
 		case <-ping.C:
-			if !h.credentialsValid(c) || !write(c, ": ping\n\n") {
+			valid, failed := h.credentialsValid(c)
+			if failed {
+				failedChecks++
+			} else {
+				failedChecks = 0
+			}
+			if !valid || failedChecks >= maxFailedChecks || !write(c, ": ping\n\n") {
 				return
 			}
 		case <-lifetime.C:
@@ -155,7 +163,7 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
 	}
 }
 
-func (h *Handler) credentialsValid(c *gin.Context) bool {
+func (h *Handler) credentialsValid(c *gin.Context) (valid, failed bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
 	defer cancel()
 	ok, err := h.sessions.Valid(c.Request.WithContext(ctx))
@@ -163,9 +171,9 @@ func (h *Handler) credentialsValid(c *gin.Context) bool {
 		if c.Request.Context().Err() == nil {
 			h.logger.WarnContext(c.Request.Context(), "re-check event stream credentials", logattrs.Failure("stream_auth_check_failed", err)...)
 		}
-		return c.Request.Context().Err() == nil
+		return c.Request.Context().Err() == nil, true
 	}
-	return ok
+	return ok, false
 }
 
 func (h *Handler) acquire(key string) (int, string) {
