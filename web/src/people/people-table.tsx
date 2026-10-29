@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { initials } from "@/shell/initials"
 
 import { usersQuery } from "./queries"
+import { PersonRole } from "./role-select"
 import { isOnline } from "./sign-in-policy"
 import { SignOutEverywhereButton } from "./sign-out-everywhere-button"
 
@@ -46,11 +47,12 @@ export function PeopleTable() {
   }
 
   return (
-    <TableCard label="People" minWidth={760}>
+    <TableCard label="People" minWidth={920}>
       <thead>
         <tr>
           <HeaderCell>Name</HeaderCell>
           <HeaderCell>Email</HeaderCell>
+          <HeaderCell>Role</HeaderCell>
           <HeaderCell>Dashboards</HeaderCell>
           <HeaderCell>API keys</HeaderCell>
           <HeaderCell>Last active</HeaderCell>
@@ -74,6 +76,9 @@ export function PeopleTable() {
               </span>
             </Cell>
             <Cell className="text-muted-foreground">{user.email}</Cell>
+            <Cell>
+              <PersonRole person={user} />
+            </Cell>
             <Cell>{user.dashboard_count}</Cell>
             <Cell>{user.key_count}</Cell>
             <Cell>
