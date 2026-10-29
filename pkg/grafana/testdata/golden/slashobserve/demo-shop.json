@@ -5,8 +5,8 @@
     "title": "Demo shop (Grafana)",
     "uid": "demo-shop",
     "schema_version": 39,
-    "bytes": 66615,
-    "panels": 26,
+    "bytes": 66933,
+    "panels": 27,
     "rows": 6,
     "variables": 2
   },
@@ -40,8 +40,8 @@
     "importer_version": "<version>",
     "verified": false,
     "counts": {
-      "total": 26,
-      "imported": 22,
+      "total": 27,
+      "imported": 23,
       "partial": 2,
       "placeholder": 2,
       "unverified": 0
@@ -587,6 +587,19 @@
         "title": "About",
         "type": "text",
         "source_type": "text",
+        "row": "Lists and text",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[32]",
+        "title": "Grafana blog",
+        "type": "news",
+        "source_type": "news",
         "row": "Lists and text",
         "status": "imported",
         "reasons": [],
@@ -1529,6 +1542,20 @@
               "h": 3
             },
             "content": "This dashboard is written in Grafana's dashboard format and imported into SlashObserve.\n\nIt carries one panel of every Grafana panel type SlashObserve supports, backed by the demo shop's Prometheus metrics and ClickHouse logs and traces."
+          },
+          {
+            "id": "p33",
+            "type": "news",
+            "title": "Grafana blog",
+            "gridPos": {
+              "x": 0,
+              "y": 111,
+              "w": 24,
+              "h": 8
+            },
+            "display": {
+              "feedUrl": "https://grafana.com/blog/news.xml"
+            }
           }
         ]
       }

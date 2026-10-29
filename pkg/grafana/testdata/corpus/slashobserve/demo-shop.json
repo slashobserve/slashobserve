@@ -2432,6 +2432,22 @@
       "pluginVersion": "11.2.0",
       "title": "About",
       "type": "text"
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 111
+      },
+      "id": 33,
+      "options": {
+        "feedUrl": "https://grafana.com/blog/news.xml",
+        "showImage": true
+      },
+      "pluginVersion": "11.2.0",
+      "title": "Grafana blog",
+      "type": "news"
     }
   ],
   "refresh": "30s",
