@@ -280,6 +280,7 @@
     },
     "refresh": "30s",
     "timezone": "utc",
+    "cursorSync": "crosshair",
     "variables": [
       {
         "name": "datasource",

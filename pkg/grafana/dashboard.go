@@ -108,6 +108,7 @@ func (c *converter) convertHead() {
 	c.convertTime(dash)
 	c.convertRefresh(dash)
 	c.convertTimezone(dash)
+	c.convertCursorSync(dash)
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
 	if picker, ok := asObject(dash["timepicker"]); ok && truthy(picker["hidden"]) {
@@ -190,6 +191,36 @@ func (c *converter) convertTimezone(dash map[string]any) {
 	default:
 		c.note("timezone", "The time zone is not supported and is not kept.", "timezone")
 	}
+}
+
+func (c *converter) convertCursorSync(dash map[string]any) {
+	mode, ok := grafanaCursorSync(dash)
+	if !ok {
+		c.note("shared crosshair", "The shared crosshair setting is not supported and is not kept.", "graphTooltip")
+		return
+	}
+	if mode != spec.Defaults().Dashboard.CursorSync {
+		c.head.CursorSync = mode
+	}
+}
+
+func grafanaCursorSync(dash map[string]any) (spec.CursorSync, bool) {
+	raw, has := dash["graphTooltip"]
+	if !has || raw == nil {
+		if truthy(dash["sharedCrosshair"]) {
+			return spec.CursorSyncCrosshair, true
+		}
+		return spec.CursorSyncOff, true
+	}
+	switch n, ok := asInt(raw); {
+	case ok && n == 0:
+		return spec.CursorSyncOff, true
+	case ok && n == 1:
+		return spec.CursorSyncCrosshair, true
+	case ok && n == 2:
+		return spec.CursorSyncTooltip, true
+	}
+	return "", false
 }
 
 func (c *converter) convertLinks(dash map[string]any) {

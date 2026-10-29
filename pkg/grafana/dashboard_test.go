@@ -1,6 +1,10 @@
 package grafana
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/slashobserve/slashobserve/pkg/spec"
+)
 
 func TestLinkOptionsAreReported(t *testing.T) {
 	links := `"links":[
@@ -29,12 +33,42 @@ func TestLinkOptionsAreReported(t *testing.T) {
 	}
 }
 
-func TestLegacyCrosshairSettingIsSilent(t *testing.T) {
-	res := convertDoc(t, dashboardJSON(`"sharedCrosshair":true,"graphTooltip":1`, panelJSON(1, 0, 0, 12, 4, "")))
-	if notes := notesFor(res, "dashboard options"); len(notes) != 0 {
-		t.Fatalf("notes = %+v, want none", notes)
+func TestCursorSync(t *testing.T) {
+	tests := []struct {
+		name     string
+		extra    string
+		want     spec.CursorSync
+		wantNote bool
+	}{
+		{name: "no setting", extra: ``, want: ""},
+		{name: "tooltip 0", extra: `"graphTooltip":0`, want: ""},
+		{name: "tooltip 1", extra: `"graphTooltip":1`, want: spec.CursorSyncCrosshair},
+		{name: "tooltip 2", extra: `"graphTooltip":2`, want: spec.CursorSyncTooltip},
+		{name: "legacy crosshair true", extra: `"sharedCrosshair":true`, want: spec.CursorSyncCrosshair},
+		{name: "legacy crosshair false", extra: `"sharedCrosshair":false`, want: ""},
+		{name: "tooltip wins over legacy crosshair", extra: `"sharedCrosshair":false,"graphTooltip":2`, want: spec.CursorSyncTooltip},
+		{name: "unknown tooltip number", extra: `"graphTooltip":3`, want: "", wantNote: true},
+		{name: "tooltip as string", extra: `"graphTooltip":"1"`, want: "", wantNote: true},
 	}
-	res = convertDoc(t, dashboardJSON(`"somethingNew":true`, panelJSON(1, 0, 0, 12, 4, "")))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := convertDoc(t, dashboardJSON(tt.extra, panelJSON(1, 0, 0, 12, 4, "")))
+			if res.Spec.CursorSync != tt.want {
+				t.Fatalf("cursorSync = %q, want %q", res.Spec.CursorSync, tt.want)
+			}
+			notes := notesFor(res, "shared crosshair")
+			if tt.wantNote != (len(notes) == 1 && hasPath(notes, "graphTooltip")) || len(notes) > 1 {
+				t.Fatalf("shared crosshair notes = %+v, want note: %v", notes, tt.wantNote)
+			}
+			if notes := notesFor(res, "dashboard options"); len(notes) != 0 {
+				t.Fatalf("dashboard options notes = %+v, want none", notes)
+			}
+		})
+	}
+}
+
+func TestUnknownDashboardOptionIsReported(t *testing.T) {
+	res := convertDoc(t, dashboardJSON(`"somethingNew":true`, panelJSON(1, 0, 0, 12, 4, "")))
 	if notes := notesFor(res, "dashboard options"); len(notes) != 1 || !hasPath(notes, "somethingNew") {
 		t.Fatalf("notes = %+v, want the unknown key reported", notes)
 	}

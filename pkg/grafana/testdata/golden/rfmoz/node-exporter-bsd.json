@@ -1184,6 +1184,7 @@
       "to": "now"
     },
     "refresh": "1m",
+    "cursorSync": "crosshair",
     "variables": [
       {
         "name": "ds_prometheus",

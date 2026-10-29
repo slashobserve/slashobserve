@@ -347,6 +347,7 @@
       "to": "now"
     },
     "refresh": "30s",
+    "cursorSync": "tooltip",
     "variables": [
       {
         "name": "datasource",

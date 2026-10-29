@@ -573,6 +573,7 @@
       "to": "now"
     },
     "refresh": "30s",
+    "cursorSync": "crosshair",
     "variables": [
       {
         "name": "datasource",
