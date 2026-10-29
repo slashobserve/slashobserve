@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { Entry } from "@/folders/grants"
 import type { Folder, FolderPermissions } from "@/folders/queries"
 
-import { accessRows } from "./access-rows"
+import { accessRows, canManageAccess } from "./access-rows"
 
 const priya: Entry = {
   kind: "user",
@@ -144,4 +144,18 @@ describe("accessRows", () => {
     )
     expect(new Set(rows.map((row) => row.key)).size).toBe(rows.length)
   })
+})
+
+describe("canManageAccess", () => {
+  it.each([
+    { general: false, canManage: true, expected: true },
+    { general: false, canManage: false, expected: false },
+    { general: true, canManage: true, expected: false },
+    { general: true, canManage: false, expected: false },
+  ])(
+    "general $general, can manage $canManage shows the link: $expected",
+    ({ general, canManage, expected }) => {
+      expect(canManageAccess({ general }, canManage)).toBe(expected)
+    }
+  )
 })

@@ -9,10 +9,10 @@ import { folderPermissionsQuery, folderQuery } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { accessRows, type AccessRow } from "./access-rows"
+import { accessRows, canManageAccess, type AccessRow } from "./access-rows"
 
 type Props = {
-  folder: { id: string; title: string }
+  folder: { id: string; title: string; general: boolean }
   canManage: boolean
   headingId: string
 }
@@ -74,7 +74,7 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
       ) : (
         <Skeleton className="h-24 w-full animate-none motion-safe:animate-pulse" />
       )}
-      {canManage ? (
+      {canManageAccess(folder, canManage) ? (
         <Link
           to="/folders/$folderId"
           params={{ folderId: folder.id }}

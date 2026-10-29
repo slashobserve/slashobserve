@@ -33,7 +33,7 @@ type Props = {
   latestVersion: number
   pinned: boolean
   canEdit: boolean
-  folder: { id: string; title: string }
+  folder: { id: string; title: string; general: boolean }
   canManage: boolean
   madeBy: string | null
   back: string | undefined

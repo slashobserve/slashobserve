@@ -93,3 +93,10 @@ export function accessRows(
   rows.push(instanceAdmins)
   return rows
 }
+
+export function canManageAccess(
+  folder: { general: boolean },
+  canManage: boolean
+): boolean {
+  return canManage && !folder.general
+}
