@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
+import { RoleGate } from "@/components/role-gate"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -15,13 +16,20 @@ export const Route = createFileRoute("/_authed/_shell/keys")({
 })
 
 function KeysPage() {
+  useDocumentTitle("API keys - SlashObserve")
+  return (
+    <RoleGate min="admin">
+      <KeysContent />
+    </RoleGate>
+  )
+}
+
+function KeysContent() {
   const createButton = useRef<HTMLButtonElement>(null)
   const nameInput = useRef<HTMLInputElement>(null)
   const copyButton = useRef<HTMLButtonElement>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const wasOpen = useRef(false)
-
-  useDocumentTitle("API keys - SlashObserve")
 
   useEffect(() => {
     const closed = wasOpen.current && !panelOpen

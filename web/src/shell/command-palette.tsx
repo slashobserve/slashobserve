@@ -8,7 +8,7 @@ import {
 import { Autocomplete } from "@base-ui/react/autocomplete"
 import { Dialog } from "@base-ui/react/dialog"
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import {
   ArrowUpRightIcon,
   DatabaseIcon,
@@ -68,10 +68,11 @@ function EntryIcon({ entry }: { entry: PaletteEntry }) {
 
 function PaletteBody({ close }: { close: () => void }) {
   const navigate = useNavigate()
+  const { principal } = useRouteContext({ from: "/_authed" })
   const [query, setQuery] = useState("")
   const { signOut } = useSignOut()
   const titles = useQuery(dashboardTitlesQuery())
-  const groups = filterPalette(query, titles.data ?? [])
+  const groups = filterPalette(query, titles.data ?? [], principal.role)
 
   const highlighted = useRef<PaletteEntry | undefined>(undefined)
 

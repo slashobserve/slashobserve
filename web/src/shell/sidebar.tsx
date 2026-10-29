@@ -1,5 +1,10 @@
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react"
-import { Link, useLinkProps, useRouterState } from "@tanstack/react-router"
+import {
+  Link,
+  useLinkProps,
+  useRouteContext,
+  useRouterState,
+} from "@tanstack/react-router"
 import {
   DatabaseIcon,
   KeyIcon,
@@ -20,7 +25,12 @@ import {
 import { cn } from "@/lib/utils"
 
 import { AccountMenu } from "./account-menu"
-import { isNavItemActive, navItems, type NavItem, type NavPath } from "./nav"
+import {
+  isNavItemActive,
+  visibleNavItems,
+  type NavItem,
+  type NavPath,
+} from "./nav"
 import { useSidebarStore } from "./sidebar-store"
 import {
   clampSidebarWidth,
@@ -204,8 +214,10 @@ export function Sidebar() {
   const [dragWidth, setDragWidth] = useState<number | null>(null)
   const workspaceId = useId()
   const shown = collapsed ? sidebarCollapsedWidth : (dragWidth ?? width)
-  const main = navItems.filter((item) => item.group === "main")
-  const workspace = navItems.filter((item) => item.group === "workspace")
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const items = visibleNavItems(principal.role)
+  const main = items.filter((item) => item.group === "main")
+  const workspace = items.filter((item) => item.group === "workspace")
 
   function renderItems(items: readonly NavItem[]) {
     return items.map((item) => (
