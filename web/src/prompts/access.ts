@@ -1,8 +1,6 @@
-import type { components } from "@/api/schema.gen"
+import type { Principal } from "@/lib/auth"
+import { roleAtLeast } from "@/lib/roles"
 
-type Role = components["schemas"]["Role"]
-
-// "object &" keeps TypeScript's weak-type check from rejecting a Principal whose type has no role field yet.
-export function canDriveAgent(principal: object & { role?: Role }): boolean {
-  return principal.role === "admin" || principal.role === "editor"
+export function canDriveAgent(principal: Principal): boolean {
+  return roleAtLeast(principal.role, "editor")
 }
