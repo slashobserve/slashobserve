@@ -11,11 +11,20 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { modChordLabel } from "@/lib/shortcuts"
+import type { CursorSync } from "@/panels/shared-cursor"
 import { useSignOut } from "@/shell/use-sign-out"
+
+import { cursorSyncOptions, isCursorSync } from "./cursor-sync"
 
 import { findFirstMoveHandle } from "./edit/edit-controls"
 import { editLayoutButtonId } from "./edit/layout-store"
@@ -26,6 +35,8 @@ type Props = {
   pinned: boolean
   onEditLayout: () => void
   onExport: () => void
+  cursorSync: CursorSync
+  onCursorSyncChange: (mode: CursorSync) => void
 }
 
 export function MoreMenu({
@@ -34,6 +45,8 @@ export function MoreMenu({
   pinned,
   onEditLayout,
   onExport,
+  cursorSync,
+  onCursorSyncChange,
 }: Props) {
   const navigate = useNavigate()
   const { signOut, pending } = useSignOut()
@@ -45,7 +58,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, export, API keys, sign out"
+            aria-label="More: edit layout, export, chart hover, API keys, sign out"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -86,6 +99,32 @@ export function MoreMenu({
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-4">
+            Chart hover
+            <DropdownMenuShortcut>
+              {modChordLabel(navigator.userAgent, "O")}
+            </DropdownMenuShortcut>
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={cursorSync}
+            onValueChange={(value) => {
+              if (isCursorSync(value)) onCursorSyncChange(value)
+            }}
+          >
+            {cursorSyncOptions.map((option) => (
+              <DropdownMenuRadioItem
+                key={option.value}
+                value={option.value}
+                closeOnClick
+                inset
+              >
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void navigate({ to: "/keys" })}>
           <KeyIcon aria-hidden="true" />

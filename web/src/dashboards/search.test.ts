@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest"
 import { parseSearch, stringifySearch } from "@/lib/search"
 
 import {
+  backFromSearch,
   dashboardSearchFromBack,
   searchFromState,
+  validateBack,
   validateDashboardSearch,
   withVariables,
 } from "./search"
@@ -94,6 +96,21 @@ describe("validateDashboardSearch", () => {
       vars: {},
     })
     expect(validateDashboardSearch({ tab: "query" })).toEqual({ vars: {} })
+  })
+
+  it("keeps a valid cursor mode and drops anything else", () => {
+    expect(validateDashboardSearch({ cursor: "tooltip" }).cursor).toBe(
+      "tooltip"
+    )
+    expect(validateDashboardSearch({ cursor: "shared" }).cursor).toBeUndefined()
+  })
+
+  it("keeps the cursor mode through the back round trip", () => {
+    const back = backFromSearch(
+      validateDashboardSearch({ cursor: "crosshair" })
+    )
+    expect(back).toBe("cursor=crosshair")
+    expect(validateBack(back)).toBe("cursor=crosshair")
   })
 
   it("accepts the refresh options and custom intervals", () => {

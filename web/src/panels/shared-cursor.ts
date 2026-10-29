@@ -1,4 +1,6 @@
-type CursorSync = "off" | "crosshair" | "tooltip"
+import type { Dashboard } from "@/spec"
+
+export type CursorSync = NonNullable<Dashboard["cursorSync"]>
 type PeerCursor = { x: number; tooltip: boolean } | null
 export type CursorMember = {
   move: (x: number | null) => void
