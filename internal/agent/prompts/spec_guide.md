@@ -67,6 +67,7 @@ Leave out every value that equals its default.
 - Add a variable only when the request asks for a breakdown the user will filter.
 - `query` variables: Prometheus `label_values(<metric>, <label>)`, referenced as `$name`, or `${name:regex}` inside `=~`; ClickHouse references use `${name:sqlstring}` inside `IN (...)`.
 - `custom` lists fixed values; `interval` lists steps in `options`, such as `["1m", "5m", "1h"]`, with `"auto": true`; `constant` holds one shared value; `textbox` takes free text; `adhoc` adds key and value filters, which Prometheus applies to every query on its datasource and a ClickHouse query uses as `AND $name` in its WHERE clause.
+- A panel, query, `query` variable or `adhoc` variable `datasource` may be `${name}`, naming a `datasource` variable declared earlier in `variables`; its queries then run on the datasource selected in that variable, and its `default` is always a uid.
 - An `interval` variable with `"auto": true` and no `default` starts on auto; set `default` to one of its `options` to start on a fixed step.
 - A variable's `default` is one value, a list for a multi variable, or `$__all`.
 - Global values for any query: `$__interval_ms`, `$__range_s`, `$__range_ms`, `${__from:date:seconds}`, `${__to:date:seconds}`, `$__dashboard` and `${__user.login}`.
