@@ -1,0 +1,177 @@
+prompts:
+  get:
+    operationId: listSavedPrompts
+    summary: List the saved prompts the caller may run.
+    description: >-
+      Lists the prompts the caller may run: the caller's own prompts first, then prompts other people shared, each group by name ignoring case, at most 500.
+      A service-account key sees shared prompts only.
+      With `name`, returns at most one prompt matched ignoring case and with runs of spaces read as one: the caller's own prompt of that name, else the shared prompt of that name; an empty list when there is none.
+    parameters:
+      - name: name
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+    responses:
+      "200":
+        description: The prompts the caller may run.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedPromptList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createSavedPrompt
+    summary: Save a prompt.
+    description: >-
+      Saves a prompt owned by the caller.
+      Service accounts cannot (403 `forbidden`).
+      At most 100 prompts per person.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [name, body]
+            properties:
+              name:
+                type: string
+              body:
+                type: string
+              shared:
+                type: boolean
+                default: false
+    responses:
+      "201":
+        description: The prompt is saved.
+        headers:
+          Location:
+            required: true
+            description: "`/api/v1/prompts/{id}` of the new prompt."
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedPrompt"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "409":
+        description: The caller already has a prompt with that name, or `shared` is true and another shared prompt has it (`name_taken`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The name is not valid (`invalid_name`), the body is not valid (`invalid_body`), or the caller already has 100 prompts (`too_many_prompts`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+prompts-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  patch:
+    operationId: updateSavedPrompt
+    summary: Change a saved prompt.
+    description: >-
+      Changes the name, body or sharing of a prompt the caller can edit.
+      Only the fields sent change.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            minProperties: 1
+            properties:
+              name:
+                type: string
+              body:
+                type: string
+              shared:
+                type: boolean
+    responses:
+      "200":
+        description: The prompt as changed.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SavedPrompt"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: The caller cannot see the prompt (`not_found`); another person's private prompt looks missing.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: The new name is taken by another prompt of the owner, or by another shared prompt when the prompt is shared (`name_taken`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The name is not valid (`invalid_name`) or the body is not valid (`invalid_body`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteSavedPrompt
+    summary: Delete a saved prompt.
+    description: >-
+      Deletes a prompt the caller can edit.
+      A service account gets 403 `forbidden`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+    responses:
+      "204":
+        description: The prompt is deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

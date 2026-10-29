@@ -248,6 +248,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the saved prompts the caller may run.
+         * @description Lists the prompts the caller may run: the caller's own prompts first, then prompts other people shared, each group by name ignoring case, at most 500. A service-account key sees shared prompts only. With `name`, returns at most one prompt matched ignoring case and with runs of spaces read as one: the caller's own prompt of that name, else the shared prompt of that name; an empty list when there is none.
+         */
+        get: operations["listSavedPrompts"];
+        put?: never;
+        /**
+         * Save a prompt.
+         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`). At most 100 prompts per person.
+         */
+        post: operations["createSavedPrompt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/prompts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved prompt.
+         * @description Deletes a prompt the caller can edit. A service account gets 403 `forbidden`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+         */
+        delete: operations["deleteSavedPrompt"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a saved prompt.
+         * @description Changes the name, body or sharing of a prompt the caller can edit. Only the fields sent change.
+         */
+        patch: operations["updateSavedPrompt"];
+        trace?: never;
+    };
     "/datasources": {
         parameters: {
             query?: never;
@@ -1003,6 +1053,32 @@ export interface components {
              */
             managed_by: "settings" | "config";
             domains: components["schemas"]["OutboundDomain"][];
+        };
+        SavedPrompt: {
+            /** Format: uuid */
+            id: string;
+            /** @description Unique per owner and among shared prompts, ignoring case. Letters, numbers, spaces, `-` and `_`; it starts and ends with a letter or number, and runs of spaces are stored as one. */
+            name: string;
+            /** @description The prompt text sent to the agent, trimmed; at most 4000 characters, the same limit as `POST /observe`. */
+            body: string;
+            /** @description True when everyone on the server can see and run it; false when only its owner can. */
+            shared: boolean;
+            owner: components["schemas"]["SavedPromptOwner"];
+            /** @description Whether the caller may change or delete it. The server decides; clients never recompute it. */
+            can_edit: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SavedPromptOwner: {
+            /** Format: uuid */
+            id: string;
+            /** @description The owner's display name, or their email when they have no name. */
+            name: string;
+        };
+        SavedPromptList: {
+            prompts: components["schemas"]["SavedPrompt"][];
         };
         NewsItem: {
             /** @description Plain text, never markup. */
@@ -2179,6 +2255,188 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             /** @description The value is not a valid host name or pattern (`invalid_domain`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listSavedPrompts: {
+        parameters: {
+            query?: {
+                name?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The prompts the caller may run. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPromptList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createSavedPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    body: string;
+                    /** @default false */
+                    shared?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The prompt is saved. */
+            201: {
+                headers: {
+                    /** @description `/api/v1/prompts/{id}` of the new prompt. */
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPrompt"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The caller already has a prompt with that name, or `shared` is true and another shared prompt has it (`name_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The name is not valid (`invalid_name`), the body is not valid (`invalid_body`), or the caller already has 100 prompts (`too_many_prompts`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteSavedPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The prompt is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateSavedPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    body?: string;
+                    shared?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The prompt as changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedPrompt"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller cannot see the prompt (`not_found`); another person's private prompt looks missing. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The new name is taken by another prompt of the owner, or by another shared prompt when the prompt is shared (`name_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The name is not valid (`invalid_name`) or the body is not valid (`invalid_body`). */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -34,6 +34,10 @@ paths:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains"
   /outbound-domains/{domain}:
     $ref: "./paths/outbound-domains.yaml#/outbound-domains-domain"
+  /prompts:
+    $ref: "./paths/prompts.yaml#/prompts"
+  /prompts/{id}:
+    $ref: "./paths/prompts.yaml#/prompts-id"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
   /dashboards:
@@ -392,6 +396,59 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OutboundDomain"
+    SavedPrompt:
+      type: object
+      additionalProperties: false
+      required: [id, name, body, shared, owner, can_edit, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Unique per owner and among shared prompts, ignoring case. Letters, numbers, spaces, `-` and `_`; it starts and ends with a letter or number, and runs of spaces are stored as one.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: The prompt text sent to the agent, trimmed; at most 4000 characters, the same limit as `POST /observe`.
+        shared:
+          type: boolean
+          description: True when everyone on the server can see and run it; false when only its owner can.
+        owner:
+          $ref: "#/components/schemas/SavedPromptOwner"
+        can_edit:
+          type: boolean
+          description: Whether the caller may change or delete it. The server decides; clients never recompute it.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SavedPromptOwner:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: The owner's display name, or their email when they have no name.
+    SavedPromptList:
+      type: object
+      additionalProperties: false
+      required: [prompts]
+      properties:
+        prompts:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/SavedPrompt"
     NewsItem:
       type: object
       additionalProperties: false
