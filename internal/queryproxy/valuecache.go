@@ -83,10 +83,18 @@ func valueKey(uid string, q datasource.Query, rng datasource.TimeRange) [sha256.
 			continue
 		}
 		field(v.Name)
-		if v.All {
-			number(1)
-		} else {
-			number(0)
+		for _, flag := range []bool{v.All, v.AllValue, v.Adhoc} {
+			if flag {
+				number(1)
+			} else {
+				number(0)
+			}
+		}
+		number(int64(len(v.Filters)))
+		for _, f := range v.Filters {
+			field(f.Key)
+			field(f.Op)
+			field(f.Value)
 		}
 		number(int64(len(v.Values)))
 		for _, value := range v.Values {

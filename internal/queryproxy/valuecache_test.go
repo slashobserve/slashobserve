@@ -35,6 +35,22 @@ func TestValueKeyIncludesOnlyReferencedVariables(t *testing.T) {
 	}
 }
 
+func TestValueKeySeparatesAllValueAdhocAndFilters(t *testing.T) {
+	rng := testRange()
+	listed := datasource.Variable{Name: "job", Values: []string{"prod"}, All: true}
+	variants := map[string]datasource.Variable{
+		"allValue":      {Name: "job", Values: []string{"prod"}, All: true, AllValue: true},
+		"adhoc":         {Name: "job", Values: []string{"prod"}, All: true, Adhoc: true},
+		"adhoc filters": {Name: "job", Values: []string{"prod"}, All: true, Filters: []datasource.AdhocFilter{{Key: "env", Op: "=", Value: "prod"}}},
+	}
+	base := valueKey("prom", valueQuery(listed), rng)
+	for name, v := range variants {
+		if valueKey("prom", valueQuery(v), rng) == base {
+			t.Errorf("%s did not change the key", name)
+		}
+	}
+}
+
 func TestValueKeySeparatesValueBoundaries(t *testing.T) {
 	rng := testRange()
 	one := valueKey("prom", valueQuery(datasource.Variable{Name: "job", Values: []string{"ab"}}), rng)
