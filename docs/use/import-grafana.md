@@ -1,0 +1,30 @@
+---
+title: Import Grafana dashboards
+description: Import a Grafana dashboard from the web page, the CLI or MCP, and how datasources and folders are matched.
+---
+
+You can bring a Grafana dashboard in three ways: the web page Import from Grafana, `observe import`, and the `import_grafana_dashboard` MCP tool.
+The page and `observe import` call `POST /api/v1/imports` with the dashboard JSON as pasted or uploaded, the tool runs the same import, and `POST /api/v1/imports/preview` shows the result first without saving anything.
+The JSON can be the classic dashboard model, an export that shares a dashboard externally, or the response of Grafana's dashboard API.
+
+Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](../reference/datasources-file.md).
+An import cannot be saved while a datasource has no match, and SlashObserve never guesses between two datasources of the same type; give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
+
+The dashboard goes into a folder, chosen in this order:
+
+1. The request's `folder` title: `--folder` for `observe import`, `folder` for the API and the MCP tool.
+   The web page does not send one.
+2. The `meta.folderTitle` of an export taken from Grafana's dashboard API, which names the folder the dashboard had in Grafana.
+3. Your default folder: the folder you last created a dashboard in, else General.
+
+A title matches an existing folder without regard to case.
+A title of `General`, or an export title that is empty or not a valid folder title, means the default; an invalid `folder` in the request is refused with `400 invalid_request`.
+When no folder has the title, an Editor or Admin creates it.
+When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead, and the response carries a `folder_note` saying so (`observe import` prints it on standard error).
+The folder is chosen before the dashboard is saved, so an import that then fails can leave a new, empty folder behind; delete it from its settings page.
+
+The request body, with the dashboard JSON as a string, can be at most 8 MiB.
+It saves the dashboard as version 1 and runs every query once.
+Failing queries mark their panels and variables unverified in the import report instead of failing the import.
+Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
+The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.

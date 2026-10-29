@@ -21,7 +21,7 @@ function DatasourcesPage() {
         description="Defined in the datasources file on the server. Edit that file and restart to add or change one."
         actions={
           <a
-            href="https://github.com/slashobserve/slashobserve/blob/main/docs/self-hosting.md#datasources-file"
+            href="https://github.com/slashobserve/slashobserve/blob/main/docs/reference/datasources-file.md"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(

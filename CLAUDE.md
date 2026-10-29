@@ -99,7 +99,7 @@ Directories are created when their phase starts; this is where things go.
 - `api/`: the OpenAPI document for `/api/v1`: `openapi.yaml` holds the root, shared schemas and responses, and each feature adds `paths/<feature>.yaml` plus one `$ref` line in the root; `api.Load` embeds and validates it.
 - `web/`: React app (Bun); `web/src/routes` (TanStack Router files), `web/src/shell` (the sidebar shell), `web/src/components/ui` (shadcn), `web/e2e` (Playwright).
 - `deploy/compose/compose.yaml`: the one compose stack; `scripts/e2e.sh`: e2e stack lifecycle and API smoke suite.
-- `docs/self-hosting.md`: the operator guide (settings, datasources file, sign-in, roles, folders and access, LLM providers, keys, CLI, MCP, upgrades, security model); update it in the same change as any setting, default or behavior it describes.
+- `docs/`: the operator guide, one page per topic under `get-started/`, `connect/`, `use/`, `teams/`, `operate/` and `reference/`, with `self-hosting.md` as the index; update the page that covers a setting, default or behavior in the same change as the change.
 - `demo/shop/`: its own Go module (`github.com/slashobserve/slashobserve/demo/shop`) with the `serve`, `loadgen` and `healthcheck` commands; it emits the demo metrics, logs and traces.
 - `deploy/compose/{prometheus,clickhouse,otelcol}/`: the configs mounted into the demo stack's Prometheus, ClickHouse and OTel Collector.
 - `tools/<tool>/go.mod`: pinned Go dev tools (sqlc, golangci-lint).

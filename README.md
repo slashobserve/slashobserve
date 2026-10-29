@@ -14,7 +14,7 @@ Requirements: Docker with Compose v2.20 or newer.
     make demo
 
 Open http://localhost:8080, and stop the stack with `make demo-down`.
-The agent answers prompts only when an LLM provider is configured, for example by exporting `SLASHOBSERVE_LLM_PROVIDER=anthropic` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`; see [LLM providers](docs/self-hosting.md#llm-providers).
+The agent answers prompts only when an LLM provider is configured, for example by exporting `SLASHOBSERVE_LLM_PROVIDER=anthropic` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`; see [LLM providers](docs/connect/llm-providers.md).
 
 ## Demo stack
 
@@ -45,7 +45,7 @@ Then give it a prompt and it prints the dashboard address:
 Add `--json` to any command to get the API response as it is, and see `bin/observe --help` for the rest.
 Settings come from flags, then `OBSERVE_SERVER` and `OBSERVE_TOKEN`, then `~/.config/slashobserve/cli.json`.
 The saved key is sent only to the server it was saved for; for another server, pass `--token` or set `OBSERVE_TOKEN`.
-The same key connects Claude Code, OpenCode and Cursor to the server's MCP endpoint; see [MCP](docs/self-hosting.md#mcp).
+The same key connects Claude Code, OpenCode and Cursor to the server's MCP endpoint; see [MCP](docs/use/mcp.md).
 
 ## Develop
 
