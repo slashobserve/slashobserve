@@ -74,6 +74,7 @@ type Props = {
   latestVersion: number
   readOnly: boolean
   view: EditorView
+  focusFirstQuery: boolean
   onViewChange: (view: EditorView) => void
   viewGuardRef: Ref<ViewGuard>
   timeRange: { from?: string; to?: string }
@@ -102,6 +103,7 @@ export default function PanelEditor({
   latestVersion,
   readOnly,
   view,
+  focusFirstQuery,
   onViewChange,
   viewGuardRef,
   timeRange,
@@ -130,13 +132,10 @@ export default function PanelEditor({
   const [noteOpen, setNoteOpen] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
   const [applying, setApplying] = useState(false)
-  const [focusFirstQuery, setFocusFirstQuery] = useState(view === "editor")
   const editorRefs = useRef<(CodeEditorHandle | null)[]>([])
   const jsonGuard = useRef<LeaveGuard>(leaveNow)
   const noticeRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
-
-  if (focusFirstQuery && view !== "editor") setFocusFirstQuery(false)
 
   if (!dirty && version !== draft.baseVersion) {
     dispatch({ type: "rebase", version, panel })

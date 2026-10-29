@@ -128,6 +128,8 @@ export function EditPane({
   const afterLeave = useRef<(() => void) | null>(null)
   const viewGuard = useRef<ViewGuard>(null)
   const jsonOpen = useRef(view === "json")
+  const [focusFirstQuery, setFocusFirstQuery] = useState(view === "editor")
+  if (focusFirstQuery && view !== "editor") setFocusFirstQuery(false)
   useEffect(() => {
     jsonOpen.current = view === "json"
   }, [view])
@@ -277,6 +279,7 @@ export function EditPane({
             latestVersion={latestVersion}
             readOnly={readOnly}
             view={view}
+            focusFirstQuery={focusFirstQuery}
             onViewChange={onViewChange}
             viewGuardRef={viewGuard}
             timeRange={timeRange}
@@ -313,11 +316,11 @@ export function EditPane({
           editable ? (
             <EditorViewSwitch
               view={view}
-              onChange={(next) =>
-                viewGuard.current
-                  ? viewGuard.current.request(next)
-                  : onViewChange(next)
-              }
+              onChange={(next) => {
+                setFocusFirstQuery(false)
+                if (viewGuard.current) viewGuard.current.request(next)
+                else onViewChange(next)
+              }}
             />
           ) : null
         }
