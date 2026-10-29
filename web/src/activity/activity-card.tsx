@@ -31,6 +31,7 @@ type Props = {
   version: number
   latestVersion: number
   pinned: boolean
+  canEdit: boolean
   madeBy: string | null
   back: string | undefined
   timeRange: { from?: string; to?: string }
@@ -48,6 +49,7 @@ export function ActivityCard({
   version,
   latestVersion,
   pinned,
+  canEdit,
   madeBy,
   back,
   timeRange,
@@ -68,7 +70,7 @@ export function ActivityCard({
   const card = useRef<HTMLElement>(null)
 
   const panelId = search.panel
-  const editingId = search.edit !== undefined ? panelId : undefined
+  const editingId = canEdit && search.edit !== undefined ? panelId : undefined
   const editing = editingId !== undefined
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)

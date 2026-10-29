@@ -395,8 +395,9 @@ function DashboardView({
   const pinned = search.version !== undefined
   const open = useActivityStore((state) => state.open)
   const setOpen = useActivityStore((state) => state.setOpen)
-  const editingPanel = search.edit !== undefined && search.panel !== undefined
-  const cardVisible = (open || editingPanel) && !editing
+  const panelInUrl = search.edit !== undefined && search.panel !== undefined
+  const editingPanel = permissions.edit && panelInUrl
+  const cardVisible = (open || panelInUrl) && !editing
   const cardLayout = useActivityLayout(editingPanel)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
@@ -592,10 +593,7 @@ function DashboardView({
                   item.panel.id === search.panel || item.panel.id === flashed
                 }
                 editingPanel={
-                  permissions.edit &&
-                  editingPanel &&
-                  item.first &&
-                  item.panel.id === search.panel
+                  editingPanel && item.first && item.panel.id === search.panel
                 }
                 canComment={permissions.comment}
                 canEdit={permissions.edit}
@@ -613,6 +611,7 @@ function DashboardView({
           version={version}
           latestVersion={latestVersion}
           pinned={pinned}
+          canEdit={permissions.edit}
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           back={backFromSearch(search)}
           timeRange={timeRange}
