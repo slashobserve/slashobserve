@@ -13,7 +13,7 @@ import (
 
 const createServiceAccount = `-- name: CreateServiceAccount :one
 INSERT INTO service_accounts (name, description, created_by) VALUES ($1, $2, $3)
-RETURNING id, name, description, created_by, created_at
+RETURNING id, name, description, created_by, created_at, role
 `
 
 type CreateServiceAccountParams struct {
@@ -31,6 +31,7 @@ func (q *Queries) CreateServiceAccount(ctx context.Context, arg CreateServiceAcc
 		&i.Description,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Role,
 	)
 	return i, err
 }
@@ -87,7 +88,7 @@ func (q *Queries) CreateServiceAccountKey(ctx context.Context, arg CreateService
 }
 
 const getKeyPrincipal = `-- name: GetKeyPrincipal :one
-SELECT k.id AS key_id, sa.id AS service_account_id, sa.name, k.last_used_at
+SELECT k.id AS key_id, sa.id AS service_account_id, sa.name, sa.role, k.last_used_at
 FROM service_account_keys k JOIN service_accounts sa ON sa.id = k.service_account_id
 WHERE k.token_hash = $1 AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > now())
 `
@@ -96,6 +97,7 @@ type GetKeyPrincipalRow struct {
 	KeyID            pgtype.UUID
 	ServiceAccountID pgtype.UUID
 	Name             string
+	Role             string
 	LastUsedAt       pgtype.Timestamptz
 }
 
@@ -106,13 +108,14 @@ func (q *Queries) GetKeyPrincipal(ctx context.Context, tokenHash []byte) (GetKey
 		&i.KeyID,
 		&i.ServiceAccountID,
 		&i.Name,
+		&i.Role,
 		&i.LastUsedAt,
 	)
 	return i, err
 }
 
 const getServiceAccount = `-- name: GetServiceAccount :one
-SELECT id, name, description, created_by, created_at FROM service_accounts WHERE id = $1
+SELECT id, name, description, created_by, created_at, role FROM service_accounts WHERE id = $1
 `
 
 func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (ServiceAccount, error) {
@@ -124,7 +127,25 @@ func (q *Queries) GetServiceAccount(ctx context.Context, id pgtype.UUID) (Servic
 		&i.Description,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Role,
 	)
+	return i, err
+}
+
+const getServiceAccountPrincipal = `-- name: GetServiceAccountPrincipal :one
+SELECT id, name, role FROM service_accounts WHERE id = $1
+`
+
+type GetServiceAccountPrincipalRow struct {
+	ID   pgtype.UUID
+	Name string
+	Role string
+}
+
+func (q *Queries) GetServiceAccountPrincipal(ctx context.Context, id pgtype.UUID) (GetServiceAccountPrincipalRow, error) {
+	row := q.db.QueryRow(ctx, getServiceAccountPrincipal, id)
+	var i GetServiceAccountPrincipalRow
+	err := row.Scan(&i.ID, &i.Name, &i.Role)
 	return i, err
 }
 
@@ -176,7 +197,7 @@ func (q *Queries) ListServiceAccountKeys(ctx context.Context, serviceAccountID p
 }
 
 const listServiceAccounts = `-- name: ListServiceAccounts :many
-SELECT id, name, description, created_by, created_at FROM service_accounts ORDER BY name
+SELECT id, name, description, created_by, created_at, role FROM service_accounts ORDER BY name
 `
 
 func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, error) {
@@ -194,6 +215,7 @@ func (q *Queries) ListServiceAccounts(ctx context.Context) ([]ServiceAccount, er
 			&i.Description,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}

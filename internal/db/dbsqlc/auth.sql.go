@@ -103,7 +103,7 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT u.id, u.email, u.name, u.last_seen_at
+SELECT u.id, u.email, u.name, u.last_seen_at, u.role, u.groups
 FROM sessions s JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1 AND s.expires_at > now()
 `
@@ -113,6 +113,8 @@ type GetSessionUserRow struct {
 	Email      string
 	Name       string
 	LastSeenAt pgtype.Timestamptz
+	Role       string
+	Groups     []string
 }
 
 func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (GetSessionUserRow, error) {
@@ -123,6 +125,8 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (GetSess
 		&i.Email,
 		&i.Name,
 		&i.LastSeenAt,
+		&i.Role,
+		&i.Groups,
 	)
 	return i, err
 }
@@ -143,11 +147,11 @@ func (q *Queries) TouchUserSeen(ctx context.Context, arg TouchUserSeenParams) er
 }
 
 const upsertUser = `-- name: UpsertUser :one
-INSERT INTO users (oidc_issuer, oidc_subject, email, name)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (oidc_issuer, oidc_subject, email, name, groups)
+VALUES ($1, $2, $3, $4, $5::text[])
 ON CONFLICT (oidc_issuer, oidc_subject)
-DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, last_login_at = now(), last_seen_at = now()
-RETURNING id, email, name
+DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, groups = EXCLUDED.groups, last_login_at = now(), last_seen_at = now()
+RETURNING id, email, name, created_at, manual_role
 `
 
 type UpsertUserParams struct {
@@ -155,12 +159,15 @@ type UpsertUserParams struct {
 	OidcSubject string
 	Email       string
 	Name        string
+	Groups      []string
 }
 
 type UpsertUserRow struct {
-	ID    pgtype.UUID
-	Email string
-	Name  string
+	ID         pgtype.UUID
+	Email      string
+	Name       string
+	CreatedAt  pgtype.Timestamptz
+	ManualRole pgtype.Text
 }
 
 func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (UpsertUserRow, error) {
@@ -169,8 +176,15 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (UpsertU
 		arg.OidcSubject,
 		arg.Email,
 		arg.Name,
+		arg.Groups,
 	)
 	var i UpsertUserRow
-	err := row.Scan(&i.ID, &i.Email, &i.Name)
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.CreatedAt,
+		&i.ManualRole,
+	)
 	return i, err
 }

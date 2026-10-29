@@ -23,6 +23,43 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const getUserPrincipal = `-- name: GetUserPrincipal :one
+SELECT id, email, name, role, groups FROM users WHERE id = $1
+`
+
+type GetUserPrincipalRow struct {
+	ID     pgtype.UUID
+	Email  string
+	Name   string
+	Role   string
+	Groups []string
+}
+
+func (q *Queries) GetUserPrincipal(ctx context.Context, id pgtype.UUID) (GetUserPrincipalRow, error) {
+	row := q.db.QueryRow(ctx, getUserPrincipal, id)
+	var i GetUserPrincipalRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Role,
+		&i.Groups,
+	)
+	return i, err
+}
+
+const isFirstUser = `-- name: IsFirstUser :one
+SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
+FROM users u WHERE u.id = $1
+`
+
+func (q *Queries) IsFirstUser(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isFirstUser, id)
+	var not_exists bool
+	err := row.Scan(&not_exists)
+	return not_exists, err
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
   coalesce(dc.n, 0)::integer AS dashboard_count,
@@ -86,6 +123,73 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 		return nil, err
 	}
 	return items, nil
+}
+
+const listUsersForRoles = `-- name: ListUsersForRoles :many
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+FROM users ORDER BY created_at, id
+`
+
+type ListUsersForRolesRow struct {
+	ID         pgtype.UUID
+	Email      string
+	Groups     []string
+	ManualRole pgtype.Text
+	CreatedAt  pgtype.Timestamptz
+	Role       string
+	RoleSource string
+	RoleGroup  pgtype.Text
+}
+
+func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow, error) {
+	rows, err := q.db.Query(ctx, listUsersForRoles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUsersForRolesRow
+	for rows.Next() {
+		var i ListUsersForRolesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Groups,
+			&i.ManualRole,
+			&i.CreatedAt,
+			&i.Role,
+			&i.RoleSource,
+			&i.RoleGroup,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setUserRole = `-- name: SetUserRole :exec
+UPDATE users SET role = $1, role_source = $2, role_group = $3
+WHERE id = $4
+`
+
+type SetUserRoleParams struct {
+	Role       string
+	RoleSource string
+	RoleGroup  pgtype.Text
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) error {
+	_, err := q.db.Exec(ctx, setUserRole,
+		arg.Role,
+		arg.RoleSource,
+		arg.RoleGroup,
+		arg.ID,
+	)
+	return err
 }
 
 const userExists = `-- name: UserExists :one
