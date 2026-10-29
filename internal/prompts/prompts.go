@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -20,8 +21,7 @@ import (
 )
 
 const (
-	maxBodyBytes     = 32 << 10
-	maxQueryNameSize = 256
+	maxBodyBytes = 32 << 10
 
 	uniqueViolation      = "23505"
 	ownerNameConstraint  = "saved_prompts_owner_name_key"
@@ -68,9 +68,9 @@ func NewHandler(database *db.DB, logger *slog.Logger) *Handler {
 func (h *Handler) Register(api auth.Routes) {
 	g := api.Group("/prompts")
 	g.GET("", auth.RoleViewer, h.list)
-	g.POST("", auth.RoleViewer, auth.RequireUser, h.create)
-	g.PATCH("/:id", auth.RoleViewer, auth.RequireUser, h.update)
-	g.DELETE("/:id", auth.RoleViewer, auth.RequireUser, h.remove)
+	g.POST("", auth.RoleEditor, auth.RequireUser, h.create)
+	g.PATCH("/:id", auth.RoleEditor, auth.RequireUser, h.update)
+	g.DELETE("/:id", auth.RoleEditor, auth.RequireUser, h.remove)
 }
 
 func promptOf(r record, caller auth.Principal) promptJSON {
@@ -81,7 +81,7 @@ func promptOf(r record, caller auth.Principal) promptJSON {
 		Body:      r.Body,
 		Shared:    r.Shared,
 		Owner:     ownerJSON{ID: ownerID, Name: r.OwnerName},
-		CanEdit:   CanEdit(caller, ownerID),
+		CanEdit:   CanEdit(caller, ownerID, r.Shared),
 		CreatedAt: httpapi.FormatTime(r.CreatedAt.Time),
 		UpdatedAt: httpapi.FormatTime(r.UpdatedAt.Time),
 	}
@@ -99,8 +99,8 @@ func (h *Handler) fail(c *gin.Context, action, promptID string, err error) {
 func (h *Handler) list(c *gin.Context) {
 	caller := httpapi.Caller(c)
 	rawName, byName := c.GetQuery("name")
-	if len(rawName) > maxQueryNameSize {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "name is too long")
+	if utf8.RuneCountInString(rawName) > MaxNameRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "name must be at most 64 characters")
 		return
 	}
 	body := listJSON{Prompts: []promptJSON{}}
@@ -283,7 +283,7 @@ func (h *Handler) editable(ctx context.Context, q *dbsqlc.Queries, caller auth.P
 	if err != nil {
 		return row, err
 	}
-	if !CanEdit(caller, row.OwnerID.String()) {
+	if !CanEdit(caller, row.OwnerID.String(), row.Shared) {
 		return row, errNotOwner
 	}
 	return row, nil

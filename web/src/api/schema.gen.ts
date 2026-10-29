@@ -263,7 +263,7 @@ export interface paths {
         put?: never;
         /**
          * Save a prompt.
-         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`). At most 100 prompts per person.
+         * @description Saves a prompt owned by the caller. Service accounts cannot (403 `forbidden`), and neither can Commenters and Viewers (403 `forbidden_role`). At most 100 prompts per person.
          */
         post: operations["createSavedPrompt"];
         delete?: never;
@@ -286,14 +286,14 @@ export interface paths {
         post?: never;
         /**
          * Delete a saved prompt.
-         * @description Deletes a prompt the caller can edit. A service account gets 403 `forbidden`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
+         * @description Deletes a prompt the caller can edit: the owner, or an Admin when the prompt is shared. A service account gets 403 `forbidden`, a Commenter or Viewer 403 `forbidden_role`, a prompt the caller can see but not edit 403 `not_owner`, and a prompt the caller cannot see 404 `not_found`.
          */
         delete: operations["deleteSavedPrompt"];
         options?: never;
         head?: never;
         /**
          * Change a saved prompt.
-         * @description Changes the name, body or sharing of a prompt the caller can edit. Only the fields sent change.
+         * @description Changes the name, body or sharing of a prompt the caller can edit: the owner, or an Admin when the prompt is shared. Only the fields sent change. Commenters and Viewers cannot change prompts, not even their own (403 `forbidden_role`).
          */
         patch: operations["updateSavedPrompt"];
         trace?: never;
@@ -2368,7 +2368,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`). */
+            /** @description The caller is a service account (`forbidden`), has a role below Editor (`forbidden_role`), or can see the prompt but cannot edit it (`not_owner`). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2411,7 +2411,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            /** @description The caller is a service account (`forbidden`), or can see the prompt but cannot edit it (`not_owner`). */
+            /** @description The caller is a service account (`forbidden`), has a role below Editor (`forbidden_role`), or can see the prompt but cannot edit it (`not_owner`). */
             403: {
                 headers: {
                     [name: string]: unknown;
