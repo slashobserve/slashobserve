@@ -1,9 +1,12 @@
 package tools
 
 import (
+	"context"
+	"encoding/json"
 	"reflect"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
 
@@ -58,5 +61,36 @@ func TestUnresolvedRows(t *testing.T) {
 	}
 	if got := unresolvedRows(list); !reflect.DeepEqual(got, want) {
 		t.Fatalf("rows = %+v, want %+v", got, want)
+	}
+}
+
+func TestImportInAgentRunNeedsGrafanaJSONFromTheRequest(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n"})
+	dashboard := `{"title":"Checkout","panels":[]}`
+	prompt := "Import this please: " + dashboard
+	tests := []struct {
+		name     string
+		prompt   string
+		json     string
+		rejected bool
+	}{
+		{"json written by the model", "Build a dashboard for checkout", dashboard, true},
+		{"empty json", prompt, "", true},
+		{"json from the request", prompt, dashboard, false},
+		{"json from the request with spaces around", prompt, "\n " + dashboard + " ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := json.Marshal(map[string]string{"json": tt.json})
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := r.Call(WithRun(ctx, Run{Mode: ModeCreate, Prompt: tt.prompt}), nameImportGrafana, input)
+			rejected := err == nil && res.IsError && errorCode(t, res) == codeInvalidRequest
+			if rejected != tt.rejected {
+				t.Fatalf("rejected = %v, want %v (res = %#v, err = %v)", rejected, tt.rejected, res, err)
+			}
+		})
 	}
 }

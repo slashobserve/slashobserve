@@ -98,6 +98,7 @@ type Run struct {
 	ParentVersion int
 	RequestID     string
 	PanelID       string
+	Prompt        string
 	Base          *spec.Dashboard
 }
 

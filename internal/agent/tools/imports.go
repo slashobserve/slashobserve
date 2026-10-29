@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
@@ -123,6 +124,9 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		}
 		if run.Mode == ModeRevise {
 			return invalid("this run revises dashboard %s; importing creates a new dashboard and is not available here", run.DashboardID), nil
+		}
+		if text := strings.TrimSpace(in.JSON); text == "" || !strings.Contains(run.Prompt, text) {
+			return invalid("the request does not contain this Grafana JSON; build the dashboard with create_dashboard instead"), nil
 		}
 	}
 	requestID, err := requestIDOf(run, scoped)

@@ -333,7 +333,7 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 	if err != nil {
 		return false, contextError(err)
 	}
-	run := runScope(t, mode, current)
+	run := runScope(t, prompt, mode, current)
 	ctx = tools.WithRun(ctx, run)
 	ctx = llm.WithAgentRequestID(ctx, t.RequestID)
 	state := &runState{tools: a.tools, progress: t.Progress, logger: a.logger, mode: mode, parentVersion: run.ParentVersion}
@@ -384,8 +384,11 @@ func (a *Agent) session(ctx context.Context, t Task, prompt string, mode tools.M
 	return false, turnLimitError(mode)
 }
 
-func runScope(t Task, mode tools.Mode, current *revision) tools.Run {
+func runScope(t Task, prompt string, mode tools.Mode, current *revision) tools.Run {
 	run := tools.Run{Mode: mode, RequestID: t.RequestID}
+	if mode == tools.ModeCreate {
+		run.Prompt = prompt
+	}
 	if current == nil {
 		return run
 	}
