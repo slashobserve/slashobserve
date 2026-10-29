@@ -1109,7 +1109,7 @@ def walk(panels):
         yield from walk(p.get("panels", []))
 
 def selectors(expr):
-    expr = re.sub(r"\[[^\]]*\]", "", expr)
+    expr = re.sub(rf"({STRING})|\[[^\]]*\]", lambda m: m.group(1) or "", expr)
     expr = re.sub(r"\b(?:by|without|on|ignoring|group_left|group_right)\s*\([^)]*\)", "", expr)
     found = []
     for m in SELECTOR.finditer(expr):
