@@ -50,7 +50,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -71,7 +71,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -92,7 +92,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,21 +113,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -178,7 +171,7 @@
               "w": 24,
               "h": 6
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT (${type})",
@@ -210,7 +203,7 @@
               "w": 24,
               "h": 6
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT ('${type}')",
@@ -242,7 +235,7 @@
               "w": 24,
               "h": 6
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT ('${type}')",
@@ -276,7 +269,7 @@
               "w": 24,
               "h": 6
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT (${type})",

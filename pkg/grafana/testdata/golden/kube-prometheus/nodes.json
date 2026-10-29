@@ -54,7 +54,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -75,28 +75,28 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -117,28 +117,28 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -159,7 +159,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -180,21 +180,21 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -223,14 +223,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -251,7 +251,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -272,37 +272,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -329,7 +306,7 @@
         "label": "Cluster",
         "hide": "variable",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(node_uname_info{job=\"node-exporter\", sysname!=\"Darwin\"}, cluster)",
         "refresh": "timeRange",
         "includeAll": true,
@@ -339,7 +316,7 @@
         "name": "instance",
         "label": "Instance",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(node_uname_info{job=\"node-exporter\", cluster=~\"$cluster\", sysname!=\"Darwin\"}, instance)",
         "refresh": "timeRange"
       }
@@ -366,7 +343,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "(\n  (1 - sum without (mode) (rate(node_cpu_seconds_total{job=\"node-exporter\", mode=~\"idle|iowait|steal\", instance=\"$instance\", cluster=~\"$cluster\"}[$__rate_interval])))\n/ ignoring(cpu) group_left\n  count without (cpu, mode) (node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\", instance=\"$instance\", cluster=~\"$cluster\"})\n)\n",
@@ -392,7 +369,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "node_load1{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}",
@@ -440,7 +417,7 @@
               "w": 18,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "(\n  node_memory_MemTotal_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_MemFree_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_Buffers_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n-\n  node_memory_Cached_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}\n)\n",
@@ -477,7 +454,7 @@
               "w": 6,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "100 -\n(\n  avg(node_memory_MemAvailable_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"}) /\n  avg(node_memory_MemTotal_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\"})\n* 100\n)\n"
@@ -523,7 +500,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(node_disk_read_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])",
@@ -567,7 +544,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "max by (mountpoint) (node_filesystem_size_bytes{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", fstype!=\"\", mountpoint!=\"\"})\n",
@@ -633,7 +610,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(node_network_receive_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device!=\"lo\"}[$__rate_interval]) * 8",
@@ -657,7 +634,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(node_network_transmit_bytes_total{job=\"node-exporter\", instance=\"$instance\", cluster=~\"$cluster\", device!=\"lo\"}[$__rate_interval]) * 8",

@@ -50,7 +50,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -75,7 +75,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -96,7 +96,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -126,7 +126,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -153,14 +153,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -187,7 +187,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -216,7 +216,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -243,28 +243,28 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "C",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "D",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -293,7 +293,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -320,7 +320,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -347,7 +347,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -374,14 +374,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -408,7 +408,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -435,14 +435,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -469,21 +469,21 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "C",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -510,14 +510,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
@@ -544,44 +544,21 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable DS_PROMETHEUS",
-        "status": "partial",
-        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -607,7 +584,7 @@
         "name": "job",
         "label": "job",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "query": "label_values(apache_up, job)",
         "sort": "alpha",
         "refresh": "timeRange",
@@ -619,7 +596,7 @@
         "name": "instance",
         "label": "instance",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "query": "label_values(apache_up{job=\"$job\"}, instance)",
         "sort": "alpha",
         "refresh": "timeRange"
@@ -644,7 +621,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_uptime_seconds_total{job=\"$job\", instance=\"$instance\"}",
@@ -686,7 +663,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_info{job=\"$job\", instance=\"$instance\"}",
@@ -731,7 +708,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_cpuload{job=\"$job\", instance=\"$instance\"}",
@@ -774,7 +751,7 @@
           "w": 12,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_up{job=\"$job\", instance=\"$instance\"}",
@@ -816,7 +793,7 @@
           "w": 12,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "rate(apache_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
@@ -861,7 +838,7 @@
           "w": 12,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "increase(apache_duration_ms_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])/increase(apache_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
@@ -892,7 +869,7 @@
           "w": 12,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_workers{job=\"$job\", instance=\"$instance\"}\n",
@@ -924,7 +901,7 @@
           "w": 12,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_connections{job=\"$job\", instance=\"$instance\", state=\"total\"}",
@@ -966,7 +943,7 @@
           "w": 24,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${DS_PROMETHEUS}",
         "queries": [
           {
             "query": "apache_scoreboard{job=\"$job\", instance=\"$instance\"}",
@@ -1010,7 +987,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "rate(apache_proxy_balancer_accesses_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval])",
@@ -1040,7 +1017,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "apache_proxy_balancer_busy{job=\"$job\", instance=\"$instance\"}",
@@ -1070,7 +1047,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "rate(apache_proxy_balancer_request_kbytes_total{job=\"$job\", instance=\"$instance\"}[$__rate_interval]) * 1024",
@@ -1104,7 +1081,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "apache_proxy_balancer_status{job=\"$job\", instance=\"$instance\"}",
@@ -1148,7 +1125,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "apache_processes{job=\"$job\", instance=\"$instance\", state=\"all\"}",
@@ -1182,7 +1159,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "apache_load{job=\"$job\", instance=\"$instance\", interval=\"1\"}",
@@ -1220,7 +1197,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "rate(apache_cpu_time_ms_total{job=\"$job\", instance=\"$instance\", type=\"user\"}[$__rate_interval])",
@@ -1255,7 +1232,7 @@
               "w": 12,
               "h": 11
             },
-            "datasource": "prom",
+            "datasource": "${DS_PROMETHEUS}",
             "queries": [
               {
                 "query": "apache_generation{job=\"$job\", instance=\"$instance\", type=\"config\"}",

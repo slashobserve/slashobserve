@@ -111,7 +111,9 @@ func newRegistry(src *source) *registry {
 	})
 	r.scanVariables(src.dash)
 	for _, name := range dsVarNames {
-		r.get("${"+name+"}", name, r.dsVars[name]).variable = true
+		src := r.get("${"+name+"}", name, r.dsVars[name])
+		_, isInput := r.inputs[name]
+		src.variable = !isInput
 	}
 	for _, s := range r.list {
 		if s.typ == "" {
@@ -438,6 +440,13 @@ func (s *sourceDS) uid() string {
 		return s.match
 	}
 	return unmatchedUID
+}
+
+func (s *sourceDS) ref() string {
+	if s.variable && variableNamePattern.MatchString(strip(s.key)) {
+		return s.key
+	}
+	return s.uid()
 }
 
 func (s *sourceDS) label() string {

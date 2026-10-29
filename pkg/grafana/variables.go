@@ -120,6 +120,11 @@ func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {
 			return
 		}
 		state[v.v.Name] = 1
+		if name, ok := spec.DatasourceVariableName(v.v.Datasource); ok {
+			if dep, ok := byName[name]; ok && dep != v {
+				visit(dep)
+			}
+		}
 		if refs, err := spec.ScanQuery(v.v.Query); err == nil {
 			for _, ref := range spec.FlattenReferences(refs) {
 				dep, ok := byName[ref.Name]
@@ -284,14 +289,7 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	if len(rewrites) > 0 {
 		c.note(subject, "Rewrote "+strings.Join(rewrites, ", ")+" in the query.", path+".query")
 	}
-	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.uid(), Query: text, Sort: sortOf(c, raw, path, subject)}
-	if ref.src.variable {
-		if ref.src.match != "" {
-			c.note(subject, fmt.Sprintf("It uses datasource variable $%s; it now uses %s.", strip(ref.src.key), ref.src.match), path+".datasource")
-		} else {
-			c.note(subject, fmt.Sprintf("It uses datasource variable $%s, which has no match yet.", strip(ref.src.key)), path+".datasource")
-		}
-	}
+	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.ref(), Query: text, Sort: sortOf(c, raw, path, subject)}
 	c.variableRegex(&v, raw, path, subject)
 	if refresh, ok := asInt(raw["refresh"]); ok && refresh == 2 {
 		v.Refresh = "timeRange"
@@ -586,5 +584,5 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 	if len(saved) > 0 {
 		c.note(subject, "Saved filters are not kept.", saved...)
 	}
-	return spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.uid()}, true
+	return spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref()}, true
 }

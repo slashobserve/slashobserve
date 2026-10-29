@@ -440,7 +440,6 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.convertDisplay()
 	b.convertPanelOptions()
 	b.convertLinks()
-	b.datasourceVariables()
 	b.reportUnconsumed()
 	return b.finish()
 }

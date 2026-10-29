@@ -56,7 +56,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -85,7 +85,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,7 +113,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -140,7 +140,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -167,7 +167,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -193,7 +193,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -216,36 +216,6 @@
         "paths": [
           "annotations.list[1]"
         ]
-      },
-      {
-        "subject": "variable database",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable service",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable level_filter",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[4].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
       }
     ]
   },
@@ -276,7 +246,7 @@
         "name": "database",
         "label": "Database",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
         "sort": "alpha"
       },
@@ -304,7 +274,7 @@
         "name": "service",
         "label": "Service",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT ServiceName FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
         "refresh": "timeRange",
         "multi": true,
@@ -314,7 +284,7 @@
         "name": "level_filter",
         "label": "Level",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT DISTINCT SeverityText FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) ORDER BY SeverityText",
         "refresh": "timeRange",
         "multi": true,
@@ -349,7 +319,7 @@
               "w": 24,
               "h": 5
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  SeverityText AS metric,\n  count() AS count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY time, metric\nORDER BY time"
@@ -420,7 +390,7 @@
               "w": 7,
               "h": 5
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  ServiceName AS Service,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Service\nORDER BY Count DESC\nLIMIT 15"
@@ -455,7 +425,7 @@
               "w": 5,
               "h": 5
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  SeverityText AS Level,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Level\nORDER BY Count DESC"
@@ -515,7 +485,7 @@
               "w": 12,
               "h": 5
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  SeverityText AS Level,\n  ServiceName AS Service,\n  replaceRegexpAll(Body, '(userId|orderId|cartId|requestId|traceId|spanId|ctId)=[a-zA-Z0-9-]+', '\\1=…') AS Message,\n  count() AS Count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND SeverityText IN ('ERROR', 'WARN', 'FATAL', 'Error', 'Warning', 'error', 'warning', 'fatal', 'CRITICAL')\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY Level, Service, Message\nORDER BY Count DESC\nLIMIT 20"
@@ -547,7 +517,7 @@
               "w": 24,
               "h": 5
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  SeverityText AS metric,\n  count() AS count\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName = ${service:singlequote}\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nGROUP BY time, metric\nORDER BY time"
@@ -618,7 +588,7 @@
               "w": 24,
               "h": 14
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  Timestamp AS timestamp,\n  Body AS body,\n  SeverityText AS level,\n  ServiceName,\n  TraceId,\n  SpanId,\n  ResourceAttributes['service.namespace'] AS namespace,\n  ResourceAttributes['k8s.pod.name'] AS k8s_pod\nFROM ${database}.otel_logs\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName = ${service:singlequote}\n  AND $__conditionalAll(SeverityText IN (${level_filter:singlequote}), $level_filter)\n  AND $__conditionalAll(positionCaseInsensitive(Body, '$search') > 0, $search)\nORDER BY Timestamp DESC\nLIMIT 200",

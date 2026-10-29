@@ -54,7 +54,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -79,7 +79,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -106,7 +106,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -131,7 +131,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -158,7 +158,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -185,7 +185,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -210,7 +210,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -237,7 +237,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -268,7 +268,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -297,7 +297,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -323,45 +323,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable query_kind",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable type",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable user",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[4].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -390,7 +359,7 @@
         "name": "query_kind",
         "label": "Query kind",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT DISTINCT(query_kind) as query_kind FROM ${query_log} WHERE query_kind != ''",
         "multi": true,
         "includeAll": true
@@ -399,7 +368,7 @@
         "name": "type",
         "label": "Query status",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT type FROM ${query_log} GROUP BY type",
         "multi": true,
         "includeAll": true
@@ -408,7 +377,7 @@
         "name": "user",
         "label": "User",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT DISTINCT(initial_user) FROM ${query_log} WHERE initial_user != '' LIMIT 100",
         "multi": true,
         "includeAll": true
@@ -425,7 +394,7 @@
           "w": 5,
           "h": 4
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT count() as \"Total queries\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)",
@@ -451,7 +420,7 @@
           "w": 5,
           "h": 4
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  avg(memory_usage) as \"Avg query memory\",\n  $__timeInterval(query_start_time) as time\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
@@ -485,7 +454,7 @@
           "w": 8,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT query_duration_ms as \"Query time\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nLIMIT 1000",
@@ -517,7 +486,7 @@
           "w": 6,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  initial_user,\n  count() as c\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY initial_user\nLIMIT 100",
@@ -538,7 +507,7 @@
           "w": 10,
           "h": 4
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  avg(query_duration_ms) as \"Avg query time\",\n  $__timeInterval(query_start_time) as time\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
@@ -572,7 +541,7 @@
           "w": 24,
           "h": 11
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  any(normalizeQuery(query)) AS normalized_query,\n  count() as c\nFROM ${query_log}\nWHERE type != 'QueryStart'\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND normalized_query_hash IN (\n    SELECT normalized_query_hash\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY normalized_query_hash\n    ORDER BY count() DESC\n    LIMIT 5\n  )\nGROUP BY normalized_query_hash, time\nORDER BY time",
@@ -592,7 +561,7 @@
           "w": 24,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  any(normalizeQuery(query)) AS normalized_query,\n  avg(query_duration_ms) as avg_query_duration\nFROM ${query_log}\nWHERE type != 'QueryStart'\n  AND $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND normalized_query_hash IN (\n    SELECT normalized_query_hash\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY normalized_query_hash\n    ORDER BY avg(query_duration_ms) DESC\n    LIMIT 10\n  )\nGROUP BY normalized_query_hash, time\nORDER BY time",
@@ -610,7 +579,7 @@
           "w": 24,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  initial_user as user,\n  count() as \"number of queries by\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\n  AND initial_user IN (\n    SELECT initial_user\n    FROM ${query_log}\n    WHERE\n      $__conditionalAll(type IN (${type:singlequote}), $type)\n      AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n      AND $__timeFilter(event_time)\n    GROUP BY initial_user\n    ORDER BY count() DESC\n    LIMIT 10\n  )\nGROUP BY initial_user, time\nORDER BY time",
@@ -630,7 +599,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  $__timeInterval(query_start_time) as time,\n  max(memory_usage) as \"Max Memory Usage\"\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time",
@@ -657,7 +626,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  $__timeInterval(event_time) as time,\n  sum(read_rows) read_rows,\n  sum(written_rows) written_rows\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nGROUP BY time\nORDER BY time ASC",
@@ -691,7 +660,7 @@
           "w": 24,
           "h": 12
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n  query_start_time,\n  type,\n  query_duration_ms,\n  initial_user,\n  substring(query_id, 1, 8) as query_id,\n  query_kind,\n  normalizeQuery(query) AS normalized_query,\n  concat(toString(read_rows), ' rows / ', formatReadableSize(read_bytes)) AS read,\n  concat(toString(written_rows), ' rows / ', formatReadableSize(written_bytes)) AS written,\n  concat(toString(result_rows), ' rows / ', formatReadableSize(result_bytes)) AS result,\n  memory_usage\nFROM ${query_log}\nWHERE\n  $__conditionalAll(type IN (${type:singlequote}), $type)\n  AND $__conditionalAll(initial_user IN (${user:singlequote}), $user)\n  AND $__conditionalAll(query_kind IN (${query_kind:singlequote}), $query_kind)\n  AND $__timeFilter(event_time)\nORDER BY query_duration_ms DESC\nLIMIT 1000",

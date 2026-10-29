@@ -59,7 +59,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -86,7 +86,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,7 +113,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -140,7 +140,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -165,7 +165,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -199,7 +199,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -233,7 +233,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -261,7 +261,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -289,7 +289,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -318,7 +318,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -339,7 +339,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -369,7 +369,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -390,7 +390,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -420,7 +420,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -452,7 +452,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -479,37 +479,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable database",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable table",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -530,7 +507,7 @@
         "name": "database",
         "label": "Database",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT name FROM system.databases;\n",
         "multi": true,
         "includeAll": true
@@ -539,7 +516,7 @@
         "name": "table",
         "label": "Table",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT name FROM system.tables WHERE database IN (${database:singlequote})",
         "multi": true,
         "includeAll": true
@@ -556,7 +533,7 @@
           "w": 3,
           "h": 6
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT version()",
@@ -599,7 +576,7 @@
           "w": 3,
           "h": 6
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT uptime() as uptime",
@@ -641,7 +618,7 @@
           "w": 3,
           "h": 6
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT  sum(total_rows) as \"Total rows\" FROM system.tables WHERE database IN (${database:singlequote}) AND name IN (${table:singlequote})",
@@ -668,7 +645,7 @@
           "w": 3,
           "h": 6
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT count() as \"Total columns\" FROM system.columns WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})",
@@ -695,7 +672,7 @@
           "w": 12,
           "h": 6
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT\n    name as Name,\n    path as Path,\n    free_space as Free,\n    total_space as Total,\n    1 - free_space/total_space as Used\nFROM system.disks",
@@ -744,7 +721,7 @@
           "w": 8,
           "h": 9
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(table.database, '.', name) as name,\n       table_stats.total_rows as total_rows\nFROM system.tables table\n         LEFT JOIN ( SELECT table,\n       database,\n       sum(rows)                  as total_rows\nFROM system.parts\nWHERE table IN (${table:singlequote}) AND active AND database IN (${database:singlequote}) \nGROUP BY table, database\n ) AS table_stats ON table.name = table_stats.table AND table.database = table_stats.database\nORDER BY total_rows DESC\nLIMIT 10",
@@ -774,7 +751,7 @@
           "w": 7,
           "h": 9
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(table.database, '.', name) as name,\n       col_stats.col_count as total_columns\nFROM system.tables table\n         LEFT JOIN (SELECT database, table, count() as col_count FROM system.columns  GROUP BY table, database) as col_stats\n                   ON table.name = col_stats.table AND col_stats.database = table.database\nWHERE database IN (${database:singlequote}) AND name != '' AND table IN (${table:singlequote}) AND name != '' ORDER BY total_columns DESC LIMIT 10;\n",
@@ -804,7 +781,7 @@
           "w": 4,
           "h": 9
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT engine, count() \"Number of databases\" FROM system.databases WHERE name IN (${database:singlequote}) GROUP BY engine ",
@@ -826,7 +803,7 @@
           "w": 5,
           "h": 9
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT engine, count() \"Number of tables\" FROM system.tables WHERE database IN (${database:singlequote}) AND notLike(engine,'System%')  AND name IN (${table:singlequote}) GROUP BY engine ORDER BY count() DESC",
@@ -845,7 +822,7 @@
           "w": 15,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT name,\n       engine,\n       tables,\n       partitions,\n       parts,\n       bytes_on_disk            \"disk_size\",\n       col_count,\n       total_rows,\n       data_uncompressed_bytes as \"uncompressed_size\"\nFROM system.databases db\n         LEFT JOIN ( SELECT database,\n                            uniq(table)                   \"tables\",\n                            uniq(table, partition)        \"partitions\",\n                            count()                    AS parts,\n                            sum(bytes_on_disk)            \"bytes_on_disk\",\n                            sum(data_uncompressed_bytes) as \"data_uncompressed_bytes\",\n                            sum(rows) as total_rows,\n                            max(col_count) as \"col_count\"\n                     FROM system.parts AS parts\n                               JOIN (SELECT database, count() as col_count\n                                         FROM system.columns\n                                         WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})\n                                         GROUP BY database) as col_stats\n                                        ON parts.database = col_stats.database\n                     WHERE database IN (${database:singlequote}) AND active AND table IN (${table:singlequote})\n                     GROUP BY database) AS db_stats ON db.name = db_stats.database\nWHERE database IN (${database:singlequote}) AND lower(name) != 'information_schema'\nORDER BY bytes_on_disk DESC\nLIMIT 10;",
@@ -904,7 +881,7 @@
           "w": 9,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT source, type, status, count() \"count\" FROM system.dictionaries GROUP BY source, type, status ORDER BY status DESC, source",
@@ -933,7 +910,7 @@
           "w": 15,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT name,\n       table.database,\n       engine,\n       partitions,\n       parts,\n       bytes_on_disk            \"disk_size\",\n       col_count,\n       table_stats.total_rows,\n       data_uncompressed_bytes as \"uncompressed_size\"\nFROM system.tables table\n         LEFT JOIN ( SELECT table,\n       database,\n       uniq(table, partition)        \"partitions\",\n       count()                    AS parts,\n       sum(bytes_on_disk)            \"bytes_on_disk\",\n       sum(data_uncompressed_bytes) as \"data_uncompressed_bytes\",\n       sum(rows)                  as total_rows,\n                            max(col_count) as col_count\nFROM system.parts as parts\n         LEFT JOIN (SELECT database, table, count() as col_count FROM system.columns GROUP BY table, database) as col_stats\n                   ON parts.table = col_stats.table AND col_stats.database = parts.database\nWHERE active\nGROUP BY table, database\n ) AS table_stats ON table.name = table_stats.table AND table.database = table_stats.database\nWHERE database IN (${database:singlequote}) AND lower(name) != 'information_schema' AND table IN (${table:singlequote})\nORDER BY bytes_on_disk DESC\nLIMIT 1000",
@@ -996,7 +973,7 @@
           "w": 9,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT database, table, partition_id, name, disk, level FROM system.detached_parts WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})",
@@ -1030,7 +1007,7 @@
           "w": 15,
           "h": 11
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT modification_time as timestamp, concatAssumeInjective(database, '.', table) as table, rows FROM system.parts parts WHERE parts.database IN (${database:singlequote}) AND parts.table IN (${table:singlequote})  AND $__timeFilter(modification_time) ORDER BY modification_time ASC",
@@ -1070,7 +1047,7 @@
           "w": 9,
           "h": 11
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(database, '.', table) as dbTable, count() \"partitions\", sum(part_count) \"parts\", max(part_count) \"max_parts_per_partition\"\nFROM ( SELECT database, table, count() \"part_count\"\n       FROM system.parts\n       WHERE database IN (${database:singlequote}) AND active AND table IN (${table:singlequote})\n       GROUP BY database, table, partition ) partitions\nGROUP BY database, table\nORDER BY max_parts_per_partition DESC\nLIMIT 10",
@@ -1106,7 +1083,7 @@
           "w": 24,
           "h": 11
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT database, table, partition_id, modification_time, name, part_type, active, level, disk_name, path, marks, rows, bytes_on_disk, refcount, min_block_number, max_block_number FROM system.parts WHERE database IN (${database:singlequote}) AND table IN (${table:singlequote})  AND modification_time > now() - INTERVAL 3 MINUTE ORDER BY modification_time DESC",

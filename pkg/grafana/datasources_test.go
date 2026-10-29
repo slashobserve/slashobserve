@@ -2,6 +2,7 @@ package grafana
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -100,5 +101,102 @@ func TestPanelOnAnUnsupportedDatasourceWithoutTargetsNamesIt(t *testing.T) {
 	res := convertDoc(t, dashboardJSON("", `{"id":1,"type":"logs","title":"Logs","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":{"type":"loki","uid":"loki1"}}`))
 	if got := panelLine(t, res, "p1").Reasons[0]; got != "Loki is not supported yet." {
 		t.Fatalf("reason = %q", got)
+	}
+}
+
+const promDatasourceVariable = `{"name":"ds","type":"datasource","query":"prometheus","current":{"text":"prom","value":"prom"}}`
+
+func jobVariableOn(datasource string) string {
+	return `{"name":"job","type":"query","datasource":` + datasource + `,"query":"label_values(up, job)"}`
+}
+
+func TestQueryVariableKeepsTheDatasourceVariableItUses(t *testing.T) {
+	forms := map[string]string{
+		"braces":  `{"type":"prometheus","uid":"${ds}"}`,
+		"dollar":  `{"type":"prometheus","uid":"$ds"}`,
+		"bracket": `{"type":"prometheus","uid":"[[ds]]"}`,
+		"string":  `"${ds}"`,
+	}
+	for name, datasource := range forms {
+		t.Run(name, func(t *testing.T) {
+			res := convertVariables(t, promDatasourceVariable, jobVariableOn(datasource))
+			if got := variableNamed(t, res, "job").Datasource; got != "${ds}" {
+				t.Fatalf("job datasource = %q, want ${ds}", got)
+			}
+			if notes := notesFor(res, "variable job"); len(notes) != 0 {
+				t.Fatalf("job notes = %+v, want none", notes)
+			}
+			if names := variableNames(res); !slices.Equal(names, []string{"ds", "job"}) {
+				t.Fatalf("variable order = %v, want ds then job", names)
+			}
+		})
+	}
+}
+
+func TestQueryVariableDeclaredBeforeItsDatasourceVariableIsMovedAfterIt(t *testing.T) {
+	res := convertVariables(t, jobVariableOn(`{"type":"prometheus","uid":"${ds}"}`), promDatasourceVariable)
+	if names := variableNames(res); !slices.Equal(names, []string{"ds", "job"}) {
+		t.Fatalf("variable order = %v, want ds then job", names)
+	}
+	if notes := notesFor(res, "variables"); len(notes) != 1 || !hasPath(notes, "templating.list[1]") {
+		t.Fatalf("variables notes = %+v, want one naming the moved datasource variable", notes)
+	}
+}
+
+func TestInputDatasourceStaysPinnedEvenWhenAVariableHasTheSameName(t *testing.T) {
+	doc := `{"title":"T","__inputs":[{"name":"DS_PROMETHEUS","label":"Prometheus","type":"datasource","pluginId":"prometheus"}],` +
+		`"templating":{"list":[{"name":"DS_PROMETHEUS","type":"datasource","query":"prometheus"},` + jobVariableOn(`{"type":"prometheus","uid":"${DS_PROMETHEUS}"}`) + `]},` +
+		`"panels":[` + panelJSON(1, 0, 0, 12, 4, `"type":"stat","datasource":{"type":"prometheus","uid":"${DS_PROMETHEUS}"},"targets":[{"refId":"A","expr":"up"}]`) + `]}`
+	res := convertDoc(t, doc)
+	if got := variableNamed(t, res, "job").Datasource; got != "prom" {
+		t.Fatalf("job datasource = %q, want the matched uid prom", got)
+	}
+	if entry, ok := res.Spec.FindPanel("p1"); !ok || entry.Panel.Datasource != "prom" {
+		t.Fatalf("p1 = %+v, want datasource prom", entry.Panel)
+	}
+}
+
+func TestReferencesFallBackToTheMatchWhenTheDatasourceVariableIsNotImported(t *testing.T) {
+	variables := make([]string, 0, 21)
+	for i := range 20 {
+		variables = append(variables, fmt.Sprintf(`{"name":"c%d","type":"custom","query":"a,b"}`, i))
+	}
+	variables = append(variables, promDatasourceVariable)
+	onDS := `"datasource":{"type":"prometheus","uid":"${ds}"},"targets":[{"refId":"A","expr":"up"}]`
+	res := convertDoc(t, dashboardJSON(templating(variables...),
+		panelJSON(1, 0, 0, 12, 4, `"type":"stat",`+onDS),
+		panelJSON(2, 12, 0, 12, 4, `"type":"stat",`+onDS),
+	))
+	for _, id := range []string{"p1", "p2"} {
+		if entry, ok := res.Spec.FindPanel(id); !ok || entry.Panel.Datasource != "prom" {
+			t.Fatalf("%s = %+v, want the matched uid prom", id, entry.Panel)
+		}
+	}
+	want := "Datasource variable $ds could not be imported, so what used it runs on prom."
+	var notes []Note
+	for _, note := range notesFor(res, "variable ds") {
+		if note.Reason == want {
+			notes = append(notes, note)
+		}
+	}
+	if len(notes) != 1 || len(notes[0].Paths) != 0 {
+		t.Fatalf("notes = %+v, want one note %q without paths", res.Report.Notes, want)
+	}
+}
+
+func TestQueryOverrideKeepsTheDatasourceVariableOnAPanelWithALiteralDatasource(t *testing.T) {
+	panel := panelJSON(1, 0, 0, 12, 4, `"type":"stat","datasource":{"type":"prometheus","uid":"prom"},"targets":[`+
+		`{"refId":"A","expr":"up"},`+
+		`{"refId":"B","expr":"up","datasource":{"type":"prometheus","uid":"${ds}"}}]`)
+	res := convertDoc(t, dashboardJSON(templating(promDatasourceVariable), panel))
+	entry, ok := res.Spec.FindPanel("p1")
+	if !ok || entry.Panel.Datasource != "prom" || len(entry.Panel.Queries) != 2 {
+		t.Fatalf("p1 = %+v, want datasource prom and two queries", entry.Panel)
+	}
+	if got := entry.Panel.Queries[0].Datasource; got != "" {
+		t.Fatalf("query A datasource = %q, want none", got)
+	}
+	if got := entry.Panel.Queries[1].Datasource; got != "${ds}" {
+		t.Fatalf("query B datasource = %q, want ${ds}", got)
 	}
 }

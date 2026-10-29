@@ -1155,22 +1155,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable DS_PROMETHEUS",
-        "status": "partial",
-        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",

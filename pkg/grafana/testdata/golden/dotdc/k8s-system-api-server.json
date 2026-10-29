@@ -54,7 +54,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -85,7 +85,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -116,7 +116,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -147,7 +147,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -178,7 +178,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -209,7 +209,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -240,7 +240,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -271,7 +271,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -302,7 +302,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -333,7 +333,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -364,7 +364,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -395,7 +395,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -411,28 +411,6 @@
           "annotations.list[1]",
           "annotations.list[2]"
         ]
-      },
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
       }
     ]
   },
@@ -460,7 +438,7 @@
       {
         "name": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
         "sort": "alpha"
       },
@@ -480,7 +458,7 @@
       {
         "name": "job",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(apiserver_request_total{cluster=\"$cluster\"}, job)",
         "sort": "alpha",
         "multi": true
@@ -497,7 +475,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "up{cluster=~\"$cluster\", job=~\"$job\"}",
@@ -540,7 +518,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "apiserver_requested_deprecated_apis{cluster=~\"$cluster\"}"
@@ -580,7 +558,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by (code) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
@@ -603,7 +581,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by (verb) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
@@ -626,7 +604,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)",
@@ -646,7 +624,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)",
@@ -669,7 +647,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by(instance) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(instance) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
@@ -689,7 +667,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by(verb) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(verb) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
@@ -712,7 +690,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval])) by (instance)",
@@ -733,7 +711,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(workqueue_depth{cluster=~\"$cluster\", job=~\"$job\"}) by (instance)",
@@ -753,7 +731,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])",
@@ -774,7 +752,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\"}",

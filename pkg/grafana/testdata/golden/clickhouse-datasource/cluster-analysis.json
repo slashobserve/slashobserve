@@ -59,7 +59,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -86,7 +86,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,7 +113,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -140,7 +140,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -167,7 +167,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -194,7 +194,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -228,7 +228,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -260,7 +260,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -287,7 +287,7 @@
           {
             "ref_id": "Merges",
             "ref": "Merges",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -317,7 +317,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -348,7 +348,7 @@
           {
             "ref_id": "Merges",
             "ref": "Merges",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -376,7 +376,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -397,7 +397,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -406,26 +406,12 @@
     ],
     "notes": [
       {
-        "subject": "variable database",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
         "subject": "variable filters",
         "status": "partial",
         "reason": "ClickHouse queries filter by this variable only where they use $filters.",
         "paths": [
           "templating.list[2]"
         ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
       }
     ]
   },
@@ -448,14 +434,14 @@
         "name": "database",
         "label": "Database",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT name FROM system.databases;",
         "includeAll": true
       },
       {
         "name": "filters",
         "type": "adhoc",
-        "datasource": "ch"
+        "datasource": "${datasource}"
       }
     ],
     "panels": [
@@ -469,7 +455,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT version()",
@@ -512,7 +498,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT uptime() as uptime",
@@ -554,7 +540,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT count() as \"Number of databases\" FROM system.databases WHERE name IN (${database:singlequote})",
@@ -580,7 +566,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT count() as \"Number of tables\" FROM system.tables WHERE database IN (${database:singlequote})",
@@ -606,7 +592,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT sum(total_rows) as \"Number of rows\" FROM system.tables WHERE database IN (${database:singlequote});",
@@ -632,7 +618,7 @@
           "w": 4,
           "h": 5
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT count() as \"Number of columns\" FROM system.columns WHERE database IN (${database:singlequote});",
@@ -658,7 +644,7 @@
           "w": 24,
           "h": 10
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT cluster, shard_num, replica_num, host_name, host_address, port, is_local, errors_count, slowdowns_count FROM system.clusters;\n",
@@ -720,7 +706,7 @@
           "w": 5,
           "h": 7
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, round(100 * progress, 1) \"progress\" FROM system.merges WHERE database IN (${database:singlequote}) ORDER BY progress DESC LIMIT 5;\n",
@@ -755,7 +741,7 @@
           "w": 19,
           "h": 7
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "ref": "Merges",
@@ -836,7 +822,7 @@
           "w": 5,
           "h": 7
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(database, '.', table, ' - ', mutation_id) as db_table, length(parts_to_do_names) as parts_remaining FROM system.mutations WHERE parts_remaining > 0 AND database IN (${database:singlequote}) ORDER BY parts_remaining DESC;",
@@ -871,7 +857,7 @@
           "w": 19,
           "h": 7
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "ref": "Merges",
@@ -986,7 +972,7 @@
           "w": 5,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, queue_size FROM system.replicas WHERE database IN (${database:singlequote}) ORDER BY absolute_delay DESC LIMIT 10",
@@ -1026,7 +1012,7 @@
           "w": 19,
           "h": 8
         },
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "SELECT concatAssumeInjective(database, '.', table) as db_table, is_leader, is_readonly, absolute_delay, queue_size, inserts_in_queue, merges_in_queue FROM system.replicas WHERE database IN (${database:singlequote}) ORDER BY absolute_delay DESC LIMIT 10",
