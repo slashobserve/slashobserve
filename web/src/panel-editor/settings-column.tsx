@@ -42,12 +42,12 @@ export function SettingsColumn({
       />
     </div>
   )
-  if (draft.type === "dashlist") {
+  if (draft.type === "dashlist" || draft.type === "news") {
     return (
       <div className="flex flex-col gap-3.5">
         {title}
         <DisplayOptions
-          type="dashlist"
+          type={draft.type}
           display={draft.display}
           dispatch={dispatch}
           readOnly={readOnly}

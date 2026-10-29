@@ -18,6 +18,7 @@ const schema = JSON.parse(schemaText) as {
     textPanel: PanelDef
     placeholderPanel: PanelDef
     dashlistPanel: PanelDef
+    newsPanel: PanelDef
   }
 }
 
@@ -26,6 +27,7 @@ const schemaPanelTypes = [
   schema.$defs.textPanel,
   schema.$defs.placeholderPanel,
   schema.$defs.dashlistPanel,
+  schema.$defs.newsPanel,
 ].flatMap((def) => def.properties.type.enum ?? [def.properties.type.const!])
 
 const entries = Object.entries(found).map(([path, { manifest }]) => ({

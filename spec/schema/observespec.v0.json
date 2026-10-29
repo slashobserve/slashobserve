@@ -2348,6 +2348,9 @@
               },
               {
                 "$ref": "#/$defs/dashlistPanel"
+              },
+              {
+                "$ref": "#/$defs/newsPanel"
               }
             ]
           }
@@ -2380,6 +2383,9 @@
         },
         {
           "$ref": "#/$defs/dashlistPanel"
+        },
+        {
+          "$ref": "#/$defs/newsPanel"
         }
       ]
     },
@@ -2568,6 +2574,53 @@
             },
             "includeVars": {
               "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "newsPanel": {
+      "title": "NewsPanel",
+      "description": "The latest items of one RSS or Atom feed, fetched by the server for allowlisted domains; no datasource or queries.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "gridPos"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable across versions; comments anchor to it.",
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "gridPos": {
+          "$ref": "#/$defs/gridPos"
+        },
+        "type": {
+          "const": "news"
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "feedUrl": {
+              "description": "An https RSS or Atom feed URL. The server fetches it only when its domain is on the outbound allowlist.",
+              "type": "string",
+              "minLength": 9,
+              "maxLength": 2000,
+              "pattern": "^https://[^\\s]+$"
             }
           }
         }

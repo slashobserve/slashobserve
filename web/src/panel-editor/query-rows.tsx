@@ -97,7 +97,7 @@ export function QueryRows({
     else addButton.current?.focus()
   }, [count, editorRefs])
 
-  if (draft.type === "dashlist") return null
+  if (draft.type === "dashlist" || draft.type === "news") return null
 
   if (!isDataPanel(draft)) {
     return (

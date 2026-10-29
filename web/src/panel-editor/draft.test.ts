@@ -5,6 +5,7 @@ import {
   dataPanelTypes,
   type DashlistPanel,
   type DataPanel,
+  type NewsPanel,
   type PanelQuery,
   type TextPanel,
 } from "@/spec"
@@ -491,6 +492,36 @@ describe("dashlist drafts", () => {
       value: ["prod"],
     })
     expect(state.panel).toEqual(textPanel)
+  })
+})
+
+describe("news drafts", () => {
+  const news: NewsPanel = { id: "n1", type: "news", gridPos }
+
+  it("is editable", () => {
+    expect(isEditablePanel(news)).toBe(true)
+  })
+
+  it("takes setDisplay for the feed URL and removes it again with undefined", () => {
+    const set = apply(news, {
+      type: "setDisplay",
+      key: "feedUrl",
+      value: "https://example.com/feed.xml",
+    })
+    expect((set.panel as NewsPanel).display).toEqual({
+      feedUrl: "https://example.com/feed.xml",
+    })
+    const cleared = draftReducer(set, {
+      type: "setDisplay",
+      key: "feedUrl",
+      value: undefined,
+    })
+    expect("display" in cleared.panel).toBe(false)
+  })
+
+  it("takes setTitle", () => {
+    const state = apply(news, { type: "setTitle", title: "Blog" })
+    expect(state.panel.title).toBe("Blog")
   })
 })
 

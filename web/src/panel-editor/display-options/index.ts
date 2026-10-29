@@ -12,6 +12,7 @@ import { geomap } from "./geomap"
 import { heatmap } from "./heatmap"
 import { histogram } from "./histogram"
 import { logs } from "./logs"
+import { news } from "./news"
 import { nodeGraph } from "./nodeGraph"
 import { piechart } from "./piechart"
 import { stat } from "./stat"
@@ -50,4 +51,5 @@ export const displayOptions: Record<
   canvas,
   alertlist,
   dashlist,
+  news,
 }

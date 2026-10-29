@@ -120,5 +120,8 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "limit",
     "keepTime",
     "includeVars"
+  ],
+  "news": [
+    "feedUrl"
   ]
 }

@@ -1,7 +1,7 @@
 import { specDefaults } from "./defaults.gen"
 import type { DataPanelType } from "./panels"
 
-export type DisplayPanelType = DataPanelType | "dashlist"
+export type DisplayPanelType = DataPanelType | "dashlist" | "news"
 
 export type DisplayOf<T extends DisplayPanelType> = {
   [K in T]: Record<string, unknown>

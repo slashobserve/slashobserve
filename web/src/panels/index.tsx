@@ -16,7 +16,8 @@ export function isStaticPanel<T extends { type: string }>(
   return (
     item.type === "text" ||
     item.type === "placeholder" ||
-    item.type === "dashlist"
+    item.type === "dashlist" ||
+    item.type === "news"
   )
 }
 

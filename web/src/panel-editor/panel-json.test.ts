@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import type { Dashboard, DashlistPanel, DataPanel, TextPanel } from "@/spec"
+import type {
+  Dashboard,
+  DashlistPanel,
+  DataPanel,
+  NewsPanel,
+  TextPanel,
+} from "@/spec"
 
 import {
   formatPanel,
@@ -44,6 +50,13 @@ const links: DashlistPanel = {
   gridPos: { x: 12, y: 0, w: 6, h: 4 },
 }
 
+const feed: NewsPanel = {
+  id: "feed",
+  type: "news",
+  gridPos: { x: 18, y: 0, w: 6, h: 4 },
+  display: { feedUrl: "https://example.com/feed.xml" },
+}
+
 const spec: Dashboard = {
   specVersion: "0",
   title: "Editor",
@@ -59,6 +72,7 @@ const spec: Dashboard = {
       panels: [child],
     },
     links,
+    feed,
   ],
 }
 
@@ -173,6 +187,29 @@ describe("parsePanelJson", () => {
         { path: "/type", message, scope: "panel" },
       ])
     }
+  })
+
+  it("refuses to change the type of a news panel", () => {
+    const message =
+      "Use the panel type picker in the editor to change a data panel's type."
+    const attempts = [
+      { id: "feed", panel: { ...feed, type: "dashlist" } },
+      { id: "feed", panel: { ...top, id: "feed" } },
+      { id: "top", panel: { ...feed, id: "top" } },
+    ]
+    for (const { id, panel } of attempts) {
+      expect(failure(JSON.stringify(panel), id)).toEqual([
+        { path: "/type", message, scope: "panel" },
+      ])
+    }
+  })
+
+  it("accepts an edited news panel and rejects a non-https feed URL", () => {
+    const edited = { ...feed, display: { feedUrl: "https://other.dev/rss" } }
+    expect(parsePanelJson(JSON.stringify(edited), spec, "feed").ok).toBe(true)
+    const insecure = { ...feed, display: { feedUrl: "http://other.dev/rss" } }
+    const issues = failure(JSON.stringify(insecure), "feed")
+    expect(issues.map((issue) => issue.path)).toEqual(["/display/feedUrl"])
   })
 
   it("allows moving between data panel types", () => {
