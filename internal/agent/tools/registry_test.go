@@ -206,6 +206,9 @@ func TestCallRecoversPanics(t *testing.T) {
 	if !strings.Contains(logged, nameLintQuery) {
 		t.Fatalf("log lacks the tool name: %s", logged)
 	}
+	if strings.Contains(logged, "stack") || strings.Contains(logged, "goroutine") {
+		t.Fatalf("a panic must log its type only, not a stack: %s", logged)
+	}
 	for _, leaked := range []string{"super-secret-query", "hunter2"} {
 		if strings.Contains(logged, leaked) || strings.Contains(err.Error(), leaked) {
 			t.Fatalf("%q leaked: %s / %v", leaked, logged, err)

@@ -12,7 +12,6 @@ import (
 	"math"
 	"net/url"
 	"reflect"
-	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,8 +172,7 @@ func (r *Registry) Call(ctx context.Context, name string, input json.RawMessage)
 		if p := recover(); p != nil {
 			r.deps.Logger.ErrorContext(ctx, "agent tool panicked",
 				slog.String("tool", name),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
 			res, err = Result{}, fmt.Errorf("tool %s: %w", name, ErrPanicked)
 		}
 	}()
