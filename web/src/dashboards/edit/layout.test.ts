@@ -438,3 +438,47 @@ describe("resizing a panel above the first row", () => {
     expect(find(grown, "c").y).toBe(8)
   })
 })
+
+describe("moving a panel sideways above the first row", () => {
+  const spec = specOf([
+    panel("logs", 0, 0, 12, 4),
+    panel("note", 12, 0, 12, 4),
+    row("r", 4, false, [
+      panel("up", 0, 5, 12, 8),
+      panel("world", 12, 5, 12, 8),
+    ]),
+  ])
+  const membership = membershipOf(spec)
+
+  it("pushes the neighbour it overlaps below it and shifts the row by that height", () => {
+    const moved = moveItemHorizontally(
+      settle(layoutFromSpec(spec), membership),
+      membership,
+      "logs",
+      1
+    )
+    expect(find(moved, "logs")).toMatchObject({ x: 1, y: 0 })
+    expect(find(moved, "note")).toMatchObject({ x: 12, y: 4 })
+    expect(find(moved, "r").y).toBe(8)
+    expect(find(moved, "up").y).toBe(9)
+    expectNoOverlap(moved)
+  })
+
+  it("leaves the row in place when the move overlaps nothing", () => {
+    const apart = specOf([
+      panel("logs", 0, 0, 10, 4),
+      panel("note", 12, 0, 12, 4),
+      row("r", 4, false, [panel("up", 0, 5, 12, 8)]),
+    ])
+    const apartMembership = membershipOf(apart)
+    const moved = moveItemHorizontally(
+      settle(layoutFromSpec(apart), apartMembership),
+      apartMembership,
+      "logs",
+      1
+    )
+    expect(find(moved, "logs")).toMatchObject({ x: 1, y: 0 })
+    expect(find(moved, "r").y).toBe(4)
+    expect(find(moved, "up").y).toBe(5)
+  })
+})
