@@ -40,6 +40,12 @@ paths:
     $ref: "./paths/prompts.yaml#/prompts-id"
   /datasources:
     $ref: "./paths/datasources.yaml#/datasources"
+  /folders:
+    $ref: "./paths/folders.yaml#/folders"
+  /folders/{id}:
+    $ref: "./paths/folders.yaml#/folders-id"
+  /folders/{id}/permissions:
+    $ref: "./paths/folders.yaml#/folders-id-permissions"
   /dashboards:
     $ref: "./paths/dashboards.yaml#/dashboards"
   /dashboards/tags:
@@ -401,6 +407,104 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OutboundDomain"
+    Permissions:
+      type: object
+      additionalProperties: false
+      required: [comment, edit, manage, create]
+      description: What the caller may do with the object; being able to read it implies viewing.
+      properties:
+        comment:
+          type: boolean
+        edit:
+          type: boolean
+        manage:
+          type: boolean
+          description: Rename, change the permissions of and delete a folder.
+        create:
+          type: boolean
+          description: Create dashboards in the folder (needs the Editor role as well as Edit on the folder).
+    FolderLevel:
+      type: string
+      enum: [view, edit, admin]
+    Folder:
+      type: object
+      additionalProperties: false
+      required: [id, title, general, restricted, dashboard_count, grantees, grantee_count, created_by, permissions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        general:
+          type: boolean
+          description: True for the General folder, which holds dashboards without a folder of their own and is never restricted, renamed or deleted.
+        restricted:
+          type: boolean
+          description: True when the folder lists people or groups; false means open to everyone by instance role.
+        dashboard_count:
+          type: integer
+          description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
+        grantees:
+          type: array
+          maxItems: 5
+          description: The names of up to 5 listed people, then groups.
+          items:
+            type: string
+        grantee_count:
+          type: integer
+          description: How many people and groups are listed.
+        created_by:
+          nullable: true
+          description: Null for General and for folders made before creators were recorded.
+          allOf:
+            - $ref: "#/components/schemas/Author"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
+    FolderPermissionEntry:
+      type: object
+      additionalProperties: false
+      required: [kind, level]
+      properties:
+        kind:
+          type: string
+          enum: [user, group]
+        user:
+          type: object
+          additionalProperties: false
+          required: [id, name, email, role]
+          description: Present when `kind` is `user`.
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+            role:
+              $ref: "#/components/schemas/Role"
+        group:
+          type: string
+          description: Present when `kind` is `group`.
+        member_count:
+          type: integer
+          description: Present when `kind` is `group`; people who signed in with the group in their stored claims.
+        level:
+          $ref: "#/components/schemas/FolderLevel"
+    FolderPermissions:
+      type: object
+      additionalProperties: false
+      required: [restricted, entries]
+      properties:
+        restricted:
+          type: boolean
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/FolderPermissionEntry"
     SavedPrompt:
       type: object
       additionalProperties: false
