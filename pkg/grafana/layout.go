@@ -205,7 +205,7 @@ func rowAfterMovingUp(cur []gridPos, placed []int, l gridPos) int {
 	y := 0
 	for _, j := range placed {
 		other := cur[j]
-		if !(other.x < l.x+l.w && l.x < other.x+other.w) {
+		if other.x >= l.x+l.w || l.x >= other.x+other.w {
 			continue
 		}
 		lowest, highest := other.y-l.h+1, other.y+other.h-1
