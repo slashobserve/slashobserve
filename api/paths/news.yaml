@@ -1,0 +1,41 @@
+news:
+  get:
+    operationId: getNewsFeed
+    summary: Fetch an RSS or Atom feed through the server and return its items as plain text.
+    description: The feed's domain must be on the outbound allowlist, and the address must be https. The feed is read up to 1 MiB and cached for 15 minutes. Titles and summaries are plain text, and a link is returned only when it is an absolute http or https URL. Service accounts cannot call this endpoint.
+    parameters:
+      - name: url
+        in: query
+        required: true
+        schema:
+          type: string
+          maxLength: 2000
+    responses:
+      "200":
+        description: The feed's items, newest first as the feed lists them.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/NewsFeed"
+      "400":
+        description: The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_feed_url`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is a service account (`forbidden`), or the feed's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "502":
+        description: The feed could not be fetched (`feed_unavailable`) or was not a valid RSS or Atom feed (`feed_invalid`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

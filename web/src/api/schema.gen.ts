@@ -764,6 +764,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch an RSS or Atom feed through the server and return its items as plain text.
+         * @description The feed's domain must be on the outbound allowlist, and the address must be https. The feed is read up to 1 MiB and cached for 15 minutes. Titles and summaries are plain text, and a link is returned only when it is an absolute http or https URL. Service accounts cannot call this endpoint.
+         */
+        get: operations["getNewsFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/preview": {
         parameters: {
             query?: never;
@@ -918,6 +938,26 @@ export interface components {
             key_count: number;
             /** @description Unexpired sessions. */
             session_count: number;
+        };
+        NewsItem: {
+            /** @description Plain text, never markup. */
+            title: string;
+            /** @description An absolute http or https URL without user info, or null when the feed gave none or an unsafe one. */
+            link: string | null;
+            /** Format: date-time */
+            published: string | null;
+            /** @description Plain text, never markup; may be empty. */
+            summary: string;
+        };
+        NewsFeed: {
+            title: string;
+            /** @description In feed order, at most 50. */
+            items: components["schemas"]["NewsItem"][];
+            /**
+             * Format: date-time
+             * @description When the server fetched the feed; a cached feed keeps the time of its fetch.
+             */
+            fetched_at: string;
         };
         DatasourceStatus: {
             uid: string;
@@ -3325,6 +3365,57 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
+        };
+    };
+    getNewsFeed: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The feed's items, newest first as the feed lists them. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewsFeed"];
+                };
+            };
+            /** @description The url is missing or longer than 2000 bytes (`invalid_request`), or is not an https address with a domain name (`invalid_feed_url`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is a service account (`forbidden`), or the feed's domain is not on the outbound allowlist (`outbound_domain_not_allowed`, with the domain in the message). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The feed could not be fetched (`feed_unavailable`) or was not a valid RSS or Atom feed (`feed_invalid`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     previewImport: {

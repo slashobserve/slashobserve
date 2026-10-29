@@ -20,11 +20,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/egress"
+	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/events"
 	"github.com/slashobserve/slashobserve/internal/events/stream"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/internal/llm/providers"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/news"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -230,6 +233,8 @@ func run() error {
 	stopWorkers := startWorkers(ctx, revisionsService, database.Listen, logger)
 	defer stopWorkers()
 
+	egressClient := egress.New(denyAllOutbound{}, egress.Options{UserAgent: "SlashObserve/" + version})
+
 	handler, err := server.New(server.Options{
 		Logger:          logger,
 		Auth:            authService,
@@ -244,6 +249,7 @@ func run() error {
 			revisions.NewObserveHandler(revisionsService, observeOpts),
 			proxyHandler,
 			users.NewHandler(database, authService, logger),
+			news.NewHandler(egressClient, logger),
 		},
 		Mounts: []server.Mount{{
 			Path:    "/mcp",
@@ -332,3 +338,7 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
 }
+
+type denyAllOutbound struct{}
+
+func (denyAllOutbound) Allowed(context.Context) (domains.List, error) { return nil, nil }

@@ -510,6 +510,14 @@ Failing queries mark their panels and variables unverified in the import report 
 Later saves run every query too, but keep a failing panel or variable unverified, instead of failing, for as long as its queries and the variables they use are unchanged; a new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 The original JSON is stored with the import so a newer importer can convert it again, and it is never shown to the agent.
 
+## News feeds
+
+News panels read their feed through the server, never from the browser, with `GET /api/v1/news?url=<feed address>`; only signed-in people can call it, not service-account keys.
+The feed must be an RSS or Atom feed on an https address, up to 1 MiB, and its domain must be on the outbound allowlist.
+The server caches a feed for 15 minutes and returns at most 50 items as plain text.
+A feed whose domain is not allowed shows a message naming the domain.
+Item links open in a new tab and are not limited by the allowlist: the allowlist controls what the server fetches, not where a person may click.
+
 ## Upgrades and backups
 
 ### Back up Postgres
