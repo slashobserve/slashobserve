@@ -84,12 +84,13 @@ func newRig(t *testing.T, agent bool) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := New(database.DB, queryproxy.NewRunner(registry, logger), folders.NewAccess(database.DB), logger)
+	access := folders.NewAccess(database.DB)
+	service := New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	var reviser revisions.Reviser
 	if agent {
 		reviser = noopReviser{}
 	}
-	queue := revisions.NewService(database.DB, reviser, logger)
+	queue := revisions.NewService(database.DB, reviser, logger, revisions.WithAccess(access))
 	return &rig{db: database, service: service, comments: NewComments(database.DB, service, queue), revisions: queue}
 }
 
