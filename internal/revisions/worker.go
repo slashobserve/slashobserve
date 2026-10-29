@@ -146,7 +146,7 @@ func (w *Worker) step(ctx context.Context) (bool, error) {
 func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool {
 	suggest := claimed.Source == string(SourceSuggest)
 	if !suggest {
-		if settled, progressed := w.settleSaved(ctx, claimed, true, nil); settled {
+		if settled, progressed := w.settleSaved(ctx, claimed, nil); settled {
 			return progressed
 		}
 	}
@@ -161,7 +161,7 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		return true
 	}
 	if !suggest {
-		if settled, progressed := w.settleSaved(ctx, claimed, false, result.Usage); settled {
+		if settled, progressed := w.settleSaved(ctx, claimed, result.Usage); settled {
 			return progressed
 		}
 	}
@@ -197,16 +197,13 @@ func successOutcome(suggest bool, result Result) outcome {
 	return outcome{suggestion: proposed, usage: result.Usage}
 }
 
-func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, beforeRun bool, usage *Usage) (settled, progressed bool) {
+func (w *Worker) settleSaved(ctx context.Context, claimed dbsqlc.AgentRequest, usage *Usage) (settled, progressed bool) {
 	checkCtx, cancel := finishContext(ctx)
 	defer cancel()
 	version, saved, err := w.service.existingVersion(checkCtx, claimed)
 	switch {
 	case err != nil:
 		w.logger.ErrorContext(ctx, "check agent request result", logattrs.Failure("agent_request_check_failed", err, slog.String("agent_request_id", claimed.ID.String()))...)
-		if !beforeRun {
-			return false, true
-		}
 		if int(claimed.CheckFailures)+1 >= maxCheckFailures {
 			w.finish(ctx, claimed, outcome{message: checkFailedMessage, code: "agent_request_check_failed", cause: err})
 			return true, true

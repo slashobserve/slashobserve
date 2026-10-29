@@ -93,8 +93,8 @@ func TestStoreFailuresAfterARunLogOnlyCodeAndType(t *testing.T) {
 	startWorkerLogged(t, svc, d, revisions.WorkerOptions{}, logger)
 
 	for msg, code := range map[string]string{
-		"check agent request result": "agent_request_check_failed",
-		"finish agent request":       "agent_request_finish_failed",
+		"check agent request result":                   "agent_request_check_failed",
+		"release agent request; its lease will expire": "agent_request_release_failed",
 	} {
 		record := findEventually(t, logs, msg)
 		logs.AssertSafeFailure(t, record, code, "closed pool", leakedDetail, leakedPrompt)

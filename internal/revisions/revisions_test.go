@@ -470,21 +470,30 @@ func TestFailedRunWithASavedVersionIsRecordedAsSuccess(t *testing.T) {
 	}
 }
 
-func TestFailedCheckAfterAFailedRunRecordsTheFailureWithoutAFreeRerun(t *testing.T) {
+func TestTransientFailureToCheckTheSavedVersionAfterAFailedRunStillRecordsSuccess(t *testing.T) {
 	var calls atomic.Int32
 	var d *dbtest.Database
-	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+	var dash pgtype.UUID
+	svc, d := newService(t, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
 		calls.Add(1)
+		saveVersionFor(t, d, dash, req.ID)
 		d.Exec(t, "ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id TO agent_request_id_broken")
 		return revisions.Result{}, errors.New("boom")
 	}))
-	dash := seedDashboard(t, d, 1)
+	dash = seedDashboard(t, d, 2)
 	rev := submit(t, svc, dash, "go")
-	startWorker(t, svc, d, revisions.WorkerOptions{})
+	id := mustUUID(t, rev.ID)
+	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1, Poll: 2 * time.Second})
 
-	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
-	if failed.Attempts != 1 || failed.Error != "boom" || failed.FinishedAt == nil || calls.Load() != 1 {
-		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
+	waitFor(t, "the release after the failed check", func() bool {
+		row, err := d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures == 1
+	})
+	d.Exec(t, "ALTER TABLE dashboard_versions RENAME COLUMN agent_request_id_broken TO agent_request_id")
+
+	done := waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+	if done.ResultVersion == nil || *done.ResultVersion != 2 || done.Error != "" || calls.Load() != 1 {
+		t.Fatalf("revision = %+v after %d calls", done, calls.Load())
 	}
 }
 
