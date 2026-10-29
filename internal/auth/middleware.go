@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ func (s *Service) require(c *gin.Context) {
 		}
 	}
 	s.touchSeen(c.Request.Context(), row)
-	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), sessionPrincipalOf(row)))
+	c.Request = c.Request.WithContext(WithPrincipal(c.Request.Context(), s.sessionPrincipalOf(c.Request.Context(), row)))
 	c.Next()
 }
 
@@ -83,7 +84,7 @@ func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
 		return Principal{}, false, err
 	}
 	s.touchSeen(c.Request.Context(), row)
-	return sessionPrincipalOf(row), true, nil
+	return s.sessionPrincipalOf(c.Request.Context(), row), true, nil
 }
 
 func (s *Service) sessionRow(r *http.Request) (dbsqlc.GetSessionUserRow, bool, error) {
@@ -113,8 +114,17 @@ func (s *Service) touchSeen(ctx context.Context, row dbsqlc.GetSessionUserRow) {
 	}
 }
 
-func sessionPrincipalOf(row dbsqlc.GetSessionUserRow) Principal {
-	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name}
+func (s *Service) sessionPrincipalOf(ctx context.Context, row dbsqlc.GetSessionUserRow) Principal {
+	return Principal{Kind: KindUser, ID: row.ID.String(), Email: row.Email, Name: row.Name, Role: s.storedRole(ctx, "user_id", row.ID.String(), row.Role), Groups: row.Groups}
+}
+
+func (s *Service) storedRole(ctx context.Context, idAttr, id, stored string) Role {
+	role, ok := ParseRole(stored)
+	if !ok {
+		s.logger.WarnContext(ctx, "stored role is not a known role; using viewer", slog.String(idAttr, id))
+		return RoleViewer
+	}
+	return role
 }
 
 func (s *Service) lookupKey(ctx context.Context, header string) (dbsqlc.GetKeyPrincipalRow, bool, error) {
@@ -145,7 +155,7 @@ func (s *Service) bearerPrincipal(ctx context.Context, header string) (Principal
 			s.logger.WarnContext(ctx, "update key last used", logattrs.Failure("key_touch_failed", err)...)
 		}
 	}
-	return Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name}, true, nil
+	return Principal{Kind: KindServiceAccount, ID: row.ServiceAccountID.String(), Name: row.Name, Role: s.storedRole(ctx, "service_account_id", row.ServiceAccountID.String(), row.Role)}, true, nil
 }
 
 func isSafeMethod(method string) bool {

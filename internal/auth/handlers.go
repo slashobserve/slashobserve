@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -161,9 +162,10 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	}
 
 	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-		Name          string `json:"name"`
+		Email         string          `json:"email"`
+		EmailVerified bool            `json:"email_verified"`
+		Name          string          `json:"name"`
+		Groups        json.RawMessage `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return "", &loginFailure{code: "invalid_token", err: err}
@@ -179,13 +181,23 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		return "", &loginFailure{code: "email_not_allowed", reason: reason, attrs: []any{slog.String("email_domain", emailDomain(claims.Email))}}
 	}
 
+	groups := groupsClaim(claims.Groups)
 	user, err := s.queries.UpsertUser(ctx, dbsqlc.UpsertUserParams{
 		OidcIssuer:  idToken.Issuer,
 		OidcSubject: idToken.Subject,
 		Email:       claims.Email,
 		Name:        truncateRunes(strings.ReplaceAll(claims.Name, "\x00", ""), maxDisplayNameRunes),
+		Groups:      groups,
 	})
 	if err != nil {
+		return "", &loginFailure{code: "internal", err: err}
+	}
+	first, err := s.queries.IsFirstUser(ctx, user.ID)
+	if err != nil {
+		return "", &loginFailure{code: "internal", err: err}
+	}
+	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
+	if err := s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision)); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := newToken("")
