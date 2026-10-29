@@ -1092,14 +1092,15 @@ node_exporter_full_import() {
   out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
   [[ "$out" == 201 ]] || fail "import Node Exporter Full ($out: $(head -c 600 "$TMP/api.body"))"
   node_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
-  python3 -I - "$node" "$TMP/api.body" "$PROM_URL" >"$TMP/node-import.check" 2>&1 <<'PY' || fail "Node Exporter Full should keep every panel, and a panel may be unverified only because the series it selects are absent from Prometheus ($(head -c 2000 "$TMP/node-import.check"))"
-import json, re, sys, urllib.parse, urllib.request
+  python3 -I - "$node" "$TMP/api.body" "$PROM_URL" >"$TMP/node-import.check" 2>&1 <<'PY' || fail "Node Exporter Full should keep every panel, and a panel may be unverified only because a series it selects is absent from Prometheus or its expression has no finite sample ($(head -c 2000 "$TMP/node-import.check"))"
+import json, re, sys, time, urllib.parse, urllib.request
 
 KEPT = {"imported", "partial", "placeholder", "unverified"}
 NO_DATA = "The queries returned no data for the dashboard's default time range."
 STRING = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`[^`]*`'
 SELECTOR = re.compile(rf"(?:{STRING})|(?<![\w:.$])([a-zA-Z_:][\w:]*)(?:\s*\{{((?:[^}}\"'`]|{STRING})*)\}})?(?![\w:]*\s*\()")
 MATCHER = re.compile(rf"[a-zA-Z_]\w*\s*(?:=~|!~|!=|=)\s*(?:{STRING})")
+VARIABLE_MATCHER = re.compile(r'=~?\s*"\$\{?\w+\}?"')
 KEYWORDS = {"and", "or", "unless", "bool", "offset", "inf", "nan", "by", "without", "on", "ignoring", "group_left", "group_right"}
 
 def walk(panels):
@@ -1128,10 +1129,19 @@ def has_series(selector):
             series_cache[selector] = bool(json.load(resp)["data"]["result"])
     return series_cache[selector]
 
+def has_finite_sample(expr, span):
+    expr = VARIABLE_MATCHER.sub('=~".+"', expr.replace("$__rate_interval", "1m"))
+    end = int(time.time())
+    query = urllib.parse.urlencode({"query": f"abs({expr}) < Inf", "start": end - span, "end": end, "step": max(15, span // 300)})
+    with urllib.request.urlopen(f"{sys.argv[3]}/api/v1/query_range?{query}", timeout=30) as resp:
+        return bool(json.load(resp)["data"]["result"])
+
 corpus = [p for p in walk(json.load(open(sys.argv[1]))["panels"]) if p["type"] != "row"]
 imported = json.load(open(sys.argv[2]))
 lines = imported["import"]["report"]["panels"]
 spec_panels = {p["id"]: p for p in walk(imported["version"]["spec"]["panels"])}
+amount, unit = re.fullmatch(r"now-(\d+)([smhd])", imported["version"]["spec"]["time"]["from"]).groups()
+span = int(amount) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
 problems = []
 
 if sorted(l["grafana_id"] for l in lines) != sorted(p["id"] for p in corpus):
@@ -1153,8 +1163,8 @@ for line in lines:
         problems.append(f"{line['title']}: unverified by a query error: {line['reasons']}")
         continue
     for query in spec_panels[line["panel_id"]]["queries"]:
-        if all(has_series(s) for s in selectors(query["query"])):
-            problems.append(f"{line['title']}: unverified although every series it selects exists: {query['query']}")
+        if all(has_series(s) for s in selectors(query["query"])) and has_finite_sample(query["query"], span):
+            problems.append(f"{line['title']}: unverified although every series it selects exists and it has finite samples: {query['query']}")
 
 if problems:
     print("\n".join(problems))
@@ -1162,7 +1172,7 @@ if problems:
 PY
   out="$(api GET "/dashboards/$node_id")"
   [[ "$out" == 200 ]] || fail "the imported Node Exporter Full should be readable ($out)"
-  pass "importing Node Exporter Full keeps every panel, and a panel is unverified only when a series it selects is absent from Prometheus"
+  pass "importing Node Exporter Full keeps every panel, and a panel is unverified only when a series it selects is absent from Prometheus or its expression has no finite sample"
 }
 
 imports_suite() {
