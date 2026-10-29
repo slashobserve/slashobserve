@@ -1031,11 +1031,46 @@ expect_import_error() {
   fi
 }
 
-prom_defined() { capture LAST prom_scalar "$1" || true; is_number "$LAST"; }
+demo_shop_panels_without_data() {
+  python3 -I - "$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" "$PROM_URL" <<'PY'
+import json, re, sys, time, urllib.parse, urllib.request
 
-demo_shop_stat_panels_have_data() {
-  prom_defined 'sum(rate(http_requests_total{service=~".+",status=~"5.."}[5m])) / sum(rate(http_requests_total{service=~".+"}[5m]))' \
-    && prom_defined 'sum(rate(container_cpu_usage_seconds_total{service=~".+"}[1m]))'
+UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+def walk(panels):
+    for p in panels:
+        yield p
+        yield from walk(p.get("panels", []))
+
+def has_data(expr, start, end):
+    query = urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": 60})
+    with urllib.request.urlopen(f"{sys.argv[2]}/api/v1/query_range?{query}", timeout=10) as resp:
+        return bool(json.load(resp)["data"]["result"])
+
+dashboard = json.load(open(sys.argv[1]))
+amount, unit = re.fullmatch(r"now-(\d+)([smhd])", dashboard["time"]["from"]).groups()
+span = int(amount) * UNITS[unit]
+end = int(time.time())
+variables = [v["name"] for v in dashboard["templating"]["list"]]
+
+def resolve(expr):
+    expr = expr.replace("$__rate_interval", "1m").replace("$__range", f"{span}s")
+    for name in variables:
+        expr = re.sub(rf"\${name}\b", ".+", expr)
+    return expr
+
+for panel in walk(dashboard["panels"]):
+    targets = panel.get("targets", [])
+    if panel["type"] == "row" or not targets or any(t["datasource"]["type"] != "prometheus" for t in targets):
+        continue
+    if not any(has_data(resolve(t["expr"]), end - span, end) for t in targets):
+        print(panel["title"])
+PY
+}
+
+demo_shop_panels_have_data() {
+  capture LAST demo_shop_panels_without_data || return 1
+  [[ -z "$LAST" ]]
 }
 
 node_exporter_full_import() {
@@ -1217,7 +1252,7 @@ PY
     || fail "an ambiguous datasource should list its candidates and never be guessed ($(head -c 600 "$TMP/api.body"))"
   pass "a datasource with two candidates is never guessed"
 
-  poll 180 "Prometheus has data for the demo shop stat panels" demo_shop_stat_panels_have_data
+  poll 180 "Prometheus has data for every Prometheus panel of the demo shop dashboard" demo_shop_panels_have_data
   import_body "$demo"
   out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
   [[ "$out" == 201 ]] || fail "import demo-shop ($out: $(head -c 600 "$TMP/api.body"))"
