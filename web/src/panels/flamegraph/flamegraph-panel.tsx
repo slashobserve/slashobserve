@@ -15,6 +15,7 @@ import {
   fullRange,
   search,
   shareText,
+  zoomForFocus,
   zoomTo,
   type FlameProfile,
 } from "./flame-model"
@@ -167,7 +168,14 @@ export const FlameGraphPanel: PanelRenderer = ({
               setHover(null)
               setZoom({ model, index })
             }}
-            onFocusChange={(index) => setFocus({ model, index })}
+            onFocusChange={(index) => {
+              setFocus({ model, index })
+              if (index === null) return
+              const next = zoomForFocus(model, zoomed, index)
+              if (next !== zoomed) {
+                setZoom(next === null ? null : { model, index: next })
+              }
+            }}
             onReset={zoomed === null ? null : () => setZoom(null)}
           />
         </div>

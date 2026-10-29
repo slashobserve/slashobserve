@@ -255,3 +255,29 @@ export function focusText(profile: FlameProfile, index: number): string {
   const self = displayValue(node.self, profile.config).text
   return `${node.label}, total ${total} (${shareText(node.share)}), self ${self}, level ${node.level + 1}`
 }
+
+export function zoomForFocus(
+  profile: FlameProfile,
+  zoomed: number | null,
+  focused: number
+): number | null {
+  const node = profile.nodes[focused]
+  if (!node || node.value <= 0) return zoomed
+  const range = zoomed === null ? fullRange(profile) : zoomTo(profile, zoomed)
+  if (node.start < range.end && node.start + node.value > range.start) {
+    return zoomed
+  }
+  let ancestor = node.parent
+  while (ancestor !== -1) {
+    const candidate = profile.nodes[ancestor]
+    if (
+      candidate.parent !== -1 &&
+      candidate.start <= range.start &&
+      candidate.start + candidate.value >= range.end
+    ) {
+      return ancestor
+    }
+    ancestor = candidate.parent
+  }
+  return null
+}
