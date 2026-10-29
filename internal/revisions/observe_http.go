@@ -252,10 +252,7 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 	if !ok {
 		return
 	}
-	row, err := h.service.GetByID(c.Request.Context(), id)
-	if err == nil && row.Source == string(SourceSuggest) {
-		err = ErrRequestNotFound
-	}
+	row, err := h.service.GetObserve(c.Request.Context(), id, httpapi.Caller(c))
 	if err != nil {
 		h.service.fail(c, "get agent request", err, slog.String("agent_request_id", id.String()))
 		return

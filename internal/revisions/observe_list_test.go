@@ -341,3 +341,31 @@ func TestPostAnswers404WhenTheDashboardVanishesDuringThePanelCheck(t *testing.T)
 		t.Fatalf("post: %d %s", rec.Code, rec.Body)
 	}
 }
+
+func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 2)
+	private := observeFor(t, svc, user, "private prompt")
+	shared := observeFor(t, svc, user, "shared prompt")
+	d.Exec(t, "UPDATE agent_requests SET status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
+
+	for name, c := range map[string]struct {
+		id   string
+		who  auth.Principal
+		want int
+	}{
+		"requester reads their own":              {private, user, http.StatusOK},
+		"another user":                           {private, auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "b"}, http.StatusNotFound},
+		"service account":                        {private, account, http.StatusNotFound},
+		"same id other kind":                     {private, lookalike, http.StatusNotFound},
+		"request with a dashboard, other reader": {shared, stranger, http.StatusOK},
+	} {
+		rec := call(observeRouterFor(svc, c.who), http.MethodGet, "/api/v1/observe/"+c.id, "")
+		if rec.Code != c.want {
+			t.Errorf("%s: %d %s, want %d", name, rec.Code, rec.Body, c.want)
+		}
+		if c.want == http.StatusNotFound && strings.Contains(rec.Body.String(), "private prompt") {
+			t.Errorf("%s: the prompt leaked: %s", name, rec.Body)
+		}
+	}
+}

@@ -799,7 +799,7 @@ export interface paths {
         };
         /**
          * Read one agent request with its progress steps and usage.
-         * @description Works for any agent request, including comment and prompt revisions. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
+         * @description Works for any agent request, including comment and prompt revisions. A request that has no dashboard yet, or never got one, is readable only by the principal that made it; anyone else gets 404. Clients poll it once a second until the status is `succeeded` or `failed`. After a shutdown release the re-claimed run reuses its attempt number with a fresh step list, so a client detects a restarted list by each step's `at`, not by `attempt` alone.
          */
         get: operations["getObserveRequest"];
         put?: never;

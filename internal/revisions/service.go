@@ -242,6 +242,20 @@ func (s *Service) GetByID(ctx context.Context, id pgtype.UUID) (dbsqlc.AgentRequ
 	return row, nil
 }
 
+func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	row, err := s.GetByID(ctx, id)
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if row.Source == string(SourceSuggest) {
+		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	}
+	if !row.DashboardID.Valid && (row.RequestedByKind != string(by.Kind) || row.RequestedByID.String() != by.ID) {
+		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	}
+	return row, nil
+}
+
 func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revision, error) {
 	row, err := s.db.Queries().GetAgentRequest(ctx, dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dashboardID})
 	if errors.Is(err, pgx.ErrNoRows) {
