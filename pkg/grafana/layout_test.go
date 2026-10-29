@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -155,5 +156,33 @@ func TestOverlapCascadeMatchesReactGridLayout(t *testing.T) {
 		if isMoved(panelLine(t, res, id)) {
 			t.Errorf("%s is marked moved by plain compaction", id)
 		}
+	}
+}
+
+func TestHugeGridPositionsConvertQuickly(t *testing.T) {
+	const huge = 1000000000
+	panels := []string{panelJSON(1, 0, 0, 1, huge, "")}
+	for i := 2; i <= 8; i++ {
+		panels = append(panels, panelJSON(i, i-1, huge, 1, 1, ""))
+	}
+	doc := dashboardJSON("", panels...)
+	done := make(chan *Result, 1)
+	go func() {
+		res, err := Convert([]byte(doc), Options{Datasources: testDatasources})
+		if err != nil {
+			t.Errorf("Convert: %v", err)
+		}
+		done <- res
+	}()
+	select {
+	case res := <-done:
+		if got := gridOf(t, res, "p2"); got.Y != 0 || got.X != 1 {
+			t.Fatalf("p2 = %+v, want it pulled up to y 0", got)
+		}
+		if got := gridOf(t, res, "p1"); got.H != maxGridHeight || !isMoved(panelLine(t, res, "p1")) {
+			t.Fatalf("p1 = %+v, want h cut to %d and reported", got, maxGridHeight)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Convert still running after 2s on huge grid positions")
 	}
 }

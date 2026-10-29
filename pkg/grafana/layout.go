@@ -188,8 +188,8 @@ func compactVertical(in []gridPos) []gridPos {
 			bottom = max(bottom, cur[j].y+cur[j].h)
 		}
 		l.y = min(bottom, l.y)
-		for l.y > 0 && firstCollision(cur, placed, l) < 0 {
-			l.y--
+		if l.y > 0 && firstCollision(cur, placed, l) < 0 {
+			l.y = rowAfterMovingUp(cur, placed, l)
 		}
 		for c := firstCollision(cur, placed, l); c >= 0; c = firstCollision(cur, placed, l) {
 			pushDown(cur, order, k, &l, cur[c].y+cur[c].h)
@@ -199,6 +199,21 @@ func compactVertical(in []gridPos) []gridPos {
 		placed = append(placed, i)
 	}
 	return cur
+}
+
+func rowAfterMovingUp(cur []gridPos, placed []int, l gridPos) int {
+	y := 0
+	for _, j := range placed {
+		other := cur[j]
+		if !(other.x < l.x+l.w && l.x < other.x+other.w) {
+			continue
+		}
+		lowest, highest := other.y-l.h+1, other.y+other.h-1
+		if lowest <= highest && lowest <= l.y-1 {
+			y = max(y, min(highest, l.y-1))
+		}
+	}
+	return y
 }
 
 func firstCollision(cur []gridPos, placed []int, l gridPos) int {
