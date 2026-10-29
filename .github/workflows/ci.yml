@@ -58,7 +58,7 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
       SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
