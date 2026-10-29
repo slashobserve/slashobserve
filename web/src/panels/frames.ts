@@ -1,5 +1,4 @@
 import type { WireFrame } from "@/dashboards/queries"
-import { queryRef, type DataPanel } from "@/spec"
 
 export type WireField = WireFrame["fields"][number]
 export type ColumnType = WireField["type"]
@@ -53,15 +52,6 @@ export function qualifyCollidingLabels<
   )
 }
 
-export function legendFor(
-  panel: DataPanel,
-  frame: WireFrame
-): string | undefined {
-  return panel.queries.find(
-    (query, index) => queryRef(query, index) === frame.ref
-  )?.legend
-}
-
 export function seriesKey(frame: WireFrame, fieldName: string): string {
   const labels = Object.entries(frame.labels ?? {})
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -82,44 +72,6 @@ export function uniqueKey(seen: Map<string, number>, base: string): string {
   seen.set(base, next + 1)
   seen.set(name, 1)
   return name
-}
-
-export function lastNumber(field: WireField): number | null {
-  for (let i = field.values.length - 1; i >= 0; i--) {
-    const value = field.values[i]
-    if (typeof value === "number" && Number.isFinite(value)) return value
-  }
-  return null
-}
-
-export type NumberSeries = {
-  key: string
-  label: string
-  value: number | null
-}
-
-export function firstNumberSeries(
-  frames: WireFrame[],
-  legendOf: (frame: WireFrame) => string | undefined
-): NumberSeries[] {
-  const seen = new Map<string, number>()
-  const series = frames.flatMap((frame) => {
-    const numbers = frame.fields.filter((field) => field.type === "number")
-    if (numbers.length === 0) return []
-    return [
-      {
-        ref: frame.ref,
-        key: uniqueKey(seen, seriesKey(frame, numbers[0].name)),
-        label: seriesLabel(frame, numbers[0], legendOf(frame), numbers.length),
-        value: lastNumber(numbers[0]),
-      },
-    ]
-  })
-  return qualifyCollidingLabels(series).map(({ key, label, value }) => ({
-    key,
-    label,
-    value,
-  }))
 }
 
 export function hasData(frames: WireFrame[]): boolean {

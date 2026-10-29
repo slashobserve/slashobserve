@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
-import type { DataPanel } from "@/spec"
 
 import {
-  firstNumberSeries,
   hasData,
-  lastNumber,
-  legendFor,
+  qualifyCollidingLabels,
   seriesKey,
   seriesLabel,
   uniqueKey,
@@ -18,8 +15,6 @@ const time: WireFrame["fields"][number] = {
   type: "time",
   values: [1, 2, 3],
 }
-
-const noLegend = () => undefined
 
 function frame(partial: Partial<WireFrame> & Pick<WireFrame, "fields">) {
   return { ref: "A", ...partial } as WireFrame
@@ -70,15 +65,6 @@ describe("seriesLabel", () => {
   })
 })
 
-describe("lastNumber", () => {
-  it("skips nulls and non-finite values", () => {
-    expect(
-      lastNumber({ name: "v", type: "number", values: [1, 2, null, NaN] })
-    ).toBe(2)
-    expect(lastNumber({ name: "v", type: "number", values: [null] })).toBeNull()
-  })
-})
-
 describe("hasData", () => {
   it("is false without frames or without non-null values", () => {
     expect(hasData([])).toBe(false)
@@ -102,120 +88,36 @@ describe("hasData", () => {
   })
 })
 
-describe("firstNumberSeries", () => {
-  const value = (values: number[]) =>
-    ({ name: "value", type: "number", values }) as const
+describe("qualifyCollidingLabels", () => {
+  const labels = (items: { ref: string; label: string }[]) =>
+    qualifyCollidingLabels(items).map((item) => item.label)
 
-  it("keys each series by frame identity, not by position", () => {
-    const a = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
-    const b = frame({ labels: { pod: "b" }, fields: [time, value([2])] })
-    const keys = (frames: WireFrame[]) =>
-      firstNumberSeries(frames, () => "{{pod}}").map((s) => [s.label, s.key])
-    expect(keys([a, b])).toEqual([
-      ["a", "A:{pod=a}#value"],
-      ["b", "A:{pod=b}#value"],
-    ])
-    expect(keys([b, a])).toEqual([
-      ["b", "A:{pod=b}#value"],
-      ["a", "A:{pod=a}#value"],
-    ])
-  })
-
-  it("numbers keys only for identical frames", () => {
-    const same = frame({ labels: { pod: "a" }, fields: [time, value([1])] })
+  it("prefixes identical labels from two queries with their refs", () => {
     expect(
-      firstNumberSeries([same, same, same], noLegend).map(
-        (series) => series.key
-      )
-    ).toEqual(["A:{pod=a}#value", "A:{pod=a}#value#1", "A:{pod=a}#value#2"])
-  })
-
-  it("reads the last number of the first number field and skips frames without one", () => {
-    const text = frame({
-      fields: [time, { name: "msg", type: "string", values: ["x"] }],
-    })
-    const f = frame({ fields: [time, value([1, 2, 3])] })
-    expect(
-      firstNumberSeries([text, f], noLegend).map((series) => series.value)
-    ).toEqual([3])
-  })
-
-  it("keeps the same series of two queries apart and labels each with its own legend", () => {
-    const a = frame({
-      ref: "A",
-      labels: { pod: "x" },
-      fields: [time, value([1])],
-    })
-    const b = frame({
-      ref: "B",
-      labels: { pod: "x" },
-      fields: [time, value([2])],
-    })
-    const legends: Record<string, string> = {
-      A: "cpu {{pod}}",
-      B: "mem {{pod}}",
-    }
-    expect(
-      firstNumberSeries([a, b], (f) => legends[f.ref]).map((s) => [
-        s.label,
-        s.key,
+      labels([
+        { ref: "A", label: 'up{pod="x"}' },
+        { ref: "B", label: 'up{pod="x"}' },
       ])
-    ).toEqual([
-      ["cpu x", "A:{pod=x}#value"],
-      ["mem x", "B:{pod=x}#value"],
-    ])
+    ).toEqual(['A: up{pod="x"}', 'B: up{pod="x"}'])
   })
-})
 
-describe("firstNumberSeries label collisions", () => {
-  const value = (ref: string, labels?: Record<string, string>) =>
-    frame({
-      ref,
-      labels,
-      fields: [time, { name: "value", type: "number", values: [1] }],
-    })
-  const labelsOf = (
-    frames: WireFrame[],
-    legends: Record<string, string | undefined> = {}
-  ) => firstNumberSeries(frames, (f) => legends[f.ref]).map((s) => s.label)
-
-  it("prefixes identical label sets from two queries", () => {
+  it("leaves labels that collide inside one query alone", () => {
     expect(
-      labelsOf([value("A", { pod: "x" }), value("B", { pod: "x" })])
-    ).toEqual(['A: {pod="x"}', 'B: {pod="x"}'])
-  })
-
-  it("leaves a shared templated legend alone when it resolves differently", () => {
-    expect(
-      labelsOf([value("A", { pod: "x" }), value("B", { pod: "y" })], {
-        A: "{{pod}}",
-        B: "{{pod}}",
-      })
-    ).toEqual(["x", "y"])
-  })
-
-  it("prefixes a shared literal legend", () => {
-    expect(
-      labelsOf([value("A", { pod: "x" }), value("B", { pod: "y" })], {
-        A: "total",
-        B: "total",
-      })
-    ).toEqual(["A: total", "B: total"])
-  })
-
-  it("prefixes unlabeled fallbacks from two queries", () => {
-    expect(labelsOf([value("A"), value("B")])).toEqual(["A: value", "B: value"])
-  })
-
-  it("leaves collisions inside one query alone", () => {
-    const a = value("A", { pod: "x" })
-    expect(labelsOf([a, a])).toEqual(['{pod="x"}', '{pod="x"}'])
+      labels([
+        { ref: "A", label: "up" },
+        { ref: "A", label: "up" },
+      ])
+    ).toEqual(["up", "up"])
   })
 
   it("only prefixes the colliding labels", () => {
     expect(
-      labelsOf([value("A", { pod: "x" }), value("B", { pod: "x" }), value("C")])
-    ).toEqual(['A: {pod="x"}', 'B: {pod="x"}', "value"])
+      labels([
+        { ref: "A", label: "total" },
+        { ref: "B", label: "total" },
+        { ref: "C", label: "value" },
+      ])
+    ).toEqual(["A: total", "B: total", "value"])
   })
 })
 
@@ -250,34 +152,5 @@ describe("uniqueKey", () => {
   it("never returns the same name twice", () => {
     const names = take(["x", "x#1", "x", "x#1", "x", "x#2", "x"])
     expect(new Set(names).size).toBe(names.length)
-  })
-})
-
-describe("legendFor", () => {
-  const panel = {
-    id: "p",
-    type: "timeseries",
-    gridPos: { x: 0, y: 0, w: 6, h: 4 },
-    queries: [
-      { query: "a", legend: "first" },
-      { ref: "errors", query: "b", legend: "second" },
-      { query: "c" },
-    ],
-  } as unknown as DataPanel
-
-  it("matches a default ref by position", () => {
-    expect(legendFor(panel, frame({ ref: "A", fields: [] }))).toBe("first")
-    expect(legendFor(panel, frame({ ref: "C", fields: [] }))).toBeUndefined()
-  })
-
-  it("matches an explicit ref", () => {
-    expect(legendFor(panel, frame({ ref: "errors", fields: [] }))).toBe(
-      "second"
-    )
-  })
-
-  it("has no legend for an unknown ref", () => {
-    expect(legendFor(panel, frame({ ref: "Z", fields: [] }))).toBeUndefined()
-    expect(legendFor(panel, frame({ ref: "B", fields: [] }))).toBeUndefined()
   })
 })
