@@ -24,6 +24,12 @@ export function isModChord(event: ChordEvent, key: string): boolean {
   )
 }
 
+export function isModEnter(
+  event: Pick<ChordEvent, "key" | "metaKey" | "ctrlKey">
+): boolean {
+  return event.key === "Enter" && (event.metaKey || event.ctrlKey)
+}
+
 export function modChordLabel(userAgent: string, key: string): string {
   const letter = key.toUpperCase()
   return /Mac|iPhone|iPad|iPod/.test(userAgent)

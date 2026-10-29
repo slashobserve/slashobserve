@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
 import { liveRegionText } from "@/lib/live-region"
+import { isModEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 import {
@@ -167,11 +168,7 @@ export function ActivityComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (
-      event.key === "Enter" &&
-      (event.ctrlKey || event.metaKey) &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (isModEnter(event) && !event.nativeEvent.isComposing) {
       event.preventDefault()
       addCommentNow()
     }

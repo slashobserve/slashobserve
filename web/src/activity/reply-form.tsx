@@ -4,6 +4,7 @@ import { ApiError } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useAddComment } from "@/comments/queries"
+import { isModEnter } from "@/lib/shortcuts"
 import { sentence } from "@/observe/queries"
 import {
   describeRevisionError,
@@ -104,11 +105,7 @@ export function ReplyForm({
         event.preventDefault()
         event.stopPropagation()
       }
-    } else if (
-      event.key === "Enter" &&
-      (event.metaKey || event.ctrlKey) &&
-      !event.nativeEvent.isComposing
-    ) {
+    } else if (isModEnter(event) && !event.nativeEvent.isComposing) {
       event.preventDefault()
       void submit(false)
     }

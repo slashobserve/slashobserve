@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { isEditableTarget, isModChord, modChordLabel } from "./shortcuts"
+import {
+  isEditableTarget,
+  isModChord,
+  isModEnter,
+  modChordLabel,
+} from "./shortcuts"
 
 function keyEvent(overrides: Partial<Parameters<typeof isModChord>[0]>) {
   return {
@@ -61,6 +66,18 @@ describe("isModChord", () => {
     )
     expect(isModChord(keyEvent({}), "k")).toBe(false)
     expect(isModChord(keyEvent({ metaKey: true, key: "j" }), "k")).toBe(false)
+  })
+})
+
+describe("isModEnter", () => {
+  it("accepts Enter with Meta or Ctrl", () => {
+    expect(isModEnter(keyEvent({ key: "Enter", metaKey: true }))).toBe(true)
+    expect(isModEnter(keyEvent({ key: "Enter", ctrlKey: true }))).toBe(true)
+  })
+
+  it("rejects a plain Enter and a modified other key", () => {
+    expect(isModEnter(keyEvent({ key: "Enter" }))).toBe(false)
+    expect(isModEnter(keyEvent({ key: "k", metaKey: true }))).toBe(false)
   })
 })
 
