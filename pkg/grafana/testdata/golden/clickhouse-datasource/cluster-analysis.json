@@ -408,9 +408,21 @@
       {
         "subject": "variable filters",
         "status": "partial",
-        "reason": "ClickHouse queries filter by this variable only where they use $filters.",
+        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $filters, so 13 of them are not filtered.",
         "paths": [
-          "templating.list[2]"
+          "panels[0].targets[0]",
+          "panels[1].targets[0]",
+          "panels[2].targets[0]",
+          "panels[3].targets[0]",
+          "panels[4].targets[0]",
+          "panels[5].targets[0]",
+          "panels[6].targets[0]",
+          "panels[7].targets[0]",
+          "panels[8].targets[0]",
+          "panels[9].targets[0]",
+          "panels[10].targets[0]",
+          "panels[11].targets[0]",
+          "panels[12].targets[0]"
         ]
       }
     ]

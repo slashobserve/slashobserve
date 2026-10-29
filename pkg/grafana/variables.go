@@ -572,9 +572,7 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 		c.dropVariable(subject, path+".datasource", fmt.Sprintf("It filters %s, which is not supported yet.", ref.label()))
 		return spec.Variable{}, false
 	}
-	if ref.src.kind == kindClickHouse {
-		c.note(subject, fmt.Sprintf("ClickHouse queries filter by this variable only where they use $%s.", name), path)
-	}
+	c.adhocSources[name] = ref.src
 	var saved []string
 	for _, key := range []string{"filters", "baseFilters"} {
 		if present(raw[key]) {

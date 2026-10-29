@@ -39,18 +39,19 @@ var silentDashboardKeys = map[string]bool{
 }
 
 type converter struct {
-	src         *source
-	reg         *registry
-	head        spec.Dashboard
-	notes       []Note
-	vars        []*builtVar
-	droppedVars map[string]bool
-	built       []*builtPanel
-	emptyRows   []string
-	noRepeat    map[string]bool
-	repeatNoted map[string]bool
-	staleRows   []string
-	dsFallback  map[string]bool
+	src          *source
+	reg          *registry
+	head         spec.Dashboard
+	notes        []Note
+	vars         []*builtVar
+	droppedVars  map[string]bool
+	built        []*builtPanel
+	emptyRows    []string
+	noRepeat     map[string]bool
+	repeatNoted  map[string]bool
+	staleRows    []string
+	dsFallback   map[string]bool
+	adhocSources map[string]*sourceDS
 }
 
 func Convert(raw []byte, opts Options) (*Result, error) {
@@ -62,7 +63,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	if err := reg.resolve(opts); err != nil {
 		return nil, err
 	}
-	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}, dsFallback: map[string]bool{}}
+	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}, dsFallback: map[string]bool{}, adhocSources: map[string]*sourceDS{}}
 	c.convertHead()
 	c.convertVariables()
 	c.convertPanels()
@@ -71,6 +72,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.noteClickHouseAdhoc()
 	result := &Result{
 		Summary:     src.summary(),
 		Datasources: reg.sources(),
