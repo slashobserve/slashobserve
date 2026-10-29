@@ -7,7 +7,7 @@ import {
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, folderKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import { validateSpecSchema, type Dashboard } from "@/spec"
 
@@ -67,6 +67,28 @@ function useStoreSavedVersion(id: string) {
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.history(id) })
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.list() })
   }
+}
+
+export function useMoveDashboard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { id: string; folderId: string }) =>
+      api
+        .PATCH("/dashboards/{id}", {
+          params: { path: { id: input.id } },
+          body: { folder_id: input.folderId },
+        })
+        .then(unwrap),
+    onSettled: (_data, _error, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.list() }),
+        queryClient.invalidateQueries({
+          queryKey: dashboardKeys.latest(input.id),
+        }),
+        queryClient.invalidateQueries({ queryKey: folderKeys.all }),
+      ]),
+  })
 }
 
 export function useAddVersion(id: string) {

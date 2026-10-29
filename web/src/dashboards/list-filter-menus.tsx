@@ -17,9 +17,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { datasourcesQuery } from "@/datasources/queries"
+import { foldersQuery } from "@/folders/queries"
 import { usersQuery } from "@/people/queries"
 
-import { madeByText, tagsText } from "./list-filters"
+import { folderText, madeByText, tagsText } from "./list-filters"
 
 type MenuProps = {
   value: string | undefined
@@ -105,6 +106,34 @@ export function DatasourceMenu({ value, onChange }: MenuProps) {
               value={datasource.uid}
             >
               {`${datasource.uid} (${datasource.type})`}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+export function FolderMenu({ value, onChange }: MenuProps) {
+  const folders = useQuery(foldersQuery()).data ?? []
+  return (
+    <DropdownMenu>
+      <Trigger>{`Folder: ${folderText(value, folders)}`}</Trigger>
+      <DropdownMenuContent className={contentClass}>
+        <DropdownMenuRadioGroup
+          value={value ?? ""}
+          onValueChange={(next) => onChange(next === "" ? undefined : next)}
+        >
+          <DropdownMenuRadioItem closeOnClick value="">
+            Any
+          </DropdownMenuRadioItem>
+          {folders.map((folder) => (
+            <DropdownMenuRadioItem
+              closeOnClick
+              key={folder.id}
+              value={folder.id}
+            >
+              {folder.title}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
