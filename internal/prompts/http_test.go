@@ -64,7 +64,9 @@ func TestRefusalsThatNeverReachTheDatabase(t *testing.T) {
 		{"empty change", auth.KindUser, http.MethodPatch, id, `{}`, http.StatusBadRequest, "invalid_request"},
 		{"change with a bad id", auth.KindUser, http.MethodPatch, "/not-a-uuid", `{"shared":true}`, http.StatusBadRequest, "invalid_request"},
 		{"delete with a bad id", auth.KindUser, http.MethodDelete, "/not-a-uuid", "", http.StatusBadRequest, "invalid_request"},
-		{"name filter too long", auth.KindUser, http.MethodGet, "?name=" + strings.Repeat("a", 300), "", http.StatusBadRequest, "invalid_request"},
+		{"name filter over 64 characters", auth.KindUser, http.MethodGet, "?name=" + strings.Repeat("a", 65), "", http.StatusBadRequest, "invalid_request"},
+		{"name filter far over 64 characters", auth.KindUser, http.MethodGet, "?name=" + strings.Repeat("a", 300), "", http.StatusBadRequest, "invalid_request"},
+		{"name filter over 64 characters of padding", auth.KindUser, http.MethodGet, "?name=a" + strings.Repeat("%20", 64), "", http.StatusBadRequest, "invalid_request"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -77,7 +79,7 @@ func TestRefusalsThatNeverReachTheDatabase(t *testing.T) {
 }
 
 func TestNameFilterThatCannotMatchAnswersAnEmptyList(t *testing.T) {
-	for _, query := range []string{"?name=", "?name=-bad", "?name=" + strings.Repeat("a", 65)} {
+	for _, query := range []string{"?name=", "?name=-bad", "?name=" + strings.Repeat("a", 63) + "-", "?name=" + strings.Repeat("%E5%90%8D", 63) + "-"} {
 		rec := serve(t, auth.KindUser, auth.RoleAdmin, http.MethodGet, query, "")
 		if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != `{"prompts":[]}` {
 			t.Fatalf("%s: got %d %s, want 200 with an empty list", query, rec.Code, rec.Body)

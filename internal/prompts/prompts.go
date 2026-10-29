@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -20,8 +21,7 @@ import (
 )
 
 const (
-	maxBodyBytes     = 32 << 10
-	maxQueryNameSize = 256
+	maxBodyBytes = 32 << 10
 
 	uniqueViolation      = "23505"
 	ownerNameConstraint  = "saved_prompts_owner_name_key"
@@ -99,8 +99,8 @@ func (h *Handler) fail(c *gin.Context, action, promptID string, err error) {
 func (h *Handler) list(c *gin.Context) {
 	caller := httpapi.Caller(c)
 	rawName, byName := c.GetQuery("name")
-	if len(rawName) > maxQueryNameSize {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "name is too long")
+	if utf8.RuneCountInString(rawName) > MaxNameRunes {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "name must be at most 64 characters")
 		return
 	}
 	body := listJSON{Prompts: []promptJSON{}}
