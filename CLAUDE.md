@@ -521,6 +521,7 @@ Directories are created when their phase starts; this is where things go.
 ## Workflow
 
 - Make atomic commits: one self-contained change that builds and passes on its own; messages describe the change only, with no task numbers or co-author trailers.
+- A user-visible change updates the `docs/` page that describes it in the same commit; slashobserve.com builds its docs from `docs/` on `main`.
 - Do not commit ADRs, decision records or the brief; decisions live in this file, and implementation plans live outside the repository.
 - Create repositories, push, and open PRs only after Ishan says go.
 - CI branch protection must mark the `check` job as required, and `e2e` once that job is re-enabled.
