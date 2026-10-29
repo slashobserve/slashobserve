@@ -254,6 +254,9 @@ func (h *ObserveHandler) getObserve(c *gin.Context) {
 		return
 	}
 	row, err := h.service.GetObserve(c.Request.Context(), id, httpapi.Caller(c))
+	if err == nil {
+		err = h.service.checkVisible(c.Request.Context(), row.DashboardID, httpapi.Caller(c))
+	}
 	if err != nil {
 		h.service.fail(c, "get agent request", err, slog.String("agent_request_id", id.String()))
 		return

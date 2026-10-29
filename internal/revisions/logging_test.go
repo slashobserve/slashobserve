@@ -160,14 +160,14 @@ func TestInternalHTTPFailureLogsOnlyCodeTypeAndIds(t *testing.T) {
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, leakedPrompt)
 	r := newRouter(svc)
-	d.Close()
+	d.Exec(t, "ALTER TABLE agent_requests RENAME TO agent_requests_gone")
 
 	rec := call(r, http.MethodGet, revisionsPath(dash)+"/"+rev.ID, "")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status %d, want 500: %s", rec.Code, rec.Body)
 	}
 	record := logs.Find(t, "get revision")
-	logs.AssertSafeFailure(t, record, "internal", "closed pool", leakedPrompt)
+	logs.AssertSafeFailure(t, record, "internal", "does not exist", leakedPrompt)
 	if record["dashboard_id"] != dash.String() || record["agent_request_id"] != rev.ID ||
 		record["principal_id"] != userID || record["principal_kind"] != string(auth.KindUser) {
 		t.Errorf("record lacks the ids: %v", record)

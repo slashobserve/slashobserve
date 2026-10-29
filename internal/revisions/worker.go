@@ -54,6 +54,9 @@ func NewWorker(service *Service, listen events.Listener, logger *slog.Logger, op
 	if service.principals == nil {
 		panic("revisions: NewWorker needs a Service built with WithPrincipals")
 	}
+	if service.access == nil {
+		panic("revisions: NewWorker needs a Service built with WithAccess")
+	}
 	if opts.Workers <= 0 {
 		opts.Workers = defaultWorkers
 	}
@@ -169,6 +172,15 @@ func (w *Worker) process(ctx context.Context, claimed dbsqlc.AgentRequest) bool 
 		return false
 	}
 	req.RequestedBy = requester
+	switch err := w.service.checkRun(ctx, Source(claimed.Source), claimed.DashboardID, requester); {
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
+		w.finish(ctx, claimed, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden"})
+		return true
+	case err != nil:
+		w.logger.ErrorContext(ctx, "check agent request requester access", logattrs.Failure("agent_requester_access_failed", err, logAttrs(claimed)...)...)
+		w.release(ctx, claimed, true)
+		return false
+	}
 
 	runCtx, cancel := context.WithTimeout(ctx, w.opts.RunTimeout)
 	result, err := w.revise(runCtx, req)
