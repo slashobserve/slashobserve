@@ -5,6 +5,7 @@
     { "file": "schema/bad-panel-type.json", "layer": "schema", "code": "schema", "path": "/panels/0" },
     { "file": "schema/datasource-object.json", "layer": "schema", "code": "schema", "path": "/panels/0/datasource" },
     { "file": "schema/bad-datasource-uid.json", "layer": "schema", "code": "schema", "path": "/panels/0/datasource" },
+    { "file": "schema/bad-datasource-ref.json", "layer": "schema", "code": "schema", "path": "/panels/0/datasource" },
     { "file": "schema/unknown-unit.json", "layer": "schema", "code": "unknown_unit", "path": "/panels/0/unit" },
     { "file": "schema/custom-variable-without-options.json", "layer": "schema", "code": "schema", "path": "/variables/0" },
     { "file": "schema/grid-width.json", "layer": "schema", "code": "schema", "path": "/panels/0/gridPos/w" },
@@ -42,6 +43,9 @@
     { "file": "semantic/invalid-variable-regex.json", "layer": "semantic", "code": "invalid_regex", "path": "/variables/0/regex" },
     { "file": "semantic/adhoc-with-format.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/queries/0/query" },
     { "file": "semantic/canvas-duplicate-element-id.json", "layer": "semantic", "code": "duplicate_element_id", "path": "/panels/0/display/elements/1/id" },
-    { "file": "semantic/canvas-unknown-element.json", "layer": "semantic", "code": "unknown_element", "path": "/panels/0/display/connections/0/to" }
+    { "file": "semantic/canvas-unknown-element.json", "layer": "semantic", "code": "unknown_element", "path": "/panels/0/display/connections/0/to" },
+    { "file": "semantic/unknown-datasource-variable.json", "layer": "semantic", "code": "unknown_variable", "path": "/panels/0/datasource" },
+    { "file": "semantic/datasource-ref-not-datasource-variable.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/datasource" },
+    { "file": "semantic/datasource-variable-order.json", "layer": "semantic", "code": "variable_order", "path": "/variables/0/datasource" }
   ]
 }

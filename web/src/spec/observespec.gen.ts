@@ -17,14 +17,18 @@ export type Variable =
  */
 export type VariableName = string;
 /**
- * A configured datasource uid; its type comes from the server's registry.
+ * A configured datasource uid, or ${name} naming a datasource variable declared in variables (before this variable, when used by one); queries then run on the datasource selected in that variable, and macros follow its datasourceType.
  */
-export type DatasourceUid = string;
+export type DatasourceRef = string;
 export type Query = string;
 /**
  * Default selection: one value, several for a multi variable, or $__all.
  */
 export type Selection = string | string[];
+/**
+ * A configured datasource uid; its type comes from the server's registry.
+ */
+export type DatasourceUid = string;
 export type Panel = DataPanel | TextPanel | PlaceholderPanel | RowPanel | DashlistPanel | NewsPanel;
 export type DataPanel = FieldProps & DataPanel1;
 /**
@@ -335,7 +339,7 @@ export interface QueryVariable {
   description?: string;
   hide?: "label" | "variable";
   type: "query";
-  datasource: DatasourceUid;
+  datasource: DatasourceRef;
   query: Query;
   regex?: string;
   sort?: "alpha" | "alphaDesc" | "num" | "numDesc";
@@ -409,7 +413,7 @@ export interface AdhocVariable {
   description?: string;
   hide?: "label" | "variable";
   type: "adhoc";
-  datasource: DatasourceUid;
+  datasource: DatasourceRef;
 }
 /**
  * Panel, dashboard or data link; ${var} and ${__data.fields.x} are interpolated.
@@ -484,7 +488,7 @@ export interface DataPanel1 {
     | "geomap"
     | "canvas"
     | "alertlist";
-  datasource: DatasourceUid;
+  datasource: DatasourceRef;
   /**
    * @minItems 1
    * @maxItems 26
@@ -523,7 +527,7 @@ export interface PanelQuery {
   ref?: QueryRef;
   query: Query;
   legend?: string;
-  datasource?: DatasourceUid;
+  datasource?: DatasourceRef;
   instant?: boolean;
   format?: "timeseries" | "table" | "heatmap" | "logs";
   interval?: string;
