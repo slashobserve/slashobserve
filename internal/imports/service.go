@@ -19,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -56,6 +57,7 @@ func (e *UnresolvedError) Error() string {
 type Request struct {
 	JSON      []byte
 	Mapping   map[string]string
+	Folder    string
 	RequestID pgtype.UUID
 }
 
@@ -85,15 +87,17 @@ type Meta struct {
 }
 
 type Imported struct {
-	Record    Record
-	Dashboard dashboards.Dashboard
-	Version   dashboards.Version
-	Replayed  bool
+	Record     Record
+	Dashboard  dashboards.Dashboard
+	Version    dashboards.Version
+	Replayed   bool
+	FolderNote string
 }
 
 type Service struct {
 	db        *db.DB
 	dashboard *dashboards.Service
+	access    *folders.Access
 	registry  *datasource.Registry
 	logger    *slog.Logger
 
@@ -101,9 +105,9 @@ type Service struct {
 	previewSlots *slots
 }
 
-func New(database *db.DB, dash *dashboards.Service, registry *datasource.Registry, logger *slog.Logger) *Service {
+func New(database *db.DB, dash *dashboards.Service, access *folders.Access, registry *datasource.Registry, logger *slog.Logger) *Service {
 	return &Service{
-		db: database, dashboard: dash, registry: registry, logger: logger,
+		db: database, dashboard: dash, access: access, registry: registry, logger: logger,
 		importSlots:  newSlots(importsPerPrincipal, importsPerInstance),
 		previewSlots: newSlots(previewsPerPrincipal, previewsPerInstance),
 	}
@@ -177,6 +181,14 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 	if err != nil {
 		return Imported{}, err
 	}
+	folderTitle := req.Folder
+	if folderTitle == "" {
+		folderTitle = result.Summary.FolderTitle
+	}
+	target, err := s.access.ForImport(ctx, by, folderTitle)
+	if err != nil {
+		return Imported{}, err
+	}
 
 	var inserted dbsqlc.InsertImportRow
 	hook := func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, ver dashboards.Version, issues []spec.Issue) error {
@@ -192,7 +204,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		}
 		return nil
 	}
-	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, pgtype.UUID{}, rawSpec, importSummary(result.Summary.Title), req.RequestID, hook)
+	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, target.Folder.ID, rawSpec, importSummary(result.Summary.Title), req.RequestID, hook)
 	if err != nil {
 		return Imported{}, err
 	}
@@ -200,8 +212,9 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		return s.replay(ctx, dash, ver)
 	}
 	imported := Imported{
-		Dashboard: dash,
-		Version:   ver,
+		Dashboard:  dash,
+		Version:    ver,
+		FolderNote: target.Note,
 		Record: Record{
 			ID:              inserted.ID.String(),
 			DashboardID:     dash.ID,
@@ -254,17 +267,21 @@ type ListParams struct {
 	DashboardID pgtype.UUID
 }
 
-func (s *Service) List(ctx context.Context, p ListParams) ([]Meta, string, error) {
+func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) ([]Meta, string, error) {
 	after, ok := httpapi.DecodeTimeCursor(p.Cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
+	}
+	levels, err := s.access.Levels(ctx, by)
+	if err != nil {
+		return nil, "", err
 	}
 	limit := p.Limit
 	if limit <= 0 {
 		limit = defaultLimit
 	}
 	limit = min(limit, maxLimit)
-	params := dbsqlc.ListImportsParams{RowLimit: httpapi.Int32(limit + 1), DashboardID: p.DashboardID}
+	params := dbsqlc.ListImportsParams{RowLimit: httpapi.Int32(limit + 1), DashboardID: p.DashboardID, Folders: levels.Visible()}
 	if p.MadeBy != nil {
 		madeByID, err := db.ParseUUID(p.MadeBy.ID)
 		if err != nil {

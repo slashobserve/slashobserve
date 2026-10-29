@@ -121,6 +121,7 @@ func (noopReviser) Revise(context.Context, revisions.Request) (revisions.Result,
 type rig struct {
 	db        *dbtest.Database
 	dashboard *dashboards.Service
+	access    *folders.Access
 	imports   *imports.Service
 	queue     *revisions.Service
 }
@@ -141,11 +142,13 @@ func newRigWith(t *testing.T, ds datasource.Datasource) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dash := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), folders.NewAccess(database.DB), logger)
+	access := folders.NewAccess(database.DB)
+	dash := dashboards.New(database.DB, queryproxy.NewRunner(registry, logger), access, logger)
 	return &rig{
 		db:        database,
 		dashboard: dash,
-		imports:   imports.New(database.DB, dash, registry, logger),
+		access:    access,
+		imports:   imports.New(database.DB, dash, access, registry, logger),
 		queue:     revisions.NewService(database.DB, noopReviser{}, logger),
 	}
 }
@@ -299,7 +302,7 @@ func TestPreviewWritesNothing(t *testing.T) {
 	if !result.Ready() || result.Report.Verified {
 		t.Fatalf("ready %t, verified %t", result.Ready(), result.Report.Verified)
 	}
-	metas, next, err := r.imports.List(t.Context(), imports.ListParams{})
+	metas, next, err := r.imports.List(t.Context(), ada, imports.ListParams{})
 	if err != nil || len(metas) != 0 || next != "" {
 		t.Fatalf("list after preview: %v, %q, %v", metas, next, err)
 	}
@@ -325,7 +328,7 @@ func TestImportNeedsEveryDatasourceMatched(t *testing.T) {
 	if !errors.As(err, &unresolved) || len(unresolved.Datasources) != 1 || unresolved.Datasources[0].Match != nil {
 		t.Fatalf("err = %v, want UnresolvedError with the unmatched datasource", err)
 	}
-	if metas, _, err := r.imports.List(t.Context(), imports.ListParams{}); err != nil || len(metas) != 0 {
+	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
 		t.Fatalf("list: %v, %v", metas, err)
 	}
 	if _, err := r.imports.Import(t.Context(), ada, imports.Request{JSON: grafanaJSON("Shop", "elsewhere", 1), Mapping: map[string]string{"elsewhere": "prom"}}); err != nil {
@@ -355,18 +358,18 @@ func TestListPagesNewestFirst(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	first, next, err := r.imports.List(t.Context(), imports.ListParams{Limit: 2})
+	first, next, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2})
 	if err != nil || len(first) != 2 || next == "" {
 		t.Fatalf("first page: %d items, cursor %q, err %v", len(first), next, err)
 	}
 	if first[0].Title != "Three" || first[1].Title != "Two" {
 		t.Errorf("first page titles: %q, %q", first[0].Title, first[1].Title)
 	}
-	rest, next, err := r.imports.List(t.Context(), imports.ListParams{Limit: 2, Cursor: next})
+	rest, next, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2, Cursor: next})
 	if err != nil || len(rest) != 1 || next != "" || rest[0].Title != "One" || rest[0].Counts.Total != 1 {
 		t.Fatalf("second page: %+v, cursor %q, err %v", rest, next, err)
 	}
-	if _, _, err := r.imports.List(t.Context(), imports.ListParams{Limit: 2, Cursor: "!"}); !errors.Is(err, imports.ErrInvalidCursor) {
+	if _, _, err := r.imports.List(t.Context(), ada, imports.ListParams{Limit: 2, Cursor: "!"}); !errors.Is(err, imports.ErrInvalidCursor) {
 		t.Errorf("bad cursor: err = %v", err)
 	}
 }
@@ -389,7 +392,7 @@ func TestAnAgentRequestImportsOnce(t *testing.T) {
 	if again.Record.ID != first.Record.ID || !again.Record.Report.Verified || again.Record.Report.Counts.Total != 2 {
 		t.Errorf("replayed record: %+v", again.Record)
 	}
-	if metas, _, err := r.imports.List(t.Context(), imports.ListParams{}); err != nil || len(metas) != 1 {
+	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 1 {
 		t.Fatalf("list: %d, %v", len(metas), err)
 	}
 }
@@ -472,7 +475,7 @@ func TestAnImportKeepsAFailingVariableQueryAsAnUnverifiedNote(t *testing.T) {
 	if subjects := unverifiedNotes(stored.Report.Notes); len(subjects) != 1 || subjects[0] != "variable v1" {
 		t.Fatalf("unverified notes in the stored report: %v", subjects)
 	}
-	metas, _, err := r.imports.List(t.Context(), imports.ListParams{})
+	metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{})
 	if err != nil || len(metas) != 1 || metas[0].Version != 1 || metas[0].Counts != stored.Report.Counts {
 		t.Fatalf("list: %+v, %v", metas, err)
 	}
@@ -548,7 +551,7 @@ func assertNothingSaved(t *testing.T, r *rig) {
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("dashboards after a refused import: %d, %v", len(page.Items), err)
 	}
-	if metas, _, err := r.imports.List(t.Context(), imports.ListParams{}); err != nil || len(metas) != 0 {
+	if metas, _, err := r.imports.List(t.Context(), ada, imports.ListParams{}); err != nil || len(metas) != 0 {
 		t.Fatalf("imports after a refused import: %d, %v", len(metas), err)
 	}
 }

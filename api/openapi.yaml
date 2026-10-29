@@ -1684,6 +1684,13 @@ components:
             minLength: 1
             maxLength: 200
           description: Source datasource key to our datasource uid; keys and values are 1 to 200 bytes.
+        folder:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: >-
+            The title of the folder for the new dashboard, trimmed and checked like a folder title; 400 `invalid_request` otherwise.
+            Only the import uses it; the preview checks it and ignores it.
     ImportSummary:
       type: object
       additionalProperties: false
@@ -1961,7 +1968,7 @@ components:
     ImportedDashboard:
       type: object
       additionalProperties: false
-      required: [dashboard, version, import]
+      required: [dashboard, version, import, folder_note]
       properties:
         dashboard:
           $ref: "#/components/schemas/DashboardSummary"
@@ -1969,6 +1976,10 @@ components:
           $ref: "#/components/schemas/Version"
         import:
           $ref: "#/components/schemas/ImportRecord"
+        folder_note:
+          type: string
+          nullable: true
+          description: Why the dashboard is not in the requested folder, or null when it is where the request or the source asked.
     DatasourcesUnresolved:
       type: object
       additionalProperties: false

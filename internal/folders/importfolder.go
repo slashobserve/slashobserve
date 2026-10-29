@@ -22,6 +22,10 @@ type ImportFolder struct {
 	Note    string
 }
 
+func CleanTitle(raw string) (string, error) {
+	return cleanTitle(raw)
+}
+
 type importAction int
 
 const (

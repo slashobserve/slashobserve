@@ -230,7 +230,7 @@ func run() error {
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
 	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, folderAccess, registry, logger)
 
-	importsService := imports.New(database, dashboardsService, registry, logger)
+	importsService := imports.New(database, dashboardsService, folderAccess, registry, logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
 	toolRegistry := tools.New(tools.Deps{
 		Datasources: registry,
@@ -277,7 +277,7 @@ func run() error {
 		API: []server.Registrar{
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
-			imports.NewHandler(importsService),
+			imports.NewHandler(importsService, folderAccess),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
