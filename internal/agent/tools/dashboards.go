@@ -57,6 +57,7 @@ type dashboardItemOut struct {
 	LatestVersion int      `json:"latest_version"`
 	UpdatedAt     string   `json:"updated_at"`
 	URL           string   `json:"url"`
+	Folder        string   `json:"folder"`
 }
 
 type dashboardListOut struct {
@@ -116,6 +117,7 @@ func (r *Registry) dashboardItems(list []dashboards.ListItem) []dashboardItemOut
 			LatestVersion: d.LatestVersion,
 			UpdatedAt:     d.UpdatedAt.UTC().Format(time.RFC3339),
 			URL:           DashboardURL(r.deps.PublicURL, d.ID),
+			Folder:        d.Folder.Title,
 		}
 	}
 	return items
@@ -141,6 +143,7 @@ type dashboardOut struct {
 	Version                  int             `json:"version"`
 	Title                    string          `json:"title"`
 	URL                      string          `json:"url"`
+	Folder                   string          `json:"folder"`
 	Spec                     *spec.Dashboard `json:"spec"`
 	Unverified               *unverifiedOut  `json:"unverified,omitempty"`
 	ImportAttention          []Attention     `json:"import_attention,omitempty"`
@@ -202,6 +205,9 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
+	if res, ok, err := r.viewableDashboard(ctx, id, "dashboard or version not found"); err != nil || !ok {
+		return res, err
+	}
 	var (
 		dash dashboards.Dashboard
 		ver  dashboards.Version
@@ -218,7 +224,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
+	out := dashboardOut{DashboardID: dash.ID, Version: ver.Number, Title: ver.Spec.Title, URL: DashboardURL(r.deps.PublicURL, dash.ID), Folder: dash.Folder.Title, Spec: ver.Spec, Unverified: newUnverifiedOut(ver.Spec, ver.Unverified)}
 	if out.ImportAttention, out.ImportAttentionTruncated, err = r.importAttention(ctx, id, ver.Number); err != nil {
 		return Result{}, err
 	}
@@ -285,8 +291,9 @@ type saveInput struct {
 }
 
 type createInput struct {
-	Spec    json.RawMessage `json:"spec"`
-	Summary string          `json:"summary"`
+	Spec     json.RawMessage `json:"spec"`
+	Summary  string          `json:"summary"`
+	FolderID string          `json:"folder_id"`
 }
 
 func (r *Registry) saveRun(ctx context.Context) (auth.Principal, Run, bool, error) {
@@ -296,6 +303,17 @@ func (r *Registry) saveRun(ctx context.Context) (auth.Principal, Run, bool, erro
 	}
 	run, scoped := RunFrom(ctx)
 	return principal, run, scoped, nil
+}
+
+func parseFolderID(raw string) (pgtype.UUID, Result, bool) {
+	if raw == "" {
+		return pgtype.UUID{}, Result{}, true
+	}
+	id, err := db.ParseUUID(raw)
+	if err != nil {
+		return pgtype.UUID{}, invalid("folder_id must be a UUID from list_folders"), false
+	}
+	return id, Result{}, true
 }
 
 func validateRun(run Run) (pgtype.UUID, error) {
@@ -345,6 +363,10 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 			return invalid("this run revises dashboard %s; call update_dashboard", run.DashboardID), nil
 		}
 	}
+	folderID, res, ok := parseFolderID(in.FolderID)
+	if !ok {
+		return res, nil
+	}
 	requestID, err := requestIDOf(run, scoped)
 	if err != nil {
 		return Result{}, err
@@ -354,7 +376,10 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 			return placeholderFailure(issues), nil
 		}
 	}
-	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, pgtype.UUID{}, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
+	dash, ver, replayed, err := r.deps.Dashboards.CreateRequestDashboard(ctx, principal, folderID, in.Spec, summaryOr(in.Summary, defaultCreateSummary), requestID)
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
+	}
 	if err != nil {
 		return saveFailure(err)
 	}

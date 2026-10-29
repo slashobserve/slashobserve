@@ -192,6 +192,9 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
+	if res, ok, err := r.viewableDashboard(ctx, q.dashboardID, "dashboard or comment not found"); err != nil || !ok {
+		return res, err
+	}
 	for {
 		list, cursor, err := r.deps.Comments.List(ctx, q.dashboardID, q.status, q.panelID, q.limit, q.cursor)
 		if err != nil {

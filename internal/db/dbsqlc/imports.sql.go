@@ -115,19 +115,22 @@ func (q *Queries) InsertImport(ctx context.Context, arg InsertImportParams) (Ins
 }
 
 const listImports = `-- name: ListImports :many
-SELECT id, dashboard_id, version, importer_version, title, (report -> 'counts')::text AS counts,
-  created_by_kind, created_by_id, created_by_name, created_by_email, created_at
-FROM imports
-WHERE ($1::timestamptz IS NULL
-    OR (created_at, id) < ($1::timestamptz, $2::uuid))
-  AND ($3::text IS NULL
-    OR (created_by_kind = $3::text AND created_by_id = $4::uuid))
-  AND ($5::uuid IS NULL OR dashboard_id = $5::uuid)
-ORDER BY created_at DESC, id DESC
-LIMIT $6
+SELECT i.id, i.dashboard_id, i.version, i.importer_version, i.title, (i.report -> 'counts')::text AS counts,
+  i.created_by_kind, i.created_by_id, i.created_by_name, i.created_by_email, i.created_at
+FROM imports i
+JOIN dashboards d ON d.id = i.dashboard_id
+WHERE d.folder_id = ANY($1::uuid[])
+  AND ($2::timestamptz IS NULL
+    OR (i.created_at, i.id) < ($2::timestamptz, $3::uuid))
+  AND ($4::text IS NULL
+    OR (i.created_by_kind = $4::text AND i.created_by_id = $5::uuid))
+  AND ($6::uuid IS NULL OR i.dashboard_id = $6::uuid)
+ORDER BY i.created_at DESC, i.id DESC
+LIMIT $7
 `
 
 type ListImportsParams struct {
+	Folders         []pgtype.UUID
 	CursorCreatedAt pgtype.Timestamptz
 	CursorID        pgtype.UUID
 	MadeByKind      pgtype.Text
@@ -152,6 +155,7 @@ type ListImportsRow struct {
 
 func (q *Queries) ListImports(ctx context.Context, arg ListImportsParams) ([]ListImportsRow, error) {
 	rows, err := q.db.Query(ctx, listImports,
+		arg.Folders,
 		arg.CursorCreatedAt,
 		arg.CursorID,
 		arg.MadeByKind,

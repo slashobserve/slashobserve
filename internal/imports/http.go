@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
@@ -22,23 +23,25 @@ import (
 const maxMappingBytes = 200
 
 type Handler struct {
-	svc *Service
+	svc    *Service
+	access *folders.Access
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, access *folders.Access) *Handler {
+	return &Handler{svc: svc, access: access}
 }
 
 func (h *Handler) Register(api auth.Routes) {
 	api.POST("/imports/preview", auth.RoleEditor, h.preview)
 	api.POST("/imports", auth.RoleEditor, h.create)
 	api.GET("/imports", auth.RoleViewer, h.list)
-	api.GET("/dashboards/:id/import", auth.RoleViewer, h.forDashboard)
+	api.GET("/dashboards/:id/import", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.forDashboard)
 }
 
 type importRequest struct {
 	JSON    *string           `json:"json"`
 	Mapping map[string]string `json:"mapping"`
+	Folder  *string           `json:"folder"`
 }
 
 type authorJSON struct {
@@ -79,7 +82,8 @@ type importJSON struct {
 
 type importedJSON struct {
 	dashboards.DashboardVersionJSON
-	Import importJSON `json:"import"`
+	Import     importJSON `json:"import"`
+	FolderNote *string    `json:"folder_note"`
 }
 
 type metaJSON struct {
@@ -165,7 +169,16 @@ func decodeImportBody(c *gin.Context) (Request, bool) {
 			return Request{}, false
 		}
 	}
-	return Request{JSON: []byte(*body.JSON), Mapping: body.Mapping}, true
+	req := Request{JSON: []byte(*body.JSON), Mapping: body.Mapping}
+	if body.Folder != nil {
+		title, err := folders.CleanTitle(*body.Folder)
+		if err != nil {
+			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "folder: "+err.Error())
+			return Request{}, false
+		}
+		req.Folder = title
+	}
+	return req, true
 }
 
 func (h *Handler) preview(c *gin.Context) {
@@ -205,7 +218,7 @@ func respondImported(c *gin.Context, imported Imported) {
 		return
 	}
 	c.Header("Location", "/api/v1/dashboards/"+imported.Dashboard.ID)
-	c.JSON(http.StatusCreated, importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record)})
+	c.JSON(http.StatusCreated, importedJSON{DashboardVersionJSON: saved, Import: newImportJSON(imported.Record), FolderNote: httpapi.OptionalString(imported.FolderNote)})
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -220,7 +233,7 @@ func (h *Handler) list(c *gin.Context) {
 	}
 	params.Limit = limit
 	params.Cursor = c.Query("cursor")
-	metas, next, err := h.svc.List(c.Request.Context(), params)
+	metas, next, err := h.svc.List(c.Request.Context(), httpapi.Caller(c), params)
 	if err != nil {
 		h.fail(c, "list imports", err)
 		return
@@ -281,8 +294,10 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_imports", err.Error())
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_imported", "the dashboard was not imported")
-	case errors.Is(err, dashboards.ErrNotFound):
+	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, dashboards.ErrFolderNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, folders.ErrForbidden):
+		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidFilter):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:

@@ -10,6 +10,7 @@ const (
 	nameListComments    = "list_comments"
 	nameListDashboards  = "list_dashboards"
 	nameListDatasources = "list_datasources"
+	nameListFolders     = "list_folders"
 	nameListLabelValues = "list_label_values"
 	nameListLabels      = "list_labels"
 	nameListMetrics     = "list_metrics"
@@ -22,15 +23,16 @@ const (
 )
 
 const (
-	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so call get_spec_guide first if you have not read it, and fix any rejected panels it names. Never include a placeholder panel."
+	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so call get_spec_guide first if you have not read it, and fix any rejected panels it names. Pass folder_id (see list_folders) to choose the folder; the default is the folder you last created a dashboard in, else General. Never include a placeholder panel."
 	descGetDashboard    = "Read a saved dashboard's ObserveSpec at its latest version, or at a given version. Use it before revising a dashboard."
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
-	descImportGrafana   = "Import a Grafana dashboard as a new SlashObserve dashboard. Pass the dashboard JSON text in json (classic model, export with __inputs, or an API response). Grafana datasources are matched to ours automatically when unambiguous; otherwise the result lists them and you map each key to one of our datasource uids in mapping. Panels whose queries fail are saved and reported as unverified; fix them afterwards with update_dashboard."
+	descImportGrafana   = "Import a Grafana dashboard as a new SlashObserve dashboard. Pass the dashboard JSON text in json (classic model, export with __inputs, or an API response). Grafana datasources are matched to ours automatically when unambiguous; otherwise the result lists them and you map each key to one of our datasource uids in mapping. Panels whose queries fail are saved and reported as unverified; fix them afterwards with update_dashboard. The dashboard goes to the folder named in folder, else the folder named in the Grafana export; a missing folder is created when your role allows, otherwise the dashboard goes to your default folder and folder_note says so."
 	descLintQuery       = "Check a PromQL or ClickHouse SQL query for syntax and policy problems without running it. Use it on a draft query before running or saving it. When the datasource cannot be reached it returns an error such as datasource_unavailable instead of diagnostics, which says nothing about the query."
 	descListComments    = "List a dashboard's comments, oldest first: open threads by default. A reply has parent_id; panel_id null means the comment is about the whole dashboard. Use it to find the feedback to work on."
 	descListDashboards  = "List saved dashboards, most recently updated first, with their latest version and URL. Use it to find a dashboard to open or revise."
 	descListDatasources = "List the configured datasources with their uid, type and health. Call it first to learn which datasource uid to pass to the other tools."
+	descListFolders     = "List the folders you can see, with their id and whether you can create dashboards in each. Pass a folder id as folder_id to create_dashboard to save a dashboard there."
 	descListLabelValues = "List the values of one label (or OpenTelemetry attribute key) on a datasource, optionally for one metric. On ClickHouse pass table or metric. Use it to learn real services, routes or pods before filtering on them."
 	descListLabels      = "List label names (or OpenTelemetry attribute keys on ClickHouse) on a datasource, optionally for one metric. On ClickHouse pass table (an otel_* table from get_schema) or metric. Use it to find the dimensions a metric can be grouped by."
 	descListMetrics     = "List the metrics of a Prometheus datasource, or the OpenTelemetry metric names of a ClickHouse datasource, optionally filtered by a search string. Use it to find real metric names before writing queries."
@@ -56,6 +58,7 @@ const (
 	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see get_spec_guide."}`
 	propSummary    = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID     = `"dashboard_id":{"type":"string","description":"Dashboard id."}`
+	propFolderID   = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default your last used folder, else General."}`
 	propCommentID  = `"comment_id":{"type":"string","description":"Comment id from list_comments."}`
 )
 
@@ -78,13 +81,13 @@ const (
 
 	schemaQueryInstant = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propFrom + `,` + propTo + `,` + propVariables + `,` + propDashTitle + `},"required":["datasource","query"],"additionalProperties":false}`
 
-	schemaImportGrafana = `{"type":"object","additionalProperties":false,"required":["json"],"properties":{"json":{"type":"string","minLength":1,"description":"The Grafana dashboard JSON text."},"mapping":{"type":"object","maxProperties":50,"additionalProperties":{"type":"string","minLength":1,"maxLength":200},"description":"Grafana datasource key (uid, name or ${DS_X}) to our datasource uid."}}}`
+	schemaImportGrafana = `{"type":"object","additionalProperties":false,"required":["json"],"properties":{"json":{"type":"string","minLength":1,"description":"The Grafana dashboard JSON text."},"mapping":{"type":"object","maxProperties":50,"additionalProperties":{"type":"string","minLength":1,"maxLength":200},"description":"Grafana datasource key (uid, name or ${DS_X}) to our datasource uid."},"folder":{"type":"string","minLength":1,"maxLength":100,"description":"Folder title for the new dashboard. Default the folder named in the Grafana export, else your default folder."}}}`
 
 	schemaListDashboards = `{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Dashboards per page. Default 20."},"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
 
 	schemaGetDashboard = `{"type":"object","properties":{` + propDashID + `,"version":{"type":"integer","minimum":1,"description":"Version number. Default latest."}},"required":["dashboard_id"],"additionalProperties":false}`
 
-	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
+	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `,` + propFolderID + `},"required":["spec"],"additionalProperties":false}`
 
 	schemaUpdateDashboard = `{"type":"object","properties":{` + propDashID + `,"parent_version":{"type":"integer","minimum":1,"description":"The version this change is based on."},` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
 )

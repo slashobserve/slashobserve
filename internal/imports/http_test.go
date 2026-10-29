@@ -17,6 +17,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/api"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/imports"
 )
 
@@ -37,10 +38,10 @@ func (g typeGateStub) Type() string {
 	return g.promStub.Type()
 }
 
-func newRouter(svc *imports.Service) *gin.Engine {
+func newRouter(svc *imports.Service, access *folders.Access) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	imports.NewHandler(svc).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+	imports.NewHandler(svc, access).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
 		who := ada
 		if n, err := strconv.Atoi(c.GetHeader(principalHeader)); err == nil {
 			who = principal(n)
@@ -78,7 +79,7 @@ func errorCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 
 func TestTheRoutesRefuseABadMappingWith400(t *testing.T) {
 	r := newRig(t)
-	router := newRouter(r.imports)
+	router := newRouter(r.imports, r.access)
 	tooMany := map[string]string{}
 	for i := range imports.MaxMappingEntries + 1 {
 		tooMany["key"+strconv.Itoa(i)] = "prom"
@@ -101,7 +102,8 @@ func TestTheRoutesRefuseABadMappingWith400(t *testing.T) {
 }
 
 func TestThePreviewAcceptsAMappingAtTheLimits(t *testing.T) {
-	router := newRouter(newRig(t).imports)
+	r := newRig(t)
+	router := newRouter(r.imports, r.access)
 	atLimit := map[string]string{strings.Repeat("k", 200): strings.Repeat("v", 200)}
 	for i := range imports.MaxMappingEntries - 1 {
 		atLimit["key"+strconv.Itoa(i)] = "prom"
@@ -114,7 +116,8 @@ func TestThePreviewAcceptsAMappingAtTheLimits(t *testing.T) {
 
 func TestPreviewSlotsRefuseWith429AndFree(t *testing.T) {
 	gate := typeGateStub{armed: new(atomic.Bool), entered: make(chan struct{}, 64), release: make(chan struct{})}
-	router := newRouter(newRigWith(t, gate).imports)
+	r := newRigWith(t, gate)
+	router := newRouter(r.imports, r.access)
 	gate.armed.Store(true)
 	body := map[string]any{"json": string(grafanaJSON("Shop", "prom", 1))}
 
@@ -164,7 +167,7 @@ func TestPreviewSlotsRefuseWith429AndFree(t *testing.T) {
 func TestPreviewsDoNotTakeImportSlots(t *testing.T) {
 	gate := typeGateStub{armed: new(atomic.Bool), entered: make(chan struct{}, 64), release: make(chan struct{})}
 	r := newRigWith(t, gate)
-	router := newRouter(r.imports)
+	router := newRouter(r.imports, r.access)
 	gate.armed.Store(true)
 	done := make(chan int, 1)
 	go func() {
@@ -222,8 +225,8 @@ func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testin
 }
 
 func TestTheRoutesRefuseWithBusyBeforeReadingTheBody(t *testing.T) {
-	svc := imports.New(nil, nil, nil, slog.New(slog.DiscardHandler))
-	router := newRouter(svc)
+	svc := imports.New(nil, nil, nil, nil, slog.New(slog.DiscardHandler))
+	router := newRouter(svc, nil)
 	for _, c := range []struct {
 		path string
 		hold func(auth.Principal) (func(), bool)

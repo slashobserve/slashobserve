@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -254,5 +258,86 @@ func TestWithTimeoutCopiesTheClient(t *testing.T) {
 	}
 	if importTimeout != 120*time.Second {
 		t.Fatalf("import timeout is %s", importTimeout)
+	}
+}
+
+type importServer struct {
+	path   string
+	posted string
+	reply  string
+}
+
+func (s *importServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	s.path, s.posted = r.URL.Path, string(body)
+	w.Header().Set("Content-Type", "application/json")
+	if r.URL.Path == "/api/v1/imports" {
+		w.WriteHeader(http.StatusCreated)
+	}
+	_, _ = fmt.Fprint(w, s.reply)
+}
+
+func runImportCommand(t *testing.T, s *importServer, args ...string) (int, string, string) {
+	t.Helper()
+	server := httptest.NewServer(s)
+	t.Cleanup(server.Close)
+	file := filepath.Join(t.TempDir(), "dashboard.json")
+	if err := os.WriteFile(file, []byte(`{"title":"Shop"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	full := append([]string{"--server", server.URL, "--token", "k", "import"}, args...)
+	full = append(full, file)
+	code := Main(full, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	return code, stdout.String(), stderr.String()
+}
+
+const importedReply = `{"dashboard":{"id":"d1","folder":{"id":"f1","title":"Payments","general":false}},"version":{},` +
+	`"import":{"title":"Shop","report":{"counts":{"total":1,"imported":1},"panels":[]}},"folder_note":null}`
+
+const fallbackReply = `{"dashboard":{"id":"d1","folder":{"id":"f2","title":"General","general":true}},"version":{},` +
+	`"import":{"title":"Shop","report":{"counts":{"total":1,"imported":1},"panels":[]}},` +
+	`"folder_note":"Folder \"Secret\" is not available to you, so the dashboard went to \"General\"."}`
+
+func TestImportSendsTheFolderAndShowsWhereTheDashboardWent(t *testing.T) {
+	s := &importServer{reply: importedReply}
+	code, stdout, stderr := runImportCommand(t, s, "--folder", "Payments")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if s.path != "/api/v1/imports" || s.posted != `{"json":"{\"title\":\"Shop\"}","folder":"Payments"}` {
+		t.Fatalf("posted %s to %s", s.posted, s.path)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(stdout), "/dashboards/d1") {
+		t.Fatalf("stdout = %q, want the dashboard address alone", stdout)
+	}
+	if !strings.Contains(stderr, "\nFolder: Payments\n") || strings.Contains(stderr, "not available") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestImportShowsTheFolderNote(t *testing.T) {
+	s := &importServer{reply: fallbackReply}
+	code, _, stderr := runImportCommand(t, s, "--folder", "Secret")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	want := "Folder: General\nFolder \"Secret\" is not available to you, so the dashboard went to \"General\".\n"
+	if !strings.Contains(stderr, want) {
+		t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
+	}
+}
+
+func TestImportWithoutAFolderFlagSendsNoFolder(t *testing.T) {
+	s := &importServer{reply: importedReply}
+	if code, _, stderr := runImportCommand(t, s); code != 0 || strings.Contains(s.posted, "folder") {
+		t.Fatalf("exit %d, posted %s, stderr %s", code, s.posted, stderr)
+	}
+}
+
+func TestPreviewDoesNotSendTheFolder(t *testing.T) {
+	s := &importServer{reply: `{"summary":{},"datasources":[],"ready":true,"report":{"counts":{},"panels":[]}}`}
+	if code, _, stderr := runImportCommand(t, s, "--preview", "--folder", "Payments"); code != 0 || s.path != "/api/v1/imports/preview" || strings.Contains(s.posted, "folder") {
+		t.Fatalf("exit %d, posted %s to %s, stderr %s", code, s.posted, s.path, stderr)
 	}
 }

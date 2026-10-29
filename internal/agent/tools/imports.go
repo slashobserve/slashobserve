@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/imports"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 )
@@ -45,6 +47,7 @@ type importedOut struct {
 	Counts      grafana.Counts `json:"counts"`
 	Attention   []Attention    `json:"attention"`
 	Truncated   bool           `json:"truncated"`
+	FolderNote  *string        `json:"folder_note,omitempty"`
 }
 
 type importErrorOut struct {
@@ -109,6 +112,7 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	var in struct {
 		JSON    string            `json:"json"`
 		Mapping map[string]string `json:"mapping"`
+		Folder  *string           `json:"folder"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -130,6 +134,10 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 			return invalid("the request does not contain this Grafana JSON; build the dashboard with create_dashboard instead"), nil
 		}
 	}
+	folder, res, ok := parseImportFolder(in.Folder)
+	if !ok {
+		return res, nil
+	}
 	requestID, err := requestIDOf(run, scoped)
 	if err != nil {
 		return Result{}, err
@@ -137,7 +145,7 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	if r.deps.Imports == nil {
 		return Result{}, errImportsNotConfigured
 	}
-	imported, err := r.deps.Imports.Import(ctx, principal, imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, RequestID: requestID})
+	imported, err := r.deps.Imports.Import(ctx, principal, imports.Request{JSON: []byte(in.JSON), Mapping: in.Mapping, Folder: folder, RequestID: requestID})
 	if err != nil {
 		return r.importFailed(err)
 	}
@@ -155,7 +163,19 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 		Counts:      imported.Record.Report.Counts,
 		Attention:   attention,
 		Truncated:   truncated,
+		FolderNote:  httpapi.OptionalString(imported.FolderNote),
 	}), nil
+}
+
+func parseImportFolder(raw *string) (string, Result, bool) {
+	if raw == nil {
+		return "", Result{}, true
+	}
+	title, err := folders.CleanTitle(*raw)
+	if err != nil {
+		return "", invalid("folder: %s", err.Error()), false
+	}
+	return title, Result{}, true
 }
 
 func (r *Registry) importFailed(err error) (Result, error) {
@@ -173,6 +193,9 @@ func (r *Registry) importFailed(err error) (Result, error) {
 		}), nil
 	case errors.Is(err, imports.ErrBusy):
 		return importFailure(codeTooManyImports, "another import is running; try again shortly"), nil
+	}
+	if res, ok := createFolderFailure(err); ok {
+		return res, nil
 	}
 	return saveFailure(err)
 }

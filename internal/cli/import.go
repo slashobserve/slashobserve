@@ -24,11 +24,13 @@ const (
 type importOptions struct {
 	maps    []string
 	preview bool
+	folder  string
 }
 
 type importRequest struct {
 	JSON    string            `json:"json"`
 	Mapping map[string]string `json:"mapping,omitempty"`
+	Folder  string            `json:"folder,omitempty"`
 }
 
 type importCounts struct {
@@ -78,12 +80,16 @@ type importPreview struct {
 
 type importedDashboard struct {
 	Dashboard struct {
-		ID string `json:"id"`
+		ID     string `json:"id"`
+		Folder struct {
+			Title string `json:"title"`
+		} `json:"folder"`
 	} `json:"dashboard"`
 	Import struct {
 		Title  string       `json:"title"`
 		Report importReport `json:"report"`
 	} `json:"import"`
+	FolderNote *string `json:"folder_note"`
 }
 
 type unresolvedBody struct {
@@ -129,6 +135,7 @@ func (a *app) importCommand() *cobra.Command {
 	}
 	cmd.Flags().StringArrayVar(&a.importing.maps, "map", nil, "use our datasource <uid> for a Grafana datasource: <grafana>=<uid> (repeatable)")
 	cmd.Flags().BoolVar(&a.importing.preview, "preview", false, "show the report without saving anything")
+	cmd.Flags().StringVar(&a.importing.folder, "folder", "", "put the dashboard in the folder with this title (default: the folder named in the Grafana export, else your default folder)")
 	return cmd
 }
 
@@ -145,11 +152,11 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	path := "imports"
+	path, folder := "imports", a.importing.folder
 	if a.importing.preview {
-		path = "imports/preview"
+		path, folder = "imports/preview", ""
 	}
-	data, err := c.withTimeout(importTimeout).post(cmd.Context(), path, importRequest{JSON: source, Mapping: mapping})
+	data, err := c.withTimeout(importTimeout).post(cmd.Context(), path, importRequest{JSON: source, Mapping: mapping, Folder: folder})
 	if err != nil {
 		return unresolvedFrom(err)
 	}
@@ -179,10 +186,21 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	}
 	out.line("%s", c.base.JoinPath("dashboards", imported.Dashboard.ID).String())
 	out.notice("Imported %q: %s", text(imported.Import.Title), imported.Import.Report.Counts.line())
+	for _, line := range imported.folderLines() {
+		out.notice("%s", line)
+	}
 	if table := imported.Import.Report.attention(); table != "" {
 		out.notice("%s", table)
 	}
 	return nil
+}
+
+func (d importedDashboard) folderLines() []string {
+	lines := []string{"Folder: " + text(d.Dashboard.Folder.Title)}
+	if d.FolderNote != nil {
+		lines = append(lines, text(*d.FolderNote))
+	}
+	return lines
 }
 
 func unresolvedFrom(err error) error {
