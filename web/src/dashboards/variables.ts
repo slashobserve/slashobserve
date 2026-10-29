@@ -33,19 +33,6 @@ export function sortSelections(selections: Selections): Selections {
   return out
 }
 
-export function earlierSelections(
-  variables: Variable[],
-  index: number,
-  urlVars: Record<string, string[]>
-): Selections {
-  const out: Selections = {}
-  for (const variable of variables.slice(0, index)) {
-    const values = urlVars[variable.name]
-    if (values) out[variable.name] = values
-  }
-  return sortSelections(out)
-}
-
 export type ValuesData = { values: string[]; truncated: boolean }
 
 export type LoadedValues = { data: ValuesData; parentKey: string }
@@ -216,6 +203,26 @@ export function resolveSelections(
     }
   }
   return { selections, pending: waiting.length > 0, waiting }
+}
+
+export type ValuesRequest = { parents: Selections; parentsReady: boolean }
+
+export function valuesRequests(
+  variables: Variable[],
+  urlVars: Record<string, string[]>,
+  options: VariableOptions
+): ValuesRequest[] {
+  const resolved = resolveSelections(variables, urlVars, options)
+  return variables.map((_, index) => {
+    const parents: Selections = {}
+    let parentsReady = true
+    for (const parent of variables.slice(0, index)) {
+      const values = resolved.selections[parent.name]
+      if (values) parents[parent.name] = values
+      if (resolved.waiting.includes(parent.name)) parentsReady = false
+    }
+    return { parents: sortSelections(parents), parentsReady }
+  })
 }
 
 function dependsOnEarlier(variable: Variable): boolean {

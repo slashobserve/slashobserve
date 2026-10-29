@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest"
 import { ALL } from "./search"
 import {
   applyVariableChange,
-  earlierSelections,
   normalizeMultiSelection,
   resolveSelections,
   sortSelections,
   parentKeyOf,
   variableDisplay,
   intervalOptions,
+  valuesRequests,
 } from "./variables"
 import type { IntervalVariable, Variable } from "@/spec"
 
@@ -223,14 +223,41 @@ describe("selection helpers", () => {
     ])
   })
 
-  it("collects URL selections of earlier variables only", () => {
+  it("collects resolved selections of earlier variables only", () => {
+    const urlVars = { env: ["dev"], route: ["/x"], pod: ["a"] }
+    const requests = valuesRequests([pod, route, env], urlVars, {})
+    expect(requests[2]).toEqual({
+      parents: { pod: ["a"], route: ["/x"] },
+      parentsReady: true,
+    })
+    expect(requests[0].parents).toEqual({})
+  })
+
+  it("repairs a stale datasource value before asking for dependent values", () => {
+    const ds: Variable = {
+      name: "ds",
+      type: "datasource",
+      datasourceType: "prometheus",
+      default: "prom",
+    }
+    const job: Variable = { ...route, name: "job" }
+    const stale = { ds: ["old_uid"] }
     expect(
-      earlierSelections([pod, route, env], 2, {
-        env: ["dev"],
-        route: ["/x"],
-        pod: ["a"],
-      })
-    ).toEqual({ pod: ["a"], route: ["/x"] })
+      valuesRequests([ds, job], stale, { ds: ["prom", "other"] })[1]
+    ).toEqual({ parents: { ds: ["prom"] }, parentsReady: true })
+    expect(valuesRequests([ds, job], stale, {})[1].parentsReady).toBe(false)
+  })
+
+  it("drops extra values on a single-value parent", () => {
+    const single: Variable = {
+      name: "env",
+      type: "custom",
+      options: ["a", "b"],
+    }
+    const job: Variable = { ...route, name: "job" }
+    expect(
+      valuesRequests([single, job], { env: ["a", "b"] }, {})[1].parents
+    ).toEqual({ env: ["a"] })
   })
 
   it("clears later variables when one changes", () => {

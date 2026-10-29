@@ -9,9 +9,9 @@ import type { Variable } from "@/spec"
 import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
 import {
-  earlierSelections,
   parentKeyOf,
   resolveSelections,
+  valuesRequests,
   variableDisplay,
   type LoadedValues,
   type VariableOptions,
@@ -43,9 +43,11 @@ export function useVariables({
   to,
   urlVars,
 }: Args) {
+  const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
+  const requests = valuesRequests(variables, urlVars, knownOptions)
   const results = useQueries({
     queries: variables.map((variable, index) => {
-      const earlier = earlierSelections(variables, index, urlVars)
+      const { parents: earlier, parentsReady } = requests[index]
       return {
         queryKey: dashboardKeys.variableValues(
           dashboardId,
@@ -74,15 +76,15 @@ export function useVariables({
             signal
           )
         },
-        enabled: variable.type === "query" || variable.type === "datasource",
+        enabled:
+          parentsReady &&
+          (variable.type === "query" || variable.type === "datasource"),
         staleTime: 30_000,
       }
     }),
   })
 
-  const parentKeys = variables.map((_, index) =>
-    parentKeyOf(earlierSelections(variables, index, urlVars))
-  )
+  const parentKeys = requests.map((request) => parentKeyOf(request.parents))
   const [lastLoaded, setLastLoaded] = useState<Record<string, LoadedValues>>({})
   const scopePrefix = `${dashboardId}:${version}:`
   let nextLoaded = lastLoaded
@@ -120,6 +122,10 @@ export function useVariables({
   variables.forEach((variable, index) => {
     selectable[variable.name] = displays[index].selectable
   })
+  const selectableKey = JSON.stringify(selectable)
+  if (selectableKey !== JSON.stringify(knownOptions)) {
+    setKnownOptions(selectable)
+  }
   const resolved = resolveSelections(variables, urlVars, selectable)
   const selectionKey = JSON.stringify(resolved.selections)
   const [stable, setStable] = useState({
