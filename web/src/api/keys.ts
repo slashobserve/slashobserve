@@ -57,6 +57,13 @@ export const dashboardKeys = {
   posts: (id: string) => ["dashboards", id, "posts"] as const,
 }
 
+export const folderKeys = {
+  all: ["folders"] as const,
+  list: () => ["folders", "list"] as const,
+  detail: (id: string) => ["folders", id] as const,
+  permissions: (id: string) => ["folders", id, "permissions"] as const,
+}
+
 export const observeKeys = {
   agent: () => ["agent"] as const,
   request: (id: string) => ["observe", id] as const,
