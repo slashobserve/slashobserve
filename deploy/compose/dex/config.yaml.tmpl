@@ -13,12 +13,25 @@ staticClients:
       - {{ getenv "DEX_REDIRECT_URI" }}
 enablePasswordDB: true
 staticPasswords:
-  # Development-only logins, both with password "password" (Dex's documented example hash).
-  # admin@example.com is on the allowed domain; outsider@example.org exists to prove refusal.
+  # Development-only logins, all with password "password" (Dex's documented example hash).
+  # admin@example.com is on the allowed domain and listed in SLASHOBSERVE_ADMIN_EMAILS; outsider@example.org exists to prove refusal.
+  # editor, commenter and viewer start as Editors; an Admin sets their roles on the People page.
   - email: "admin@example.com"
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
     username: "admin"
     userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+  - email: "editor@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "editor"
+    userID: "7d3b1a4e-2c5f-4e8a-9b6d-1f0a3c5e7a21"
+  - email: "commenter@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "commenter"
+    userID: "2e9c4b6a-8d1f-4a37-b5c2-9e7d0f3a6b42"
+  - email: "viewer@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "viewer"
+    userID: "c4a8e2d6-5b3f-4c19-8a7e-3d1b9f5c2e63"
   - email: "outsider@example.org"
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
     username: "outsider"

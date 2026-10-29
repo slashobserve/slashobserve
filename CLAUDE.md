@@ -41,7 +41,7 @@ Directories are created when their phase starts; this is where things go.
 - `internal/db/`: pgx pool, goose migrations (`migrations/`), sqlc queries (`queries/`) and generated code (`dbsqlc/`); `dbtest/` starts one Postgres testcontainer per test binary and hands each test its own migrated database (`dbtest.Main` in `TestMain`, `dbtest.New(t)`, or `dbtest.NewWithLogger(t, logger)` to capture the DB's own log lines; skipped under `-short`).
 - `internal/tctest/`: test-only retry for testcontainers starts that fail on testcontainers-go v0.44.0 reaper (ryuk) start errors: the shared-reaper lookup race and ryuk dying while it starts; every container start in tests goes through it.
 - `internal/clientgone/`: the one mapping for a caller that went away mid-request (a `context.Canceled` error while the request context is itself done): status 499, no body, a debug line, never an ERROR; a handler's error-to-500 path calls it first.
-- `internal/auth/`: OIDC login, sessions, service-account keys and the auth middleware.
+- `internal/auth/`: OIDC login, sessions, service-account keys, the auth middleware and the instance roles: `Role` (Viewer < Commenter < Editor < Admin), `ResolveRole` (the one precedence rule), `groupsClaim`, `RequireRole` and `Routes`, through which every `/api/v1` route is registered with its lowest role.
 - `internal/users/`: the People routes (`GET /api/v1/users`, paged newest first sign-in by `(created_at, id)`, and `DELETE /api/v1/users/{id}/sessions`, which also expires the caller's cookie when they sign themselves out), user principals only (`auth.RequireUser`).
 - `internal/egress/`: the only fetcher of user-supplied URLs: allowlisted hosts only, https on port 443, public addresses only (checked at dial), redirects rechecked hop by hop, no cookies or credentials, size and time limits, a 15 minute cache whose bodies are copied per caller.
 - `internal/egress/allowlist/`: the `outbound_domains` table, `GET|POST /api/v1/outbound-domains` and `DELETE /api/v1/outbound-domains/{domain}` (any signed-in person, never a key; 100 entries; deny-all when empty), and the `SLASHOBSERVE_OUTBOUND_DOMAINS` lock (`none` or a list; the table is then neither read nor written and changes answer 409 `managed_by_config`).
@@ -104,6 +104,8 @@ Directories are created when their phase starts; this is where things go.
   Current settings: `SLASHOBSERVE_HTTP_ADDR` (default `:8080`), `SLASHOBSERVE_DATABASE_URL` (required), `SLASHOBSERVE_LOG_LEVEL` (`debug|info|warn|error`, default `info`), `SLASHOBSERVE_LOG_FORMAT` (`json|text`, default `json`).
   Auth settings: `SLASHOBSERVE_PUBLIC_URL` (required; http or https origin with no path, query or user info), `SLASHOBSERVE_OIDC_ISSUER_URL` (required; used exactly as given because issuer comparison is exact), `SLASHOBSERVE_OIDC_INTERNAL_URL` (optional origin the server's back-channel uses instead of the issuer's scheme and host), `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` (required), `SLASHOBSERVE_SESSION_TTL` (default `168h`, between `5m` and `720h`), and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`.
   `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is required: a comma-separated list of domains matched exactly against the verified email's domain, or `*` as an explicit allow-all that logs a startup warning.
+  `SLASHOBSERVE_ADMIN_EMAILS` is optional: comma-separated addresses (lowercased, at most 100) that are always Admins; unset, the earliest-created user is the Admin.
+  `SLASHOBSERVE_OIDC_GROUP_ROLES` is optional: comma-separated `group=role` entries (split on the last `=`, role `admin|editor|commenter|viewer`, at most 100) that map the ID token's `groups` claim to a role.
   `SLASHOBSERVE_AUTH_PROVIDER_NAME` is optional: the identity provider's display name (trimmed, at most 64 characters, default empty), shown to signed-in clients as `oidc_provider_name`; the demo and e2e stacks set it to `Dex`.
   `SLASHOBSERVE_DATASOURCES_FILE` is optional: a YAML file listing datasources, and unset means none.
   `SLASHOBSERVE_OUTBOUND_DOMAINS` is optional: unset leaves the outbound allowlist to Settings, `none` or a comma-separated list of domain patterns locks it (at most 100, validated by `domains.ParsePattern`).
@@ -127,7 +129,12 @@ Directories are created when their phase starts; this is where things go.
   Comment tools (`list_comments`, `reply_to_comment`, `resolve_comment`) are MCP-only: `agent.New` leaves them (`Tool.MCPOnly`) out of the model's tool list and a call made inside an agent run is rejected with `invalid_request`, because the server answers and resolves threads after a run; they never queue revisions.
   Connect Claude Code with `claude mcp add --transport http slashobserve http://localhost:8080/mcp --header "Authorization: Bearer <key>"`.
   Signed-in users create keys and copy Claude Code, OpenCode and CLI setup snippets on the web page `/keys` (API keys in the sidebar; `/settings/keys` redirects).
-- Auth: every `/api/v1` route goes on the group returned by `auth.Service.Mount` except `/api/v1/auth/*`.
+- Auth: every `/api/v1` route goes on the `auth.Routes` returned by `auth.Service.Mount` except `/api/v1/auth/*`; feature packages register through `Register(api auth.Routes)` and never see a raw gin group.
+  Every `/api/v1` route is registered through `auth.Routes` with its lowest role (`auth.RequireRole`); handlers never check roles; refusals are 403 `forbidden_role`.
+  `auth.RequireUser` stays a separate principal-kind check after the role, so a key cannot manage keys whatever its role.
+  A user's role is `auth.ResolveRole` of the stored inputs, recomputed at each sign-in and for every user at boot (`ReconcileRoles`): `SLASHOBSERVE_ADMIN_EMAILS`, else the first user when that is unset, then the highest role mapped from the `groups` claim, then the role an Admin chose, else Editor; the first three (`RoleSource.Locked`) cannot be changed on the People page.
+  The `groups` scope is requested only when discovery lists it in `scopes_supported`.
+  Service accounts carry a `role` (default Editor) that their keys act with, and `auth.Service.Principal` re-reads a principal's current role.
   Handlers read the caller with `auth.FromContext`.
   Sessions and keys are opaque random tokens stored only as SHA-256.
   Cookie-authenticated mutations pass `http.CrossOriginProtection`.
@@ -438,7 +445,7 @@ Directories are created when their phase starts; this is where things go.
   The sample spacing grows geometrically from 5 seconds at `end` to 30 seconds going back, and every timestamp carries milliseconds: whole-second spacing makes `rate()` extrapolation dip on the sparser samples.
   The cAdvisor job sets `honor_timestamps: false` because its `machine_*` series carry a fixed explicit timestamp from cAdvisor's start, which falls before the backfill's end and would be dropped as out of bounds, and cAdvisor runs with `--housekeeping_interval=5s` so every 15 second scrape sees counters of the same age and `rate()` over `container_cpu_usage_seconds_total` does not step.
 - Dex runs in compose on host port `SLASHOBSERVE_DEX_HOST_PORT` (5556 for `make demo`, 15556 for e2e via `SLASHOBSERVE_E2E_DEX_PORT`).
-  Dev logins are `admin@example.com` / `password` (allowed domain `example.com`) and `outsider@example.org` / `password` (always refused, for tests).
+  Dev logins are `admin@example.com` / `password` (allowed domain `example.com`, an Admin through `SLASHOBSERVE_ADMIN_EMAILS` in compose), `editor@example.com`, `commenter@example.com` and `viewer@example.com` / `password` (Editors until an Admin sets their roles on the People page) and `outsider@example.org` / `password` (always refused, for tests).
   `scripts/e2e.sh` has `dex_login` for curl-driven sign-in.
 - A change that a user can see or call adds no new e2e check: workers write unit tests for pure logic only, and neither suite is extended unless the owner asks for a specific e2e test.
   Fixing an existing failing check is allowed.
