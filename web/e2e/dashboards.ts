@@ -1,4 +1,9 @@
-import { expect, type Page, type Response } from "@playwright/test"
+import {
+  expect,
+  type Locator,
+  type Page,
+  type Response,
+} from "@playwright/test"
 
 export async function openDashboard(page: Page, id: string, search = "") {
   await page.goto(`/dashboards/${id}${search}`)
@@ -11,6 +16,17 @@ export function versionButton(page: Page) {
     .getByRole("button", { name: /\. Choose a version$/ })
 }
 
+export async function expectNoAnimations(locator: Locator) {
+  await expect
+    .poll(() =>
+      locator.evaluateAll(
+        (elements) =>
+          elements.flatMap((element) => element.getAnimations()).length
+      )
+    )
+    .toBe(0)
+}
+
 export async function startLayoutEditing(page: Page) {
   await page.getByRole("button", { name: /^More/ }).click()
   await page.getByRole("menuitem", { name: "Edit layout" }).click()
@@ -18,6 +34,7 @@ export async function startLayoutEditing(page: Page) {
   await expect(
     page.getByRole("button", { name: /^Move or resize / }).first()
   ).toBeFocused()
+  await expectNoAnimations(page.locator(".react-grid-item"))
 }
 
 export async function openVersionsFromMenu(page: Page) {

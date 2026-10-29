@@ -9,6 +9,7 @@ import {
   type Spec,
 } from "./api"
 import {
+  expectNoAnimations,
   expectPanelsReady,
   openDashboard,
   panel,
@@ -77,12 +78,6 @@ async function box(locator: Locator) {
   const found = await locator.boundingBox()
   if (!found) throw new Error("element has no box")
   return found
-}
-
-async function expectNoAnimations(locator: Locator) {
-  await expect
-    .poll(() => locator.evaluate((el) => el.getAnimations().length))
-    .toBe(0)
 }
 
 async function dragTo(
