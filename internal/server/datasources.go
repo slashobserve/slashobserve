@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -21,8 +22,8 @@ type datasourcesResponse struct {
 	Datasources []datasourceJSON `json:"datasources"`
 }
 
-func registerDatasourceRoutes(api *gin.RouterGroup, registry *datasource.Registry, usage DatasourceUsage, logger *slog.Logger) {
-	api.GET("/datasources", func(c *gin.Context) {
+func registerDatasourceRoutes(api auth.Routes, registry *datasource.Registry, usage DatasourceUsage, logger *slog.Logger) {
+	api.GET("/datasources", auth.RoleViewer, func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var counts map[string]int
 		if usage != nil {

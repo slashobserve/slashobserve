@@ -31,9 +31,9 @@ var (
 func observeRouterFor(svc *revisions.Service, who auth.Principal) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
-	}))
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(who)))
+	})))
 	return r
 }
 

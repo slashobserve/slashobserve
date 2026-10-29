@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -211,7 +212,7 @@ func TestRequestRunsAndSucceeds(t *testing.T) {
 	if done.ResultVersion == nil || *done.ResultVersion != 2 || done.Attempts != 1 || done.Error != "" || done.StartedAt == nil || done.FinishedAt == nil {
 		t.Fatalf("finished revision = %+v", done)
 	}
-	if got.ID != rev.ID || got.DashboardID != dash.String() || got.Prompt != "add a p99 panel" || got.BaseVersion != 1 || got.RequestedBy != user {
+	if got.ID != rev.ID || got.DashboardID != dash.String() || got.Prompt != "add a p99 panel" || got.BaseVersion != 1 || !reflect.DeepEqual(got.RequestedBy, user) {
 		t.Fatalf("the reviser received %+v", got)
 	}
 }

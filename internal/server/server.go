@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -20,11 +21,11 @@ type Check struct {
 }
 
 type Auth interface {
-	Mount(*gin.RouterGroup) *gin.RouterGroup
+	Mount(*gin.RouterGroup) auth.Routes
 }
 
 type Registrar interface {
-	Register(*gin.RouterGroup)
+	Register(auth.Routes)
 }
 
 type Mount struct {

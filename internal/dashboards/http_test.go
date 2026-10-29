@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/auth"
 )
 
 func listFilterStatus(t *testing.T, rawQuery string) (int, ListParams) {
@@ -116,7 +118,7 @@ func TestTagsJSONCarriesNameAndCount(t *testing.T) {
 func TestTagsRouteCoexistsWithTheIDRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	(&Service{}).Register(router.Group("/api/v1"))
+	(&Service{}).Register(auth.NewRoutes(router.Group("/api/v1")))
 	routes := map[string]bool{}
 	for _, r := range router.Routes() {
 		routes[r.Method+" "+r.Path] = true

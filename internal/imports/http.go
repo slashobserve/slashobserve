@@ -29,11 +29,11 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-func (h *Handler) Register(api *gin.RouterGroup) {
-	api.POST("/imports/preview", h.preview)
-	api.POST("/imports", h.create)
-	api.GET("/imports", h.list)
-	api.GET("/dashboards/:id/import", h.forDashboard)
+func (h *Handler) Register(api auth.Routes) {
+	api.POST("/imports/preview", auth.RoleEditor, h.preview)
+	api.POST("/imports", auth.RoleEditor, h.create)
+	api.GET("/imports", auth.RoleViewer, h.list)
+	api.GET("/dashboards/:id/import", auth.RoleViewer, h.forDashboard)
 }
 
 type importRequest struct {

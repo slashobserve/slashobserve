@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -49,17 +50,17 @@ type restoreRequest struct {
 	Summary       string `json:"summary"`
 }
 
-func (s *Service) Register(api *gin.RouterGroup) {
+func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards")
-	g.POST("", s.createDashboard)
-	g.GET("", s.listDashboards)
-	g.GET("/tags", s.listTags)
-	g.GET("/:id", s.getDashboard)
-	g.GET("/:id/versions", s.listVersions)
-	g.GET("/:id/versions/:version", s.getVersion)
-	g.POST("/:id/versions", s.addVersion)
-	g.POST("/:id/versions/:version/restore", s.restoreVersion)
-	g.GET("/:id/diff", s.diff)
+	g.POST("", auth.RoleEditor, s.createDashboard)
+	g.GET("", auth.RoleViewer, s.listDashboards)
+	g.GET("/tags", auth.RoleViewer, s.listTags)
+	g.GET("/:id", auth.RoleViewer, s.getDashboard)
+	g.GET("/:id/versions", auth.RoleViewer, s.listVersions)
+	g.GET("/:id/versions/:version", auth.RoleViewer, s.getVersion)
+	g.POST("/:id/versions", auth.RoleViewer, s.addVersion)
+	g.POST("/:id/versions/:version/restore", auth.RoleViewer, s.restoreVersion)
+	g.GET("/:id/diff", auth.RoleViewer, s.diff)
 }
 
 func (s *Service) createDashboard(c *gin.Context) {

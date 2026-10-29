@@ -39,13 +39,13 @@ func (g typeGateStub) Type() string {
 func newRouter(svc *imports.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	imports.NewHandler(svc).Register(r.Group("/api/v1", func(c *gin.Context) {
+	imports.NewHandler(svc).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
 		who := ada
 		if n, err := strconv.Atoi(c.GetHeader(principalHeader)); err == nil {
 			who = principal(n)
 		}
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), who))
-	}))
+	})))
 	return r
 }
 

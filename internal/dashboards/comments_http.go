@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -62,11 +63,11 @@ type commentListJSON struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 
-func (cm *Comments) Register(api *gin.RouterGroup) {
+func (cm *Comments) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/comments")
-	g.POST("", cm.createComment)
-	g.GET("", cm.listComments)
-	g.PATCH("/:comment_id", cm.patchComment)
+	g.POST("", auth.RoleViewer, cm.createComment)
+	g.GET("", auth.RoleViewer, cm.listComments)
+	g.PATCH("/:comment_id", auth.RoleViewer, cm.patchComment)
 }
 
 func (cm *Comments) createComment(c *gin.Context) {

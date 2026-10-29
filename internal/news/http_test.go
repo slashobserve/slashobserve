@@ -45,11 +45,11 @@ func newRig(t *testing.T, fetcher *fakeFetcher) *rig {
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		if kind := c.GetHeader("X-Test-Kind"); kind != "" {
-			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: "caller-1"}
+			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: "caller-1", Role: auth.RoleAdmin}
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
-	NewHandler(fetcher, logger).Register(api)
+	NewHandler(fetcher, logger).Register(auth.NewRoutes(api))
 	return &rig{fetcher: fetcher, logs: logs, engine: engine}
 }
 

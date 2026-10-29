@@ -34,7 +34,7 @@ type failingRow struct{ err error }
 
 func (r failingRow) Scan(...any) error { return r.err }
 
-func newLoggingService(t *testing.T, issuer string) (*gin.Engine, *gin.RouterGroup, *logtest.Capture, *Service) {
+func newLoggingService(t *testing.T, issuer string) (*gin.Engine, Routes, *logtest.Capture, *Service) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger, logs := logtest.New()
@@ -49,7 +49,7 @@ func newLoggingService(t *testing.T, issuer string) (*gin.Engine, *gin.RouterGro
 	}
 	engine := gin.New()
 	authenticated := svc.Mount(engine.Group("/api/v1"))
-	authenticated.GET("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	authenticated.GET("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	return engine, authenticated, logs, svc
 }
 

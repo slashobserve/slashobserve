@@ -3,6 +3,7 @@ package imports_test
 import (
 	"errors"
 	"net/url"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -52,7 +53,7 @@ func TestListParamsOf(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if tt.madeBy != (got.MadeBy != nil) || (tt.madeBy && *got.MadeBy != caller) {
+			if tt.madeBy != (got.MadeBy != nil) || (tt.madeBy && !reflect.DeepEqual(*got.MadeBy, caller)) {
 				t.Fatalf("MadeBy = %v, want set %v", got.MadeBy, tt.madeBy)
 			}
 			if got.DashboardID != tt.dashboard {

@@ -27,7 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-var ada = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com"}
+var ada = auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada", Email: "ada@example.com", Role: auth.RoleAdmin}
 
 const brokenQuery = "broken_metric"
 
@@ -394,7 +394,7 @@ func TestAnAgentRequestImportsOnce(t *testing.T) {
 }
 
 func principal(n int) auth.Principal {
-	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", n), Name: fmt.Sprintf("bot-%d", n)}
+	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", n), Name: fmt.Sprintf("bot-%d", n), Role: auth.RoleAdmin}
 }
 
 func TestImportSlotsRefuseAndFree(t *testing.T) {

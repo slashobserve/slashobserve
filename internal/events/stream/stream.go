@@ -57,8 +57,8 @@ func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, logger *slog.
 	return &Handler{broker: b, dashboards: d, sessions: sessions, logger: logger, pingInterval: pingInterval, byPrincipal: map[string]int{}}
 }
 
-func (h *Handler) Register(api *gin.RouterGroup) {
-	api.GET("/dashboards/:id/events", h.serve)
+func (h *Handler) Register(api auth.Routes) {
+	api.GET("/dashboards/:id/events", auth.RoleViewer, h.serve)
 }
 
 type readyData struct {

@@ -15,21 +15,26 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
+func withRole(p auth.Principal) auth.Principal {
+	p.Role = auth.RoleAdmin
+	return p
+}
+
 func newRouter(svc *revisions.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	svc.Register(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), user))
-	}))
+	svc.Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(user)))
+	})))
 	return r
 }
 
 func newObserveRouter(svc *revisions.Service) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(r.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), user))
-	}))
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(user)))
+	})))
 	return r
 }
 

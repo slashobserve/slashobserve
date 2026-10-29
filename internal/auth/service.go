@@ -79,16 +79,16 @@ func New(cfg Config, queries *dbsqlc.Queries, logger *slog.Logger) (*Service, er
 	return s, nil
 }
 
-func (s *Service) Mount(api *gin.RouterGroup) *gin.RouterGroup {
+func (s *Service) Mount(api *gin.RouterGroup) Routes {
 	authRoutes := api.Group("/auth", noStore)
 	authRoutes.GET("/login", s.login)
 	authRoutes.GET("/callback", s.callback)
 	authRoutes.POST("/logout", s.logout)
 	authRoutes.GET("/session", s.session)
 
-	authenticated := api.Group("", s.require)
-	authenticated.GET("/me", s.me)
-	authenticated.GET("/instance", s.instance)
+	authenticated := NewRoutes(api.Group("", s.require))
+	authenticated.GET("/me", RoleViewer, s.me)
+	authenticated.GET("/instance", RoleViewer, s.instance)
 	s.mountServiceAccounts(authenticated)
 	return authenticated
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -100,11 +101,11 @@ type agentRequestEnvelopeJSON struct {
 	Request agentRequestJSON `json:"request"`
 }
 
-func (h *ObserveHandler) Register(api *gin.RouterGroup) {
-	api.GET("/agent", h.getAgent)
-	api.POST("/observe", h.createObserve)
-	api.GET("/observe", h.listObserve)
-	api.GET("/observe/:id", h.getObserve)
+func (h *ObserveHandler) Register(api auth.Routes) {
+	api.GET("/agent", auth.RoleViewer, h.getAgent)
+	api.POST("/observe", auth.RoleViewer, h.createObserve)
+	api.GET("/observe", auth.RoleViewer, h.listObserve)
+	api.GET("/observe/:id", auth.RoleViewer, h.getObserve)
 }
 
 func (h *ObserveHandler) getAgent(c *gin.Context) {

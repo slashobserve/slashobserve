@@ -55,11 +55,11 @@ func newRigWithLogger(t *testing.T, logger *slog.Logger) *rig {
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		if kind := c.GetHeader("X-Test-Kind"); kind != "" {
-			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id")}
+			p := auth.Principal{Kind: auth.PrincipalKind(kind), ID: c.GetHeader("X-Test-Id"), Role: auth.RoleAdmin}
 			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 		}
 	})
-	NewHandler(database.DB, authService, logger).Register(api)
+	NewHandler(database.DB, authService, logger).Register(auth.NewRoutes(api))
 	return &rig{t: t, db: database, engine: engine}
 }
 
