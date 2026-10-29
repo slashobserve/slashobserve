@@ -1,5 +1,6 @@
 import { useDatasources } from "@/datasources/queries"
 import { cn } from "@/lib/utils"
+import type { DatasourceVariable } from "@/spec"
 
 const typeLabels: Record<string, string> = {
   prometheus: "Prometheus",
@@ -10,11 +11,16 @@ function typeLabel(type: string): string {
   return Object.hasOwn(typeLabels, type) ? typeLabels[type] : type
 }
 
+function variableRef(variable: DatasourceVariable): string {
+  return "${" + variable.name + "}"
+}
+
 type Props = {
   id?: string
   value: string
   onChange: (uid: string) => void
   includePanelDefault?: string
+  variables?: readonly DatasourceVariable[]
   compact?: boolean
   ariaLabel?: string
   disabled?: boolean
@@ -25,13 +31,16 @@ export function DatasourceSelect({
   value,
   onChange,
   includePanelDefault,
+  variables = [],
   compact = false,
   ariaLabel,
   disabled = false,
 }: Props) {
   const datasources = useDatasources()
   const list = datasources.data ?? []
-  const known = list.some((datasource) => datasource.uid === value)
+  const known =
+    list.some((datasource) => datasource.uid === value) ||
+    variables.some((variable) => variableRef(variable) === value)
   return (
     <select
       id={id}
@@ -49,6 +58,11 @@ export function DatasourceSelect({
       {includePanelDefault === undefined ? null : (
         <option value="">{`Panel datasource (${includePanelDefault})`}</option>
       )}
+      {variables.map((variable) => (
+        <option key={variable.name} value={variableRef(variable)}>
+          {`$${variable.name} (variable, ${typeLabel(variable.datasourceType)})`}
+        </option>
+      ))}
       {value !== "" && !known ? <option value={value}>{value}</option> : null}
       {list.map((datasource) => (
         <option key={datasource.uid} value={datasource.uid}>

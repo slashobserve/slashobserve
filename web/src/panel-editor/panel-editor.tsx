@@ -26,7 +26,15 @@ import {
 } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
-import { findPanel, isDataPanel, queryRef, type Dashboard } from "@/spec"
+import {
+  datasourceRefType,
+  findPanel,
+  isDataPanel,
+  queryRef,
+  resolveDatasourceRef,
+  type Dashboard,
+  type DatasourceVariable,
+} from "@/spec"
 
 import { AskAgent } from "./ask-agent"
 import {
@@ -50,6 +58,7 @@ import { MetricsBrowser } from "./metrics-browser"
 import { parsePanelJson, withPanel } from "./panel-json"
 import { PreviewSection } from "./preview-section"
 import { maxQueryLength } from "./query-row"
+import type { ResolveDatasource } from "./query-row"
 import { QueryRows, maxContentLength } from "./query-rows"
 import {
   SaveProblem,
@@ -120,6 +129,23 @@ export default function PanelEditor({
   const datasources = useDatasources()
   const [draft, dispatch] = useReducer(draftReducer, undefined, () =>
     startDraft(version, panel)
+  )
+  const datasourceVariables = useMemo(
+    () =>
+      (spec.variables ?? []).filter(
+        (variable): variable is DatasourceVariable =>
+          variable.type === "datasource"
+      ),
+    [spec.variables]
+  )
+  const resolveDatasource = useMemo<ResolveDatasource>(
+    () => (ref) => ({
+      uid: resolveDatasourceRef(ref, selections ?? {}) ?? ref,
+      type: datasourceRefType(ref, spec.variables ?? [], (uid) =>
+        datasourceTypeOf(datasources.data, uid)
+      ),
+    }),
+    [selections, spec.variables, datasources.data]
   )
   const changes = useMemo(
     () => panelChanges(draft.base, draft.panel),
@@ -327,7 +353,9 @@ export default function PanelEditor({
   const data = isDataPanel(current) ? current : null
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
   const active = data?.queries[activeQuery]
-  const activeUid = active?.datasource ?? data?.datasource ?? ""
+  const activeDatasource = resolveDatasource(
+    active?.datasource ?? data?.datasource ?? ""
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -369,6 +397,7 @@ export default function PanelEditor({
                       <DatasourceSelect
                         id={datasourceId}
                         value={data.datasource}
+                        variables={datasourceVariables}
                         disabled={locked}
                         onChange={(uid) =>
                           dispatch({ type: "setPanelDatasource", uid })
@@ -392,6 +421,8 @@ export default function PanelEditor({
                   base={draft.base}
                   dispatch={dispatch}
                   readOnly={locked}
+                  datasourceVariables={datasourceVariables}
+                  resolveDatasource={resolveDatasource}
                   issuesByQuery={issuesByQuery}
                   onActiveChange={setActiveRef}
                   onRemoved={(ref) =>
@@ -402,11 +433,8 @@ export default function PanelEditor({
                   beforeAdd={
                     metricsOpen && data ? (
                       <MetricsBrowser
-                        datasourceUid={activeUid}
-                        datasourceType={datasourceTypeOf(
-                          datasources.data,
-                          activeUid
-                        )}
+                        datasourceUid={activeDatasource.uid}
+                        datasourceType={activeDatasource.type}
                         onInsert={(text) => {
                           if (!locked) {
                             editorRefs.current[activeQuery]?.insertAtCursor(

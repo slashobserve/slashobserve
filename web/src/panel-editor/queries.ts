@@ -16,7 +16,7 @@ import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { sentence } from "@/observe/queries"
-import type { DataPanel } from "@/spec"
+import { resolveDatasourceRef, type DataPanel } from "@/spec"
 
 import type { EditablePanel } from "./draft"
 import { missingPanelMessage } from "./panel-json"
@@ -135,7 +135,13 @@ export function previewQuery({
         () =>
           api
             .POST("/datasources/{uid}/preview", {
-              params: { path: { uid: panel.datasource } },
+              params: {
+                path: {
+                  uid:
+                    resolveDatasourceRef(panel.datasource, selections) ??
+                    panel.datasource,
+                },
+              },
               body: {
                 dashboard_id: dashboardId,
                 version,

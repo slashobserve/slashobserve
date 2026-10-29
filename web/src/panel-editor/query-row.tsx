@@ -10,12 +10,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { useDatasources } from "@/datasources/queries"
 import { cn } from "@/lib/utils"
 import { CodeEditor, type CodeEditorHandle } from "@/query-editor/code-editor"
 import { lineAndColumn } from "@/query-editor/line-column"
 import type { LintResult } from "@/query-editor/server-lint"
-import type { PanelQuery } from "@/spec"
+import type { DatasourceVariable, PanelQuery } from "@/spec"
 
 import { queryChanged } from "./changes"
 import { DatasourceSelect } from "./datasource-select"
@@ -28,12 +28,19 @@ function hasCoarsePointer() {
   return window.matchMedia("(pointer: coarse)").matches
 }
 
+export type ResolveDatasource = (ref: string) => {
+  uid: string
+  type: string | undefined
+}
+
 type Props = {
   autoFocus: boolean
   refName: string
   query: PanelQuery
   baseQuery: PanelQuery | undefined
   panelDatasource: string
+  datasourceVariables: readonly DatasourceVariable[]
+  resolveDatasource: ResolveDatasource
   readOnly: boolean
   issues: readonly string[]
   onChange: (query: string) => void
@@ -111,6 +118,8 @@ export function QueryRow({
   query,
   baseQuery,
   panelDatasource,
+  datasourceVariables,
+  resolveDatasource,
   readOnly,
   issues,
   onChange,
@@ -133,7 +142,6 @@ export function QueryRow({
     []
   )
   const [lint, setLint] = useState<LintResult | null>(null)
-  const uid = query.datasource ?? panelDatasource
   const marker =
     baseQuery === undefined
       ? "New"
@@ -154,6 +162,7 @@ export function QueryRow({
           compact
           value={query.datasource ?? ""}
           includePanelDefault={panelDatasource}
+          variables={datasourceVariables}
           ariaLabel={`Datasource for query ${refName}`}
           disabled={readOnly}
           onChange={(next) => onDatasourceChange(next === "" ? null : next)}
@@ -180,10 +189,7 @@ export function QueryRow({
         <CodeEditor
           value={query.query}
           onChange={onChange}
-          datasource={{
-            uid,
-            type: datasourceTypeOf(datasources.data, uid),
-          }}
+          datasource={resolveDatasource(query.datasource ?? panelDatasource)}
           readOnly={readOnly}
           ariaLabel={`Query ${refName}`}
           onLint={setLint}
