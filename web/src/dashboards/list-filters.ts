@@ -6,10 +6,12 @@ export type ListSearch = {
   made_by?: string
   datasource?: string
   tag?: string[]
+  folder?: string
 }
 
 const uuid =
   "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+const folderPattern = new RegExp(`^${uuid}$`)
 const madeByPattern = new RegExp(
   `^(?:me|agent|mcp|mcp:(.+)|user:${uuid}|service_account:${uuid})$`,
   "su"
@@ -62,6 +64,7 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     made_by: undefined,
     datasource: undefined,
     tag: undefined,
+    folder: undefined,
   }
   const q = firstString(raw.q)?.trim()
   if (
@@ -83,6 +86,10 @@ export function validateListSearch(raw: Record<string, unknown>): ListSearch {
     search.datasource = datasource
   }
   search.tag = validTags(raw.tag)
+  const folder = firstString(raw.folder)
+  if (folder !== undefined && folderPattern.test(folder)) {
+    search.folder = folder.toLowerCase()
+  }
   return search
 }
 

@@ -28,7 +28,17 @@ describe("validateListSearch", () => {
   it("names every filter so a dropped value overrides the raw URL", () => {
     expect(
       Object.keys(validateListSearch({ made_by: "bogus" })).sort()
-    ).toEqual(["datasource", "made_by", "q", "tag"])
+    ).toEqual(["datasource", "folder", "made_by", "q", "tag"])
+  })
+
+  it("keeps a folder id in lower case and drops anything else", () => {
+    expect(validateListSearch({ folder: id.toUpperCase() })).toEqual({
+      folder: id,
+    })
+    expect(validateListSearch({ folder: [id, "x"] })).toEqual({ folder: id })
+    for (const value of ["", "general", `${id}x`, ` ${id}`, 7, null]) {
+      expect(validateListSearch({ folder: value })).toEqual({})
+    }
   })
 
   it("takes the first value of a repeated key", () => {
