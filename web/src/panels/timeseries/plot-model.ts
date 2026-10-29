@@ -187,3 +187,18 @@ export function nearestSpan(
   })
   return best
 }
+
+export type TooltipAnchor = { idx: number; left: number; top: number }
+
+export function tooltipAnchor(
+  cursor: {
+    idx?: number | null
+    left?: number | null
+    top?: number | null
+  },
+  pointerOver: boolean
+): TooltipAnchor | null {
+  const { idx, left } = cursor
+  if (!pointerOver || idx == null || left == null || left < 0) return null
+  return { idx, left, top: cursor.top ?? 0 }
+}

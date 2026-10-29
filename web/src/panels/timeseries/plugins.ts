@@ -4,7 +4,12 @@ import type { Threshold } from "@/spec"
 
 import type { LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
-import { bandBase, nearestSpan, thresholdValueAt } from "./plot-model"
+import {
+  bandBase,
+  nearestSpan,
+  thresholdValueAt,
+  tooltipAnchor,
+} from "./plot-model"
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
 
@@ -134,9 +139,9 @@ export function tooltipPlugin(
         tooltip = null
       },
       setCursor: (u) => {
-        const idx = u.cursor.idx
-        const left = u.cursor.left ?? -1
-        if (!tooltip || idx == null || left < 0) return hide()
+        const anchor = tooltipAnchor(u.cursor, u.over.matches(":hover"))
+        if (!tooltip || !anchor) return hide()
+        const { idx, left, top: cursorTop } = anchor
 
         const meta = series()
         const rows: Row[] = []
@@ -147,19 +152,9 @@ export function tooltipPlugin(
           }
         })
         if (rows.length === 0) return hide()
-        const hovered = u.over.matches(":hover")
         const candidates =
           mode === "single"
-            ? [
-                nearestRow(
-                  u,
-                  rows,
-                  meta,
-                  first,
-                  idx,
-                  hovered ? (u.cursor.top ?? 0) : 0
-                ),
-              ]
+            ? [nearestRow(u, rows, meta, first, idx, cursorTop)]
             : rows.sort((a, b) => b.value - a.value).slice(0, maxTooltipRows)
         const shown = mode === "single" ? 1 : rows.length
         const texts = formatTogether(
@@ -212,8 +207,7 @@ export function tooltipPlugin(
         if (x + width > geometry.width - tooltipEdge) {
           x = originX + left - width - tooltipGap
         }
-        const top = hovered ? (u.cursor.top ?? 0) : 0
-        const y = originY + top - height / 2
+        const y = originY + cursorTop - height / 2
         const maxX = Math.max(tooltipEdge, geometry.width - width - tooltipEdge)
         const maxY = Math.max(
           tooltipEdge,

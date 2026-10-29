@@ -13,6 +13,7 @@ import {
   plotStateFor,
   thresholdsFor,
   thresholdValueAt,
+  tooltipAnchor,
   type ChartSeries,
 } from "./plot-model"
 import { axesInUse } from "./series-config"
@@ -329,5 +330,33 @@ describe("nearestSpan", () => {
         15
       )
     ).toBe(0)
+  })
+})
+
+describe("tooltipAnchor", () => {
+  it("anchors the tooltip at the cursor of the panel under the pointer", () => {
+    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, true)).toEqual({
+      idx: 4,
+      left: 120,
+      top: 30,
+    })
+    expect(tooltipAnchor({ idx: 0, left: 0 }, true)).toEqual({
+      idx: 0,
+      left: 0,
+      top: 0,
+    })
+  })
+
+  it("shows no tooltip on a panel that only follows a synced cursor", () => {
+    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, false)).toBeNull()
+  })
+
+  it.each([
+    ["no point under the cursor", { idx: null, left: 120, top: 30 }],
+    ["an unset point", { left: 120, top: 30 }],
+    ["a cursor outside the plot", { idx: 4, left: -10, top: 30 }],
+    ["a missing cursor position", { idx: 4, left: null, top: null }],
+  ])("shows no tooltip for %s", (_name, cursor) => {
+    expect(tooltipAnchor(cursor, true)).toBeNull()
   })
 })
