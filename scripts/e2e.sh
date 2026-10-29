@@ -1031,11 +1031,132 @@ expect_import_error() {
   fi
 }
 
-prom_defined() { capture LAST prom_scalar "$1" || true; is_number "$LAST"; }
+demo_shop_panels_without_data() {
+  python3 -I - "$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" "$PROM_URL" <<'PY'
+import json, re, sys, time, urllib.parse, urllib.request
 
-demo_shop_stat_panels_have_data() {
-  prom_defined 'sum(rate(http_requests_total{service=~".+",status=~"5.."}[5m])) / sum(rate(http_requests_total{service=~".+"}[5m]))' \
-    && prom_defined 'sum(rate(container_cpu_usage_seconds_total{service=~".+"}[1m]))'
+UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+def walk(panels):
+    for p in panels:
+        yield p
+        yield from walk(p.get("panels", []))
+
+def has_data(expr, start, end):
+    query = urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": 60})
+    with urllib.request.urlopen(f"{sys.argv[2]}/api/v1/query_range?{query}", timeout=10) as resp:
+        return bool(json.load(resp)["data"]["result"])
+
+dashboard = json.load(open(sys.argv[1]))
+amount, unit = re.fullmatch(r"now-(\d+)([smhd])", dashboard["time"]["from"]).groups()
+span = int(amount) * UNITS[unit]
+end = int(time.time())
+variables = [v["name"] for v in dashboard["templating"]["list"]]
+
+def resolve(expr):
+    expr = expr.replace("$__rate_interval", "1m").replace("$__range", f"{span}s")
+    for name in variables:
+        expr = re.sub(rf"\${name}\b", ".+", expr)
+    return expr
+
+for panel in walk(dashboard["panels"]):
+    targets = panel.get("targets", [])
+    if panel["type"] == "row" or not targets or any(t["datasource"]["type"] != "prometheus" for t in targets):
+        continue
+    if not any(has_data(resolve(t["expr"]), end - span, end) for t in targets):
+        print(panel["title"])
+PY
+}
+
+demo_shop_panels_have_data() {
+  capture LAST demo_shop_panels_without_data || return 1
+  [[ -z "$LAST" ]]
+}
+
+node_exporter_full_import() {
+  local out node="$ROOT/pkg/grafana/testdata/corpus/rfmoz/node-exporter-full.json" mapping='{"${ds_prometheus}": "prom"}' counts node_id
+
+  counts="$(python3 -c 'import json,sys; w=lambda ps: [q for p in ps for q in [p] + w(p.get("panels", []))]; a=w(json.load(open(sys.argv[1]))["panels"]); print(sum(p["type"] != "row" for p in a), sum(p["type"] == "row" for p in a))' "$node")"
+  import_body "$node" "$mapping"
+  out="$(api POST /imports/preview --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 200 ]] || fail "preview Node Exporter Full ($out: $(head -c 300 "$TMP/api.body"))"
+  import_check "d['ready'] is True and [d['summary']['panels'], d['summary']['rows']] == [int(n) for n in a[0].split()]" "$TMP/api.body" "$counts" \
+    || fail "the Node Exporter Full preview should be ready with every panel and row of the dashboard ($counts: $(head -c 600 "$TMP/api.body"))"
+
+  out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
+  [[ "$out" == 201 ]] || fail "import Node Exporter Full ($out: $(head -c 600 "$TMP/api.body"))"
+  node_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
+  python3 -I - "$node" "$TMP/api.body" "$PROM_URL" >"$TMP/node-import.check" 2>&1 <<'PY' || fail "Node Exporter Full should keep every panel, and a panel may be unverified only because the series it selects are absent from Prometheus ($(head -c 2000 "$TMP/node-import.check"))"
+import json, re, sys, urllib.parse, urllib.request
+
+KEPT = {"imported", "partial", "placeholder", "unverified"}
+NO_DATA = "The queries returned no data for the dashboard's default time range."
+STRING = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`[^`]*`'
+SELECTOR = re.compile(rf"(?:{STRING})|(?<![\w:.$])([a-zA-Z_:][\w:]*)(?:\s*\{{((?:[^}}\"'`]|{STRING})*)\}})?(?![\w:]*\s*\()")
+MATCHER = re.compile(rf"[a-zA-Z_]\w*\s*(?:=~|!~|!=|=)\s*(?:{STRING})")
+KEYWORDS = {"and", "or", "unless", "bool", "offset", "inf", "nan", "by", "without", "on", "ignoring", "group_left", "group_right"}
+
+def walk(panels):
+    for p in panels:
+        yield p
+        yield from walk(p.get("panels", []))
+
+def selectors(expr):
+    expr = re.sub(r"\[[^\]]*\]", "", expr)
+    expr = re.sub(r"\b(?:by|without|on|ignoring|group_left|group_right)\s*\([^)]*\)", "", expr)
+    found = []
+    for m in SELECTOR.finditer(expr):
+        name, matchers = m.group(1), m.group(2) or ""
+        if name is None or name in KEYWORDS:
+            continue
+        fixed = [x for x in MATCHER.findall(matchers) if "$" not in x]
+        found.append(f"{name}{{{','.join(fixed)}}}" if fixed else name)
+    return found
+
+series_cache = {}
+
+def has_series(selector):
+    if selector not in series_cache:
+        url = sys.argv[3] + "/api/v1/query?" + urllib.parse.urlencode({"query": f"count({selector})"})
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            series_cache[selector] = bool(json.load(resp)["data"]["result"])
+    return series_cache[selector]
+
+corpus = [p for p in walk(json.load(open(sys.argv[1]))["panels"]) if p["type"] != "row"]
+imported = json.load(open(sys.argv[2]))
+lines = imported["import"]["report"]["panels"]
+spec_panels = {p["id"]: p for p in walk(imported["version"]["spec"]["panels"])}
+problems = []
+
+if sorted(l["grafana_id"] for l in lines) != sorted(p["id"] for p in corpus):
+    problems.append("the report does not hold exactly one line per Grafana panel")
+counts = imported["import"]["report"]["counts"]
+if counts["total"] != len(corpus) or sum(counts[k] for k in KEPT) != len(corpus):
+    problems.append(f"counts do not add up to {len(corpus)}: {counts}")
+rows = [p for p in imported["version"]["spec"]["panels"] if p["type"] == "row"]
+if len(rows) != 16:
+    problems.append(f"the Spec holds {len(rows)} rows, not 16")
+
+for line in lines:
+    if line["status"] not in KEPT:
+        problems.append(f"{line['title']}: status {line['status']}")
+    if line["status"] != "unverified":
+        continue
+    failed = [r for r in line["reasons"] if r.startswith("Query ") and " failed on " in r]
+    if failed or NO_DATA not in line["reasons"]:
+        problems.append(f"{line['title']}: unverified by a query error: {line['reasons']}")
+        continue
+    for query in spec_panels[line["panel_id"]]["queries"]:
+        if all(has_series(s) for s in selectors(query["query"])):
+            problems.append(f"{line['title']}: unverified although every series it selects exists: {query['query']}")
+
+if problems:
+    print("\n".join(problems))
+    sys.exit(1)
+PY
+  out="$(api GET "/dashboards/$node_id")"
+  [[ "$out" == 200 ]] || fail "the imported Node Exporter Full should be readable ($out)"
+  pass "importing Node Exporter Full keeps every panel, and a panel is unverified only when a series it selects is absent from Prometheus"
 }
 
 imports_suite() {
@@ -1131,7 +1252,7 @@ PY
     || fail "an ambiguous datasource should list its candidates and never be guessed ($(head -c 600 "$TMP/api.body"))"
   pass "a datasource with two candidates is never guessed"
 
-  poll 180 "Prometheus has data for the demo shop stat panels" demo_shop_stat_panels_have_data
+  poll 180 "Prometheus has data for every Prometheus panel of the demo shop dashboard" demo_shop_panels_have_data
   import_body "$demo"
   out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
   [[ "$out" == 201 ]] || fail "import demo-shop ($out: $(head -c 600 "$TMP/api.body"))"
@@ -1221,6 +1342,8 @@ PY
   out="$(api POST /imports/preview --data-binary "@$TMP/import-many.json")"
   [[ "$out" == 422 ]] && import_check "d['code'] == 'too_many_panels'" || fail "a dashboard of 201 panels should be refused ($out: $(head -c 300 "$TMP/api.body"))"
   pass "a dashboard above the 200 panel limit is refused with too_many_panels"
+
+  node_exporter_full_import
 }
 
 events_suite() {
