@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { sendToAgentState } from "./agent-gate"
 
 const open = {
+  canEdit: true,
   agentAvailable: true,
   pinned: false,
   layoutEditing: false,
@@ -57,9 +58,25 @@ describe("sendToAgentState", () => {
     })
   })
 
+  it("hides the option without edit permission before every other reason", () => {
+    expect(
+      sendToAgentState({
+        canEdit: false,
+        agentAvailable: false,
+        pinned: true,
+        layoutEditing: true,
+        activeRequests: 5,
+      })
+    ).toEqual({ kind: "hidden" })
+    expect(sendToAgentState({ ...open, canEdit: false })).toEqual({
+      kind: "hidden",
+    })
+  })
+
   it("puts no model before every other reason", () => {
     expect(
       sendToAgentState({
+        ...open,
         agentAvailable: false,
         pinned: true,
         layoutEditing: true,

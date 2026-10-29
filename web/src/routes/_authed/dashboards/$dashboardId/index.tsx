@@ -3,6 +3,7 @@ import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 
 import { ApiError } from "@/api/errors"
 import { DashboardLoadError } from "@/dashboards/load-error"
+import { DashboardNoAccess } from "@/dashboards/no-access"
 import { DashboardNotFound } from "@/dashboards/not-found"
 import {
   DashboardPage,
@@ -55,6 +56,13 @@ export const Route = createFileRoute("/_authed/dashboards/$dashboardId/")({
       (error.status === 404 || error.status === 400)
     ) {
       return <DashboardNotFound />
+    }
+    if (
+      error instanceof ApiError &&
+      error.status === 403 &&
+      error.code === "forbidden_role"
+    ) {
+      return <DashboardNoAccess />
     }
     return <DashboardRouteError error={error} reset={reset} />
   },

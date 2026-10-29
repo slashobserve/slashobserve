@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { useLatestPermissions } from "@/dashboards/permissions"
 import { latestDashboardQuery, useRestoreVersion } from "@/dashboards/queries"
 
 type Props = {
@@ -58,6 +59,7 @@ export function RestoreVersionButton({
   const [knownLatest, setKnownLatest] = useState(0)
   const queryClient = useQueryClient()
   const restore = useRestoreVersion(dashboardId)
+  const canEdit = useLatestPermissions(dashboardId).edit
   const parent = Math.max(openedAt, knownLatest)
   const conflicted = knownLatest > 0
 
@@ -107,6 +109,8 @@ export function RestoreVersionButton({
       }
     )
   }
+
+  if (!canEdit) return null
 
   return (
     <>

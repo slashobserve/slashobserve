@@ -27,6 +27,8 @@ type Props = {
   tableView: boolean
   onToggleTableView: () => void
   inspectable: boolean
+  canComment: boolean
+  canEdit: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -46,11 +48,14 @@ export function PanelMenu({
   tableView,
   onToggleTableView,
   inspectable,
+  canComment,
+  canEdit,
   composerRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
-  const items: MenuItem[] = [
-    {
+  const items: MenuItem[] = []
+  if (canComment) {
+    items.push({
       id: "comment",
       label: inspectable ? "Comment" : "Comment (finish the layout first)",
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
@@ -60,10 +65,10 @@ export function PanelMenu({
         useActivityStore.getState().setOpen(true)
         setSearch((state) => ({ ...state, panel: panel.id, edit: undefined }))
       },
-    },
-  ]
+    })
+  }
   const data = isDataPanel(panel)
-  if (isEditablePanel(panel)) {
+  if (canEdit && isEditablePanel(panel)) {
     items.push({
       id: "edit",
       label: inspectable ? "Edit" : "Edit (finish the layout first)",

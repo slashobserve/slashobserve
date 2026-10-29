@@ -5,6 +5,7 @@ import { Mark } from "@/components/brand/mark"
 
 type Props = {
   title: string
+  folder?: { id: string; title: string } | null
   madeBy: string | null
   versionControl: ReactNode
   controls: ReactNode[]
@@ -26,6 +27,7 @@ function Separator() {
 
 export function DashboardTopRow({
   title,
+  folder,
   madeBy,
   versionControl,
   controls,
@@ -54,6 +56,19 @@ export function DashboardTopRow({
           Dashboards
         </Link>
         <Separator />
+        {folder ? (
+          <>
+            <Link
+              to="/dashboards"
+              search={{ folder: folder.id }}
+              title={folder.title}
+              className="max-w-[24ch] truncate rounded-sm text-muted-foreground no-underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {folder.title}
+            </Link>
+            <Separator />
+          </>
+        ) : null}
         <h1
           aria-current="page"
           title={title}
