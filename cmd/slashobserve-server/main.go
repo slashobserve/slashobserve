@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 	"github.com/slashobserve/slashobserve/internal/egress/allowlist"
 	"github.com/slashobserve/slashobserve/internal/events"
@@ -135,6 +136,36 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
+func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Queries, logger *slog.Logger) (*auth.Service, error) {
+	rolePolicy, err := rolePolicyOf(cfg)
+	if err != nil {
+		return nil, described("invalid_config", err)
+	}
+	service, err := auth.New(auth.Config{
+		PublicURL:           cfg.PublicURL,
+		IssuerURL:           cfg.OIDCIssuerURL,
+		InternalURL:         cfg.OIDCInternalURL,
+		ClientID:            cfg.OIDCClientID,
+		ClientSecret:        cfg.OIDCClientSecret,
+		SessionTTL:          cfg.SessionTTL,
+		AllowedEmailDomains: cfg.AllowedEmailDomains,
+		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
+		ProviderName:        cfg.AuthProviderName,
+		RolePolicy:          rolePolicy,
+	}, queries, logger)
+	if err != nil {
+		return nil, withheld("auth_setup_failed", err)
+	}
+	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
+	if err := service.ReconcileRoles(ctx); err != nil {
+		return nil, withheld("role_reconcile_failed", err)
+	}
+	if cfg.AllowAnyEmailDomain {
+		logger.Warn("all identity-provider accounts may sign in")
+	}
+	return service, nil
+}
+
 func run() error {
 	cfg, err := config.Load(os.LookupEnv)
 	if err != nil {
@@ -186,31 +217,9 @@ func run() error {
 	}
 	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
-	rolePolicy, err := rolePolicyOf(cfg)
+	authService, err := newAuthService(ctx, cfg, database.Queries(), logger)
 	if err != nil {
-		return described("invalid_config", err)
-	}
-	authService, err := auth.New(auth.Config{
-		PublicURL:           cfg.PublicURL,
-		IssuerURL:           cfg.OIDCIssuerURL,
-		InternalURL:         cfg.OIDCInternalURL,
-		ClientID:            cfg.OIDCClientID,
-		ClientSecret:        cfg.OIDCClientSecret,
-		SessionTTL:          cfg.SessionTTL,
-		AllowedEmailDomains: cfg.AllowedEmailDomains,
-		AllowAnyEmailDomain: cfg.AllowAnyEmailDomain,
-		ProviderName:        cfg.AuthProviderName,
-		RolePolicy:          rolePolicy,
-	}, database.Queries(), logger)
-	if err != nil {
-		return withheld("auth_setup_failed", err)
-	}
-	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
-	if err := authService.ReconcileRoles(ctx); err != nil {
-		return withheld("role_reconcile_failed", err)
-	}
-	if cfg.AllowAnyEmailDomain {
-		logger.Warn("all identity-provider accounts may sign in")
+		return err
 	}
 
 	runner := queryproxy.NewRunner(registry, logger)

@@ -170,15 +170,8 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	if err := idToken.Claims(&claims); err != nil {
 		return "", &loginFailure{code: "invalid_token", err: err}
 	}
-	if failure := emailFailure(claims.Email); failure != nil {
+	if failure := s.emailRefusal(claims.Email, claims.EmailVerified); failure != nil {
 		return "", failure
-	}
-	if !s.cfg.AllowAnyEmailDomain && !emailAllowed(claims.Email, claims.EmailVerified, s.cfg.AllowedEmailDomains) {
-		reason := "domain_not_allowed"
-		if !claims.EmailVerified {
-			reason = "email_unverified"
-		}
-		return "", &loginFailure{code: "email_not_allowed", reason: reason, attrs: []any{slog.String("email_domain", emailDomain(claims.Email))}}
 	}
 
 	groups := groupsClaim(claims.Groups)
@@ -192,12 +185,7 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 	if err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
-	first, err := s.queries.IsFirstUser(ctx, user.ID)
-	if err != nil {
-		return "", &loginFailure{code: "internal", err: err}
-	}
-	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
-	if err := s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision)); err != nil {
+	if err := s.assignRole(ctx, user, groups); err != nil {
 		return "", &loginFailure{code: "internal", err: err}
 	}
 	token, hash, err := newToken("")
@@ -216,6 +204,20 @@ func (s *Service) completeLogin(c *gin.Context, stored dbsqlc.ConsumeLoginStateR
 		s.logger.WarnContext(ctx, "delete expired sessions", logattrs.Failure("session_cleanup_failed", err)...)
 	}
 	return token, nil
+}
+
+func (s *Service) emailRefusal(email string, verified bool) *loginFailure {
+	if failure := emailFailure(email); failure != nil {
+		return failure
+	}
+	if s.cfg.AllowAnyEmailDomain || emailAllowed(email, verified, s.cfg.AllowedEmailDomains) {
+		return nil
+	}
+	reason := "domain_not_allowed"
+	if !verified {
+		reason = "email_unverified"
+	}
+	return &loginFailure{code: "email_not_allowed", reason: reason, attrs: []any{slog.String("email_domain", emailDomain(email))}}
 }
 
 func emailFailure(email string) *loginFailure {

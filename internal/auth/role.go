@@ -38,8 +38,8 @@ func ParseRole(s string) (Role, bool) {
 	return r, r.rank() > 0
 }
 
-func (r Role) AtLeast(min Role) bool {
-	return r.rank() > 0 && r.rank() >= min.rank()
+func (r Role) AtLeast(floor Role) bool {
+	return r.rank() > 0 && r.rank() >= floor.rank()
 }
 
 func (s RoleSource) Locked() bool {

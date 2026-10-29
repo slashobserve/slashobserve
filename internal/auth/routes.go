@@ -6,9 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RequireRole(min Role) gin.HandlerFunc {
+func RequireRole(floor Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if p, ok := FromContext(c.Request.Context()); !ok || !p.Role.AtLeast(min) {
+		if p, ok := FromContext(c.Request.Context()); !ok || !p.Role.AtLeast(floor) {
 			abortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 			return
 		}
@@ -28,30 +28,30 @@ func (r Routes) Use(handlers ...gin.HandlerFunc) {
 	r.group.Use(handlers...)
 }
 
-func (r Routes) GET(path string, min Role, handlers ...gin.HandlerFunc) {
-	r.handle(http.MethodGet, path, min, handlers)
+func (r Routes) GET(path string, floor Role, handlers ...gin.HandlerFunc) {
+	r.handle(http.MethodGet, path, floor, handlers)
 }
 
-func (r Routes) POST(path string, min Role, handlers ...gin.HandlerFunc) {
-	r.handle(http.MethodPost, path, min, handlers)
+func (r Routes) POST(path string, floor Role, handlers ...gin.HandlerFunc) {
+	r.handle(http.MethodPost, path, floor, handlers)
 }
 
-func (r Routes) PUT(path string, min Role, handlers ...gin.HandlerFunc) {
-	r.handle(http.MethodPut, path, min, handlers)
+func (r Routes) PUT(path string, floor Role, handlers ...gin.HandlerFunc) {
+	r.handle(http.MethodPut, path, floor, handlers)
 }
 
-func (r Routes) PATCH(path string, min Role, handlers ...gin.HandlerFunc) {
-	r.handle(http.MethodPatch, path, min, handlers)
+func (r Routes) PATCH(path string, floor Role, handlers ...gin.HandlerFunc) {
+	r.handle(http.MethodPatch, path, floor, handlers)
 }
 
-func (r Routes) DELETE(path string, min Role, handlers ...gin.HandlerFunc) {
-	r.handle(http.MethodDelete, path, min, handlers)
+func (r Routes) DELETE(path string, floor Role, handlers ...gin.HandlerFunc) {
+	r.handle(http.MethodDelete, path, floor, handlers)
 }
 
 func (r Routes) Group(path string, handlers ...gin.HandlerFunc) Routes {
 	return Routes{group: r.group.Group(path, handlers...)}
 }
 
-func (r Routes) handle(method, path string, min Role, handlers []gin.HandlerFunc) {
-	r.group.Handle(method, path, append([]gin.HandlerFunc{RequireRole(min)}, handlers...)...)
+func (r Routes) handle(method, path string, floor Role, handlers []gin.HandlerFunc) {
+	r.group.Handle(method, path, append([]gin.HandlerFunc{RequireRole(floor)}, handlers...)...)
 }

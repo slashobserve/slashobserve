@@ -118,6 +118,15 @@ func setUserRoleParams(id pgtype.UUID, d RoleDecision) dbsqlc.SetUserRoleParams 
 	}
 }
 
+func (s *Service) assignRole(ctx context.Context, user dbsqlc.UpsertUserRow, groups []string) error {
+	first, err := s.queries.IsFirstUser(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	decision := ResolveRole(RoleInputs{Email: user.Email, Groups: groups, FirstUser: first, Manual: manualRole(user.ManualRole)}, s.cfg.RolePolicy)
+	return s.queries.SetUserRole(ctx, setUserRoleParams(user.ID, decision))
+}
+
 func (s *Service) ReconcileRoles(ctx context.Context) error {
 	users, err := s.queries.ListUsersForRoles(ctx)
 	if err != nil {
