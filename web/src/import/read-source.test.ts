@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest"
 import {
   MAX_IMPORT_BYTES,
   formatBytes,
-  isEditableTarget,
   requestBytes,
   summaryLine,
 } from "./read-source"
@@ -66,33 +65,5 @@ describe("summaryLine", () => {
     expect(summaryLine({ ...summary, rows: 0, schema_version: 0 })).toBe(
       "412 KB · 31 panels · 4 variables"
     )
-  })
-})
-
-describe("isEditableTarget", () => {
-  it("is true for inputs, textareas, selects and contenteditable", () => {
-    expect(
-      isEditableTarget({ tagName: "INPUT" } as unknown as EventTarget)
-    ).toBe(true)
-    expect(
-      isEditableTarget({ tagName: "TEXTAREA" } as unknown as EventTarget)
-    ).toBe(true)
-    expect(
-      isEditableTarget({ tagName: "SELECT" } as unknown as EventTarget)
-    ).toBe(true)
-    expect(
-      isEditableTarget({
-        tagName: "DIV",
-        isContentEditable: true,
-      } as unknown as EventTarget)
-    ).toBe(true)
-  })
-
-  it("is false for other elements, the document and null", () => {
-    expect(
-      isEditableTarget({ tagName: "BODY" } as unknown as EventTarget)
-    ).toBe(false)
-    expect(isEditableTarget(new EventTarget())).toBe(false)
-    expect(isEditableTarget(null)).toBe(false)
   })
 })

@@ -24,11 +24,11 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { isModChord } from "@/lib/shortcuts"
 
 import type { NavPath } from "./nav"
 import {
   filterPalette,
-  isPaletteShortcut,
   type DashboardEntry,
   type PaletteEntry,
 } from "./palette-items"
@@ -218,7 +218,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!isPaletteShortcut(event)) return
+      if (!isModChord(event, "k")) return
       event.preventDefault()
       toggle()
     }

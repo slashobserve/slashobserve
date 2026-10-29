@@ -1,26 +1,11 @@
 import { describe, expect, test } from "vitest"
 
-import {
-  filterPalette,
-  isPaletteShortcut,
-  shortcutLabel,
-} from "./palette-items"
+import { filterPalette } from "./palette-items"
 
 const thirty = Array.from({ length: 30 }, (_, index) => ({
   id: `d${index}`,
   title: `Dashboard ${index}`,
 }))
-
-function keyEvent(overrides: Partial<Parameters<typeof isPaletteShortcut>[0]>) {
-  return {
-    key: "k",
-    metaKey: false,
-    ctrlKey: false,
-    altKey: false,
-    shiftKey: false,
-    ...overrides,
-  }
-}
 
 describe("filterPalette", () => {
   test("an empty query lists every page, the first 8 dashboards and sign out", () => {
@@ -79,38 +64,5 @@ describe("filterPalette", () => {
 
   test("a query matching nothing returns no groups", () => {
     expect(filterPalette("zzzz-no-match", thirty)).toEqual([])
-  })
-})
-
-describe("shortcutLabel", () => {
-  test("uses the command symbol on Apple devices", () => {
-    expect(
-      shortcutLabel(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15"
-      )
-    ).toBe("⌘K")
-  })
-
-  test("spells out Ctrl elsewhere", () => {
-    expect(
-      shortcutLabel("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0")
-    ).toBe("Ctrl K")
-  })
-})
-
-describe("isPaletteShortcut", () => {
-  test("accepts Meta+k and Ctrl+K", () => {
-    expect(isPaletteShortcut(keyEvent({ metaKey: true }))).toBe(true)
-    expect(isPaletteShortcut(keyEvent({ ctrlKey: true, key: "K" }))).toBe(true)
-  })
-
-  test("rejects Ctrl+Shift+K, Alt chords and a plain k", () => {
-    expect(
-      isPaletteShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: "K" }))
-    ).toBe(false)
-    expect(isPaletteShortcut(keyEvent({ ctrlKey: true, altKey: true }))).toBe(
-      false
-    )
-    expect(isPaletteShortcut(keyEvent({}))).toBe(false)
   })
 })

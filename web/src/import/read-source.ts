@@ -40,12 +40,3 @@ export function summaryLine(summary: Summary): string {
     .filter((part) => part !== "")
     .join(" · ")
 }
-
-export function isEditableTarget(target: EventTarget | null): boolean {
-  if (target === null || !("tagName" in target)) return false
-  const element = target as { tagName: string; isContentEditable?: boolean }
-  return (
-    element.isContentEditable === true ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName)
-  )
-}

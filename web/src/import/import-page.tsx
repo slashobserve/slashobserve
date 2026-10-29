@@ -6,6 +6,7 @@ import { CircleAlertIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { isEditableTarget } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 
 import { DatasourcesCard } from "./datasources-card"
@@ -21,7 +22,6 @@ import {
   MAX_FILE_BYTES,
   MAX_IMPORT_BYTES,
   TOO_LARGE_MESSAGE,
-  isEditableTarget,
   requestBytes,
   summaryLine,
 } from "./read-source"

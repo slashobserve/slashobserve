@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useDatasources } from "@/datasources/queries"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
+import { isEditableTarget } from "@/lib/shortcuts"
 import {
   describeSubmitError,
   useAgentInfo,
@@ -33,16 +34,6 @@ type Props = {
   autoFocus?: boolean
   disabled?: boolean
   onSent: (request: ObserveRequest) => void | Promise<void>
-}
-
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return (
-    target.isContentEditable ||
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  )
 }
 
 export function useSendExample() {
@@ -104,7 +95,7 @@ export function ChatComposer({
         event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
-        isEditable(event.target)
+        isEditableTarget(event.target)
       ) {
         return
       }

@@ -1,6 +1,7 @@
 import { SearchIcon } from "lucide-react"
 
-import { shortcutLabel } from "./palette-items"
+import { modChordLabel } from "@/lib/shortcuts"
+
 import { usePaletteStore } from "./palette-store"
 
 export function PaletteButton() {
@@ -19,7 +20,7 @@ export function PaletteButton() {
         aria-hidden="true"
         className="rounded-[4px] border px-[5px] font-[inherit] text-[11px] narrow:hidden"
       >
-        {shortcutLabel(navigator.userAgent)}
+        {modChordLabel(navigator.userAgent, "K")}
       </kbd>
     </button>
   )

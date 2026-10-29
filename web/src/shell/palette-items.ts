@@ -58,22 +58,3 @@ export function filterPalette(
   ]
   return groups.filter((group) => group.items.length > 0)
 }
-
-export function shortcutLabel(userAgent: string): string {
-  return /Mac|iPhone|iPad|iPod/.test(userAgent) ? "⌘K" : "Ctrl K"
-}
-
-export function isPaletteShortcut(event: {
-  key: string
-  metaKey: boolean
-  ctrlKey: boolean
-  altKey: boolean
-  shiftKey: boolean
-}): boolean {
-  return (
-    (event.metaKey || event.ctrlKey) &&
-    !event.altKey &&
-    !event.shiftKey &&
-    event.key.toLowerCase() === "k"
-  )
-}
