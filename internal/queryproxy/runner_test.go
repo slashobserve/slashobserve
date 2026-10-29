@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -718,6 +719,40 @@ func TestRunPanelPerQueryKindAndStep(t *testing.T) {
 	}
 	if steps["plain"] != 108*time.Second || steps["slow"] != 5*time.Minute || len(fake.callsTo("instant")) != 1 {
 		t.Fatalf("range steps = %v, instant calls = %d", steps, len(fake.callsTo("instant")))
+	}
+}
+
+func TestRunPanelGivesInstantQueriesTheirMinimumInterval(t *testing.T) {
+	fake := newFake("clickhouse")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Table,
+		spec.Query{Query: "panel interval"},
+		spec.Query{Query: "own interval", Interval: "5m"},
+	)
+	p.Interval = "1m"
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}), PanelID: "p1", Range: testRange(), MaxDataPoints: 200}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	got := map[string]time.Duration{}
+	for _, c := range fake.callsTo("instant") {
+		got[c.query.Text] = c.query.MinInterval
+	}
+	want := map[string]time.Duration{"panel interval": time.Minute, "own interval": 5 * time.Minute}
+	if !maps.Equal(got, want) {
+		t.Fatalf("instant minimum intervals = %v, want %v", got, want)
+	}
+}
+
+func TestRunPanelLeavesTheMinimumIntervalEmptyWithoutAnInterval(t *testing.T) {
+	fake := newFake("clickhouse")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	p := multiPanel(spec.Table, spec.Query{Query: "plain"})
+	if _, err := runner.RunPanel(t.Context(), Request{Dashboard: dashboardOf([]spec.Panel{p}), PanelID: "p1", Range: testRange(), MaxDataPoints: 200}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	calls := fake.callsTo("instant")
+	if len(calls) != 1 || calls[0].query.MinInterval != 0 {
+		t.Fatalf("instant calls = %+v, want one with no minimum interval", calls)
 	}
 }
 

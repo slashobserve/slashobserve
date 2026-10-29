@@ -35,7 +35,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 }
 
 func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error) {
-	rs, lim, err := d.run(ctx, q, r, instantInterval(r), d.limits.Tighten(q.Limits))
+	rs, lim, err := d.run(ctx, q, r, max(instantInterval(r), q.MinInterval), d.limits.Tighten(q.Limits))
 	if err != nil {
 		return nil, err
 	}

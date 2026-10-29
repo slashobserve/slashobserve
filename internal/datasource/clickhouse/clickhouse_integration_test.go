@@ -330,6 +330,31 @@ func TestPanelQuery(t *testing.T) {
 	}
 }
 
+func TestInstantQueryIntervalFollowsTheMinimumInterval(t *testing.T) {
+	ds := roDS(t)
+	for _, tc := range []struct {
+		name        string
+		minInterval time.Duration
+		want        float64
+	}{
+		{"no minimum keeps a thousandth of the range", 0, 3},
+		{"a smaller minimum keeps a thousandth of the range", time.Second, 3},
+		{"a larger minimum wins", 5 * time.Minute, 300},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			q := query("SELECT $__interval_s AS interval_s")
+			q.MinInterval = tc.minInterval
+			frames, err := ds.QueryInstant(context.Background(), q, lastHour())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := column(t, frames[0], "interval_s").Values[0]; got != tc.want {
+				t.Fatalf("$__interval_s = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRangeQuery(t *testing.T) {
 	ds := roDS(t)
 	ctx := context.Background()

@@ -64,6 +64,8 @@ type Query struct {
 	Limits    Limits
 	Dashboard string
 	User      QueryUser
+
+	MinInterval time.Duration
 }
 
 type DiscoverKind string

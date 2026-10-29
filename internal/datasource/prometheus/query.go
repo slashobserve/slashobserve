@@ -93,7 +93,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 	lim := d.opts.Limits.Tighten(q.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := d.expand(q, r, d.variableInterval(r))
+	text, err := d.expand(q, r, max(d.variableInterval(r), q.MinInterval))
 	if err != nil {
 		return nil, err
 	}

@@ -358,6 +358,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
 		}
 	} else {
+		dq.MinInterval = QueryStep(0, panel, q)
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
 			return inst.Datasource.QueryInstant(ctx, dq, req.Range)
 		}
