@@ -99,6 +99,7 @@ export function toFilters(search: ListSearch): DashboardListFilters {
     madeBy: search.made_by,
     datasource: search.datasource,
     tags: search.tag,
+    folder: search.folder,
   }
 }
 
@@ -107,7 +108,8 @@ export function hasFilters(search: ListSearch): boolean {
     search.q !== undefined ||
     search.made_by !== undefined ||
     search.datasource !== undefined ||
-    search.tag !== undefined
+    search.tag !== undefined ||
+    search.folder !== undefined
   )
 }
 
@@ -133,6 +135,10 @@ export function tagsText(tags: string[] | undefined): string {
   return `${tags[0]} +${tags.length - 1}`
 }
 
-export function countText(n: number): string {
-  return `${n} ${n === 1 ? "dashboard" : "dashboards"}`
+export function folderText(
+  value: string | undefined,
+  folders: readonly { id: string; title: string }[]
+): string {
+  if (value === undefined) return "any"
+  return folders.find((folder) => folder.id === value)?.title ?? "a folder"
 }

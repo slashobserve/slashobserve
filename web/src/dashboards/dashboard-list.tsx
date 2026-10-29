@@ -1,8 +1,25 @@
-import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
-import { useTable, type Table } from "@tanstack/react-table"
-import { SearchIcon } from "lucide-react"
-import { useEffect, useId, useMemo, useRef, useState } from "react"
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query"
+import { Link, useRouteContext } from "@tanstack/react-router"
+import { useTable } from "@tanstack/react-table"
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  LockIcon,
+  SearchIcon,
+  UsersIcon,
+} from "lucide-react"
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -11,18 +28,32 @@ import { LoadProblem } from "@/components/load-problem"
 import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { foldersQuery, type Folder } from "@/folders/queries"
+import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import {
+  actionsColumn,
   dashboardColumns,
   listFeatures,
   type DashboardSummary,
 } from "./dashboard-columns"
-import { DatasourceMenu, MadeByMenu, TagsMenu } from "./list-filter-menus"
+import {
+  accessSummary,
+  dashboardCountText,
+  groupByFolder,
+  listSummary,
+  type FolderSection,
+} from "./folder-groups"
+import {
+  DatasourceMenu,
+  FolderMenu,
+  MadeByMenu,
+  TagsMenu,
+} from "./list-filter-menus"
 import {
   clampQuery,
-  countText,
   hasFilters,
   toFilters,
   type ListSearch,
@@ -32,6 +63,7 @@ const pageSize = 50
 const skeletonRows = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
+const listColumns = [...dashboardColumns, actionsColumn]
 const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
 function useDashboardList(search: ListSearch) {
@@ -50,6 +82,8 @@ function useDashboardList(search: ListSearch) {
               made_by: filters.madeBy,
               datasource: filters.datasource,
               tag: filters.tags,
+              folder: filters.folder,
+              order: "folder",
             },
           },
           signal,
@@ -61,7 +95,16 @@ function useDashboardList(search: ListSearch) {
   })
 }
 
-type ListTable = Table<typeof listFeatures, DashboardSummary>
+function useListTable(data: DashboardSummary[]) {
+  return useTable({
+    features: listFeatures,
+    columns: listColumns,
+    data,
+    getRowId: dashboardRowId,
+  })
+}
+
+type ListTable = ReturnType<typeof useListTable>
 
 function SkeletonRows({ table }: { table: ListTable }) {
   return Array.from({ length: skeletonRows }, (_, index) => (
@@ -78,10 +121,10 @@ function SkeletonRows({ table }: { table: ListTable }) {
 type FilterRowProps = {
   search: ListSearch
   onSearchChange: (next: ListSearch) => void
-  total: number | undefined
+  summary: string | undefined
 }
 
-function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
+function FilterRow({ search, onSearchChange, summary }: FilterRowProps) {
   const [text, setText] = useState(search.q ?? "")
   const emitted = useRef(search.q)
   const typed = text.trim() === "" ? undefined : text.trim()
@@ -126,15 +169,129 @@ function FilterRow({ search, onSearchChange, total }: FilterRowProps) {
         value={search.datasource}
         onChange={(datasource) => onSearchChange({ ...search, datasource })}
       />
+      <FolderMenu
+        value={search.folder}
+        onChange={(folder) => onSearchChange({ ...search, folder })}
+      />
       <TagsMenu
         value={search.tag}
         onChange={(tag) => onSearchChange({ ...search, tag })}
       />
       <span role="status" className="ml-auto text-xs text-muted-foreground">
-        {total !== undefined ? countText(total) : null}
+        {summary}
       </span>
     </div>
   )
+}
+
+function FolderHeaderRow({
+  folder,
+  collapsed,
+  columnCount,
+  onToggle,
+}: {
+  folder: Folder
+  collapsed: boolean
+  columnCount: number
+  onToggle: () => void
+}) {
+  const AccessIcon = folder.restricted ? LockIcon : UsersIcon
+  return (
+    <tr>
+      <th
+        scope="rowgroup"
+        colSpan={columnCount}
+        className="border-b px-3.5 py-2.5 text-left font-normal"
+      >
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${folder.title}`}
+            onClick={onToggle}
+          >
+            {collapsed ? (
+              <ChevronRightIcon aria-hidden="true" />
+            ) : (
+              <ChevronDownIcon aria-hidden="true" />
+            )}
+          </Button>
+          <span className="font-semibold wrap-anywhere">{folder.title}</span>
+          <span className="text-xs text-muted-foreground">
+            {dashboardCountText(folder.dashboard_count)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
+            {accessSummary(folder)}
+          </span>
+          {folder.permissions.manage ? (
+            <Link
+              to="/folders/$folderId"
+              params={{ folderId: folder.id }}
+              className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Folder settings
+            </Link>
+          ) : null}
+        </span>
+      </th>
+    </tr>
+  )
+}
+
+function sectionRows(
+  sections: FolderSection[],
+  collapsed: ReadonlySet<string>,
+  toggle: (folderId: string) => void,
+  table: ListTable
+): ReactNode[] {
+  const columnCount = table.getAllLeafColumns().length
+  const tableRows = new Map(
+    table.getRowModel().rows.map((row) => [row.id, row])
+  )
+  return sections.flatMap((section) => {
+    const isCollapsed = collapsed.has(section.folder.id)
+    const header = (
+      <FolderHeaderRow
+        key={`folder:${section.folder.id}`}
+        folder={section.folder}
+        collapsed={isCollapsed}
+        columnCount={columnCount}
+        onToggle={() => toggle(section.folder.id)}
+      />
+    )
+    if (isCollapsed) return [header]
+    if (section.empty) {
+      return [
+        header,
+        <tr key={`empty:${section.folder.id}`}>
+          <Cell colSpan={columnCount} className="pl-11 text-muted-foreground">
+            No dashboards yet
+          </Cell>
+        </tr>,
+      ]
+    }
+    return [
+      header,
+      ...section.rows.flatMap((item) => {
+        const row = tableRows.get(item.id)
+        if (row === undefined) return []
+        return [
+          <tr key={row.id} data-dashboard-id={row.id} className="group/row">
+            {row.getAllCells().map((cell) => (
+              <Cell
+                key={cell.id}
+                className={cell.column.columnDef.meta?.cellClassName}
+              >
+                <table.FlexRender cell={cell} />
+              </Cell>
+            ))}
+          </tr>,
+        ]
+      }),
+    ]
+  })
 }
 
 type Props = {
@@ -144,34 +301,56 @@ type Props = {
 }
 
 export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const query = useDashboardList(search)
+  const folderResult = useQuery(foldersQuery())
   const pages = query.data?.pages
   const dashboards = useMemo(
     () => pages?.flatMap((page) => page.dashboards) ?? emptyList,
     [pages]
   )
-  const table = useTable({
-    features: listFeatures,
-    columns: dashboardColumns,
-    data: dashboards,
-    getRowId: dashboardRowId,
-  })
-  const empty = query.data !== undefined && dashboards.length === 0
-  const noDashboards = empty && !query.isPlaceholderData && !hasFilters(search)
+  const table = useListTable(dashboards)
+  const folders = folderResult.data
+  const filtered = hasFilters(search)
+  const hasNextPage = query.hasNextPage
+  const loaded = query.data !== undefined
+  const sections = useMemo(
+    () =>
+      loaded && folders !== undefined
+        ? groupByFolder(folders, dashboards, hasNextPage, filtered)
+        : null,
+    [loaded, folders, dashboards, hasNextPage, filtered]
+  )
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const noDashboards =
+    folders !== undefined &&
+    loaded &&
+    dashboards.length === 0 &&
+    !query.isPlaceholderData &&
+    !filtered &&
+    folders.length <= 1
+  const empty = sections !== null && (noDashboards || sections.length === 0)
   const [resetKey, setResetKey] = useState(0)
-  const showTable = query.isPending || dashboards.length > 0
+  const pending = query.isPending || folderResult.isPending
+  const showTable = pending || (sections !== null && !empty)
   const loadMoreFailed = query.isFetchNextPageError
+  const failedQuery =
+    query.isError && !loadMoreFailed
+      ? query
+      : folderResult.isError
+        ? folderResult
+        : null
   const loadMoreErrorId = useId()
   const rows = useRef<HTMLTableSectionElement>(null)
   const loadMoreButton = useRef<HTMLButtonElement>(null)
   const focusFrom = useRef<number | null>(null)
   const rowCount = dashboards.length
 
-  const { q, made_by: madeBy, datasource } = search
+  const { q, made_by: madeBy, datasource, folder } = search
   const tags = search.tag?.join(",")
   useEffect(() => {
     focusFrom.current = null
-  }, [q, madeBy, datasource, tags])
+  }, [q, madeBy, datasource, tags, folder])
 
   const fetchingNextPage = query.isFetchingNextPage
   useEffect(() => {
@@ -180,18 +359,31 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
     focusFrom.current = null
     const active = document.activeElement
     const onBody = !active || active === document.body
+    const focusLink = (index: number) =>
+      rows.current
+        ?.querySelector<HTMLElement>(
+          `tr[data-dashboard-id="${dashboards[index]?.id}"] a`
+        )
+        ?.focus()
     if (rowCount > from) {
       if (!onBody && active !== loadMoreButton.current) return
-      rows.current?.rows[from]?.querySelector("a")?.focus()
+      focusLink(from)
     } else if (onBody) {
-      rows.current?.rows[rowCount - 1]?.querySelector("a")?.focus()
+      focusLink(rowCount - 1)
     }
-  }, [rowCount, fetchingNextPage])
+  }, [rowCount, fetchingNextPage, dashboards])
 
   const loadMore = () => {
     focusFrom.current = rowCount
     void query.fetchNextPage()
   }
+
+  const toggleFolder = (folderId: string) =>
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (!next.delete(folderId)) next.add(folderId)
+      return next
+    })
 
   return (
     <>
@@ -200,23 +392,30 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
           key={resetKey}
           search={search}
           onSearchChange={onSearchChange}
-          total={
-            query.isPlaceholderData
+          summary={
+            query.isPlaceholderData || sections === null
               ? undefined
-              : query.data?.pages[0].total_count
+              : listSummary(
+                  query.data?.pages[0].total_count ?? 0,
+                  sections.length
+                )
           }
         />
       )}
-      {query.isError && !loadMoreFailed ? (
+      {failedQuery === null ? null : (
         <div className="mb-4">
           <LoadProblem
-            title="Could not load dashboards"
-            detail={loadProblemText(query.error)}
-            retrying={query.isFetching}
-            onRetry={() => void query.refetch()}
+            title={
+              failedQuery === query
+                ? "Could not load dashboards"
+                : "Could not load folders"
+            }
+            detail={loadProblemText(failedQuery.error)}
+            retrying={failedQuery.isFetching}
+            onRetry={() => void failedQuery.refetch()}
           />
         </div>
-      ) : null}
+      )}
       {empty ? (
         <section className="flex flex-col items-center gap-2 py-16 text-center">
           {noDashboards ? (
@@ -232,12 +431,14 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 >
                   Open the chat
                 </Link>
-                <Link
-                  to="/import"
-                  className={cn(buttonVariants({ variant: "outline" }))}
-                >
-                  Import from Grafana
-                </Link>
+                {roleAtLeast(principal.role, "editor") ? (
+                  <Link
+                    to="/import"
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    Import from Grafana
+                  </Link>
+                ) : null}
               </div>
             </>
           ) : (
@@ -260,7 +461,7 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
       ) : null}
       {showTable ? (
         <>
-          <TableCard minWidth={760} labelledBy={labelledBy}>
+          <TableCard minWidth={820} labelledBy={labelledBy}>
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
@@ -275,25 +476,11 @@ export function DashboardList({ labelledBy, search, onSearchChange }: Props) {
                 </tr>
               ))}
             </thead>
-            <tbody
-              ref={rows}
-              aria-busy={query.isPending || query.isPlaceholderData}
-            >
-              {query.isPending ? (
+            <tbody ref={rows} aria-busy={pending || query.isPlaceholderData}>
+              {sections === null ? (
                 <SkeletonRows table={table} />
               ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="group/row">
-                    {row.getAllCells().map((cell) => (
-                      <Cell
-                        key={cell.id}
-                        className={cell.column.columnDef.meta?.cellClassName}
-                      >
-                        <table.FlexRender cell={cell} />
-                      </Cell>
-                    ))}
-                  </tr>
-                ))
+                sectionRows(sections, collapsed, toggleFolder, table)
               )}
             </tbody>
           </TableCard>

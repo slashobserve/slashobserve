@@ -18,6 +18,7 @@ export type DashboardListFilters = {
   madeBy?: string
   datasource?: string
   tags?: string[]
+  folder?: string
 }
 
 export const dashboardKeys = {

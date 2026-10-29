@@ -12,6 +12,8 @@ import type { paths } from "@/api/schema.gen"
 import { RelativeTime } from "@/components/relative-time"
 import { madeByLabel } from "@/lib/origin"
 
+import { MoveMenu } from "./move-menu"
+
 declare module "@tanstack/react-table" {
   /* eslint-disable @typescript-eslint/no-unused-vars -- a merged interface must repeat the library's type parameters */
   interface ColumnMeta<
@@ -64,7 +66,10 @@ export const dashboardColumns = column.columns([
         ) : null}
       </>
     ),
-    meta: { skeletonClassName: "h-5 w-48 max-w-full" },
+    meta: {
+      cellClassName: "pl-11",
+      skeletonClassName: "h-5 w-48 max-w-full",
+    },
   }),
   column.display({
     id: "madeBy",
@@ -114,3 +119,17 @@ export const dashboardColumns = column.columns([
     },
   }),
 ])
+
+export const actionsColumn = column.display({
+  id: "actions",
+  header: () => <span className="sr-only">Actions</span>,
+  cell: ({ row }) =>
+    row.original.permissions.edit ? (
+      <MoveMenu dashboard={row.original} />
+    ) : null,
+  meta: {
+    headerClassName: "w-10",
+    cellClassName: "w-10 text-right",
+    skeletonClassName: "ml-auto h-5 w-6",
+  },
+})

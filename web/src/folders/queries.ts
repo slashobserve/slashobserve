@@ -14,6 +14,29 @@ import type { PutEntry } from "./grants"
 export type Folder = components["schemas"]["Folder"]
 export type FolderPermissions = components["schemas"]["FolderPermissions"]
 
+export function foldersQuery() {
+  return queryOptions({
+    queryKey: folderKeys.list(),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/folders", { signal })
+        .then(unwrap)
+        .then((body) => body.folders),
+    staleTime: 15_000,
+  })
+}
+
+export function useCreateFolder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (title: string) =>
+      api.POST("/folders", { body: { title } }).then(unwrap),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: folderKeys.all }),
+  })
+}
+
 export function folderQuery(id: string) {
   return queryOptions({
     queryKey: folderKeys.detail(id),

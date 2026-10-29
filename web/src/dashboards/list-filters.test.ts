@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   clampQuery,
-  countText,
+  folderText,
   hasFilters,
   madeByText,
   maxQueryLength,
@@ -236,6 +236,10 @@ describe("toFilters and hasFilters", () => {
     })
   })
 
+  it("passes the folder through", () => {
+    expect(toFilters({ folder: id }).folder).toBe(id)
+  })
+
   it("passes tags through", () => {
     expect(toFilters({ tag: ["a", "b"] }).tags).toEqual(["a", "b"])
   })
@@ -246,6 +250,7 @@ describe("toFilters and hasFilters", () => {
     expect(hasFilters({ made_by: "me" })).toBe(true)
     expect(hasFilters({ datasource: "prom" })).toBe(true)
     expect(hasFilters({ tag: ["a"] })).toBe(true)
+    expect(hasFilters({ folder: id })).toBe(true)
     expect(hasFilters({ tag: undefined })).toBe(false)
   })
 })
@@ -269,10 +274,15 @@ describe("madeByText", () => {
   })
 })
 
-describe("countText", () => {
-  it("pluralises", () => {
-    expect(countText(0)).toBe("0 dashboards")
-    expect(countText(1)).toBe("1 dashboard")
-    expect(countText(6)).toBe("6 dashboards")
+describe("folderText", () => {
+  const folders = [{ id, title: "Checkout" }]
+
+  it("describes the folder filter", () => {
+    expect(folderText(undefined, folders)).toBe("any")
+    expect(folderText(id, folders)).toBe("Checkout")
+  })
+
+  it("names a folder it cannot find generically", () => {
+    expect(folderText(id, [])).toBe("a folder")
   })
 })
