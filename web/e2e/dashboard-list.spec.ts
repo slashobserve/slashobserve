@@ -14,6 +14,17 @@ function isListRequest(url: URL): boolean {
   return url.pathname === listPath
 }
 
+const fakeIds = new Set<string>()
+
+function isFakeDashboardRequest(url: URL): boolean {
+  const [, id] = url.pathname.slice(listPath.length).split("/")
+  return url.pathname.startsWith(`${listPath}/`) && fakeIds.has(id)
+}
+
+test.beforeEach(({ page }) =>
+  page.route(isFakeDashboardRequest, (route) => route.fulfill({ json: {} }))
+)
+
 type Summary = ReturnType<typeof fakeSummary>
 
 function fakeSummary(
@@ -26,8 +37,10 @@ function fakeSummary(
     id: crypto.randomUUID(),
     name: "Fake Author",
   }
+  const id = crypto.randomUUID()
+  fakeIds.add(id)
   return {
-    id: crypto.randomUUID(),
+    id,
     title,
     description: null as string | null,
     tags: [] as string[],
