@@ -17,6 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
@@ -41,10 +42,16 @@ type Sessions interface {
 	Valid(r *http.Request) (bool, error)
 }
 
+type Access interface {
+	Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error)
+}
+
 type Handler struct {
 	broker       *events.Broker
 	dashboards   Dashboards
 	sessions     Sessions
+	access       Access
+	view         gin.HandlerFunc
 	logger       *slog.Logger
 	pingInterval time.Duration
 
@@ -53,12 +60,12 @@ type Handler struct {
 	byPrincipal map[string]int
 }
 
-func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, logger *slog.Logger) *Handler {
-	return &Handler{broker: b, dashboards: d, sessions: sessions, logger: logger, pingInterval: pingInterval, byPrincipal: map[string]int{}}
+func NewHandler(b *events.Broker, d Dashboards, sessions Sessions, access Access, view gin.HandlerFunc, logger *slog.Logger) *Handler {
+	return &Handler{broker: b, dashboards: d, sessions: sessions, access: access, view: view, logger: logger, pingInterval: pingInterval, byPrincipal: map[string]int{}}
 }
 
 func (h *Handler) Register(api auth.Routes) {
-	api.GET("/dashboards/:id/events", auth.RoleViewer, h.serve)
+	api.GET("/dashboards/:id/events", auth.RoleViewer, h.view, h.serve)
 }
 
 type readyData struct {
@@ -108,7 +115,7 @@ func (h *Handler) serve(c *gin.Context) {
 		!writeEvent(c, "ready", readyData{DashboardID: dashboardID, LatestVersion: latest}) {
 		return
 	}
-	h.pump(c, sub)
+	h.pump(c, sub, id)
 }
 
 func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
@@ -127,7 +134,7 @@ func (h *Handler) latestVersion(c *gin.Context, id pgtype.UUID) (int, bool) {
 	return 0, false
 }
 
-func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
+func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID) {
 	ping := time.NewTicker(h.pingInterval)
 	defer ping.Stop()
 	lifetime := time.NewTimer(maxStreamLifetime)
@@ -144,7 +151,7 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription) {
 				return
 			}
 		case <-ping.C:
-			valid, failed := h.credentialsValid(c)
+			valid, failed := h.stillAllowed(c, id)
 			if failed {
 				failedChecks++
 			} else {
@@ -174,6 +181,27 @@ func (h *Handler) credentialsValid(c *gin.Context) (valid, failed bool) {
 		return c.Request.Context().Err() == nil, true
 	}
 	return ok, false
+}
+
+func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bool) {
+	valid, failed = h.credentialsValid(c)
+	if !valid || failed {
+		return valid, failed
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), sessionCheckTimeout)
+	defer cancel()
+	principal, _ := auth.FromContext(c.Request.Context())
+	access, err := h.access.Dashboard(ctx, principal, id)
+	switch {
+	case err == nil:
+		return access.Abilities.View, false
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
+		return false, false
+	}
+	if c.Request.Context().Err() == nil {
+		h.logger.WarnContext(c.Request.Context(), "re-check event stream dashboard access", logattrs.Failure("stream_access_check_failed", err, slog.String("dashboard_id", id.String()))...)
+	}
+	return c.Request.Context().Err() == nil, true
 }
 
 func (h *Handler) acquire(key string) (int, string) {

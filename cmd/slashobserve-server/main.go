@@ -278,7 +278,7 @@ func run() error {
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService),
-			stream.NewHandler(broker, dashboardsService, authService, logger),
+			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
