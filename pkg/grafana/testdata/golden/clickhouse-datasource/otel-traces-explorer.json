@@ -50,14 +50,14 @@
           {
             "ref_id": "nodes",
             "ref": "nodes",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "edges",
             "ref": "edges",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -89,7 +89,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -128,7 +128,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -157,7 +157,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -184,7 +184,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -211,7 +211,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -238,7 +238,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -269,7 +269,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -292,44 +292,6 @@
         "paths": [
           "annotations.list[1]"
         ]
-      },
-      {
-        "subject": "variable database",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable service",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable operation",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[4].datasource"
-        ]
-      },
-      {
-        "subject": "variable status",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses ch.",
-        "paths": [
-          "templating.list[5].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses ch.",
-        "paths": []
       }
     ]
   },
@@ -380,7 +342,7 @@
         "name": "database",
         "label": "Database",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
         "sort": "alpha"
       },
@@ -388,7 +350,7 @@
         "name": "service",
         "label": "Service",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT ServiceName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
         "refresh": "timeRange",
         "multi": true,
@@ -398,7 +360,7 @@
         "name": "operation",
         "label": "Operation",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT DISTINCT SpanName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service) ORDER BY SpanName LIMIT 200",
         "refresh": "timeRange",
         "multi": true,
@@ -408,7 +370,7 @@
         "name": "status",
         "label": "Status",
         "type": "query",
-        "datasource": "ch",
+        "datasource": "${datasource}",
         "query": "SELECT DISTINCT StatusCode FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) ORDER BY StatusCode",
         "refresh": "timeRange",
         "multi": true,
@@ -450,7 +412,7 @@
               "w": 24,
               "h": 10
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "ref": "nodes",
@@ -502,7 +464,7 @@
               "w": 24,
               "h": 12
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  TraceId,\n  any(ServiceName) AS Service,\n  any(SpanName) AS RootOperation,\n  min(Timestamp) AS Time,\n  max(Duration) AS Duration,\n  count() AS Spans,\n  anyIf(StatusCode, StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Status\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service)\n  AND $__conditionalAll(SpanName IN (${operation:singlequote}), $operation)\n  AND $__conditionalAll(StatusCode IN (${status:singlequote}), $status)\n  AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY TraceId\nHAVING $__conditionalAll(max(Duration) >= toUInt64($min_duration) * 1000000, $min_duration)\nORDER BY Time DESC\nLIMIT 200",
@@ -569,7 +531,7 @@
               "w": 16,
               "h": 8
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  Duration / 1000000 AS duration_ms\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\n  AND cityHash64(SpanId) % 500 = 0\nORDER BY time"
@@ -592,7 +554,7 @@
               "w": 8,
               "h": 2
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, count() AS Spans FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
@@ -617,7 +579,7 @@
               "w": 8,
               "h": 2
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Errors FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
@@ -643,7 +605,7 @@
               "w": 8,
               "h": 2
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time,\n  quantile(0.99)(Duration) / 1000000 AS p99_ms\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY time\nORDER BY time"
@@ -668,7 +630,7 @@
               "w": 8,
               "h": 2
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT toStartOfInterval(Timestamp, INTERVAL $__interval_s second) AS time, avg(Duration) / 1000000 AS \"Avg Duration\" FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search) GROUP BY time ORDER BY time",
@@ -694,7 +656,7 @@
               "w": 24,
               "h": 7
             },
-            "datasource": "ch",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "SELECT\n  SpanName AS Operation,\n  count() AS Count,\n  countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS Errors,\n  round(countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) / count() * 100, 2) AS \"Error %\",\n  quantile(0.5)(Duration) AS P50,\n  quantile(0.99)(Duration) AS P99,\n  anyIf(if(StatusMessage != '', StatusMessage, SpanAttributes['http.status_code']), StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS \"Top Error\"\nFROM ${database}.otel_traces\nWHERE $__timeFilter(Timestamp)\n  AND ServiceName IN (${service:singlequote}) AND $__conditionalAll(positionCaseInsensitive(SpanName, '$search') > 0, $search)\nGROUP BY Operation\nORDER BY Count DESC\nLIMIT 15",

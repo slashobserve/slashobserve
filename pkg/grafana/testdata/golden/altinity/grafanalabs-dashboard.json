@@ -117,9 +117,11 @@
       {
         "subject": "variable adhoc_variable",
         "status": "partial",
-        "reason": "ClickHouse queries filter by this variable only where they use $adhoc_variable.",
+        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc_variable, so 3 of them are not filtered.",
         "paths": [
-          "templating.list[1]"
+          "panels[0].targets[0]",
+          "panels[1].targets[0]",
+          "panels[2].targets[0]"
         ]
       }
     ]

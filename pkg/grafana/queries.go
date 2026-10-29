@@ -467,20 +467,20 @@ func effectiveRefs(built []*builtQuery) []string {
 
 func (b *panelBuild) assignQueries() {
 	refs := effectiveRefs(b.built)
-	panelDS := b.built[0].src.uid()
+	panelDS := b.built[0].src.ref()
 	b.panel.Datasource = panelDS
 	for k, bq := range b.built {
 		q := bq.q
 		if refs[k] != spec.DefaultQueryRef(k) {
 			q.Ref = refs[k]
 		}
-		if uid := bq.src.uid(); uid != panelDS {
-			q.Datasource = uid
+		if ref := bq.src.ref(); ref != panelDS {
+			q.Datasource = ref
 		}
 		b.panel.Queries = append(b.panel.Queries, q)
 		line := b.lineFor(bq.index)
 		line.Ref = ptr(refs[k])
-		line.Datasource = ptr(bq.src.uid())
+		line.Datasource = ptr(bq.src.ref())
 		if bq.refID == "" {
 			continue
 		}
@@ -491,27 +491,6 @@ func (b *panelBuild) assignQueries() {
 			line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s -> %s", bq.refID, refs[k]))
 		}
 	}
-}
-
-func (b *panelBuild) datasourceVariables() {
-	for _, bq := range b.built {
-		if bq.src.variable {
-			b.c.noteDatasourceVariable(bq.src)
-		}
-	}
-}
-
-func (c *converter) noteDatasourceVariable(src *sourceDS) {
-	if c.dsNoted[src] {
-		return
-	}
-	c.dsNoted[src] = true
-	name := strip(src.key)
-	if src.match == "" {
-		c.note("variable "+name, fmt.Sprintf("Datasource variable $%s has no match yet.", name))
-		return
-	}
-	c.note("variable "+name, fmt.Sprintf("Datasource variable $%s now uses %s.", name, src.match))
 }
 
 var altinityDropped = map[string]bool{

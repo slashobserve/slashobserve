@@ -50,7 +50,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -71,7 +71,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -92,7 +92,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,7 +113,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -134,7 +134,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -155,7 +155,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -183,7 +183,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -204,49 +204,49 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "F",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "G",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -274,7 +274,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -295,49 +295,49 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "F",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "G",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -358,42 +358,42 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "F",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -421,7 +421,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -449,7 +449,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -477,7 +477,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -505,7 +505,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -533,7 +533,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -561,7 +561,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -589,7 +589,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -617,7 +617,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -645,7 +645,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -673,7 +673,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -694,42 +694,42 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "F",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -744,20 +744,6 @@
         "paths": [
           "links[0]"
         ]
-      },
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
       }
     ]
   },
@@ -785,7 +771,7 @@
         "name": "cluster",
         "label": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(up{job=\"kube-state-metrics\"}, cluster)",
         "sort": "alpha",
         "refresh": "timeRange"
@@ -802,7 +788,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "cluster:node_cpu:ratio_rate5m{cluster=\"$cluster\"}",
@@ -825,7 +811,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(namespace_cpu:kube_pod_container_resource_requests:sum{cluster=\"$cluster\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\",resource=\"cpu\",cluster=\"$cluster\"})",
@@ -848,7 +834,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(namespace_cpu:kube_pod_container_resource_limits:sum{cluster=\"$cluster\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\",resource=\"cpu\",cluster=\"$cluster\"})",
@@ -871,7 +857,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "1 - sum(:node_memory_MemAvailable_bytes:sum{cluster=\"$cluster\"}) / sum(node_memory_MemTotal_bytes{job=\"node-exporter\",cluster=\"$cluster\"})",
@@ -894,7 +880,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(namespace_memory:kube_pod_container_resource_requests:sum{cluster=\"$cluster\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\",resource=\"memory\",cluster=\"$cluster\"})",
@@ -917,7 +903,7 @@
           "w": 4,
           "h": 3
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(namespace_memory:kube_pod_container_resource_limits:sum{cluster=\"$cluster\"}) / sum(kube_node_status_allocatable{job=\"kube-state-metrics\",resource=\"memory\",cluster=\"$cluster\"})",
@@ -940,7 +926,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(max by (cluster, namespace, pod, container)(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_rate5m{cluster=\"$cluster\"})) by (namespace)",
@@ -966,7 +952,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(kube_pod_owner{job=\"kube-state-metrics\", cluster=\"$cluster\"}) by (namespace)",
@@ -1081,7 +1067,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(max by (cluster, namespace, pod, container)(container_memory_rss{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", container!=\"\"})) by (namespace)",
@@ -1108,7 +1094,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(kube_pod_owner{job=\"kube-state-metrics\", cluster=\"$cluster\"}) by (namespace)",
@@ -1241,7 +1227,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum((8 * rate(container_network_receive_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval]))) by (namespace)",
@@ -1353,7 +1339,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum((8 * rate(container_network_receive_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval]))) by (namespace)",
@@ -1380,7 +1366,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum((8 * rate(container_network_transmit_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval]))) by (namespace)",
@@ -1407,7 +1393,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "avg((8 * rate(container_network_receive_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval]))) by (namespace)",
@@ -1434,7 +1420,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "avg((8 * rate(container_network_transmit_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval]))) by (namespace)",
@@ -1461,7 +1447,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(container_network_receive_packets_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval])) by (namespace)",
@@ -1488,7 +1474,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(container_network_transmit_packets_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval])) by (namespace)",
@@ -1515,7 +1501,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(container_network_receive_packets_dropped_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval])) by (namespace)",
@@ -1542,7 +1528,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(rate(container_network_transmit_packets_dropped_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", cluster=\"$cluster\", namespace=~\".+\"}[$__rate_interval])) by (namespace)",
@@ -1569,7 +1555,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "ceil(sum by(namespace) (rate(container_fs_reads_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\", cluster=\"$cluster\", namespace!=\"\"}[$__rate_interval]) + rate(container_fs_writes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\", cluster=\"$cluster\", namespace!=\"\"}[$__rate_interval])))",
@@ -1596,7 +1582,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by(namespace) (rate(container_fs_reads_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\", cluster=\"$cluster\", namespace!=\"\"}[$__rate_interval]) + rate(container_fs_writes_bytes_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", container!=\"\", cluster=\"$cluster\", namespace!=\"\"}[$__rate_interval]))",
@@ -1623,7 +1609,7 @@
           "w": 24,
           "h": 6
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by(namespace) (rate(container_fs_reads_total{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\", container!=\"\", cluster=\"$cluster\", namespace!=\"\"}[$__rate_interval]))",

@@ -62,14 +62,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -90,7 +90,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -115,7 +115,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -136,7 +136,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -161,35 +161,35 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -214,7 +214,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -239,7 +239,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -264,7 +264,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -289,7 +289,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -314,45 +314,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -377,7 +346,7 @@
         "name": "cluster",
         "label": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info{job=\"prometheus-k8s\",namespace=\"monitoring\"}, cluster)",
         "sort": "alphaDesc",
         "refresh": "timeRange",
@@ -389,7 +358,7 @@
         "name": "job",
         "label": "job",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info{cluster=~\"$cluster\"}, job)",
         "sort": "alphaDesc",
         "refresh": "timeRange",
@@ -401,7 +370,7 @@
         "name": "instance",
         "label": "instance",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info{cluster=~\"$cluster\", job=~\"$job\"}, instance)",
         "sort": "alphaDesc",
         "refresh": "timeRange",
@@ -432,7 +401,7 @@
               "w": 24,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "count by (cluster, job, instance, version) (prometheus_build_info{cluster=~\"$cluster\", job=~\"$job\", instance=~\"$instance\"})",
@@ -526,7 +495,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(prometheus_target_sync_length_seconds_sum{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[5m])) by (cluster, job, scrape_job, instance) * 1e3",
@@ -550,7 +519,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum by (cluster, job, instance) (prometheus_sd_discovered_targets{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"})",
@@ -588,7 +557,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_target_interval_length_seconds_sum{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m]) / rate(prometheus_target_interval_length_seconds_count{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m]) * 1e3",
@@ -612,7 +581,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum by (cluster, job, instance) (rate(prometheus_target_scrapes_exceeded_body_size_limit_total{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}[1m]))",
@@ -653,7 +622,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_tsdb_head_samples_appended_total{cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}[5m])",
@@ -691,7 +660,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_tsdb_head_series{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}",
@@ -716,7 +685,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_tsdb_head_chunks{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\"}",
@@ -754,7 +723,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_engine_query_duration_seconds_count{cluster=~\"$cluster\",job=~\"$job\",instance=~\"$instance\",slice=\"inner_eval\"}[5m])",
@@ -779,7 +748,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "max by (slice) (prometheus_engine_query_duration_seconds{quantile=\"0.9\",cluster=~\"$cluster\", job=~\"$job\",instance=~\"$instance\"}) * 1e3",

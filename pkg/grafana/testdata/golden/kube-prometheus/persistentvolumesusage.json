@@ -57,14 +57,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -85,7 +85,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -113,14 +113,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -141,7 +141,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -156,36 +156,6 @@
         "paths": [
           "links[0]"
         ]
-      },
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable namespace",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable volume",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
       }
     ]
   },
@@ -213,7 +183,7 @@
         "name": "cluster",
         "label": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{job=\"kubelet\", metrics_path=\"/metrics\"}, cluster)",
         "sort": "alpha",
         "refresh": "timeRange"
@@ -222,7 +192,7 @@
         "name": "namespace",
         "label": "Namespace",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\"}, namespace)",
         "sort": "alpha",
         "refresh": "timeRange"
@@ -231,7 +201,7 @@
         "name": "volume",
         "label": "PersistentVolumeClaim",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\"}, persistentvolumeclaim)",
         "sort": "alpha",
         "refresh": "timeRange"
@@ -248,7 +218,7 @@
           "w": 18,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "(\n  sum without(instance, node) (topk(1, (kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))\n  -\n  sum without(instance, node) (topk(1, (kubelet_volume_stats_available_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))\n)\n",
@@ -279,7 +249,7 @@
           "w": 6,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "max without(instance,node) (\n(\n  topk(1, kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n  -\n  topk(1, kubelet_volume_stats_available_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n)\n/\ntopk(1, kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n* 100)\n",
@@ -314,7 +284,7 @@
           "w": 18,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum without(instance, node) (topk(1, (kubelet_volume_stats_inodes_used{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})))",
@@ -345,7 +315,7 @@
           "w": 6,
           "h": 7
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "max without(instance,node) (\ntopk(1, kubelet_volume_stats_inodes_used{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n/\ntopk(1, kubelet_volume_stats_inodes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\", persistentvolumeclaim=\"$volume\"})\n* 100)\n",

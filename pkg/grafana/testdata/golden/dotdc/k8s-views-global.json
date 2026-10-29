@@ -61,21 +61,21 @@
           {
             "ref_id": "Real",
             "ref": "Real",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Requests",
             "ref": "Requests",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Limits",
             "ref": "Limits",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -107,21 +107,21 @@
           {
             "ref_id": "Real",
             "ref": "Real",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Requests",
             "ref": "Requests",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Limits",
             "ref": "Limits",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -146,7 +146,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -181,105 +181,105 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "O",
             "ref": "O",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "C",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "D",
             "ref": "D",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "E",
             "ref": "E",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "F",
             "ref": "F",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "G",
             "ref": "G",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "H",
             "ref": "H",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "I",
             "ref": "I",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "J",
             "ref": "J",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "K",
             "ref": "K",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "L",
             "ref": "L",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "M",
             "ref": "M",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "N",
             "ref": "N",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -300,7 +300,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -327,28 +327,28 @@
           {
             "ref_id": "Real",
             "ref": "Real",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Requests",
             "ref": "Requests",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Limits",
             "ref": "Limits",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Total",
             "ref": "Total",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -373,28 +373,28 @@
           {
             "ref_id": "Real",
             "ref": "Real",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Requests",
             "ref": "Requests",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Limits",
             "ref": "Limits",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "Total",
             "ref": "Total",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -415,7 +415,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -452,7 +452,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -489,7 +489,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -526,7 +526,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -562,7 +562,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -599,7 +599,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -636,7 +636,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -673,7 +673,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -710,7 +710,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -744,14 +744,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -785,7 +785,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -819,7 +819,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -853,7 +853,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -888,14 +888,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -930,14 +930,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -971,14 +971,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -1012,14 +1012,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -1053,14 +1053,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -1094,14 +1094,14 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -1117,28 +1117,6 @@
           "annotations.list[1]",
           "annotations.list[2]"
         ]
-      },
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
       }
     ]
   },
@@ -1166,7 +1144,7 @@
       {
         "name": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
         "sort": "alpha"
       },
@@ -1186,7 +1164,7 @@
       {
         "name": "job",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(node_cpu_seconds_total{cluster=\"$cluster\"},job)",
         "sort": "alpha",
         "multi": true
@@ -1214,7 +1192,7 @@
               "w": 6,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "ref": "Real",
@@ -1258,7 +1236,7 @@
               "w": 6,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "ref": "Real",
@@ -1304,7 +1282,7 @@
               "w": 2,
               "h": 4
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "count(count by (node) (kube_node_info{cluster=\"$cluster\"}))"
@@ -1332,7 +1310,7 @@
               "w": 10,
               "h": 12
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(kube_namespace_labels{cluster=\"$cluster\"})",
@@ -1430,7 +1408,7 @@
               "w": 2,
               "h": 4
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "count(kube_namespace_created{cluster=\"$cluster\"})"
@@ -1458,7 +1436,7 @@
               "w": 6,
               "h": 4
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "ref": "Real",
@@ -1503,7 +1481,7 @@
               "w": 6,
               "h": 4
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "ref": "Real",
@@ -1548,7 +1526,7 @@
               "w": 2,
               "h": 4
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(kube_pod_status_phase{phase=\"Running\", cluster=\"$cluster\"})"
@@ -1589,7 +1567,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "avg(sum by (instance, cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])))",
@@ -1620,7 +1598,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"} - node_memory_MemAvailable_bytes{cluster=\"$cluster\", job=\"$job\"}) / sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"})",
@@ -1656,7 +1634,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace)",
@@ -1685,7 +1663,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(container_memory_working_set_bytes{image!=\"\", cluster=\"$cluster\"}) by (namespace)",
@@ -1713,7 +1691,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "avg(sum by (instance, cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval]))) by (instance)",
@@ -1742,7 +1720,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(node_memory_MemTotal_bytes{cluster=\"$cluster\", job=\"$job\"} - node_memory_MemAvailable_bytes{cluster=\"$cluster\", job=\"$job\"}) by (instance)",
@@ -1771,7 +1749,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(container_cpu_cfs_throttled_seconds_total{image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (namespace) > 0",
@@ -1802,7 +1780,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_cpu_core_throttles_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
@@ -1845,7 +1823,7 @@
               "w": 12,
               "h": 9
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(kube_pod_status_qos_class{cluster=\"$cluster\"}) by (qos_class)",
@@ -1878,7 +1856,7 @@
               "w": 12,
               "h": 9
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(kube_pod_status_reason{cluster=\"$cluster\"}) by (reason)",
@@ -1908,7 +1886,7 @@
               "w": 12,
               "h": 9
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(increase(container_oom_events_total{cluster=\"$cluster\"}[$__rate_interval])) by (namespace) > 0",
@@ -1939,7 +1917,7 @@
               "w": 12,
               "h": 9
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(increase(kube_pod_container_status_restarts_total{cluster=\"$cluster\"}[$__rate_interval])) by (namespace) > 0",
@@ -1983,7 +1961,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device!~\"(veth|azv|lxc).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (device)",
@@ -2011,7 +1989,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_drop_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval]))",
@@ -2039,7 +2017,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_bytes_total{cluster=\"$cluster\"}[$__rate_interval])) by (namespace)",
@@ -2067,7 +2045,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
@@ -2096,7 +2074,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device!~\"(veth|azv|lxc|lo).*\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",
@@ -2125,7 +2103,7 @@
               "w": 12,
               "h": 8
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{device=\"lo\", cluster=\"$cluster\", job=\"$job\"}[$__rate_interval])) by (instance)",

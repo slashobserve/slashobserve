@@ -584,7 +584,7 @@ func TestFullyConvertedOverrideReportsNothing(t *testing.T) {
 	}
 }
 
-func TestDatasourceVariableIsNotedOnceForTheDashboardNotPerPanel(t *testing.T) {
+func TestDatasourceVariableReferencesAreKept(t *testing.T) {
 	panels := make([]string, 3)
 	for i := range panels {
 		panels[i] = fmt.Sprintf(`{"id":%d,"type":"stat","title":"P%d","gridPos":{"x":%d,"y":0,"w":8,"h":4},"datasource":{"type":"prometheus","uid":"${ds}"},"targets":[{"refId":"A","expr":"up"}]}`, i+1, i+1, i*8)
@@ -592,23 +592,27 @@ func TestDatasourceVariableIsNotedOnceForTheDashboardNotPerPanel(t *testing.T) {
 	doc := `{"title":"T","schemaVersion":39,"templating":{"list":[{"name":"ds","type":"datasource","query":"prometheus","current":{"text":"prom","value":"prom"}}]},"panels":[` + strings.Join(panels, ",") + `]}`
 	res := convertDoc(t, doc)
 
-	want := "Datasource variable $ds now uses prom."
-	var notes []Note
 	for _, note := range res.Report.Notes {
-		if note.Reason == want {
-			notes = append(notes, note)
+		if strings.Contains(note.Reason, "$ds") {
+			t.Fatalf("note %+v mentions the datasource variable, want none", note)
 		}
-	}
-	if len(notes) != 1 || notes[0].Subject != "variable ds" || notes[0].Status != statusPartial {
-		t.Fatalf("notes = %+v, want one note %q", res.Report.Notes, want)
 	}
 	for _, line := range res.Report.Panels {
 		if line.Status != statusImported || len(line.Paths) != 0 || len(line.Reasons) != 0 {
 			t.Fatalf("panel %s = %+v, want imported with nothing reported", line.PanelID, line)
 		}
+		if len(line.Queries) != 1 || line.Queries[0].Datasource == nil || *line.Queries[0].Datasource != "${ds}" {
+			t.Fatalf("panel %s query lines = %+v, want datasource ${ds}", line.PanelID, line.Queries)
+		}
 	}
-	if entry, ok := res.Spec.FindPanel("p1"); !ok || entry.Panel.Datasource != "prom" {
-		t.Fatalf("p1 = %+v, want datasource prom", entry.Panel)
+	for _, id := range []string{"p1", "p2", "p3"} {
+		if entry, ok := res.Spec.FindPanel(id); !ok || entry.Panel.Datasource != "${ds}" {
+			t.Fatalf("%s = %+v, want datasource ${ds}", id, entry.Panel)
+		}
+	}
+	ds := variableNamed(t, res, "ds")
+	if ds.Type != spec.DatasourceVariable || ds.Default == nil || !slices.Equal(ds.Default.Values, []string{"prom"}) {
+		t.Fatalf("ds = %+v, want a datasource variable defaulting to prom", ds)
 	}
 }
 

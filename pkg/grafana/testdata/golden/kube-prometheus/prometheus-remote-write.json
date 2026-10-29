@@ -54,7 +54,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -79,7 +79,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -104,7 +104,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -129,7 +129,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -154,7 +154,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -179,7 +179,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -204,7 +204,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -229,7 +229,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -254,7 +254,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -279,7 +279,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -304,7 +304,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -329,7 +329,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -354,7 +354,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -379,7 +379,7 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -404,45 +404,14 @@
           {
             "ref_id": "",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable cluster",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable url",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -465,7 +434,7 @@
       {
         "name": "cluster",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info, cluster)",
         "refresh": "timeRange",
         "includeAll": true
@@ -473,7 +442,7 @@
       {
         "name": "instance",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info{cluster=~\"$cluster\"}, instance)",
         "refresh": "timeRange",
         "includeAll": true
@@ -481,7 +450,7 @@
       {
         "name": "url",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\"}, url)",
         "refresh": "timeRange",
         "includeAll": true
@@ -509,7 +478,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "(\n  prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n-\n  prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n)\n",
@@ -532,7 +501,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "clamp_min(\n  rate(prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n-\n  rate(prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n, 0)\n",
@@ -568,7 +537,7 @@
               "w": 24,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(\n  prometheus_remote_storage_samples_in_total{cluster=~\"$cluster\", instance=~\"$instance\"}[5m])\n-\n  ignoring(remote_name, url) group_right(instance) (rate(prometheus_remote_storage_succeeded_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n-\n  (rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n",
@@ -604,7 +573,7 @@
               "w": 24,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -627,7 +596,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_max{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -650,7 +619,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_min{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -673,7 +642,7 @@
               "w": 8,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_desired{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -709,7 +678,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_shard_capacity{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -732,7 +701,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_remote_storage_pending_samples{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"} or prometheus_remote_storage_samples_pending{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
@@ -768,7 +737,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_tsdb_wal_segment_current{cluster=~\"$cluster\", instance=~\"$instance\"}",
@@ -787,7 +756,7 @@
               "w": 12,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "prometheus_wal_watcher_current_segment{cluster=~\"$cluster\", instance=~\"$instance\"}",
@@ -819,7 +788,7 @@
               "w": 6,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
@@ -837,7 +806,7 @@
               "w": 6,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_failed_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_failed_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
@@ -855,7 +824,7 @@
               "w": 6,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_retried_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_retried_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
@@ -873,7 +842,7 @@
               "w": 6,
               "h": 7
             },
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_enqueue_retries_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",

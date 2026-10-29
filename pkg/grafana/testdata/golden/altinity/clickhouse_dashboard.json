@@ -322,14 +322,6 @@
       {
         "subject": "variable adhoc",
         "status": "partial",
-        "reason": "ClickHouse queries filter by this variable only where they use $adhoc.",
-        "paths": [
-          "templating.list[4]"
-        ]
-      },
-      {
-        "subject": "variable adhoc",
-        "status": "partial",
         "reason": "Saved filters are not kept.",
         "paths": [
           "templating.list[4].filters"
@@ -341,6 +333,16 @@
         "reason": "Grafana saved copies of repeated panels and rows; SlashObserve repeats them from their variable, so only the original is imported.",
         "paths": [
           "panels[4]"
+        ]
+      },
+      {
+        "subject": "variable adhoc",
+        "status": "partial",
+        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc, so 3 of them are not filtered.",
+        "paths": [
+          "panels[5].targets[0]",
+          "panels[6].targets[0]",
+          "panels[7].targets[0]"
         ]
       }
     ]

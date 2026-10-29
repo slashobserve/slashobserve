@@ -50,7 +50,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -71,7 +71,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -96,7 +96,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -117,7 +117,7 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
@@ -144,51 +144,28 @@
           {
             "ref_id": "A",
             "ref": "A",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "B",
             "ref": "B",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           },
           {
             "ref_id": "C",
             "ref": "C",
-            "datasource": "prom",
+            "datasource": "${datasource}",
             "rewrites": [],
             "dropped": null
           }
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable job",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable instance",
-        "status": "partial",
-        "reason": "It uses datasource variable $datasource; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable datasource",
-        "status": "partial",
-        "reason": "Datasource variable $datasource now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -208,7 +185,7 @@
       {
         "name": "job",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(grafana_build_info, job)",
         "multi": true,
         "includeAll": true,
@@ -217,7 +194,7 @@
       {
         "name": "instance",
         "type": "query",
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "query": "label_values(grafana_build_info, instance)",
         "multi": true,
         "includeAll": true,
@@ -235,7 +212,7 @@
           "w": 6,
           "h": 5
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "grafana_alerting_result_total{job=~\"$job\", instance=~\"$instance\", state=\"alerting\"}",
@@ -267,7 +244,7 @@
           "w": 6,
           "h": 5
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum(grafana_stat_totals_dashboard{job=~\"$job\", instance=~\"$instance\"})",
@@ -297,7 +274,7 @@
           "w": 12,
           "h": 5
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "grafana_build_info{job=~\"$job\", instance=~\"$instance\"}",
@@ -348,7 +325,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "sum by (status_code) (irate(grafana_http_request_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[1m])) ",
@@ -373,7 +350,7 @@
           "w": 12,
           "h": 8
         },
-        "datasource": "prom",
+        "datasource": "${datasource}",
         "queries": [
           {
             "query": "histogram_quantile(0.99, sum(irate(grafana_http_request_duration_seconds_bucket{instance=~\"$instance\", job=~\"$job\"}[$__rate_interval])) by (le)) * 1",

@@ -3413,54 +3413,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable host",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[1].datasource"
-        ]
-      },
-      {
-        "subject": "variable backend",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[2].datasource"
-        ]
-      },
-      {
-        "subject": "variable frontend",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[3].datasource"
-        ]
-      },
-      {
-        "subject": "variable server",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[4].datasource"
-        ]
-      },
-      {
-        "subject": "variable code",
-        "status": "partial",
-        "reason": "It uses datasource variable $DS_PROMETHEUS; it now uses prom.",
-        "paths": [
-          "templating.list[5].datasource"
-        ]
-      },
-      {
-        "subject": "variable DS_PROMETHEUS",
-        "status": "partial",
-        "reason": "Datasource variable $DS_PROMETHEUS now uses prom.",
-        "paths": []
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",

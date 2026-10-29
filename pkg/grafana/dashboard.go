@@ -39,18 +39,19 @@ var silentDashboardKeys = map[string]bool{
 }
 
 type converter struct {
-	src         *source
-	reg         *registry
-	head        spec.Dashboard
-	notes       []Note
-	vars        []*builtVar
-	droppedVars map[string]bool
-	built       []*builtPanel
-	emptyRows   []string
-	noRepeat    map[string]bool
-	repeatNoted map[string]bool
-	staleRows   []string
-	dsNoted     map[*sourceDS]bool
+	src          *source
+	reg          *registry
+	head         spec.Dashboard
+	notes        []Note
+	vars         []*builtVar
+	droppedVars  map[string]bool
+	built        []*builtPanel
+	emptyRows    []string
+	noRepeat     map[string]bool
+	repeatNoted  map[string]bool
+	staleRows    []string
+	dsFallback   map[string]bool
+	adhocSources map[string]*sourceDS
 }
 
 func Convert(raw []byte, opts Options) (*Result, error) {
@@ -62,7 +63,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	if err := reg.resolve(opts); err != nil {
 		return nil, err
 	}
-	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}, dsNoted: map[*sourceDS]bool{}}
+	c := &converter{src: src, reg: reg, droppedVars: map[string]bool{}, noRepeat: map[string]bool{}, repeatNoted: map[string]bool{}, dsFallback: map[string]bool{}, adhocSources: map[string]*sourceDS{}}
 	c.convertHead()
 	c.convertVariables()
 	c.convertPanels()
@@ -71,6 +72,7 @@ func Convert(raw []byte, opts Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.noteClickHouseAdhoc()
 	result := &Result{
 		Summary:     src.summary(),
 		Datasources: reg.sources(),
@@ -333,6 +335,10 @@ func (c *converter) assemble() (spec.Dashboard, map[string]*builtPanel) {
 		d.Variables = append(d.Variables, v.v)
 		declared[v.v.Name] = true
 	}
+	pinned := c.datasourceFallback()
+	for i := range d.Variables {
+		d.Variables[i].Datasource = pinned(d.Variables[i].Datasource)
+	}
 	index := map[string]*builtPanel{}
 	d.Panels = make([]spec.Panel, 0, len(c.built))
 	for i, bp := range c.built {
@@ -340,7 +346,7 @@ func (c *converter) assemble() (spec.Dashboard, map[string]*builtPanel) {
 		index[key] = bp
 		if !bp.isRow() {
 			c.placeholderDroppedReferences(bp)
-			d.Panels = append(d.Panels, bp.panel)
+			d.Panels = append(d.Panels, pinPanel(bp.panel, pinned))
 			continue
 		}
 		row := bp.panel
@@ -358,12 +364,49 @@ func (c *converter) assemble() (spec.Dashboard, map[string]*builtPanel) {
 		for j, child := range bp.children {
 			index[key+"/panels/"+strconv.Itoa(j)] = child
 			c.placeholderDroppedReferences(child)
-			row.Panels = append(row.Panels, child.panel)
+			row.Panels = append(row.Panels, pinPanel(child.panel, pinned))
 		}
 		d.Panels = append(d.Panels, row)
 	}
 	dropDefaults(&d)
 	return d, index
+}
+
+func (c *converter) datasourceFallback() func(string) string {
+	datasourceVars := map[string]bool{}
+	for _, v := range c.vars {
+		if v.v.Type == spec.DatasourceVariable {
+			datasourceVars[v.v.Name] = true
+		}
+	}
+	return func(ref string) string {
+		name, ok := spec.DatasourceVariableName(ref)
+		if !ok || datasourceVars[name] {
+			return ref
+		}
+		src := c.reg.byKey[ref]
+		if src == nil {
+			return ref
+		}
+		uid := src.uid()
+		if !c.dsFallback[name] {
+			c.dsFallback[name] = true
+			c.note("variable "+name, fmt.Sprintf("Datasource variable $%s could not be imported, so what used it runs on %s.", name, uid))
+		}
+		return uid
+	}
+}
+
+func pinPanel(p spec.Panel, pinned func(string) string) spec.Panel {
+	p.Datasource = pinned(p.Datasource)
+	if len(p.Queries) == 0 {
+		return p
+	}
+	p.Queries = slices.Clone(p.Queries)
+	for i := range p.Queries {
+		p.Queries[i].Datasource = pinned(p.Queries[i].Datasource)
+	}
+	return p
 }
 
 func (c *converter) placeholderDroppedReferences(bp *builtPanel) {

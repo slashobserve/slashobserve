@@ -120,6 +120,7 @@ type builtPanel struct {
 	line     PanelLine
 	children []*builtPanel
 	repeat   string
+	queries  []*builtQuery
 }
 
 func (bp *builtPanel) isRow() bool {
@@ -440,7 +441,6 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.convertDisplay()
 	b.convertPanelOptions()
 	b.convertLinks()
-	b.datasourceVariables()
 	b.reportUnconsumed()
 	return b.finish()
 }
@@ -548,7 +548,7 @@ func (b *panelBuild) finish() *builtPanel {
 		Queries:     queries,
 	}
 	b.panel.Display = b.display
-	return &builtPanel{node: n, panel: b.panel, line: line}
+	return &builtPanel{node: n, panel: b.panel, line: line, queries: b.built}
 }
 
 func inlineLibraryPanels(dash map[string]any) {
