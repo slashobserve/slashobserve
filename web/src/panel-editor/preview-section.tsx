@@ -9,6 +9,7 @@ import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
 import { sameJson, stableJson } from "@/lib/json"
 import { describeRange } from "@/lib/time"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
+import { noSharedCursor } from "@/panels/shared-cursor"
 import { prepareFrames } from "@/panels/transforms"
 import {
   isDataPanel,
@@ -197,7 +198,8 @@ function DataPreview({
         ghost={showGhost ? saved.data : undefined}
         width={width}
         height={chartHeight}
-        syncKey={`preview:${dashboardId}`}
+        stateScope={`preview:${dashboardId}`}
+        cursor={noSharedCursor}
         onTimeRangeSelect={ignoreSelection}
         vars={vars}
         from={timeRange.from}

@@ -4,6 +4,7 @@ import type { Threshold } from "@/spec"
 
 import type { LineStyle } from "../colors"
 import type { FieldConfig } from "../field-config"
+import type { CursorMember } from "../shared-cursor"
 import {
   bandBase,
   nearestSpan,
@@ -93,7 +94,8 @@ export function tooltipPlugin(
   mode: "single" | "all",
   first: number,
   series: () => TooltipSeries[],
-  heading: (x: number) => string
+  heading: (x: number) => string,
+  peerTooltip: () => boolean
 ): uPlot.Plugin {
   let tooltip: HTMLDivElement | null = null
   let plot: uPlot | null = null
@@ -139,9 +141,14 @@ export function tooltipPlugin(
         tooltip = null
       },
       setCursor: (u) => {
-        const anchor = tooltipAnchor(u.cursor, u.over.matches(":hover"))
+        const anchor = tooltipAnchor(
+          u.cursor,
+          u.over.matches(":hover"),
+          peerTooltip()
+        )
         if (!tooltip || !anchor) return hide()
         const { idx, left, top: cursorTop } = anchor
+        const rowsMode = anchor.peer ? "all" : mode
 
         const meta = series()
         const rows: Row[] = []
@@ -153,10 +160,10 @@ export function tooltipPlugin(
         })
         if (rows.length === 0) return hide()
         const candidates =
-          mode === "single"
+          rowsMode === "single"
             ? [nearestRow(u, rows, meta, first, idx, cursorTop)]
             : rows.sort((a, b) => b.value - a.value).slice(0, maxTooltipRows)
-        const shown = mode === "single" ? 1 : rows.length
+        const shown = rowsMode === "single" ? 1 : rows.length
         const texts = formatTogether(
           candidates.map((row) => ({
             value: row.value,
@@ -215,6 +222,23 @@ export function tooltipPlugin(
         )
         tooltip.style.transform = `translate(${Math.min(Math.max(tooltipEdge, x), maxX)}px, ${Math.min(Math.max(tooltipEdge, y), maxY)}px)`
       },
+    },
+  }
+}
+
+export function cursorPlugin(member: {
+  current: CursorMember | null
+}): uPlot.Plugin {
+  const onLeave = () => member.current?.move(null)
+  return {
+    hooks: {
+      init: (u) => u.over.addEventListener("mouseleave", onLeave),
+      setCursor: (u) => {
+        const { left } = u.cursor
+        if (left == null || left < 0 || !u.over.matches(":hover")) return
+        member.current?.move(u.posToVal(left, "x") * 1000)
+      },
+      destroy: (u) => u.over.removeEventListener("mouseleave", onLeave),
     },
   }
 }

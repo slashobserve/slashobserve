@@ -188,7 +188,12 @@ export function nearestSpan(
   return best
 }
 
-export type TooltipAnchor = { idx: number; left: number; top: number }
+export type TooltipAnchor = {
+  idx: number
+  left: number
+  top: number
+  peer: boolean
+}
 
 export function tooltipAnchor(
   cursor: {
@@ -196,9 +201,24 @@ export function tooltipAnchor(
     left?: number | null
     top?: number | null
   },
-  pointerOver: boolean
+  pointerOver: boolean,
+  peerTooltip: boolean
 ): TooltipAnchor | null {
   const { idx, left } = cursor
-  if (!pointerOver || idx == null || left == null || left < 0) return null
-  return { idx, left, top: cursor.top ?? 0 }
+  if (idx == null || left == null || left < 0) return null
+  if (!pointerOver && !peerTooltip) return null
+  return { idx, left, top: cursor.top ?? 0, peer: !pointerOver }
+}
+
+export const hiddenCursor = { left: -10, top: -10 }
+
+export function peerCursorAt(
+  left: number | null,
+  width: number,
+  height: number
+): { left: number; top: number } {
+  if (left === null || !Number.isFinite(left) || left < 0 || left > width) {
+    return hiddenCursor
+  }
+  return { left, top: height / 2 }
 }

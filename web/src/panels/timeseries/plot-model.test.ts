@@ -8,8 +8,10 @@ import {
   bandBase,
   chartSeries,
   ghostsDrawn,
+  hiddenCursor,
   legendCells,
   nearestSpan,
+  peerCursorAt,
   plotStateFor,
   thresholdsFor,
   thresholdValueAt,
@@ -335,20 +337,39 @@ describe("nearestSpan", () => {
 
 describe("tooltipAnchor", () => {
   it("anchors the tooltip at the cursor of the panel under the pointer", () => {
-    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, true)).toEqual({
+    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, true, false)).toEqual({
       idx: 4,
       left: 120,
       top: 30,
+      peer: false,
     })
-    expect(tooltipAnchor({ idx: 0, left: 0 }, true)).toEqual({
+    expect(tooltipAnchor({ idx: 0, left: 0 }, true, false)).toEqual({
       idx: 0,
       left: 0,
       top: 0,
+      peer: false,
     })
   })
 
-  it("shows no tooltip on a panel that only follows a synced cursor", () => {
-    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, false)).toBeNull()
+  it("anchors a peer tooltip only when the peer tooltip is on", () => {
+    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, false, true)).toEqual({
+      idx: 4,
+      left: 120,
+      top: 30,
+      peer: true,
+    })
+    expect(
+      tooltipAnchor({ idx: 4, left: 120, top: 30 }, false, false)
+    ).toBeNull()
+  })
+
+  it("treats the pointer as the owner even when the peer tooltip is on", () => {
+    expect(tooltipAnchor({ idx: 4, left: 120, top: 30 }, true, true)).toEqual({
+      idx: 4,
+      left: 120,
+      top: 30,
+      peer: false,
+    })
   })
 
   it.each([
@@ -357,6 +378,27 @@ describe("tooltipAnchor", () => {
     ["a cursor outside the plot", { idx: 4, left: -10, top: 30 }],
     ["a missing cursor position", { idx: 4, left: null, top: null }],
   ])("shows no tooltip for %s", (_name, cursor) => {
-    expect(tooltipAnchor(cursor, true)).toBeNull()
+    expect(tooltipAnchor(cursor, true, false)).toBeNull()
+    expect(tooltipAnchor(cursor, false, true)).toBeNull()
+  })
+})
+
+describe("peerCursorAt", () => {
+  it("places a peer cursor at mid height", () => {
+    expect(peerCursorAt(120, 400, 200)).toEqual({ left: 120, top: 100 })
+  })
+
+  it.each([0, 400])("keeps a cursor on the edge at %s", (left) => {
+    expect(peerCursorAt(left, 400, 200)).toEqual({ left, top: 100 })
+  })
+
+  it.each([
+    ["left of the plot", -1],
+    ["right of the plot", 401],
+    ["missing", null],
+    ["not a number", NaN],
+    ["infinite", Infinity],
+  ])("hides a cursor that is %s", (_name, left) => {
+    expect(peerCursorAt(left, 400, 200)).toEqual(hiddenCursor)
   })
 })

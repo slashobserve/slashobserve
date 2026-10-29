@@ -12,6 +12,7 @@ import type {
 } from "@/spec"
 
 import type { FieldResolver, LinkScope } from "./field-config"
+import type { SharedCursor } from "./shared-cursor"
 import type { PreparedFrame } from "./transforms"
 
 export type PanelRendererProps = {
@@ -22,7 +23,8 @@ export type PanelRendererProps = {
   meta: PanelDataMeta
   width: number
   height: number
-  syncKey: string
+  stateScope: string
+  cursor: SharedCursor
   onTimeRangeSelect: (fromMs: number, toMs: number) => void
   links: Omit<
     LinkScope,
