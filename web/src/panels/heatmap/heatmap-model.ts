@@ -152,8 +152,12 @@ function calculatedModel(
 ): Pick<HeatmapModel, "rows" | "cells"> {
   const numbers = entries.flatMap(({ values }) => values.filter(isNumber))
   if (numbers.length === 0) return { rows: [], cells: [] }
-  const low = Math.min(...numbers)
-  const high = Math.max(...numbers)
+  let low = Infinity
+  let high = -Infinity
+  for (const value of numbers) {
+    if (value < low) low = value
+    if (value > high) high = value
+  }
   const log = logarithmic && low > 0
   const toScale = (value: number) => (log ? Math.log(value) : value)
   const fromScale = (value: number) => (log ? Math.exp(value) : value)

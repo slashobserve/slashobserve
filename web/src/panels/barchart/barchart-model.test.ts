@@ -80,6 +80,24 @@ describe("barchartModel categories", () => {
     expect(model.reason).toBeNull()
   })
 
+  it("keeps working on a time column longer than a function call can take as arguments", () => {
+    const count = 300_000
+    const model = build([
+      frame([
+        {
+          name: "Time",
+          type: "time",
+          values: Array.from({ length: count }, (_, i) => i * 60000),
+        },
+        numbers(
+          "a",
+          Array.from({ length: count }, () => 1)
+        ),
+      ]),
+    ])
+    expect(model.categories).toHaveLength(maxCategories)
+  })
+
   it("falls back to the time field when there is no text field", () => {
     const model = build([
       frame([

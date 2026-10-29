@@ -137,10 +137,14 @@ function categoryOf(
 
 function spanOf(field: PreparedField): number {
   if (field.type !== "time") return 0
-  const times = field.values.filter(
-    (value): value is number => typeof value === "number"
-  )
-  return times.length === 0 ? 0 : Math.max(...times) - Math.min(...times)
+  let min = Infinity
+  let max = -Infinity
+  for (const value of field.values) {
+    if (typeof value !== "number") continue
+    if (value < min) min = value
+    if (value > max) max = value
+  }
+  return min <= max ? max - min : 0
 }
 
 function finite(value: unknown): number | null {

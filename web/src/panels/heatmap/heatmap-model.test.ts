@@ -186,6 +186,15 @@ describe("calculated mode", () => {
     series([1, 2], [8, 16], { pod: "b" }),
   ]
 
+  it("handles more values than a function call can take as arguments", () => {
+    const count = 300_000
+    const times = Array.from({ length: count }, (_, i) => i)
+    const values = Array.from({ length: count }, (_, i) => i % 100)
+    const model = build([series(times, values)], {}, { calculate: true })
+    expect(model.rows).toHaveLength(calculatedRows)
+    expect(model.rows[0].from).toBe(0)
+  })
+
   it("counts values into 16 linear rows", () => {
     const model = build(frames, {}, { calculate: true })
     expect(model.mode).toBe("calculated")
