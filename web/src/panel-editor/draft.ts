@@ -65,6 +65,16 @@ export function nextRef(queries: readonly PanelQuery[]): string {
   }
 }
 
+export function activeQueryIndex(
+  queries: readonly PanelQuery[],
+  activeRef: string
+): number {
+  return Math.max(
+    0,
+    queries.findIndex((query, index) => queryRef(query, index) === activeRef)
+  )
+}
+
 function withDraftPanel(state: EditorDraft, panel: EditablePanel): EditorDraft {
   return { ...state, panel }
 }

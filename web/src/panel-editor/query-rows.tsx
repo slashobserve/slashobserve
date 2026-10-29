@@ -26,7 +26,7 @@ type Props = {
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
   issuesByQuery: ReadonlyMap<string, string[]>
-  onActiveChange: (index: number) => void
+  onActiveChange: (ref: string) => void
   onRemoved: (ref: string) => void
   focusFirst: boolean
   editorRefs: RefObject<(CodeEditorHandle | null)[]>
@@ -143,7 +143,7 @@ export function QueryRows({
               onRemoved(ref)
               dispatch({ type: "removeQuery", index })
             }}
-            onFocus={() => onActiveChange(index)}
+            onFocus={() => onActiveChange(ref)}
             editorRef={(handle) => {
               editorRefs.current[index] = handle
             }}

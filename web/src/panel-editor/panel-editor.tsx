@@ -38,6 +38,7 @@ import {
 } from "./changes"
 import { DatasourceSelect } from "./datasource-select"
 import {
+  activeQueryIndex,
   draftReducer,
   isEditablePanel,
   startDraft,
@@ -127,7 +128,7 @@ export default function PanelEditor({
   const dirty = changes.length > 0
   const [jsonValid, setJsonValid] = useState(true)
   const [metricsOpen, setMetricsOpen] = useState(false)
-  const [activeQuery, setActiveQuery] = useState(0)
+  const [activeRef, setActiveRef] = useState("")
   const [note, setNote] = useState("")
   const [noteOpen, setNoteOpen] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -324,7 +325,8 @@ export default function PanelEditor({
   }, [])
 
   const data = isDataPanel(current) ? current : null
-  const active = data?.queries[Math.min(activeQuery, data.queries.length - 1)]
+  const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
+  const active = data?.queries[activeQuery]
   const activeUid = active?.datasource ?? data?.datasource ?? ""
 
   return (
@@ -389,7 +391,7 @@ export default function PanelEditor({
                   dispatch={dispatch}
                   readOnly={locked}
                   issuesByQuery={issuesByQuery}
-                  onActiveChange={setActiveQuery}
+                  onActiveChange={setActiveRef}
                   onRemoved={(ref) =>
                     setProblem((current) => withoutQuery(current, ref))
                   }

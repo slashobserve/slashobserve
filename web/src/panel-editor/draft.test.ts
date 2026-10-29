@@ -15,6 +15,7 @@ import schemaText from "../../../spec/schema/observespec.v0.json?raw"
 import {
   displayKeysFor,
   draftReducer,
+  activeQueryIndex,
   isEditablePanel,
   nextRef,
   startDraft,
@@ -185,6 +186,28 @@ describe("nextRef", () => {
     expect(nextRef([{ query: "a" }, { ref: "B", query: "b" }])).toBe("C")
     expect(nextRef([{ ref: "A", query: "a" }, { query: "b" }])).toBe("C")
     expect(nextRef([{ ref: "Z", query: "z" }])).toBe("A")
+  })
+})
+
+describe("activeQueryIndex", () => {
+  const queries = [{ query: "a" }, { query: "b" }, { query: "c" }]
+
+  it("finds the query the ref names", () => {
+    expect(activeQueryIndex(queries, "B")).toBe(1)
+  })
+
+  it("keeps following the same query after an earlier one is removed", () => {
+    const state = apply(dataPanel({ queries }), {
+      type: "removeQuery",
+      index: 0,
+    })
+    expect(activeQueryIndex(queriesOf(state), "B")).toBe(0)
+    expect(activeQueryIndex(queriesOf(state), "C")).toBe(1)
+  })
+
+  it("falls back to the first query when the ref is gone", () => {
+    expect(activeQueryIndex(queries, "Z")).toBe(0)
+    expect(activeQueryIndex(queries, "")).toBe(0)
   })
 })
 
