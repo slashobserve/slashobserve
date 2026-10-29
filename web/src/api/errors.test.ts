@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   ApiError,
+  failedQueryText,
   isRetryable,
   maxRetryDelayMs,
   NetworkError,
@@ -52,6 +53,21 @@ describe("toApiError", () => {
     expect(error.code).toBe("unknown")
     expect(error.issues).toEqual([])
     expect(error.latestVersion).toBeUndefined()
+  })
+
+  test("reads the failed query's ref", () => {
+    const error = toApiError(response(502), {
+      error: "Datasource unavailable",
+      code: "datasource_unavailable",
+      ref: "B",
+    })
+    expect(error.ref).toBe("B")
+  })
+
+  test("leaves ref unset when it is missing, empty or not a string", () => {
+    for (const ref of [undefined, "", 7, null]) {
+      expect(toApiError(response(502), { error: "x", ref }).ref).toBeUndefined()
+    }
   })
 
   test("converts Retry-After seconds to milliseconds", () => {
@@ -124,5 +140,28 @@ describe("isRetryable", () => {
   test("does not retry other errors", () => {
     expect(isRetryable(new Error("boom"))).toBe(false)
     expect(isRetryable("boom")).toBe(false)
+  })
+})
+
+describe("failedQueryText", () => {
+  test("names the query when the error has a ref", () => {
+    const error = new ApiError(
+      502,
+      "datasource_unavailable",
+      "Datasource unavailable",
+      [],
+      undefined,
+      undefined,
+      "A"
+    )
+    expect(failedQueryText(error)).toBe(
+      "Query A failed: datasource unavailable"
+    )
+  })
+
+  test("is the message when the error has no ref", () => {
+    expect(
+      failedQueryText(new ApiError(502, "x", "Datasource unavailable"))
+    ).toBe("Datasource unavailable")
   })
 })

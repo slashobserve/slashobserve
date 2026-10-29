@@ -322,7 +322,7 @@ function DashboardView({
     search.version === undefined
   const version = editing ? session.baseVersion : envelopeVersion
   const spec = editing ? session.baseSpec : envelopeSpec
-  const unverifiedByPanel = useMemo(
+  const unverified = useMemo(
     () =>
       unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
     [envelope.version.unverified, envelopeVersion, version]
@@ -494,7 +494,7 @@ function DashboardView({
             latestVersion={latestVersion}
           />
         ) : null}
-        <VariablesBar states={states} />
+        <VariablesBar states={states} unverified={unverified.variables} />
         <DashboardLinks
           links={spec.links}
           scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
@@ -537,7 +537,7 @@ function DashboardView({
                 openComments={
                   item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0
                 }
-                unverifiedReason={unverifiedByPanel.get(item.panel.id)}
+                unverifiedReason={unverified.panels.get(item.panel.id)}
                 highlighted={
                   item.panel.id === search.panel || item.panel.id === flashed
                 }

@@ -54,32 +54,7 @@ export function SourceCard({
   }
 
   let body
-  if (source) {
-    body = (
-      <>
-        <div className="flex flex-wrap items-center gap-3 p-3.5">
-          <FileTile />
-          <span className="flex min-w-[180px] flex-1 flex-col gap-0.5">
-            <span
-              className={cn(
-                "break-all",
-                source.pasted ? "text-[13px]" : "font-mono text-[13px]"
-              )}
-            >
-              {source.name}
-            </span>
-            <span className="text-xs text-muted-foreground">{hint}</span>
-          </span>
-          <Button variant="outline" className="font-normal" onClick={choose}>
-            Choose another file
-          </Button>
-        </div>
-        <p className="px-3.5 pb-3.5 text-xs text-muted-foreground">
-          You can also paste JSON or drop a file anywhere on this page.
-        </p>
-      </>
-    )
-  } else if (pasting) {
+  if (pasting) {
     body = (
       <div className="flex flex-col gap-3 p-3.5">
         <Textarea
@@ -116,6 +91,38 @@ export function SourceCard({
           </Button>
         </div>
       </div>
+    )
+  } else if (source) {
+    body = (
+      <>
+        <div className="flex flex-wrap items-center gap-3 p-3.5">
+          <FileTile />
+          <span className="flex min-w-[180px] flex-1 flex-col gap-0.5">
+            <span
+              className={cn(
+                "break-all",
+                source.pasted ? "text-[13px]" : "font-mono text-[13px]"
+              )}
+            >
+              {source.name}
+            </span>
+            <span className="text-xs text-muted-foreground">{hint}</span>
+          </span>
+          <Button
+            variant="outline"
+            className="font-normal"
+            onClick={() => setPasting(true)}
+          >
+            Paste JSON
+          </Button>
+          <Button variant="outline" className="font-normal" onClick={choose}>
+            Choose another file
+          </Button>
+        </div>
+        <p className="px-3.5 pb-3.5 text-xs text-muted-foreground">
+          You can also drop a file anywhere on this page.
+        </p>
+      </>
     )
   } else {
     body = (

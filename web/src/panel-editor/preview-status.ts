@@ -1,6 +1,7 @@
-import { ApiError } from "@/api/errors"
+import { ApiError, failedQueryText } from "@/api/errors"
 import type { WireFrame } from "@/dashboards/queries"
 import { formatShortRelative } from "@/lib/time"
+import { lowerFirst } from "@/observe/conversation"
 
 export type PreviewStatus =
   | { kind: "invalid" }
@@ -33,16 +34,16 @@ export function previewErrorText(error: unknown): string {
     case "too_many_requests":
       return "Too many requests right now. The preview runs again in a moment."
     case "datasource_unavailable":
-      return "The datasource is not answering."
+      return error.ref === undefined
+        ? "The datasource is not answering."
+        : `Query ${error.ref} failed: the datasource is not answering.`
     case "query_timeout":
-      return "The draft took too long to run."
+      return error.ref === undefined
+        ? "The draft took too long to run."
+        : `Query ${error.ref} failed: it took too long to run.`
     default:
-      return error.message
+      return failedQueryText(error)
   }
-}
-
-function lowerFirst(text: string): string {
-  return text.charAt(0).toLowerCase() + text.slice(1)
 }
 
 export function previewStatusText(status: PreviewStatus, now: number): string {

@@ -1,8 +1,10 @@
 import { CircleAlertIcon } from "lucide-react"
 
+import { ApiError, failedQueryText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 
 export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) return failedQueryText(error)
   return error instanceof Error ? error.message : "Unknown error"
 }
 
