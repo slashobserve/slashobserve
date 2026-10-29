@@ -57,7 +57,7 @@ func TestCommentToolsAreMCPOnly(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "list_comments,reply_to_comment,resolve_comment" {
+	if strings.Join(got, ",") != "list_comments,list_folders,reply_to_comment,resolve_comment" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }

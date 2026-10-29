@@ -13,6 +13,7 @@ func TestToolRoles(t *testing.T) {
 		nameGetDashboard:    auth.RoleViewer,
 		nameGetSpecGuide:    auth.RoleViewer,
 		nameListComments:    auth.RoleViewer,
+		nameListFolders:     auth.RoleViewer,
 		nameReplyToComment:  auth.RoleCommenter,
 		nameResolveComment:  auth.RoleCommenter,
 		nameListDatasources: auth.RoleEditor,

@@ -386,7 +386,7 @@ func TestToolsListMirrorsTheRegistry(t *testing.T) {
 	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Tools) != len(f.tools) || len(f.tools) != 18 {
+	if len(result.Tools) != len(f.tools) || len(f.tools) != 19 {
 		t.Fatalf("listed %d tools, registry has %d", len(result.Tools), len(f.tools))
 	}
 	for _, want := range f.tools {

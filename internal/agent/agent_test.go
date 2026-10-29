@@ -1729,12 +1729,12 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 			t.Errorf("%s: MCPOnly = %v, offered to the model = %v", tool.Name, tool.MCPOnly, offered[tool.Name])
 		}
 	}
-	for _, name := range []string{"list_comments", "reply_to_comment", "resolve_comment"} {
+	for _, name := range []string{"list_comments", "list_folders", "reply_to_comment", "resolve_comment"} {
 		if offered[name] {
 			t.Errorf("%s is offered to the model", name)
 		}
 	}
-	if mcpOnly != 3 || len(offered) != len(registry.List())-3 {
+	if mcpOnly != 4 || len(offered) != len(registry.List())-4 {
 		t.Fatalf("mcp-only tools = %d, offered = %d of %d", mcpOnly, len(offered), len(registry.List()))
 	}
 }

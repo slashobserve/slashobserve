@@ -238,6 +238,7 @@ func run() error {
 		Dashboards:  dashboardsService,
 		Comments:    toolComments,
 		Imports:     importsService,
+		Folders:     folderAccess,
 		PublicURL:   cfg.PublicURL,
 		Logger:      logger,
 	})
