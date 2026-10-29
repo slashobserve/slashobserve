@@ -16,8 +16,15 @@ func (c *converter) noteClickHouseAdhoc() {
 		if count == 0 {
 			continue
 		}
-		c.note("variable "+v.v.Name, fmt.Sprintf("Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $%s, so %d of them are not filtered.", v.v.Name, count), unfiltered...)
+		c.note("variable "+v.v.Name, fmt.Sprintf("Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $%s, so %s not filtered.", v.v.Name, unfilteredQueries(count)), unfiltered...)
 	}
+}
+
+func unfilteredQueries(count int) string {
+	if count == 1 {
+		return "1 query is"
+	}
+	return fmt.Sprintf("%d queries are", count)
 }
 
 func (c *converter) queriesWithout(variable string, src *sourceDS) ([]string, int) {

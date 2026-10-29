@@ -338,7 +338,7 @@
       {
         "subject": "variable adhoc",
         "status": "partial",
-        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc, so 3 of them are not filtered.",
+        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $adhoc, so 3 queries are not filtered.",
         "paths": [
           "panels[5].targets[0]",
           "panels[6].targets[0]",

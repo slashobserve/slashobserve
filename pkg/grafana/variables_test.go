@@ -150,18 +150,22 @@ func TestClickHouseAdhocNoteListsTheQueriesItWillNotFilter(t *testing.T) {
 		return panelJSON(id, 0, id*4, 12, 4, `"type":"table","datasource":`+chRef+`,"targets":[{"refId":"A","rawSql":"`+sql+`","format":1}]`)
 	}
 	promPanel := panelJSON(3, 0, 12, 12, 4, `"type":"stat","datasource":`+promRef+`,"targets":[{"refId":"A","expr":"up"}]`)
-	wantReason := "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $filters, so 1 of them are not filtered."
+	reasonFor := func(unfiltered string) string {
+		return "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $filters, so " + unfiltered + " not filtered."
+	}
 
 	cases := []struct {
 		name      string
 		variable  string
 		panels    []string
 		wantPaths []string
+		wantCount string
 	}{
-		{"one of two queries uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2")}, []string{"panels[1].targets[0]"}},
-		{"every query uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2 WHERE $filters")}, nil},
-		{"queries on other datasources are not counted", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), promPanel}, nil},
-		{"prometheus adhoc variables filter every query", adhoc(promRef), []string{promPanel, chPanel(1, "SELECT 1")}, nil},
+		{"one of two queries uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2")}, []string{"panels[1].targets[0]"}, "1 query is"},
+		{"two of three queries use no variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2"), chPanel(3, "SELECT 3")}, []string{"panels[1].targets[0]", "panels[2].targets[0]"}, "2 queries are"},
+		{"every query uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2 WHERE $filters")}, nil, ""},
+		{"queries on other datasources are not counted", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), promPanel}, nil, ""},
+		{"prometheus adhoc variables filter every query", adhoc(promRef), []string{promPanel, chPanel(1, "SELECT 1")}, nil, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -178,6 +182,7 @@ func TestClickHouseAdhocNoteListsTheQueriesItWillNotFilter(t *testing.T) {
 				}
 				return
 			}
+			wantReason := reasonFor(tc.wantCount)
 			if len(got) != 1 || got[0].Reason != wantReason || !slices.Equal(got[0].Paths, tc.wantPaths) {
 				t.Fatalf("notes = %+v, want one %q with paths %v", got, wantReason, tc.wantPaths)
 			}
