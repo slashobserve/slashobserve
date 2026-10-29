@@ -1,13 +1,16 @@
-import { isDataPanel, type Panel } from "@/spec"
+import { isDataPanel, resolveDatasourceRef, type Panel } from "@/spec"
 
-export function panelDatasourceUids(panel: Panel): string[] {
+export function panelDatasourceUids(
+  panel: Panel,
+  selections: Record<string, string[]>
+): string[] {
   if (!isDataPanel(panel)) return []
   const uids = new Set<string>()
-  for (const uid of [
+  for (const ref of [
     panel.datasource,
     ...panel.queries.map((query) => query.datasource),
   ]) {
-    if (uid) uids.add(uid)
+    if (ref) uids.add(resolveDatasourceRef(ref, selections) ?? ref)
   }
   return [...uids]
 }

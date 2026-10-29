@@ -13,10 +13,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { cn } from "@/lib/utils"
-import { isDataPanel, queryRef } from "@/spec"
+import { isDataPanel, queryRef, type DatasourceVariable } from "@/spec"
 
 import { maxQueries, type DraftAction, type EditablePanel } from "./draft"
-import { QueryRow } from "./query-row"
+import { QueryRow, type ResolveDatasource } from "./query-row"
 
 export const maxContentLength = 20000
 
@@ -25,6 +25,8 @@ type Props = {
   base: EditablePanel
   dispatch: Dispatch<DraftAction>
   readOnly: boolean
+  datasourceVariables: readonly DatasourceVariable[]
+  resolveDatasource: ResolveDatasource
   issuesByQuery: ReadonlyMap<string, string[]>
   onActiveChange: (ref: string) => void
   onRemoved: (ref: string) => void
@@ -74,6 +76,8 @@ export function QueryRows({
   base,
   dispatch,
   readOnly,
+  datasourceVariables,
+  resolveDatasource,
   issuesByQuery,
   onActiveChange,
   onRemoved,
@@ -126,6 +130,8 @@ export function QueryRows({
             query={query}
             baseQuery={baseByRef.get(ref)}
             panelDatasource={draft.datasource}
+            datasourceVariables={datasourceVariables}
+            resolveDatasource={resolveDatasource}
             readOnly={readOnly}
             issues={issuesByQuery.get(ref) ?? noIssues}
             canRemove={!readOnly && draft.queries.length > 1}

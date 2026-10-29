@@ -1,5 +1,8 @@
 import { Fragment } from "react"
 
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { datasourceRefType, resolveDatasourceRef } from "@/spec"
+
 import { useSetDashboardSearch } from "./search"
 import { UnverifiedLabel } from "./unverified-label"
 import type { VariableState } from "./use-variables"
@@ -21,9 +24,13 @@ function isShown(state: VariableState): boolean {
 
 export function VariablesBar({ states, unverified }: Props) {
   const setSearch = useSetDashboardSearch()
+  const datasources = useDatasources()
   const shown = states.filter(isShown)
   if (shown.length === 0) return null
   const variables = states.map((state) => state.variable)
+  const selections = Object.fromEntries(
+    states.map((state) => [state.variable.name, state.selected])
+  )
 
   function control(state: VariableState) {
     const { variable } = state
@@ -73,7 +80,17 @@ export function VariablesBar({ states, unverified }: Props) {
         )
       case "adhoc":
         return (
-          <AdhocControl variable={variable} state={state} onChange={onChange} />
+          <AdhocControl
+            variable={variable}
+            state={state}
+            datasource={resolveDatasourceRef(variable.datasource, selections)}
+            datasourceType={datasourceRefType(
+              variable.datasource,
+              variables,
+              (uid) => datasourceTypeOf(datasources.data, uid)
+            )}
+            onChange={onChange}
+          />
         )
       case "constant":
         return null
