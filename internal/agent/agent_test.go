@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent"
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -472,12 +473,8 @@ func TestRequestCarriesStableSystemToolsPromptAndContext(t *testing.T) {
 			t.Fatalf("system text lacks %q", want)
 		}
 	}
-	var compact bytes.Buffer
-	if err := json.Compact(&compact, spec.Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(reqs[0].System, "```json\n"+compact.String()+"\n```") {
-		t.Fatal("system text does not carry the compacted schema")
+	if !strings.Contains(reqs[0].System, "```json\n"+string(prompts.Schema())+"\n```") {
+		t.Fatal("system text does not carry the prompt schema")
 	}
 	if !strings.Contains(reqs[0].System, "- Never create a placeholder panel. Keep existing placeholders unchanged apart from their position, and delete one only when the request asks.") {
 		t.Fatal("system prompt lacks the placeholder rule")

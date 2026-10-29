@@ -30,17 +30,17 @@ func buildSystem() string {
 	b.WriteString("\n\n# Authoring guide\n")
 	b.WriteString(strings.TrimRight(prompts.SpecGuide(), "\n"))
 	b.WriteString("\n\n# ObserveSpec v0 JSON Schema\n")
-	writeJSONBlock(&b, compactSchema())
+	writeJSONBlock(&b, prompts.Schema())
 	b.WriteString("\n\n# Example Spec (format only)\n")
-	writeJSONBlock(&b, examples.CheckoutServiceHealth)
+	writeJSONBlock(&b, compactJSON(examples.CheckoutServiceHealth))
 	b.WriteString("\n")
 	return b.String()
 }
 
-func compactSchema() []byte {
+func compactJSON(body []byte) []byte {
 	var compact bytes.Buffer
-	if err := json.Compact(&compact, spec.Schema()); err != nil {
-		panic("agent: embedded schema does not compact: " + err.Error())
+	if err := json.Compact(&compact, body); err != nil {
+		panic("agent: embedded example does not compact: " + err.Error())
 	}
 	return compact.Bytes()
 }

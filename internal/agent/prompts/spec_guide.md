@@ -1,7 +1,7 @@
 # ObserveSpec authoring guide
 
 A dashboard is one ObserveSpec v0 JSON document; the JSON Schema is authoritative and the example shows the format only.
-Discover real metric, label, table and column names with the tools before writing queries; never copy names from the example.
+Discover real metric, label, table and column names with the tools; never copy names from the example.
 Leave out every value that equals its default.
 
 ## Panels
@@ -11,27 +11,27 @@ Leave out every value that equals its default.
 - `bargauge`: compare a few current values across series; `piechart`: shares of a total.
 - `table`: rows such as top-N lists or slow spans; `logs`: log lines from ClickHouse.
 - `heatmap` and `histogram`: distributions such as latency; `state-timeline`: a state per series over time.
-- `barchart`: compare values across categories, such as requests per route; use an `instant: true` query with `format: "table"` so the first label column is the x axis, or set `display.xField`.
-- `status-history`: a grid of cells, one row per series and one cell per sample, for discrete states.
+- `barchart`: values across categories, such as requests per route; use an `instant: true` query with `format: "table"` so the first label column is the x axis, or set `display.xField`.
+- `status-history`: one row per series and one cell per sample, for discrete states.
 - `trend`: a line over a numeric x axis instead of time (`display.xField`, default the first number column).
 - `xychart`: points of one numeric column (`display.xField`) against the others.
-- `candlestick`: `open`, `high`, `low`, `close` and optional `volume` columns over time; rarely useful for telemetry.
+- `candlestick`: `open`, `high`, `low`, `close` and optional `volume` columns over time.
 - `nodeGraph`: a service map; one query returns edges with `id`, `source`, `target` and optional `mainstat`, an optional second query returns nodes with `id`, `title` and `mainstat`.
 - `traces`: one trace as a span waterfall from ClickHouse rows with `traceID`, `spanID`, `parentSpanID`, `serviceName`, `operationName`, `startTime`, `duration` (milliseconds) and optional `tags`.
-- `flamegraph`: only for a query that already returns `level`, `value`, `self` and `label` columns in depth-first order; prefer `traces` for spans.
+- `flamegraph`: only for a query that already returns `level`, `value`, `self` and `label` columns in depth-first order.
 - `geomap`: points on a world map from `lat`/`lon` (or `latitude`/`longitude`) or `geohash` columns, sized by `display.sizeField` and colored by thresholds.
-- `canvas`: a diagram of positioned `display.elements` (`metric`, `text`, `rectangle`, `ellipse`; positions in percent) bound to fields, with `"fill": "field"` for threshold colors and `display.connections` between elements; only when the request asks for a diagram.
+- `canvas`: positioned `display.elements` (`metric`, `text`, `rectangle`, `ellipse`; positions in percent) bound to fields, with `"fill": "field"` for threshold colors and `display.connections` between elements; only when the request asks for a diagram.
 - `alertlist`: firing or pending Prometheus alerts from an instant query on `ALERTS`; an empty list is valid.
 - `dashlist`: links to other dashboards matching `display.query` or `display.tags`; it has no datasource or queries.
-- `news`: the latest items of one RSS or Atom feed at `display.feedUrl` (https only); it has no datasource or queries, and it shows items only when the feed's domain is on the server's outbound allowlist, so add one only when asked.
-- Panel ids are unique across the dashboard, row children included, lowercase snake case, prefixed `p_`.
+- `news`: the items of one RSS or Atom feed at `display.feedUrl` (https only); no datasource or queries, and it shows items only when the feed's domain is on the server's outbound allowlist, so add one only when asked.
+- Panel ids are unique across the dashboard, row children included, lowercase snake case, prefixed `p_`; a dashboard holds at most 200 panels.
 - A `row` groups the panels after it under a title: put them in the row's `panels`, each with its own `gridPos` below the row.
 - Never create a `placeholder` panel; they come only from Grafana imports. You may move one (its `gridPos`, or into or out of a row) or delete it, and must leave its other fields unchanged; to implement one, replace it with a real panel that keeps its id.
 - Add a `text` panel only when the request asks for notes, and write plain sentences in `content`.
 
 ## Queries
 - Each query has `query` and, when it returns several series, a `legend` such as `{{route}}`.
-- Put related series in one panel with several queries, such as requests and errors, or p50 and p99; queries are named `A`, `B`, `C` by position, so write `ref` only when you need a stable name.
+- Put related series in one panel with several queries, such as requests and errors, or p50 and p99; queries are named `A`, `B`, `C` by position, so write `ref` only for a stable name.
 - A query may set its own `datasource`, `instant: true` for one value per series, `interval` as its minimum step, or `hide: true` to run nowhere.
 
 ## Layout
@@ -41,17 +41,17 @@ Leave out every value that equals its default.
 ## Field options
 - `unit` is a unit id from the schema: `reqps` for request rates, `s` or `ms` for durations, `percentunit` for 0-1 ratios, `percent` for 0-100, `bytes`, `short` for counts, or `suffix:<text>`.
 - `thresholds` ascend; the first step may leave out `value` and is then the base color, for example `[{"color": "ok"}, {"value": 0.25, "color": "warning"}, {"value": 0.5, "color": "critical"}]`; colors are `ok`, `info`, `warning`, `critical` or a hex color.
-- `decimals`, `min`, `max`, `displayName`, `noValue` and `mappings` refine how values read.
+- `decimals`, `min`, `max`, `displayName`, `noValue` and `mappings` (each needs `text`, `color` or both) refine how values read.
 - `overrides` set the same options for matching series, for example `{"match": {"query": "B"}, "unit": "s"}`.
 - `display` holds the few per-type options in the schema; set it only when the request asks for one.
 - `transform` reshapes results in the browser; use it only when a query cannot return the shape directly.
 
 ## Prometheus (PromQL)
 - Use `$__rate_interval` as the window in `rate()` and `increase()`; use `$__range` for an increase over the whole range.
-- Aggregate with `sum by (label)` so the series count stays small, and set `legend` to `{{label}}`.
+- Aggregate with `sum by (label)` to keep the series count small, and set `legend` to `{{label}}`.
 - Latency quantiles: `histogram_quantile(0.99, sum by (le) (rate(<name>_bucket[$__rate_interval])))`.
 - A ratio whose numerator may have no series yet (errors before any error happened): `(sum(rate(<errors>[$__rate_interval])) or vector(0)) / sum(rate(<all>[$__rate_interval]))`.
-- Comparing with an earlier period: put both periods in one query, `label_replace(<now>, "period", "now", "", "") or label_replace(<same with offset 1d>, "period", "1d ago", "", "")`, so the panel has data before the earlier period was recorded.
+- Comparing with an earlier period: put both in one query, `label_replace(<now>, "period", "now", "", "") or label_replace(<same with offset 1d>, "period", "1d ago", "", "")`, so the panel has data before the earlier period was recorded.
 - `ALERTS{alertstate="firing"}` lists firing alerts; add `ALERTS_FOR_STATE` as a second query to show since when each fires.
 
 ## ClickHouse (OpenTelemetry exporter tables)
@@ -68,6 +68,7 @@ Leave out every value that equals its default.
 - `query` variables: Prometheus `label_values(<metric>, <label>)`, referenced as `$name`, or `${name:regex}` inside `=~`; ClickHouse references use `${name:sqlstring}` inside `IN (...)`.
 - `custom` lists fixed values; `interval` lists steps in `options`, such as `["1m", "5m", "1h"]`, with `"auto": true`; `constant` holds one shared value; `textbox` takes free text; `adhoc` adds key and value filters, which Prometheus applies to every query on its datasource and a ClickHouse query uses as `AND $name` in its WHERE clause.
 - An `interval` variable with `"auto": true` and no `default` starts on auto; set `default` to one of its `options` to start on a fixed step.
+- A variable's `default` is one value, a list for a multi variable, or `$__all`.
 - Global values for any query: `$__interval_ms`, `$__range_s`, `$__range_ms`, `${__from:date:seconds}`, `${__to:date:seconds}`, `$__dashboard` and `${__user.login}`.
 
 ## Time
@@ -77,4 +78,3 @@ Leave out every value that equals its default.
 ## Saving
 - Every query runs during the save, and every data panel except an `alertlist` must return data for the default time range and variable values, or the save is rejected with the reason; fix the named panels and save again.
 - Never put HTML or scripts in any field; titles, descriptions and text panels are plain text.
-- When the user gives you a Grafana dashboard JSON, call import_grafana_dashboard instead of rewriting it by hand.

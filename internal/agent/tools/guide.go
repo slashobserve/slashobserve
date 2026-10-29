@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
-	"github.com/slashobserve/slashobserve/pkg/spec"
 	"github.com/slashobserve/slashobserve/spec/examples"
 )
 
@@ -28,7 +27,7 @@ func (r *Registry) getSpecGuide(ctx context.Context, input json.RawMessage) (Res
 	}
 	return success("Read the Spec guide", guideOut{
 		Guide:   prompts.SpecGuide(),
-		Schema:  json.RawMessage(spec.Schema()),
+		Schema:  json.RawMessage(prompts.Schema()),
 		Example: json.RawMessage(examples.CheckoutServiceHealth),
 	}), nil
 }
