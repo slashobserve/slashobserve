@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -18,7 +19,11 @@ type source struct {
 	nodes  []*panelNode
 	clones []string
 	legacy bool
+
+	folderTitle string
 }
+
+const maxFolderTitleRunes = 100
 
 func Detect(raw []byte) (Summary, error) {
 	src, err := load(raw)
@@ -32,6 +37,7 @@ func (s *source) summary() Summary {
 	summary := Summary{Format: s.format, Bytes: s.bytes}
 	summary.Title = asString(s.dash["title"])
 	summary.UID = asString(s.dash["uid"])
+	summary.FolderTitle = s.folderTitle
 	summary.SchemaVersion, _ = asInt(s.dash["schemaVersion"])
 	s.walk(func(n *panelNode) {
 		if n.row {
@@ -65,6 +71,9 @@ func load(raw []byte) (*source, error) {
 	if inner, ok := asObject(doc["dashboard"]); ok && !hasPanelsOrRows(doc) {
 		src.format = formatAPI
 		src.dash = inner
+		if meta, ok := asObject(doc["meta"]); ok {
+			src.folderTitle = cleanFolderTitle(asString(meta["folderTitle"]))
+		}
 	}
 	if isV2(src.dash) {
 		return nil, inputErrorf(codeUnsupportedFormat, "Grafana v2 dashboards are not supported yet; export the classic JSON model")
@@ -88,6 +97,19 @@ func load(raw []byte) (*source, error) {
 		return nil, inputErrorf(codeTooManyPanels, "the dashboard has %d panels including rows; a SlashObserve dashboard holds at most %d", total, spec.MaxPanels)
 	}
 	return src, nil
+}
+
+func cleanFolderTitle(title string) string {
+	title = strings.TrimSpace(title)
+	if utf8.RuneCountInString(title) > maxFolderTitleRunes {
+		return ""
+	}
+	for _, r := range title {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return ""
+		}
+	}
+	return title
 }
 
 func hasPanelsOrRows(d map[string]any) bool {

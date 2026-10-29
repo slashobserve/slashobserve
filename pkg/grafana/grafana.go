@@ -42,6 +42,7 @@ type Summary struct {
 	Panels        int    `json:"panels"`
 	Rows          int    `json:"rows"`
 	Variables     int    `json:"variables"`
+	FolderTitle   string `json:"-"`
 }
 
 type SourceDatasource struct {
