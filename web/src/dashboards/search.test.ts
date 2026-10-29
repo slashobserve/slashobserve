@@ -5,6 +5,7 @@ import { parseSearch, stringifySearch } from "@/lib/search"
 import {
   backFromSearch,
   dashboardSearchFromBack,
+  panelEditorShowsNewerVersion,
   searchFromState,
   validateBack,
   validateDashboardSearch,
@@ -201,5 +202,21 @@ describe("withVariables", () => {
       from: "now-1h",
       "var-pod": ["a", "b"],
     })
+  })
+})
+
+describe("panelEditorShowsNewerVersion", () => {
+  it.each([
+    ["no panel editor is open", {}, false],
+    ["only a panel is selected", { panel: "p1" }, false],
+    ["the query editor is open", { panel: "p1", edit: "query" }, true],
+    ["the JSON editor is open", { panel: "p1", edit: "json" }, true],
+    [
+      "the editor is open on a pinned version",
+      { panel: "p1", edit: "query", version: 2 },
+      false,
+    ],
+  ] as const)("when %s returns %s", (_name, search, expected) => {
+    expect(panelEditorShowsNewerVersion({ vars: {}, ...search })).toBe(expected)
   })
 })

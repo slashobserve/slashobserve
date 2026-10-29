@@ -126,6 +126,14 @@ export function searchFromState(
   return out
 }
 
+export function panelEditorShowsNewerVersion(state: DashboardSearch): boolean {
+  return (
+    state.edit !== undefined &&
+    state.panel !== undefined &&
+    state.version === undefined
+  )
+}
+
 export function backFromSearch(state: DashboardSearch): string | undefined {
   const text = stringifySearch(searchFromState(state)).slice(1)
   return text === "" ? undefined : text

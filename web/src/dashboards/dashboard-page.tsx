@@ -77,6 +77,7 @@ import {
 import { RefreshPicker } from "./refresh-picker"
 import {
   backFromSearch,
+  panelEditorShowsNewerVersion,
   useDashboardSearch,
   useSetDashboardSearch,
 } from "./search"
@@ -642,7 +643,7 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
   )
   const { status: liveStatus } = useDashboardEvents(dashboardId, {
     pinnedVersion: search.version,
-    toastVersions: !editing,
+    toastVersions: !editing && !panelEditorShowsNewerVersion(search),
   })
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
