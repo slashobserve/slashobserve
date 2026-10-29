@@ -1,3 +1,4 @@
+import { thresholdColor } from "../thresholds"
 import type { Cell } from "../timeseries/stack"
 import {
   matchesName,
@@ -149,6 +150,26 @@ export function directions(
     if (!isNumber(reference)) return null
     return value >= reference ? "up" : "down"
   })
+}
+
+export function directionColors(
+  options: Pick<CandleOptions, "upColor" | "downColor">
+): Record<Direction, string> {
+  return {
+    up: thresholdColor(options.upColor),
+    down: thresholdColor(options.downColor),
+  }
+}
+
+export function rowColors(
+  open: readonly Cell[],
+  close: readonly Cell[],
+  rows: number,
+  options: Pick<CandleOptions, "colorStrategy" | "upColor" | "downColor">
+): string[] {
+  const colors = directionColors(options)
+  const moves = directions(open, close, options.colorStrategy)
+  return Array.from({ length: rows }, (_, row) => colors[moves[row] ?? "up"])
 }
 
 export function minSpacing(positions: readonly number[]): number {

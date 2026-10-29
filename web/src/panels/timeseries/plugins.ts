@@ -22,6 +22,7 @@ export type TooltipSeries = {
   values: Cell[]
   stacked: boolean
   below: number | null
+  rowColor?: (row: number) => string
 }
 
 type Row = { index: number; value: number }
@@ -35,7 +36,11 @@ function swatch(color: string, line: LineStyle, style: DrawStyle): HTMLElement {
   return element
 }
 
-function tooltipRow(entry: TooltipSeries, text: string): HTMLElement {
+function tooltipRow(
+  entry: TooltipSeries,
+  text: string,
+  row: number
+): HTMLElement {
   const line = document.createElement("div")
   line.className = "ts-tooltip-row"
   const label = document.createElement("span")
@@ -44,7 +49,11 @@ function tooltipRow(entry: TooltipSeries, text: string): HTMLElement {
   const value = document.createElement("span")
   value.className = "ts-tooltip-value"
   value.textContent = text
-  line.append(swatch(entry.color, entry.line, entry.style), label, value)
+  line.append(
+    swatch(entry.rowColor?.(row) ?? entry.color, entry.line, entry.style),
+    label,
+    value
+  )
   return line
 }
 
@@ -168,7 +177,7 @@ export function tooltipPlugin(
           const children: HTMLElement[] = [title]
           for (let position = 0; position < count; position++) {
             children.push(
-              tooltipRow(meta[candidates[position].index], texts[position])
+              tooltipRow(meta[candidates[position].index], texts[position], idx)
             )
           }
           if (withMore || shown > count) {

@@ -376,6 +376,7 @@ export type ChartProps = PanelRendererProps & {
   configs: FieldConfig[]
   xAxis?: XAxis
   draw?: uPlot.Plugin
+  rowColor?: (row: number) => string
 }
 
 export function TimeseriesChart({
@@ -390,6 +391,7 @@ export function TimeseriesChart({
   configs,
   xAxis = timeAxis,
   draw,
+  rowColor,
 }: ChartProps) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
@@ -473,9 +475,10 @@ export function TimeseriesChart({
         values: entry.values,
         stacked: stacked[index],
         below: below[index],
+        rowColor,
       })),
     }
-  }, [aligned.xs, ghosts, series, hidden])
+  }, [aligned.xs, ghosts, series, hidden, rowColor])
 
   const model = modelFor(
     panel,

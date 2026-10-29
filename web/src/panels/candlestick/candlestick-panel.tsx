@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 
 import { resolveColor } from "../colors"
 import { dataRenderers } from "../index"
-import { thresholdColor } from "../thresholds"
 import { alignFrames } from "../timeseries/align"
 import type { Cell } from "../timeseries/stack"
 import { LegendSwatch } from "../timeseries/legend"
@@ -18,9 +17,11 @@ import { Unsupported } from "../unsupported"
 import {
   bodyWidth,
   candleOptions,
+  directionColors,
   directions,
   minSpacing,
   roleLabels,
+  rowColors,
   selectCandles,
   volumeHeight,
   type CandleColumn,
@@ -30,7 +31,6 @@ import {
   type CandleRole,
   type CandleStyle,
   type ColorStrategy,
-  type Direction,
 } from "./candles"
 
 const legendBottomHeight = 28
@@ -67,10 +67,12 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
         const centers = xs.map((x) => u.valToPos(x, "x", true))
         const size = bodyWidth(minSpacing(centers), ratio)
         const half = Math.round(size / 2)
-        const colors: Record<Direction, string> = {
-          up: resolveColor(thresholdColor(paint.upColor)),
-          down: resolveColor(thresholdColor(paint.downColor)),
-        }
+        const resolved = new Map<string, string>()
+        const fills = rowColors(open, close, xs.length, paint).map((color) => {
+          const known = resolved.get(color) ?? resolveColor(color)
+          resolved.set(color, known)
+          return known
+        })
         const moves = directions(open, close, colorStrategy)
         const at = (value: number) => Math.round(u.valToPos(value, "y", true))
 
@@ -88,7 +90,7 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
           xs.forEach((_x, row) => {
             const bar = volumeHeight(volume[row], maxVolume, height)
             if (bar <= 0) return
-            ctx.fillStyle = colors[moves[row] ?? "up"]
+            ctx.fillStyle = fills[row]
             ctx.fillRect(
               Math.round(centers[row]) - half,
               Math.round(top + height - bar),
@@ -119,7 +121,7 @@ function candlesPlugin(paint: Paint): uPlot.Plugin {
             const yLow = at(lo)
             const yOpen = at(opened)
             const yClose = at(closed)
-            ctx.fillStyle = colors[direction]
+            ctx.fillStyle = fills[row]
             ctx.fillRect(
               x - Math.floor(stroke / 2),
               yHigh,
@@ -211,6 +213,20 @@ export const CandlestickPanel: PanelRenderer = (props) => {
       priceConfig(fields.configFor(frame, field), roles.get(field) ?? "close")
     )
   }, [aligned, columns, fields])
+  const rowColor = useMemo(() => {
+    if (!aligned) return undefined
+    const values = (role: CandleRole) => {
+      const index = columns.findIndex((column) => column.role === role)
+      return index < 0 ? [] : aligned.series[index].values
+    }
+    const colors = rowColors(
+      values("open"),
+      values("close"),
+      aligned.xs.length,
+      options
+    )
+    return (row: number) => colors[row]
+  }, [aligned, columns, options])
   const paintKey = useMemo(
     () => paintKeyOf(options, columns),
     [options, columns]
@@ -229,6 +245,7 @@ export const CandlestickPanel: PanelRenderer = (props) => {
     return Table ? <Table {...props} /> : <Unsupported />
   }
 
+  const shades = directionColors(options)
   const legendShown = options.legend !== "hidden"
   const right = options.legend === "right"
   const chartWidth = width - (legendShown && right ? legendRightWidth : 0)
@@ -253,6 +270,7 @@ export const CandlestickPanel: PanelRenderer = (props) => {
         aligned={aligned}
         configs={configs}
         draw={draw}
+        rowColor={rowColor}
       />
       {legendShown ? (
         <ul
@@ -270,9 +288,7 @@ export const CandlestickPanel: PanelRenderer = (props) => {
           {(["up", "down"] as const).map((direction) => (
             <li key={direction} className="flex items-center gap-1.5">
               <LegendSwatch
-                color={thresholdColor(
-                  direction === "up" ? options.upColor : options.downColor
-                )}
+                color={shades[direction]}
                 line="solid"
                 style="bars"
               />

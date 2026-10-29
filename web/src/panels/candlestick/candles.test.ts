@@ -9,6 +9,7 @@ import {
   minSpacing,
   noCandlesReason,
   noVolumeReason,
+  rowColors,
   selectCandles,
   volumeHeight,
   volumeShare,
@@ -158,6 +159,41 @@ describe("candleOptions", () => {
       open: "o",
       volume: "v",
     })
+  })
+})
+
+describe("rowColors", () => {
+  const colors = { upColor: "ok", downColor: "#112233" }
+
+  it("gives each row the color of its candle direction", () => {
+    expect(
+      rowColors([10, 10, 12], [11, 9, 12], 3, {
+        ...colors,
+        colorStrategy: "open-close",
+      })
+    ).toEqual(["var(--threshold-ok)", "#112233", "var(--threshold-ok)"])
+  })
+
+  it("follows the color strategy", () => {
+    expect(
+      rowColors([5, 5, 5], [6, 7, 6], 3, {
+        ...colors,
+        colorStrategy: "close-close",
+      })
+    ).toEqual(["var(--threshold-ok)", "var(--threshold-ok)", "#112233"])
+  })
+
+  it("paints a row without a direction, or without prices, in the up color", () => {
+    const up = "var(--threshold-ok)"
+    expect(
+      rowColors([5, 5], [6, null], 2, {
+        ...colors,
+        colorStrategy: "open-close",
+      })
+    ).toEqual([up, up])
+    expect(
+      rowColors([], [], 2, { ...colors, colorStrategy: "open-close" })
+    ).toEqual([up, up])
   })
 })
 
