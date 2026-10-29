@@ -52,6 +52,18 @@ func TestDatasourceUIDsFunctionReadsEveryEvolvedPathInByteOrder(t *testing.T) {
 		{"mixed case and separators follow the C collation", `{"panels":[
 			{"datasource":"b"},{"datasource":"a_x"},{"datasource":"B"},{"datasource":"a-x"},{"datasource":"A-x"},{"datasource":"a-x"},{"datasource":"1z"}]}`,
 			[]string{"1z", "A-x", "B", "a-x", "a_x", "b"}},
+		{"a referenced datasource variable lists its default", `{"variables":[{"name":"ds","type":"datasource","default":"prom2"}],"panels":[{"datasource":"${ds}"}]}`, []string{"prom2"}},
+		{"a reference on a query override pulls in the default", `{"variables":[{"name":"ds","type":"datasource","default":"p"}],"panels":[{"queries":[{"datasource":"${ds}"}]}]}`, []string{"p"}},
+		{"a reference on a row child query pulls in the default", `{"variables":[{"name":"ds","type":"datasource","default":"p"}],"panels":[{"panels":[{"queries":[{"datasource":"${ds}"}]}]}]}`, []string{"p"}},
+		{"a reference on a row child panel pulls in the default", `{"variables":[{"name":"ds","type":"datasource","default":"p"}],"panels":[{"panels":[{"datasource":"${ds}"}]}]}`, []string{"p"}},
+		{"a reference on a query variable pulls in the default", `{"variables":[{"name":"ds","type":"datasource","default":"p"},{"name":"pod","type":"query","datasource":"${ds}"}]}`, []string{"p"}},
+		{"a reference on an adhoc variable pulls in the default", `{"variables":[{"name":"ds","type":"datasource","default":"p"},{"name":"f","type":"adhoc","datasource":"${ds}"}]}`, []string{"p"}},
+		{"a default that nothing references is not listed", `{"variables":[{"name":"ds","type":"datasource","default":"p"}],"panels":[{"type":"text"}]}`, []string{}},
+		{"a referenced variable without a default adds nothing", `{"variables":[{"name":"ds","type":"datasource"}],"panels":[{"datasource":"${ds}"},{"datasource":"prom"}]}`, []string{"prom"}},
+		{"a reference to an undeclared variable is not listed", `{"panels":[{"datasource":"${ds}"}]}`, []string{}},
+		{"a literal uid equal to a referenced default is listed once", `{"variables":[{"name":"ds","type":"datasource","default":"prom"}],"panels":[{"datasource":"${ds}"},{"datasource":"prom"}]}`, []string{"prom"}},
+		{"a non-string default adds nothing", `{"variables":[{"name":"ds","type":"datasource","default":["a"]}],"panels":[{"datasource":"${ds}"}]}`, []string{}},
+		{"a default on a variable that is not a datasource variable adds nothing", `{"variables":[{"name":"ds","type":"custom","default":"p"}],"panels":[{"datasource":"${ds}"}]}`, []string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
