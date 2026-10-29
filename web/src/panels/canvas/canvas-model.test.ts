@@ -4,7 +4,12 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
-import { canvasModel, defaultLineColor, type RgbOf } from "./canvas-model"
+import {
+  canvasModel,
+  defaultLineColor,
+  foregroundColor,
+  type RgbOf,
+} from "./canvas-model"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -123,7 +128,30 @@ describe("canvasModel metrics", () => {
       level: "critical",
       color: "var(--threshold-critical)",
       label: "Critical",
+      labelColor: foregroundColor,
     })
+  })
+
+  it("keeps the state word in the foreground color unless a fill sets the text color", () => {
+    const thresholds = [{ color: "ok" }, { value: 80, color: "critical" }]
+    const plain = build(
+      [series("a", [95])],
+      { elements: [metric({ textColor: "field" })] },
+      { thresholds }
+    ).elements[0]
+    const filled = build(
+      [series("a", [95])],
+      { elements: [metric({ fill: "#ffffff", textColor: "field" })] },
+      { thresholds }
+    ).elements[0]
+    const stroked = build(
+      [series("a", [95])],
+      { elements: [metric({ stroke: "field" })] },
+      { thresholds }
+    ).elements[0]
+    expect(plain.state?.labelColor).toBe(foregroundColor)
+    expect(filled.state?.labelColor).toBeNull()
+    expect(stroked.state?.labelColor).toBeNull()
   })
 
   it("falls back to the series color when the field has no threshold or mapping color", () => {

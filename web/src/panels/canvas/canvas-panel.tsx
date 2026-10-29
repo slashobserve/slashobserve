@@ -83,6 +83,7 @@ function StateMark({ state }: { state: MetricState }) {
     <span
       data-canvas-state={state.level}
       className="flex shrink-0 items-center gap-1 text-[0.8em]"
+      style={{ color: state.labelColor ?? undefined }}
     >
       <Icon
         className="size-[1em]"

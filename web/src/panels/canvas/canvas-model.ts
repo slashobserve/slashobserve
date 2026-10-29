@@ -25,6 +25,7 @@ export type MetricState = {
   level: ThresholdLevel
   label: string
   color: string
+  labelColor: string | null
 }
 
 export type CanvasElement = {
@@ -56,6 +57,7 @@ export type CanvasModel = { elements: CanvasElement[]; lines: CanvasLine[] }
 
 export const noDataText = "No data"
 export const defaultLineColor = "var(--muted-foreground)"
+export const foregroundColor = "var(--foreground)"
 
 const kinds: readonly string[] = ["text", "metric", "rectangle", "ellipse"]
 const aligns: readonly string[] = ["left", "center", "right"]
@@ -223,7 +225,13 @@ function stateOf(parsed: Parsed, bound: Bound | null): MetricState | null {
   }
   if (!safeColor.test(bound.shown.color)) return null
   const { level, label } = bound.shown.threshold
-  return { level, label, color: bound.shown.color }
+  const onPlainBackground = parsed.fill === null && parsed.textColor === "field"
+  return {
+    level,
+    label,
+    color: bound.shown.color,
+    labelColor: onPlainBackground ? foregroundColor : null,
+  }
 }
 
 function textOn(
