@@ -28,9 +28,13 @@ const (
 	goldenDir     = "golden"
 	minimumRatio  = 90
 	minimumFull   = 18.1
+	fullSlack     = 0.5
+	worklistSize  = 10
 	maxLinePaths  = 100
 	tooManyPanels = "too_many_panels"
 )
+
+var panelIndex = regexp.MustCompile(`\[\d+\]`)
 
 var corpusOptions = grafana.Options{Datasources: []grafana.Datasource{
 	{UID: "prom", Type: "prometheus"},
@@ -583,6 +587,7 @@ func TestCorpusRatio(t *testing.T) {
 	var total, imported, partial, placeholder, failedPanels int
 	var failed []string
 	byType := map[string]int{}
+	soleBlocker := map[string]int{}
 	for _, f := range corpusFiles(t) {
 		o := convertFile(t, f)
 		if o.res == nil {
@@ -604,6 +609,9 @@ func TestCorpusRatio(t *testing.T) {
 			if line.Status == "placeholder" {
 				byType[line.SourceType]++
 			}
+			if path, ok := soleOptionPath(line); ok {
+				soleBlocker[path]++
+			}
 		}
 	}
 	types := make([]string, 0, len(byType))
@@ -619,12 +627,55 @@ func TestCorpusRatio(t *testing.T) {
 	t.Logf("fully imported %.1f%%, imported or partial %.1f%%", percent(imported, total), percent(imported+partial, total))
 	t.Logf("placeholders by source type: %s", strings.Join(perType, " "))
 	t.Logf("failed files: %s", strings.Join(failed, " "))
+	t.Logf("partial by one path only: %s", strings.Join(topCounts(soleBlocker, worklistSize), " "))
 	if (imported+partial)*100 < total*minimumRatio {
 		t.Errorf("imported or partial is %.1f%% of %d panels, the gate is %d%%", percent(imported+partial, total), total, minimumRatio)
 	}
 	if percent(imported, total) < minimumFull {
 		t.Errorf("fully imported is %.1f%% of %d panels, the floor is %.1f%%", percent(imported, total), total, minimumFull)
 	}
+	if full := percent(imported, total); full >= minimumFull+fullSlack {
+		t.Errorf("fully imported is %.1f%% of %d panels; raise minimumFull from %.1f to %.1f", full, total, minimumFull, math.Floor(full*10)/10)
+	}
+}
+
+func soleOptionPath(line grafana.PanelLine) (string, bool) {
+	if line.Status != "partial" {
+		return "", false
+	}
+	distinct := map[string]bool{}
+	for _, path := range line.Paths {
+		path = strings.TrimPrefix(path, line.GrafanaPath+".")
+		distinct[panelIndex.ReplaceAllString(path, "[]")] = true
+	}
+	if len(distinct) != 1 {
+		return "", false
+	}
+	for path := range distinct {
+		return path, true
+	}
+	return "", false
+}
+
+func topCounts(counts map[string]int, limit int) []string {
+	paths := make([]string, 0, len(counts))
+	for path := range counts {
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		if counts[paths[i]] != counts[paths[j]] {
+			return counts[paths[i]] > counts[paths[j]]
+		}
+		return paths[i] < paths[j]
+	})
+	if len(paths) > limit {
+		paths = paths[:limit]
+	}
+	entries := make([]string, len(paths))
+	for i, path := range paths {
+		entries[i] = path + "=" + strconv.Itoa(counts[path])
+	}
+	return entries
 }
 
 func percent(part, whole int) float64 {
