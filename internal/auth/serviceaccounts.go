@@ -30,6 +30,8 @@ const (
 	maxKeyLifetime       = 366 * 24 * time.Hour
 	displayPrefixLength  = 12
 	uniqueViolation      = "23505"
+
+	InvalidRoleMessage = "role must be admin, editor, commenter or viewer"
 )
 
 var serviceAccountName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
@@ -40,6 +42,7 @@ type serviceAccountJSON struct {
 	Description string  `json:"description"`
 	CreatedBy   *string `json:"created_by"`
 	CreatedAt   string  `json:"created_at"`
+	Role        Role    `json:"role"`
 }
 
 type keyJSON struct {
@@ -58,6 +61,7 @@ func (s *Service) mountServiceAccounts(authenticated Routes) {
 	accounts := authenticated.Group("/service-accounts")
 	accounts.POST("", RoleAdmin, RequireUser, s.createServiceAccount)
 	accounts.GET("", RoleAdmin, RequireUser, s.listServiceAccounts)
+	accounts.PATCH("/:id", RoleAdmin, RequireUser, s.updateServiceAccount)
 	accounts.POST("/:id/keys", RoleAdmin, RequireUser, s.createKey)
 	accounts.GET("/:id/keys", RoleAdmin, RequireUser, s.listKeys)
 	accounts.DELETE("/:id/keys/:keyId", RoleAdmin, RequireUser, s.revokeKey)
@@ -73,11 +77,21 @@ func RequireUser(c *gin.Context) {
 
 func (s *Service) createServiceAccount(c *gin.Context) {
 	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Role        *string `json:"role"`
 	}
 	if !decodeBody(c, &req) {
 		return
+	}
+	role := RoleEditor
+	if req.Role != nil {
+		parsed, ok := parseRoleField(req.Role)
+		if !ok {
+			abortError(c, http.StatusBadRequest, "invalid_request", InvalidRoleMessage)
+			return
+		}
+		role = parsed
 	}
 	if !serviceAccountName.MatchString(req.Name) {
 		abortError(c, http.StatusBadRequest, "invalid_request", "name must match ^[a-z0-9][a-z0-9-]{0,62}$")
@@ -91,6 +105,7 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		Name:        req.Name,
 		Description: req.Description,
 		CreatedBy:   callerID(c),
+		Role:        string(role),
 	})
 	if isUniqueViolation(err) {
 		abortError(c, http.StatusConflict, "conflict", "a service account with this name already exists")
@@ -101,6 +116,37 @@ func (s *Service) createServiceAccount(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, newServiceAccountJSON(account))
+}
+
+func (s *Service) updateServiceAccount(c *gin.Context) {
+	id, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Role *string `json:"role"`
+	}
+	if !decodeBody(c, &req) {
+		return
+	}
+	role, ok := parseRoleField(req.Role)
+	if !ok {
+		abortError(c, http.StatusBadRequest, "invalid_request", InvalidRoleMessage)
+		return
+	}
+	ctx := c.Request.Context()
+	account, err := s.SetServiceAccountRole(ctx, id, role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		abortError(c, http.StatusNotFound, "not_found", "service account not found")
+		return
+	}
+	if err != nil {
+		s.internalError(c, "set service account role", err)
+		return
+	}
+	caller, _ := FromContext(ctx)
+	s.logger.InfoContext(ctx, "role changed", slog.String("actor_id", caller.ID), slog.String("target_kind", string(KindServiceAccount)), slog.String("target_id", account.ID.String()), slog.String("role", account.Role))
+	c.JSON(http.StatusOK, newServiceAccountJSON(account))
 }
 
 func (s *Service) listServiceAccounts(c *gin.Context) {
@@ -245,6 +291,13 @@ func decodeBody(c *gin.Context, dst any) bool {
 	return true
 }
 
+func parseRoleField(raw *string) (Role, bool) {
+	if raw == nil {
+		return "", false
+	}
+	return ParseRole(*raw)
+}
+
 func hasControlChars(s string) bool {
 	return strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) || unicode.Is(unicode.Cf, r) })
 }
@@ -278,6 +331,7 @@ func newServiceAccountJSON(a dbsqlc.ServiceAccount) serviceAccountJSON {
 		Description: a.Description,
 		CreatedBy:   uuidString(a.CreatedBy),
 		CreatedAt:   formatTime(a.CreatedAt.Time),
+		Role:        Role(a.Role),
 	}
 }
 

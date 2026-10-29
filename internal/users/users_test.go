@@ -272,3 +272,45 @@ func TestClientGoingAwayIsNotAServerError(t *testing.T) {
 		})
 	}
 }
+
+func TestParseRolePatchTellsSetClearAndInvalidApart(t *testing.T) {
+	viewer := auth.RoleViewer
+	tests := []struct {
+		name string
+		raw  string
+		want *auth.Role
+		ok   bool
+	}{
+		{"absent", "", nil, false},
+		{"null clears", "null", nil, true},
+		{"viewer", `"viewer"`, &viewer, true},
+		{"unknown role", `"owner"`, nil, false},
+		{"empty string", `""`, nil, false},
+		{"number", "3", nil, false},
+		{"object", "{}", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := parseRolePatch(json.RawMessage(tt.raw))
+			if ok != tt.ok || (got == nil) != (tt.want == nil) || (got != nil && *got != *tt.want) {
+				t.Fatalf("parseRolePatch(%q) = %v, %v; want %v, %v", tt.raw, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func TestLockedMessageNamesWhereTheRoleComesFrom(t *testing.T) {
+	tests := []struct {
+		source auth.RoleSource
+		want   string
+	}{
+		{auth.SourceAdminEmails, "this role comes from SLASHOBSERVE_ADMIN_EMAILS and cannot be changed here"},
+		{auth.SourceFirstUser, "this role comes from being the first person to sign in and cannot be changed here"},
+		{auth.SourceGroup, "this role comes from an identity provider group and cannot be changed here"},
+	}
+	for _, tt := range tests {
+		if got := lockedMessage(tt.source); got != tt.want {
+			t.Errorf("lockedMessage(%q) = %q, want %q", tt.source, got, tt.want)
+		}
+	}
+}

@@ -22,12 +22,16 @@ paths:
     $ref: "./paths/auth.yaml#/instance"
   /service-accounts:
     $ref: "./paths/service-accounts.yaml#/service-accounts"
+  /service-accounts/{id}:
+    $ref: "./paths/service-accounts.yaml#/service-accounts-id"
   /service-accounts/{id}/keys:
     $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys"
   /service-accounts/{id}/keys/{keyId}:
     $ref: "./paths/service-accounts.yaml#/service-accounts-id-keys-keyid"
   /users:
     $ref: "./paths/users.yaml#/users"
+  /users/{id}:
+    $ref: "./paths/users.yaml#/users-id"
   /users/{id}/sessions:
     $ref: "./paths/users.yaml#/users-id-sessions"
   /outbound-domains:
@@ -154,6 +158,10 @@ components:
     Role:
       type: string
       enum: [admin, editor, commenter, viewer]
+    RoleSource:
+      type: string
+      enum: [admin_emails, first_user, group, manual, default]
+      description: Where a person's role comes from. admin_emails, first_user and group are decided by the server settings or the identity provider and cannot be changed through the API.
     Principal:
       type: object
       additionalProperties: false
@@ -217,7 +225,7 @@ components:
     ServiceAccount:
       type: object
       additionalProperties: false
-      required: [id, name, description, created_by, created_at]
+      required: [id, name, description, created_by, created_at, role]
       properties:
         id:
           type: string
@@ -233,6 +241,8 @@ components:
         created_at:
           type: string
           format: date-time
+        role:
+          $ref: "#/components/schemas/Role"
     ServiceAccountList:
       type: object
       additionalProperties: false
@@ -253,6 +263,17 @@ components:
         description:
           type: string
           maxLength: 256
+        role:
+          allOf:
+            - $ref: "#/components/schemas/Role"
+          description: The role the account's keys act with; editor when omitted.
+    UpdateServiceAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
     ServiceAccountKey:
       type: object
       additionalProperties: false
@@ -341,6 +362,11 @@ components:
         - dashboard_count
         - key_count
         - session_count
+        - role
+        - role_source
+        - role_group
+        - role_set_by
+        - role_locked
       properties:
         id:
           type: string
@@ -371,6 +397,31 @@ components:
           type: integer
           minimum: 0
           description: Unexpired sessions.
+        role:
+          $ref: "#/components/schemas/Role"
+        role_source:
+          $ref: "#/components/schemas/RoleSource"
+        role_group:
+          type: string
+          nullable: true
+          description: The identity-provider group that decided the role when role_source is group.
+        role_set_by:
+          type: string
+          nullable: true
+          description: The name of the Admin who chose the role when role_source is manual.
+        role_locked:
+          type: boolean
+          description: True when the role cannot be changed through the API.
+    UpdatePersonRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Role"
+          description: The role to set, or null to clear the chosen role and fall back to the computed one.
     OutboundDomain:
       type: object
       additionalProperties: false

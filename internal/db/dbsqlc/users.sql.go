@@ -23,6 +23,85 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const getPerson = `-- name: GetPerson :one
+SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
+  u.role, u.role_source, u.role_group, u.manual_role_by_name,
+  coalesce(dc.n, 0)::integer AS dashboard_count,
+  coalesce(kc.n, 0)::integer AS key_count,
+  coalesce(sc.n, 0)::integer AS session_count
+FROM users u
+LEFT JOIN (SELECT author_id, count(*) AS n FROM dashboard_versions
+  WHERE version = 1 AND author_kind = 'user' GROUP BY author_id) dc ON dc.author_id = u.id
+LEFT JOIN (SELECT created_by, count(*) AS n FROM service_account_keys
+  WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) GROUP BY created_by) kc ON kc.created_by = u.id
+LEFT JOIN (SELECT user_id, count(*) AS n FROM sessions WHERE expires_at > now() GROUP BY user_id) sc ON sc.user_id = u.id
+WHERE u.id = $1
+`
+
+type GetPersonRow struct {
+	ID               pgtype.UUID
+	Email            string
+	Name             string
+	CreatedAt        pgtype.Timestamptz
+	LastLoginAt      pgtype.Timestamptz
+	LastSeenAt       pgtype.Timestamptz
+	Role             string
+	RoleSource       string
+	RoleGroup        pgtype.Text
+	ManualRoleByName pgtype.Text
+	DashboardCount   int32
+	KeyCount         int32
+	SessionCount     int32
+}
+
+func (q *Queries) GetPerson(ctx context.Context, id pgtype.UUID) (GetPersonRow, error) {
+	row := q.db.QueryRow(ctx, getPerson, id)
+	var i GetPersonRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+		&i.LastSeenAt,
+		&i.Role,
+		&i.RoleSource,
+		&i.RoleGroup,
+		&i.ManualRoleByName,
+		&i.DashboardCount,
+		&i.KeyCount,
+		&i.SessionCount,
+	)
+	return i, err
+}
+
+const getUserForRole = `-- name: GetUserForRole :one
+SELECT id, email, groups, manual_role, role, role_source FROM users WHERE id = $1 FOR UPDATE
+`
+
+type GetUserForRoleRow struct {
+	ID         pgtype.UUID
+	Email      string
+	Groups     []string
+	ManualRole pgtype.Text
+	Role       string
+	RoleSource string
+}
+
+func (q *Queries) GetUserForRole(ctx context.Context, id pgtype.UUID) (GetUserForRoleRow, error) {
+	row := q.db.QueryRow(ctx, getUserForRole, id)
+	var i GetUserForRoleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Groups,
+		&i.ManualRole,
+		&i.Role,
+		&i.RoleSource,
+	)
+	return i, err
+}
+
 const getUserPrincipal = `-- name: GetUserPrincipal :one
 SELECT id, email, name, role, groups FROM users WHERE id = $1
 `
@@ -62,6 +141,7 @@ func (q *Queries) IsFirstUser(ctx context.Context, id pgtype.UUID) (bool, error)
 
 const listUsers = `-- name: ListUsers :many
 SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.last_seen_at,
+  u.role, u.role_source, u.role_group, u.manual_role_by_name,
   coalesce(dc.n, 0)::integer AS dashboard_count,
   coalesce(kc.n, 0)::integer AS key_count,
   coalesce(sc.n, 0)::integer AS session_count
@@ -84,15 +164,19 @@ type ListUsersParams struct {
 }
 
 type ListUsersRow struct {
-	ID             pgtype.UUID
-	Email          string
-	Name           string
-	CreatedAt      pgtype.Timestamptz
-	LastLoginAt    pgtype.Timestamptz
-	LastSeenAt     pgtype.Timestamptz
-	DashboardCount int32
-	KeyCount       int32
-	SessionCount   int32
+	ID               pgtype.UUID
+	Email            string
+	Name             string
+	CreatedAt        pgtype.Timestamptz
+	LastLoginAt      pgtype.Timestamptz
+	LastSeenAt       pgtype.Timestamptz
+	Role             string
+	RoleSource       string
+	RoleGroup        pgtype.Text
+	ManualRoleByName pgtype.Text
+	DashboardCount   int32
+	KeyCount         int32
+	SessionCount     int32
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
@@ -111,6 +195,10 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.CreatedAt,
 			&i.LastLoginAt,
 			&i.LastSeenAt,
+			&i.Role,
+			&i.RoleSource,
+			&i.RoleGroup,
+			&i.ManualRoleByName,
 			&i.DashboardCount,
 			&i.KeyCount,
 			&i.SessionCount,
@@ -168,6 +256,52 @@ func (q *Queries) ListUsersForRoles(ctx context.Context) ([]ListUsersForRolesRow
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAdmins = `-- name: LockAdmins :many
+SELECT id FROM users WHERE role = 'admin' FOR UPDATE
+`
+
+func (q *Queries) LockAdmins(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, lockAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setManualRole = `-- name: SetManualRole :exec
+UPDATE users SET manual_role = $1, manual_role_by_id = $2, manual_role_by_name = $3
+WHERE id = $4
+`
+
+type SetManualRoleParams struct {
+	ManualRole pgtype.Text
+	ByID       pgtype.UUID
+	ByName     pgtype.Text
+	ID         pgtype.UUID
+}
+
+func (q *Queries) SetManualRole(ctx context.Context, arg SetManualRoleParams) error {
+	_, err := q.db.Exec(ctx, setManualRole,
+		arg.ManualRole,
+		arg.ByID,
+		arg.ByName,
+		arg.ID,
+	)
+	return err
 }
 
 const setUserRole = `-- name: SetUserRole :exec
