@@ -27,6 +27,7 @@ export type DashboardSearch = {
   version?: number
   panel?: string
   edit?: EditView
+  share?: boolean
   vars: Record<string, string[]>
 }
 
@@ -40,7 +41,7 @@ export const ALL = "$__all"
 const panelIdPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/
 const variableNamePattern = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
 const versionPattern = /^[1-9][0-9]{0,8}$/
-const variablePrefix = "var-"
+export const variablePrefix = "var-"
 
 function firstString(value: unknown): string | undefined {
   const item = Array.isArray(value) ? value[0] : value
@@ -99,6 +100,10 @@ export function validateDashboardSearch(
     }
   }
 
+  if (state.edit === undefined && firstString(raw.share) === "1") {
+    state.share = true
+  }
+
   for (const key of Object.keys(raw)) {
     if (!key.startsWith(variablePrefix)) continue
     const name = key.slice(variablePrefix.length)
@@ -120,6 +125,7 @@ export function searchFromState(
   if (state.version !== undefined) out.version = state.version
   if (state.panel !== undefined) out.panel = state.panel
   if (state.edit !== undefined) out.edit = state.edit
+  if (state.share && state.edit === undefined) out.share = "1"
   for (const [name, values] of Object.entries(state.vars)) {
     if (values.length > 0) out[`${variablePrefix}${name}`] = values
   }

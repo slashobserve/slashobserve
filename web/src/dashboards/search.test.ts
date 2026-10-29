@@ -82,6 +82,23 @@ describe("validateDashboardSearch", () => {
     })
   })
 
+  it("keeps share only as 1 and drops it while a panel editor is open", () => {
+    expect(validateDashboardSearch({ share: "1" })).toEqual({
+      share: true,
+      vars: {},
+    })
+    expect(validateDashboardSearch({ share: "1", panel: "rps" })).toEqual({
+      share: true,
+      panel: "rps",
+      vars: {},
+    })
+    expect(validateDashboardSearch({ share: "0" })).toEqual({ vars: {} })
+    expect(validateDashboardSearch({ share: "true" })).toEqual({ vars: {} })
+    expect(
+      validateDashboardSearch({ share: "1", panel: "rps", edit: "query" })
+    ).toEqual({ panel: "rps", edit: "query", vars: {} })
+  })
+
   it("maps the legacy comments tab to a panel scope", () => {
     expect(validateDashboardSearch({ panel: "rps", tab: "comments" })).toEqual({
       panel: "rps",
@@ -162,6 +179,17 @@ describe("searchFromState", () => {
     const text = stringifySearch(searchFromState(state))
     expect(text).toBe("?var-svc=")
     expect(validateDashboardSearch(parseSearch(text))).toEqual(state)
+  })
+
+  it("writes share as 1 and never together with edit", () => {
+    expect(searchFromState({ share: true, panel: "rps", vars: {} })).toEqual({
+      panel: "rps",
+      share: "1",
+    })
+    expect(
+      searchFromState({ share: true, panel: "rps", edit: "json", vars: {} })
+    ).toEqual({ panel: "rps", edit: "json" })
+    expect(searchFromState({ share: false, vars: {} })).toEqual({})
   })
 
   it("round-trips through validation", () => {

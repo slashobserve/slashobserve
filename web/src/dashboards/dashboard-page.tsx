@@ -33,8 +33,9 @@ import {
   type CursorSync,
   type SharedCursor,
 } from "@/panels/shared-cursor"
+import { ShareToggle } from "@/share/share-pane"
 import { ThemeSwitch } from "@/shell/theme-switch"
-import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
+import { findPanel, isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
 import {
@@ -76,6 +77,7 @@ import {
   type DashboardEnvelope,
 } from "./queries"
 import { RefreshPicker } from "./refresh-picker"
+import { useRowStore } from "./rows/row-store"
 import {
   backFromSearch,
   panelEditorShowsNewerVersion,
@@ -91,6 +93,25 @@ import { useVariables } from "./use-variables"
 import { VariablesBar } from "./variables-bar"
 import { VersionMenu } from "./version-menu"
 import { VariableLoadError } from "./variables"
+
+function scrollCardIntoView() {
+  requestAnimationFrame(() =>
+    document.getElementById(activityCardId)?.scrollIntoView({
+      block: "nearest",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    })
+  )
+}
+
+function focusPanel(root: HTMLElement | null) {
+  const article = root?.querySelector<HTMLElement>("article")
+  if (!article) return
+  article.tabIndex = -1
+  article.scrollIntoView({ block: "center", behavior: "auto" })
+  article.focus({ preventScroll: true })
+}
 
 function pageClass(stacked: boolean) {
   return cn(
@@ -127,6 +148,8 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  focusOnRender: boolean
+  onFocused: () => void
   composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -156,6 +179,8 @@ const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  focusOnRender,
+  onFocused,
   composerRef,
 }: PanelContainerProps) {
   const panel = useMemo(
@@ -176,6 +201,12 @@ const PanelContainer = memo(function PanelContainer({
   useEffect(() => {
     if (seen) preloadRenderer(panel.type)
   }, [seen, panel.type])
+
+  useEffect(() => {
+    if (!focusOnRender) return
+    focusPanel(ref.current)
+    onFocused()
+  }, [focusOnRender, onFocused])
 
   const query = usePanelData({
     dashboardId,
@@ -397,7 +428,7 @@ function DashboardView({
   const setOpen = useActivityStore((state) => state.setOpen)
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
   const editingPanel = permissions.edit && panelInUrl
-  const cardVisible = (open || panelInUrl) && !editing
+  const cardVisible = (open || panelInUrl || search.share === true) && !editing
   const cardLayout = useActivityLayout(editingPanel)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
@@ -422,20 +453,53 @@ function DashboardView({
   const flashTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
 
+  const [linkedPanel, setLinkedPanel] = useState(search.panel)
+  const clearLinkedPanel = useCallback(() => setLinkedPanel(undefined), [])
+  useEffect(() => {
+    if (linkedPanel === undefined) return
+    const row = findPanel(spec, linkedPanel)?.row
+    if (row === undefined) return
+    const { collapsed, toggle } = useRowStore.getState()
+    const initial = row.collapsed ?? false
+    if (collapsed[dashboardId]?.[row.id] ?? initial) {
+      toggle(dashboardId, row.id, initial)
+    }
+  }, [linkedPanel, spec, dashboardId])
+
   const layoutEditingWithPanel =
-    editing && (search.panel !== undefined || search.edit !== undefined)
+    editing &&
+    (search.panel !== undefined ||
+      search.edit !== undefined ||
+      search.share === true)
   useEffect(() => {
     if (!layoutEditingWithPanel) return
-    setSearch((state) => ({ ...state, panel: undefined, edit: undefined }), {
-      replace: true,
-    })
+    setSearch(
+      (state) => ({
+        ...state,
+        panel: undefined,
+        edit: undefined,
+        share: false,
+      }),
+      { replace: true }
+    )
   }, [layoutEditingWithPanel, setSearch])
 
   const closeCard = useCallback(() => {
     setOpen(false)
-    if (search.panel === undefined && search.edit === undefined) return
-    setSearch((state) => ({ ...state, panel: undefined, edit: undefined }))
-  }, [setOpen, setSearch, search.panel, search.edit])
+    if (
+      search.panel === undefined &&
+      search.edit === undefined &&
+      search.share !== true
+    ) {
+      return
+    }
+    setSearch((state) => ({
+      ...state,
+      panel: undefined,
+      edit: undefined,
+      share: false,
+    }))
+  }, [setOpen, setSearch, search.panel, search.edit, search.share])
 
   const toggleCard = useCallback(() => {
     if (cardVisible) {
@@ -443,18 +507,18 @@ function DashboardView({
       return
     }
     setOpen(true)
-    if (cardLayout.stacked) {
-      requestAnimationFrame(() =>
-        document.getElementById(activityCardId)?.scrollIntoView({
-          block: "nearest",
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "auto"
-            : "smooth",
-        })
-      )
-    }
+    if (cardLayout.stacked) scrollCardIntoView()
   }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
+
+  const toggleShare = useCallback(() => {
+    const sharing = search.share === true
+    const apply = () => {
+      setSearch((state) => ({ ...state, edit: undefined, share: !sharing }))
+      if (!sharing && cardLayout.stacked) scrollCardIntoView()
+    }
+    if (editGuard.current) editGuard.current.leaveThen(apply)
+    else apply()
+  }, [search.share, setSearch, cardLayout.stacked])
 
   const onSelectPanel = useCallback((id: string) => {
     document
@@ -504,6 +568,12 @@ function DashboardView({
       onExport={() => downloadSpec(spec, spec.title, version)}
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
+    />,
+    <ShareToggle
+      key="share"
+      pressed={search.share === true && !editing}
+      disabled={editing}
+      onToggle={toggleShare}
     />,
     <ActivityToggle
       key="activity"
@@ -597,6 +667,8 @@ function DashboardView({
                 }
                 canComment={permissions.comment}
                 canEdit={permissions.edit}
+                focusOnRender={item.first && item.panel.id === linkedPanel}
+                onFocused={clearLinkedPanel}
                 composerRef={composerRef}
               />
             )}
@@ -612,6 +684,8 @@ function DashboardView({
           latestVersion={latestVersion}
           pinned={pinned}
           canEdit={permissions.edit}
+          folder={access.folder}
+          canManage={permissions.manage}
           madeBy={madeByBreadcrumb(envelope.dashboard.creator)}
           back={backFromSearch(search)}
           timeRange={timeRange}
