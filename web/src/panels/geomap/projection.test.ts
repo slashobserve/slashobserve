@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  clampCenter,
   clampZoom,
   fitBounds,
   maxLatitude,
   maxZoom,
   minZoom,
+  panBy,
   project,
   worldSize,
   worldView,
@@ -95,5 +97,36 @@ describe("zoom limits", () => {
   it("sizes the world as a square that doubles per zoom level", () => {
     expect(worldSize(1)).toBe(2 * worldSize(0))
     expect(worldSize(0)).toBe(256)
+  })
+})
+
+describe("clampCenter", () => {
+  it("keeps the center inside the unit square", () => {
+    expect(clampCenter(-0.2)).toBe(0)
+    expect(clampCenter(0.4)).toBe(0.4)
+    expect(clampCenter(1.3)).toBe(1)
+  })
+})
+
+describe("panBy", () => {
+  const view = { center: { x: 0.5, y: 0.5 }, zoom: 3 }
+
+  it("moves the center by the panel fraction in world units", () => {
+    const panned = panBy(view, 0.1, 0, 800, 400)
+    expect(panned.center.x).toBeCloseTo(0.5 + (0.1 * 800) / worldSize(3), 10)
+    expect(panned.center.y).toBe(0.5)
+    expect(panned.zoom).toBe(3)
+  })
+
+  it("moves up and left with negative fractions", () => {
+    const panned = panBy(view, -0.1, -0.1, 800, 400)
+    expect(panned.center.x).toBeCloseTo(0.5 - (0.1 * 800) / worldSize(3), 10)
+    expect(panned.center.y).toBeCloseTo(0.5 - (0.1 * 400) / worldSize(3), 10)
+  })
+
+  it("stops at the edges of the world", () => {
+    const edge = { center: { x: 0.99, y: 0.01 }, zoom: 3 }
+    const panned = panBy(edge, 0.5, -0.5, 800, 400)
+    expect(panned.center).toEqual({ x: 1, y: 0 })
   })
 })

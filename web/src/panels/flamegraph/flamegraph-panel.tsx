@@ -11,6 +11,7 @@ import {
   diffNote,
   flameModel,
   type FlameModel,
+  focusText,
   fullRange,
   search,
   shareText,
@@ -93,6 +94,10 @@ export const FlameGraphPanel: PanelRenderer = ({
   const [zoom, setZoom] = useState<{ model: FlameModel; index: number } | null>(
     null
   )
+  const [focus, setFocus] = useState<{
+    model: FlameModel
+    index: number | null
+  } | null>(null)
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const model = useMemo(() => flameModel(frames, fields), [frames, fields])
 
@@ -104,6 +109,7 @@ export const FlameGraphPanel: PanelRenderer = ({
   }
 
   const zoomed = zoom !== null && zoom.model === model ? zoom.index : null
+  const focused = focus !== null && focus.model === model ? focus.index : null
   const range = zoomed === null ? fullRange(model) : zoomTo(model, zoomed)
   const matches = search(model, query)
   const plotWidth = width - 2 * padX
@@ -154,15 +160,21 @@ export const FlameGraphPanel: PanelRenderer = ({
             matches={matches}
             width={plotWidth}
             theme={theme}
+            focused={focused}
             label={`Flame graph with ${model.nodes.length} frames and ${model.levels.length} levels`}
             onHover={setHover}
             onSelect={(index) => {
               setHover(null)
               setZoom({ model, index })
             }}
+            onFocusChange={(index) => setFocus({ model, index })}
+            onReset={zoomed === null ? null : () => setZoom(null)}
           />
         </div>
       ) : null}
+      <div aria-live="polite" className="sr-only">
+        {focused === null ? "" : focusText(model, focused)}
+      </div>
       {hover && bounds && hover.index < model.nodes.length ? (
         <Tooltip profile={model} hover={hover} bounds={bounds} />
       ) : null}

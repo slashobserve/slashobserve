@@ -8,13 +8,17 @@ import {
   brokenOrderReason,
   colorOf,
   flameModel,
+  focusText,
   fullRange,
+  isFlameKey,
   missingFieldsReason,
   nodeAt,
   packagePrefix,
   search,
   shareText,
+  stepFocus,
   zoomTo,
+  type FlameKey,
   type FlameModel,
   type FlameProfile,
 } from "./flame-model"
@@ -250,5 +254,66 @@ describe("shareText", () => {
   it("shows two decimals", () => {
     expect(shareText(0.6)).toBe("60.00%")
     expect(shareText(0.00042)).toBe("0.04%")
+  })
+})
+
+describe("stepFocus", () => {
+  const rows: Row[] = [
+    [0, 10, 0, "root"],
+    [1, 4, 0, "a"],
+    [2, 4, 4, "a.leaf"],
+    [1, 6, 1, "b"],
+    [2, 2, 2, "b.first"],
+    [2, 3, 3, "b.second"],
+  ]
+  const profile = profileOf(rows)
+  const [root, a, aLeaf, b, bFirst, bSecond] = [0, 1, 2, 3, 4, 5]
+
+  const cases: [string, number | null, FlameKey, number][] = [
+    ["nothing focused enters at the root on Down", null, "ArrowDown", root],
+    ["nothing focused enters at the root on Left", null, "ArrowLeft", root],
+    ["Home from a leaf goes to the root", bSecond, "Home", root],
+    ["Up at the root stays", root, "ArrowUp", root],
+    ["Left at the root stays", root, "ArrowLeft", root],
+    ["Right at the root stays", root, "ArrowRight", root],
+    ["Down from the root goes to the first child", root, "ArrowDown", a],
+    ["Up from a middle node goes to its parent", b, "ArrowUp", root],
+    ["Down from a middle node goes to its first child", b, "ArrowDown", bFirst],
+    ["Right from a middle node goes to the next sibling", a, "ArrowRight", b],
+    ["Left from a middle node goes to the previous one", b, "ArrowLeft", a],
+    ["Right crosses parents along the row", aLeaf, "ArrowRight", bFirst],
+    ["Left crosses parents along the row", bFirst, "ArrowLeft", aLeaf],
+    ["Right at the end of a row stays", bSecond, "ArrowRight", bSecond],
+    ["Left at the start of a row stays", aLeaf, "ArrowLeft", aLeaf],
+    ["Down on a leaf stays", aLeaf, "ArrowDown", aLeaf],
+    ["Up from a leaf goes to its parent", bSecond, "ArrowUp", b],
+  ]
+
+  it.each(cases)("%s", (_name, from, key, expected) => {
+    expect(stepFocus(profile, from, key)).toBe(expected)
+  })
+
+  it("treats an index outside the profile like nothing focused", () => {
+    expect(stepFocus(profile, 99, "ArrowDown")).toBe(root)
+  })
+})
+
+describe("isFlameKey", () => {
+  it("accepts the arrows and Home only", () => {
+    expect(
+      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home"].every(
+        isFlameKey
+      )
+    ).toBe(true)
+    expect(["Enter", " ", "Escape", "a"].some(isFlameKey)).toBe(false)
+  })
+})
+
+describe("focusText", () => {
+  it("reads the label, total with share, self and one-based level", () => {
+    const profile = profileOf(sample)
+    expect(focusText(profile, 1)).toBe(
+      "http.serve, total 6 ms (60.00%), self 2 ms, level 2"
+    )
   })
 })

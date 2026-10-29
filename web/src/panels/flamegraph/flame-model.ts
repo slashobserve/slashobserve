@@ -1,5 +1,9 @@
 import { styleForSlot } from "../colors"
-import type { FieldConfig, FieldResolver } from "../field-config"
+import {
+  displayValue,
+  type FieldConfig,
+  type FieldResolver,
+} from "../field-config"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
 export type FlameNode = {
@@ -208,4 +212,46 @@ export function search(
 
 export function shareText(share: number): string {
   return `${(share * 100).toFixed(2)}%`
+}
+
+const flameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home"]
+
+export type FlameKey =
+  "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home"
+
+export function isFlameKey(key: string): key is FlameKey {
+  return flameKeys.includes(key)
+}
+
+export function stepFocus(
+  profile: FlameProfile,
+  index: number | null,
+  key: FlameKey
+): number | null {
+  const root = profile.levels[0]?.[0] ?? null
+  const node = index === null ? undefined : profile.nodes[index]
+  if (!node || key === "Home") return root
+  switch (key) {
+    case "ArrowUp":
+      return node.parent === -1 ? node.index : node.parent
+    case "ArrowDown":
+      return (
+        profile.levels[node.level + 1]?.find(
+          (child) => profile.nodes[child].parent === node.index
+        ) ?? node.index
+      )
+    case "ArrowLeft":
+    case "ArrowRight": {
+      const row = profile.levels[node.level]
+      const next = row.indexOf(node.index) + (key === "ArrowLeft" ? -1 : 1)
+      return row[next] ?? node.index
+    }
+  }
+}
+
+export function focusText(profile: FlameProfile, index: number): string {
+  const node = profile.nodes[index]
+  const total = displayValue(node.value, profile.config).text
+  const self = displayValue(node.self, profile.config).text
+  return `${node.label}, total ${total} (${shareText(node.share)}), self ${self}, level ${node.level + 1}`
 }

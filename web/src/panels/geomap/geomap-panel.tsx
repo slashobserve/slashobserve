@@ -1,9 +1,11 @@
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react"
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
@@ -19,18 +21,31 @@ import {
   viewOptions,
   type Marker,
 } from "./geo-model"
-import { clampZoom, maxZoom, minZoom, worldSize, type View } from "./projection"
+import {
+  clampCenter,
+  clampZoom,
+  maxZoom,
+  minZoom,
+  panBy,
+  worldSize,
+  type View,
+} from "./projection"
 import { worldOutline } from "./world"
 
 const tooltipOffset = 12
 const tooltipHeight = 120
+const panStep = 0.1
+const keyboardHint =
+  "Arrow keys pan, plus and minus zoom, 0 resets the view. View as table lists every marker."
+const panKeys: Record<string, [number, number]> = {
+  ArrowLeft: [-panStep, 0],
+  ArrowRight: [panStep, 0],
+  ArrowUp: [0, -panStep],
+  ArrowDown: [0, panStep],
+}
 
 type Hover = { marker: Marker; x: number; y: number }
 type Drag = { startX: number; startY: number; view: View }
-
-function clampCenter(value: number): number {
-  return Math.max(0, Math.min(1, value))
-}
 
 function Tooltip({
   hover,
@@ -123,6 +138,7 @@ export const GeomapPanel: PanelRenderer = ({
   const [hover, setHover] = useState<Hover | null>(null)
   const drag = useRef<Drag | null>(null)
   const frame = useRef<HTMLDivElement>(null)
+  const hintId = useId()
 
   if (model.reason) {
     return (
@@ -160,6 +176,24 @@ export const GeomapPanel: PanelRenderer = ({
       center: view.center,
       zoom: clampZoom(view.zoom + step, width, height),
     })
+  }
+
+  function resetView() {
+    setHover(null)
+    setManual(null)
+  }
+
+  function onKeyDown(event: ReactKeyboardEvent<SVGSVGElement>) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    const pan = panKeys[event.key]
+    if (pan) {
+      setHover(null)
+      setManual(panBy(view, pan[0], pan[1], width, height))
+    } else if (event.key === "+" || event.key === "=") zoomBy(1)
+    else if (event.key === "-") zoomBy(-1)
+    else if (event.key === "0") resetView()
+    else return
+    event.preventDefault()
   }
 
   function onPointerDown(event: ReactPointerEvent<SVGSVGElement>) {
@@ -216,11 +250,15 @@ export const GeomapPanel: PanelRenderer = ({
       style={{ width, height }}
     >
       <svg
-        role="img"
+        tabIndex={0}
+        role="group"
+        aria-roledescription="map"
         aria-label={`Map with ${model.markers.length} markers`}
+        aria-describedby={hintId}
         width={width}
         height={height}
-        className="block cursor-grab touch-none active:cursor-grabbing"
+        className="block cursor-grab touch-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:cursor-grabbing"
+        onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -274,14 +312,14 @@ export const GeomapPanel: PanelRenderer = ({
           size="icon-sm"
           aria-label="Reset view"
           disabled={manual === null}
-          onClick={() => {
-            setHover(null)
-            setManual(null)
-          }}
+          onClick={resetView}
         >
           <RotateCcwIcon />
         </Button>
       </div>
+      <span id={hintId} className="sr-only">
+        {keyboardHint}
+      </span>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between gap-3 px-2 pb-1 text-xs text-muted-foreground">
         <span className="min-w-0 truncate">{notes.join(" ")}</span>
         <span className="shrink-0">Natural Earth</span>
