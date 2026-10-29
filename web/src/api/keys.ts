@@ -124,3 +124,7 @@ export const importKeys = {
   list: (scope: "mine") => ["imports", "list", scope] as const,
   forDashboard: (id: string) => ["imports", "dashboard", id] as const,
 }
+
+export const outboundDomainKeys = {
+  list: () => ["outbound-domains"] as const,
+}
