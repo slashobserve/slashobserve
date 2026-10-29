@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -27,6 +28,8 @@ const (
 
 	uniqueViolation          = "23505"
 	requestVersionConstraint = "dashboard_versions_agent_request_id_key"
+	foreignKeyViolation      = "23503"
+	dashboardFolderFK        = "dashboards_folder_id_fkey"
 )
 
 var (
@@ -57,6 +60,8 @@ type Dashboard struct {
 	UpdatedAt     time.Time
 	UpdatedBy     Author
 	Creator       Creator
+	Folder        folders.Folder
+	Abilities     folders.Abilities
 }
 
 type VersionMeta struct {
@@ -88,6 +93,7 @@ type newVersion struct {
 	requestID    pgtype.UUID
 	origin       origin.Origin
 	unverified   Unverified
+	folder       folders.Folder
 }
 
 type store struct {
@@ -121,6 +127,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 			CreatedOrigin:       originKind,
 			CreatedOriginClient: originClient,
 			CreatedVia:          via,
+			FolderID:            in.folder.ID,
 		})
 		if err != nil {
 			return fmt.Errorf("create dashboard: %w", err)
@@ -131,6 +138,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 			return err
 		}
 		dash, ver = dashboardFromRow(row, in.author), Version{VersionMeta: meta, Spec: in.spec, Unverified: in.unverified}
+		dash.Folder = in.folder
 		if inTx == nil {
 			return nil
 		}
@@ -140,7 +148,28 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == requestVersionConstraint {
 		return Dashboard{}, Version{}, errRequestSaved
 	}
+	if isFolderGone(err) {
+		return Dashboard{}, Version{}, ErrFolderNotFound
+	}
 	return dash, ver, err
+}
+
+func isFolderGone(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == dashboardFolderFK
+}
+
+func (st store) move(ctx context.Context, id, folderID pgtype.UUID) error {
+	_, err := st.db.Queries().MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: folderID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrNotFound
+	case isFolderGone(err):
+		return ErrFolderNotFound
+	case err != nil:
+		return fmt.Errorf("move dashboard: %w", err)
+	}
+	return nil
 }
 
 func (st store) addVersion(ctx context.Context, in newVersion) (Dashboard, Version, error) {
@@ -274,6 +303,7 @@ func (st store) latest(ctx context.Context, id pgtype.UUID) (Dashboard, Version,
 	}
 	v := row.DashboardVersion
 	dash := dashboardFromRow(row.Dashboard, authorFromRow(v.AuthorKind, v.AuthorID, v.AuthorName, v.AuthorEmail))
+	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral)
 	ver, err := versionFromRow(v)
 	return dash, ver, err
 }
@@ -287,6 +317,7 @@ func (st store) version(ctx context.Context, id pgtype.UUID, number int) (Dashbo
 		return Dashboard{}, Version{}, fmt.Errorf("get dashboard version: %w", err)
 	}
 	dash := dashboardFromRow(row.Dashboard, authorFromRow(row.UpdatedByKind, row.UpdatedByID, row.UpdatedByName, row.UpdatedByEmail))
+	dash.Folder = folderOf(row.Dashboard.FolderID, row.FolderTitle, row.FolderGeneral)
 	ver, err := versionFromRow(row.DashboardVersion)
 	return dash, ver, err
 }
@@ -315,6 +346,8 @@ func (st store) unverified(ctx context.Context, id pgtype.UUID, number int) (Unv
 
 func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
 	params := dbsqlc.ListDashboardsParams{
+		Folders:     f.Folders,
+		Folder:      f.Folder,
 		CreatorKind: f.CreatorKind,
 		CreatorID:   f.CreatorID,
 		OnlyAgent:   f.OnlyAgent,
@@ -333,20 +366,63 @@ func (st store) list(ctx context.Context, after *httpapi.TimeCursor, limit int, 
 	if err != nil {
 		return nil, fmt.Errorf("list dashboards: %w", err)
 	}
+	return listItemsOf(rows), nil
+}
+
+func (st store) listByFolder(ctx context.Context, after *folderCursor, limit int, f dbsqlc.CountDashboardsParams) ([]ListItem, error) {
+	params := dbsqlc.ListDashboardsByFolderParams{
+		Folders:     f.Folders,
+		Folder:      f.Folder,
+		CreatorKind: f.CreatorKind,
+		CreatorID:   f.CreatorID,
+		OnlyAgent:   f.OnlyAgent,
+		OnlyMcp:     f.OnlyMcp,
+		McpClient:   f.McpClient,
+		Datasource:  f.Datasource,
+		Q:           f.Q,
+		Tags:        f.Tags,
+		RowLimit:    httpapi.Int32(limit),
+	}
+	if after != nil {
+		params.CFolder = after.FolderID
+		params.CGeneral = pgtype.Bool{Bool: after.General, Valid: true}
+		params.CTitle = pgtype.Text{String: after.Title, Valid: true}
+		params.CUpdatedAt = pgtype.Timestamptz{Time: after.UpdatedAt, Valid: true}
+		params.CID = after.ID
+	}
+	rows, err := st.db.Queries().ListDashboardsByFolder(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboards by folder: %w", err)
+	}
+	same := make([]dbsqlc.ListDashboardsRow, len(rows))
+	for i, r := range rows {
+		same[i] = dbsqlc.ListDashboardsRow(r)
+	}
+	return listItemsOf(same), nil
+}
+
+func listItemsOf(rows []dbsqlc.ListDashboardsRow) []ListItem {
 	items := make([]ListItem, 0, len(rows))
 	for _, r := range rows {
 		uids := r.DatasourceUids
 		if uids == nil {
 			uids = []string{}
 		}
+		dash := dashboardFromRow(r.Dashboard, authorFromRow(r.UpdatedByKind, r.UpdatedByID, r.UpdatedByName, r.UpdatedByEmail))
+		dash.Folder = folderOf(r.Dashboard.FolderID, r.FolderTitle, r.FolderGeneral)
 		items = append(items, ListItem{
-			Dashboard:      dashboardFromRow(r.Dashboard, authorFromRow(r.UpdatedByKind, r.UpdatedByID, r.UpdatedByName, r.UpdatedByEmail)),
+			Dashboard:      dash,
 			Description:    r.Description,
 			DatasourceUIDs: uids,
 			OpenComments:   int(r.OpenCommentCount),
+			sortTitle:      r.FolderSortTitle,
 		})
 	}
-	return items, nil
+	return items
+}
+
+func folderOf(id pgtype.UUID, title string, general bool) folders.Folder {
+	return folders.Folder{ID: id, Title: title, General: general}
 }
 
 func (st store) count(ctx context.Context, f dbsqlc.CountDashboardsParams) (int, error) {
@@ -357,8 +433,10 @@ func (st store) count(ctx context.Context, f dbsqlc.CountDashboardsParams) (int,
 	return int(n), nil
 }
 
-func filterOf(p ListParams) (dbsqlc.CountDashboardsParams, error) {
+func filterOf(p ListParams, visible []pgtype.UUID) (dbsqlc.CountDashboardsParams, error) {
 	f := dbsqlc.CountDashboardsParams{
+		Folders:    visible,
+		Folder:     p.Folder,
 		OnlyAgent:  p.MadeBy.AgentOnly,
 		OnlyMcp:    p.MadeBy.MCPOnly,
 		McpClient:  optionalText(p.MadeBy.MCPClient),
@@ -406,6 +484,7 @@ func dashboardFromRow(row dbsqlc.Dashboard, updatedBy Author) Dashboard {
 		ID:            row.ID.String(),
 		Title:         row.Title,
 		Tags:          tags,
+		Folder:        folders.Folder{ID: row.FolderID},
 		LatestVersion: int(row.LatestVersion),
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 		UpdatedAt:     row.UpdatedAt.Time.UTC(),

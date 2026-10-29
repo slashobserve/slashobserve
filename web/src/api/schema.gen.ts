@@ -447,8 +447,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List dashboards, most recently updated first.
-         * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor.
+         * List the dashboards the caller can see, most recently updated first or grouped by folder.
+         * @description Filters combine with AND; `total_count` counts all matches regardless of the cursor. Dashboards in folders the caller cannot see are never listed or counted. A `cursor` only works with the `order` it came from; a cursor from the other order is a 400.
          */
         get: operations["listDashboards"];
         put?: never;
@@ -493,7 +493,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Move a dashboard to another folder.
+         * @description Needs Edit on the dashboard and on the target folder. A move creates no version, does not change `updated_at` and sends no event.
+         */
+        patch: operations["moveDashboard"];
         trace?: never;
     };
     "/dashboards/{id}/versions": {
@@ -1348,6 +1352,13 @@ export interface components {
              */
             via: "direct" | "agent";
         };
+        DashboardFolder: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description True for the General folder. */
+            general: boolean;
+        };
         DashboardSummary: {
             /** Format: uuid */
             id: string;
@@ -1360,6 +1371,8 @@ export interface components {
             updated_at: string;
             updated_by: components["schemas"]["Author"];
             creator: components["schemas"]["Creator"];
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
         };
         DashboardListItem: {
             /** Format: uuid */
@@ -1379,6 +1392,8 @@ export interface components {
             datasource_uids: string[];
             /** @description Open comment threads on the dashboard; replies are not counted. */
             open_comment_count: number;
+            folder: components["schemas"]["DashboardFolder"];
+            permissions: components["schemas"]["Permissions"];
         };
         VersionMeta: {
             version: number;
@@ -3006,6 +3021,10 @@ export interface operations {
                 datasource?: string;
                 /** @description Case-insensitive text found in the title or the description; leading and trailing whitespace is ignored and a value of only whitespace is rejected. */
                 q?: string;
+                /** @description Only dashboards in this folder; a folder that does not exist or that the caller cannot see gives an empty page, not an error. */
+                folder?: string;
+                /** @description `updated` (default) sorts by most recent update. `folder` sorts General last and the other folders by lower-case title, then folder id, and by most recent update inside a folder. */
+                order?: "updated" | "folder";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
             };
@@ -3030,6 +3049,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };
@@ -3049,6 +3069,11 @@ export interface operations {
                     };
                     /** @description A blank or missing summary uses the default `Create dashboard`. */
                     summary?: string;
+                    /**
+                     * Format: uuid
+                     * @description The folder to create the dashboard in. Missing means the caller's last used folder they can still create in, else General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     */
+                    folder_id?: string;
                 };
             };
         };
@@ -3066,6 +3091,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -3095,6 +3121,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["Internal"];
         };
     };
@@ -3120,6 +3147,41 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    moveDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    folder_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The dashboard in its new folder with its latest version. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardWithVersion"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -3152,6 +3214,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -3231,6 +3294,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -3306,6 +3370,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };
@@ -3410,6 +3475,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["Internal"];
         };

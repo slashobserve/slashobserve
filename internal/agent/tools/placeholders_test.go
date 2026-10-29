@@ -9,10 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -46,7 +49,7 @@ func newPlaceholderRig(t *testing.T) *placeholderRig {
 		t.Fatal(err)
 	}
 	runner := queryproxy.NewRunner(datasources, logger)
-	service := dashboards.New(database.DB, runner, logger)
+	service := dashboards.New(database.DB, runner, folders.NewAccess(database.DB), logger)
 	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Logger: logger})
 	return &placeholderRig{registry: registry, service: service, ctx: auth.WithPrincipal(context.Background(), placeholderUser)}
 }
@@ -69,7 +72,7 @@ func specOf(panels ...string) string {
 
 func (r *placeholderRig) seed(t *testing.T, panels ...string) string {
 	t.Helper()
-	dash, _, err := r.service.Create(r.ctx, placeholderUser, []byte(specOf(panels...)), "import")
+	dash, _, err := r.service.Create(r.ctx, placeholderUser, pgtype.UUID{}, []byte(specOf(panels...)), "import")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +133,7 @@ func TestCreateRejectsPlaceholderPanels(t *testing.T) {
 	if issue.Path != "/panels/1" || !strings.Contains(issue.Message, "cannot create placeholder panels") {
 		t.Fatalf("issue = %+v", issue)
 	}
-	page, err := r.service.List(r.ctx, dashboards.ListParams{Limit: 10})
+	page, err := r.service.List(r.ctx, placeholderUser, dashboards.ListParams{Limit: 10})
 	if err != nil || len(page.Items) != 0 {
 		t.Fatalf("saved dashboards = %v err = %v", page.Items, err)
 	}

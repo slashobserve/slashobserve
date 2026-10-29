@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -133,6 +134,13 @@ func (cm *Comments) anchorPanels(ctx context.Context, dashboardID pgtype.UUID, a
 }
 
 func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in NewComment) (Comment, error) {
+	found, err := cm.dashboards.need(ctx, by, dashboardID, folders.NeedComment)
+	if err != nil {
+		return Comment{}, err
+	}
+	if in.RequestRevision && !found.Abilities.Edit {
+		return Comment{}, folders.ErrForbidden
+	}
 	body, err := checkCommentBody(in.Body)
 	if err != nil {
 		return Comment{}, err
@@ -337,6 +345,9 @@ func (cm *Comments) ThreadVersion(ctx context.Context, dashboardID, commentID pg
 }
 
 func (cm *Comments) SetStatus(ctx context.Context, by auth.Principal, dashboardID, commentID pgtype.UUID, status string, resolvedByVersion *int) (Comment, bool, error) {
+	if _, err := cm.dashboards.need(ctx, by, dashboardID, folders.NeedComment); err != nil {
+		return Comment{}, false, err
+	}
 	if err := checkResolvedByVersion(status, resolvedByVersion); err != nil {
 		return Comment{}, false, err
 	}

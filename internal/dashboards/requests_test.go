@@ -19,13 +19,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const testUserID = "11111111-1111-4111-8111-111111111111"
 
-var testUser = auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Email: "ada@example.com"}
+var testUser = auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Email: "ada@example.com", Role: auth.RoleEditor}
 
 func TestMain(m *testing.M) {
 	os.Exit(dbtest.Main(m))
@@ -83,7 +84,7 @@ func newRig(t *testing.T, agent bool) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := New(database.DB, queryproxy.NewRunner(registry, logger), logger)
+	service := New(database.DB, queryproxy.NewRunner(registry, logger), folders.NewAccess(database.DB), logger)
 	var reviser revisions.Reviser
 	if agent {
 		reviser = noopReviser{}
@@ -108,7 +109,7 @@ func (r *rig) createDashboard(t *testing.T, panelIDs ...string) pgtype.UUID {
 	if len(panelIDs) == 0 {
 		panelIDs = []string{"rps"}
 	}
-	dash, _, err := r.service.Create(t.Context(), testUser, panelsSpec("t", panelIDs...), "create")
+	dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, panelsSpec("t", panelIDs...), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,8 +260,10 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 	rev := items[0]
+	storedUser := testUser
+	storedUser.Role = ""
 	if rev.ID != comment.Revision.ID || rev.Source != revisions.SourceComment || rev.CommentID != comment.ID || rev.PanelID != "errors" ||
-		rev.Prompt != "show this per route" || rev.BaseVersion == nil || *rev.BaseVersion != 1 || !reflect.DeepEqual(rev.RequestedBy, testUser) {
+		rev.Prompt != "show this per route" || rev.BaseVersion == nil || *rev.BaseVersion != 1 || !reflect.DeepEqual(rev.RequestedBy, storedUser) {
 		t.Fatalf("revision = %+v", rev)
 	}
 
@@ -352,10 +355,10 @@ func TestPeopleCountDashboardsSavedByTheirAgentRequests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	person := auth.Principal{Kind: auth.KindUser, ID: user.ID.String(), Name: "Ada", Email: "ada@example.com"}
-	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci"}
+	person := auth.Principal{Kind: auth.KindUser, ID: user.ID.String(), Name: "Ada", Email: "ada@example.com", Role: auth.RoleEditor}
+	key := auth.Principal{Kind: auth.KindServiceAccount, ID: "33333333-3333-4333-8333-333333333333", Name: "ci", Role: auth.RoleEditor}
 
-	if _, _, err := r.service.Create(t.Context(), person, panelsSpec("by hand", "rps"), "create"); err != nil {
+	if _, _, err := r.service.Create(t.Context(), person, pgtype.UUID{}, panelsSpec("by hand", "rps"), "create"); err != nil {
 		t.Fatal(err)
 	}
 	for _, requester := range []auth.Principal{person, key} {
@@ -363,7 +366,7 @@ func TestPeopleCountDashboardsSavedByTheirAgentRequests(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, _, _, err := r.service.CreateRequestDashboard(t.Context(), requester, panelsSpec("by agent", "rps"), "create", request.ID); err != nil {
+		if _, _, _, err := r.service.CreateRequestDashboard(t.Context(), requester, pgtype.UUID{}, panelsSpec("by agent", "rps"), "create", request.ID); err != nil {
 			t.Fatal(err)
 		}
 	}

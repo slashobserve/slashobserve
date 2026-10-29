@@ -192,7 +192,7 @@ func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFu
 		}
 		return nil
 	}
-	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, rawSpec, importSummary(result.Summary.Title), req.RequestID, hook)
+	dash, ver, _, replayed, err := s.dashboard.CreateImported(ctx, by, pgtype.UUID{}, rawSpec, importSummary(result.Summary.Title), req.RequestID, hook)
 	if err != nil {
 		return Imported{}, err
 	}

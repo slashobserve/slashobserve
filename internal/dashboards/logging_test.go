@@ -28,7 +28,7 @@ func TestInternalFailureLogsOnlyCodeTypeAndIDs(t *testing.T) {
 	engine.Use(func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(testUser)))
 	})
-	r.service.Register(auth.NewRoutes(engine.Group("/api/v1")))
+	engine.GET("/api/v1/dashboards/:id", r.service.getDashboard)
 	r.db.Close()
 
 	rec := httptest.NewRecorder()
@@ -53,7 +53,7 @@ func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
 	engine.Use(func(c *gin.Context) {
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(testUser)))
 	})
-	r.service.Register(auth.NewRoutes(engine.Group("/api/v1")))
+	engine.GET("/api/v1/dashboards/:id", r.service.getDashboard)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 

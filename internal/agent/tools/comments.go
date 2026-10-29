@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
 const (
@@ -113,8 +114,10 @@ func commentFailure(err error) (Result, error) {
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
-	case errors.Is(err, dashboards.ErrCommentNotFound), errors.Is(err, dashboards.ErrNotFound):
+	case errors.Is(err, dashboards.ErrCommentNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeNotFound, "dashboard or comment not found"), nil
+	case errors.Is(err, folders.ErrForbidden):
+		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	}
 	return Result{}, err
 }

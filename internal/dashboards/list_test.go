@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -18,8 +20,8 @@ const (
 )
 
 var (
-	otherUser  = auth.Principal{Kind: auth.KindUser, ID: otherUserID, Name: "Bob", Email: "bob@example.com"}
-	serviceKey = auth.Principal{Kind: auth.KindServiceAccount, ID: serviceKeyID, Name: "ci"}
+	otherUser  = auth.Principal{Kind: auth.KindUser, ID: otherUserID, Name: "Bob", Email: "bob@example.com", Role: auth.RoleEditor}
+	serviceKey = auth.Principal{Kind: auth.KindServiceAccount, ID: serviceKeyID, Name: "ci", Role: auth.RoleEditor}
 )
 
 func specWithDatasources(title, description string, datasources ...string) []byte {
@@ -49,7 +51,7 @@ func (r *rig) seedList(t *testing.T) map[string]string {
 	}
 	ids := map[string]string{}
 	for _, s := range seeds {
-		dash, _, err := r.service.Create(origin.With(t.Context(), s.from), s.by, specWithDatasources(s.title, s.desc, s.uids...), "create")
+		dash, _, err := r.service.Create(origin.With(t.Context(), s.from), s.by, pgtype.UUID{}, specWithDatasources(s.title, s.desc, s.uids...), "create")
 		if err != nil {
 			t.Fatalf("create %s: %v", s.title, err)
 		}
@@ -107,7 +109,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 				}
 				params.MadeBy = parsed
 			}
-			page, err := r.service.List(t.Context(), params)
+			page, err := r.service.List(t.Context(), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -119,7 +121,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 			}
 
 			params.Limit = 1
-			paged, err := r.service.List(t.Context(), params)
+			paged, err := r.service.List(t.Context(), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +133,7 @@ func TestListTotalCountMatchesTheFilteredRows(t *testing.T) {
 			}
 
 			params.SkipTotal = true
-			skipped, err := r.service.List(t.Context(), params)
+			skipped, err := r.service.List(t.Context(), testUser, params)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -157,7 +159,7 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 		"Fleet":    {"demo"},
 		"Untagged": nil,
 	} {
-		if _, _, err := r.service.Create(t.Context(), testUser, taggedSpec(title, tags...), "create"); err != nil {
+		if _, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, taggedSpec(title, tags...), "create"); err != nil {
 			t.Fatalf("create %s: %v", title, err)
 		}
 	}
@@ -174,7 +176,7 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			page, err := r.service.List(t.Context(), ListParams{Limit: 50, Tags: tt.tags})
+			page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, Tags: tt.tags})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -191,11 +193,11 @@ func TestListFiltersByEveryGivenTag(t *testing.T) {
 func TestListTotalCountIgnoresTheCursor(t *testing.T) {
 	r := newRig(t, false)
 	r.seedList(t)
-	first, err := r.service.List(t.Context(), ListParams{Limit: 2})
+	first, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := r.service.List(t.Context(), ListParams{Limit: 2, Cursor: first.NextCursor})
+	second, err := r.service.List(t.Context(), testUser, ListParams{Limit: 2, Cursor: first.NextCursor})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +209,7 @@ func TestListTotalCountIgnoresTheCursor(t *testing.T) {
 func TestListReportsDatasourcesAndCreator(t *testing.T) {
 	r := newRig(t, false)
 	ids := r.seedList(t)
-	page, err := r.service.List(t.Context(), ListParams{Limit: 50})
+	page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +248,7 @@ func TestListCountsOnlyOpenRootThreads(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	page, err := r.service.List(t.Context(), ListParams{Limit: 50})
+	page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +263,7 @@ func TestListCountsOnlyOpenRootThreads(t *testing.T) {
 	if _, _, err := r.comments.SetStatus(t.Context(), testUser, busy, mustParse(t, open.ID), CommentResolved, nil); err != nil {
 		t.Fatal(err)
 	}
-	page, err = r.service.List(t.Context(), ListParams{Limit: 50})
+	page, err = r.service.List(t.Context(), testUser, ListParams{Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +318,7 @@ func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		page, err := r.service.List(t.Context(), ListParams{Limit: 50, MadeBy: parsed})
+		page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 50, MadeBy: parsed})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -328,13 +330,13 @@ func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 
 func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 	r := newRig(t, false)
-	dash, _, err := r.service.Create(t.Context(), testUser, specWithDatasources("Usage", "", "prom"), "create")
+	dash, _, err := r.service.Create(t.Context(), testUser, pgtype.UUID{}, specWithDatasources("Usage", "", "prom"), "create")
 	if err != nil {
 		t.Fatal(err)
 	}
 	check := func(label string, want map[string]int) {
 		t.Helper()
-		usage, err := r.service.DatasourceUsage(t.Context())
+		usage, err := r.service.DatasourceUsage(t.Context(), testUser)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -342,7 +344,7 @@ func TestDatasourceUsageCountsOnlyTheLatestVersion(t *testing.T) {
 			if usage[uid] != want[uid] {
 				t.Errorf("%s: usage[%s] = %d, want %d", label, uid, usage[uid], want[uid])
 			}
-			page, err := r.service.List(t.Context(), ListParams{Limit: 1, Datasource: uid})
+			page, err := r.service.List(t.Context(), testUser, ListParams{Limit: 1, Datasource: uid})
 			if err != nil {
 				t.Fatal(err)
 			}

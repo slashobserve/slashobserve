@@ -34,7 +34,7 @@ type Mount struct {
 }
 
 type DatasourceUsage interface {
-	DatasourceUsage(ctx context.Context) (map[string]int, error)
+	DatasourceUsage(ctx context.Context, by auth.Principal) (map[string]int, error)
 }
 
 type Options struct {

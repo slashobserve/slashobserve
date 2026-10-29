@@ -28,7 +28,7 @@ func registerDatasourceRoutes(api auth.Routes, registry *datasource.Registry, us
 		var counts map[string]int
 		if usage != nil {
 			var err error
-			if counts, err = usage.DatasourceUsage(ctx); err != nil {
+			if counts, err = usage.DatasourceUsage(ctx, httpapi.Caller(c)); err != nil {
 				if clientgone.Handle(c, logger, "count dashboards per datasource", err) {
 					return
 				}

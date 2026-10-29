@@ -734,10 +734,23 @@ components:
           type: string
           enum: [direct, agent]
           description: "`agent` when the agent saved version 1; `author` is then the person or key that asked."
+    DashboardFolder:
+      type: object
+      additionalProperties: false
+      required: [id, title, general]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        general:
+          type: boolean
+          description: True for the General folder.
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions]
       properties:
         id:
           type: string
@@ -761,10 +774,14 @@ components:
           $ref: "#/components/schemas/Author"
         creator:
           $ref: "#/components/schemas/Creator"
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, folder, permissions]
       properties:
         id:
           type: string
@@ -801,6 +818,10 @@ components:
           type: integer
           minimum: 0
           description: Open comment threads on the dashboard; replies are not counted.
+        folder:
+          $ref: "#/components/schemas/DashboardFolder"
+        permissions:
+          $ref: "#/components/schemas/Permissions"
     VersionMeta:
       type: object
       additionalProperties: false
