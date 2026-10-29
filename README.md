@@ -5,7 +5,7 @@ Type `/observe checkout health by pod, last 6h`, get a dashboard backed by your 
 
 This repository is the Community Edition: one Go binary with the web UI embedded, plus Postgres.
 It is at an early stage: the scaffold is in place and features land step by step.
-To run it on your own infrastructure, read the [self-hosting guide](docs/self-hosting.md).
+To run it on your own infrastructure, start with [installing it](docs/get-started/install.md); the [docs](docs/) cover connecting datasources, sign-in, teams and operations.
 
 ## Run it locally
 
