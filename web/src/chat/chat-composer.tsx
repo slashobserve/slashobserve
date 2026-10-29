@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import type { FormEvent, KeyboardEvent } from "react"
@@ -15,11 +15,12 @@ import {
   useCreatePending,
 } from "@/observe/queries"
 import type { ObserveRequest } from "@/observe/queries"
+import { PromptPicker } from "@/prompts/prompt-picker"
+import { maxPromptLength } from "@/prompts/rules"
+import { usePromptPicker } from "@/prompts/use-prompt-picker"
 
 import { ImportLink } from "./import-link"
 import { NoAgentNote } from "./no-agent-note"
-
-const maxPromptLength = 4000
 
 const keyboardHint = "Enter sends. Shift+Enter adds a new line."
 
@@ -33,6 +34,7 @@ type Props = {
   rows: number
   autoFocus?: boolean
   disabled?: boolean
+  promptPicker?: boolean
   onSent: (request: ObserveRequest) => void | Promise<void>
 }
 
@@ -61,8 +63,10 @@ export function ChatComposer({
   rows,
   autoFocus = false,
   disabled = false,
+  promptPicker = false,
   onSent,
 }: Props) {
+  const { principal } = useRouteContext({ from: "/_authed" })
   const agent = useAgentInfo()
   const datasources = useDatasources()
   const create = useCreateObserveRequest()
@@ -75,6 +79,21 @@ export function ChatComposer({
   const inputId = useId()
   const messageId = useId()
   const hintId = useId()
+  function onFill(body: string) {
+    setPrompt(body)
+    setNotice(null)
+    requestAnimationFrame(() => {
+      const element = field.current
+      if (element === null) return
+      element.setSelectionRange(body.length, body.length)
+    })
+  }
+
+  const picker = usePromptPicker({
+    enabled: promptPicker,
+    value: prompt,
+    onFill,
+  })
 
   const agentOff = agent.data?.available === false
   const agentPending = agent.isPending
@@ -173,6 +192,7 @@ export function ChatComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (picker.handleKeyDown(event)) return
     if (
       !coarse &&
       event.key === "Enter" &&
@@ -186,66 +206,82 @@ export function ChatComposer({
 
   return (
     <div className="w-full">
-      <form
-        onSubmit={onSubmit}
-        className="flex w-full flex-col rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-aria-invalid:focus-within:border-ring has-aria-invalid:focus-within:ring-ring"
-      >
-        <label htmlFor={inputId} className="sr-only">
-          Message the agent
-        </label>
-        {coarse ? null : (
-          <p id={hintId} className="sr-only">
-            {keyboardHint}
-          </p>
-        )}
-        <textarea
-          ref={field}
-          id={inputId}
-          value={prompt}
-          rows={rows}
-          placeholder={placeholder}
-          readOnly={submitting || creating}
-          disabled={disabled}
-          aria-invalid={notice?.invalid === true}
-          aria-describedby={describedBy}
-          enterKeyHint={coarse ? "enter" : "send"}
-          className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
-          onChange={(event) => {
-            setPrompt(event.target.value)
-            setNotice(null)
-          }}
-          onKeyDown={onKeyDown}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 pr-2 pb-2 pl-4">
-          <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted-foreground">
-            {healthy.map((datasource) => (
-              <span key={datasource.uid} className="flex items-center gap-1.5">
+      <div className="relative">
+        <form
+          onSubmit={onSubmit}
+          className="flex w-full flex-col rounded-card border bg-background focus-within:ring-2 focus-within:ring-ring has-aria-invalid:border-destructive has-aria-invalid:ring-2 has-aria-invalid:ring-destructive/20 has-aria-invalid:focus-within:border-ring has-aria-invalid:focus-within:ring-ring"
+        >
+          <label htmlFor={inputId} className="sr-only">
+            Message the agent
+          </label>
+          {coarse ? null : (
+            <p id={hintId} className="sr-only">
+              {keyboardHint}
+            </p>
+          )}
+          <textarea
+            ref={field}
+            id={inputId}
+            value={prompt}
+            rows={rows}
+            placeholder={placeholder}
+            readOnly={submitting || creating}
+            disabled={disabled}
+            aria-invalid={notice?.invalid === true}
+            aria-describedby={describedBy}
+            {...picker.textareaAttributes}
+            enterKeyHint={coarse ? "enter" : "send"}
+            className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
+            onChange={(event) => {
+              setPrompt(event.target.value)
+              setNotice(null)
+              picker.onValueChange(event.target.value)
+            }}
+            onBlur={picker.dismiss}
+            onKeyDown={onKeyDown}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 pr-2 pb-2 pl-4">
+            <div className="flex flex-wrap items-center gap-3.5 text-xs text-muted-foreground">
+              {healthy.map((datasource) => (
                 <span
-                  aria-hidden="true"
-                  className="size-[7px] flex-none rounded-full bg-status-ok"
-                />
-                {datasource.uid}
-                <span className="sr-only">, healthy</span>
-              </span>
-            ))}
-            {model !== null ? <span>{model}</span> : null}
+                  key={datasource.uid}
+                  className="flex items-center gap-1.5"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-[7px] flex-none rounded-full bg-status-ok"
+                  />
+                  {datasource.uid}
+                  <span className="sr-only">, healthy</span>
+                </span>
+              ))}
+              {model !== null ? <span>{model}</span> : null}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ImportLink />
+              <Button
+                type="submit"
+                size="icon"
+                aria-label="Send"
+                aria-busy={submitting || creating}
+                disabled={submitting || creating || disabled}
+                focusableWhenDisabled
+                className="size-8"
+              >
+                <ArrowUpIcon className="size-[15px]" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <ImportLink />
-            <Button
-              type="submit"
-              size="icon"
-              aria-label="Send"
-              aria-busy={submitting || creating}
-              disabled={submitting || creating || disabled}
-              focusableWhenDisabled
-              className="size-8"
-            >
-              <ArrowUpIcon className="size-[15px]" />
-            </Button>
-          </div>
-        </div>
-      </form>
+        </form>
+        {picker.open ? (
+          <PromptPicker picker={picker} principalId={principal.id} />
+        ) : null}
+      </div>
+      {promptPicker ? (
+        <p role="status" className="sr-only">
+          {picker.announcement}
+        </p>
+      ) : null}
       <div className="text-[13px]">
         {notice !== null ? (
           <p id={messageId} role="alert" className="pt-1.5 text-destructive">

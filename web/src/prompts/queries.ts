@@ -53,6 +53,22 @@ export function useUpdatePrompt() {
   })
 }
 
+export function useDeletePrompt() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (id: string) =>
+      api
+        .DELETE("/prompts/{id}", { params: { path: { id } } })
+        .then((result) =>
+          result.response.status === 404 ? undefined : unwrap(result)
+        ),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: promptKeys.all })
+    },
+  })
+}
+
 export type PromptProblem = { field: "name" | "body" | null; text: string }
 
 export function promptProblem(

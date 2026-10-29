@@ -1,4 +1,4 @@
-const maxPromptLength = 4000
+export const maxPromptLength = 4000
 const maxPromptNameLength = 64
 const suggestedWordCount = 3
 
