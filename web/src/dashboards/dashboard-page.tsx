@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
   type RefObject,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import type { Selections } from "@/api/keys"
 import { ActivityCard, activityCardId } from "@/activity/activity-card"
@@ -26,11 +28,22 @@ import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
-import { createSharedCursor, type SharedCursor } from "@/panels/shared-cursor"
+import {
+  createSharedCursor,
+  type CursorSync,
+  type SharedCursor,
+} from "@/panels/shared-cursor"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
+import {
+  cursorOverride,
+  cursorSyncLabel,
+  nextCursorSync,
+  savedCursorSync,
+  useCursorSyncShortcut,
+} from "./cursor-sync"
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
@@ -377,6 +390,22 @@ function DashboardView({
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
+  const savedCursor = savedCursorSync(spec)
+  const cursorSync = search.cursor ?? savedCursor
+  useLayoutEffect(() => cursor.setMode(cursorSync), [cursor, cursorSync])
+  const chooseCursorSync = useCallback(
+    (next: CursorSync) =>
+      setSearch(
+        (state) => ({ ...state, cursor: cursorOverride(next, savedCursor) }),
+        { replace: true }
+      ),
+    [setSearch, savedCursor]
+  )
+  useCursorSyncShortcut(() => {
+    const next = nextCursorSync(cursorSync)
+    chooseCursorSync(next)
+    toast(`Chart hover: ${cursorSyncLabel(next)}`)
+  })
   const [flashed, setFlashed] = useState<string | null>(null)
   const flashTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
@@ -460,6 +489,8 @@ function DashboardView({
       pinned={pinned}
       onEditLayout={beginLayoutEdit}
       onExport={() => downloadSpec(spec, spec.title, version)}
+      cursorSync={cursorSync}
+      onCursorSyncChange={chooseCursorSync}
     />,
     <ActivityToggle
       key="activity"

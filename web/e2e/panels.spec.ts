@@ -118,6 +118,34 @@ test("shows a crosshair tooltip and toggles series", async ({
   await expect(button).toHaveAttribute("aria-pressed", "true")
 })
 
+function cursorLineShown(article: Locator) {
+  return article
+    .locator(".u-cursor-x")
+    .evaluate((line) => !/-\d/.test((line as HTMLElement).style.transform))
+}
+
+test("shows the hovered time on other charts only in a shared cursor mode", async ({
+  page,
+  request,
+}) => {
+  const spec = loadSpec("panel-timeseries")
+  spec.title = uniqueTitle("E2E shared cursor")
+  const { id } = await createDashboard(request, spec)
+  const hovered = () => panel(page, "Requests and errors")
+  const other = () => panel(page, "Stacked bars")
+
+  await openDashboard(page, id)
+  await expectPanelsReady(page)
+  await hovered().locator(".u-over").hover()
+  await expect.poll(() => cursorLineShown(hovered())).toBe(true)
+  expect(await cursorLineShown(other())).toBe(false)
+
+  await openDashboard(page, id, "?cursor=crosshair")
+  await expectPanelsReady(page)
+  await hovered().locator(".u-over").hover()
+  await expect.poll(() => cursorLineShown(other())).toBe(true)
+})
+
 test("keeps the tooltip inside a short panel with many series", async ({
   page,
   request,

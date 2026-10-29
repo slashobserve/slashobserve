@@ -7,6 +7,9 @@ import {
 
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { isTimeValue, refreshOptions, refreshPattern } from "@/lib/time"
+import type { CursorSync } from "@/panels/shared-cursor"
+
+import { isCursorSync } from "./cursor-sync"
 
 declare module "@tanstack/react-router" {
   interface HistoryState {
@@ -20,6 +23,7 @@ export type DashboardSearch = {
   from?: string
   to?: string
   refresh?: string
+  cursor?: CursorSync
   version?: number
   panel?: string
   edit?: EditView
@@ -76,6 +80,9 @@ export function validateDashboardSearch(
     state.refresh = refresh
   }
 
+  const cursor = firstString(raw.cursor)
+  if (cursor !== undefined && isCursorSync(cursor)) state.cursor = cursor
+
   const version = firstString(raw.version)
   if (version !== undefined && versionPattern.test(version)) {
     state.version = Number(version)
@@ -109,6 +116,7 @@ export function searchFromState(
   if (state.from !== undefined) out.from = state.from
   if (state.to !== undefined) out.to = state.to
   if (state.refresh !== undefined) out.refresh = state.refresh
+  if (state.cursor !== undefined) out.cursor = state.cursor
   if (state.version !== undefined) out.version = state.version
   if (state.panel !== undefined) out.panel = state.panel
   if (state.edit !== undefined) out.edit = state.edit

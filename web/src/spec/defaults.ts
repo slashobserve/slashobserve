@@ -10,6 +10,7 @@ export type DisplayOf<T extends DisplayPanelType> = {
 export const fieldPropDefaults = specDefaults.fieldProps
 export const queryDefaults = specDefaults.query
 export const variableDefaults = specDefaults.variable
+export const dashboardDefaults = specDefaults.dashboard
 export const rowDefaults = specDefaults.row
 export const linkDefaults = specDefaults.link
 export const canvasElementDefaults = specDefaults.canvasElement
