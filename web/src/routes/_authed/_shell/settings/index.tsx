@@ -23,6 +23,7 @@ import {
   providerName,
   sessionLength,
 } from "@/settings/format"
+import { OutboundAccessCard } from "@/settings/outbound-access-card"
 import {
   SettingsCard,
   SettingsProblem,
@@ -50,11 +51,12 @@ function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Read from the server environment. Change them in SLASHOBSERVE_* settings and restart."
+        description="Most settings are read from the server environment; change them in SLASHOBSERVE_* settings and restart. Outbound access is managed here."
       />
       <AgentCard />
       <ServerCard />
       <SignInCard />
+      <OutboundAccessCard />
       <AppearanceCard />
     </>
   )
