@@ -7,7 +7,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import type { AdhocVariable } from "@/spec"
 
 import type { VariableState } from "../use-variables"
@@ -23,14 +22,20 @@ import { VariableBox, variableLabel } from "./variable-box"
 type Props = {
   variable: AdhocVariable
   state: VariableState
+  datasource: string | undefined
+  datasourceType: string | undefined
   onChange: (values: string[]) => void
 }
 
-export function AdhocControl({ variable, state, onChange }: Props) {
+export function AdhocControl({
+  variable,
+  state,
+  datasource,
+  datasourceType,
+  onChange,
+}: Props) {
   const id = useId()
   const [open, setOpen] = useState(false)
-  const datasources = useDatasources()
-  const datasourceType = datasourceTypeOf(datasources.data, variable.datasource)
   const filters = state.selected.flatMap((text) => {
     const filter = parseFilter(text)
     return filter ? [{ text, filter }] : []
@@ -83,7 +88,7 @@ export function AdhocControl({ variable, state, onChange }: Props) {
           </PopoverTrigger>
           <PopoverContent align="start" className="w-72">
             <AdhocFilterForm
-              datasource={variable.datasource}
+              datasource={datasource ?? variable.datasource}
               datasourceType={datasourceType}
               count={filters.length}
               onAdd={add}

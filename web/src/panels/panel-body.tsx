@@ -3,7 +3,11 @@ import { Suspense, useMemo } from "react"
 import type { Selections } from "@/api/keys"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
-import { displayWithDefaults, type DataPanel } from "@/spec"
+import {
+  displayWithDefaults,
+  resolveDatasourceRef,
+  type DataPanel,
+} from "@/spec"
 
 import { createFieldResolver, type FieldResolver } from "./field-config"
 import { dataRenderers, staticRenderers } from "./index"
@@ -68,8 +72,13 @@ export function PanelBody({
 }: Props) {
   const datasources = useDatasources()
   const typeOf = useMemo<DatasourceTypeOf>(
-    () => (uid) => datasourceTypeOf(datasources.data, uid),
-    [datasources.data]
+    () => (ref) => {
+      const uid = resolveDatasourceRef(ref, vars)
+      return uid === undefined
+        ? undefined
+        : datasourceTypeOf(datasources.data, uid)
+    },
+    [datasources.data, vars]
   )
   const frames = useMemo(
     () => prepareFrames(panel, data.frames, typeOf),

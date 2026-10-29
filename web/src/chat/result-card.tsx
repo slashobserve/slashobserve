@@ -13,7 +13,13 @@ import { panelDatasourceUids } from "@/dashboards/panel-datasources"
 import { lowerFirst } from "@/lib/text"
 import { formatShortRelative } from "@/lib/time"
 import { joinNames } from "@/observe/conversation"
-import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
+import {
+  allPanels,
+  datasourceVariableDefaults,
+  isRowPanel,
+  panelTitle,
+  type Panel,
+} from "@/spec"
 
 import { OpenDashboardLink } from "./turn-failure"
 
@@ -107,7 +113,10 @@ function CardBody({ data, dashboardId, version, finishedAt }: BodyProps) {
       : allPanels(spec)
           .map((entry) => entry.panel)
           .filter((panel) => !isRowPanel(panel))
-  const uids = [...new Set(panels.flatMap(panelDatasourceUids))]
+  const defaults = datasourceVariableDefaults(spec?.variables ?? [])
+  const uids = [
+    ...new Set(panels.flatMap((panel) => panelDatasourceUids(panel, defaults))),
+  ]
   const count = panels.length
   const hint =
     spec === null

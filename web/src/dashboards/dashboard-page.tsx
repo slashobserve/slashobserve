@@ -250,7 +250,7 @@ const PanelContainer = memo(function PanelContainer({
         highlighted={highlighted}
         editing={editingPanel}
         repeatOf={repeatOf}
-        datasourceLabel={panelDatasourceUids(panel).join(", ")}
+        datasourceLabel={panelDatasourceUids(panel, selections).join(", ")}
         links={links}
         badge={
           <>
