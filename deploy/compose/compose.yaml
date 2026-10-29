@@ -7,11 +7,6 @@ x-shop: &shop
   image: ${SLASHOBSERVE_SHOP_IMAGE:-slashobserve-demo-shop:local}
   pull_policy: never
   command: [serve]
-  healthcheck:
-    test: ["CMD", "/usr/local/bin/shop", "healthcheck"]
-    interval: 5s
-    timeout: 3s
-    retries: 12
   depends_on:
     otel-collector:
       condition: service_started
@@ -20,6 +15,14 @@ x-shop: &shop
       limits:
         memory: 64M
         cpus: "0.5"
+
+x-shop-server: &shop-server
+  <<: *shop
+  healthcheck:
+    test: ["CMD", "/usr/local/bin/shop", "healthcheck"]
+    interval: 5s
+    timeout: 3s
+    retries: 12
 
 services:
   postgres:
@@ -215,7 +218,7 @@ services:
           memory: 256M
 
   frontend-0:
-    <<: *shop
+    <<: *shop-server
     build:
       context: ../../demo/shop
     pull_policy: build
@@ -226,7 +229,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
   checkout-0:
-    <<: *shop
+    <<: *shop-server
     environment:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-0
@@ -236,7 +239,7 @@ services:
       - "127.0.0.1:${SLASHOBSERVE_SHOP_HOST_PORT:-8081}:8080"
 
   checkout-1:
-    <<: *shop
+    <<: *shop-server
     environment:
       SHOP_SERVICE: checkout
       SHOP_POD: checkout-1
@@ -244,7 +247,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 
   payments-0:
-    <<: *shop
+    <<: *shop-server
     environment:
       SHOP_SERVICE: payments
       SHOP_POD: payments-0
@@ -253,8 +256,6 @@ services:
   loadgen:
     <<: *shop
     command: [loadgen]
-    healthcheck:
-      disable: true
     environment:
       LOADGEN_TARGET: http://frontend-0:8080
       LOADGEN_RPS: "20"
