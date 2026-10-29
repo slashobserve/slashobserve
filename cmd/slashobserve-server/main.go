@@ -255,7 +255,7 @@ func run() error {
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService))
+	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithPrincipals(authService))
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)

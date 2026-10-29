@@ -107,7 +107,15 @@ func (draftBodyTooLargeError) Error() string {
 
 func (draftBodyTooLargeError) Unwrap() error { return ErrDraftTooLarge }
 
+type Principals interface {
+	Principal(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error)
+}
+
 type Option func(*Service)
+
+func WithPrincipals(p Principals) Option {
+	return func(s *Service) { s.principals = p }
+}
 
 func WithPanels(p PanelChecker) Option {
 	return func(s *Service) { s.panels = p }

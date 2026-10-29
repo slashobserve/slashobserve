@@ -27,7 +27,21 @@ import (
 
 const userID = "11111111-1111-4111-8111-111111111111"
 
-var user = auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ada", Email: "ada@example.com"}
+var user = auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ada", Email: "ada@example.com", Role: auth.RoleEditor}
+
+type principalsFunc func(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error)
+
+func (f principalsFunc) Principal(ctx context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
+	return f(ctx, kind, id)
+}
+
+func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
+	return auth.Principal{Kind: kind, ID: id, Name: user.Name, Email: user.Email, Role: auth.RoleEditor}, nil
+}
+
+func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
+	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals))}, opts...)...)
+}
 
 func TestMain(m *testing.M) {
 	os.Exit(dbtest.Main(m))
@@ -46,7 +60,7 @@ func quietLogger() *slog.Logger {
 func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *dbtest.Database) {
 	t.Helper()
 	d := dbtest.New(t)
-	return revisions.NewService(d.DB, reviser, quietLogger()), d
+	return newTestService(d.DB, reviser, quietLogger()), d
 }
 
 func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
@@ -217,6 +231,64 @@ func TestRequestRunsAndSucceeds(t *testing.T) {
 	}
 }
 
+func TestRunActsWithTheRequestersCurrentRoleAndGroups(t *testing.T) {
+	var got revisions.Request
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+		got = req
+		return revisions.Result{Version: 2}, nil
+	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(_ context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
+		return auth.Principal{Kind: kind, ID: id, Name: "Ada", Role: auth.RoleCommenter, Groups: []string{"ops"}}, nil
+	})))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
+	if got.RequestedBy.Role != auth.RoleCommenter || !reflect.DeepEqual(got.RequestedBy.Groups, []string{"ops"}) || got.RequestedBy.ID != userID {
+		t.Fatalf("the reviser received requester %+v", got.RequestedBy)
+	}
+}
+
+func TestRunFailsWhenTheRequesterNoLongerExists(t *testing.T) {
+	var calls atomic.Int32
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(context.Context, auth.PrincipalKind, string) (auth.Principal, error) {
+		return auth.Principal{}, auth.ErrPrincipalGone
+	})))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	if failed.Error != "the person or key that asked for this run no longer exists" || calls.Load() != 0 {
+		t.Fatalf("revision = %+v after %d calls", failed, calls.Load())
+	}
+}
+
+func TestRunIsReleasedWhenTheRequesterCannotBeLoaded(t *testing.T) {
+	var calls atomic.Int32
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(context.Context, auth.PrincipalKind, string) (auth.Principal, error) {
+		return auth.Principal{}, errors.New("database unavailable")
+	})))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	id := mustUUID(t, rev.ID)
+	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1, Poll: 2 * time.Second})
+	waitFor(t, "the release after the failed load", func() bool {
+		row, err := d.Queries().GetAgentRequest(context.Background(), dbsqlc.GetAgentRequestParams{ID: id, DashboardID: dash})
+		return err == nil && row.Status == string(revisions.StatusQueued) && row.CheckFailures >= 1
+	})
+	if calls.Load() != 0 {
+		t.Fatalf("the reviser ran %d times without a requester", calls.Load())
+	}
+}
+
 func TestEventsAnnounceEveryStatusChange(t *testing.T) {
 	var svc *revisions.Service
 	var d *dbtest.Database
@@ -347,7 +419,7 @@ func TestPanicInTheReviserFailsOnlyThatRequest(t *testing.T) {
 func TestWorkerLogsCarryTheRequestIdAsAgentRequestIdAndNoRunText(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(_ context.Context, req revisions.Request) (revisions.Result, error) {
 		if req.Prompt == "boom" {
 			panic("secret prompt text")
 		}
@@ -406,7 +478,7 @@ func TestShutdownReleasesARunningRequestWithoutSpendingAnAttempt(t *testing.T) {
 		t.Fatalf("after shutdown = %+v", left)
 	}
 
-	next := revisions.NewService(d.DB, succeedWith(2), quietLogger())
+	next := newTestService(d.DB, succeedWith(2), quietLogger())
 	startWorker(t, next, d, revisions.WorkerOptions{})
 	done := waitForStatus(t, next, dash, rev.ID, revisions.StatusSucceeded)
 	if done.Attempts != 1 {
@@ -698,7 +770,7 @@ func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaime
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
 	var calls atomic.Int32
-	svc := revisions.NewService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
 		calls.Add(1)
 		return revisions.Result{Version: 2}, nil
 	}), logger)
@@ -728,7 +800,7 @@ func TestFailedThreadResolutionInTheSweepDoesNotStopOtherRequestsFromBeingClaime
 func TestFailedThreadResolutionStillRecordsTheSuccessfulRun(t *testing.T) {
 	logger, logs := logtest.New()
 	d := dbtest.New(t)
-	svc := revisions.NewService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
+	svc := newTestService(d.DB, reviserFunc(func(ctx context.Context, req revisions.Request) (revisions.Result, error) {
 		version, err := saveNextVersion(ctx, d, req)
 		return revisions.Result{Version: version}, err
 	}), logger)
@@ -802,7 +874,7 @@ func TestLateResultFromAnExpiredAttemptIsDropped(t *testing.T) {
 	<-firstStarted
 
 	d.Exec(t, "UPDATE agent_requests SET lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", mustUUID(t, rev.ID))
-	second := revisions.NewService(d.DB, succeedWith(7), quietLogger())
+	second := newTestService(d.DB, succeedWith(7), quietLogger())
 	startWorker(t, second, d, revisions.WorkerOptions{Workers: 1})
 	done := waitForStatus(t, second, dash, rev.ID, revisions.StatusSucceeded)
 	if done.Attempts != 2 || done.ResultVersion == nil || *done.ResultVersion != 7 {
@@ -928,7 +1000,7 @@ func TestCompetingWorkersRunEveryRequestExactlyOnce(t *testing.T) {
 		}
 	}
 	for range 3 {
-		startWorker(t, revisions.NewService(d.DB, reviser, quietLogger()), d, revisions.WorkerOptions{Workers: 3})
+		startWorker(t, newTestService(d.DB, reviser, quietLogger()), d, revisions.WorkerOptions{Workers: 3})
 	}
 	for _, rev := range all {
 		waitForStatus(t, svc, mustUUID(t, rev.DashboardID), rev.ID, revisions.StatusSucceeded)
