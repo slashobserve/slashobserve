@@ -43,8 +43,8 @@ func NewHandler(f Fetcher, logger *slog.Logger) *Handler {
 	return &Handler{fetcher: f, logger: logger}
 }
 
-func (h *Handler) Register(api *gin.RouterGroup) {
-	api.GET("/news", auth.RequireUser, h.get)
+func (h *Handler) Register(api auth.Routes) {
+	api.GET("/news", auth.RoleViewer, auth.RequireUser, h.get)
 }
 
 type itemJSON struct {

@@ -10,10 +10,12 @@ const (
 )
 
 type Principal struct {
-	Kind  PrincipalKind `json:"kind"`
-	ID    string        `json:"id"`
-	Email string        `json:"email,omitempty"`
-	Name  string        `json:"name"`
+	Kind   PrincipalKind `json:"kind"`
+	ID     string        `json:"id"`
+	Email  string        `json:"email,omitempty"`
+	Name   string        `json:"name"`
+	Role   Role          `json:"role"`
+	Groups []string      `json:"-"`
 }
 
 type principalKey struct{}

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -425,7 +426,7 @@ func TestCreateHappyPath(t *testing.T) {
 		if !c.scoped || c.run.Mode != tools.ModeCreate || c.run.DashboardID != "" || c.run.ParentVersion != 0 || c.run.RequestID != "" {
 			t.Fatalf("call %s run scope = %+v scoped=%v", c.name, c.run, c.scoped)
 		}
-		if c.principal != principal {
+		if !reflect.DeepEqual(c.principal, principal) {
 			t.Fatalf("call %s principal = %+v", c.name, c.principal)
 		}
 	}

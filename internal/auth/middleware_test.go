@@ -60,12 +60,12 @@ func newSessionRigWithIssuer(t *testing.T, logger *slog.Logger, issuer string) *
 	if err != nil {
 		t.Fatal(err)
 	}
-	database.Exec(t, "UPDATE users SET last_seen_at = now() - interval '1 hour' WHERE id = $1", user.ID)
+	database.Exec(t, "UPDATE users SET role = 'admin', last_seen_at = now() - interval '1 hour' WHERE id = $1", user.ID)
 
 	engine := gin.New()
 	authenticated := s.Mount(engine.Group("/api/v1"))
-	authenticated.POST("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
-	authenticated.GET("/ping", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	authenticated.POST("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	authenticated.GET("/ping", RoleViewer, func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	return &sessionRig{t: t, db: database, engine: engine, userID: user.ID, cookie: s.sessionCookie + "=" + token, login: s.loginCookie}
 }
 

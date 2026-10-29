@@ -43,11 +43,11 @@ type listJSON struct {
 	Domains   []entryJSON `json:"domains"`
 }
 
-func (s *Store) Register(api *gin.RouterGroup) {
-	g := api.Group("/outbound-domains", auth.RequireUser)
-	g.GET("", s.list)
-	g.POST("", s.add)
-	g.DELETE("/:domain", s.remove)
+func (s *Store) Register(api auth.Routes) {
+	g := api.Group("/outbound-domains")
+	g.GET("", auth.RoleViewer, auth.RequireUser, s.list)
+	g.POST("", auth.RoleAdmin, auth.RequireUser, s.add)
+	g.DELETE("/:domain", auth.RoleAdmin, auth.RequireUser, s.remove)
 }
 
 func (s *Store) refuseWhenLocked(c *gin.Context) bool {

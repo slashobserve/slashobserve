@@ -304,10 +304,14 @@ func TestParseMadeBy(t *testing.T) {
 func TestMadeByMeUsesTheCallersKind(t *testing.T) {
 	r := newRig(t, false)
 	r.seedList(t)
-	for caller, want := range map[auth.Principal][]string{
-		serviceKey: {"Fleet", "Nodes"},
-		otherUser:  {"Orders"},
+	for _, tt := range []struct {
+		caller auth.Principal
+		want   []string
+	}{
+		{serviceKey, []string{"Fleet", "Nodes"}},
+		{otherUser, []string{"Orders"}},
 	} {
+		caller, want := tt.caller, tt.want
 		parsed, err := ParseMadeBy("me", caller)
 		if err != nil {
 			t.Fatal(err)

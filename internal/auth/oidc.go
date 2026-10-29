@@ -49,8 +49,15 @@ func (s *Service) provider(ctx context.Context) (*oidc.Provider, error) {
 		if err != nil {
 			return nil, err
 		}
+		var metadata struct {
+			ScopesSupported []string `json:"scopes_supported"`
+		}
+		if err := fetched.Claims(&metadata); err != nil {
+			return nil, err
+		}
 		s.providerMu.Lock()
 		s.oidcProvider = fetched
+		s.groupsScope = supportsGroupsScope(metadata.ScopesSupported)
 		s.providerMu.Unlock()
 		return fetched, nil
 	})
@@ -61,11 +68,17 @@ func (s *Service) provider(ctx context.Context) (*oidc.Provider, error) {
 }
 
 func (s *Service) oauthConfig(p *oidc.Provider) *oauth2.Config {
+	scopes := []string{oidc.ScopeOpenID, "email", "profile"}
+	s.providerMu.Lock()
+	if s.groupsScope {
+		scopes = append(scopes, "groups")
+	}
+	s.providerMu.Unlock()
 	return &oauth2.Config{
 		ClientID:     s.cfg.ClientID,
 		ClientSecret: s.cfg.ClientSecret,
 		Endpoint:     p.Endpoint(),
 		RedirectURL:  s.cfg.PublicURL.String() + "/api/v1/auth/callback",
-		Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
+		Scopes:       scopes,
 	}
 }

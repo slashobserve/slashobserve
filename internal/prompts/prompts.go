@@ -65,12 +65,12 @@ func NewHandler(database *db.DB, logger *slog.Logger) *Handler {
 	return &Handler{db: database, logger: logger}
 }
 
-func (h *Handler) Register(api *gin.RouterGroup) {
+func (h *Handler) Register(api auth.Routes) {
 	g := api.Group("/prompts")
-	g.GET("", h.list)
-	g.POST("", auth.RequireUser, h.create)
-	g.PATCH("/:id", auth.RequireUser, h.update)
-	g.DELETE("/:id", auth.RequireUser, h.remove)
+	g.GET("", auth.RoleViewer, h.list)
+	g.POST("", auth.RoleViewer, auth.RequireUser, h.create)
+	g.PATCH("/:id", auth.RoleViewer, auth.RequireUser, h.update)
+	g.DELETE("/:id", auth.RoleViewer, auth.RequireUser, h.remove)
 }
 
 func promptOf(r record, caller auth.Principal) promptJSON {

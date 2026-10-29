@@ -19,3 +19,18 @@ SELECT EXISTS (SELECT 1 FROM users WHERE id = @id);
 
 -- name: DeleteUserSessions :execrows
 DELETE FROM sessions WHERE user_id = @user_id;
+
+-- name: IsFirstUser :one
+SELECT NOT EXISTS (SELECT 1 FROM users o WHERE (o.created_at, o.id) < (u.created_at, u.id))
+FROM users u WHERE u.id = @id;
+
+-- name: ListUsersForRoles :many
+SELECT id, email, groups, manual_role, created_at, role, role_source, role_group
+FROM users ORDER BY created_at, id;
+
+-- name: SetUserRole :exec
+UPDATE users SET role = @role, role_source = @role_source, role_group = sqlc.narg('role_group')
+WHERE id = @id;
+
+-- name: GetUserPrincipal :one
+SELECT id, email, name, role, groups FROM users WHERE id = @id;

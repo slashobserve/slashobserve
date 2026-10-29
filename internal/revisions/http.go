@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -68,13 +69,13 @@ type listJSON struct {
 	NextCursor *string        `json:"next_cursor"`
 }
 
-func (s *Service) Register(api *gin.RouterGroup) {
+func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/revisions")
-	g.POST("", s.createRevision)
-	g.GET("", s.listRevisions)
-	g.GET("/:revision_id", s.getRevision)
-	api.POST("/dashboards/:id/suggestions", s.createSuggestion)
-	api.GET("/dashboards/:id/suggestions/:suggestion_id", s.getSuggestion)
+	g.POST("", auth.RoleViewer, s.createRevision)
+	g.GET("", auth.RoleViewer, s.listRevisions)
+	g.GET("/:revision_id", auth.RoleViewer, s.getRevision)
+	api.POST("/dashboards/:id/suggestions", auth.RoleViewer, s.createSuggestion)
+	api.GET("/dashboards/:id/suggestions/:suggestion_id", auth.RoleViewer, s.getSuggestion)
 }
 
 func (s *Service) createRevision(c *gin.Context) {

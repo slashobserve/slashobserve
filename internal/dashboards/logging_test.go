@@ -13,6 +13,11 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
+func withRole(p auth.Principal) auth.Principal {
+	p.Role = auth.RoleAdmin
+	return p
+}
+
 func TestInternalFailureLogsOnlyCodeTypeAndIDs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := newRig(t, false)
@@ -21,9 +26,9 @@ func TestInternalFailureLogsOnlyCodeTypeAndIDs(t *testing.T) {
 	r.service.logger = logger
 	engine := gin.New()
 	engine.Use(func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), testUser))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(testUser)))
 	})
-	r.service.Register(engine.Group("/api/v1"))
+	r.service.Register(auth.NewRoutes(engine.Group("/api/v1")))
 	r.db.Close()
 
 	rec := httptest.NewRecorder()
@@ -46,9 +51,9 @@ func TestClientGoingAwayDuringARequestIsNotAServerError(t *testing.T) {
 	r.service.logger = logger
 	engine := gin.New()
 	engine.Use(func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), testUser))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), withRole(testUser)))
 	})
-	r.service.Register(engine.Group("/api/v1"))
+	r.service.Register(auth.NewRoutes(engine.Group("/api/v1")))
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 

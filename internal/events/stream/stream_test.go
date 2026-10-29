@@ -60,9 +60,9 @@ func openEventStream(t *testing.T, sessions Sessions) *openStream {
 	h.pingInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1"}))
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}))
 	})
-	h.Register(api)
+	h.Register(auth.NewRoutes(api))
 	srv := httptest.NewServer(engine)
 	t.Cleanup(srv.Close)
 	t.Cleanup(srv.CloseClientConnections)
@@ -180,7 +180,9 @@ func TestClientGoingAwayWhileReadingTheVersionIsNotAServerError(t *testing.T) {
 			t.Cleanup(broker.Close)
 			h := NewHandler(broker, failingDashboards{tc.err}, &fakeSessions{}, logger)
 			engine := gin.New()
-			h.Register(engine.Group("/api/v1"))
+			h.Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
+				c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}))
+			})))
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			if tc.cancelRequest {

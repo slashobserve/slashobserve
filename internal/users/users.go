@@ -47,10 +47,10 @@ func NewHandler(database *db.DB, authService *auth.Service, logger *slog.Logger)
 	return &Handler{db: database, auth: authService, logger: logger}
 }
 
-func (h *Handler) Register(api *gin.RouterGroup) {
-	g := api.Group("/users", auth.RequireUser)
-	g.GET("", h.list)
-	g.DELETE("/:id/sessions", h.signOut)
+func (h *Handler) Register(api auth.Routes) {
+	g := api.Group("/users")
+	g.GET("", auth.RoleAdmin, auth.RequireUser, h.list)
+	g.DELETE("/:id/sessions", auth.RoleAdmin, auth.RequireUser, h.signOut)
 }
 
 func (h *Handler) list(c *gin.Context) {

@@ -26,6 +26,8 @@ imports-preview:
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -80,6 +82,8 @@ imports:
         $ref: "../openapi.yaml#/components/responses/BadRequest"
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

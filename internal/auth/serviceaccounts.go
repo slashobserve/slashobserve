@@ -54,13 +54,13 @@ type keyJSON struct {
 	RevokedAt        *string `json:"revoked_at"`
 }
 
-func (s *Service) mountServiceAccounts(authenticated *gin.RouterGroup) {
-	accounts := authenticated.Group("/service-accounts", RequireUser)
-	accounts.POST("", s.createServiceAccount)
-	accounts.GET("", s.listServiceAccounts)
-	accounts.POST("/:id/keys", s.createKey)
-	accounts.GET("/:id/keys", s.listKeys)
-	accounts.DELETE("/:id/keys/:keyId", s.revokeKey)
+func (s *Service) mountServiceAccounts(authenticated Routes) {
+	accounts := authenticated.Group("/service-accounts")
+	accounts.POST("", RoleAdmin, RequireUser, s.createServiceAccount)
+	accounts.GET("", RoleAdmin, RequireUser, s.listServiceAccounts)
+	accounts.POST("/:id/keys", RoleAdmin, RequireUser, s.createKey)
+	accounts.GET("/:id/keys", RoleAdmin, RequireUser, s.listKeys)
+	accounts.DELETE("/:id/keys/:keyId", RoleAdmin, RequireUser, s.revokeKey)
 }
 
 func RequireUser(c *gin.Context) {

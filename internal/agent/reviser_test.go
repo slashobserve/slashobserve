@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -42,7 +43,7 @@ func TestReviserRunsTheAgentInReviseModeForTheRequest(t *testing.T) {
 		t.Fatalf("calls = %v", r.tools.names())
 	}
 	want := tools.Run{Mode: tools.ModeRevise, DashboardID: dashID, ParentVersion: 3, RequestID: revisionRequestID}
-	if !calls[0].scoped || calls[0].run != want || calls[0].principal != principal {
+	if !calls[0].scoped || calls[0].run != want || !reflect.DeepEqual(calls[0].principal, principal) {
 		t.Fatalf("call = %+v, want run %+v for %+v", calls[0], want, principal)
 	}
 	started := r.provider.started()

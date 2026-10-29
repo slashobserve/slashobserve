@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 )
@@ -74,7 +75,10 @@ func TestDatasourceListIgnoresAClientThatWentAway(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			logger, logs := logtest.New()
 			engine := gin.New()
-			registerDatasourceRoutes(engine.Group("/api/v1"), nil, fakeUsage{tc.err}, logger)
+			api := engine.Group("/api/v1", func(c *gin.Context) {
+				c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}))
+			})
+			registerDatasourceRoutes(auth.NewRoutes(api), nil, fakeUsage{tc.err}, logger)
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			if tc.cancelRequest {

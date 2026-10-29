@@ -32,10 +32,10 @@ func serve(t *testing.T, lock Lock, kind auth.PrincipalKind, method, path, body 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
-		p := auth.Principal{Kind: kind, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "Ada"}
+		p := auth.Principal{Kind: kind, ID: "3f1c2a52-8c5e-4a53-9a3e-1d2d4c0a9b11", Name: "Ada", Role: auth.RoleAdmin}
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), p))
 	})
-	New(nil, lock, slog.New(slog.DiscardHandler)).Register(api)
+	New(nil, lock, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
 	req := httptest.NewRequest(method, "/api/v1/outbound-domains"+path, strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, req)

@@ -30,6 +30,7 @@ Run the demo stack with an Anthropic key so the agent can answer prompts:
     make demo
 
 Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
+The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
 Type a prompt such as `checkout health by pod, last 6h` into the chat composer on the home page.
 
 `make demo` builds the server image and starts it with Postgres, Dex, Prometheus, ClickHouse, an OpenTelemetry Collector, node-exporter, cAdvisor and a demo shop, and waits until they are healthy.
@@ -148,6 +149,8 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 | `SLASHOBSERVE_SESSION_TTL`                | `168h`  | A Go duration from `5m` to `720h`. A session lasts this long from sign-in.                                                       |
 | `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none    | Required. Comma-separated domains, or `*` for every account. See [Sign-in with OIDC](#sign-in-with-oidc).                        |
 | `SLASHOBSERVE_AUTH_PROVIDER_NAME`         | unset   | Optional. The identity provider's display name, up to 64 characters, shown to signed-in clients next to the sign-in rules.       |
+| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses that are always Admins, at most 100. See [Roles](#roles).                              |
+| `SLASHOBSERVE_OIDC_GROUP_ROLES`           | unset   | Optional. Comma-separated `group=role` entries that map identity-provider groups to roles, at most 100. See [Roles](#roles).      |
 
 ### Datasources
 
@@ -159,7 +162,7 @@ Values are trimmed of surrounding whitespace, and an empty value counts as unset
 
 | Variable                        | Default | Notes                                                                                                                                                                    |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset   | Unset: signed-in people manage the allowed domains in Settings. `none`, or a comma-separated list of domains, locks the list. See [Outbound access](#outbound-access-1). |
+| `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset   | Unset: Admins manage the allowed domains in Settings. `none`, or a comma-separated list of domains, locks the list. See [Outbound access](#outbound-access-1). |
 
 ### LLM
 
@@ -312,6 +315,51 @@ Create a client in your provider and give SlashObserve its settings:
 
 Users are identified by the provider's issuer and subject, and are created on first sign-in.
 
+## Roles
+
+Every person and every service account has one of four instance roles, from the most to the least permitted: Admin, Editor, Commenter and Viewer.
+
+| Role      | May                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Admin     | Everything an Editor may, plus People (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
+| Editor    | Create, edit, import and restore dashboards, chat and send requests to the agent, comment, and keep their own saved prompts. |
+| Commenter | View dashboards and versions, and add comments. Cannot send requests to the agent, import or edit.                       |
+| Viewer    | View dashboards and versions only. Cannot comment.                                                                       |
+
+A request the role does not allow is refused with `403` and the code `forbidden_role`.
+A service-account key can never create or revoke keys, whatever its role.
+
+A person's role is decided in this order, and the first rule that applies wins:
+
+1. **`SLASHOBSERVE_ADMIN_EMAILS`.**
+   An email address in this list (compared without regard to case) is an Admin.
+2. **The first user.**
+   When `SLASHOBSERVE_ADMIN_EMAILS` is not set, the earliest person to have signed in is an Admin.
+3. **`SLASHOBSERVE_OIDC_GROUP_ROLES`.**
+   The highest role mapped to a group the person belongs to.
+   When two mapped groups give the same role, the one listed first wins.
+4. **A role an Admin chose** on the People page.
+5. **Editor**, the default for everyone else.
+
+The first three are set by configuration, so the People page cannot change them.
+
+`SLASHOBSERVE_OIDC_GROUP_ROLES` is a comma-separated list of `group=role` entries, split on the last `=`, where the role is `admin`, `editor`, `commenter` or `viewer`.
+A group name is 1 to 256 bytes without control characters and cannot contain a comma.
+For example:
+
+```text
+SLASHOBSERVE_OIDC_GROUP_ROLES=platform-admins=admin,engineering=editor,support=commenter,contractors=viewer
+```
+
+Groups come from the `groups` claim of the ID token, a JSON array of strings.
+The server asks for the `groups` scope only when the provider lists it in `scopes_supported` in its discovery document (Dex does; Google rejects unknown scopes), and it reads the claim whenever the token has one.
+At most 200 groups are kept, each 1 to 256 bytes without control characters; others are dropped.
+Without a `groups` claim a person has no groups.
+
+A role is recomputed every time the person signs in, and for everyone when the server starts.
+Changing `SLASHOBSERVE_ADMIN_EMAILS` or `SLASHOBSERVE_OIDC_GROUP_ROLES` therefore applies at the next restart, and a group change reaches a person at their next sign-in.
+Existing people become Editors when you upgrade, and the rules above are applied at the first start.
+
 ## LLM providers
 
 The agent turns a prompt into a saved dashboard by calling tools against your datasources.
@@ -376,7 +424,8 @@ Add more keys to an account, and revoke a key, from the same page.
 A revoked or expired key is refused immediately.
 The page also shows ready-made client setup snippets for your server's address; they refer to `OBSERVE_TOKEN` and never contain the key.
 
-Only a signed-in person can create service accounts and keys; a service-account key cannot create more keys.
+Only a signed-in Admin can create service accounts and keys; a service-account key cannot create more keys.
+A key acts with its service account's role, which starts as Editor.
 Beyond that, see [the security model](#security-model) for what any key can do.
 
 ## CLI
@@ -549,11 +598,11 @@ Every fetch follows the same rules, whatever the domain:
 - Each fetch has a size cap (1 MiB unless the feature asks for more, 8 MiB at most), a 10 second time limit and a content type check.
 - Results are cached for 15 minutes, and removing a domain stops its cached results from being served.
 
-Any signed-in person can allow or remove a domain in Settings or through `/api/v1/outbound-domains`; service-account keys cannot.
+Any signed-in person can see the list; only an Admin can allow or remove a domain in Settings or through `/api/v1/outbound-domains`, and service-account keys cannot.
 Every change is logged at INFO as `allowed an outbound domain` or `removed an outbound domain` with the person's id (`actor_id`) and the domain.
 The table also keeps who added each entry and when, but a removed entry leaves only the log line.
 
-To take the decision away from the people who sign in, set `SLASHOBSERVE_OUTBOUND_DOMAINS`.
+To take the decision away from the Admins, set `SLASHOBSERVE_OUTBOUND_DOMAINS`.
 `none` allows nothing.
 A comma-separated list such as `example.com,*.example.org` allows exactly those domains.
 The list is then read-only: Settings shows it, the API answers changes with `409 managed_by_config`, and the database table is neither read nor written.
@@ -642,13 +691,10 @@ For anything else, test the connection yourself with `psql "$SLASHOBSERVE_DATABA
   Only accounts from your OIDC provider, and only in the allowed email domains, get a session.
   Sessions and keys are random tokens stored only as SHA-256 hashes.
   Session cookies are `HttpOnly` and `SameSite=Lax`, and a cross-origin write made with a cookie is refused; `SLASHOBSERVE_PUBLIC_URL` is a trusted origin.
-- **No roles yet.**
-  In this release any signed-in user can read and write everything: every dashboard, comment and version.
-  Any signed-in user can also create service accounts and keys, and revoke anyone's keys, so a key is as powerful as a person.
-  Any signed-in user can also see everyone who has signed in and sign any of them out everywhere.
-  Any signed-in user can also change the outbound allowlist unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it.
-  Roles arrive in a later milestone.
-  Until then, allow into SlashObserve only the people you would trust with all of its dashboards and datasources.
+- **Roles.**
+  Every person and service account has an instance role (see [Roles](#roles)), and the server checks it on every API route.
+  Only Admins see everyone who has signed in, sign people out, manage service accounts and keys, or change the outbound allowlist (unless `SLASHOBSERVE_OUTBOUND_DOMAINS` locks it).
+  New people are Editors by default, so allow into SlashObserve only the people you would trust to create and change dashboards.
 - **Datasource credentials stay on the server.**
   They never reach the browser.
   The datasources API returns health only, with no address, user or secret.
