@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -61,9 +62,8 @@ func (h *Handler) preview(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, string(queryproxy.CodeInvalidRequest), message)
 		return
 	}
-	uid := c.Param("uid")
-	if _, found := h.registry.Get(uid); !found {
-		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+	uid, ok := h.previewTarget(c, principal, id)
+	if !ok {
 		return
 	}
 	saved, err := h.dashboard(ctx, id, req.Version)
@@ -119,6 +119,33 @@ func (h *Handler) preview(c *gin.Context) {
 		return
 	}
 	writeData(c, entry, false, entry.executedAt)
+}
+
+func (h *Handler) previewTarget(c *gin.Context, principal auth.Principal, id pgtype.UUID) (string, bool) {
+	if !h.requireEdit(c, principal, id) {
+		return "", false
+	}
+	uid := c.Param("uid")
+	if _, found := h.registry.Get(uid); !found {
+		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "datasource not found")
+		return "", false
+	}
+	return uid, true
+}
+
+func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtype.UUID) bool {
+	access, err := h.access.Dashboard(c.Request.Context(), principal, id)
+	switch {
+	case err == nil && access.Abilities.Edit:
+		return true
+	case err == nil, errors.Is(err, folders.ErrForbidden):
+		abortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this on this dashboard")
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "dashboard not found")
+	default:
+		h.internalFailure(c, c.Param("uid"), err)
+	}
+	return false
 }
 
 func (h *Handler) placeDraft(c *gin.Context, saved *spec.Dashboard, req previewRequest, uid string) (d *spec.Dashboard, draft *spec.Panel, ok bool) {

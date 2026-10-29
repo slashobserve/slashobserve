@@ -228,7 +228,7 @@ func run() error {
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, logger)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
-	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, registry, logger)
+	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, registry, logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
