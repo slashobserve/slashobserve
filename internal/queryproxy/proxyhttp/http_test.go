@@ -256,7 +256,7 @@ func (f *fakeAccess) RequireDashboard(n folders.Need) gin.HandlerFunc {
 		}
 		access, err := f.Dashboard(c.Request.Context(), auth.Principal{}, id)
 		if err != nil || !access.Abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this on this dashboard")
+			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 			return
 		}
 		c.Next()

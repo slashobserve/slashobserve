@@ -139,7 +139,7 @@ func (h *Handler) requireEdit(c *gin.Context, principal auth.Principal, id pgtyp
 	case err == nil && access.Abilities.Edit:
 		return true
 	case err == nil, errors.Is(err, folders.ErrForbidden):
-		abortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this on this dashboard")
+		abortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "dashboard not found")
 	default:

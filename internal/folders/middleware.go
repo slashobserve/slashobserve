@@ -46,14 +46,14 @@ func (a *Access) RequireDashboard(n Need) gin.HandlerFunc {
 			httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 			return
 		case errors.Is(err, ErrNoAccess), errors.Is(err, ErrForbidden):
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you don't have access to this dashboard")
+			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you do not have access to this dashboard")
 			return
 		case err != nil:
 			a.fail(c, "check dashboard access", err)
 			return
 		}
 		if !access.Abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this on this dashboard")
+			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 			return
 		}
 		c.Set(dashboardKey{}, access)
@@ -80,7 +80,7 @@ func (a *Access) RequireFolder(n Need) gin.HandlerFunc {
 			return
 		}
 		if !abilities.Has(n) {
-			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this in this folder")
+			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "your role does not allow this")
 			return
 		}
 		c.Set(folderKey{}, folderAccess{Folder: folder, Abilities: abilities})
