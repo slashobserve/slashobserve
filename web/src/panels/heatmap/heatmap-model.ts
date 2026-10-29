@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/time"
 import {
   axisDecimals,
   commonDecimals,
@@ -260,4 +261,110 @@ export function legendScale(min: number, max: number): LegendStep[] {
 export function formatCounts(values: number[]): (value: number) => string {
   const decimals = commonDecimals(values)
   return (value) => formatValue(value, undefined, decimals)
+}
+
+export type HeatmapCell = { row: number; col: number }
+
+const heatmapKeys = [
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+]
+
+export type HeatmapKey =
+  "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" | "Home" | "End"
+
+export function isHeatmapKey(key: string): key is HeatmapKey {
+  return heatmapKeys.includes(key)
+}
+
+export function stepCell(
+  model: HeatmapModel,
+  cell: HeatmapCell | null,
+  key: HeatmapKey
+): HeatmapCell | null {
+  const lastRow = model.rows.length - 1
+  const lastCol = model.xs.length - 1
+  if (lastRow < 0 || lastCol < 0) return null
+  if (cell === null) {
+    return { row: lastRow, col: key === "End" ? lastCol : 0 }
+  }
+  const clamp = (value: number, last: number) =>
+    Math.min(last, Math.max(0, value))
+  switch (key) {
+    case "ArrowUp":
+      return { row: clamp(cell.row + 1, lastRow), col: cell.col }
+    case "ArrowDown":
+      return { row: clamp(cell.row - 1, lastRow), col: cell.col }
+    case "ArrowLeft":
+      return { row: cell.row, col: clamp(cell.col - 1, lastCol) }
+    case "ArrowRight":
+      return { row: cell.row, col: clamp(cell.col + 1, lastCol) }
+    case "Home":
+      return { row: cell.row, col: 0 }
+    case "End":
+      return { row: cell.row, col: lastCol }
+  }
+}
+
+export function edge(index: number, count: number, size: number): number {
+  return Math.round((index * size) / count)
+}
+
+export function cellBox(
+  model: HeatmapModel,
+  cell: HeatmapCell,
+  width: number,
+  height: number
+): { left: number; top: number; width: number; height: number } {
+  const columns = model.xs.length
+  const rows = model.rows.length
+  const top = edge(rows - cell.row - 1, rows, height)
+  const left = edge(cell.col, columns, width)
+  return {
+    left,
+    top,
+    width: edge(cell.col + 1, columns, width) - left,
+    height: edge(rows - cell.row, rows, height) - top,
+  }
+}
+
+export function cellCenter(
+  model: HeatmapModel,
+  cell: HeatmapCell,
+  width: number,
+  height: number
+): { x: number; y: number } {
+  const box = cellBox(model, cell, width, height)
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+}
+
+function timeRange(xs: number[], col: number): string {
+  const start = xs[col]
+  const next =
+    col + 1 < xs.length
+      ? xs[col + 1]
+      : xs.length > 1
+        ? start + (start - xs[col - 1])
+        : null
+  return next === null
+    ? formatDateTime(start)
+    : `${formatDateTime(start)} to ${formatDateTime(next)}`
+}
+
+export function cellText(
+  model: HeatmapModel,
+  cell: HeatmapCell,
+  format: (value: number) => string
+): string {
+  const value = model.cells[cell.row][cell.col]
+  const text = value === null ? "-" : format(value)
+  const row = model.rows[cell.row].range
+  const range = timeRange(model.xs, cell.col)
+  return model.mode === "ordinal"
+    ? `${range}, series ${row}, value ${text}`
+    : `${range}, bucket ${row}, count ${text}`
 }

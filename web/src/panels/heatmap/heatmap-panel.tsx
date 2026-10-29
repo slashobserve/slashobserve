@@ -7,8 +7,11 @@ import type { PanelRenderer } from "../types"
 import { timeTicks } from "@/lib/time-ticks"
 import { HeatmapCanvas, type Hover } from "./heatmap-canvas"
 import {
+  cellCenter,
+  cellText,
   formatCounts,
   heatmapModel,
+  type HeatmapCell,
   legendScale,
   type HeatmapModel,
 } from "./heatmap-model"
@@ -171,6 +174,10 @@ export const HeatmapPanel: PanelRenderer = ({
 }) => {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
+  const [focus, setFocus] = useState<{
+    model: HeatmapModel
+    cell: HeatmapCell | null
+  } | null>(null)
   const model = useMemo(
     () => heatmapModel(frames, fields, display, panel.queries),
     [frames, fields, display, panel.queries]
@@ -184,6 +191,12 @@ export const HeatmapPanel: PanelRenderer = ({
   const labelWidth = axisWidth(model)
   const plotWidth = width - 2 * padX - labelWidth
   const plotHeight = height - padTop - xAxisHeight - legendHeight - legendGap
+  const focused = focus !== null && focus.model === model ? focus.cell : null
+  const shown =
+    hover ??
+    (focused === null
+      ? null
+      : { ...focused, ...cellCenter(model, focused, plotWidth, plotHeight) })
   const ready = rows > 0 && columns > 0 && plotWidth > 0 && plotHeight > 0
   return (
     <div
@@ -204,12 +217,17 @@ export const HeatmapPanel: PanelRenderer = ({
                 height={plotHeight}
                 theme={theme}
                 label={`Heatmap with ${rows} rows over ${columns} time steps; highest count ${format(model.max)}`}
+                focused={focused}
                 onHover={setHover}
+                onFocusChange={(cell) => setFocus({ model, cell })}
               />
-              {hover && hover.row < rows && hover.col < columns ? (
+              <div aria-live="polite" className="sr-only">
+                {focused === null ? "" : cellText(model, focused, format)}
+              </div>
+              {shown && shown.row < rows && shown.col < columns ? (
                 <Tooltip
                   model={model}
-                  hover={hover}
+                  hover={shown}
                   width={plotWidth}
                   height={plotHeight}
                   format={format}
