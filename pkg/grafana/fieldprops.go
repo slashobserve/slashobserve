@@ -470,7 +470,7 @@ func propLinks(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
-var staticPanelNames = map[spec.PanelType]string{spec.Text: "text panels", spec.DashList: "dashboard lists"}
+var staticPanelNames = map[spec.PanelType]string{spec.Text: "text panels", spec.DashList: "dashboard lists", spec.News: "news panels"}
 
 func (b *panelBuild) convertLinks() {
 	items, _ := asArray(b.raw["links"])
@@ -478,8 +478,8 @@ func (b *panelBuild) convertLinks() {
 	if len(items) == 0 {
 		return
 	}
-	if b.typ == spec.Text || b.typ == spec.DashList {
-		b.partial("links", fmt.Sprintf("Links on %s are not supported yet.", staticPanelNames[b.typ]))
+	if name, static := staticPanelNames[b.typ]; static {
+		b.partial("links", fmt.Sprintf("Links on %s are not supported yet.", name))
 		return
 	}
 	links := b.linkList(items, func(i int) string { return fmt.Sprintf("links[%d]", i) })

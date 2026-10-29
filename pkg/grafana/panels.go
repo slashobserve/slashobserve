@@ -26,12 +26,11 @@ var convertiblePanelTypes = map[spec.PanelType]bool{
 	spec.StateTimeline: true, spec.Logs: true, spec.Text: true,
 	spec.BarChart: true, spec.StatusHistory: true, spec.Trend: true, spec.XYChart: true,
 	spec.Candlestick: true, spec.NodeGraph: true, spec.Traces: true, spec.FlameGraph: true,
-	spec.Geomap: true, spec.Canvas: true, spec.AlertList: true, spec.DashList: true,
+	spec.Geomap: true, spec.Canvas: true, spec.AlertList: true, spec.DashList: true, spec.News: true,
 }
 
 var placeholderReasons = map[string]string{
 	"annolist":       "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
-	"news":           "SlashObserve does not fetch RSS feeds yet.",
 	"welcome":        homePanelReason,
 	"gettingstarted": homePanelReason,
 	"debug":          debugPanelReason,
@@ -161,7 +160,7 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 	if reason := alertListReason(n); reason != "" {
 		return placeholderPanel(n, reason)
 	}
-	if typ != spec.Text && typ != spec.DashList {
+	if _, static := staticPanelNames[typ]; !static {
 		if reason := c.datasourceReason(n); reason != "" {
 			return placeholderPanel(n, reason)
 		}
@@ -180,6 +179,8 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 		return b.buildText()
 	case spec.DashList:
 		return b.buildDashList()
+	case spec.News:
+		return b.buildNews()
 	}
 	return b.buildData()
 }
