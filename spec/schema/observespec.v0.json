@@ -108,6 +108,12 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
     },
+    "datasourceRef": {
+      "title": "DatasourceRef",
+      "description": "A configured datasource uid, or ${name} naming a datasource variable declared in variables (before this variable, when used by one); queries then run on the datasource selected in that variable, and macros follow its datasourceType.",
+      "type": "string",
+      "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]{0,39}|\\$\\{[A-Za-z][A-Za-z0-9_]{0,39}\\})$"
+    },
     "query": {
       "type": "string",
       "minLength": 1,
@@ -314,7 +320,7 @@
           "const": "query"
         },
         "datasource": {
-          "$ref": "#/$defs/datasourceUid"
+          "$ref": "#/$defs/datasourceRef"
         },
         "query": {
           "$ref": "#/$defs/query"
@@ -632,7 +638,7 @@
           "const": "adhoc"
         },
         "datasource": {
-          "$ref": "#/$defs/datasourceUid"
+          "$ref": "#/$defs/datasourceRef"
         }
       },
       "required": [
@@ -1077,7 +1083,7 @@
           "maxLength": 200
         },
         "datasource": {
-          "$ref": "#/$defs/datasourceUid"
+          "$ref": "#/$defs/datasourceRef"
         },
         "instant": {
           "type": "boolean"
@@ -2165,7 +2171,7 @@
           ]
         },
         "datasource": {
-          "$ref": "#/$defs/datasourceUid"
+          "$ref": "#/$defs/datasourceRef"
         },
         "queries": {
           "type": "array",

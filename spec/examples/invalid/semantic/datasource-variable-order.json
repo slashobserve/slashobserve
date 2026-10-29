@@ -1,0 +1,40 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "job",
+      "type": "query",
+      "datasource": "${ds}",
+      "query": "label_values(up, job)"
+    },
+    {
+      "name": "ds",
+      "type": "datasource",
+      "datasourceType": "prometheus"
+    }
+  ],
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "up"
+        }
+      ]
+    }
+  ]
+}

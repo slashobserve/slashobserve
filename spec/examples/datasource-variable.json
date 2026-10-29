@@ -1,0 +1,41 @@
+{
+  "specVersion": "0",
+  "title": "Datasource variable",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "ds",
+      "type": "datasource",
+      "datasourceType": "prometheus",
+      "default": "prom"
+    },
+    {
+      "name": "job",
+      "type": "query",
+      "datasource": "${ds}",
+      "query": "label_values(up, job)"
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_up",
+      "type": "timeseries",
+      "title": "Up by job",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "${ds}",
+      "queries": [
+        {
+          "query": "sum by (job) (up{job=~\"$job\"})"
+        }
+      ]
+    }
+  ]
+}
