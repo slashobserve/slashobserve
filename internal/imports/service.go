@@ -109,22 +109,33 @@ func New(database *db.DB, dash *dashboards.Service, registry *datasource.Registr
 	}
 }
 
-func (s *Service) Preview(_ context.Context, by auth.Principal, req Request) (*grafana.Result, error) {
-	if err := checkLimits(req); err != nil {
-		return nil, err
-	}
+type LoadFunc func() (Request, error)
+
+func fixed(req Request) LoadFunc {
+	return func() (Request, error) { return req, nil }
+}
+
+func (s *Service) Preview(ctx context.Context, by auth.Principal, req Request) (*grafana.Result, error) {
+	return s.PreviewFrom(ctx, by, fixed(req))
+}
+
+func (s *Service) PreviewFrom(_ context.Context, by auth.Principal, load LoadFunc) (*grafana.Result, error) {
 	release, ok := s.previewSlots.acquire(principalKey(by))
 	if !ok {
 		return nil, ErrBusy
 	}
 	defer release()
+	req, err := load()
+	if err != nil {
+		return nil, err
+	}
+	if err := checkLimits(req); err != nil {
+		return nil, err
+	}
 	return grafana.Convert(req.JSON, s.options(req))
 }
 
 func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (Imported, error) {
-	if err := checkLimits(req); err != nil {
-		return Imported{}, err
-	}
 	if req.RequestID.Valid {
 		dash, ver, found, err := s.dashboard.CreatedByRequest(ctx, req.RequestID)
 		if err != nil {
@@ -134,11 +145,22 @@ func (s *Service) Import(ctx context.Context, by auth.Principal, req Request) (I
 			return s.replay(ctx, dash, ver)
 		}
 	}
+	return s.ImportFrom(ctx, by, fixed(req))
+}
+
+func (s *Service) ImportFrom(ctx context.Context, by auth.Principal, load LoadFunc) (Imported, error) {
 	release, ok := s.importSlots.acquire(principalKey(by))
 	if !ok {
 		return Imported{}, ErrBusy
 	}
 	defer release()
+	req, err := load()
+	if err != nil {
+		return Imported{}, err
+	}
+	if err := checkLimits(req); err != nil {
+		return Imported{}, err
+	}
 
 	result, err := grafana.Convert(req.JSON, s.options(req))
 	if err != nil {

@@ -134,7 +134,19 @@ func newMetaJSON(m Meta) metaJSON {
 	}
 }
 
-func decodeImport(c *gin.Context) (Request, bool) {
+var errAnswered = errors.New("the request was already answered")
+
+func decodeImport(c *gin.Context) LoadFunc {
+	return func() (Request, error) {
+		req, ok := decodeImportBody(c)
+		if !ok {
+			return Request{}, errAnswered
+		}
+		return req, nil
+	}
+}
+
+func decodeImportBody(c *gin.Context) (Request, bool) {
 	var body importRequest
 	if !httpapi.DecodeBody(c, &body, MaxBodyBytes) {
 		return Request{}, false
@@ -157,11 +169,10 @@ func decodeImport(c *gin.Context) (Request, bool) {
 }
 
 func (h *Handler) preview(c *gin.Context) {
-	req, ok := decodeImport(c)
-	if !ok {
+	result, err := h.svc.PreviewFrom(c.Request.Context(), httpapi.Caller(c), decodeImport(c))
+	if errors.Is(err, errAnswered) {
 		return
 	}
-	result, err := h.svc.Preview(c.Request.Context(), httpapi.Caller(c), req)
 	if err != nil {
 		h.fail(c, "preview import", err)
 		return
@@ -176,11 +187,10 @@ func (h *Handler) preview(c *gin.Context) {
 }
 
 func (h *Handler) create(c *gin.Context) {
-	req, ok := decodeImport(c)
-	if !ok {
+	imported, err := h.svc.ImportFrom(c.Request.Context(), httpapi.Caller(c), decodeImport(c))
+	if errors.Is(err, errAnswered) {
 		return
 	}
-	imported, err := h.svc.Import(c.Request.Context(), httpapi.Caller(c), req)
 	if err != nil {
 		h.fail(c, "import dashboard", err)
 		return

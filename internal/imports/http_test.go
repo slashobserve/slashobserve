@@ -2,6 +2,7 @@ package imports_test
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -216,5 +217,30 @@ func TestARetriedRequestWithoutAnImportAnswers200WithTheDashboardAlone(t *testin
 	}
 	if _, has := decoded.(map[string]any)["import"]; has {
 		t.Fatalf("the body carries an import: %s", rec.Body)
+	}
+}
+
+func TestTheRoutesRefuseWithBusyBeforeReadingTheBody(t *testing.T) {
+	svc := imports.New(nil, nil, nil, slog.New(slog.DiscardHandler))
+	router := newRouter(svc)
+	for _, c := range []struct {
+		path string
+		hold func(auth.Principal) (func(), bool)
+	}{
+		{"/api/v1/imports/preview", svc.HoldPreviewSlot},
+		{"/api/v1/imports", svc.HoldImportSlot},
+	} {
+		for range 2 {
+			if release, held := c.hold(ada); held {
+				defer release()
+			}
+		}
+		req := httptest.NewRequest(http.MethodPost, c.path, strings.NewReader("not json"))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusTooManyRequests {
+			t.Errorf("%s: status = %d, want 429 before the body is read: %s", c.path, rec.Code, rec.Body)
+		}
 	}
 }
