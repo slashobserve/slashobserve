@@ -77,7 +77,7 @@ datasources-uid-preview:
       "401":
         $ref: "../openapi.yaml#/components/responses/Unauthorized"
       "403":
-        description: The caller is not a signed-in user; the code is `user_session_required`.
+        description: The caller is not a signed-in user (`user_session_required`), or cannot change the dashboard (`forbidden_role`).
         content:
           application/json:
             schema:

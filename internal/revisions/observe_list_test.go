@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	account   = auth.Principal{Kind: auth.KindServiceAccount, ID: accountID, Name: "ci"}
-	stranger  = auth.Principal{Kind: auth.KindServiceAccount, ID: strangerID, Name: "nobody"}
-	lookalike = auth.Principal{Kind: auth.KindServiceAccount, ID: userID, Name: "same id as the user"}
+	account   = auth.Principal{Kind: auth.KindServiceAccount, ID: accountID, Name: "ci", Role: auth.RoleEditor}
+	stranger  = auth.Principal{Kind: auth.KindServiceAccount, ID: strangerID, Name: "nobody", Role: auth.RoleEditor}
+	lookalike = auth.Principal{Kind: auth.KindServiceAccount, ID: userID, Name: "same id as the user", Role: auth.RoleEditor}
 )
 
 func observeRouterFor(svc *revisions.Service, who auth.Principal) *gin.Engine {

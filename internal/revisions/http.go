@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -71,11 +72,11 @@ type listJSON struct {
 
 func (s *Service) Register(api auth.Routes) {
 	g := api.Group("/dashboards/:id/revisions")
-	g.POST("", auth.RoleViewer, s.createRevision)
-	g.GET("", auth.RoleViewer, s.listRevisions)
-	g.GET("/:revision_id", auth.RoleViewer, s.getRevision)
-	api.POST("/dashboards/:id/suggestions", auth.RoleViewer, s.createSuggestion)
-	api.GET("/dashboards/:id/suggestions/:suggestion_id", auth.RoleViewer, s.getSuggestion)
+	g.POST("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedEdit), s.createRevision)
+	g.GET("", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.listRevisions)
+	g.GET("/:revision_id", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.getRevision)
+	api.POST("/dashboards/:id/suggestions", auth.RoleViewer, s.access.RequireDashboard(folders.NeedEdit), s.createSuggestion)
+	api.GET("/dashboards/:id/suggestions/:suggestion_id", auth.RoleViewer, s.access.RequireDashboard(folders.NeedView), s.getSuggestion)
 }
 
 func (s *Service) createRevision(c *gin.Context) {
@@ -206,6 +207,8 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrForbidden):
+		httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", err.Error())
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):

@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -45,9 +46,15 @@ type SpecSource interface {
 	VersionSpec(ctx context.Context, id pgtype.UUID, version int) (*spec.Dashboard, error)
 }
 
+type Access interface {
+	Dashboard(ctx context.Context, p auth.Principal, id pgtype.UUID) (folders.DashboardAccess, error)
+	RequireDashboard(n folders.Need) gin.HandlerFunc
+}
+
 type Handler struct {
 	runner   *queryproxy.Runner
 	specs    SpecSource
+	access   Access
 	registry *datasource.Registry
 	logger   *slog.Logger
 	caches   *caches
@@ -56,13 +63,14 @@ type Handler struct {
 	lintTimeout time.Duration
 }
 
-func NewHandler(runner *queryproxy.Runner, specs SpecSource, registry *datasource.Registry, logger *slog.Logger) *Handler {
+func NewHandler(runner *queryproxy.Runner, specs SpecSource, access Access, registry *datasource.Registry, logger *slog.Logger) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Handler{
 		runner:   runner,
 		specs:    specs,
+		access:   access,
 		registry: registry,
 		logger:   logger,
 		caches:   newCaches(logger),
@@ -73,8 +81,8 @@ func NewHandler(runner *queryproxy.Runner, specs SpecSource, registry *datasourc
 }
 
 func (h *Handler) Register(api auth.Routes) {
-	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.data)
-	api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.values)
+	api.GET("/dashboards/:id/versions/:version/panels/:panel_id/data", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.data)
+	api.GET("/dashboards/:id/versions/:version/variables/:name/values", auth.RoleViewer, h.access.RequireDashboard(folders.NeedView), h.values)
 	api.POST("/datasources/:uid/lint", auth.RoleViewer, h.lint)
 	api.POST("/datasources/:uid/preview", auth.RoleViewer, h.preview)
 	api.GET("/datasources/:uid/metrics", auth.RoleViewer, h.metrics)

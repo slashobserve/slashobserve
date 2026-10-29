@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 )
 
@@ -46,17 +47,42 @@ func (f *fakeSessions) Valid(*http.Request) (bool, error) {
 	return f.valid.Load(), nil
 }
 
+type fakeAccess struct {
+	view     atomic.Bool
+	failNext atomic.Int32
+	err      atomic.Pointer[error]
+}
+
+func (f *fakeAccess) Dashboard(context.Context, auth.Principal, pgtype.UUID) (folders.DashboardAccess, error) {
+	if f.failNext.Load() > 0 {
+		f.failNext.Add(-1)
+		return folders.DashboardAccess{}, errors.New("database unavailable")
+	}
+	if err := f.err.Load(); err != nil {
+		return folders.DashboardAccess{}, *err
+	}
+	return folders.DashboardAccess{Abilities: folders.Abilities{View: f.view.Load()}}, nil
+}
+
+func allowAll(*gin.Context) {}
+
+func newFakeAccess() *fakeAccess {
+	f := &fakeAccess{}
+	f.view.Store(true)
+	return f
+}
+
 type openStream struct {
 	lines chan string
 	done  chan struct{}
 }
 
-func openEventStream(t *testing.T, sessions Sessions) *openStream {
+func openEventStream(t *testing.T, sessions Sessions, access Access) *openStream {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
 	t.Cleanup(broker.Close)
-	h := NewHandler(broker, fakeDashboards{}, sessions, slog.New(slog.DiscardHandler))
+	h := NewHandler(broker, fakeDashboards{}, sessions, access, allowAll, slog.New(slog.DiscardHandler))
 	h.pingInterval = testPing
 	engine := gin.New()
 	api := engine.Group("/api/v1", func(c *gin.Context) {
@@ -115,7 +141,7 @@ func (s *openStream) closedWithin(d time.Duration) bool {
 func TestStreamEndsWhenTheCredentialStopsBeingValid(t *testing.T) {
 	sessions := &fakeSessions{}
 	sessions.valid.Store(true)
-	s := openEventStream(t, sessions)
+	s := openEventStream(t, sessions, newFakeAccess())
 	s.waitFor(t, "event: ready")
 	s.waitFor(t, ": ping")
 	s.waitFor(t, ": ping")
@@ -129,7 +155,7 @@ func TestStreamEndsWhenTheCredentialStopsBeingValid(t *testing.T) {
 func TestStreamSurvivesASingleCheckFailure(t *testing.T) {
 	sessions := &fakeSessions{}
 	sessions.valid.Store(true)
-	s := openEventStream(t, sessions)
+	s := openEventStream(t, sessions, newFakeAccess())
 	s.waitFor(t, "event: ready")
 
 	sessions.failNext.Store(1)
@@ -146,12 +172,61 @@ func TestStreamSurvivesASingleCheckFailure(t *testing.T) {
 func TestStreamEndsAfterConsecutiveCheckFailures(t *testing.T) {
 	sessions := &fakeSessions{}
 	sessions.valid.Store(true)
-	s := openEventStream(t, sessions)
+	s := openEventStream(t, sessions, newFakeAccess())
 	s.waitFor(t, "event: ready")
 
 	sessions.failNext.Store(1000)
 	if !s.closedWithin(waitTimeout) {
 		t.Fatal("the stream stayed open while its credentials could not be checked")
+	}
+}
+
+func TestStreamEndsAtThePingAfterTheCallerLosesView(t *testing.T) {
+	cases := []struct {
+		name   string
+		revoke func(*fakeAccess)
+	}{
+		{"view removed", func(a *fakeAccess) { a.view.Store(false) }},
+		{"folder access removed", func(a *fakeAccess) { a.err.Store(&folders.ErrNoAccess) }},
+		{"dashboard deleted", func(a *fakeAccess) { a.err.Store(&folders.ErrNotFound) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := &fakeSessions{}
+			sessions.valid.Store(true)
+			access := newFakeAccess()
+			s := openEventStream(t, sessions, access)
+			s.waitFor(t, "event: ready")
+			s.waitFor(t, ": ping")
+
+			tc.revoke(access)
+			if !s.closedWithin(waitTimeout) {
+				t.Fatal("the stream outlived the caller's access")
+			}
+		})
+	}
+}
+
+func TestStreamTreatsAnAccessLookupFailureLikeACredentialCheckFailure(t *testing.T) {
+	sessions := &fakeSessions{}
+	sessions.valid.Store(true)
+	access := newFakeAccess()
+	s := openEventStream(t, sessions, access)
+	s.waitFor(t, "event: ready")
+
+	access.failNext.Store(1)
+	for access.failNext.Load() > 0 {
+		time.Sleep(testPing)
+	}
+	s.waitFor(t, ": ping")
+	s.waitFor(t, ": ping")
+	if s.closedWithin(5 * testPing) {
+		t.Fatal("one failed access lookup must not close the stream")
+	}
+
+	access.failNext.Store(1000)
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream stayed open while access could not be checked")
 	}
 }
 
@@ -178,7 +253,7 @@ func TestClientGoingAwayWhileReadingTheVersionIsNotAServerError(t *testing.T) {
 			logger, logs := logtest.New()
 			broker := events.NewBroker(nil, slog.New(slog.DiscardHandler))
 			t.Cleanup(broker.Close)
-			h := NewHandler(broker, failingDashboards{tc.err}, &fakeSessions{}, logger)
+			h := NewHandler(broker, failingDashboards{tc.err}, &fakeSessions{}, newFakeAccess(), allowAll, logger)
 			engine := gin.New()
 			h.Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
 				c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleViewer}))

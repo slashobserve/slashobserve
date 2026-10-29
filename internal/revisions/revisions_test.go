@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -40,7 +41,7 @@ func editorPrincipals(_ context.Context, kind auth.PrincipalKind, id string) (au
 }
 
 func newTestService(database *db.DB, reviser revisions.Reviser, logger *slog.Logger, opts ...revisions.Option) *revisions.Service {
-	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals))}, opts...)...)
+	return revisions.NewService(database, reviser, logger, append([]revisions.Option{revisions.WithPrincipals(principalsFunc(editorPrincipals)), revisions.WithAccess(folders.NewAccess(database))}, opts...)...)
 }
 
 func TestMain(m *testing.M) {
@@ -238,13 +239,13 @@ func TestRunActsWithTheRequestersCurrentRoleAndGroups(t *testing.T) {
 		got = req
 		return revisions.Result{Version: 2}, nil
 	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(_ context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
-		return auth.Principal{Kind: kind, ID: id, Name: "Ada", Role: auth.RoleCommenter, Groups: []string{"ops"}}, nil
+		return auth.Principal{Kind: kind, ID: id, Name: "Ada", Role: auth.RoleAdmin, Groups: []string{"ops"}}, nil
 	})))
 	dash := seedDashboard(t, d, 1)
 	rev := submit(t, svc, dash, "go")
 	startWorker(t, svc, d, revisions.WorkerOptions{})
 	waitForStatus(t, svc, dash, rev.ID, revisions.StatusSucceeded)
-	if got.RequestedBy.Role != auth.RoleCommenter || !reflect.DeepEqual(got.RequestedBy.Groups, []string{"ops"}) || got.RequestedBy.ID != userID {
+	if got.RequestedBy.Role != auth.RoleAdmin || !reflect.DeepEqual(got.RequestedBy.Groups, []string{"ops"}) || got.RequestedBy.ID != userID {
 		t.Fatalf("the reviser received requester %+v", got.RequestedBy)
 	}
 }
@@ -1224,5 +1225,101 @@ func TestRequestSentFromACommentThreadResolvesTheThreadWithTheSavedVersion(t *te
 	after := thread(earlier.ID)
 	if after.ResolvedByName.String != "Grace" || after.ResolvedByVersion.Int32 != 1 || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
 		t.Fatalf("an already resolved thread changed: before %+v, after %+v", before, after)
+	}
+}
+
+func asRole(role auth.Role) auth.Principal {
+	p := user
+	p.Role = role
+	return p
+}
+
+func moveToRestrictedFolder(t *testing.T, d *dbtest.Database, dashboard pgtype.UUID) {
+	t.Helper()
+	d.Exec(t, `WITH f AS (INSERT INTO folders (title) VALUES ('Private') RETURNING id),
+		p AS (INSERT INTO folder_permissions (folder_id, group_name, level) SELECT id, 'nobody', 'view' FROM f)
+		UPDATE dashboards SET folder_id = (SELECT id FROM f) WHERE id = $1`, dashboard)
+}
+
+func TestRequestsNeedEditOnTheDashboardOrEditorForANewOne(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	open := seedDashboard(t, d, 1)
+	hidden := seedDashboard(t, d, 1)
+	moveToRestrictedFolder(t, d, hidden)
+	missing := mustUUID(t, "99999999-9999-4999-8999-999999999999")
+
+	cases := []struct {
+		name      string
+		dashboard pgtype.UUID
+		by        auth.Principal
+		want      error
+	}{
+		{"Editor edits a dashboard in General", open, asRole(auth.RoleEditor), nil},
+		{"Viewer without a grant may not", open, asRole(auth.RoleViewer), revisions.ErrForbidden},
+		{"Commenter without a grant may not", open, asRole(auth.RoleCommenter), revisions.ErrForbidden},
+		{"a dashboard in a folder the caller cannot see is not found", hidden, asRole(auth.RoleEditor), revisions.ErrDashboardNotFound},
+		{"a missing dashboard is not found", missing, asRole(auth.RoleEditor), revisions.ErrDashboardNotFound},
+		{"Admin sees every folder", hidden, asRole(auth.RoleAdmin), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := svc.Submit(context.Background(), revisions.EnqueueParams{
+				DashboardID: tc.dashboard, Source: revisions.SourcePrompt, Prompt: "go", BaseVersion: 1, By: tc.by,
+			})
+			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
+				t.Fatalf("err = %v, want %v", err, tc.want)
+			}
+		})
+	}
+
+	follow := func(dashboard pgtype.UUID, by auth.Principal) error {
+		_, err := svc.SubmitFollowUp(context.Background(), dashboard, nil, "", "again", by)
+		return err
+	}
+	if err := follow(hidden, asRole(auth.RoleEditor)); !errors.Is(err, revisions.ErrDashboardNotFound) {
+		t.Fatalf("follow-up on a hidden dashboard: %v", err)
+	}
+	if err := follow(open, asRole(auth.RoleViewer)); !errors.Is(err, revisions.ErrForbidden) {
+		t.Fatalf("follow-up by a Viewer: %v", err)
+	}
+
+	for role, want := range map[auth.Role]error{auth.RoleViewer: revisions.ErrForbidden, auth.RoleCommenter: revisions.ErrForbidden, auth.RoleEditor: nil} {
+		if _, err := svc.SubmitObserve(context.Background(), asRole(role), "new dashboard"); !errors.Is(err, want) || (want == nil && err != nil) {
+			t.Errorf("observe by %s: err = %v, want %v", role, err, want)
+		}
+	}
+}
+
+func TestRunFailsWhenTheRequesterNoLongerHasAccessAtClaim(t *testing.T) {
+	var calls atomic.Int32
+	var current atomic.Value
+	current.Store(auth.RoleEditor)
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		calls.Add(1)
+		return revisions.Result{Version: 2}, nil
+	}), quietLogger(), revisions.WithPrincipals(principalsFunc(func(_ context.Context, kind auth.PrincipalKind, id string) (auth.Principal, error) {
+		return auth.Principal{Kind: kind, ID: id, Name: "Ada", Role: current.Load().(auth.Role)}, nil
+	})))
+	dash := seedDashboard(t, d, 1)
+	rev := submit(t, svc, dash, "go")
+	observe, err := svc.SubmitObserve(context.Background(), user, "new dashboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.Store(auth.RoleViewer)
+
+	startWorker(t, svc, d, revisions.WorkerOptions{})
+	failed := waitForStatus(t, svc, dash, rev.ID, revisions.StatusFailed)
+	const message = "the person or key that asked no longer has access to change this dashboard"
+	if failed.Error != message {
+		t.Fatalf("revision error = %q, want %q", failed.Error, message)
+	}
+	waitFor(t, "the observe request to fail", func() bool {
+		row, err := svc.GetByID(context.Background(), observe.ID)
+		return err == nil && row.Status == string(revisions.StatusFailed) && row.Error.String == message
+	})
+	if calls.Load() != 0 {
+		t.Fatalf("the agent ran %d times for requesters without access", calls.Load())
 	}
 }

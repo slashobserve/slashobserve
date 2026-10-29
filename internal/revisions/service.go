@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/events"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
@@ -35,6 +36,7 @@ type Service struct {
 	specs   SpecReader
 
 	principals Principals
+	access     *folders.Access
 }
 
 func NewService(database *db.DB, reviser Reviser, logger *slog.Logger, opts ...Option) *Service {
@@ -60,16 +62,30 @@ type EnqueueParams struct {
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
+	if err := s.checkRun(ctx, p.Source, p.DashboardID, p.By); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	return s.submit(ctx, p)
+}
+
+func (s *Service) submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	var row dbsqlc.AgentRequest
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = s.Enqueue(ctx, q, p)
+		row, err = s.enqueue(ctx, q, p)
 		return err
 	})
 	return row, err
 }
 
 func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
+	if err := s.checkRun(ctx, p.Source, p.DashboardID, p.By); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	return s.enqueue(ctx, q, p)
+}
+
+func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
@@ -136,6 +152,9 @@ func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
+	if err := s.checkRun(ctx, SourcePrompt, dashboardID, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	latest, base, err := s.baseVersionFor(ctx, dashboardID, baseVersion)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -152,7 +171,7 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 			return dbsqlc.AgentRequest{}, ErrUnknownPanel
 		}
 	}
-	return s.Submit(ctx, EnqueueParams{
+	return s.submit(ctx, EnqueueParams{
 		DashboardID: dashboardID,
 		Source:      SourcePrompt,
 		Prompt:      prompt,
@@ -188,6 +207,9 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt string) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
+	}
+	if err := s.checkRun(ctx, SourceObserve, pgtype.UUID{}, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {

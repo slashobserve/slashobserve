@@ -208,3 +208,59 @@ func TestGetAndListRevisions(t *testing.T) {
 		}
 	}
 }
+
+func TestAnObserveRequestOfAHiddenDashboardIsNotFound(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	hidden := seedDashboard(t, d, 1)
+	rev := submit(t, svc, hidden, "go")
+	moveToRestrictedFolder(t, d, hidden)
+	id := rev.ID
+
+	for role, want := range map[auth.Role]int{auth.RoleEditor: http.StatusNotFound, auth.RoleAdmin: http.StatusOK} {
+		r := gin.New()
+		revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+			c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), asRole(role)))
+		})))
+		rec := call(r, http.MethodGet, "/api/v1/observe/"+id, "")
+		if rec.Code != want {
+			t.Errorf("%s: status %d, want %d: %s", role, rec.Code, want, rec.Body)
+		}
+	}
+}
+
+func TestRevisionRoutesAnswerForbiddenRoleWithoutEdit(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	body := `{"prompt":"go","base_version":1}`
+
+	for name, tc := range map[string]struct {
+		role   auth.Role
+		method string
+		path   string
+		body   string
+		want   int
+	}{
+		"Viewer reads the list":                    {auth.RoleViewer, http.MethodGet, revisionsPath(dash), "", http.StatusOK},
+		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
+		"Commenter may not send a prompt":          {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
+		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
+		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := gin.New()
+			api := auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+				c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), asRole(tc.role)))
+			}))
+			svc.Register(api)
+			revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(api)
+			rec := call(r, tc.method, tc.path, tc.body)
+			if rec.Code != tc.want {
+				t.Fatalf("status %d, want %d: %s", rec.Code, tc.want, rec.Body)
+			}
+			if tc.want == http.StatusForbidden && errorCode(t, rec) != "forbidden_role" {
+				t.Fatalf("code %q, want forbidden_role", errorCode(t, rec))
+			}
+		})
+	}
+}

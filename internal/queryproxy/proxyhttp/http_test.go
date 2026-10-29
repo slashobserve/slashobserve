@@ -25,6 +25,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -224,8 +226,46 @@ func testDashboard() *spec.Dashboard {
 	}
 }
 
+type fakeAccess struct {
+	mu        sync.Mutex
+	abilities folders.Abilities
+	err       error
+}
+
+func newFakeAccess() *fakeAccess {
+	return &fakeAccess{abilities: folders.Abilities{View: true, Comment: true, Edit: true, Manage: true, Create: true}}
+}
+
+func (f *fakeAccess) set(a folders.Abilities, err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.abilities, f.err = a, err
+}
+
+func (f *fakeAccess) Dashboard(context.Context, auth.Principal, pgtype.UUID) (folders.DashboardAccess, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return folders.DashboardAccess{Abilities: f.abilities}, f.err
+}
+
+func (f *fakeAccess) RequireDashboard(n folders.Need) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, ok := httpapi.UUIDParam(c, "id")
+		if !ok {
+			return
+		}
+		access, err := f.Dashboard(c.Request.Context(), auth.Principal{}, id)
+		if err != nil || !access.Abilities.Has(n) {
+			httpapi.AbortError(c, http.StatusForbidden, "forbidden_role", "you don't have permission to do this on this dashboard")
+			return
+		}
+		c.Next()
+	}
+}
+
 type harness struct {
 	t      *testing.T
+	access *fakeAccess
 	h      *Handler
 	router *gin.Engine
 	ds     *fakeDatasource
@@ -276,7 +316,8 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 	id := pgtype.UUID{Bytes: [16]byte{9, 9, 9}, Valid: true}
 	specs := &fakeSpecs{known: map[specKey]*spec.Dashboard{{id: id, version: 1}: testDashboard()}}
 	runner := queryproxy.NewRunner(registry, logger, opts...)
-	h := NewHandler(runner, specs, registry, logger)
+	access := newFakeAccess()
+	h := NewHandler(runner, specs, access, registry, logger)
 
 	router := gin.New()
 	api := router.Group("/api/v1")
@@ -292,7 +333,7 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal, Role: auth.RoleAdmin}))
 	})
 	h.Register(auth.NewRoutes(api))
-	return &harness{t: t, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}
+	return &harness{t: t, access: access, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}
 }
 
 func (hn *harness) dashboardPath(suffix string) string {
@@ -1774,5 +1815,51 @@ func TestPreviewRefusesADatasourceReferenceThatResolvesElsewhere(t *testing.T) {
 	}
 	if ranges, _, _, _ := hn.other.counts(); ranges != 0 {
 		t.Fatalf("the resolved datasource ran %d queries", ranges)
+	}
+}
+
+func TestPanelDataAndVariableValuesNeedViewOnTheDashboard(t *testing.T) {
+	hn := newHarness(t)
+	hn.access.set(folders.Abilities{}, nil)
+	expectError(t, hn.get(hn.dataPath("p_ts", window), ""), http.StatusForbidden, "forbidden_role")
+	expectError(t, hn.get(hn.valuesPath("job", window), ""), http.StatusForbidden, "forbidden_role")
+	if got := hn.specs.lookups(); got != 0 {
+		t.Fatalf("%d version reads for refused requests, want 0", got)
+	}
+
+	hn.access.set(folders.Abilities{View: true}, nil)
+	if rec := hn.get(hn.dataPath("p_ts", window), ""); rec.Code != http.StatusOK {
+		t.Fatalf("viewer panel data status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPreviewNeedsEditOnTheDashboard(t *testing.T) {
+	cases := []struct {
+		name       string
+		abilities  folders.Abilities
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{"viewer may not preview", folders.Abilities{View: true, Comment: true}, nil, http.StatusForbidden, "forbidden_role"},
+		{"viewer with an edit grant may preview", folders.Abilities{View: true, Edit: true}, nil, http.StatusOK, ""},
+		{"hidden dashboard is not found", folders.Abilities{}, folders.ErrNoAccess, http.StatusNotFound, "not_found"},
+		{"missing dashboard is not found", folders.Abilities{}, folders.ErrNotFound, http.StatusNotFound, "not_found"},
+		{"role without access is forbidden", folders.Abilities{}, folders.ErrForbidden, http.StatusForbidden, "forbidden_role"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			hn := newPreviewHarness(t)
+			hn.access.set(tc.abilities, tc.err)
+			rec := hn.previewAs(auth.KindUser, "prom", nil)
+			if tc.wantCode == "" {
+				decodeData(t, rec)
+				return
+			}
+			expectError(t, rec, tc.wantStatus, tc.wantCode)
+			if ranges, _, _, _ := hn.ds.counts(); ranges != 0 {
+				t.Fatalf("%d upstream queries for a refused preview", ranges)
+			}
+		})
 	}
 }

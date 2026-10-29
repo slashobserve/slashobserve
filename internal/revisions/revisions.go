@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -115,6 +116,10 @@ type Option func(*Service)
 
 func WithPrincipals(p Principals) Option {
 	return func(s *Service) { s.principals = p }
+}
+
+func WithAccess(a *folders.Access) Option {
+	return func(s *Service) { s.access = a }
 }
 
 func WithPanels(p PanelChecker) Option {

@@ -228,7 +228,7 @@ func run() error {
 	runner := queryproxy.NewRunner(registry, logger)
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
 	proxyRunner := queryproxy.NewRunner(registry, logger, queryproxy.WithValueCache())
-	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, registry, logger)
+	proxyHandler := proxyhttp.NewHandler(proxyRunner, dashboardsService, folderAccess, registry, logger)
 
 	importsService := imports.New(database, dashboardsService, registry, logger)
 	toolComments := dashboards.NewComments(database, dashboardsService, nil)
@@ -258,7 +258,7 @@ func run() error {
 		observeOpts.Provider, observeOpts.Model = llmProvider.Name(), llmProvider.Model()
 		observeOpts.Effort = reportedEffort(cfg.LLM)
 	}
-	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithPrincipals(authService))
+	revisionsService := revisions.NewService(database, reviser, logger, revisions.WithPanels(dashboardsService), revisions.WithSpecs(dashboardsService), revisions.WithPrincipals(authService), revisions.WithAccess(folderAccess))
 
 	broker := events.NewBroker(database.Listen, logger)
 	go broker.Run(ctx)
@@ -278,7 +278,7 @@ func run() error {
 			dashboardsService,
 			folders.NewHandler(database, folderAccess, logger),
 			imports.NewHandler(importsService),
-			stream.NewHandler(broker, dashboardsService, authService, logger),
+			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			dashboards.NewComments(database, dashboardsService, revisionsService),
 			revisionsService,
 			revisions.NewObserveHandler(revisionsService, observeOpts),
