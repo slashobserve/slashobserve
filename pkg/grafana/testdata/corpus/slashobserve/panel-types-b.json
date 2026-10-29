@@ -1013,6 +1013,33 @@
       "writeAllValues": false,
       "writeLastValue": true,
       "writeMetricNames": false
+    },
+    {
+      "id": 11,
+      "type": "alertlist",
+      "title": "Firing alerts",
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "alertInstanceLabelFilter": "severity=\"critical\"",
+        "alertName": "",
+        "dashboardAlerts": false,
+        "datasource": "${DS_PROMETHEUS}",
+        "groupBy": [],
+        "groupMode": "default",
+        "maxItems": 10,
+        "showInstances": false,
+        "sortOrder": 1,
+        "stateFilter": {
+          "firing": true,
+          "pending": true
+        },
+        "viewMode": "list"
+      }
     }
   ],
   "refresh": "",

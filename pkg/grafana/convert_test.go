@@ -1061,6 +1061,25 @@ func TestWorldmapImportsAsAGeomap(t *testing.T) {
 			paths:   []string{"locationData"},
 		},
 		{
+			name: "a total value is reported for table coordinates",
+			members: centered + `,"locationData":"table","tableQueryOptions":{"queryType":"coordinates","latitudeField":"lat","longitudeField":"lon","metricField":"hits","geohashField":"geohash","labelField":""},` +
+				`"valueName":"total"`,
+			display: `{"view":"coords","lat":20,"lon":10,"zoom":3,"location":"coords","latField":"lat","lonField":"lon","sizeField":"hits","colorField":"hits"}`,
+			paths:   []string{"valueName"},
+		},
+		{
+			name:    "a total value is reported for table geohash",
+			members: `"mapCenter":"(0°, 0°)","locationData":"table","tableQueryOptions":{"queryType":"geohash","geohashField":"hash","metricField":"hits"},"valueName":"total"`,
+			display: `{"view":"world","location":"geohash","geohashField":"hash","sizeField":"hits","colorField":"hits"}`,
+			paths:   []string{"valueName"},
+		},
+		{
+			name:    "a total value is reported for countries",
+			members: `"mapCenter":"(0°, 0°)","locationData":"countries","tableQueryOptions":{"queryType":"geohash","geohashField":"geohash"},"valueName":"total"`,
+			display: `{"view":"world"}`,
+			paths:   []string{"locationData", "valueName"},
+		},
+		{
 			name:    "other locations and centers are reported",
 			members: `"mapCenter":"Europe","locationData":"json endpoint","valueName":"max"`,
 			display: "null",
