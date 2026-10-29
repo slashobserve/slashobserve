@@ -134,3 +134,21 @@ func TestCacheGetReturnsStoredTime(t *testing.T) {
 		t.Fatalf("Get stored-at = %v (ok %v), want %v", at, ok, stored)
 	}
 }
+
+func TestCachePutSweepsEntriesPastTheirTTL(t *testing.T) {
+	c, clock := newTestCache(10*time.Second, 100)
+	c.Put("a", "1", 3)
+	clock.now = clock.now.Add(5 * time.Second)
+	c.Put("b", "2", 4)
+	clock.now = clock.now.Add(5 * time.Second)
+	c.Put("c", "3", 5)
+
+	if len(c.items) != 2 || c.cost != 9 {
+		t.Fatalf("after sweeping a: items %d, cost %d, want 2 and 9", len(c.items), c.cost)
+	}
+	clock.now = clock.now.Add(time.Minute)
+	c.Put("d", "4", 1)
+	if len(c.items) != 1 || c.cost != 1 {
+		t.Fatalf("after sweeping b and c: items %d, cost %d, want 1 and 1", len(c.items), c.cost)
+	}
+}

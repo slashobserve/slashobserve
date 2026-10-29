@@ -23,6 +23,8 @@ const (
 	defaultCacheTTL = 15 * time.Minute
 	failureTTL      = time.Minute
 	cacheBytes      = 32 << 20
+	failureBytes    = 4 << 20
+	entryOverhead   = 256
 	defaultMaxBytes = 1 << 20
 	hardMaxBytes    = 8 << 20
 	maxRedirects    = 5
@@ -112,7 +114,7 @@ func newClient(allow Allowlist, opts Options, dial dialFunc, roots *x509.CertPoo
 		userAgent: opts.UserAgent,
 		transport: newTransport(dial, roots),
 		hits:      ttlcache.New[string, visited](opts.CacheTTL, cacheBytes),
-		failures:  ttlcache.New[string, error](failureTTL, cacheBytes),
+		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
 		group:     ttlcache.NewGroup[visited](fetchTimeout),
 		slots:     make(chan struct{}, maxConcurrent),
 	}
@@ -196,13 +198,17 @@ func (c *Client) run(ctx context.Context, j job) (visited, error) {
 	}
 	got, err := c.download(ctx, j)
 	if err == nil {
-		got.resp.FetchedAt = c.hits.Put(j.key, got, int64(len(got.resp.Body)))
+		got.resp.FetchedAt = c.hits.Put(j.key, got, entryCost(j.key, len(got.resp.Body)+len(got.resp.FinalURL)))
 		return got, nil
 	}
 	if cacheable(err) {
-		c.failures.Put(j.key, err, 1)
+		c.failures.Put(j.key, err, entryCost(j.key, len(err.Error())))
 	}
 	return visited{}, err
+}
+
+func entryCost(key string, payload int) int64 {
+	return int64(entryOverhead + len(key) + payload)
 }
 
 func cacheable(err error) bool {

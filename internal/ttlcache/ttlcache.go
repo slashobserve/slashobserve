@@ -52,6 +52,7 @@ func (c *Cache[K, V]) Put(key K, value V, cost int64) (stored time.Time) {
 	if el, found := c.items[key]; found {
 		c.remove(el)
 	}
+	c.sweepExpired(stored)
 	if cost > c.maxCost {
 		return stored
 	}
@@ -61,6 +62,18 @@ func (c *Cache[K, V]) Put(key K, value V, cost int64) (stored time.Time) {
 		c.remove(c.order.Back())
 	}
 	return stored
+}
+
+func (c *Cache[K, V]) sweepExpired(now time.Time) {
+	if c.ttl <= 0 {
+		return
+	}
+	for el := c.order.Back(); el != nil; el = c.order.Back() {
+		if now.Sub(el.Value.(*entry[K, V]).stored) < c.ttl {
+			return
+		}
+		c.remove(el)
+	}
 }
 
 func (c *Cache[K, V]) remove(el *list.Element) {

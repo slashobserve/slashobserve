@@ -472,6 +472,32 @@ func TestBlockedAddressIsReportedAndCached(t *testing.T) {
 	}
 }
 
+func TestFailureCacheIsBoundedByKeySize(t *testing.T) {
+	allow := newAllow(t, "feed.test")
+	var dials atomic.Int64
+	dial := func(context.Context, string, string) (net.Conn, error) {
+		dials.Add(1)
+		return nil, &net.OpError{Op: "dial", Err: refuseBlocked("tcp", "10.0.0.5:443", nil)}
+	}
+	c := newClient(allow, Options{}, dial, nil)
+	pad := strings.Repeat("x", 1500)
+	fetch := func(n int) {
+		req := Request{URL: fetchURL("feed.test", "/"+pad+strconv.Itoa(n)), Accept: rssTypes}
+		if _, err := c.Fetch(context.Background(), req); !errors.Is(err, ErrBlockedAddress) {
+			t.Fatalf("fetch %d error = %v", n, err)
+		}
+	}
+	fetch(0)
+	const distinct = 4000
+	for n := 1; n <= distinct; n++ {
+		fetch(n)
+	}
+	fetch(0)
+	if got := dials.Load(); got != distinct+2 {
+		t.Errorf("dialed %d times, want %d: the oldest failure should have been evicted", got, distinct+2)
+	}
+}
+
 func TestFetchSendsNoCredentialsOrCookies(t *testing.T) {
 	up, c := newUpstream(t, newAllow(t, "feed.test"), newFeedMux())
 	if _, err := c.Fetch(context.Background(), Request{URL: fetchURL("feed.test", "/cookie"), Accept: rssTypes}); err != nil {

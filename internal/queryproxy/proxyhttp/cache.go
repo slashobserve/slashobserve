@@ -29,6 +29,7 @@ const (
 	valuesResolution   = 10
 	valuesEntryBase    = 64
 	valuesItemOverhead = 16
+	dataEntryBase      = 512
 )
 
 type cacheKey [sha256.Size]byte
@@ -81,7 +82,7 @@ func newCaches() *caches {
 	}
 }
 
-func (e dataEntry) cost() int64 { return int64(len(e.frames)) }
+func (e dataEntry) cost() int64 { return int64(dataEntryBase + len(e.frames)) }
 
 func (e valuesEntry) cost() int64 {
 	cost := int64(valuesEntryBase)
