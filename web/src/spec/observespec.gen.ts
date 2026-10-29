@@ -306,6 +306,10 @@ export interface Dashboard {
    */
   timezone?: string;
   /**
+   * How hovering one time chart shows on the others: off, crosshair (the hovered time is marked on every time chart) or tooltip (their tooltips open too). Grafana's graphTooltip 0, 1 and 2.
+   */
+  cursorSync?: "off" | "crosshair" | "tooltip";
+  /**
    * @maxItems 20
    */
   variables?: Variable[];

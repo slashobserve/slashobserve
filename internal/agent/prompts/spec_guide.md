@@ -72,6 +72,7 @@ Leave out every value that equals its default.
 
 ## Time
 - Honor a requested window: "last 6h" is `"time": {"from": "now-6h", "to": "now"}`; otherwise use `now-1h`.
+- Leave out `cursorSync` unless the request asks to link hover across charts: `crosshair` marks the hovered time on every time chart, `tooltip` also opens their tooltips.
 
 ## Saving
 - Every query runs during the save, and every data panel except an `alertlist` must return data for the default time range and variable values, or the save is rejected with the reason; fix the named panels and save again.

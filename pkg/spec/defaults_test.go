@@ -122,7 +122,7 @@ func TestDefaultsTableDecodes(t *testing.T) {
 	if len(table.Display) != len(display) {
 		t.Fatalf("Defaults() has %d display entries, the file has %d", len(table.Display), len(display))
 	}
-	if table.FieldProps.ThresholdMode == "" || table.Query.Format == "" || table.Variable.Refresh == "" {
+	if table.FieldProps.ThresholdMode == "" || table.Query.Format == "" || table.Variable.Refresh == "" || table.Dashboard.CursorSync == "" {
 		t.Fatalf("Defaults() left a scalar section empty: %+v", table)
 	}
 }
