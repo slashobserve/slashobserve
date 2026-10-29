@@ -1042,14 +1042,20 @@ def walk(panels):
         yield p
         yield from walk(p.get("panels", []))
 
-def has_data(expr, start, end):
-    query = urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": 60})
+def seconds(text):
+    amount, unit = re.fullmatch(r"(\d+)([smhd])", text).groups()
+    return int(amount) * UNITS[unit]
+
+def has_data(expr, start, end, step):
+    if step:
+        start, end = start // step * step, end // step * step
+        end = max(end, start + step)
+    query = urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": step or 60})
     with urllib.request.urlopen(f"{sys.argv[2]}/api/v1/query_range?{query}", timeout=10) as resp:
         return bool(json.load(resp)["data"]["result"])
 
 dashboard = json.load(open(sys.argv[1]))
-amount, unit = re.fullmatch(r"now-(\d+)([smhd])", dashboard["time"]["from"]).groups()
-span = int(amount) * UNITS[unit]
+span = seconds(dashboard["time"]["from"].removeprefix("now-"))
 end = int(time.time())
 variables = [v["name"] for v in dashboard["templating"]["list"]]
 
@@ -1063,7 +1069,7 @@ for panel in walk(dashboard["panels"]):
     targets = panel.get("targets", [])
     if panel["type"] == "row" or not targets or any(t["datasource"]["type"] != "prometheus" for t in targets):
         continue
-    if not any(has_data(resolve(t["expr"]), end - span, end) for t in targets):
+    if not any(has_data(resolve(t["expr"]), end - span, end, seconds(t.get("interval") or panel.get("interval") or "0s")) for t in targets):
         print(panel["title"])
 PY
 }
