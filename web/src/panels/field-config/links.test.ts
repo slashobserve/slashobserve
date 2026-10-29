@@ -5,6 +5,7 @@ import type { DataPanel, Link } from "@/spec"
 
 import {
   createFieldResolver,
+  dashboardLinks,
   isDataLink,
   panelLinks,
   resolveLink,
@@ -363,5 +364,71 @@ describe("data links", () => {
       { title: "Window", href: "/d?from=1000&to=2500", newTab: false },
       { title: "Plain", href: "/d", newTab: false },
     ])
+  })
+})
+
+describe("dashboardLinks", () => {
+  const now = Date.parse("2026-10-21T15:04:05.678Z")
+  const window: Link = { title: "Window", url: "/d?from=${__from}&to=${__to}" }
+
+  it("fills the dashboard time range for a relative range", () => {
+    expect(
+      dashboardLinks([window], scope({ from: "now-6h", to: "now" }), now)
+    ).toEqual([
+      {
+        title: "Window",
+        href: `/d?from=${now - 6 * 3_600_000}&to=${now}`,
+        newTab: false,
+      },
+    ])
+  })
+
+  it("rounds the end of the range up and the start down", () => {
+    const [link] = dashboardLinks(
+      [window],
+      scope({ from: "now/d", to: "now/d" }),
+      now
+    )
+    expect(link.href).toBe(
+      `/d?from=${Date.parse("2026-10-21T00:00:00Z")}&to=${Date.parse("2026-10-21T23:59:59.999Z")}`
+    )
+  })
+
+  it("fills an absolute range as it is", () => {
+    const [link] = dashboardLinks(
+      [window],
+      scope({ from: "1700000000000", to: "2026-01-02T03:04:05+02:00" }),
+      now
+    )
+    expect(link.href).toBe(
+      `/d?from=1700000000000&to=${Date.parse("2026-01-02T01:04:05Z")}`
+    )
+  })
+
+  it("still resolves variables and keeps links without a range token", () => {
+    const links: Link[] = [
+      window,
+      { title: "Pod", url: "/d?pod=${pod}" },
+      { title: "Range", url: "/d?${__url_time_range}" },
+    ]
+    expect(
+      dashboardLinks(
+        links,
+        scope({ vars: { pod: ["a"] }, from: "now-1h", to: "now" }),
+        now
+      ).map((link) => link.href)
+    ).toEqual([
+      `/d?from=${now - 3_600_000}&to=${now}`,
+      "/d?pod=a",
+      "/d?from=now-1h&to=now",
+    ])
+  })
+
+  it("hides a link whose range cannot be resolved", () => {
+    expect(
+      dashboardLinks([window], scope({ from: "bogus", to: "now" }), now)
+    ).toEqual([])
+    expect(dashboardLinks([window], scope(), now)).toEqual([])
+    expect(dashboardLinks(undefined, scope(), now)).toEqual([])
   })
 })

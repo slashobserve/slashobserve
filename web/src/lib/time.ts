@@ -177,7 +177,11 @@ function startOf(time: Date, unit: string): Date {
   }
 }
 
-function resolveTime(value: string, now: number, roundUp: boolean): number {
+export function resolveTime(
+  value: string,
+  now: number,
+  roundUp: boolean
+): number {
   const match = relativeExpression.exec(value)
   if (!match) {
     return epochMillis.test(value) ? Number(value) : Date.parse(value)

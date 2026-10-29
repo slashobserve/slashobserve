@@ -1,7 +1,8 @@
 import { ExternalLinkIcon } from "lucide-react"
 
+import { useNow } from "@/components/relative-time"
 import {
-  resolveLink,
+  dashboardLinks,
   type LinkScope,
   type ResolvedLink,
 } from "@/panels/field-config"
@@ -31,9 +32,8 @@ export function DashboardLinks({
   links: Link[] | undefined
   scope: LinkScope
 }) {
-  const resolved = (links ?? []).flatMap(
-    (link) => resolveLink(link, scope) ?? []
-  )
+  const now = useNow()
+  const resolved = dashboardLinks(links, scope, now)
   if (resolved.length === 0) return null
   return (
     <nav

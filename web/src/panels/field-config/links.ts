@@ -1,5 +1,6 @@
 import type { Selections } from "@/api/keys"
 import { ALL } from "@/dashboards/search"
+import { resolveTime } from "@/lib/time"
 import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
 import { linkDefaults, type DataPanel, type Link } from "@/spec"
@@ -180,9 +181,30 @@ export function resolveLink(link: Link, scope: LinkScope): ResolvedLink | null {
   }
 }
 
-export function panelLinks(panel: DataPanel, scope: LinkScope): ResolvedLink[] {
-  return (panel.links ?? [])
-    .filter((link) => !isDataLink(link))
+function resolvedLinks(links: Link[], scope: LinkScope): ResolvedLink[] {
+  return links
     .flatMap((link) => resolveLink(link, scope) ?? [])
     .filter((link) => !unresolvedRange.test(link.href))
+}
+
+export function panelLinks(panel: DataPanel, scope: LinkScope): ResolvedLink[] {
+  return resolvedLinks(
+    (panel.links ?? []).filter((link) => !isDataLink(link)),
+    scope
+  )
+}
+
+export function dashboardLinks(
+  links: Link[] | undefined,
+  scope: LinkScope,
+  now: number
+): ResolvedLink[] {
+  const fromMs =
+    scope.from === undefined ? NaN : resolveTime(scope.from, now, false)
+  const toMs = scope.to === undefined ? NaN : resolveTime(scope.to, now, true)
+  return resolvedLinks(links ?? [], {
+    ...scope,
+    fromMs: Number.isNaN(fromMs) ? undefined : fromMs,
+    toMs: Number.isNaN(toMs) ? undefined : toMs,
+  })
 }
