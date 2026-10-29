@@ -19,12 +19,13 @@ import type { PanelRenderer } from "../types"
 import { cssColorToRgb, readableText } from "../contrast"
 import { Sparkline } from "./sparkline"
 import { sparklinePoints } from "./sparkline-points"
+import { tileGap, tilesAcross } from "./stat-grid"
 import { statTiles, type StatDisplay } from "./stat-tiles"
 
 const valueClass =
   "min-w-0 truncate text-[28px] font-semibold tracking-[-0.02em] tabular-nums"
 
-function gridFor(orientation: string): CSSProperties {
+function gridFor(orientation: string, across: number): CSSProperties {
   switch (orientation) {
     case "horizontal":
       return {
@@ -39,20 +40,10 @@ function gridFor(orientation: string): CSSProperties {
       }
     default:
       return {
-        gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+        gridTemplateColumns: `repeat(${across}, minmax(0, 1fr))`,
         gridAutoRows: "minmax(72px, 1fr)",
       }
   }
-}
-
-function tileColumns(width: number, count: number, orientation: string) {
-  const across =
-    orientation === "horizontal"
-      ? count
-      : orientation === "vertical"
-        ? 1
-        : Math.min(count, Math.max(1, Math.floor(width / 120)))
-  return Math.ceil(width / Math.max(1, across))
 }
 
 const StatPanel: PanelRenderer = ({
@@ -70,7 +61,15 @@ const StatPanel: PanelRenderer = ({
     () => statTiles(frames, fields, display, panel.unit),
     [frames, fields, display, panel.unit]
   )
-  const columns = tileColumns(width, tiles.length, display.orientation)
+  const background = display.colorMode === "background"
+  const anyFilled = background && tiles.some((tile) => tile.color !== null)
+  const across = tilesAcross(
+    display.orientation,
+    width,
+    anyFilled ? height - tileGap : height,
+    tiles.length
+  )
+  const columns = Math.ceil(width / across)
   const lines = useMemo(
     () =>
       tiles.map((tile) =>
@@ -90,8 +89,6 @@ const StatPanel: PanelRenderer = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveColor reads the live theme tokens; panel-stat.spec "recomputes the text color when the theme flips" fails without theme here
     [tiles, display.colorMode, theme]
   )
-  const background = display.colorMode === "background"
-  const anyFilled = background && tiles.some((tile) => tile.color !== null)
   const textMode = display.textMode
   const showText = textMode !== "none"
   const nameAsValue = textMode === "name"
@@ -101,7 +98,7 @@ const StatPanel: PanelRenderer = ({
   return (
     <div
       className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
-      style={{ width, height, ...gridFor(display.orientation) }}
+      style={{ width, height, ...gridFor(display.orientation, across) }}
     >
       {tiles.map((tile, index) => {
         const filled = background && tile.color !== null
