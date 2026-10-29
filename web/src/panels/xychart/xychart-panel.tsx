@@ -204,7 +204,7 @@ function Message({ children }: { children: string }) {
   )
 }
 
-export const XychartPanel: PanelRenderer = ({
+const XychartPanel: PanelRenderer = ({
   frames,
   fields,
   display,

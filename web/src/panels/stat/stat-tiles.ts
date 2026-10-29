@@ -11,9 +11,9 @@ import type { ThresholdState } from "@/panels/thresholds"
 import type { PreparedFrame } from "@/panels/transforms"
 import type { Link, Reducer } from "@/spec"
 
-export type ColorMode = "value" | "background" | "none"
-export type TextMode = "value" | "name" | "valueAndName" | "none"
-export type Orientation = "auto" | "horizontal" | "vertical"
+type ColorMode = "value" | "background" | "none"
+type TextMode = "value" | "name" | "valueAndName" | "none"
+type Orientation = "auto" | "horizontal" | "vertical"
 
 export type StatDisplay = {
   reduce: Reducer

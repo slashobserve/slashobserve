@@ -111,7 +111,7 @@ function CountTiles({ counts }: { counts: AlertCounts }) {
   )
 }
 
-export const AlertlistPanel: PanelRenderer = ({
+const AlertlistPanel: PanelRenderer = ({
   frames,
   display,
   meta,

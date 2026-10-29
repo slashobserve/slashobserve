@@ -152,7 +152,7 @@ function Box({ element }: { element: CanvasElement }) {
   )
 }
 
-export const CanvasPanel: PanelRenderer = ({
+const CanvasPanel: PanelRenderer = ({
   panel,
   frames,
   fields,

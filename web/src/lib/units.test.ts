@@ -4,7 +4,7 @@ import {
   axisDecimals,
   commonDecimals,
   decimalsByUnit,
-  formatAxisValue,
+  formatValue,
   formatValue as f,
   formatValueParts,
   ownDecimals,
@@ -140,7 +140,7 @@ describe("formatValue", () => {
   })
 
   it("exposes the axis formatter with the same rules", () => {
-    expect(formatAxisValue(1536, "bytes")).toBe("1.5 KiB")
+    expect(formatValue(1536, "bytes")).toBe("1.5 KiB")
   })
 })
 
@@ -301,8 +301,8 @@ describe("custom units", () => {
   it("derives own decimals and axis labels for custom units", () => {
     expect(ownDecimals(2.5, "prefix:$")).toBe(1)
     expect(ownDecimals(3, "suffix:req")).toBe(0)
-    expect(formatAxisValue(2.5, "prefix:$", 2)).toBe("$2.50")
-    expect(formatAxisValue(12, "suffix:req")).toBe("12 req")
+    expect(formatValue(2.5, "prefix:$", 2)).toBe("$2.50")
+    expect(formatValue(12, "suffix:req")).toBe("12 req")
   })
 
   it("parses ids, custom units and unknown units", () => {

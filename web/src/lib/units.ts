@@ -518,5 +518,3 @@ export function axisDecimals(
   }
   return maxAxisDecimals
 }
-
-export const formatAxisValue = formatValue

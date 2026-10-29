@@ -35,7 +35,7 @@ function timeOf(frame: PreparedFrame): PreparedField | undefined {
   return frame.fields.find((field) => field.type === "time")
 }
 
-export const timeSource: XSource = { fieldOf: timeOf, divisor: 1000 }
+const timeSource: XSource = { fieldOf: timeOf, divisor: 1000 }
 
 function columnsOf(frames: PreparedFrame[], source: XSource): Column[] {
   return frames.flatMap((frame) => {

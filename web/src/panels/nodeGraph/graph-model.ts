@@ -11,7 +11,7 @@ import { rowCount } from "../transforms/names"
 
 export const maxNodes = 300
 export const maxEdges = 1000
-export const minThickness = 1
+const minThickness = 1
 export const maxThickness = 8
 
 export const missingFramesReason =
@@ -20,7 +20,7 @@ export const missingFramesReason =
 const criticalColor = "var(--threshold-critical)"
 const colorSyntax = /^(#[0-9a-f]{3,8}|[a-z]+|(rgb|hsl)a?\([\d\s.,%/-]+\))$/i
 
-export type GraphStat = { name: string; display: DisplayValue }
+type GraphStat = { name: string; display: DisplayValue }
 export type GraphArc = { name: string; fraction: number; color: string }
 export type GraphDetail = { name: string; text: string }
 

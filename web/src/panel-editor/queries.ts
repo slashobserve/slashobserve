@@ -12,7 +12,6 @@ import {
   type NameListParams,
   type Selections,
 } from "@/api/keys"
-import type { components } from "@/api/schema.gen"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
@@ -21,8 +20,6 @@ import type { DataPanel } from "@/spec"
 
 import type { EditablePanel } from "./draft"
 import { missingPanelMessage } from "./panel-json"
-
-export type Suggestion = components["schemas"]["Suggestion"]
 
 const nameLimit = 100
 

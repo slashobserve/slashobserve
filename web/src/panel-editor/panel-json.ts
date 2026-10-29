@@ -11,7 +11,7 @@ import type { EditablePanel } from "./draft"
 export const missingPanelMessage =
   "This panel is not in the version you are editing."
 
-export type IssueScope = "dashboard" | "panel"
+type IssueScope = "dashboard" | "panel"
 
 export type JsonIssue = {
   path: string

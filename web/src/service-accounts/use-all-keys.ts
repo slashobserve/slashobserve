@@ -10,7 +10,7 @@ import {
   type ServiceAccountKey,
 } from "./queries"
 
-export type KeyRow = { key: ServiceAccountKey; account: ServiceAccount }
+type KeyRow = { key: ServiceAccountKey; account: ServiceAccount }
 
 type AllKeys = {
   status: "pending" | "error" | "success"

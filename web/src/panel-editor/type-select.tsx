@@ -5,7 +5,7 @@ import { dataPanelTypes, type DataPanelType } from "@/spec"
 import type { DraftAction } from "./draft"
 import { SelectField } from "./field-controls"
 
-export const typeLabels: Record<DataPanelType, string> = {
+const typeLabels: Record<DataPanelType, string> = {
   timeseries: "Time series",
   stat: "Stat",
   gauge: "Gauge",

@@ -75,11 +75,6 @@ import.meta.hot?.dispose(() => {
   media.removeEventListener("change", onMediaChange)
 })
 
-export function resolvedTheme(): ResolvedTheme {
-  const { preference, systemDark } = useThemeStore.getState()
-  return resolve(preference, systemDark)
-}
-
 export function useTheme() {
   const preference = useThemeStore((state) => state.preference)
   const systemDark = useThemeStore((state) => state.systemDark)

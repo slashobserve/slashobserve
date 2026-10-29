@@ -1,7 +1,7 @@
 import type { PreparedFrame } from "../transforms"
 
 export type AlertState = "firing" | "pending"
-export type AlertSort =
+type AlertSort =
   "alphaAsc" | "alphaDesc" | "importance" | "timeAsc" | "timeDesc"
 export type AlertView = "list" | "stat"
 
@@ -37,14 +37,14 @@ const hiddenLabels = new Set([
 ])
 const collator = new Intl.Collator()
 
-export function limitOf(display: Record<string, unknown>): number {
+function limitOf(display: Record<string, unknown>): number {
   const { limit } = display
   return typeof limit === "number" && limit >= 1
     ? Math.floor(limit)
     : defaultLimit
 }
 
-export function sortOf(display: Record<string, unknown>): AlertSort {
+function sortOf(display: Record<string, unknown>): AlertSort {
   switch (display.sort) {
     case "alphaDesc":
     case "importance":

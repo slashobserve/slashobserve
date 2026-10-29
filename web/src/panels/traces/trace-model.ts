@@ -8,7 +8,7 @@ export const maxSpans = 5000
 export const missingColumnsReason =
   "A traces panel needs one row per span with traceID, spanID, parentSpanID, startTime and duration columns."
 
-export type SpanAttribute = { key: string; text: string }
+type SpanAttribute = { key: string; text: string }
 
 export type Span = {
   id: string

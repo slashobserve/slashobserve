@@ -185,7 +185,7 @@ function Pie({
   )
 }
 
-export const PiechartPanel: PanelRenderer = ({
+const PiechartPanel: PanelRenderer = ({
   frames,
   fields,
   display,

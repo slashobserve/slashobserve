@@ -132,7 +132,7 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   )
 })
 
-export const BargaugePanel: PanelRenderer = ({
+const BargaugePanel: PanelRenderer = ({
   panel,
   frames,
   fields,

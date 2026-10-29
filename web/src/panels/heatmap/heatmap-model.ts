@@ -11,9 +11,9 @@ import type { FieldConfig, FieldResolver } from "../field-config"
 import { isNumber } from "../reducers"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
-export type HeatmapMode = "buckets" | "ordinal" | "calculated"
+type HeatmapMode = "buckets" | "ordinal" | "calculated"
 
-export type HeatmapRow = {
+type HeatmapRow = {
   label: string
   range: string
   from?: number
@@ -31,7 +31,7 @@ export type HeatmapModel = {
 }
 
 export const calculatedRows = 16
-export const legendSteps = 5
+const legendSteps = 5
 const minOpacity = 0.1
 
 type Entry = {

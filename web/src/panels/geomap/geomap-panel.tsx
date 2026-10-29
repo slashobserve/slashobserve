@@ -117,7 +117,7 @@ function useOutline(): string {
   return outline
 }
 
-export const GeomapPanel: PanelRenderer = ({
+const GeomapPanel: PanelRenderer = ({
   frames,
   fields,
   display,

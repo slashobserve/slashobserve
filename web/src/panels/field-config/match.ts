@@ -1,7 +1,7 @@
 import type { PreparedField, PreparedFrame } from "@/panels/transforms"
 import { compileNamePattern, type Match } from "@/spec"
 
-export type MatchSubject = {
+type MatchSubject = {
   frame: PreparedFrame
   field: PreparedField
   seriesName: string

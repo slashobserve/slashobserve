@@ -13,7 +13,7 @@ export type RowsResult =
   { ok: true; thresholds: Threshold[] | null } | { ok: false; error: string }
 
 export const maxThresholds = 10
-export const defaultHex = "#2a78d6"
+const defaultHex = "#2a78d6"
 export const valuesError =
   "Values must be numbers that increase from top to bottom."
 export const hexError = "Use a color like #2a78d6."

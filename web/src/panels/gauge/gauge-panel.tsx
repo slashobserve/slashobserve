@@ -165,7 +165,7 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
   )
 }
 
-export const GaugePanel: PanelRenderer = ({
+const GaugePanel: PanelRenderer = ({
   frames,
   fields,
   display,

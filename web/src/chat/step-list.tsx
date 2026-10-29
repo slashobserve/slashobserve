@@ -1,7 +1,7 @@
 import { StatusIcon } from "@/components/status-label"
 import { groupSteps, type Step } from "@/observe/request-model"
 
-export const phaseLabels: Record<Step["phase"], string> = {
+const phaseLabels: Record<Step["phase"], string> = {
   discover: "Discovering",
   lint: "Checking queries",
   query: "Running queries",

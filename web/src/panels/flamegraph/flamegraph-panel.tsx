@@ -83,12 +83,7 @@ function Tooltip({
   )
 }
 
-export const FlameGraphPanel: PanelRenderer = ({
-  frames,
-  fields,
-  width,
-  height,
-}) => {
+const FlameGraphPanel: PanelRenderer = ({ frames, fields, width, height }) => {
   const { resolved: theme } = useTheme()
   const [hover, setHover] = useState<Hover | null>(null)
   const [query, setQuery] = useState("")

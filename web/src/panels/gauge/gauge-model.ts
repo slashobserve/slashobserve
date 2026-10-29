@@ -20,7 +20,7 @@ import {
 } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
-export type GaugeMarker = { from: number; to: number; color: string }
+type GaugeMarker = { from: number; to: number; color: string }
 
 export type Gauge = {
   key: string

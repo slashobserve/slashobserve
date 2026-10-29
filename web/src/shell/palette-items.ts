@@ -1,13 +1,13 @@
 import { navItems, type NavPath } from "./nav"
 
-export type PageEntry = {
+type PageEntry = {
   kind: "page"
   id: string
   label: string
   to: NavPath
 }
 export type DashboardEntry = { kind: "dashboard"; id: string; label: string }
-export type ActionEntry = {
+type ActionEntry = {
   kind: "action"
   id: "action:sign-out"
   label: string
@@ -18,14 +18,14 @@ export type PaletteGroup = {
   items: PaletteEntry[]
 }
 
-export const pageEntries: PageEntry[] = navItems.map((item) => ({
+const pageEntries: PageEntry[] = navItems.map((item) => ({
   kind: "page",
   id: `page:${item.to}`,
   label: item.label,
   to: item.to,
 }))
 
-export const signOutEntry: ActionEntry = {
+const signOutEntry: ActionEntry = {
   kind: "action",
   id: "action:sign-out",
   label: "Sign out",

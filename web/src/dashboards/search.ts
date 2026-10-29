@@ -14,7 +14,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-export type EditView = "query" | "json"
+type EditView = "query" | "json"
 
 export type DashboardSearch = {
   from?: string

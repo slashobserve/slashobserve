@@ -164,7 +164,7 @@ function Tooltip({
   )
 }
 
-export const HeatmapPanel: PanelRenderer = ({
+const HeatmapPanel: PanelRenderer = ({
   panel,
   frames,
   fields,

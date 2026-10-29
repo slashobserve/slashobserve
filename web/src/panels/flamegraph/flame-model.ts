@@ -6,7 +6,7 @@ import {
 } from "../field-config"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
-export type FlameNode = {
+type FlameNode = {
   index: number
   label: string
   level: number

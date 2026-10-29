@@ -6,7 +6,7 @@ import { isActive, type Revision } from "@/revisions/queries"
 
 type ImportRecord = components["schemas"]["ImportRecord"]
 
-export type UnverifiedPanel = {
+type UnverifiedPanel = {
   panelId: string
   title: string
   reason: string

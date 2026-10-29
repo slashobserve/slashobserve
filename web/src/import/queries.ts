@@ -14,7 +14,7 @@ import { toImportError } from "./errors"
 
 export type Source = { id: number; name: string; text: string; pasted: boolean }
 export type Mapping = Record<string, string>
-export type ImportPreview = components["schemas"]["ImportPreview"]
+type ImportPreview = components["schemas"]["ImportPreview"]
 export type ImportedDashboard = components["schemas"]["ImportedDashboard"]
 
 let lastSourceId = 0

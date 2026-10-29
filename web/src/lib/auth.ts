@@ -1,4 +1,4 @@
-export type Principal = {
+type Principal = {
   kind: "user" | "service_account"
   id: string
   email?: string
@@ -53,10 +53,7 @@ function sameSession(a: Session | undefined, b: Session): boolean {
   return a.principal.id === b.principal.id
 }
 
-export async function apiFetch(
-  input: string,
-  init?: RequestInit
-): Promise<Response> {
+async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(input, { credentials: "same-origin", ...init })
   if (response.status === 401) invalidateSession()
   return response
