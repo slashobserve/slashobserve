@@ -5,18 +5,18 @@
     "title": "Demo shop (Grafana)",
     "uid": "demo-shop",
     "schema_version": 39,
-    "bytes": 21151,
-    "panels": 9,
-    "rows": 2,
+    "bytes": 66615,
+    "panels": 26,
+    "rows": 6,
     "variables": 2
   },
   "datasources": [
     {
       "key": "prometheus",
-      "name": null,
+      "name": "prometheus",
       "type": "prometheus",
       "kind": "prometheus",
-      "panels": 5,
+      "panels": 12,
       "match": "prom",
       "matched_by": "only",
       "candidates": [
@@ -28,7 +28,7 @@
       "name": null,
       "type": "grafana-clickhouse-datasource",
       "kind": "clickhouse",
-      "panels": 3,
+      "panels": 10,
       "match": "ch",
       "matched_by": "only",
       "candidates": [
@@ -40,10 +40,10 @@
     "importer_version": "<version>",
     "verified": false,
     "counts": {
-      "total": 9,
-      "imported": 7,
+      "total": 26,
+      "imported": 22,
       "partial": 2,
-      "placeholder": 0,
+      "placeholder": 2,
       "unverified": 0
     },
     "panels": [
@@ -147,9 +147,226 @@
         ]
       },
       {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[5]",
+        "title": "Requests by pod",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": "Traffic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[6]",
+        "title": "Traffic share by service",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Traffic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[8]",
+        "title": "Request latency distribution",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Distributions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[9]",
+        "title": "How often p95 latency lands in each band",
+        "type": "histogram",
+        "source_type": "histogram",
+        "row": "Distributions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[10]",
+        "title": "Latency by percentile and service",
+        "type": "trend",
+        "source_type": "trend",
+        "row": "Distributions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[11]",
+        "title": "Card authorization against checkout time",
+        "type": "xychart",
+        "source_type": "xychart",
+        "row": "Distributions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[12]",
+        "title": "Checkout latency per 5 minutes",
+        "type": "candlestick",
+        "source_type": "candlestick",
+        "row": "Distributions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[14]",
+        "title": "Service health over time",
+        "type": "state-timeline",
+        "source_type": "state-timeline",
+        "row": "State and alerts",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[15]",
+        "title": "Scrape target availability",
+        "type": "status-history",
+        "source_type": "status-history",
+        "row": "State and alerts",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[16]",
+        "title": "Firing alerts",
+        "type": "alertlist",
+        "source_type": "alertlist",
+        "row": "State and alerts",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[17]",
+        "title": "Alert groups",
+        "type": "placeholder",
+        "source_type": "alertGroups",
+        "row": "State and alerts",
+        "status": "placeholder",
+        "reasons": [
+          "Alertmanager is not supported yet."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
         "panel_id": "p7",
         "grafana_id": 7,
-        "grafana_path": "panels[6]",
+        "grafana_path": "panels[19]",
         "title": "Log volume by severity",
         "type": "timeseries",
         "source_type": "timeseries",
@@ -170,7 +387,7 @@
       {
         "panel_id": "p8",
         "grafana_id": 8,
-        "grafana_path": "panels[7]",
+        "grafana_path": "panels[20]",
         "title": "Slowest spans",
         "type": "table",
         "source_type": "table",
@@ -191,7 +408,7 @@
       {
         "panel_id": "p9",
         "grafana_id": 9,
-        "grafana_path": "panels[8]",
+        "grafana_path": "panels[21]",
         "title": "Error logs",
         "type": "logs",
         "source_type": "logs",
@@ -210,13 +427,104 @@
         ]
       },
       {
-        "panel_id": "p10",
-        "grafana_id": 10,
-        "grafana_path": "panels[9]",
-        "title": "Requests by pod",
-        "type": "barchart",
-        "source_type": "barchart",
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[22]",
+        "title": "Service map",
+        "type": "nodeGraph",
+        "source_type": "nodeGraph",
         "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[23]",
+        "title": "Slowest request in range",
+        "type": "traces",
+        "source_type": "traces",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[24]",
+        "title": "Where request time goes",
+        "type": "flamegraph",
+        "source_type": "flamegraph",
+        "row": "Logs and traces",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[26]",
+        "title": "Requests by service region",
+        "type": "geomap",
+        "source_type": "geomap",
+        "row": "Maps and canvas",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "ch",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[27]",
+        "title": "Checkout flow health",
+        "type": "canvas",
+        "source_type": "canvas",
+        "row": "Maps and canvas",
         "status": "imported",
         "reasons": [],
         "paths": [],
@@ -227,17 +535,59 @@
             "datasource": "prom",
             "rewrites": [],
             "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
           }
         ]
       },
       {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[29]",
+        "title": "Recently updated dashboards",
+        "type": "dashlist",
+        "source_type": "dashlist",
+        "row": "Lists and text",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[30]",
+        "title": "Recent annotations",
+        "type": "placeholder",
+        "source_type": "annolist",
+        "row": "Lists and text",
+        "status": "placeholder",
+        "reasons": [
+          "SlashObserve has no annotations yet, so an annotation list has nothing to show."
+        ],
+        "paths": [],
+        "queries": []
+      },
+      {
         "panel_id": "p11",
         "grafana_id": 11,
-        "grafana_path": "panels[10]",
+        "grafana_path": "panels[31]",
         "title": "About",
         "type": "text",
         "source_type": "text",
-        "row": "Logs and traces",
+        "row": "Lists and text",
         "status": "imported",
         "reasons": [],
         "paths": [],
@@ -424,6 +774,346 @@
             "display": {
               "orientation": "horizontal"
             }
+          },
+          {
+            "id": "p10",
+            "type": "barchart",
+            "title": "Requests by pod",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (pod) (increase(http_requests_total[$__range]))",
+                "legend": "{{pod}}",
+                "instant": true
+              }
+            ],
+            "fill": 80
+          },
+          {
+            "id": "p12",
+            "type": "piechart",
+            "title": "Traffic share by service",
+            "description": "Requests served by each service over the selected time range.",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (service) (increase(http_requests_total{service=~\"$service\"}[$__range]))",
+                "legend": "{{service}}",
+                "instant": true
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "pieType": "donut"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p29",
+        "type": "row",
+        "title": "Distributions",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p13",
+            "type": "heatmap",
+            "title": "Request latency distribution",
+            "description": "Request rate in each latency bucket over time; darker cells mean more requests.",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by (le) (rate(http_request_duration_seconds_bucket{service=~\"$service\",route=~\"$route\"}[$__rate_interval]))",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ],
+            "unit": "s"
+          },
+          {
+            "id": "p14",
+            "type": "histogram",
+            "title": "How often p95 latency lands in each band",
+            "description": "Every sampled p95 latency in the time range, counted into 20 equal bands.",
+            "gridPos": {
+              "x": 12,
+              "y": 18,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service=~\"$service\",route=~\"$route\"}[$__rate_interval])))",
+                "legend": "p95"
+              }
+            ],
+            "unit": "s",
+            "fill": 80,
+            "display": {
+              "bucketCount": 20
+            }
+          },
+          {
+            "id": "p15",
+            "type": "trend",
+            "title": "Latency by percentile and service",
+            "description": "Server span latency at the 50th to 99th percentile for each service.",
+            "gridPos": {
+              "x": 0,
+              "y": 26,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT t.1 AS percentile, t.2 / 1e6 AS frontend, t.3 / 1e6 AS checkout, t.4 / 1e6 AS payments FROM ( SELECT arrayJoin(arrayZip([50, 75, 90, 95, 99], quantilesIf(0.5, 0.75, 0.9, 0.95, 0.99)(Duration, ServiceName = 'frontend'), quantilesIf(0.5, 0.75, 0.9, 0.95, 0.99)(Duration, ServiceName = 'checkout'), quantilesIf(0.5, 0.75, 0.9, 0.95, 0.99)(Duration, ServiceName = 'payments'))) AS t FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanKind = 'Server' ) ORDER BY percentile",
+                "format": "table"
+              }
+            ],
+            "unit": "ms",
+            "fill": 10,
+            "display": {
+              "tooltip": "all",
+              "xField": "percentile"
+            }
+          },
+          {
+            "id": "p16",
+            "type": "xychart",
+            "title": "Card authorization against checkout time",
+            "description": "One point per trace: how long the payment took against how long the whole checkout took.",
+            "gridPos": {
+              "x": 12,
+              "y": 26,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT sumIf(Duration, SpanName = 'authorize_card') / 1e6 AS authorize_ms, sumIf(Duration, SpanName = 'POST /api/checkout') / 1e6 AS checkout_ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanName IN ('authorize_card', 'POST /api/checkout') GROUP BY TraceId HAVING authorize_ms > 0 AND checkout_ms > 0 LIMIT 500",
+                "format": "table"
+              }
+            ],
+            "unit": "ms",
+            "fill": 50,
+            "display": {
+              "xField": "authorize_ms"
+            }
+          },
+          {
+            "id": "p17",
+            "type": "candlestick",
+            "title": "Checkout latency per 5 minutes",
+            "description": "First, highest, lowest and last POST /checkout latency in each 5 minute window, with the request count as volume.",
+            "gridPos": {
+              "x": 0,
+              "y": 34,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT $__timeInterval(Timestamp) AS time, argMin(Duration, Timestamp) / 1e6 AS open, max(Duration) / 1e6 AS high, min(Duration) / 1e6 AS low, argMax(Duration, Timestamp) / 1e6 AS close, count() AS volume FROM otel_traces WHERE $__timeFilter(Timestamp) AND ServiceName = 'checkout' AND SpanName = 'POST /checkout' GROUP BY time ORDER BY time"
+              }
+            ],
+            "unit": "ms",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "volume"
+                },
+                "unit": "short"
+              }
+            ],
+            "interval": "5m",
+            "display": {
+              "open": "open",
+              "high": "high",
+              "low": "low",
+              "close": "close",
+              "volume": "volume"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p30",
+        "type": "row",
+        "title": "State and alerts",
+        "gridPos": {
+          "x": 0,
+          "y": 42,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p18",
+            "type": "state-timeline",
+            "title": "Service health over time",
+            "description": "Healthy below 1% server errors, degraded up to 5%, failing above.",
+            "gridPos": {
+              "x": 0,
+              "y": 43,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "(sum by (service) (rate(http_requests_total{service=~\"$service\",status=~\"5..\"}[$__rate_interval])) / sum by (service) (rate(http_requests_total{service=~\"$service\"}[$__rate_interval]))) or (sum by (service) (rate(http_requests_total{service=~\"$service\"}[$__rate_interval])) * 0)",
+                "legend": "{{service}}",
+                "interval": "1m"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.01,
+                "color": "warning"
+              },
+              {
+                "value": 0.05,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "range": [
+                  0,
+                  0.01
+                ],
+                "text": "Healthy",
+                "color": "ok"
+              },
+              {
+                "range": [
+                  0.01,
+                  0.05
+                ],
+                "text": "Degraded",
+                "color": "warning"
+              },
+              {
+                "range": [
+                  0.05,
+                  1
+                ],
+                "text": "Failing",
+                "color": "critical"
+              }
+            ],
+            "fill": 70
+          },
+          {
+            "id": "p19",
+            "type": "status-history",
+            "title": "Scrape target availability",
+            "description": "Whether Prometheus could scrape each demo target, one cell per minute.",
+            "gridPos": {
+              "x": 0,
+              "y": 50,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "up{job=~\"shop|otel-collector|node|cadvisor\"}",
+                "legend": "{{job}} {{instance}}",
+                "interval": "1m"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "critical"
+              },
+              {
+                "value": 1,
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "1",
+                "text": "Up",
+                "color": "ok"
+              },
+              {
+                "value": "0",
+                "text": "Down",
+                "color": "critical"
+              }
+            ],
+            "fill": 70,
+            "display": {
+              "showValues": "never"
+            }
+          },
+          {
+            "id": "p20",
+            "type": "alertlist",
+            "title": "Firing alerts",
+            "description": "Firing and pending Prometheus alerts. HighErrorRate and SlowRequests fire after a fault is injected into checkout.",
+            "gridPos": {
+              "x": 0,
+              "y": 57,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "ALERTS{alertstate=~\"firing|pending\"}"
+              }
+            ],
+            "display": {
+              "limit": 10,
+              "sort": "importance"
+            }
+          },
+          {
+            "id": "p21",
+            "type": "placeholder",
+            "title": "Alert groups",
+            "gridPos": {
+              "x": 12,
+              "y": 57,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "Alertmanager is not supported yet.",
+            "sourceType": "alertGroups"
           }
         ]
       },
@@ -433,7 +1123,7 @@
         "title": "Logs and traces",
         "gridPos": {
           "x": 0,
-          "y": 9,
+          "y": 65,
           "w": 24,
           "h": 1
         },
@@ -444,7 +1134,7 @@
             "title": "Log volume by severity",
             "gridPos": {
               "x": 0,
-              "y": 10,
+              "y": 66,
               "w": 12,
               "h": 8
             },
@@ -463,7 +1153,7 @@
             "title": "Slowest spans",
             "gridPos": {
               "x": 12,
-              "y": 10,
+              "y": 66,
               "w": 12,
               "h": 8
             },
@@ -489,7 +1179,7 @@
             "title": "Error logs",
             "gridPos": {
               "x": 0,
-              "y": 18,
+              "y": 74,
               "w": 12,
               "h": 8
             },
@@ -502,24 +1192,331 @@
             ]
           },
           {
-            "id": "p10",
-            "type": "barchart",
-            "title": "Requests by pod",
+            "id": "p23",
+            "type": "nodeGraph",
+            "title": "Service map",
+            "description": "Services with their request count and average latency; the ring shows the share of failed spans. Edges count calls between services.",
             "gridPos": {
               "x": 12,
-              "y": 18,
+              "y": 74,
               "w": 12,
               "h": 8
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT ServiceName AS id, ServiceName AS title, count() AS mainstat, avg(Duration) / 1e6 AS secondarystat, 1 - countIf(StatusCode = 'Error') / count() AS arc__success, countIf(StatusCode = 'Error') / count() AS arc__errors FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanKind = 'Server' GROUP BY ServiceName",
+                "format": "table"
+              },
+              {
+                "query": "SELECT concat(p.ServiceName, ' -> ', c.ServiceName) AS id, p.ServiceName AS source, c.ServiceName AS target, count() AS mainstat FROM otel_traces AS c INNER JOIN otel_traces AS p ON c.ParentSpanId = p.SpanId AND c.TraceId = p.TraceId WHERE $__timeFilter(c.Timestamp) AND $__timeFilter(p.Timestamp) AND p.ServiceName != c.ServiceName GROUP BY source, target LIMIT 200",
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "mainstat"
+                },
+                "unit": "short"
+              },
+              {
+                "match": {
+                  "field": "secondarystat"
+                },
+                "unit": "ms"
+              },
+              {
+                "match": {
+                  "field": "arc__success"
+                },
+                "color": "#73BF69"
+              },
+              {
+                "match": {
+                  "field": "arc__errors"
+                },
+                "color": "#F2495C"
+              }
+            ]
+          },
+          {
+            "id": "p22",
+            "type": "traces",
+            "title": "Slowest request in range",
+            "description": "The span waterfall of the slowest request that started in the selected time range.",
+            "gridPos": {
+              "x": 0,
+              "y": 82,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT TraceId AS traceID, SpanId AS spanID, ParentSpanId AS parentSpanID, ServiceName AS serviceName, SpanName AS operationName, Timestamp AS startTime, Duration / 1000000 AS duration, StatusCode AS statusCode, SpanAttributes AS tags FROM otel_traces WHERE TraceId = (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) AND ParentSpanId = '' ORDER BY Duration DESC LIMIT 1) ORDER BY startTime LIMIT 1000",
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p24",
+            "type": "flamegraph",
+            "title": "Where request time goes",
+            "description": "Time spent in each service operation across the latest 300 requests; wider bars cost more.",
+            "gridPos": {
+              "x": 12,
+              "y": 82,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "WITH RECURSIVE spans AS ( SELECT TraceId, SpanId, ParentSpanId, concat(ServiceName, ' ', SpanName) AS name, Duration / 1e6 AS ms FROM otel_traces WHERE $__timeFilter(Timestamp) AND TraceId IN (SELECT TraceId FROM otel_traces WHERE $__timeFilter(Timestamp) AND ParentSpanId = '' ORDER BY Timestamp DESC LIMIT 300) ), tree AS ( SELECT TraceId, SpanId, ['all requests', name] AS path, ms FROM spans WHERE ParentSpanId = '' UNION ALL SELECT s.TraceId, s.SpanId, arrayPushBack(t.path, s.name), s.ms FROM spans AS s INNER JOIN tree AS t ON s.TraceId = t.TraceId AND s.ParentSpanId = t.SpanId ), paths AS ( SELECT path, sum(ms) AS value FROM tree GROUP BY path UNION ALL SELECT ['all requests'] AS root, sum(ms) AS root_ms FROM tree WHERE length(tree.path) = 2 ), children AS ( SELECT arrayPopBack(path) AS parent, sum(value) AS spent FROM paths GROUP BY parent ) SELECT length(p.path) - 1 AS level, round(p.value, 3) AS value, round(greatest(p.value - c.spent, 0), 3) AS self, p.path[-1] AS label FROM paths AS p LEFT JOIN children AS c ON p.path = c.parent ORDER BY p.path",
+                "format": "table"
+              }
+            ],
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "id": "p31",
+        "type": "row",
+        "title": "Maps and canvas",
+        "gridPos": {
+          "x": 0,
+          "y": 91,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p25",
+            "type": "geomap",
+            "title": "Requests by service region",
+            "description": "Each demo service is placed on an example region; the shop itself runs on one host. Marker size is request volume and color is the server error ratio.",
+            "gridPos": {
+              "x": 0,
+              "y": 92,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "ch",
+            "queries": [
+              {
+                "query": "SELECT multiIf(ServiceName = 'frontend', 50.11, ServiceName = 'checkout', 53.35, 38.9) AS lat, multiIf(ServiceName = 'frontend', 8.68, ServiceName = 'checkout', -6.26, -77.04) AS lon, multiIf(ServiceName = 'frontend', 'eu-central', ServiceName = 'checkout', 'eu-west', 'us-east') AS region, ServiceName AS service, count() AS requests, countIf(StatusCode = 'Error') / count() AS error_ratio FROM otel_traces WHERE $__timeFilter(Timestamp) AND SpanKind = 'Server' GROUP BY ServiceName",
+                "format": "table"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.01,
+                "color": "warning"
+              },
+              {
+                "value": 0.05,
+                "color": "critical"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "series": "error_ratio"
+                },
+                "unit": "percentunit"
+              },
+              {
+                "match": {
+                  "series": "requests"
+                },
+                "unit": "short"
+              }
+            ],
+            "display": {
+              "location": "coords",
+              "latField": "lat",
+              "lonField": "lon",
+              "sizeField": "requests",
+              "colorField": "error_ratio",
+              "markerSize": 8,
+              "markerSizeMax": 30
+            }
+          },
+          {
+            "id": "p26",
+            "type": "canvas",
+            "title": "Checkout flow health",
+            "description": "Server error ratio of each service in the request path, colored by health.",
+            "gridPos": {
+              "x": 12,
+              "y": 92,
+              "w": 12,
+              "h": 9
             },
             "datasource": "prom",
             "queries": [
               {
-                "query": "sum by (pod) (increase(http_requests_total[$__range]))",
-                "legend": "{{pod}}",
+                "query": "(sum(rate(http_requests_total{service=\"frontend\",status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_requests_total{service=\"frontend\"}[$__rate_interval]))",
+                "legend": "frontend",
+                "instant": true
+              },
+              {
+                "query": "(sum(rate(http_requests_total{service=\"checkout\",status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_requests_total{service=\"checkout\"}[$__rate_interval]))",
+                "legend": "checkout",
+                "instant": true
+              },
+              {
+                "query": "(sum(rate(http_requests_total{service=\"payments\",status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_requests_total{service=\"payments\"}[$__rate_interval]))",
+                "legend": "payments",
                 "instant": true
               }
             ],
-            "fill": 80
+            "unit": "percentunit",
+            "decimals": 2,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.01,
+                "color": "warning"
+              },
+              {
+                "value": 0.05,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "elements": [
+                {
+                  "id": "Frontend_label",
+                  "kind": "text",
+                  "left": 6,
+                  "top": 22,
+                  "width": 24,
+                  "height": 12,
+                  "text": "Frontend",
+                  "textColor": "#999999"
+                },
+                {
+                  "id": "Checkout_label",
+                  "kind": "text",
+                  "left": 38,
+                  "top": 22,
+                  "width": 24,
+                  "height": 12,
+                  "text": "Checkout",
+                  "textColor": "#999999"
+                },
+                {
+                  "id": "Payments_label",
+                  "kind": "text",
+                  "left": 70,
+                  "top": 22,
+                  "width": 24,
+                  "height": 12,
+                  "text": "Payments",
+                  "textColor": "#999999"
+                },
+                {
+                  "id": "Frontend",
+                  "kind": "metric",
+                  "left": 6,
+                  "top": 36,
+                  "width": 24,
+                  "height": 28,
+                  "field": "frontend",
+                  "fill": "field",
+                  "textColor": "#ffffff",
+                  "fontSize": 24
+                },
+                {
+                  "id": "Checkout",
+                  "kind": "metric",
+                  "left": 38,
+                  "top": 36,
+                  "width": 24,
+                  "height": 28,
+                  "field": "checkout",
+                  "fill": "field",
+                  "textColor": "#ffffff",
+                  "fontSize": 24
+                },
+                {
+                  "id": "Payments",
+                  "kind": "metric",
+                  "left": 70,
+                  "top": 36,
+                  "width": 24,
+                  "height": 28,
+                  "field": "payments",
+                  "fill": "field",
+                  "textColor": "#ffffff",
+                  "fontSize": 24
+                }
+              ],
+              "connections": [
+                {
+                  "from": "Frontend",
+                  "to": "Checkout",
+                  "color": "#d9d9d9",
+                  "width": 3
+                },
+                {
+                  "from": "Checkout",
+                  "to": "Payments",
+                  "color": "#d9d9d9",
+                  "width": 3
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p32",
+        "type": "row",
+        "title": "Lists and text",
+        "gridPos": {
+          "x": 0,
+          "y": 101,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p27",
+            "type": "dashlist",
+            "title": "Recently updated dashboards",
+            "gridPos": {
+              "x": 0,
+              "y": 102,
+              "w": 12,
+              "h": 6
+            },
+            "display": {
+              "limit": 8,
+              "keepTime": true,
+              "includeVars": true
+            }
+          },
+          {
+            "id": "p28",
+            "type": "placeholder",
+            "title": "Recent annotations",
+            "gridPos": {
+              "x": 12,
+              "y": 102,
+              "w": 12,
+              "h": 6
+            },
+            "reason": "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+            "sourceType": "annolist"
           },
           {
             "id": "p11",
@@ -527,11 +1524,11 @@
             "title": "About",
             "gridPos": {
               "x": 0,
-              "y": 26,
+              "y": 108,
               "w": 24,
               "h": 3
             },
-            "content": "Imported from Grafana by the SlashObserve e2e suite."
+            "content": "This dashboard is written in Grafana's dashboard format and imported into SlashObserve.\n\nIt carries one panel of every Grafana panel type SlashObserve supports, backed by the demo shop's Prometheus metrics and ClickHouse logs and traces."
           }
         ]
       }
