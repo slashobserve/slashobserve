@@ -1,6 +1,8 @@
 package grafana
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -71,5 +73,54 @@ func TestUnknownDashboardOptionIsReported(t *testing.T) {
 	res := convertDoc(t, dashboardJSON(`"somethingNew":true`, panelJSON(1, 0, 0, 12, 4, "")))
 	if notes := notesFor(res, "dashboard options"); len(notes) != 1 || !hasPath(notes, "somethingNew") {
 		t.Fatalf("notes = %+v, want the unknown key reported", notes)
+	}
+}
+
+func TestLinksWithForeignSchemesAreNotKept(t *testing.T) {
+	urls := []struct {
+		url  string
+		kept bool
+	}{
+		{"https://example.com/a", true},
+		{"HTTP://example.com/a", true},
+		{"mailto:ops@example.com", true},
+		{"/d/abc/other?orgId=1", true},
+		{"${__url_time_range}", true},
+		{"https://example.com/?q=a:b", true},
+		{"javascript:alert(1)", false},
+		{"JaVaScRiPt:alert(1)", false},
+		{"java\\tscript:alert(1)", false},
+		{" data:text/html,<script>alert(1)</script>", false},
+		{"vbscript:msgbox(1)", false},
+	}
+	var dashLinks, panelLinks []string
+	for _, u := range urls {
+		dashLinks = append(dashLinks, `{"type":"link","title":"L","url":"`+u.url+`"}`)
+		panelLinks = append(panelLinks, `{"title":"L","url":"`+u.url+`"}`)
+	}
+	res := convertDoc(t, dashboardJSON(`"links":[`+strings.Join(dashLinks, ",")+`]`, `{"id":1,"type":"timeseries","title":"P1","gridPos":{"x":0,"y":0,"w":12,"h":4},"datasource":{"type":"prometheus","uid":"prom"},`+upTarget+`,"links":[`+strings.Join(panelLinks, ",")+`]}`))
+	wantKept := 0
+	for _, u := range urls {
+		if u.kept {
+			wantKept++
+		}
+	}
+	if got := len(res.Spec.Links); got != wantKept {
+		t.Errorf("dashboard links kept = %d, want %d: %+v", got, wantKept, res.Spec.Links)
+	}
+	panel := res.Spec.AllPanels()[0].Panel
+	if got := len(panel.Links); got != wantKept {
+		t.Errorf("panel links kept = %d, want %d: %+v", got, wantKept, panel.Links)
+	}
+	for _, link := range append(slices.Clone(res.Spec.Links), panel.Links...) {
+		if strings.Contains(strings.ToLower(link.URL), "script:") || strings.Contains(link.URL, "data:") {
+			t.Errorf("link %q was kept", link.URL)
+		}
+	}
+	if !hasPath(notesFor(res, "dashboard links"), "links[6]") {
+		t.Errorf("the dropped dashboard links are not reported: %+v", res.Report.Notes)
+	}
+	if !slices.Contains(panelLine(t, res, "p1").Paths, "links[6]") {
+		t.Errorf("the dropped panel links are not reported: %+v", panelLine(t, res, "p1"))
 	}
 }

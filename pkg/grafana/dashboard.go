@@ -239,7 +239,7 @@ func (c *converter) convertLinks(dash map[string]any) {
 			title = url
 		}
 		_, longURL := cutRunes(url, 2000)
-		if url == "" || longURL || len(c.head.Links) >= maxLinks {
+		if url == "" || longURL || hasForeignScheme(url) || len(c.head.Links) >= maxLinks {
 			invalid = append(invalid, path)
 			continue
 		}
@@ -262,7 +262,7 @@ func (c *converter) convertLinks(dash map[string]any) {
 		c.note("dashboard links", "Links do not carry the variable selections along.", includeVars...)
 	}
 	if len(invalid) > 0 {
-		c.note("dashboard links", "Some links have no address, a very long address or are past the first 20, and are not kept.", invalid...)
+		c.note("dashboard links", "Some links have no address, a very long address, an address that does not start with http, https or mailto, or are past the first 20, and are not kept.", invalid...)
 	}
 }
 

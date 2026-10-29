@@ -4,10 +4,12 @@ import (
 	"cmp"
 	"fmt"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -517,6 +519,19 @@ func (b *panelBuild) noteLinkOptions(item any, path string) {
 	}
 }
 
+var linkScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
+
+func hasForeignScheme(url string) bool {
+	url = strings.Map(func(r rune) rune {
+		if r == '\t' || r == '\n' || r == '\r' {
+			return -1
+		}
+		return r
+	}, url)
+	scheme := strings.ToLower(linkScheme.FindString(strings.TrimLeftFunc(url, unicode.IsControl)))
+	return scheme != "" && scheme != "http:" && scheme != "https:" && scheme != "mailto:"
+}
+
 func linkOf(item any) (spec.Link, string) {
 	l, ok := asObject(item)
 	if !ok {
@@ -531,6 +546,9 @@ func linkOf(item any) (spec.Link, string) {
 	}
 	if _, tooLong := cutRunes(url, 2000); tooLong {
 		return spec.Link{}, "A link address longer than 2000 characters is not kept."
+	}
+	if hasForeignScheme(url) {
+		return spec.Link{}, "A link whose address does not start with http, https or mailto is not kept."
 	}
 	title := strings.TrimSpace(asString(l["title"]))
 	if title == "" {
