@@ -18,16 +18,26 @@ const unverified = {
 
 describe("unverifiedReasons", () => {
   it("maps each panel to its first issue's message", () => {
-    expect(unverifiedReasons(unverified, 3, 3)).toEqual(
+    expect(unverifiedReasons(unverified, 3, 3).panels).toEqual(
       new Map([["p2", "first"]])
     )
   })
 
-  it("is empty when the drawn version is not the one that lists them", () => {
-    expect(unverifiedReasons(unverified, 3, 2).size).toBe(0)
+  it("maps each variable to its first issue's message", () => {
+    expect(unverifiedReasons(unverified, 3, 3).variables).toEqual(
+      new Map([["env", "variable failed"]])
+    )
   })
 
-  it("is empty when no panel is unverified", () => {
-    expect(unverifiedReasons({ panels: [], variables: [] }, 1, 1).size).toBe(0)
+  it("is empty when the drawn version is not the one that lists them", () => {
+    const reasons = unverifiedReasons(unverified, 3, 2)
+    expect(reasons.panels.size).toBe(0)
+    expect(reasons.variables.size).toBe(0)
+  })
+
+  it("is empty when nothing is unverified", () => {
+    const reasons = unverifiedReasons({ panels: [], variables: [] }, 1, 1)
+    expect(reasons.panels.size).toBe(0)
+    expect(reasons.variables.size).toBe(0)
   })
 })

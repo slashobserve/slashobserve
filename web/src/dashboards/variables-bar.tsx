@@ -1,15 +1,17 @@
 import { Fragment } from "react"
 
 import { useSetDashboardSearch } from "./search"
+import { UnverifiedLabel } from "./unverified-label"
 import type { VariableState } from "./use-variables"
 import { AdhocControl } from "./variable-controls/adhoc-control"
 import { DatasourceControl } from "./variable-controls/datasource-control"
 import { IntervalControl } from "./variable-controls/interval-control"
 import { TextboxControl } from "./variable-controls/textbox-control"
+import { variableLabel } from "./variable-controls/variable-box"
 import { VariableSelect } from "./variable-select"
 import { applyVariableChange } from "./variables"
 
-type Props = { states: VariableState[] }
+type Props = { states: VariableState[]; unverified: Map<string, string> }
 
 function isShown(state: VariableState): boolean {
   return (
@@ -17,7 +19,7 @@ function isShown(state: VariableState): boolean {
   )
 }
 
-export function VariablesBar({ states }: Props) {
+export function VariablesBar({ states, unverified }: Props) {
   const setSearch = useSetDashboardSearch()
   const shown = states.filter(isShown)
   if (shown.length === 0) return null
@@ -80,9 +82,21 @@ export function VariablesBar({ states }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
-      {shown.map((state) => (
-        <Fragment key={state.variable.name}>{control(state)}</Fragment>
-      ))}
+      {shown.map((state) => {
+        const { variable } = state
+        const reason = unverified.get(variable.name)
+        return (
+          <Fragment key={variable.name}>
+            {control(state)}
+            {reason ? (
+              <UnverifiedLabel
+                title={variableLabel(variable)}
+                reason={reason}
+              />
+            ) : null}
+          </Fragment>
+        )
+      })}
     </div>
   )
 }

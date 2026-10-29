@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import {
   joinNames,
-  lowerFirst,
   orderTurns,
   shortRequestId,
   stepSummary,
@@ -88,13 +87,5 @@ describe("joinNames", () => {
     expect(joinNames(["a", "b"])).toBe("a and b")
     expect(joinNames(["a", "b", "c"])).toBe("a, b and c")
     expect(joinNames(["a", "b", "c", "d"])).toBe("a, b, c and d")
-  })
-})
-
-describe("lowerFirst", () => {
-  it("lowercases the first character only", () => {
-    expect(lowerFirst("Yesterday")).toBe("yesterday")
-    expect(lowerFirst("In 74 days")).toBe("in 74 days")
-    expect(lowerFirst("")).toBe("")
   })
 })

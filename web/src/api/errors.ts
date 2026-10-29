@@ -1,3 +1,5 @@
+import { lowerFirst } from "@/lib/text"
+
 export type ApiIssue = { path: string; code: string; message: string }
 
 export class ApiError extends Error {
@@ -6,6 +8,7 @@ export class ApiError extends Error {
   readonly issues: ApiIssue[]
   readonly latestVersion: number | undefined
   readonly retryAfterMs: number | undefined
+  readonly ref: string | undefined
 
   constructor(
     status: number,
@@ -13,7 +16,8 @@ export class ApiError extends Error {
     message: string,
     issues: ApiIssue[] = [],
     latestVersion?: number,
-    retryAfterMs?: number
+    retryAfterMs?: number,
+    ref?: string
   ) {
     super(message)
     this.name = "ApiError"
@@ -22,7 +26,14 @@ export class ApiError extends Error {
     this.issues = issues
     this.latestVersion = latestVersion
     this.retryAfterMs = retryAfterMs
+    this.ref = ref
   }
+}
+
+export function failedQueryText(error: ApiError): string {
+  return error.ref === undefined
+    ? error.message
+    : `Query ${error.ref} failed: ${lowerFirst(error.message)}`
 }
 
 export class NetworkError extends Error {
@@ -81,7 +92,8 @@ export function toApiError(response: Response, body: unknown): ApiError {
     message,
     readIssues(fields.issues),
     latestVersion,
-    readRetryAfterMs(response)
+    readRetryAfterMs(response),
+    typeof fields.ref === "string" && fields.ref !== "" ? fields.ref : undefined
   )
 }
 

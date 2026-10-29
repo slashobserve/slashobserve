@@ -27,7 +27,7 @@ export function UnverifiedLabel({
         <StatusLabel tone="critical">Unverified</StatusLabel>
       </TooltipTrigger>
       <TooltipContent>
-        Its queries failed when this version was saved: {reason}
+        Failed when this version was saved: {reason}
       </TooltipContent>
     </Tooltip>
   )

@@ -10,8 +10,9 @@ import {
   type DashboardEnvelope,
 } from "@/dashboards/queries"
 import { panelDatasourceUids } from "@/dashboards/panel-datasources"
+import { lowerFirst } from "@/lib/text"
 import { formatShortRelative } from "@/lib/time"
-import { joinNames, lowerFirst } from "@/observe/conversation"
+import { joinNames } from "@/observe/conversation"
 import { allPanels, isRowPanel, panelTitle, type Panel } from "@/spec"
 
 import { OpenDashboardLink } from "./turn-failure"

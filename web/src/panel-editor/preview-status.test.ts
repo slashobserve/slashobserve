@@ -77,6 +77,24 @@ describe("previewErrorText", () => {
     ).toBe("parse error at 1:5")
   })
 
+  const withRef = (code: string, message: string) =>
+    new ApiError(502, code, message, [], undefined, undefined, "B")
+
+  it("names the failed query on a passed-through message", () => {
+    expect(
+      previewErrorText(withRef("query_invalid", "Parse error at 1:5"))
+    ).toBe("Query B failed: parse error at 1:5")
+  })
+
+  it("names the failed query on a timeout and an unavailable datasource", () => {
+    expect(previewErrorText(withRef("query_timeout", "raw"))).toBe(
+      "Query B failed: it took too long to run."
+    )
+    expect(previewErrorText(withRef("datasource_unavailable", "raw"))).toBe(
+      "Query B failed: the datasource is not answering."
+    )
+  })
+
   it("falls back for errors that are not API errors", () => {
     expect(previewErrorText(new NetworkError("offline"))).toBe(
       "The preview could not run."

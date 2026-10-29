@@ -1,14 +1,33 @@
 import type { components } from "@/api/schema.gen"
 
+type Issues = { issues: components["schemas"]["Issue"][] }
+
+export type UnverifiedReasons = {
+  panels: Map<string, string>
+  variables: Map<string, string>
+}
+
+function firstMessages<T extends Issues>(
+  items: readonly T[],
+  key: (item: T) => string
+): Map<string, string> {
+  const reasons = new Map<string, string>()
+  for (const item of items) {
+    if (item.issues[0]) reasons.set(key(item), item.issues[0].message)
+  }
+  return reasons
+}
+
 export function unverifiedReasons(
   unverified: components["schemas"]["Unverified"],
   listedVersion: number,
   drawnVersion: number
-): Map<string, string> {
-  const reasons = new Map<string, string>()
-  if (listedVersion !== drawnVersion) return reasons
-  for (const { panel_id, issues } of unverified.panels) {
-    if (issues[0]) reasons.set(panel_id, issues[0].message)
+): UnverifiedReasons {
+  if (listedVersion !== drawnVersion) {
+    return { panels: new Map(), variables: new Map() }
   }
-  return reasons
+  return {
+    panels: firstMessages(unverified.panels, (panel) => panel.panel_id),
+    variables: firstMessages(unverified.variables, (variable) => variable.name),
+  }
 }
