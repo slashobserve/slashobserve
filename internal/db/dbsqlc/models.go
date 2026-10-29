@@ -133,6 +133,16 @@ type OutboundDomain struct {
 	CreatedByName string
 }
 
+type SavedPrompt struct {
+	ID        pgtype.UUID
+	OwnerID   pgtype.UUID
+	Name      string
+	Body      string
+	Shared    bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type ServiceAccount struct {
 	ID          pgtype.UUID
 	Name        string
