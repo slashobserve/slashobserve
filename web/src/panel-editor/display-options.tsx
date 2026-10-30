@@ -379,14 +379,16 @@ function ListOption({
   label,
   name,
   max,
+  placeholder = listKinds[kind].placeholder,
 }: {
   controls: Controls
   kind: keyof typeof listKinds
   label: string
   name: string
   max: number
+  placeholder?: string
 }) {
-  const { parse, placeholder, allowed } = listKinds[kind]
+  const { parse, allowed } = listKinds[kind]
   const stored = list(controls.display, name).join(", ")
   const { entry, edit } = useEntry(stored)
   const itemsOf = (value: string) => {
@@ -492,14 +494,24 @@ function OptionControl({
         />
       )
     case "tags":
+      return (
+        <ListOption
+          controls={controls}
+          kind="tags"
+          label={option.label}
+          name={option.key}
+          max={option.max}
+        />
+      )
     case "names":
       return (
         <ListOption
           controls={controls}
-          kind={option.kind}
+          kind="names"
           label={option.label}
           name={option.key}
           max={option.max}
+          placeholder={option.placeholder}
         />
       )
     case "note":

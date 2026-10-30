@@ -47,5 +47,11 @@ export type DisplayOption =
       countHint: string
     }
   | { kind: "tags"; key: string; label: string; max: number }
-  | { kind: "names"; key: string; label: string; max: number }
+  | {
+      kind: "names"
+      key: string
+      label: string
+      max: number
+      placeholder?: string
+    }
   | { kind: "note"; text: string }

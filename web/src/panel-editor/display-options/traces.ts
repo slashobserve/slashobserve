@@ -5,9 +5,21 @@ const maxDurationMs = 86400000
 
 export const traces: readonly DisplayOption[] = [
   fieldOption("spanSearch", "Search", "Service, operation, id or attribute"),
-  { kind: "names", key: "serviceNames", label: "Services", max: 50 },
+  {
+    kind: "names",
+    key: "serviceNames",
+    label: "Services",
+    max: 50,
+    placeholder: "All services",
+  },
   { kind: "toggle", key: "excludeServices", label: "Exclude these services" },
-  { kind: "names", key: "spanNames", label: "Operations", max: 50 },
+  {
+    kind: "names",
+    key: "spanNames",
+    label: "Operations",
+    max: 50,
+    placeholder: "All operations",
+  },
   {
     kind: "toggle",
     key: "excludeSpanNames",
