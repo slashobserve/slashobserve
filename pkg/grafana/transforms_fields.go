@@ -316,14 +316,23 @@ func filterByRefIDTransform(b *panelBuild, opts map[string]any, path string) (sp
 		case id == "":
 		case !refPattern.MatchString(id) || !mapped:
 			b.partial(path+".options.include", "")
-		case !slices.Contains(t.Include, ref) && len(t.Include) < maxRefFilters:
-			t.Include = append(t.Include, ref)
+		default:
+			t.Include = b.includeRef(t.Include, ref)
 		}
 	}
 	if len(t.Include) == 0 {
 		return b.dropTransform(path)
 	}
 	return t, true
+}
+
+func (b *panelBuild) includeRef(include []string, ref string) []string {
+	for _, r := range []string{ref, b.instantRefs[ref]} {
+		if r != "" && !slices.Contains(include, r) && len(include) < maxRefFilters {
+			include = append(include, r)
+		}
+	}
+	return include
 }
 
 func extractFieldsTransform(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool) {

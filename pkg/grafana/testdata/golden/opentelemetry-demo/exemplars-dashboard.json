@@ -62,12 +62,10 @@
         "row": "GetCart Exemplars",
         "status": "partial",
         "reasons": [
-          "Grafana runs an instant and a range query here; only the range query is kept.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].instant",
           "targets[0].exemplar",
           "options.cellGap",
           "options.color.exponent",
@@ -91,7 +89,9 @@
             "ref_id": "A",
             "ref": "A",
             "datasource": "prom",
-            "rewrites": [],
+            "rewrites": [
+              "refId A (instant) -> B"
+            ],
             "dropped": null
           }
         ]
@@ -131,12 +131,10 @@
         "row": "AddItem Exemplars",
         "status": "partial",
         "reasons": [
-          "Grafana runs an instant and a range query here; only the range query is kept.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].instant",
           "targets[0].exemplar",
           "options.cellGap",
           "options.color.exponent",
@@ -160,7 +158,9 @@
             "ref_id": "A",
             "ref": "A",
             "datasource": "prom",
-            "rewrites": [],
+            "rewrites": [
+              "refId A (instant) -> B"
+            ],
             "dropped": null
           }
         ]
@@ -239,6 +239,12 @@
                 "query": "sum by(le) (rate(demo_cart_get_cart_latency_seconds_bucket[$__rate_interval]))",
                 "legend": "{{le}}",
                 "format": "heatmap"
+              },
+              {
+                "query": "sum by(le) (rate(demo_cart_get_cart_latency_seconds_bucket[$__rate_interval]))",
+                "legend": "{{le}}",
+                "instant": true,
+                "format": "heatmap"
               }
             ],
             "interval": "2m"
@@ -290,6 +296,12 @@
               {
                 "query": "sum by(le) (rate(demo_cart_add_item_latency_seconds_bucket[$__rate_interval]))",
                 "legend": "{{le}}",
+                "format": "heatmap"
+              },
+              {
+                "query": "sum by(le) (rate(demo_cart_add_item_latency_seconds_bucket[$__rate_interval]))",
+                "legend": "{{le}}",
+                "instant": true,
                 "format": "heatmap"
               }
             ],

@@ -34,6 +34,10 @@ The original JSON is stored with the import so a newer importer can convert it a
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
 A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.
+A Prometheus query that Grafana runs as both an instant and a range query (`instant` and `range` both on) imports as two queries: the range query keeps its ref, and an `instant` copy without the min step or resolution factor takes the next free ref, which the import report lists as `refId A (instant) -> B`.
+Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
+A query with `instant` on and `range` unset or off stays one instant query.
+A panel that already holds 26 queries keeps only the range query and reports the instant one.
 A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.
 A stat, gauge, bar gauge or pie chart imports its value options: the first reducer, "Show" as every value (`allValues`, with `limit` when it is not 5000) and the `fields` name or pattern.

@@ -31,10 +31,12 @@ const (
 var refPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,19}$`)
 
 type builtQuery struct {
-	q     spec.Query
-	refID string
-	index int
-	src   *sourceDS
+	q            spec.Query
+	refID        string
+	index        int
+	src          *sourceDS
+	splitInstant bool
+	copyOf       *builtQuery
 }
 
 type targetBuild struct {
@@ -44,6 +46,8 @@ type targetBuild struct {
 	src      *sourceDS
 	used     map[string]bool
 	rewrites []string
+
+	splitInstant bool
 }
 
 var targetSilent = map[string]bool{
@@ -105,14 +109,38 @@ func (b *panelBuild) convertQueries() {
 		tb.reportUnconsumed()
 		line := b.lineFor(i)
 		line.Rewrites = append(line.Rewrites, tb.rewrites...)
-		b.built = append(b.built, &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src})
+		b.built = append(b.built, &builtQuery{q: q, refID: asString(target["refId"]), index: i, src: tb.src, splitInstant: tb.splitInstant})
 	}
+	b.splitInstantQueries()
 	if overflow {
 		b.issues.limit++
 	}
 	if b.unlisted > 0 {
 		b.partial("targets", unlistedQueriesReason(b.unlisted))
 	}
+}
+
+func (b *panelBuild) splitInstantQueries() {
+	room := maxPanelQueries - len(b.built)
+	split := make([]*builtQuery, 0, len(b.built)+max(room, 0))
+	for _, bq := range b.built {
+		split = append(split, bq)
+		if !bq.splitInstant {
+			continue
+		}
+		if room <= 0 {
+			b.partial(fmt.Sprintf("targets[%d].instant", bq.index), "Grafana runs an instant and a range query here; only the range query is kept.")
+			continue
+		}
+		room--
+		instant := bq.q
+		instant.Instant = true
+		instant.Interval = ""
+		instant.IntervalFactor = 0
+		instant.Exemplar = false
+		split = append(split, &builtQuery{q: instant, index: bq.index, src: bq.src, copyOf: bq})
+	}
+	b.built = split
 }
 
 func visibleBeyondPathCap(items []any) int {
@@ -275,10 +303,8 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 	}
 	q := spec.Query{Query: expr, Legend: tb.legend(), Interval: tb.minInterval(), IntervalFactor: tb.resolutionFactor()}
 	if truthy(tb.t["instant"]) {
-		q.Instant = !truthy(tb.t["range"])
-		if !q.Instant {
-			tb.partial("instant", "Grafana runs an instant and a range query here; only the range query is kept.")
-		}
+		tb.splitInstant = truthy(tb.t["range"])
+		q.Instant = !tb.splitInstant
 	}
 	switch asString(tb.t["format"]) {
 	case "table":
@@ -490,6 +516,13 @@ func (b *panelBuild) assignQueries() {
 		}
 		b.panel.Queries = append(b.panel.Queries, q)
 		line := b.lineFor(bq.index)
+		if bq.copyOf != nil {
+			b.instantRefs[refs[k-1]] = refs[k]
+			if bq.copyOf.refID != "" {
+				line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s (instant) -> %s", bq.copyOf.refID, refs[k]))
+			}
+			continue
+		}
 		line.Ref = ptr(refs[k])
 		line.Datasource = ptr(bq.src.ref())
 		if bq.refID == "" {

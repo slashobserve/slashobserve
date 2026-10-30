@@ -143,6 +143,7 @@ type panelBuild struct {
 	lines            []QueryLine
 	unlisted         int
 	refs             map[string]string
+	instantRefs      map[string]string
 	thresholdsMatter bool
 	display          *spec.Display
 }
@@ -166,7 +167,7 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 			return placeholderPanel(n, reason)
 		}
 	}
-	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, issues: newIssueLog()}
+	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog()}
 	b.panel = spec.Panel{
 		ID:      n.id,
 		Type:    typ,
