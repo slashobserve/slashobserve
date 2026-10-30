@@ -50,14 +50,14 @@ func TestCommentToolsRejectAgentRuns(t *testing.T) {
 	}
 }
 
-func TestCommentToolsAreMCPOnly(t *testing.T) {
+func TestMCPOnlyTools(t *testing.T) {
 	var got []string
 	for _, tool := range New(Deps{}).List() {
 		if tool.MCPOnly {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "list_comments,list_folders,reply_to_comment,resolve_comment" {
+	if strings.Join(got, ",") != "get_spec_guide,list_comments,list_folders,reply_to_comment,resolve_comment" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }

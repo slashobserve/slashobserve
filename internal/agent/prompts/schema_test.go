@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/pkg/spec"
+	"github.com/slashobserve/slashobserve/spec/examples"
 )
 
 func compile(t *testing.T, raw []byte) *jsonschema.Schema {
@@ -39,6 +40,11 @@ func accepts(t *testing.T, root *os.Root, s *jsonschema.Schema, file string) boo
 	if err != nil {
 		t.Fatal(err)
 	}
+	return acceptsBytes(t, s, body)
+}
+
+func acceptsBytes(t *testing.T, s *jsonschema.Schema, body []byte) bool {
+	t.Helper()
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
@@ -108,31 +114,55 @@ func TestSchemaKeepsPropertyOrder(t *testing.T) {
 	}
 }
 
-func TestSchemaJudgesFilesLikeTheFullSchema(t *testing.T) {
-	full := compile(t, spec.Schema())
-	trimmed := compile(t, prompts.Schema())
+func openExamples(t *testing.T) *os.Root {
+	t.Helper()
 	root, err := os.OpenRoot(filepath.Join("..", "..", "..", "spec", "examples"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = root.Close() })
-	valid, err := fs.Glob(root.FS(), "*.json")
-	if err != nil || len(valid) == 0 {
-		t.Fatalf("valid examples: %v, %v", valid, err)
+	return root
+}
+
+func globExamples(t *testing.T, root *os.Root, pattern string) []string {
+	t.Helper()
+	files, err := fs.Glob(root.FS(), pattern)
+	if err != nil || len(files) == 0 {
+		t.Fatalf("%s: %v, %v", pattern, files, err)
 	}
-	invalid, err := fs.Glob(root.FS(), "invalid/schema/*.json")
-	if err != nil || len(invalid) == 0 {
-		t.Fatalf("invalid examples: %v, %v", invalid, err)
+	return files
+}
+
+func TestAnnotationStripJudgesFilesLikeTheFullSchema(t *testing.T) {
+	stripped, err := prompts.StripAnnotations(spec.Schema())
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, file := range valid {
+	full := compile(t, spec.Schema())
+	trimmed := compile(t, stripped)
+	root := openExamples(t)
+	for _, file := range globExamples(t, root, "*.json") {
 		if !accepts(t, root, trimmed, file) {
-			t.Errorf("prompt schema rejects valid %s", file)
+			t.Errorf("annotation-stripped schema rejects valid %s", file)
 		}
 	}
-	for _, file := range invalid {
+	for _, file := range globExamples(t, root, "invalid/schema/*.json") {
 		if accepts(t, root, full, file) {
 			t.Fatalf("full schema accepts %s, so it is not a schema fixture", file)
 		}
+		if accepts(t, root, trimmed, file) {
+			t.Errorf("annotation-stripped schema accepts invalid %s", file)
+		}
+	}
+}
+
+func TestSchemaAcceptsTheGuideExampleAndRejectsInvalidFixtures(t *testing.T) {
+	trimmed := compile(t, prompts.Schema())
+	if !acceptsBytes(t, trimmed, examples.CheckoutServiceHealth) {
+		t.Error("prompt schema rejects the guide example")
+	}
+	root := openExamples(t)
+	for _, file := range globExamples(t, root, "invalid/schema/*.json") {
 		if accepts(t, root, trimmed, file) {
 			t.Errorf("prompt schema accepts invalid %s", file)
 		}
@@ -157,7 +187,7 @@ func TestSchemaLeavesOutValuesOnlyImportsNeed(t *testing.T) {
 }
 
 func TestStripSchemaDropsMarkedMembers(t *testing.T) {
-	got, err := prompts.StripSchema([]byte(`{
+	input := []byte(`{
 		"type": "object",
 		"properties": {
 			"kept": {"type": "string"},
@@ -171,13 +201,22 @@ func TestStripSchemaDropsMarkedMembers(t *testing.T) {
 			]},
 			"rareDef": {"x-omitFromPrompt": true, "type": "string"}
 		}
-	}`))
+	}`)
+	got, err := prompts.StripSchema(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := `{"type":"object","properties":{"kept":{"type":"string"}},"$defs":{"unit":{"anyOf":[{"enum":["a"]},{"enum":["c"]}]}}}`
 	if string(got) != want {
 		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+	kept, err := prompts.StripAnnotations(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantKept := `{"type":"object","properties":{"kept":{"type":"string"},"rare":{"type":"string"}},"$defs":{"unit":{"anyOf":[{"enum":["a"]},{"enum":["b"]},{"enum":["c"]}]},"rareDef":{"type":"string"}}}`
+	if string(kept) != wantKept {
+		t.Fatalf("got  %s\nwant %s", kept, wantKept)
 	}
 }
 

@@ -3,6 +3,7 @@
 A dashboard is one ObserveSpec v0 JSON document; the JSON Schema is authoritative, the example shows the format only.
 Discover metric, label, table and column names with the tools; never copy them from the example.
 Leave out every value that equals its default.
+The schema here leaves out rare, import-only and purely visual options; when a Spec you revise holds one, keep it unchanged.
 
 ## Panels
 - A data panel has `id`, `type`, `title`, `gridPos`, `datasource` (a datasource uid such as `prom`) and `queries`.
