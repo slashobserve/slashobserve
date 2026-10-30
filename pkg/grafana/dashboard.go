@@ -263,6 +263,9 @@ func (c *converter) refreshIntervals(picker map[string]any) []string {
 	if len(dropped) > 0 {
 		c.note("time picker", "Some auto-refresh choices are shorter than a second, not a whole number of seconds, minutes, hours or days, or are past the first 20, and are not kept.", dropped...)
 	}
+	if slices.Equal(kept, spec.Defaults().TimePicker.RefreshIntervals) {
+		return nil
+	}
 	return kept
 }
 

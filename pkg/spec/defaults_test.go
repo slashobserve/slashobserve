@@ -251,6 +251,12 @@ func TestDefaultValuesAreSchemaValid(t *testing.T) {
 		parseDefaultsDoc(t, defaultsDoc(row))
 	})
 
+	t.Run("timePicker", func(t *testing.T) {
+		doc := defaultsDoc(defaultsPanel("p1", "timeseries"))
+		doc["timePicker"] = rawObject(t, raw["timePicker"])
+		parseDefaultsDoc(t, doc)
+	})
+
 	t.Run("link", func(t *testing.T) {
 		link := map[string]any{"title": "Docs", "url": "https://example.com"}
 		maps.Copy(link, rawObject(t, raw["link"]))

@@ -11,6 +11,7 @@ export const fieldPropDefaults = specDefaults.fieldProps
 export const queryDefaults = specDefaults.query
 export const variableDefaults = specDefaults.variable
 export const dashboardDefaults = specDefaults.dashboard
+export const timePickerDefaults = specDefaults.timePicker
 export const rowDefaults = specDefaults.row
 export const linkDefaults = specDefaults.link
 export const canvasElementDefaults = specDefaults.canvasElement

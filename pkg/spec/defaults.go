@@ -63,6 +63,10 @@ type DashboardDefaults struct {
 	CursorSync CursorSync `json:"cursorSync"`
 }
 
+type TimePickerDefaults struct {
+	RefreshIntervals []string `json:"refreshIntervals"`
+}
+
 type CanvasElementDefaults struct {
 	FontSize    int     `json:"fontSize"`
 	Align       string  `json:"align"`
@@ -95,6 +99,7 @@ type DefaultsTable struct {
 	Row              RowDefaults              `json:"row"`
 	Link             LinkDefaults             `json:"link"`
 	Dashboard        DashboardDefaults        `json:"dashboard"`
+	TimePicker       TimePickerDefaults       `json:"timePicker"`
 	Display          map[PanelType]Display    `json:"display"`
 	CanvasElement    CanvasElementDefaults    `json:"canvasElement"`
 	CanvasConnection CanvasConnectionDefaults `json:"canvasConnection"`
@@ -120,6 +125,7 @@ func Defaults() DefaultsTable {
 	table := defaults()
 	table.Display = maps.Clone(table.Display)
 	table.InstantPanels = slices.Clone(table.InstantPanels)
+	table.TimePicker.RefreshIntervals = slices.Clone(table.TimePicker.RefreshIntervals)
 	for panelType, display := range table.Display {
 		display.LegendValues = slices.Clone(display.LegendValues)
 		display.Footer = slices.Clone(display.Footer)

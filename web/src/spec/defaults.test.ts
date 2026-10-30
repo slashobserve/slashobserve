@@ -10,6 +10,7 @@ import {
   linkDefaults,
   queryDefaults,
   rowDefaults,
+  timePickerDefaults,
   validateSpecSchema,
   variableDefaults,
 } from "./index"
@@ -163,6 +164,14 @@ describe("spec defaults", () => {
     expectValid(
       dashboard([dataPanel("timeseries")], {
         links: [{ title: "Docs", url: "https://example.com", ...linkDefaults }],
+      })
+    )
+  })
+
+  it("time picker defaults are schema valid", () => {
+    expectValid(
+      dashboard([dataPanel("timeseries")], {
+        timePicker: { ...timePickerDefaults },
       })
     )
   })

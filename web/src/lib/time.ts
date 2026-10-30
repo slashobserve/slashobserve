@@ -1,4 +1,4 @@
-import type { Dashboard } from "@/spec"
+import { timePickerDefaults, type Dashboard } from "@/spec"
 
 export const quickRanges: QuickRange[] = [
   { label: "Last 5 minutes", from: "now-5m", to: "now" },
@@ -451,17 +451,7 @@ export function formatShortRelative(iso: string, now = Date.now()): string {
   return years === 1 ? "Last year" : `${years} years ago`
 }
 
-export const refreshOptions = [
-  "off",
-  "5s",
-  "10s",
-  "30s",
-  "1m",
-  "5m",
-  "15m",
-  "30m",
-  "1h",
-]
+export const refreshOptions = ["off", ...timePickerDefaults.refreshIntervals]
 
 export const refreshPattern = /^[1-9][0-9]{0,4}[smhd]$/
 
