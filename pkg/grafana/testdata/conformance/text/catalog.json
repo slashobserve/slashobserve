@@ -1,0 +1,24 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/text/panelcfg.cue",
+    "public/app/plugins/panel/text/panelcfg.gen.ts",
+    "public/app/plugins/panel/text/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.content=markdown-body", "path": "options.content", "value": "# Other\nBody" },
+    { "id": "options.mode=html", "path": "options.mode", "value": "html" },
+    { "id": "options.mode=code", "path": "options.mode", "value": "code" },
+    { "id": "options.code.language=go", "path": "options.code.language", "value": "go", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=html", "path": "options.code.language", "value": "html", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=json", "path": "options.code.language", "value": "json", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=markdown", "path": "options.code.language", "value": "markdown", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=sql", "path": "options.code.language", "value": "sql", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=typescript", "path": "options.code.language", "value": "typescript", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=xml", "path": "options.code.language", "value": "xml", "with": {"options.mode": "code"} },
+    { "id": "options.code.language=yaml", "path": "options.code.language", "value": "yaml", "with": {"options.mode": "code"} },
+    { "id": "options.code.showLineNumbers=true", "path": "options.code.showLineNumbers", "value": true, "with": {"options.mode": "code"} },
+    { "id": "options.code.showMiniMap=true", "path": "options.code.showMiniMap", "value": true, "with": {"options.mode": "code"} }
+  ]
+}

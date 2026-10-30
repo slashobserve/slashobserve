@@ -1,0 +1,5 @@
+options.folderId=7
+options.folderUID=abc123
+options.showRecentlyViewed=true
+options.showSearch=true
+options.showStarred=false
