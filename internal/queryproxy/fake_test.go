@@ -31,6 +31,7 @@ type fakeDatasource struct {
 
 	onRange    func(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onInstant  func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error)
+	onExemplar func(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	onVariable func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]string, error)
 	onDiscover func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
 
@@ -137,6 +138,16 @@ func (f *fakeDatasource) QueryInstant(ctx context.Context, q datasource.Query, r
 	return dataFrames(), nil
 }
 
+func (f *fakeDatasource) QueryExemplars(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error) {
+	defer f.enter(ctx, call{method: "exemplars", query: q, rng: r, step: step})()
+	if f.onExemplar != nil {
+		return f.onExemplar(ctx, q, r, step)
+	}
+	return nil, nil
+}
+
+type withoutExemplars struct{ datasource.Datasource }
+
 func dataFrames() []datasource.Frame {
 	return []datasource.Frame{{Fields: []datasource.Field{
 		{Name: "time", Type: datasource.FieldTime, Values: []any{1.0}},
@@ -156,6 +167,11 @@ func newTestRunner(t *testing.T, logger *slog.Logger, fakes map[string]*fakeData
 	for uid, f := range fakes {
 		instances = append(instances, datasource.Instance{UID: uid, Datasource: f})
 	}
+	return newRunnerOf(t, logger, instances...)
+}
+
+func newRunnerOf(t *testing.T, logger *slog.Logger, instances ...datasource.Instance) *Runner {
+	t.Helper()
 	reg, err := datasource.NewRegistry(slog.New(slog.DiscardHandler), instances...)
 	if err != nil {
 		t.Fatalf("NewRegistry: %v", err)
