@@ -706,14 +706,12 @@
         "row": "CPU Memory Net Disk",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "The series override option transform is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "seriesOverrides[0].transform",
@@ -3190,14 +3188,10 @@
         "row": "System Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
-          "targets[1].intervalFactor",
-          "targets[2].intervalFactor",
           "yaxes[0].label",
           "legend.alignAsTable"
         ],
@@ -3453,14 +3447,12 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "The series override option transform is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "seriesOverrides[0].transform",
@@ -3493,14 +3485,12 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "The series override option transform is not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "seriesOverrides[0].transform",
@@ -3533,7 +3523,6 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "The series override option transform is not supported yet.",
@@ -3541,7 +3530,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "seriesOverrides[0].transform",
@@ -3576,7 +3564,6 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "The series override option transform is not supported yet.",
@@ -3584,7 +3571,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "seriesOverrides[0].transform",
@@ -3619,14 +3605,12 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "legend.alignAsTable",
@@ -3694,14 +3678,12 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "legend.alignAsTable",
@@ -3728,14 +3710,12 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Hiding empty series from the legend is not supported yet.",
           "Legend tables are not supported; the legend is a plain list.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.hideZero",
           "legend.alignAsTable",
@@ -3762,12 +3742,10 @@
         "row": "Disk Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.alignAsTable"
         ],
@@ -3861,12 +3839,10 @@
         "row": "Filesystem Detail",
         "status": "partial",
         "reasons": [
-          "The resolution factor of this query is not supported yet.",
           "Axis labels are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].intervalFactor",
           "yaxes[0].label",
           "legend.alignAsTable"
         ],
@@ -8783,7 +8759,8 @@
               {
                 "query": "irate(node_disk_reads_completed{instance=~\"$node:$port\",job=~\"$job\",device=~\"[a-z]*[a-z]\"}[5m])",
                 "legend": "{{device}} - Reads completed",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "irate(node_disk_writes_completed{instance=~\"$node:$port\",job=~\"$job\",device=~\"[a-z]*[a-z]\"}[5m])",
@@ -17685,17 +17662,20 @@
               {
                 "query": "node_load1{instance=~\"$node:$port\",job=~\"$job\"}",
                 "legend": "Load 1m",
-                "interval": "3600s"
+                "interval": "3600s",
+                "intervalFactor": 4
               },
               {
                 "query": "node_load5{instance=~\"$node:$port\",job=~\"$job\"}",
                 "legend": "Load 5m",
-                "interval": "3600s"
+                "interval": "3600s",
+                "intervalFactor": 4
               },
               {
                 "query": "node_load15{instance=~\"$node:$port\",job=~\"$job\"}",
                 "legend": "Load 15m",
-                "interval": "3600s"
+                "interval": "3600s",
+                "intervalFactor": 4
               }
             ],
             "unit": "short",
@@ -18007,7 +17987,8 @@
               {
                 "query": "irate(node_disk_reads_completed{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - Reads completed",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "irate(node_disk_writes_completed{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
@@ -18163,7 +18144,8 @@
               {
                 "query": "irate(node_disk_bytes_read{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - Read bytes",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "irate(node_disk_bytes_written{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
@@ -18319,7 +18301,8 @@
               {
                 "query": "irate(node_disk_read_time_ms{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - Read time ms",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "irate(node_disk_write_time_ms{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
@@ -18475,7 +18458,8 @@
               {
                 "query": "irate(node_disk_sectors_read{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - Read sectors",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "irate(node_disk_sectors_written{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
@@ -18631,7 +18615,8 @@
               {
                 "query": "irate(node_disk_io_time_weighted{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - IO time weighted",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               }
             ],
             "unit": "ms",
@@ -18941,7 +18926,8 @@
               {
                 "query": "irate(node_disk_io_time_ms{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - IO time ms",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               }
             ],
             "unit": "ms",
@@ -19093,7 +19079,8 @@
               {
                 "query": "irate(node_disk_io_now{instance=~\"$node:$port\",job=~\"$job\"}[5m])",
                 "legend": "{{device}} - IO now",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               }
             ],
             "unit": "iops",
@@ -19245,7 +19232,8 @@
               {
                 "query": "node_textfile_scrape_error{instance=~\"$node:$port\",job=~\"$job\"}",
                 "legend": "Textfile scrape error (1 = true)",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               }
             ],
             "unit": "short",
@@ -19488,7 +19476,8 @@
               {
                 "query": "node_filefd_maximum{instance=~\"$node:$port\",job=~\"$job\"}",
                 "legend": "Max open files",
-                "interval": "20s"
+                "interval": "20s",
+                "intervalFactor": 4
               },
               {
                 "query": "node_filefd_allocated{instance=~\"$node:$port\",job=~\"$job\"}",

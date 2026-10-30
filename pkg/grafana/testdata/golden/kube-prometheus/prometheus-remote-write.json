@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 15,
-      "imported": 0,
-      "partial": 15,
+      "imported": 15,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Timestamps",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Timestamps",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Samples",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -118,13 +106,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shards",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -143,13 +127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shards",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -168,13 +148,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shards",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -193,13 +169,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shards",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -218,13 +190,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shard Details",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -243,13 +211,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Shard Details",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -268,13 +232,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Segments",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -293,13 +253,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Segments",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -318,13 +274,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc. Rates",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -343,13 +295,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc. Rates",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -368,13 +316,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc. Rates",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -393,13 +337,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Misc. Rates",
-        "status": "partial",
-        "reasons": [
-          "The resolution factor of this query is not supported yet."
-        ],
-        "paths": [
-          "targets[0].intervalFactor"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -482,7 +422,8 @@
             "queries": [
               {
                 "query": "(\n  prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n-\n  prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}\n)\n",
-                "legend": "{{cluster}}::{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}::{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -505,7 +446,8 @@
             "queries": [
               {
                 "query": "clamp_min(\n  rate(prometheus_remote_storage_queue_highest_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n-\n  rate(prometheus_remote_storage_queue_highest_sent_timestamp_seconds{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])\n, 0)\n",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -541,7 +483,8 @@
             "queries": [
               {
                 "query": "rate(\n  prometheus_remote_storage_samples_in_total{cluster=~\"$cluster\", instance=~\"$instance\"}[5m])\n-\n  ignoring(remote_name, url) group_right(instance) (rate(prometheus_remote_storage_succeeded_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n-\n  (rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]))\n",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -577,7 +520,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -600,7 +544,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_max{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -623,7 +568,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_min{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -646,7 +592,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_shards_desired{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -682,7 +629,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_shard_capacity{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -705,7 +653,8 @@
             "queries": [
               {
                 "query": "prometheus_remote_storage_pending_samples{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"} or prometheus_remote_storage_samples_pending{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "short",
@@ -741,7 +690,8 @@
             "queries": [
               {
                 "query": "prometheus_tsdb_wal_segment_current{cluster=~\"$cluster\", instance=~\"$instance\"}",
-                "legend": "{{cluster}}:{{instance}}"
+                "legend": "{{cluster}}:{{instance}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "none"
@@ -760,7 +710,8 @@
             "queries": [
               {
                 "query": "prometheus_wal_watcher_current_segment{cluster=~\"$cluster\", instance=~\"$instance\"}",
-                "legend": "{{cluster}}:{{instance}} {{consumer}}"
+                "legend": "{{cluster}}:{{instance}} {{consumer}}",
+                "intervalFactor": 2
               }
             ],
             "unit": "none"
@@ -792,7 +743,8 @@
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_dropped_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_dropped_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ]
           },
@@ -810,7 +762,8 @@
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_failed_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_failed_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ]
           },
@@ -828,7 +781,8 @@
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_retried_samples_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m]) or rate(prometheus_remote_storage_samples_retried_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ]
           },
@@ -846,7 +800,8 @@
             "queries": [
               {
                 "query": "rate(prometheus_remote_storage_enqueue_retries_total{cluster=~\"$cluster\", instance=~\"$instance\", url=~\"$url\"}[5m])",
-                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}"
+                "legend": "{{cluster}}:{{instance}} {{remote_name}}:{{url}}",
+                "intervalFactor": 2
               }
             ]
           }

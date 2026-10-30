@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 18,
-      "imported": 0,
-      "partial": 18,
+      "imported": 12,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -93,13 +85,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Server spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -143,13 +131,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Client spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -168,13 +152,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Client spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -193,13 +173,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Client spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -293,13 +269,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Internal spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -318,13 +290,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Internal spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -343,13 +311,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Internal spans: ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -393,13 +357,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Async spans (Producer + Consumer): ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -418,13 +378,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Async spans (Producer + Consumer): ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -443,13 +399,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Async spans (Producer + Consumer): ${service}",
-        "status": "partial",
-        "reasons": [
-          "The min interval ${interval} cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -613,7 +565,8 @@
               }
             ],
             "unit": "reqps",
-            "fill": 10
+            "fill": 10,
+            "interval": "${interval}"
           },
           {
             "id": "p2",
@@ -634,7 +587,8 @@
             ],
             "unit": "percentunit",
             "color": "#F2495C",
-            "fill": 20
+            "fill": 20,
+            "interval": "${interval}"
           },
           {
             "id": "p3",
@@ -663,7 +617,8 @@
                 "color": "#FF9830",
                 "lineStyle": "dashed"
               }
-            ]
+            ],
+            "interval": "${interval}"
           },
           {
             "id": "p11",
@@ -740,7 +695,8 @@
               }
             ],
             "unit": "reqps",
-            "fill": 10
+            "fill": 10,
+            "interval": "${interval}"
           },
           {
             "id": "p13",
@@ -761,7 +717,8 @@
             ],
             "unit": "percentunit",
             "color": "#F2495C",
-            "fill": 20
+            "fill": 20,
+            "interval": "${interval}"
           },
           {
             "id": "p14",
@@ -790,7 +747,8 @@
                 "color": "#FF9830",
                 "lineStyle": "dashed"
               }
-            ]
+            ],
+            "interval": "${interval}"
           },
           {
             "id": "p15",
@@ -936,7 +894,8 @@
               }
             ],
             "unit": "reqps",
-            "fill": 10
+            "fill": 10,
+            "interval": "${interval}"
           },
           {
             "id": "p17",
@@ -957,7 +916,8 @@
             ],
             "unit": "percentunit",
             "color": "#F2495C",
-            "fill": 20
+            "fill": 20,
+            "interval": "${interval}"
           },
           {
             "id": "p18",
@@ -986,7 +946,8 @@
                 "color": "#FF9830",
                 "lineStyle": "dashed"
               }
-            ]
+            ],
+            "interval": "${interval}"
           },
           {
             "id": "p19",
@@ -1064,7 +1025,8 @@
               }
             ],
             "unit": "reqps",
-            "fill": 10
+            "fill": 10,
+            "interval": "${interval}"
           },
           {
             "id": "p21",
@@ -1085,7 +1047,8 @@
             ],
             "unit": "percentunit",
             "color": "#F2495C",
-            "fill": 20
+            "fill": 20,
+            "interval": "${interval}"
           },
           {
             "id": "p22",
@@ -1114,7 +1077,8 @@
                 "color": "#FF9830",
                 "lineStyle": "dashed"
               }
-            ]
+            ],
+            "interval": "${interval}"
           },
           {
             "id": "p23",

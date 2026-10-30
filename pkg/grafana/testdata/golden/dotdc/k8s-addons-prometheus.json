@@ -602,7 +602,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -610,7 +609,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -779,16 +777,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -821,16 +816,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -863,16 +855,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -905,16 +894,13 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -946,6 +932,14 @@
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable resolution",
+        "status": "partial",
+        "reason": "Imported as an interval variable because queries use it as their min step.",
+        "paths": [
+          "templating.list[3].type"
         ]
       }
     ]
@@ -990,7 +984,7 @@
       },
       {
         "name": "resolution",
-        "type": "custom",
+        "type": "interval",
         "options": [
           "1s",
           "15s",
@@ -1625,7 +1619,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{pod=~\"$pod\", image!=\"\", container!=\"\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod, container)",
-                "legend": "{{ pod }} - {{ container }}"
+                "legend": "{{ pod }} - {{ container }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1807,11 +1802,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_bytes_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Received"
+                "legend": "{{ pod }} - Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_bytes_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Transmitted"
+                "legend": "{{ pod }} - Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -1835,11 +1832,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_packets_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Received"
+                "legend": "{{ pod }} - Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Transmitted"
+                "legend": "{{ pod }} - Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",
@@ -1863,11 +1862,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_packets_dropped_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Received"
+                "legend": "{{ pod }} - Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_packets_dropped_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Transmitted"
+                "legend": "{{ pod }} - Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",
@@ -1891,11 +1892,13 @@
             "queries": [
               {
                 "query": "sum(rate(container_network_receive_errors_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Received"
+                "legend": "{{ pod }} - Received",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(container_network_transmit_errors_total{pod=~\"$pod\", cluster=~\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }} - Transmitted"
+                "legend": "{{ pod }} - Transmitted",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",

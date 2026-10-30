@@ -101,13 +101,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -132,13 +130,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -163,13 +159,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -194,13 +188,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -225,13 +217,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -256,13 +246,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -287,13 +275,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -318,13 +304,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -349,13 +333,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -380,13 +362,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -410,6 +390,14 @@
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable resolution",
+        "status": "partial",
+        "reason": "Imported as an interval variable because queries use it as their min step.",
+        "paths": [
+          "templating.list[2].type"
         ]
       }
     ]
@@ -444,7 +432,7 @@
       },
       {
         "name": "resolution",
-        "type": "custom",
+        "type": "interval",
         "options": [
           "1s",
           "15s",
@@ -562,7 +550,8 @@
         "queries": [
           {
             "query": "sum by (code) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
-            "legend": "{{ code }}"
+            "legend": "{{ code }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -585,7 +574,8 @@
         "queries": [
           {
             "query": "sum by (verb) (rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval]))",
-            "legend": "{{ verb}}"
+            "legend": "{{ verb}}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -608,7 +598,8 @@
         "queries": [
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (instance)",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "ms",
@@ -628,7 +619,8 @@
         "queries": [
           {
             "query": "sum(rate(apiserver_request_duration_seconds_sum{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)\n/\nsum(rate(apiserver_request_duration_seconds_count{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) by (verb)",
-            "legend": "{{ verb }}"
+            "legend": "{{ verb }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "ms",
@@ -651,7 +643,8 @@
         "queries": [
           {
             "query": "sum by(instance) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(instance) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -671,7 +664,8 @@
         "queries": [
           {
             "query": "sum by(verb) (rate(apiserver_request_total{code=~\"5..\", cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval]))\n / (sum by(verb) (rate(apiserver_request_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])) > 0)",
-            "legend": "{{ verb }}"
+            "legend": "{{ verb }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -694,7 +688,8 @@
         "queries": [
           {
             "query": "sum(rate(apiserver_request_total{cluster=~\"$cluster\"}[$__rate_interval])) by (instance)",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -715,7 +710,8 @@
         "queries": [
           {
             "query": "sum(workqueue_depth{cluster=~\"$cluster\", job=~\"$job\"}) by (instance)",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "short",
@@ -735,7 +731,8 @@
         "queries": [
           {
             "query": "rate(process_cpu_seconds_total{cluster=~\"$cluster\", job=~\"$job\"}[$__rate_interval])",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "percent",
@@ -756,7 +753,8 @@
         "queries": [
           {
             "query": "process_resident_memory_bytes{cluster=~\"$cluster\", job=~\"$job\"}",
-            "legend": "{{ instance }}"
+            "legend": "{{ instance }}",
+            "interval": "${resolution}"
           }
         ],
         "unit": "bytes",

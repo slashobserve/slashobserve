@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 1,
-      "partial": 34,
+      "imported": 4,
+      "partial": 31,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -68,13 +64,9 @@
         "type": "gauge",
         "source_type": "gauge",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -145,13 +137,9 @@
         "type": "stat",
         "source_type": "stat",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step."
-        ],
-        "paths": [
-          "targets[0].interval"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -172,11 +160,9 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar"
         ],
         "queries": [
@@ -270,13 +256,11 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -301,25 +285,17 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
-          "targets[2].interval",
           "targets[2].exemplar",
-          "targets[3].interval",
           "targets[3].exemplar",
-          "targets[4].interval",
           "targets[4].exemplar",
-          "targets[5].interval",
           "targets[5].exemplar",
-          "targets[6].interval",
           "targets[6].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -386,7 +362,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -394,7 +369,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -421,14 +395,12 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation",
@@ -454,7 +426,6 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
@@ -462,7 +433,6 @@
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode",
@@ -491,17 +461,13 @@
         "row": "System",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
-          "targets[2].interval",
           "targets[2].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -540,15 +506,12 @@
         "row": "System",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -580,15 +543,12 @@
         "row": "System",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -620,15 +580,12 @@
         "row": "System",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -660,15 +617,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Some Grafana options of this panel are not supported yet.",
           "Gradient fill is not part of the SlashObserve look."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.gradientMode"
@@ -700,15 +654,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -740,15 +691,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -780,15 +728,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -820,13 +765,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -851,15 +794,12 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
-          "targets[1].interval",
           "targets[1].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -891,13 +831,11 @@
         "row": "Kubernetes Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -959,13 +897,11 @@
         "row": "Kubernetes Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -990,13 +926,11 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1021,13 +955,11 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1052,13 +984,11 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1083,13 +1013,11 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1114,14 +1042,12 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Unit read/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
@@ -1147,14 +1073,12 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Unit write/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
@@ -1180,14 +1104,12 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Unit io/s is not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.unit",
           "fieldConfig.defaults.custom.gradientMode",
@@ -1213,13 +1135,11 @@
         "row": "Node Storage",
         "status": "partial",
         "reasons": [
-          "The min step $resolution cannot be kept; SlashObserve picks the step.",
           "Exemplars are not supported yet.",
           "Gradient fill is not part of the SlashObserve look.",
           "Smoothed or stepped lines are drawn straight."
         ],
         "paths": [
-          "targets[0].interval",
           "targets[0].exemplar",
           "fieldConfig.defaults.custom.gradientMode",
           "fieldConfig.defaults.custom.lineInterpolation"
@@ -1243,6 +1163,14 @@
         "paths": [
           "annotations.list[1]",
           "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable resolution",
+        "status": "partial",
+        "reason": "Imported as an interval variable because queries use it as their min step.",
+        "paths": [
+          "templating.list[2].type"
         ]
       }
     ]
@@ -1277,7 +1205,7 @@
       },
       {
         "name": "resolution",
-        "type": "custom",
+        "type": "interval",
         "options": [
           "1s",
           "15s",
@@ -1332,7 +1260,8 @@
             "queries": [
               {
                 "query": "avg(sum by (cpu) (rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])))",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1368,7 +1297,8 @@
             "queries": [
               {
                 "query": "sum(node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemAvailable_bytes{instance=\"$instance\", cluster=\"$cluster\"}) / sum(node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -1502,7 +1432,8 @@
             "queries": [
               {
                 "query": "sum(rate(node_cpu_seconds_total{mode!~\"idle|iowait|steal\", instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "instant": true
+                "instant": true,
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1531,7 +1462,8 @@
             "datasource": "${datasource}",
             "queries": [
               {
-                "query": "sum(machine_cpu_cores{node=\"$node\", cluster=\"$cluster\"})"
+                "query": "sum(machine_cpu_cores{node=\"$node\", cluster=\"$cluster\"})",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1665,7 +1597,8 @@
             "queries": [
               {
                 "query": "avg(rate(node_cpu_seconds_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) * 100) by (mode)",
-                "legend": "{{ mode }}"
+                "legend": "{{ mode }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percent",
@@ -1689,31 +1622,38 @@
             "queries": [
               {
                 "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"} - (node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"} + node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
-                "legend": "RAM Used"
+                "legend": "RAM Used",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_MemTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "RAM Total"
+                "legend": "RAM Total",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_Cached_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "RAM Cache"
+                "legend": "RAM Cache",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_Buffers_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "RAM Buffer"
+                "legend": "RAM Buffer",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_MemFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "RAM Free"
+                "legend": "RAM Free",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"} - node_memory_SwapFree_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "SWAP Used"
+                "legend": "SWAP Used",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_memory_SwapTotal_bytes{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "SWAP Total"
+                "legend": "SWAP Total",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -1737,7 +1677,8 @@
             "queries": [
               {
                 "query": "sum(rate(container_cpu_usage_seconds_total{node=\"$node\", image!=\"\", cluster=\"$cluster\"}[$__rate_interval])) by (pod)",
-                "legend": "{{ pod }}"
+                "legend": "{{ pod }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1760,7 +1701,8 @@
             "queries": [
               {
                 "query": "sum(container_memory_working_set_bytes{node=\"$node\", image!=\"\", cluster=\"$cluster\"}) by (pod)",
-                "legend": "{{ pod }}"
+                "legend": "{{ pod }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -1784,7 +1726,8 @@
             "queries": [
               {
                 "query": "sum(rate(node_cpu_core_throttles_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Nb of cpu core throttles"
+                "legend": "Nb of cpu core throttles",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -1827,15 +1770,18 @@
             "queries": [
               {
                 "query": "node_load1{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "1m"
+                "legend": "1m",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_load5{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "5m"
+                "legend": "5m",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_load15{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "15m"
+                "legend": "15m",
+                "interval": "${resolution}"
               }
             ],
             "fill": 25,
@@ -1857,11 +1803,13 @@
             "queries": [
               {
                 "query": "rate(node_context_switches_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "Context switches"
+                "legend": "Context switches",
+                "interval": "${resolution}"
               },
               {
                 "query": "rate(node_intr_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "Interrupts"
+                "legend": "Interrupts",
+                "interval": "${resolution}"
               }
             ],
             "fill": 25,
@@ -1883,11 +1831,13 @@
             "queries": [
               {
                 "query": "node_filefd_maximum{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "Maximum file descriptors"
+                "legend": "Maximum file descriptors",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_filefd_allocated{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "Allocated file descriptors"
+                "legend": "Allocated file descriptors",
+                "interval": "${resolution}"
               }
             ],
             "fill": 25,
@@ -1909,11 +1859,13 @@
             "queries": [
               {
                 "query": "node_timex_estimated_error_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "Estimated error in seconds"
+                "legend": "Estimated error in seconds",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_timex_maxerror_seconds{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "Maximum error in seconds"
+                "legend": "Maximum error in seconds",
+                "interval": "${resolution}"
               }
             ],
             "unit": "s",
@@ -1949,11 +1901,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "In"
+                "legend": "In",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Out"
+                "legend": "Out",
+                "interval": "${resolution}"
               }
             ],
             "unit": "binBps",
@@ -1977,11 +1931,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "In"
+                "legend": "In",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_errs_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Out"
+                "legend": "Out",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -2005,11 +1961,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "In"
+                "legend": "In",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_packets_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Out"
+                "legend": "Out",
+                "interval": "${resolution}"
               }
             ],
             "unit": "pps",
@@ -2033,11 +1991,13 @@
             "queries": [
               {
                 "query": "sum(rate(node_network_receive_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "In"
+                "legend": "In",
+                "interval": "${resolution}"
               },
               {
                 "query": "- sum(rate(node_network_transmit_drop_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]))",
-                "legend": "Out"
+                "legend": "Out",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -2061,7 +2021,8 @@
             "queries": [
               {
                 "query": "node_netstat_Tcp_CurrEstab{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "TCP Currently Established"
+                "legend": "TCP Currently Established",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -2085,11 +2046,13 @@
             "queries": [
               {
                 "query": "node_nf_conntrack_entries{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "NF Conntrack entries"
+                "legend": "NF Conntrack entries",
+                "interval": "${resolution}"
               },
               {
                 "query": "node_nf_conntrack_entries_limit{instance=\"$instance\", cluster=\"$cluster\"}",
-                "legend": "NF Conntrack limit"
+                "legend": "NF Conntrack limit",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
@@ -2134,7 +2097,8 @@
             "queries": [
               {
                 "query": "max(kubelet_volume_stats_used_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace) / max(kubelet_volume_stats_capacity_bytes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim, namespace)",
-                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}"
+                "legend": "{{ namespace }} - {{ persistentvolumeclaim }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percentunit",
@@ -2196,7 +2160,8 @@
             "queries": [
               {
                 "query": "sum(kubelet_volume_stats_inodes_used{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) / sum(kubelet_volume_stats_inodes{node=\"$node\", cluster=\"$cluster\"}) by (persistentvolumeclaim) * 100",
-                "legend": "{{ persistentvolumeclaim }}"
+                "legend": "{{ persistentvolumeclaim }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percent",
@@ -2234,7 +2199,8 @@
             "queries": [
               {
                 "query": "100 - ((node_filesystem_avail_bytes{instance=\"$instance\", cluster=\"$cluster\"} * 100) / node_filesystem_size_bytes{instance=\"$instance\", cluster=\"$cluster\"})",
-                "legend": "{{ mountpoint }}"
+                "legend": "{{ mountpoint }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percent",
@@ -2259,7 +2225,8 @@
             "queries": [
               {
                 "query": "100 - (node_filesystem_files_free{instance=\"$instance\", cluster=\"$cluster\"} / node_filesystem_files{instance=\"$instance\", cluster=\"$cluster\"} * 100)",
-                "legend": "{{ mountpoint }}"
+                "legend": "{{ mountpoint }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "percent",
@@ -2284,7 +2251,8 @@
             "queries": [
               {
                 "query": "rate(node_disk_read_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "{{device}}"
+                "legend": "{{device}}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -2309,7 +2277,8 @@
             "queries": [
               {
                 "query": "rate(node_disk_written_bytes_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "{{device}}"
+                "legend": "{{device}}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "bytes",
@@ -2334,7 +2303,8 @@
             "queries": [
               {
                 "query": "rate(node_disk_reads_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "{{device}}"
+                "legend": "{{device}}",
+                "interval": "${resolution}"
               }
             ],
             "decimals": 2,
@@ -2358,7 +2328,8 @@
             "queries": [
               {
                 "query": "rate(node_disk_writes_completed_total{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval])",
-                "legend": "{{device}}"
+                "legend": "{{device}}",
+                "interval": "${resolution}"
               }
             ],
             "decimals": 2,
@@ -2382,7 +2353,8 @@
             "queries": [
               {
                 "query": "rate(node_disk_io_now{instance=\"$instance\", cluster=\"$cluster\"}[$__rate_interval]) ",
-                "legend": "{{device}}"
+                "legend": "{{device}}",
+                "interval": "${resolution}"
               }
             ],
             "decimals": 2,
@@ -2406,7 +2378,8 @@
             "queries": [
               {
                 "query": "sum(node_filesystem_device_error{instance=\"$instance\", cluster=\"$cluster\"}) by (mountpoint)",
-                "legend": "{{ mountpoint }}"
+                "legend": "{{ mountpoint }}",
+                "interval": "${resolution}"
               }
             ],
             "unit": "none",
