@@ -21,7 +21,7 @@ const (
 	widthReason         = "Only widths above 0 and up to 1 are supported."
 	pointSizeReason     = "Only point sizes from 1 to 40 are supported."
 	fieldNameLenReason  = "A field name must be between 1 and 200 characters."
-	nodeUnitsDiffReason = "The node and edge units differ; one unit is kept for each statistic."
+	nodeUnitsDiffReason = "The node and edge units differ, so neither is applied."
 	nodeArcReason       = "This arc needs a field and a color SlashObserve supports."
 	spanSearchReason    = "The span search must be between 1 and 200 characters."
 	spanNamesReason     = "Span filters take up to 50 distinct names of 1 to 200 characters."

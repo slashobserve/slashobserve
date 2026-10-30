@@ -36,3 +36,40 @@ func TestNodeGraphLayoutAndZoomImport(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeGraphStatUnitsApplyOnlyWhenNodesAndEdgesAgree(t *testing.T) {
+	cases := []struct {
+		name, options string
+		units         []string
+		paths         []string
+		reasons       []string
+	}{
+		{name: "equal units become one override", options: `"nodes":{"mainStatUnit":"ms"},"edges":{"mainStatUnit":"ms"}`, units: []string{"ms"}},
+		{name: "a node unit alone applies", options: `"nodes":{"secondaryStatUnit":"percent"}`, units: []string{"percent"}},
+		{name: "an edge unit alone applies", options: `"edges":{"mainStatUnit":"bytes"}`, units: []string{"bytes"}},
+		{
+			name:    "differing units apply neither and say so",
+			options: `"nodes":{"mainStatUnit":"ms"},"edges":{"mainStatUnit":"s"}`,
+			paths:   []string{"options.nodes.mainStatUnit", "options.edges.mainStatUnit"},
+			reasons: []string{"The node and edge units differ, so neither is applied."},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := convertedPanel(t, panelDoc("nodeGraph", upTarget+`,"options":{`+tc.options+`}`))
+			var units []string
+			for _, o := range panel.Overrides {
+				units = append(units, o.Unit)
+			}
+			if !slices.Equal(units, tc.units) {
+				t.Errorf("override units = %v, want %v", units, tc.units)
+			}
+			if !slices.Equal(line.Paths, tc.paths) {
+				t.Errorf("paths = %v, want %v", line.Paths, tc.paths)
+			}
+			if !slices.Equal(slices.Compact(line.Reasons), tc.reasons) {
+				t.Errorf("reasons = %v, want %v", line.Reasons, tc.reasons)
+			}
+		})
+	}
+}
