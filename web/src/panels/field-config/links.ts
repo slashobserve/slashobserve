@@ -1,6 +1,6 @@
 import type { Selections } from "@/api/keys"
 import { ALL } from "@/dashboards/search"
-import { resolveTime } from "@/lib/time"
+import { resolveTime, type TimeOptions } from "@/lib/time"
 import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
 import { linkDefaults, type DataPanel, type Link } from "@/spec"
@@ -197,11 +197,15 @@ export function panelLinks(panel: DataPanel, scope: LinkScope): ResolvedLink[] {
 export function dashboardLinks(
   links: Link[] | undefined,
   scope: LinkScope,
-  now: number
+  now: number,
+  timeOptions: TimeOptions
 ): ResolvedLink[] {
   const fromMs =
-    scope.from === undefined ? NaN : resolveTime(scope.from, now, false)
-  const toMs = scope.to === undefined ? NaN : resolveTime(scope.to, now, true)
+    scope.from === undefined
+      ? NaN
+      : resolveTime(scope.from, now, false, timeOptions)
+  const toMs =
+    scope.to === undefined ? NaN : resolveTime(scope.to, now, true, timeOptions)
   return resolvedLinks(links ?? [], {
     ...scope,
     fromMs: Number.isNaN(fromMs) ? undefined : fromMs,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
   describeRange,
   formatDateTime,
@@ -13,7 +14,20 @@ import {
   parseUserTime,
   refreshToMs,
   relativeTickMs,
+  requestZone,
+  resolveTime,
+  timeOptionsFor,
 } from "./time"
+
+type ResolveCase = {
+  expr: string
+  now: string
+  roundUp: boolean
+  options: Parameters<typeof timeOptionsFor>[0]
+  want: string
+}
+
+const resolveCases = JSON.parse(resolveCasesText) as ResolveCase[]
 
 describe("isTimeValue", () => {
   it("accepts Spec expressions, RFC 3339 and epoch milliseconds", () => {
@@ -22,6 +36,8 @@ describe("isTimeValue", () => {
       "now-6h",
       "now-1d/d",
       "now/d",
+      "now/fy",
+      "now-1y/fQ",
       "1760695200000",
       "2026-10-17T09:00:00Z",
       "2026-10-17T09:00:00.123+05:30",
@@ -261,5 +277,81 @@ describe("relative clock interval", () => {
   it("ticks every second only while a sub-minute offset is shown", () => {
     expect(relativeTickMs(0)).toBe(30_000)
     expect(relativeTickMs(2)).toBe(1000)
+  })
+})
+
+describe("resolveTime", () => {
+  it("reads the shared cases", () => {
+    expect(resolveCases.length).toBeGreaterThanOrEqual(40)
+    for (const c of resolveCases) {
+      const got = resolveTime(
+        c.expr,
+        Date.parse(c.now),
+        c.roundUp,
+        timeOptionsFor(c.options)
+      )
+      const label = `${c.expr} at ${c.now} roundUp=${c.roundUp} ${JSON.stringify(c.options)}`
+      expect(new Date(got).toISOString(), label).toBe(
+        new Date(Date.parse(c.want)).toISOString()
+      )
+    }
+  })
+
+  it("resolves in UTC with Monday weeks without options", () => {
+    const now = Date.parse("2026-10-30T20:00:00.123Z")
+    expect(new Date(resolveTime("now/w", now, false)).toISOString()).toBe(
+      "2026-10-26T00:00:00.000Z"
+    )
+  })
+
+  it("rejects fiscal and calendar results outside years 1 to 9999", () => {
+    const now = Date.parse("2026-10-30T20:00:00Z")
+    expect(resolveTime("now-10000y", now, false)).toBeNaN()
+    expect(resolveTime("now+2147483647d", now, false)).toBeNaN()
+  })
+})
+
+describe("timeOptionsFor", () => {
+  it("maps the Spec fields", () => {
+    expect(
+      timeOptionsFor({
+        timezone: "Asia/Kolkata",
+        weekStart: "sunday",
+        fiscalYearStartMonth: 3,
+        nowDelay: "2h",
+      })
+    ).toEqual({
+      zone: "Asia/Kolkata",
+      weekStart: "sunday",
+      fiscalYearStartMonth: 3,
+      nowDelayMs: 7_200_000,
+    })
+  })
+
+  it("resolves utc, an absent zone and an unknown zone in UTC", () => {
+    expect(timeOptionsFor({ timezone: "utc" }).zone).toBeUndefined()
+    expect(timeOptionsFor({}).zone).toBeUndefined()
+    expect(timeOptionsFor({ timezone: "Mars/Base" }).zone).toBeUndefined()
+  })
+
+  it("resolves browser in the browser's zone", () => {
+    expect(timeOptionsFor({ timezone: "browser" }).zone).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    )
+  })
+
+  it("ignores a malformed now delay", () => {
+    expect(timeOptionsFor({ nowDelay: "soon" }).nowDelayMs).toBeUndefined()
+  })
+})
+
+describe("requestZone", () => {
+  it("sends the browser's zone only for a browser dashboard", () => {
+    expect(requestZone("browser")).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    )
+    for (const timezone of [undefined, "utc", "Asia/Kolkata"]) {
+      expect(requestZone(timezone)).toBeUndefined()
+    }
   })
 })

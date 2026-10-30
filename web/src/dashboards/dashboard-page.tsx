@@ -22,7 +22,7 @@ import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { refreshToMs } from "@/lib/time"
+import { refreshToMs, timeOptionsFor } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
@@ -133,6 +133,7 @@ type PanelContainerProps = {
   height: number
   from: string | undefined
   to: string | undefined
+  timezone: string | undefined
   rangeFrom: string
   rangeTo: string
   selections: Selections
@@ -164,6 +165,7 @@ const PanelContainer = memo(function PanelContainer({
   height,
   from,
   to,
+  timezone,
   rangeFrom,
   rangeTo,
   selections,
@@ -214,6 +216,7 @@ const PanelContainer = memo(function PanelContainer({
     panel,
     from,
     to,
+    timezone,
     vars: selections,
     maxDataPoints: maxDataPointsFor(panel, body.width),
     refreshMs,
@@ -387,6 +390,7 @@ function DashboardView({
     [envelope.version.unverified, envelopeVersion, version]
   )
   const variables = useMemo(() => spec.variables ?? [], [spec])
+  const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
 
   const { states, selections, values, ready, blocking } = useVariables({
     dashboardId,
@@ -394,6 +398,7 @@ function DashboardView({
     variables,
     from: search.from,
     to: search.to,
+    timezone: spec.timezone,
     urlVars: search.vars,
   })
 
@@ -617,6 +622,7 @@ function DashboardView({
         <VariablesBar states={states} unverified={unverified.variables} />
         <DashboardLinks
           links={spec.links}
+          timeOptions={timeOptions}
           scope={{ vars: selections, from: effectiveFrom, to: effectiveTo }}
         />
         <LayoutAnnouncer />
@@ -646,6 +652,7 @@ function DashboardView({
                 height={size.height}
                 from={search.from}
                 to={search.to}
+                timezone={spec.timezone}
                 rangeFrom={effectiveFrom}
                 rangeTo={effectiveTo}
                 selections={item.selections}

@@ -15,6 +15,7 @@ import {
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
+import { requestZone } from "@/lib/time"
 import { sentence } from "@/observe/queries"
 import { resolveDatasourceRef, type DataPanel } from "@/spec"
 
@@ -109,6 +110,7 @@ export type PreviewArgs = {
   panel: DataPanel
   from?: string
   to?: string
+  timezone?: string
   selections: Selections
   maxDataPoints?: number
 }
@@ -119,9 +121,11 @@ export function previewQuery({
   panel,
   from,
   to,
+  timezone,
   selections,
   maxDataPoints,
 }: PreviewArgs) {
+  const tz = requestZone(timezone)
   return queryOptions<PanelDataResponse>({
     queryKey: editorKeys.preview(dashboardId, version, panel.id, {
       panel: stableJson(panel),
@@ -149,6 +153,7 @@ export function previewQuery({
                 panel: { ...panel },
                 ...(from !== undefined && { from }),
                 ...(to !== undefined && { to }),
+                ...(tz !== undefined && { tz }),
                 ...(maxDataPoints !== undefined && {
                   max_data_points: maxDataPoints,
                 }),
