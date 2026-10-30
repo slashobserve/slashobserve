@@ -105,16 +105,8 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 		if only != nil && !only[e.Pointer] {
 			continue
 		}
-		skip := slices.Clone(badQueries[e.Pointer])
-		for j, q := range e.Panel.Queries {
-			if skip[j] {
-				continue
-			}
-			if name := cmp.Or(failedReference(q.Query, failed), failedDatasource(e.Panel.QueryDatasource(j), failed)); name != "" {
-				skip[j] = true
-				panelIssues[i] = append(panelIssues[i], issue(queryPath(e.Pointer, j), CodeVariableUnresolved, "variable %q could not be resolved", name))
-			}
-		}
+		skip, unresolved := panelSkips(e, badQueries[e.Pointer], failed)
+		panelIssues[i] = append(panelIssues[i], unresolved...)
 		if !slices.Contains(skip, false) {
 			continue
 		}
@@ -132,6 +124,21 @@ func (r *Runner) checkSpec(ctx context.Context, d *spec.Dashboard, now time.Time
 	}
 
 	return finish(issues), nil
+}
+
+func panelSkips(e spec.PanelEntry, bad []bool, failed map[string]bool) ([]bool, []spec.Issue) {
+	skip := slices.Clone(bad)
+	var issues []spec.Issue
+	for j, q := range e.Panel.Queries {
+		if skip[j] || q.IsExpression() {
+			continue
+		}
+		if name := cmp.Or(failedReference(q.Query, failed), failedDatasource(e.Panel.QueryDatasource(j), failed)); name != "" {
+			skip[j] = true
+			issues = append(issues, issue(queryPath(e.Pointer, j), CodeVariableUnresolved, "variable %q could not be resolved", name))
+		}
+	}
+	return propagateSkips(e.Panel, skip), issues
 }
 
 func issueInPanels(i spec.Issue, only map[string]bool) bool {
@@ -164,6 +171,9 @@ func (r *Runner) checkDatasources(d *spec.Dashboard) (issues []spec.Issue, badVa
 		bad := make([]bool, len(e.Panel.Queries))
 		panelDatasourceReported := false
 		for j, q := range e.Panel.Queries {
+			if q.IsExpression() {
+				continue
+			}
 			base := e.Pointer + "/datasource"
 			if q.Datasource != "" {
 				base = e.Pointer + "/queries/" + strconv.Itoa(j) + "/datasource"
@@ -343,7 +353,7 @@ func (r *Runner) checkPanel(ctx context.Context, d *spec.Dashboard, e spec.Panel
 			continue
 		}
 		_, code, message := Classify(qerr)
-		issues = append(issues, issue(queryPath(e.Pointer, j), spec.IssueCode(code), "%s", message))
+		issues = append(issues, issue(queryIssuePath(e.Panel, e.Pointer, j), spec.IssueCode(code), "%s", message))
 	}
 	if len(issues) > 0 {
 		return issues
@@ -449,6 +459,13 @@ func itemPath(collection string, i int) string {
 
 func queryPath(pointer string, i int) string {
 	return pointer + "/queries/" + strconv.Itoa(i) + "/query"
+}
+
+func queryIssuePath(p *spec.Panel, pointer string, i int) string {
+	if p.Queries[i].IsExpression() {
+		return pointer + "/queries/" + strconv.Itoa(i) + "/expression"
+	}
+	return queryPath(pointer, i)
 }
 
 func issue(path string, code spec.IssueCode, format string, args ...any) spec.Issue {

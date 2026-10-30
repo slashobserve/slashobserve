@@ -1,4 +1,4 @@
-import { queryRef, type DataPanel } from "@/spec"
+import { isExpressionQuery, queryRef, type DataPanel } from "@/spec"
 
 import { uniqueKey } from "../frames"
 import {
@@ -107,7 +107,9 @@ export function applyQueryFormats(
 ): PreparedFrame[] {
   const tableRefs = new Set(
     panel.queries.flatMap((query, index) =>
-      query.format === "table" ? [queryRef(query, index)] : []
+      !isExpressionQuery(query) && query.format === "table"
+        ? [queryRef(query, index)]
+        : []
     )
   )
   if (tableRefs.size === 0) return frames.map(copyFrame)

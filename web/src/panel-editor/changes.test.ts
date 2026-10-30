@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { sameJson } from "@/lib/json"
-import type { DataPanel, TextPanel } from "@/spec"
+import type { DataPanel, PanelQuery, TextPanel } from "@/spec"
 
 import {
   changeSummary,
@@ -53,6 +53,26 @@ describe("panelChanges", () => {
         id: "p1",
       })
     ).toEqual([])
+  })
+
+  it("reports a changed expression by its ref and ignores an identical one", () => {
+    const expression = (math: string): DataPanel["queries"][number] => ({
+      ref: "E",
+      expression: { type: "math", math },
+    })
+    const base = panel({ queries: [{ query: "up" }, expression("$A")] })
+    expect(
+      panelChanges(
+        base,
+        panel({ queries: [{ query: "up" }, expression("$A")] })
+      )
+    ).toEqual([])
+    expect(
+      panelChanges(
+        base,
+        panel({ queries: [{ query: "up" }, expression("$A * 2")] })
+      )
+    ).toEqual([{ key: "queries.E.expression", label: "expression E" }])
   })
 
   it("names a single query without its ref", () => {
@@ -433,7 +453,7 @@ describe("normalisePanel", () => {
     })
     normalisePanel(input)
     expect(input.title).toBe(" CPU ")
-    expect(input.queries[0].legend).toBe(" x ")
+    expect(input.queries[0]).toMatchObject({ legend: " x " })
   })
 })
 
@@ -497,7 +517,7 @@ describe("panelChanges against the JSON", () => {
   const normalized = (p: DataPanel) => ({
     ...p,
     title: p.title.trim(),
-    queries: p.queries.map(({ legend, ...rest }, index) => ({
+    queries: (p.queries as PanelQuery[]).map(({ legend, ...rest }, index) => ({
       ...rest,
       ...(legend?.trim() ? { legend: legend.trim() } : {}),
       ref: rest.ref ?? String.fromCharCode(65 + index),

@@ -357,6 +357,10 @@ var exclusiveMembersByRule = map[string]exclusiveMembers{
 		message: "match must have exactly one of query, series, seriesRegex, field, fieldType, value",
 		keys:    []string{"query", "series", "seriesRegex", "field", "fieldType", "value"},
 	},
+	schemaID + "#/$defs/dataPanel/properties/queries/items": {
+		message: "a query must have exactly one of query, expression",
+		keys:    []string{"query", "expression"},
+	},
 	schemaID + "#/$defs/mapping": {
 		message: "mapping must have exactly one of value, range, regex, special",
 		keys:    []string{"value", "range", "regex", "special"},

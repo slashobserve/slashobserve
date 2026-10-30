@@ -976,7 +976,7 @@ export interface DataPanel1 {
    * @minItems 1
    * @maxItems 26
    */
-  queries: PanelQuery[];
+  queries: (PanelQuery | ExpressionQuery)[];
   /**
    * @maxItems 50
    */
@@ -1028,6 +1028,53 @@ export interface PanelQuery {
    */
   exemplar?: boolean;
   hide?: boolean;
+}
+/**
+ * A server-side expression the query proxy evaluates over other queries of the same panel; it has no datasource and its ref is required so references stay stable.
+ */
+export interface ExpressionQuery {
+  ref: QueryRef;
+  hide?: boolean;
+  expression:
+    | {
+        type: "math";
+        /**
+         * Arithmetic over query refs written $A or ${A}, such as $A * 2 or abs($A) / $B.
+         */
+        math: string;
+      }
+    | {
+        type: "reduce";
+        input: QueryRef;
+        reducer: "mean" | "min" | "max" | "sum" | "count" | "last" | "median";
+        /**
+         * How non-number values are treated; strict (the default) fails the expression on one.
+         */
+        mode?: "strict" | "dropNonNumbers" | "replaceNonNumbers";
+        /**
+         * The number that replaces non-number values; required with replaceNonNumbers and refused otherwise.
+         */
+        replaceWith?: number;
+      }
+    | {
+        type: "resample";
+        input: QueryRef;
+        window: string;
+        downsampler: "mean" | "min" | "max" | "sum" | "last";
+        upsampler: "pad" | "backfill" | "fillNA";
+      }
+    | {
+        type: "threshold";
+        input: QueryRef;
+        evaluator: "gt" | "lt" | "withinRange" | "outsideRange" | "withinRangeIncluded" | "outsideRangeIncluded";
+        /**
+         * One number for gt and lt, a lower and an upper number for the range evaluators.
+         *
+         * @minItems 1
+         * @maxItems 2
+         */
+        params: number[];
+      };
 }
 export interface Override1 {
   match: Match;

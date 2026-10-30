@@ -98,7 +98,7 @@ datasources-uid-preview:
       "422":
         description: >-
           The draft fails Spec validation (`invalid_spec` with `issues`), or one of its queries or variables cannot run:
-          `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_failed` or `variable_empty`, with the failing query's `ref` when one query failed.
+          `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB), `unknown_datasource`, `variable_failed`, `variable_empty` or `expression_error` (an expression query failed or one of its inputs did), with the failing query's `ref` when one query failed.
         content:
           application/json:
             schema:

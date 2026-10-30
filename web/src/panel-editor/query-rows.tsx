@@ -13,7 +13,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { cn } from "@/lib/utils"
-import { isDataPanel, queryRef, type DatasourceVariable } from "@/spec"
+import {
+  isDataPanel,
+  isExpressionQuery,
+  queryRef,
+  type DatasourceVariable,
+} from "@/spec"
 
 import {
   maxQueries,
@@ -21,6 +26,7 @@ import {
   type DraftAction,
   type EditablePanel,
 } from "./draft"
+import { ExpressionRow } from "./expression-row"
 import { QueryRow, type ResolveDatasource } from "./query-row"
 
 export const maxContentLength = 20000
@@ -128,13 +134,32 @@ export function QueryRows({
     <>
       {draft.queries.map((query, index) => {
         const ref = queryRef(query, index)
+        const baseQuery = baseByRef.get(ref)
+        const remove = () => {
+          removedAt.current = index
+          onRemoved(ref)
+          dispatch({ type: "removeQuery", index })
+        }
+        if (isExpressionQuery(query)) {
+          return (
+            <ExpressionRow
+              key={ref}
+              refName={ref}
+              query={query}
+              readOnly={readOnly}
+              onRemove={remove}
+            />
+          )
+        }
         return (
           <QueryRow
             key={ref}
             autoFocus={focusFirst && index === 0}
             refName={ref}
             query={query}
-            baseQuery={baseByRef.get(ref)}
+            baseQuery={
+              baseQuery && !isExpressionQuery(baseQuery) ? baseQuery : undefined
+            }
             panelDatasource={draft.datasource}
             datasourceVariables={datasourceVariables}
             resolveDatasource={resolveDatasource}
@@ -154,11 +179,7 @@ export function QueryRows({
             onExemplarChange={(exemplar) =>
               dispatch({ type: "setExemplar", index, exemplar })
             }
-            onRemove={() => {
-              removedAt.current = index
-              onRemoved(ref)
-              dispatch({ type: "removeQuery", index })
-            }}
+            onRemove={remove}
             onFocus={() => onActiveChange(ref)}
             editorRef={(handle) => {
               editorRefs.current[index] = handle

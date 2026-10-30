@@ -194,6 +194,9 @@ func reachedByPanel(d *spec.Dashboard, p *spec.Panel) (map[string]string, bool) 
 		names = append(names, name)
 	}
 	for j, q := range p.Queries {
+		if q.IsExpression() {
+			continue
+		}
 		names = append(names, variableNames(q.Query)...)
 		if name, ok := spec.IntervalVariableName(q.Interval); ok {
 			names = append(names, name)

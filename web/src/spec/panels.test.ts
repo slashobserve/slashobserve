@@ -5,6 +5,7 @@ import {
   dataPanelTypes,
   findPanel,
   isDataPanel,
+  isExpressionQuery,
   isRowPanel,
   queryRef,
 } from "./panels"
@@ -95,5 +96,21 @@ describe("queryRef", () => {
     expect(queryRef({ query: "up" }, 0)).toBe("A")
     expect(queryRef({ query: "up" }, 2)).toBe("C")
     expect(queryRef({ ref: "errors", query: "up" }, 1)).toBe("errors")
+  })
+})
+
+describe("isExpressionQuery", () => {
+  const expression = {
+    ref: "E",
+    expression: { type: "math", math: "$A * 2" },
+  } as const
+
+  it("tells an expression from a datasource query", () => {
+    expect(isExpressionQuery(expression)).toBe(true)
+    expect(isExpressionQuery({ query: "up" })).toBe(false)
+  })
+
+  it("gives an expression its written ref", () => {
+    expect(queryRef(expression, 3)).toBe("E")
   })
 })

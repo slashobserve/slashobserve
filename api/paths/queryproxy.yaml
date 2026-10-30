@@ -99,7 +99,7 @@ dashboards-id-versions-version-panels-panel-id-data:
       "422":
         description: >-
           A query or a variable cannot run: `query_invalid`, `query_forbidden`, `limit_exceeded` (also for a response over 32 MiB),
-          `unknown_datasource` or `variable_empty`.
+          `unknown_datasource`, `variable_empty` or `expression_error` (an expression query failed or one of its inputs did).
         content:
           application/json:
             schema:

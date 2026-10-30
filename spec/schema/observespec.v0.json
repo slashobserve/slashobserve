@@ -1838,6 +1838,168 @@
       "title": "PanelQuery",
       "description": "ref defaults to A, B, C by position; datasource defaults to the panel's."
     },
+    "expressionQuery": {
+      "title": "ExpressionQuery",
+      "description": "A server-side expression the query proxy evaluates over other queries of the same panel; it has no datasource and its ref is required so references stay stable.",
+      "x-omitFromPrompt": true,
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/queryRef"
+        },
+        "hide": {
+          "type": "boolean"
+        },
+        "expression": {
+          "type": "object",
+          "discriminator": {
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "math"
+                },
+                "math": {
+                  "description": "Arithmetic over query refs written $A or ${A}, such as $A * 2 or abs($A) / $B.",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "type",
+                "math"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "reduce"
+                },
+                "input": {
+                  "$ref": "#/$defs/queryRef"
+                },
+                "reducer": {
+                  "enum": [
+                    "mean",
+                    "min",
+                    "max",
+                    "sum",
+                    "count",
+                    "last",
+                    "median"
+                  ]
+                },
+                "mode": {
+                  "description": "How non-number values are treated; strict (the default) fails the expression on one.",
+                  "enum": [
+                    "strict",
+                    "dropNonNumbers",
+                    "replaceNonNumbers"
+                  ]
+                },
+                "replaceWith": {
+                  "description": "The number that replaces non-number values; required with replaceNonNumbers and refused otherwise.",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "input",
+                "reducer"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "resample"
+                },
+                "input": {
+                  "$ref": "#/$defs/queryRef"
+                },
+                "window": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,4}(ms|[smhdwy])$"
+                },
+                "downsampler": {
+                  "enum": [
+                    "mean",
+                    "min",
+                    "max",
+                    "sum",
+                    "last"
+                  ]
+                },
+                "upsampler": {
+                  "enum": [
+                    "pad",
+                    "backfill",
+                    "fillNA"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "input",
+                "window",
+                "downsampler",
+                "upsampler"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "threshold"
+                },
+                "input": {
+                  "$ref": "#/$defs/queryRef"
+                },
+                "evaluator": {
+                  "enum": [
+                    "gt",
+                    "lt",
+                    "withinRange",
+                    "outsideRange",
+                    "withinRangeIncluded",
+                    "outsideRangeIncluded"
+                  ]
+                },
+                "params": {
+                  "description": "One number for gt and lt, a lower and an upper number for the range evaluators.",
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 2,
+                  "items": {
+                    "type": "number"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "input",
+                "evaluator",
+                "params"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "ref",
+        "expression"
+      ]
+    },
     "transform": {
       "title": "Transform",
       "type": "object",
@@ -4675,7 +4837,15 @@
           "minItems": 1,
           "maxItems": 26,
           "items": {
-            "$ref": "#/$defs/panelQuery"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/panelQuery"
+              },
+              {
+                "$ref": "#/$defs/expressionQuery",
+                "x-omitFromPrompt": true
+              }
+            ]
           }
         },
         "overrides": {

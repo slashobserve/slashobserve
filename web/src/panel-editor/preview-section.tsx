@@ -13,6 +13,7 @@ import { noSharedCursor } from "@/panels/shared-cursor"
 import { prepareFrames } from "@/panels/transforms"
 import {
   isDataPanel,
+  isExpressionQuery,
   validateSpecSchema,
   type DataPanel,
   type Dashboard,
@@ -62,7 +63,12 @@ function useContentWidth() {
 }
 
 function draftIsValid(spec: Dashboard, draft: DataPanel): boolean {
-  if (draft.queries.some((query) => query.query.trim() === "")) return false
+  if (
+    draft.queries.some(
+      (query) => !isExpressionQuery(query) && query.query.trim() === ""
+    )
+  )
+    return false
   const placed = withPanel(spec, draft.id, draft)
   return placed !== null && validateSpecSchema(placed).valid
 }

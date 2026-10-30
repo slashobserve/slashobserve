@@ -2,10 +2,12 @@ import {
   displayKeysByType,
   instantPanelTypes,
   isDataPanel,
+  isExpressionQuery,
   queryRef,
   type DashlistPanel,
   type DataPanel,
   type DataPanelType,
+  type DataQuery,
   type NewsPanel,
   type Panel,
   type PanelQuery,
@@ -60,13 +62,17 @@ export function displayKeysFor(type: DataPanelType): readonly string[] {
 }
 
 export function runsAsRange(
-  query: PanelQuery,
+  query: DataQuery,
   panelType: DataPanelType
 ): boolean {
-  return query.instant !== true && !instantPanelTypes.includes(panelType)
+  return (
+    !isExpressionQuery(query) &&
+    query.instant !== true &&
+    !instantPanelTypes.includes(panelType)
+  )
 }
 
-export function nextRef(queries: readonly PanelQuery[]): string {
+export function nextRef(queries: readonly DataQuery[]): string {
   const used = new Set(queries.map((query, index) => queryRef(query, index)))
   for (let i = 0; ; i++) {
     const candidate = i < 26 ? String.fromCharCode(65 + i) : `Q${i + 1}`
@@ -75,7 +81,7 @@ export function nextRef(queries: readonly PanelQuery[]): string {
 }
 
 export function activeQueryIndex(
-  queries: readonly PanelQuery[],
+  queries: readonly DataQuery[],
   activeRef: string
 ): number {
   return Math.max(
@@ -103,8 +109,12 @@ function editQuery(
   index: number,
   edit: (query: PanelQuery) => void
 ): EditorDraft {
-  if (!isDataPanel(state.panel) || !state.panel.queries[index]) return state
-  return editData(state, (panel) => edit(panel.queries[index]))
+  const target = isDataPanel(state.panel) ? state.panel.queries[index] : null
+  if (!target || isExpressionQuery(target)) return state
+  return editData(state, (panel) => {
+    const query = panel.queries[index]
+    if (!isExpressionQuery(query)) edit(query)
+  })
 }
 
 function addQuery(panel: DataPanel) {

@@ -1,6 +1,7 @@
 import type {
   Dashboard,
   DataPanel,
+  ExpressionQuery,
   Panel,
   PanelQuery,
   RowPanel,
@@ -70,6 +71,12 @@ export function findPanel(spec: Dashboard, id: string): PanelEntry | undefined {
   return allPanels(spec).find((entry) => entry.panel.id === id)
 }
 
-export function queryRef(query: PanelQuery, index: number): string {
+export type DataQuery = PanelQuery | ExpressionQuery
+
+export function isExpressionQuery(query: DataQuery): query is ExpressionQuery {
+  return "expression" in query
+}
+
+export function queryRef(query: DataQuery, index: number): string {
   return query.ref ?? String.fromCharCode(65 + index)
 }

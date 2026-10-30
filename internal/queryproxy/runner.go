@@ -160,8 +160,8 @@ func QueryKind(p *spec.Panel, q spec.Query) Kind {
 }
 
 func PanelKind(p *spec.Panel) Kind {
-	for _, q := range p.Queries {
-		if !q.Hide && QueryKind(p, q) == KindRange {
+	for j, kind := range queryKinds(p) {
+		if !p.Queries[j].Hide && kind == KindRange {
 			return KindRange
 		}
 	}
@@ -260,10 +260,11 @@ func (r *Runner) runQueries(ctx context.Context, req Request, st *varState, requ
 	}
 
 	baseStep := StepFor(req.Range, req.MaxDataPoints)
+	wanted := wantedQueries(req, panel)
 	errs = make([]error, len(panel.Queries))
 	prepared := make([]*preparedQuery, len(panel.Queries))
 	for j, q := range panel.Queries {
-		if skipped(req, j, q) {
+		if !wanted[j] || q.IsExpression() {
 			continue
 		}
 		pq, err := r.prepare(ctx, req, st, panel, j, baseStep)
@@ -279,15 +280,25 @@ func (r *Runner) runQueries(ctx context.Context, req Request, st *varState, requ
 		return panel, Result{}, nil, abortErr
 	}
 
+	results := make([]QueryResult, len(panel.Queries))
+	have := make([]bool, len(panel.Queries))
+	for j, pq := range prepared {
+		if pq != nil && errs[j] == nil {
+			results[j], have[j] = pq.result(panel.QueryRef(j), outs[j]), true
+		}
+	}
+	if abortErr := evalExpressions(req, panel, wanted, results, have, errs); abortErr != nil {
+		return panel, Result{}, nil, abortErr
+	}
+
 	res = Result{Kind: PanelKind(panel), Range: req.Range}
 	if res.Kind == KindRange {
 		res.Step = baseStep
 	}
-	for j, pq := range prepared {
-		if pq == nil || errs[j] != nil || panel.Queries[j].Hide {
-			continue
+	for j := range panel.Queries {
+		if have[j] && !panel.Queries[j].Hide {
+			res.Queries = append(res.Queries, results[j])
 		}
-		res.Queries = append(res.Queries, pq.result(panel.QueryRef(j), outs[j]))
 	}
 	return panel, res, errs, nil
 }
@@ -500,10 +511,6 @@ type preparedQuery struct {
 
 func (pq *preparedQuery) result(ref string, out fetched) QueryResult {
 	return QueryResult{Ref: ref, Kind: pq.kind, Step: pq.step, Frames: out.frames, Exemplars: out.exemplars, ExemplarStatus: out.status}
-}
-
-func skipped(req Request, j int, q spec.Query) bool {
-	return (q.Hide && !req.IncludeHidden) || (j < len(req.skip) && req.skip[j])
 }
 
 func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *spec.Panel, j int, baseStep time.Duration) (*preparedQuery, error) {

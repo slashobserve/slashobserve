@@ -62,7 +62,7 @@ function apply(panel: EditablePanel, ...actions: DraftAction[]) {
 }
 
 function queriesOf(state: EditorDraft): PanelQuery[] {
-  return (state.panel as DataPanel).queries
+  return (state.panel as DataPanel).queries as PanelQuery[]
 }
 
 describe("startDraft", () => {
@@ -231,6 +231,32 @@ describe("activeQueryIndex", () => {
   it("falls back to the first query when the ref is gone", () => {
     expect(activeQueryIndex(queries, "Z")).toBe(0)
     expect(activeQueryIndex(queries, "")).toBe(0)
+  })
+})
+
+describe("expression queries", () => {
+  const expression: DataPanel["queries"][number] = {
+    ref: "E",
+    expression: { type: "math", math: "$A * 2" },
+  }
+
+  it("are not touched by query edits and survive removing another query", () => {
+    const state = apply(
+      dataPanel({ queries: [{ query: "a" }, { query: "b" }, expression] }),
+      { type: "setQuery", index: 2, query: "changed" },
+      { type: "setLegend", index: 2, legend: "legend" },
+      { type: "setQueryDatasource", index: 2, uid: "ch" },
+      { type: "setExemplar", index: 2, exemplar: true },
+      { type: "removeQuery", index: 0 }
+    )
+    expect((state.panel as DataPanel).queries).toEqual([
+      { ref: "B", query: "b" },
+      expression,
+    ])
+  })
+
+  it("never run as a range query", () => {
+    expect(runsAsRange(expression, "timeseries")).toBe(false)
   })
 })
 
