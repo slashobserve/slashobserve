@@ -2066,7 +2066,8 @@
         "sort": "alpha",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": "cilium.*"
+        "allValue": "cilium.*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

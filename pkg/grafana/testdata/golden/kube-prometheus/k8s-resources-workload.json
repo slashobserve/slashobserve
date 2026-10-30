@@ -438,7 +438,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kube-state-metrics\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -447,7 +448,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kube_namespace_status_phase{job=\"kube-state-metrics\", cluster=\"$cluster\"}, namespace)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "type",
@@ -457,7 +459,8 @@
         "query": "label_values(namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\", namespace=\"$namespace\"}, workload_type)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "workload",
@@ -467,7 +470,8 @@
         "query": "label_values(namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\", namespace=\"$namespace\", workload_type=~\"$type\"}, workload)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

@@ -410,7 +410,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "SELECT name FROM system.databases;",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "filters",

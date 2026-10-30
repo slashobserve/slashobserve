@@ -715,7 +715,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

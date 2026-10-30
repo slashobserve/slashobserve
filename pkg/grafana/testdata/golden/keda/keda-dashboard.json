@@ -230,6 +230,7 @@
         "datasource": "${datasource}",
         "query": "label_values(keda_scaler_active,exported_namespace)",
         "sort": "alpha",
+        "allowCustomValue": true,
         "default": "bhe-test"
       },
       {
@@ -239,7 +240,8 @@
         "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},scaledObject)",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "scaler",
@@ -247,6 +249,7 @@
         "datasource": "${datasource}",
         "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},scaler)",
         "refresh": "timeRange",
+        "allowCustomValue": true,
         "default": "cronScaler"
       },
       {
@@ -255,6 +258,7 @@
         "datasource": "${datasource}",
         "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},metric)",
         "refresh": "timeRange",
+        "allowCustomValue": true,
         "default": "s0-cron-Etc-UTC-40xxxx-55xxxx"
       }
     ],

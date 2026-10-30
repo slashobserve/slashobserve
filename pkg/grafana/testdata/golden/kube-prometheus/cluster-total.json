@@ -396,7 +396,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "panels": [

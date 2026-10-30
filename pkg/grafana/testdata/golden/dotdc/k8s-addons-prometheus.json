@@ -848,7 +848,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "pod",
@@ -858,7 +859,8 @@
         "sort": "alpha",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "resolution",

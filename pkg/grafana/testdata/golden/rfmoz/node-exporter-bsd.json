@@ -1074,14 +1074,16 @@
         "label": "job",
         "type": "query",
         "datasource": "${ds_prometheus}",
-        "query": "label_values(node_uname_info, job)"
+        "query": "label_values(node_uname_info, job)",
+        "allowCustomValue": true
       },
       {
         "name": "node",
         "label": "Host:",
         "type": "query",
         "datasource": "${ds_prometheus}",
-        "query": "label_values(node_uname_info{job=\"$job\"}, instance)"
+        "query": "label_values(node_uname_info{job=\"$job\"}, instance)",
+        "allowCustomValue": true
       }
     ],
     "links": [

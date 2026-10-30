@@ -126,34 +126,45 @@ type TimeRange struct {
 }
 
 type Variable struct {
-	Name           string         `json:"name"`
-	Label          string         `json:"label,omitempty"`
-	Description    string         `json:"description,omitempty"`
-	Hide           string         `json:"hide,omitempty"`
-	Type           VariableType   `json:"type"`
-	Datasource     string         `json:"datasource,omitempty"`
-	DatasourceType DatasourceType `json:"datasourceType,omitempty"`
-	Query          string         `json:"query,omitempty"`
-	Regex          string         `json:"regex,omitempty"`
-	Sort           string         `json:"sort,omitempty"`
-	Refresh        string         `json:"refresh,omitempty"`
-	Options        []string       `json:"options,omitempty"`
-	Multi          bool           `json:"multi,omitempty"`
-	IncludeAll     bool           `json:"includeAll,omitempty"`
-	AllValue       string         `json:"allValue,omitempty"`
-	Value          string         `json:"value,omitempty"`
-	Auto           bool           `json:"auto,omitempty"`
-	AutoSteps      int            `json:"autoSteps,omitempty"`
-	AutoMin        string         `json:"autoMin,omitempty"`
-	Default        *Selection     `json:"default,omitempty"`
+	Name             string         `json:"name"`
+	Label            string         `json:"label,omitempty"`
+	Description      string         `json:"description,omitempty"`
+	Hide             string         `json:"hide,omitempty"`
+	Type             VariableType   `json:"type"`
+	Datasource       string         `json:"datasource,omitempty"`
+	DatasourceType   DatasourceType `json:"datasourceType,omitempty"`
+	Query            string         `json:"query,omitempty"`
+	Regex            string         `json:"regex,omitempty"`
+	Sort             string         `json:"sort,omitempty"`
+	Refresh          string         `json:"refresh,omitempty"`
+	Options          []string       `json:"options,omitempty"`
+	Multi            bool           `json:"multi,omitempty"`
+	IncludeAll       bool           `json:"includeAll,omitempty"`
+	AllValue         string         `json:"allValue,omitempty"`
+	AllowCustomValue bool           `json:"allowCustomValue,omitempty"`
+	Value            string         `json:"value,omitempty"`
+	Auto             bool           `json:"auto,omitempty"`
+	AutoSteps        int            `json:"autoSteps,omitempty"`
+	AutoMin          string         `json:"autoMin,omitempty"`
+	Default          *Selection     `json:"default,omitempty"`
 }
 
 type Selection struct {
-	Values []string
-	List   bool
+	Values  []string
+	List    bool
+	Filters []AdhocFilter
+}
+
+type AdhocFilter struct {
+	Key      string `json:"key"`
+	Operator string `json:"operator"`
+	Value    string `json:"value"`
 }
 
 func (s Selection) MarshalJSON() ([]byte, error) {
+	if len(s.Filters) > 0 {
+		return json.Marshal(s.Filters)
+	}
 	if s.List {
 		return json.Marshal(append([]string{}, s.Values...))
 	}
@@ -170,10 +181,17 @@ func (s *Selection) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 	var many []string
-	if err := json.Unmarshal(b, &many); err != nil {
-		return errors.New("spec: selection must be a string or an array of strings")
+	if err := json.Unmarshal(b, &many); err == nil {
+		*s = Selection{Values: many, List: true}
+		return nil
 	}
-	*s = Selection{Values: many, List: true}
+	var filters []AdhocFilter
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&filters); err != nil {
+		return errors.New("spec: selection must be a string, an array of strings or an array of filters")
+	}
+	*s = Selection{Filters: filters}
 	return nil
 }
 

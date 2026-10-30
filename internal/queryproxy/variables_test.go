@@ -993,6 +993,10 @@ func TestQueryVariableRegexAndSort(t *testing.T) {
 		{"alphaDesc", "", "alphaDesc", []string{"b", "c", "a"}, []string{"c", "b", "a"}},
 		{"num", "", "num", []string{"10", "9", "x"}, []string{"x", "9", "10"}},
 		{"numDesc", "", "numDesc", []string{"10", "9", "x"}, []string{"10", "9", "x"}},
+		{"alphaCaseInsensitive", "", "alphaCaseInsensitive", []string{"B", "a", "c"}, []string{"a", "B", "c"}},
+		{"alphaCaseInsensitiveDesc", "", "alphaCaseInsensitiveDesc", []string{"B", "a", "c"}, []string{"c", "B", "a"}},
+		{"natural", "", "natural", []string{"a10", "a9", "a1"}, []string{"a1", "a9", "a10"}},
+		{"naturalDesc", "", "naturalDesc", []string{"a10", "a9", "a1"}, []string{"a10", "a9", "a1"}},
 		{"regex then sort", "/^web-(.*)$/", "numDesc", []string{"web-1", "web-10", "api-3", "web-2"}, []string{"10", "2", "1"}},
 	}
 	for _, tt := range tests {
@@ -1420,4 +1424,127 @@ func TestVariableRegexWithAnUnparsableReferenceFailsWithTheScanError(t *testing.
 			}
 		})
 	}
+}
+
+func TestCustomValueSelection(t *testing.T) {
+	custom := customVariable("c", "a", "b")
+	custom.Multi = true
+	open := custom
+	open.AllowCustomValue = true
+	query := queryVariable("q", "prom", "label_values(job)")
+	query.Multi = true
+
+	tests := []struct {
+		name     string
+		variable spec.Variable
+		sel      Selection
+		ok       bool
+	}{
+		{"an option", custom, Selection{Values: []string{"a"}}, true},
+		{"a value that is not an option is refused", custom, Selection{Values: []string{"zzz"}}, false},
+		{"one value outside a list is refused", custom, Selection{Values: []string{"a", "zzz"}}, false},
+		{"a value that is not an option is accepted when allowed", open, Selection{Values: []string{"zzz"}}, true},
+		{"an option is accepted when allowed", open, Selection{Values: []string{"a"}}, true},
+		{"a list with a custom value is accepted when allowed", open, Selection{Values: []string{"a", "zzz"}}, true},
+		{"a custom value keeps the control character check", open, Selection{Values: []string{"a\nb"}}, false},
+		{"a custom value keeps the length check", open, Selection{Values: []string{strings.Repeat("a", 1025)}}, false},
+		{"a custom value still needs multi for several", func() spec.Variable { v := open; v.Multi = false; return v }(), Selection{Values: []string{"x", "y"}}, false},
+		{"a query variable takes any value", query, Selection{Values: []string{"zzz"}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("prometheus")
+			fake.onVariable = answer("web", "api")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+			_, err := runner.Defaults(t.Context(), dashboardOf(nil, tt.variable), testRange(), map[string]Selection{tt.variable.Name: tt.sel}, datasource.QueryUser{})
+			if tt.ok && err != nil {
+				t.Fatalf("Defaults: %v", err)
+			}
+			if !tt.ok && !errors.Is(err, ErrInvalidRequest) {
+				t.Fatalf("err = %v, want ErrInvalidRequest", err)
+			}
+		})
+	}
+}
+
+func adhocWithDefault(name, uid string, filters ...spec.AdhocFilter) spec.Variable {
+	v := adhocVariable(name, uid)
+	v.Default = &spec.Selection{Filters: filters}
+	return v
+}
+
+func TestAdhocDefaultFilters(t *testing.T) {
+	saved := []spec.AdhocFilter{{Key: "namespace", Operator: "=", Value: "checkout"}, {Key: "pod", Operator: "!~", Value: "canary-.*"}}
+	savedWant := []datasource.AdhocFilter{{Key: "namespace", Op: "=", Value: "checkout"}, {Key: "pod", Op: "!~", Value: "canary-.*"}}
+	panel := spec.Panel{ID: "p1", Type: spec.Table, Title: "p1", Datasource: "prom", Queries: []spec.Query{{Query: "up"}}}
+
+	tests := []struct {
+		name       string
+		selections map[string]Selection
+		want       []datasource.AdhocFilter
+	}{
+		{"no parameter uses the saved filters", nil, savedWant},
+		{"an explicit empty parameter means no filters", map[string]Selection{"f": {Values: []string{""}}}, nil},
+		{"explicit filters replace the saved ones", map[string]Selection{"f": {Values: []string{"job|=|api"}}}, []datasource.AdhocFilter{{Key: "job", Op: "=", Value: "api"}}},
+		{"an empty selection with no values also means no filters", map[string]Selection{"f": {}}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prom := newFake("prometheus")
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": prom})
+			d := dashboardOf([]spec.Panel{panel}, adhocWithDefault("f", "prom", saved...))
+			selections, err := runner.Defaults(t.Context(), d, testRange(), tt.selections, datasource.QueryUser{})
+			if err != nil {
+				t.Fatalf("Defaults: %v", err)
+			}
+			if _, err := runner.RunPanel(t.Context(), Request{Dashboard: d, PanelID: "p1", Range: testRange(), Selections: selections}); err != nil {
+				t.Fatalf("RunPanel: %v", err)
+			}
+			calls := prom.callsTo("instant")
+			if len(calls) != 1 || !reflect.DeepEqual(calls[0].query.Filters, tt.want) {
+				t.Fatalf("calls = %+v, want one with filters %+v", calls, tt.want)
+			}
+		})
+	}
+
+	t.Run("the default selection is the saved filters as key|operator|value", func(t *testing.T) {
+		runner := newTypesRunner(t)
+		defaults, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), nil, datasource.QueryUser{})
+		want := Selection{Values: []string{"namespace|=|checkout", "pod|!~|canary-.*"}}
+		if err != nil || !reflect.DeepEqual(defaults["f"], want) {
+			t.Fatalf("Defaults = %+v, %v, want %+v", defaults["f"], err, want)
+		}
+	})
+
+	t.Run("a variable without saved filters has none", func(t *testing.T) {
+		runner := newTypesRunner(t)
+		defaults, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocVariable("f", "prom")), testRange(), nil, datasource.QueryUser{})
+		if err != nil || !reflect.DeepEqual(defaults["f"], Selection{}) {
+			t.Fatalf("Defaults = %+v, %v, want an empty selection", defaults["f"], err)
+		}
+	})
+
+	t.Run("an empty parameter next to a filter is still refused", func(t *testing.T) {
+		runner := newTypesRunner(t)
+		_, err := runner.Defaults(t.Context(), dashboardOf(nil, adhocWithDefault("f", "prom", saved...)), testRange(), map[string]Selection{"f": {Values: []string{"", "job|=|api"}}}, datasource.QueryUser{})
+		if !errors.Is(err, ErrInvalidRequest) {
+			t.Fatalf("err = %v, want ErrInvalidRequest", err)
+		}
+	})
+
+	t.Run("a saved filter with a key the datasource refuses is refused", func(t *testing.T) {
+		runner := newTypesRunner(t)
+		bad := adhocWithDefault("f", "prom", spec.AdhocFilter{Key: "Bad Key", Operator: "=", Value: "x"})
+		if _, err := runner.Defaults(t.Context(), dashboardOf(nil, bad), testRange(), nil, datasource.QueryUser{}); !errors.Is(err, ErrInvalidRequest) {
+			t.Fatalf("err = %v, want ErrInvalidRequest", err)
+		}
+	})
+
+	t.Run("an empty parameter for a text variable stays a value", func(t *testing.T) {
+		runner := newTypesRunner(t)
+		got, err := runner.Defaults(t.Context(), dashboardOf(nil, textboxVariable("tb")), testRange(), map[string]Selection{"tb": {Values: []string{""}}}, datasource.QueryUser{})
+		if err != nil || !reflect.DeepEqual(got["tb"], Selection{Values: []string{""}}) {
+			t.Fatalf("Defaults = %+v, %v, want the empty value kept", got["tb"], err)
+		}
+	})
 }

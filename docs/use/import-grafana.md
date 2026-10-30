@@ -33,6 +33,8 @@ The original JSON is stored with the import so a newer importer can convert it a
 
 A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
 A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the import report says so.
+A `query` variable's sort imports as `alpha`, `num`, `alphaCaseInsensitive` or `natural`, each in its two directions, and `allowCustomValue` imports as written, with Grafana's own default of true when it is missing.
+A saved ad hoc filter list imports as the variable's `default` when its operators are `=`, `!=`, `=~` and `!~`; a filter with another operator, an invalid key or regular expression, or a condition other than AND is reported, and base filters are not kept.
 A min step of `$__interval` or `$__rate_interval` imports as no minimum, and a resolution factor from 2 to 10 is kept as `intervalFactor`.
 A dashboard's time settings carry over to the [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart`, `fiscalYearStartMonth` and `nowDelay` (from the time picker's now delay), and its time range may use `now/fy` and `now/fQ`.
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.

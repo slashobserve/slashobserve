@@ -354,7 +354,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -364,6 +365,7 @@
         "query": "label_values(container_network_receive_packets_total{cluster=\"$cluster\"}, namespace)",
         "sort": "alpha",
         "refresh": "timeRange",
+        "allowCustomValue": true,
         "default": "kube-system"
       },
       {
@@ -374,7 +376,8 @@
         "query": "label_values(namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\", namespace=\"$namespace\", workload=~\".+\"}, workload_type)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

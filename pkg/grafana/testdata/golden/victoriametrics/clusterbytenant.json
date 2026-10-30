@@ -584,7 +584,8 @@
         "query": "label_values(vm_tenant_active_timeseries, accountID)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "adhoc",

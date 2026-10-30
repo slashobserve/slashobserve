@@ -1,0 +1,21 @@
+[
+  { "order": "alphaCaseInsensitive", "values": ["B", "a"], "want": ["a", "B"] },
+  { "order": "alphaCaseInsensitive", "values": ["b", "A", "a", "B", "c"], "want": ["A", "a", "B", "b", "c"] },
+  { "order": "alphaCaseInsensitive", "values": ["a", "A"], "want": ["A", "a"] },
+  { "order": "alphaCaseInsensitive", "values": ["pod-10", "Pod-9", "pod-1"], "want": ["pod-1", "pod-10", "Pod-9"] },
+  { "order": "alphaCaseInsensitive", "values": ["", "a"], "want": ["", "a"] },
+  { "order": "alphaCaseInsensitiveDesc", "values": ["b", "A", "a", "B", "c"], "want": ["c", "b", "B", "a", "A"] },
+  { "order": "alphaCaseInsensitiveDesc", "values": ["a", "B"], "want": ["B", "a"] },
+  { "order": "natural", "values": ["a10", "a9", "a2", "a1"], "want": ["a1", "a2", "a9", "a10"] },
+  { "order": "natural", "values": ["7", "007"], "want": ["007", "7"] },
+  { "order": "natural", "values": ["8", "7", "08", "007"], "want": ["007", "7", "08", "8"] },
+  { "order": "natural", "values": ["file-10.txt", "file-2.txt", "file-1.txt"], "want": ["file-1.txt", "file-2.txt", "file-10.txt"] },
+  { "order": "natural", "values": ["a", "1", "x"], "want": ["1", "a", "x"] },
+  { "order": "natural", "values": ["b", "A", "a"], "want": ["A", "a", "b"] },
+  { "order": "natural", "values": ["a1b", "a1", "a"], "want": ["a", "a1", "a1b"] },
+  { "order": "natural", "values": ["a", ""], "want": ["", "a"] },
+  { "order": "natural", "values": ["n100000000000000000000000", "n99999999999999999999999"], "want": ["n99999999999999999999999", "n100000000000000000000000"] },
+  { "order": "natural", "values": ["a01b2", "a1b10", "a1b2"], "want": ["a01b2", "a1b2", "a1b10"] },
+  { "order": "naturalDesc", "values": ["a1", "a10", "a2", "a9"], "want": ["a10", "a9", "a2", "a1"] },
+  { "order": "naturalDesc", "values": ["007", "7", "8"], "want": ["8", "7", "007"] }
+]

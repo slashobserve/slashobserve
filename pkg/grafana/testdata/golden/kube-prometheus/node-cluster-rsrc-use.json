@@ -278,7 +278,8 @@
         "sort": "alpha",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

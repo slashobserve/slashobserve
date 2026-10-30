@@ -377,7 +377,8 @@
         "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info, cluster)",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -385,7 +386,8 @@
         "datasource": "${datasource}",
         "query": "label_values(prometheus_build_info{cluster=~\"$cluster\"}, instance)",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "url",
@@ -393,7 +395,8 @@
         "datasource": "${datasource}",
         "query": "label_values(prometheus_remote_storage_shards{cluster=~\"$cluster\", instance=~\"$instance\"}, url)",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

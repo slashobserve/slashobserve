@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest"
+
+import variableOptionsText from "../../../spec/examples/variables/options.json?raw"
 import { validateSpecSchema } from "./index"
 
 function dashboardWith(panelExtras: Record<string, unknown>) {
@@ -85,5 +87,43 @@ describe("exclusive member issues", () => {
         message: 'unknown property "bogus"',
       },
     ])
+  })
+})
+
+describe("variable sort, custom values and saved filters", () => {
+  const variableOptions = JSON.parse(variableOptionsText)
+
+  it("accepts the shared example", () => {
+    expect(validateSpecSchema(variableOptions).valid).toBe(true)
+  })
+
+  it.each([
+    ["an operator the request parameter refuses", { operator: "<" }],
+    ["an empty key", { key: "" }],
+    ["a value over 500 characters", { value: "x".repeat(501) }],
+  ])("refuses a saved filter with %s", (_name, change) => {
+    const adhoc = structuredClone(variableOptions)
+    Object.assign(adhoc.variables[3].default[0], change)
+    expect(validateSpecSchema(adhoc).valid).toBe(false)
+  })
+
+  it("refuses more than 20 saved filters", () => {
+    const adhoc = structuredClone(variableOptions)
+    adhoc.variables[3].default = Array.from({ length: 21 }, () => ({
+      key: "job",
+      operator: "=",
+      value: "api",
+    }))
+    expect(validateSpecSchema(adhoc).valid).toBe(false)
+  })
+
+  it("refuses allowCustomValue on a variable type without values to pick", () => {
+    const textbox = structuredClone(variableOptions)
+    textbox.variables[2] = {
+      name: "free",
+      type: "textbox",
+      allowCustomValue: true,
+    }
+    expect(validateSpecSchema(textbox).valid).toBe(false)
   })
 })

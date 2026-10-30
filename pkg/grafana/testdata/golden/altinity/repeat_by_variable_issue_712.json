@@ -139,7 +139,8 @@
           "baz"
         ],
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "datasource",

@@ -172,7 +172,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{job=\"kubelet\", metrics_path=\"/metrics\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -181,7 +182,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\"}, namespace)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "volume",
@@ -190,7 +192,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kubelet_volume_stats_capacity_bytes{cluster=\"$cluster\", job=\"kubelet\", metrics_path=\"/metrics\", namespace=\"$namespace\"}, persistentvolumeclaim)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "panels": [

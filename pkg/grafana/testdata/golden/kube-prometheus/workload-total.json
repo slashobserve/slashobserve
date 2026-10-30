@@ -284,7 +284,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kube_pod_info{job=\"kube-state-metrics\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -296,6 +297,7 @@
         "refresh": "timeRange",
         "includeAll": true,
         "allValue": ".+",
+        "allowCustomValue": true,
         "default": "kube-system"
       },
       {
@@ -305,7 +307,8 @@
         "datasource": "${datasource}",
         "query": "label_values(namespace_workload_pod:kube_pod_owner:relabel{cluster=\"$cluster\", namespace=~\"$namespace\", workload=~\".+\"}, workload)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "type",
@@ -316,7 +319,8 @@
         "sort": "alpha",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       }
     ],
     "panels": [

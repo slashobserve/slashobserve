@@ -316,7 +316,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "span_name",
@@ -327,7 +328,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

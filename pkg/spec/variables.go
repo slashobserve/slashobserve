@@ -121,6 +121,14 @@ func SortVariableValues(values []string, order string) []string {
 		slices.SortStableFunc(out, compareUTF16)
 	case "alphaDesc":
 		slices.SortStableFunc(out, func(a, b string) int { return compareUTF16(b, a) })
+	case "alphaCaseInsensitive":
+		slices.SortStableFunc(out, compareFolded)
+	case "alphaCaseInsensitiveDesc":
+		slices.SortStableFunc(out, func(a, b string) int { return compareFolded(b, a) })
+	case "natural":
+		slices.SortStableFunc(out, compareNatural)
+	case "naturalDesc":
+		slices.SortStableFunc(out, func(a, b string) int { return compareNatural(b, a) })
 	case "num", "numDesc":
 		slices.SortStableFunc(out, func(a, b string) int {
 			na, oka := leadingNumber(a)
@@ -140,6 +148,68 @@ func SortVariableValues(values []string, order string) []string {
 		}
 	}
 	return out
+}
+
+func compareFolded(a, b string) int {
+	if c := compareUTF16(strings.ToLower(a), strings.ToLower(b)); c != 0 {
+		return c
+	}
+	return compareUTF16(a, b)
+}
+
+func compareNatural(a, b string) int {
+	ta, tb := naturalRuns(a), naturalRuns(b)
+	zeros := 0
+	for i := 0; i < len(ta) && i < len(tb); i++ {
+		x, y := ta[i], tb[i]
+		switch xd, yd := isDigitRun(x), isDigitRun(y); {
+		case xd && yd:
+			if c := compareDigitRuns(x, y); c != 0 {
+				return c
+			}
+			if zeros == 0 {
+				zeros = -cmp.Compare(len(x), len(y))
+			}
+		case xd:
+			return -1
+		case yd:
+			return 1
+		default:
+			if c := compareUTF16(x, y); c != 0 {
+				return c
+			}
+		}
+	}
+	if c := cmp.Compare(len(ta), len(tb)); c != 0 {
+		return c
+	}
+	return zeros
+}
+
+func naturalRuns(s string) []string {
+	var runs []string
+	for s != "" {
+		digit := isDigitByte(s[0])
+		end := 1
+		for end < len(s) && isDigitByte(s[end]) == digit {
+			end++
+		}
+		runs = append(runs, s[:end])
+		s = s[end:]
+	}
+	return runs
+}
+
+func isDigitByte(b byte) bool { return b >= '0' && b <= '9' }
+
+func isDigitRun(run string) bool { return isDigitByte(run[0]) }
+
+func compareDigitRuns(a, b string) int {
+	a, b = strings.TrimLeft(a, "0"), strings.TrimLeft(b, "0")
+	if c := cmp.Compare(len(a), len(b)); c != 0 {
+		return c
+	}
+	return strings.Compare(a, b)
 }
 
 func compareUTF16(a, b string) int {

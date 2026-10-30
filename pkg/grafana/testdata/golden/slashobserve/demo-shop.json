@@ -623,7 +623,8 @@
           "payments"
         ],
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "route",
@@ -632,7 +633,8 @@
         "query": "label_values(http_requests_total{service=~\"$service\"}, route)",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

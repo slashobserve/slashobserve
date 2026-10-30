@@ -437,7 +437,8 @@
         "datasource": "prom",
         "query": "label_values(redis_up, namespace)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -446,7 +447,8 @@
         "query": "label_values(redis_up{namespace=~\"$namespace\"}, instance)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "multi": true
+        "multi": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

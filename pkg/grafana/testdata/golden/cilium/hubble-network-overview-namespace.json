@@ -252,7 +252,8 @@
         "datasource": "prom",
         "query": "label_values(cilium_version, cluster)",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "source_namespace",
@@ -262,7 +263,8 @@
         "query": "label_values(source_namespace)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "destination_namespace",
@@ -272,7 +274,8 @@
         "query": "label_values(destination_namespace)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

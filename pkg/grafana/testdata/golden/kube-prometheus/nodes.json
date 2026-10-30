@@ -306,7 +306,8 @@
         "query": "label_values(node_uname_info{job=\"node-exporter\", sysname!=\"Darwin\"}, cluster)",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -314,7 +315,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(node_uname_info{job=\"node-exporter\", cluster=~\"$cluster\", sysname!=\"Darwin\"}, instance)",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "panels": [

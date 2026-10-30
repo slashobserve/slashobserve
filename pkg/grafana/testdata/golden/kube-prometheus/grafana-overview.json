@@ -185,7 +185,8 @@
         "query": "label_values(grafana_build_info, job)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -194,7 +195,8 @@
         "query": "label_values(grafana_build_info, instance)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

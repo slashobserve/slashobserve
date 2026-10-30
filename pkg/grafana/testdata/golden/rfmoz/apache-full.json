@@ -508,7 +508,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -517,7 +518,8 @@
         "datasource": "${DS_PROMETHEUS}",
         "query": "label_values(apache_up{job=\"$job\"}, instance)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "links": [

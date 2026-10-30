@@ -1803,7 +1803,8 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(node_boot_time_seconds, job)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "node",
@@ -1812,7 +1813,8 @@
         "datasource": "prom",
         "query": "label_values(node_boot_time_seconds{job=~\"$job\"}, instance)",
         "regex": "/([^:]+):.*/",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "port",
@@ -1821,7 +1823,8 @@
         "datasource": "prom",
         "query": "label_values(node_boot_time_seconds{instance=~\"$node:(.*)\"}, instance)",
         "regex": "/[^:]+:(.*)/",
-        "sort": "num"
+        "sort": "num",
+        "allowCustomValue": true
       }
     ],
     "links": [

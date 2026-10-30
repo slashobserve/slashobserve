@@ -177,7 +177,8 @@
         "datasource": "${datasource}",
         "query": "label_values(alertmanager_alerts, namespace)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "service",
@@ -186,7 +187,8 @@
         "datasource": "${datasource}",
         "query": "label_values(alertmanager_alerts, service)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "integration",
@@ -196,7 +198,8 @@
         "query": "label_values(alertmanager_notifications_total{integration=~\".*\"}, integration)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

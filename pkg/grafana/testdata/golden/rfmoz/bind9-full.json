@@ -593,7 +593,8 @@
         "datasource": "prom",
         "query": "label_values(bind_up, instance)",
         "regex": "/([^:]+):.*/",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "port",
@@ -602,7 +603,8 @@
         "datasource": "prom",
         "query": "label_values(bind_up, instance)",
         "regex": "/[^:]+:(.*)/",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "view",
@@ -610,7 +612,8 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(bind_resolver_query_errors_total, view)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       }
     ],
     "links": [

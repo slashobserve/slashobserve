@@ -857,7 +857,6 @@
         "status": "partial",
         "reason": "Some Grafana options of this variable are not supported yet.",
         "paths": [
-          "templating.list[1].allowCustomValue",
           "templating.list[1].regexApplyTo"
         ]
       },
@@ -866,7 +865,6 @@
         "status": "partial",
         "reason": "Some Grafana options of this variable are not supported yet.",
         "paths": [
-          "templating.list[2].allowCustomValue",
           "templating.list[2].regexApplyTo"
         ]
       },
@@ -875,7 +873,6 @@
         "status": "partial",
         "reason": "Some Grafana options of this variable are not supported yet.",
         "paths": [
-          "templating.list[3].allowCustomValue",
           "templating.list[3].regexApplyTo"
         ]
       },
@@ -913,7 +910,8 @@
         "query": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -923,7 +921,8 @@
         "sort": "alpha",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "user",
@@ -932,7 +931,8 @@
         "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "adhoc",

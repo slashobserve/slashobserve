@@ -1,0 +1,41 @@
+{
+  "specVersion": "0",
+  "title": "Adhoc default with an operator the request parameter does not accept",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "variables": [
+    {
+      "name": "filters",
+      "type": "adhoc",
+      "datasource": "prom",
+      "default": [
+        {
+          "key": "namespace",
+          "operator": "<",
+          "value": "checkout"
+        }
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_up",
+      "type": "timeseries",
+      "title": "Up",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "up"
+        }
+      ]
+    }
+  ]
+}

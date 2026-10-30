@@ -1240,7 +1240,8 @@
         "query": "label_values(kube_pod_info, namespace)",
         "regex": ".*argocd.*",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "interval",
@@ -1266,7 +1267,8 @@
           "namespace",
           "name",
           "project"
-        ]
+        ],
+        "allowCustomValue": true
       },
       {
         "name": "cluster",
@@ -1275,7 +1277,8 @@
         "query": "label_values(argocd_cluster_info, server)",
         "sort": "alpha",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "health_status",
@@ -1289,7 +1292,8 @@
           "Unknown"
         ],
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "sync_status",
@@ -1300,7 +1304,8 @@
           "Unknown"
         ],
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

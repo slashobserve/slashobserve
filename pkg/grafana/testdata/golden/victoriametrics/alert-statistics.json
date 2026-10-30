@@ -226,7 +226,8 @@
         "query": "label_values(vm_app_version{version=~\"^vmalert.*\"},job)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -235,7 +236,8 @@
         "query": "label_values(vm_app_version{job=~\"$job\"},instance)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "group",
@@ -244,7 +246,8 @@
         "query": "label_values(vmalert_iteration_duration_seconds{}, group)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "topk",
@@ -256,6 +259,7 @@
           "30",
           "50"
         ],
+        "allowCustomValue": true,
         "default": "10"
       }
     ],

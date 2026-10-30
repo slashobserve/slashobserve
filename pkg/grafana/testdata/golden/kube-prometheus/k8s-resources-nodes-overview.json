@@ -214,7 +214,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kube-state-metrics\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "panels": [

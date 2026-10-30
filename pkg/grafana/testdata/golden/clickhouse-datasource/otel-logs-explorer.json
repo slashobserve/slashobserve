@@ -220,7 +220,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "interval",
@@ -250,7 +251,8 @@
         "query": "SELECT ServiceName FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "level_filter",
@@ -260,7 +262,8 @@
         "query": "SELECT DISTINCT SeverityText FROM ${database}.otel_logs WHERE $__timeFilter(Timestamp) ORDER BY SeverityText",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "search",

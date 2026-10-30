@@ -32,8 +32,8 @@ var variableSilentKeys = map[string]bool{
 }
 
 var variableHandledKeys = map[string][]string{
-	"query":      {"query", "regex", "sort", "refresh", "multi", "includeAll", "allValue"},
-	"custom":     {"query", "multi", "includeAll", "allValue"},
+	"query":      {"query", "regex", "sort", "refresh", "multi", "includeAll", "allValue", "allowCustomValue"},
+	"custom":     {"query", "multi", "includeAll", "allValue", "allowCustomValue"},
 	"constant":   {"query"},
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
 	"textbox":    {"query"},
@@ -284,6 +284,7 @@ func variableQueryText(v any) string {
 func (c *converter) listFlags(v *spec.Variable, raw map[string]any, path, subject string) {
 	v.Multi = truthy(raw["multi"])
 	v.IncludeAll = truthy(raw["includeAll"])
+	v.AllowCustomValue = allowsCustomValue(raw)
 	if all := asString(raw["allValue"]); all != "" {
 		if _, tooLong := cutRunes(all, 200); tooLong {
 			c.note(subject, "The custom All value is longer than 200 characters and is not kept.", path+".allValue")
@@ -293,25 +294,21 @@ func (c *converter) listFlags(v *spec.Variable, raw map[string]any, path, subjec
 	}
 }
 
-func sortOf(c *converter, raw map[string]any, path, subject string) string {
+var grafanaSortCodes = map[int]string{
+	1: "alpha", 2: "alphaDesc",
+	3: "num", 4: "numDesc",
+	5: "alphaCaseInsensitive", 6: "alphaCaseInsensitiveDesc",
+	7: "natural", 8: "naturalDesc",
+}
+
+func sortOf(raw map[string]any) string {
 	n, _ := asInt(raw["sort"])
-	switch n {
-	case 1:
-		return "alpha"
-	case 2:
-		return "alphaDesc"
-	case 3, 7:
-		return "num"
-	case 4, 8:
-		return "numDesc"
-	case 5:
-		c.note(subject, "Case-insensitive sorting is not supported; the values are sorted case-sensitively.", path+".sort")
-		return "alpha"
-	case 6:
-		c.note(subject, "Case-insensitive sorting is not supported; the values are sorted case-sensitively.", path+".sort")
-		return "alphaDesc"
-	}
-	return ""
+	return grafanaSortCodes[n]
+}
+
+func allowsCustomValue(raw map[string]any) bool {
+	allowed, ok := raw["allowCustomValue"].(bool)
+	return !ok || allowed
 }
 
 func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.Variable, bool) {
@@ -333,7 +330,7 @@ func (c *converter) queryVariable(raw map[string]any, path, name string) (spec.V
 	if len(rewrites) > 0 {
 		c.note(subject, "Rewrote "+strings.Join(rewrites, ", ")+" in the query.", path+".query")
 	}
-	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.ref(), Query: text, Sort: sortOf(c, raw, path, subject)}
+	v := spec.Variable{Type: spec.QueryVariable, Datasource: ref.src.ref(), Query: text, Sort: sortOf(raw)}
 	c.variableRegex(&v, raw, path, subject)
 	if refresh, ok := asInt(raw["refresh"]); ok && refresh == 2 {
 		v.Refresh = "timeRange"
@@ -632,14 +629,12 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 		return spec.Variable{}, false
 	}
 	c.adhocSources[name] = ref.src
-	var saved []string
-	for _, key := range []string{"filters", "baseFilters"} {
-		if present(raw[key]) {
-			saved = append(saved, path+"."+key)
-		}
+	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref()}
+	if filters := c.adhocDefault(raw, path, subject, ref.src.kind); len(filters) > 0 {
+		v.Default = &spec.Selection{Filters: filters}
 	}
-	if len(saved) > 0 {
-		c.note(subject, "Saved filters are not kept.", saved...)
+	if present(raw["baseFilters"]) {
+		c.note(subject, "Base filters are not kept.", path+".baseFilters")
 	}
-	return spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref()}, true
+	return v, true
 }

@@ -499,7 +499,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "job",
@@ -508,6 +509,7 @@
         "query": "label_values(coredns_build_info{cluster=\"$cluster\"},job)",
         "sort": "alpha",
         "multi": true,
+        "allowCustomValue": true,
         "default": [
           "coredns"
         ]
@@ -519,7 +521,8 @@
         "query": "label_values(up{job=\"$job\", cluster=\"$cluster\"},instance)",
         "sort": "alpha",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "protocol",
@@ -528,6 +531,7 @@
         "query": "label_values(coredns_dns_requests_total{cluster=\"$cluster\"}, proto)",
         "sort": "alpha",
         "allValue": "udp,tcp",
+        "allowCustomValue": true,
         "default": "udp"
       },
       {
