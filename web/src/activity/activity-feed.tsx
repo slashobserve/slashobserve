@@ -40,6 +40,7 @@ import { ThreadEntry } from "./thread-entry"
 import {
   buildTimeline,
   filterTimeline,
+  showsVersions,
   type TimelineEntry,
   type TimelineShow,
 } from "./timeline-model"
@@ -195,7 +196,7 @@ export function ActivityFeed({
   )
   const requests = useMemo(() => revisions.data ?? [], [revisions.data])
   const versions = useMemo(
-    () => history.data?.pages[0]?.versions ?? [],
+    () => history.data?.pages.flatMap((page) => page.versions) ?? [],
     [history.data]
   )
   const entries = useMemo(
@@ -349,6 +350,12 @@ export function ActivityFeed({
           error={commentsData === undefined && comments.isError}
           onRetry={() => void comments.refetch()}
           filtered={filtered}
+          older={{
+            available: history.hasNextPage && showsVersions(show, scopePanelId),
+            fetching: history.isFetchingNextPage,
+            error: history.isFetchNextPageError ? history.error.message : null,
+            onLoad: () => void history.fetchNextPage(),
+          }}
           renderEntry={renderEntry}
         />
       </div>

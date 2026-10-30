@@ -237,6 +237,25 @@ export function buildTimeline(input: {
   return sortEntries(entries)
 }
 
+export function showsVersions(
+  show: TimelineShow,
+  panelId: string | null
+): boolean {
+  return show !== "open" && panelId === null
+}
+
+export function firstNewVersion(
+  entries: readonly TimelineEntry[],
+  known: ReadonlySet<number>
+): number | null {
+  for (const entry of entries) {
+    if (entry.kind === "version" && !known.has(entry.version.version)) {
+      return entry.version.version
+    }
+  }
+  return null
+}
+
 function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
   if (entry.kind === "import") return show === "everything"
   switch (show) {

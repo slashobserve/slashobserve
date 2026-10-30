@@ -31,6 +31,7 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
         to="/dashboards/$dashboardId/versions"
         params={{ dashboardId }}
         search={n > 1 ? { from: n - 1, to: n, back } : { to: n, back }}
+        data-version={n}
         className={`${boxClass} flex items-center justify-between gap-2.5 no-underline outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring`}
       >
         <span className="min-w-0">
