@@ -67,6 +67,16 @@ Restoring needs Edit on the dashboard's folder, so a Commenter or Viewer never s
 Over the API it is `POST /api/v1/dashboards/{id}/versions/{version}/restore` with the `parent_version` it builds on, and it can answer `409` like any save.
 MCP has no restore tool.
 
+## Duplicate a dashboard
+
+**Duplicate...** in a dashboard's **More** menu, or in its row menu on the Dashboards page, saves the latest version as version 1 of a new dashboard and opens it.
+You choose its title, which starts as "<title> copy", and a folder you can create dashboards in, which starts as the dashboard's own folder when you can create there.
+Duplicating needs View on the dashboard and Edit in the folder you choose.
+The copy starts its own history: earlier versions, comments, agent requests and the import record stay with the original, and its version 1 reads "Duplicated from "<title>" version 7".
+Like a restore, it checks that the datasources are still configured but does not run the queries again, and it keeps the list of unverified panels and variables.
+Over the API it is `POST /api/v1/dashboards/{id}/duplicate` with a `title` and an optional `folder_id`.
+MCP and the CLI have no duplicate command.
+
 ## Comments
 
 A comment is anchored to a panel id and to the version it was written on, or to the whole dashboard.
