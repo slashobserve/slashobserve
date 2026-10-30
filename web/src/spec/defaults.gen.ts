@@ -30,7 +30,8 @@ export const specDefaults = {
     "align": "auto",
     "filterable": false,
     "inspect": false,
-    "hideHeader": false
+    "hideHeader": false,
+    "fieldMinMax": false
   },
   "query": {
     "instant": false,

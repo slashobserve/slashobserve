@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 103,
-      "imported": 99,
-      "partial": 4,
+      "imported": 101,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -1021,13 +1021,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Sessions",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.fieldMinMax"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -1046,13 +1042,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Sessions",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.fieldMinMax"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",

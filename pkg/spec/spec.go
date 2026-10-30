@@ -331,6 +331,7 @@ type FieldProps struct {
 	Decimals          *int        `json:"decimals,omitempty"`
 	Min               *float64    `json:"min,omitempty"`
 	Max               *float64    `json:"max,omitempty"`
+	FieldMinMax       *bool       `json:"fieldMinMax,omitempty"`
 	Thresholds        []Threshold `json:"thresholds,omitempty"`
 	ThresholdMode     string      `json:"thresholdMode,omitempty"`
 	Color             string      `json:"color,omitempty"`
@@ -408,9 +409,10 @@ type Mapping struct {
 }
 
 type Link struct {
-	Title  string `json:"title"`
-	URL    string `json:"url"`
-	NewTab bool   `json:"newTab,omitempty"`
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	NewTab   bool   `json:"newTab,omitempty"`
+	OneClick bool   `json:"oneClick,omitempty"`
 }
 
 type Override struct {

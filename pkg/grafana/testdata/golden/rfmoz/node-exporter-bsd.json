@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 28,
-      "partial": 8,
+      "imported": 29,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -480,13 +480,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.fieldMinMax"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

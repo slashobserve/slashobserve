@@ -42,6 +42,7 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     filterable: false,
     inspect: false,
     hideHeader: false,
+    fieldMinMax: false,
     stackGroup: "A",
     nullAsZero: false,
     barAlignment: "center",

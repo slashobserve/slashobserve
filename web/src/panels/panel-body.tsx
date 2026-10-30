@@ -88,7 +88,7 @@ export function PanelBody({
     () => (ghost ? prepareFrames(panel, ghost.frames, typeOf) : undefined),
     [panel, ghost, typeOf]
   )
-  const fields = useMemo(() => createFieldResolver(panel), [panel])
+  const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
   const display = useMemo(
     () => displayWithDefaults(panel.type, panel.display),
     [panel]

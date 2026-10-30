@@ -8,7 +8,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import {
+  anchorProps,
+  NewTabMark,
+  oneClickProps,
+} from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
@@ -80,7 +84,8 @@ function offsetRow(offset: number): CSSProperties {
 }
 
 function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
-  const [first, ...more] = gaugeLinks(gauge, fields, scope)
+  const links = gaugeLinks(gauge, fields, scope)
+  const [first, ...more] = links
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
   const value = (
@@ -117,7 +122,8 @@ function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
   return (
     <div
       data-gauge-cell=""
-      className="[container-type:size] relative min-h-0 min-w-0"
+      {...oneClickProps(links)}
+      className="[container-type:size] relative min-h-0 min-w-0 data-one-click:cursor-pointer"
     >
       <div
         role="meter"

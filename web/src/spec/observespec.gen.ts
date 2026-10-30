@@ -816,6 +816,10 @@ export interface FieldProps {
   decimals?: number;
   min?: number;
   max?: number;
+  /**
+   * Gauges and bar gauges that find their range from the data: true ranges each field by its own values, false (the default) by the values of every field shown. Other panels already range each field by its own values.
+   */
+  fieldMinMax?: boolean;
   thresholds?: Thresholds;
   thresholdMode?: "absolute" | "percentage";
   color?: Color;
@@ -932,6 +936,10 @@ export interface Link {
   title: string;
   url: string;
   newTab?: boolean;
+  /**
+   * A data link on a stat, gauge, bar gauge or table cell that makes the whole tile, bar, gauge or cell the link when it is the only data link there.
+   */
+  oneClick?: boolean;
 }
 export interface DataPanel1 {
   /**

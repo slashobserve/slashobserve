@@ -62,6 +62,7 @@ describe("field config resolution", () => {
       filterable: false,
       inspect: false,
       hideHeader: false,
+      fieldMinMax: false,
       stackGroup: "A",
       nullAsZero: false,
       barAlignment: "center",
@@ -295,6 +296,7 @@ describe("field config resolution", () => {
       filterable: false,
       inspect: false,
       hideHeader: false,
+      fieldMinMax: false,
       stackGroup: "A",
     })
     expect(plain.valueTransform).toBeUndefined()
@@ -481,5 +483,78 @@ describe("field config resolution", () => {
     expect(resolver.configFor(f, f.fields[1])).toBe(
       resolver.configFor(f, f.fields[1])
     )
+  })
+})
+
+describe("display name tokens", () => {
+  const f = frame([time, value()], {
+    ref: "B",
+    name: "up",
+    labels: { __name__: "up", pod: "a" },
+  })
+  const name = (template: string, vars: Record<string, string[]> = {}) =>
+    createFieldResolver(panel({ displayName: template }), vars).displayName(
+      f,
+      f.fields[1]
+    )
+
+  it.each([
+    ["${__field.name}", "Value"],
+    ["${__field.displayName}", 'up{__name__="up", pod="a"}'],
+    ["${__field.labels.__name__}", "up"],
+    ["${__field.labels.pod}", "a"],
+    ["${__data.refId}", "B"],
+    ["${__series.name}", 'up{__name__="up", pod="a"}'],
+    ["${ __data.refId }", "B"],
+    ["${__data.fields.Value}", "${__data.fields.Value}"],
+    ["${__field.labels.missing}", "${__field.labels.missing}"],
+  ])("writes %s as %s", (template, expected) => {
+    expect(name(template)).toBe(expected)
+  })
+
+  it("writes dashboard variables in every syntax", () => {
+    const vars = { env: ["prod"], pods: ["a", "b"], tier: ["$__all"] }
+    expect(name("$env", vars)).toBe("prod")
+    expect(name("${env}", vars)).toBe("prod")
+    expect(name("[[env]]", vars)).toBe("prod")
+    expect(name("$env-${__field.name}-[[env]]", vars)).toBe("prod-Value-prod")
+    expect(name("$pods", vars)).toBe("a, b")
+    expect(name("$tier", vars)).toBe("All")
+  })
+
+  it.each([
+    ["${pods:raw}", "a,b"],
+    ["${pods:csv}", "a,b"],
+    ["${pods:text}", "a + b"],
+    ["${pods:pipe}", "a|b"],
+    ["${pods:json}", '["a","b"]'],
+    ["[[pods:pipe]]", "a|b"],
+    ["${odd:percentencode}", "a%20b%21"],
+  ])("formats a variable as %s", (template, expected) => {
+    expect(name(template, { pods: ["a", "b"], odd: ["a b!"] })).toBe(expected)
+  })
+
+  it("keeps a variable that has no selection, and a format nobody knows", () => {
+    expect(name("$nope ${nope} [[nope]]")).toBe("$nope ${nope} [[nope]]")
+    expect(name("${pods:nope}", { pods: ["a"] })).toBe("${pods:nope}")
+  })
+
+  it("leaves a dollar amount alone", () => {
+    expect(name("Cost $5 per ${__field.name}")).toBe("Cost $5 per Value")
+  })
+
+  it("resolves a variable the same in an override's display name", () => {
+    const resolver = createFieldResolver(
+      panel({
+        overrides: [
+          {
+            match: { fieldType: "number" },
+            displayName: "$env ${__data.refId}",
+          },
+        ],
+      }),
+      { env: ["prod"] }
+    )
+    expect(resolver.displayName(f, f.fields[1])).toBe("prod B")
   })
 })

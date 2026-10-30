@@ -14,7 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import {
+  anchorProps,
+  NewTabMark,
+  oneClickProps,
+} from "@/dashboards/dashboard-links"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -186,11 +190,12 @@ const StatPanel: PanelRenderer = ({
             role="group"
             aria-label={`${aria}: ${tile.text}${tile.threshold.level !== "base" ? `, ${tile.threshold.label}` : ""}`}
             data-stat-tile=""
+            {...oneClickProps(showText ? dataLinks : [])}
             data-color-mode={display.colorMode}
             data-graph={String(drawn)}
             data-threshold={tile.threshold.level}
             className={cn(
-              "relative flex min-h-0 flex-col overflow-hidden rounded-md text-foreground",
+              "relative flex min-h-0 flex-col overflow-hidden rounded-md text-foreground data-one-click:cursor-pointer",
               filled && "pt-2"
             )}
             style={

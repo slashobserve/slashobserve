@@ -1,6 +1,10 @@
 import { memo, useMemo, type CSSProperties } from "react"
 
-import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import {
+  anchorProps,
+  NewTabMark,
+  oneClickProps,
+} from "@/dashboards/dashboard-links"
 import { cn } from "@/lib/utils"
 import type { Reducer } from "@/spec"
 
@@ -52,6 +56,13 @@ type BarProps = {
 function textSize(size: number | undefined): CSSProperties | undefined {
   return size ? { fontSize: `${size}px` } : undefined
 }
+
+function oneClickOf({ bar, fields, reducer, scope, valueMode }: BarProps) {
+  if (valueMode === "hidden") return {}
+  return oneClickProps(barLinks(fields, bar, reducer, scope))
+}
+
+const oneClickClass = "data-one-click:cursor-pointer"
 
 function Cells({
   bar,
@@ -219,7 +230,8 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
   if (placement === "left") {
     return (
       <div
-        className={cn(rowClass, "flex-row items-center gap-2")}
+        {...oneClickOf(props)}
+        className={cn(rowClass, "flex-row items-center gap-2", oneClickClass)}
         style={style}
       >
         <Name bar={bar} sizes={sizes} className="w-[30%] max-w-48 shrink-0" />
@@ -233,7 +245,11 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
   const showName = placement !== "hidden"
   const showLine = showName || valueMode !== "hidden" || showsLevel(bar)
   return (
-    <div className={cn(rowClass, "flex-col gap-[5px]")} style={style}>
+    <div
+      {...oneClickOf(props)}
+      className={cn(rowClass, "flex-col gap-[5px]", oneClickClass)}
+      style={style}
+    >
       {showLine ? (
         <div
           className={cn(
@@ -257,7 +273,11 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   const name = <Name bar={bar} sizes={sizes} className="text-center" />
   return (
     <div
-      className="flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]"
+      {...oneClickOf(props)}
+      className={cn(
+        "flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]",
+        oneClickClass
+      )}
       style={{
         minWidth: limits.minWidth,
         minHeight: limits.minHeight,

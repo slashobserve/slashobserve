@@ -41,6 +41,8 @@ const (
 	logBaseReason = "Only log base 2 and 10 are supported."
 
 	opaqueFillReason = "A fully transparent fill is drawn opaque."
+
+	oneClickReason = "One click links are drawn on stat, gauge, bar gauge and table panels only."
 )
 
 type propSite struct {
@@ -59,7 +61,7 @@ func (s propSite) at(suffix string) string {
 type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
-	"unit", "decimals", "min", "max", "displayName", "noValue", "thresholds", "mappings", "links",
+	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "noValue", "thresholds", "mappings", "links",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
 	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.spanNulls",
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
@@ -76,6 +78,7 @@ var propHandlers = map[string]propHandler{
 	"decimals":                 propDecimals,
 	"min":                      propMin,
 	"max":                      propMax,
+	"fieldMinMax":              propFieldMinMax,
 	"displayName":              propDisplayName,
 	"noValue":                  propNoValue,
 	"thresholds":               propThresholds,
@@ -135,6 +138,10 @@ var plotDrawnPropIDs = map[string]bool{
 }
 
 var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
+
+var rangeSharingTypes = map[spec.PanelType]bool{spec.Gauge: true, spec.BarGauge: true}
+
+var dataLinkTypes = map[spec.PanelType]bool{spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true}
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
@@ -199,6 +206,7 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 }
 
 var propGates = []propGate{
+	{ids: propIDs("fieldMinMax"), types: rangeSharingTypes, outside: true, skip: true},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
 	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
 	{ids: propIDs("custom.lineWidth"), types: union(timelinePanelTypes, barPanelTypes), handler: propBorderLineWidth},
@@ -425,11 +433,42 @@ func propMax(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
+var globalNameToken = regexp.MustCompile(`\$\{\s*(__[^}:\s]*)[^}]*\}|\[\[\s*(__[\w.]+)[^\]]*\]\]|\$(__\w+)`)
+
+var supportedNameTokens = map[string]bool{
+	"__series.name": true, "__field.name": true, "__field.displayName": true, "__field.labels": true, "__data.refId": true,
+}
+
+func unsupportedNameToken(name string) string {
+	for _, match := range globalNameToken.FindAllStringSubmatch(name, -1) {
+		token := cmp.Or(match[1], match[2], match[3])
+		if !supportedNameTokens[token] && !strings.HasPrefix(token, "__field.labels.") {
+			return match[0]
+		}
+	}
+	return ""
+}
+
+func propFieldMinMax(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	on, isBool := v.(bool)
+	if !isBool {
+		return
+	}
+	panelOn := b.panel.FieldMinMax != nil && *b.panel.FieldMinMax
+	if on || (s.whole && panelOn) {
+		p.FieldMinMax = &on
+	}
+}
+
 func propDisplayName(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
 	name, _ := v.(string)
 	if strings.TrimSpace(name) == "" {
 		return
+	}
+	if token := unsupportedNameToken(name); token != "" {
+		b.partial(s.at(""), fmt.Sprintf("The display name token %s is not supported yet.", token))
 	}
 	cut, wasCut := cutRunes(name, maxDisplayName)
 	if wasCut {
@@ -1139,6 +1178,10 @@ func (b *panelBuild) linkList(items []any, path func(int) string) []spec.Link {
 	var links []spec.Link
 	for i, item := range items {
 		link, reason := linkOf(item)
+		if reason == "" && link.OneClick && !dataLinkTypes[b.typ] {
+			link.OneClick = false
+			b.partial(path(i)+".oneClick", oneClickReason)
+		}
 		switch {
 		case reason != "":
 			b.partial(path(i), reason)
@@ -1198,7 +1241,7 @@ func linkOf(item any) (spec.Link, string) {
 		title = url
 	}
 	title, _ = cutRunes(title, 200)
-	return spec.Link{Title: title, URL: url, NewTab: truthy(l["targetBlank"])}, ""
+	return spec.Link{Title: title, URL: url, NewTab: truthy(l["targetBlank"]), OneClick: truthy(l["oneClick"])}, ""
 }
 
 func propMappings(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

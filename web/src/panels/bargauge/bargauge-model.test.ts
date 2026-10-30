@@ -198,6 +198,32 @@ describe("range", () => {
     expect([bar.min, bar.max, bar.fraction]).toEqual([0, 50, 0.5])
   })
 
+  it("ranges each bar by its own field's values with fieldMinMax", () => {
+    const own = [
+      series([1, 2, 3], { pod: "a" }),
+      series([10, 20, 40], { pod: "b" }),
+    ]
+    const shared = build(own).model.bars
+    expect(shared.map((bar) => bar.max)).toEqual([40, 40])
+    const bars = build(own, { fieldMinMax: true }).model.bars
+    expect(bars.map((bar) => [bar.min, bar.max])).toEqual([
+      [0, 3],
+      [0, 40],
+    ])
+    expect(bars.map((bar) => bar.fraction)).toEqual([1, 1])
+  })
+
+  it("starts a bar below zero with fieldMinMax when its field does", () => {
+    const [bar] = build([series([-4, 4])], { fieldMinMax: true }).model.bars
+    expect([bar.min, bar.max]).toEqual([-4, 4])
+  })
+
+  it("lets a configured bound replace the field's own range", () => {
+    const [bar] = build([series([2, 5])], { fieldMinMax: true, max: 10 }).model
+      .bars
+    expect([bar.min, bar.max]).toEqual([0, 10])
+  })
+
   it("lets an override give one field its own range", () => {
     const { model } = build(frames, {
       overrides: [{ match: { series: '{pod="a"}' }, min: 0, max: 4 }],
