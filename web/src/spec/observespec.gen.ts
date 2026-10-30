@@ -11,7 +11,8 @@ export type Variable =
   | IntervalVariable
   | TextboxVariable
   | DatasourceVariable
-  | AdhocVariable;
+  | AdhocVariable
+  | GroupByVariable;
 /**
  * Referenced in queries as $name, ${name} or ${name:format}.
  */
@@ -872,6 +873,18 @@ export interface AdhocVariable {
     operator: "=" | "!=" | "=~" | "!~";
     value: string;
   }[];
+}
+export interface GroupByVariable {
+  name: VariableName;
+  label?: string;
+  description?: string;
+  hide?: "label" | "variable";
+  type: "groupby";
+  datasource: DatasourceRef;
+  /**
+   * @maxItems 20
+   */
+  default?: string[];
 }
 /**
  * A dashboard link, either to an address (title and url) or, with type dashboards, to the other dashboards that carry every one of the tags (all other dashboards when there are none), shown inline or as one dropdown. keepTime adds the current from and to and includeVars the var-* selections.

@@ -188,7 +188,7 @@ func (r *registry) scanVariables(dash map[string]any) {
 			continue
 		}
 		switch asString(v["type"]) {
-		case "query", "adhoc":
+		case "query", "adhoc", "groupby":
 			r.variableRef(v["datasource"])
 		}
 	}

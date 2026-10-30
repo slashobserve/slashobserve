@@ -229,7 +229,7 @@ func reached(d *spec.Dashboard, names []string, datasources map[string]bool) (ma
 	queue := slices.Clone(names)
 	someReferenced := slices.ContainsFunc(slices.Collect(maps.Keys(datasources)), isDatasourceReference)
 	for _, v := range d.Variables {
-		if v.Type == spec.AdhocVariable && len(datasources) > 0 && (datasources[v.Datasource] || someReferenced || isDatasourceReference(v.Datasource)) {
+		if v.Type.AppliesToQueries() && len(datasources) > 0 && (datasources[v.Datasource] || someReferenced || isDatasourceReference(v.Datasource)) {
 			queue = append(queue, v.Name)
 		}
 	}

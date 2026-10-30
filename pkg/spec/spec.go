@@ -101,7 +101,12 @@ const (
 	TextboxVariable    VariableType = "textbox"
 	DatasourceVariable VariableType = "datasource"
 	AdhocVariable      VariableType = "adhoc"
+	GroupByVariable    VariableType = "groupby"
 )
+
+func (t VariableType) AppliesToQueries() bool {
+	return t == AdhocVariable || t == GroupByVariable
+}
 
 type Dashboard struct {
 	SpecVersion          string          `json:"specVersion"`

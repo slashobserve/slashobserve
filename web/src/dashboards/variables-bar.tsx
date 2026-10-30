@@ -8,6 +8,7 @@ import { UnverifiedLabel } from "./unverified-label"
 import type { VariableState } from "./use-variables"
 import { AdhocControl } from "./variable-controls/adhoc-control"
 import { DatasourceControl } from "./variable-controls/datasource-control"
+import { GroupByControl } from "./variable-controls/groupby-control"
 import { IntervalControl } from "./variable-controls/interval-control"
 import { TextboxControl } from "./variable-controls/textbox-control"
 import { variableLabel } from "./variable-controls/variable-box"
@@ -81,6 +82,20 @@ export function VariablesBar({ states, unverified }: Props) {
       case "adhoc":
         return (
           <AdhocControl
+            variable={variable}
+            state={state}
+            datasource={resolveDatasourceRef(variable.datasource, selections)}
+            datasourceType={datasourceRefType(
+              variable.datasource,
+              variables,
+              (uid) => datasourceTypeOf(datasources.data, uid)
+            )}
+            onChange={onChange}
+          />
+        )
+      case "groupby":
+        return (
+          <GroupByControl
             variable={variable}
             state={state}
             datasource={resolveDatasourceRef(variable.datasource, selections)}

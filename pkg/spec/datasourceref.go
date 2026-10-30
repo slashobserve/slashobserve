@@ -43,6 +43,33 @@ func checkApplyToAll(d *Dashboard) []Issue {
 	return issues
 }
 
+func checkGroupByDatasource(d *Dashboard) []Issue {
+	types := map[string]DatasourceType{}
+	for _, v := range d.Variables {
+		if _, dup := types[v.Name]; !dup && v.Type == DatasourceVariable {
+			types[v.Name] = v.DatasourceType
+		}
+	}
+	var issues []Issue
+	for i, v := range d.Variables {
+		if v.Type != GroupByVariable {
+			continue
+		}
+		name, ok := DatasourceVariableName(v.Datasource)
+		if !ok {
+			continue
+		}
+		if typ, declared := types[name]; declared && typ != Prometheus {
+			issues = append(issues, Issue{
+				Path:    pointer("variables", strconv.Itoa(i), "datasource"),
+				Code:    CodeInvalidReference,
+				Message: fmt.Sprintf("a group by variable needs a Prometheus datasource, but ${%s} is a %s datasource variable", name, typ),
+			})
+		}
+	}
+	return issues
+}
+
 func checkDatasourceRefs(d *Dashboard) []Issue {
 	index := map[string]int{}
 	types := map[string]VariableType{}
@@ -84,7 +111,7 @@ func checkDatasourceRefs(d *Dashboard) []Issue {
 	}
 
 	for i, v := range d.Variables {
-		if v.Type == QueryVariable || v.Type == AdhocVariable {
+		if v.Type == QueryVariable || v.Type.AppliesToQueries() {
 			check(v.Datasource, pointer("variables", strconv.Itoa(i), "datasource"), i)
 		}
 	}

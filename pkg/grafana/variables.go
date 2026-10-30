@@ -39,6 +39,7 @@ var variableHandledKeys = map[string][]string{
 	"textbox":    {"query"},
 	"datasource": {"query", "regex", "multi", "includeAll"},
 	"adhoc":      {"filters", "baseFilters"},
+	"groupby":    {"multi", "defaultValue"},
 }
 
 type builtVar struct {
@@ -263,6 +264,8 @@ func (c *converter) convertVariable(raw map[string]any, path, name string) (spec
 		return c.datasourceVariable(raw, path, name)
 	case "adhoc":
 		return c.adhocVariable(raw, path, name)
+	case "groupby":
+		return c.groupByVariable(raw, path, name)
 	}
 	c.dropVariable("variable "+name, path+".type", fmt.Sprintf("Grafana variable type %q is not supported yet.", asString(raw["type"])))
 	return spec.Variable{}, false

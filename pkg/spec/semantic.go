@@ -31,6 +31,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkDatasourceRefs(d)...)
 	issues = append(issues, checkApplyToAll(d)...)
+	issues = append(issues, checkGroupByDatasource(d)...)
 	issues = append(issues, checkIntervalRefs(d)...)
 	issues = append(issues, checkVariableQueries(d.Variables)...)
 	issues = append(issues, checkPanelQueries(d, entries)...)
@@ -339,6 +340,15 @@ var labelNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 func IsLabelName(name string) bool {
 	return labelNamePattern.MatchString(name)
+}
+
+const (
+	MaxGroupByKeys      = 20
+	MaxGroupByKeyLength = 200
+)
+
+func IsGroupByKey(name string) bool {
+	return len(name) <= MaxGroupByKeyLength && IsLabelName(name)
 }
 
 var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/(fy|fQ|[smhdwMy]))?$`)

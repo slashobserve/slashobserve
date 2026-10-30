@@ -378,3 +378,20 @@ func TestCarryUnverifiedBlocksAChangedExpression(t *testing.T) {
 		t.Fatalf("changed expression: blocking %v, want the panel blocking", blocking)
 	}
 }
+
+func TestCarryUnverifiedCountsGroupByVariablesOnTheQueryDatasource(t *testing.T) {
+	groupBy := func(datasource string) string {
+		return `{"name":"by","type":"groupby","datasource":"` + datasource + `"}`
+	}
+	panel := testPanel{id: "p", title: "P", datasource: "prom", query: "sum(nope)"}
+	base := testDashboard(t, groupBy("prom"), panel)
+	prev := Unverified{Panels: []UnverifiedPanel{{PanelID: "p", Issues: []spec.Issue{issueAt("/panels/0/queries")}}}}
+	fails := []spec.Issue{issueAt("/panels/0/queries")}
+
+	if _, blocking := CarryUnverified(base, prev, testDashboard(t, ``, panel), fails); len(blocking) != 1 {
+		t.Fatalf("group by variable on the datasource removed: blocking %v, want the panel blocking", blocking)
+	}
+	if carried, blocking := CarryUnverified(base, prev, testDashboard(t, groupBy("prom")+`,{"name":"other","type":"groupby","datasource":"prom2"}`, panel), fails); len(blocking) != 0 || len(carried.Panels) != 1 {
+		t.Fatalf("group by variable on another datasource added: carried %+v blocking %v, want carried", carried, blocking)
+	}
+}
