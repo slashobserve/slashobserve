@@ -62,9 +62,10 @@ type Response struct {
 }
 
 type Options struct {
-	UserAgent string
-	CacheTTL  time.Duration
-	Logger    *slog.Logger
+	UserAgent  string
+	CacheTTL   time.Duration
+	CacheBytes int64
+	Logger     *slog.Logger
 }
 
 type HostError struct {
@@ -111,11 +112,14 @@ func newClient(allow Allowlist, opts Options, dial dialFunc, roots *x509.CertPoo
 	if opts.CacheTTL <= 0 {
 		opts.CacheTTL = defaultCacheTTL
 	}
+	if opts.CacheBytes <= 0 {
+		opts.CacheBytes = cacheBytes
+	}
 	return &Client{
 		allow:     allow,
 		userAgent: opts.UserAgent,
 		transport: newTransport(dial, roots),
-		hits:      ttlcache.New[string, visited](opts.CacheTTL, cacheBytes),
+		hits:      ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
 		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
 		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
 		slots:     make(chan struct{}, maxConcurrent),

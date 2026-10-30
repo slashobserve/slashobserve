@@ -377,6 +377,42 @@ func TestFetchServesRepeatsFromCache(t *testing.T) {
 	}
 }
 
+func TestCacheBytesBoundsWhatTheClientRemembers(t *testing.T) {
+	cert, pool := testCertificate(t)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/a", serveFeed)
+	mux.HandleFunc("/b", serveFeed)
+	server := httptest.NewUnstartedServer(mux)
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	var hits atomic.Int64
+	dial := func(ctx context.Context, network, _ string) (net.Conn, error) {
+		hits.Add(1)
+		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+	}
+	c := newClient(newAllow(t, "feed.test"), Options{CacheBytes: 500}, dial, pool)
+	t.Cleanup(c.transport.CloseIdleConnections)
+	c.transport.DisableKeepAlives = true
+
+	fetch := func(path string) {
+		t.Helper()
+		if _, err := c.Fetch(context.Background(), Request{URL: fetchURL("feed.test", path), Accept: rssTypes}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fetch("/a")
+	fetch("/a")
+	if hits.Load() != 1 {
+		t.Fatalf("a repeat was not served from cache: %d connections", hits.Load())
+	}
+	fetch("/b")
+	fetch("/a")
+	if hits.Load() != 3 {
+		t.Errorf("the older entry survived a full cache: %d connections, want 3", hits.Load())
+	}
+}
+
 func TestCallerMutatingABodyDoesNotCorruptTheCache(t *testing.T) {
 	_, c := newUpstream(t, newAllow(t, "feed.test"), newFeedMux())
 	req := Request{URL: fetchURL("feed.test", "/feed"), Accept: rssTypes}
