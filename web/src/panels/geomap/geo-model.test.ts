@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
@@ -8,7 +8,9 @@ import {
   fitChoice,
   fitPoints,
   geoModel,
+  type GeoContext,
   initialView,
+  layerNeeds,
   markerSymbols,
   maxMarkers,
   noLocationReason,
@@ -17,6 +19,8 @@ import {
   viewOptions,
   viewTuning,
 } from "./geo-model"
+import type { Gazetteers } from "./gazetteer/lookup"
+import type { Feature } from "./layers/geojson"
 import { clampZoom, fitBounds, project, worldView } from "./projection"
 import { regionCorners } from "./regions"
 
@@ -32,7 +36,11 @@ function panel(extra: Partial<DataPanel> = {}): DataPanel {
   } as DataPanel
 }
 
-type Column = { name: string; type?: "number" | "string"; values: unknown[] }
+type Column = {
+  name: string
+  type?: "number" | "string" | "time"
+  values: unknown[]
+}
 
 function table(...columns: Column[]): PreparedFrame {
   return {
@@ -520,25 +528,6 @@ describe("layers", () => {
     expect(model.markers).toHaveLength(3)
   })
 
-  it("notes layers that are not drawn yet and draws the rest", () => {
-    const model = build(
-      [cities()],
-      {},
-      {
-        layers: [
-          { type: "heatmap", name: "Density" },
-          { type: "route" },
-          { type: "markers" },
-        ],
-      }
-    )
-    expect(model.notes).toEqual([
-      "Layer Density is not drawn yet.",
-      "Layer route is not drawn yet.",
-    ])
-    expect(model.markers).toHaveLength(3)
-  })
-
   it("explains missing locations when every markers layer finds none", () => {
     const model = build(
       [table({ name: "value", values: [1] })],
@@ -561,6 +550,416 @@ describe("layers", () => {
     )
     expect(model.markers).toHaveLength(maxMarkers)
     expect(model.truncated).toBe(rows - 1)
+  })
+})
+
+describe("layer types", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function withContext(
+    frames: PreparedFrame[],
+    layers: Record<string, unknown>[],
+    context: GeoContext = {}
+  ) {
+    return geoModel(
+      frames,
+      createFieldResolver(panel()),
+      displayWithDefaults("geomap", { layers }),
+      "light",
+      context
+    )
+  }
+
+  const kinds = (model: ReturnType<typeof withContext>) =>
+    model.layers.map((layer) => layer.kind)
+
+  it("notes a type the map does not know and draws the rest", () => {
+    const model = withContext(
+      [cities()],
+      [{ type: "hologram", name: "Holo" }, { type: "markers" }]
+    )
+    expect(model.notes).toEqual(["Layer Holo is not a layer this map knows."])
+    expect(model.markers).toHaveLength(3)
+  })
+
+  it("draws a heatmap from the same locations, weighted by a field", () => {
+    const model = withContext(
+      [cities([{ name: "load", values: [1, 2, 4] }])],
+      [{ type: "heatmap", weightField: "load" }]
+    )
+    const layer = model.layers[0]
+    expect(layer.kind).toBe("heatmap")
+    expect(
+      layer.kind === "heatmap" && layer.points.map((p) => p.weight)
+    ).toEqual([0.25, 0.5, 1])
+    expect(model.markers).toEqual([])
+    expect(model.reason).toBeNull()
+  })
+
+  it("weights every heatmap point equally without a weight field", () => {
+    const layer = withContext([cities()], [{ type: "heatmap" }]).layers[0]
+    expect(
+      layer.kind === "heatmap" && layer.points.map((p) => p.weight)
+    ).toEqual([1, 1, 1])
+  })
+
+  it("draws a route through each series, ordered by its time field", () => {
+    const track = table(
+      { name: "lat", values: [1, 2, 3] },
+      { name: "lon", values: [10, 20, 30] },
+      { name: "time", type: "time", values: [300, 100, 200] }
+    )
+    const layer = withContext([track], [{ type: "route" }]).layers[0]
+    expect(layer.kind).toBe("route")
+    expect(
+      layer.kind === "route" && layer.lines[0].points.map((p) => p.lat)
+    ).toEqual([2, 3, 1])
+  })
+
+  it("draws photos from an image field through the image proxy", () => {
+    vi.stubGlobal("location", { origin: "https://app.test" })
+    const shots = cities([
+      {
+        name: "image",
+        type: "string",
+        values: [
+          "https://img.example/a.png",
+          "http://img.example/b.png",
+          "https://img.example/c.png",
+        ],
+      },
+    ])
+    const model = withContext(
+      [shots],
+      [{ type: "photos", imageField: "image" }]
+    )
+    const layer = model.layers[0]
+    expect(layer.kind).toBe("photos")
+    expect(layer.kind === "photos" && layer.photos.map((p) => p.row)).toEqual([
+      0, 2,
+    ])
+    expect(
+      layer.kind === "photos" &&
+        layer.photos.every((p) => p.href.startsWith("/api/v1/assets/image"))
+    ).toBe(true)
+    expect(model.notes).toEqual([])
+  })
+
+  it("asks for an image field when a photos layer has none", () => {
+    const model = withContext([cities()], [{ type: "photos", name: "Shots" }])
+    expect(model.notes).toEqual(["Layer Shots needs an image field."])
+  })
+
+  describe("network", () => {
+    const nodes = onQuery(
+      "N",
+      table(
+        { name: "id", type: "string", values: ["a", "b", "c"] },
+        { name: "lat", values: [10, 20, 30] },
+        { name: "lon", values: [1, 2, 3] }
+      )
+    )
+    const edges = onQuery(
+      "E",
+      table(
+        { name: "source", type: "string", values: ["a", "b", "a"] },
+        { name: "target", type: "string", values: ["b", "c", "ghost"] }
+      )
+    )
+
+    it("draws edges between located nodes and the nodes as markers", () => {
+      const model = withContext([nodes, edges], [{ type: "network" }])
+      expect(kinds(model)).toEqual(["network", "markers"])
+      const layer = model.layers[0]
+      expect(layer.kind === "network" && layer.edges).toHaveLength(2)
+      expect(model.markers).toHaveLength(3)
+    })
+
+    it("counts an edge that reaches an unknown node as skipped", () => {
+      const model = withContext([nodes, edges], [{ type: "network" }])
+      expect(model.skipped).toBe(1)
+    })
+
+    it("reads nodes and edges from its own query only", () => {
+      const model = withContext(
+        [nodes, edges],
+        [{ type: "network", query: "N" }]
+      )
+      const layer = model.layers[0]
+      expect(layer.kind === "network" && layer.edges).toHaveLength(0)
+      expect(model.markers).toHaveLength(3)
+    })
+  })
+
+  describe("day and night", () => {
+    it("draws without any data, at the end of the time range", () => {
+      const model = withContext([], [{ type: "dayNight", showSun: true }], {
+        time: Date.parse("2024-03-20T12:00:00Z"),
+      })
+      expect(model.reason).toBeNull()
+      const layer = model.layers[0]
+      expect(layer.kind).toBe("dayNight")
+      expect(layer.kind === "dayNight" && layer.sun).not.toBeNull()
+    })
+
+    it("keeps a chosen night color", () => {
+      const layer = withContext(
+        [],
+        [{ type: "dayNight", nightColor: "info" }],
+        { time: 0 }
+      ).layers[0]
+      expect(layer.kind === "dayNight" && layer.color).toBe(
+        "var(--threshold-info)"
+      )
+    })
+  })
+
+  describe("geojson", () => {
+    const outline: Feature = {
+      properties: { name: "Box" },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [10, 0],
+            [10, 10],
+            [0, 10],
+            [0, 0],
+          ],
+        ],
+      },
+    }
+    const url = "https://data.example/a.geojson"
+
+    it("draws a bundled source once it has loaded", () => {
+      const loaded = withContext(
+        [],
+        [{ type: "geojson", source: "countries" }],
+        { atlases: { countries: [outline] } }
+      )
+      const layer = loaded.layers[0]
+      expect(layer.kind === "geojson" && layer.features).toHaveLength(1)
+      expect(loaded.reason).toBeNull()
+      const loading = withContext(
+        [],
+        [{ type: "geojson", source: "countries" }]
+      )
+      const pending = loading.layers[0]
+      expect(pending.kind === "geojson" && pending.features).toHaveLength(0)
+      expect(loading.notes).toEqual([])
+    })
+
+    it("draws a remote file when it is ready", () => {
+      const model = withContext([], [{ type: "geojson", url }], {
+        remote: { [url]: { state: "ready", features: [outline] } },
+      })
+      const layer = model.layers[0]
+      expect(layer.kind === "geojson" && layer.features).toHaveLength(1)
+    })
+
+    it("lists a blocked host and draws nothing while it loads or fails", () => {
+      const blocked = withContext([], [{ type: "geojson", url }], {
+        remote: { [url]: { state: "blocked", host: "data.example" } },
+      })
+      expect(blocked.blocked).toEqual(["data.example"])
+      const failed = withContext(
+        [],
+        [{ type: "geojson", url, name: "Zones" }],
+        {
+          remote: { [url]: { state: "failed" } },
+        }
+      )
+      expect(failed.notes).toEqual(["Layer Zones could not load its GeoJSON."])
+      const loading = withContext([], [{ type: "geojson", url }], {
+        remote: { [url]: { state: "loading" } },
+      })
+      expect(loading.notes).toEqual([])
+      expect(loading.blocked).toEqual([])
+    })
+
+    it("asks for an https URL, and for a source when there is none", () => {
+      expect(
+        withContext(
+          [],
+          [{ type: "geojson", name: "Zones", url: "http://x.test/a.json" }]
+        ).notes
+      ).toEqual(["Layer Zones needs an https URL."])
+      expect(
+        withContext([], [{ type: "geojson", name: "Zones" }]).notes
+      ).toEqual(["Layer Zones needs a URL or a bundled source."])
+    })
+
+    it("says so when the file is too large to draw", () => {
+      const many = Array.from({ length: 5_001 }, () => outline)
+      const model = withContext([], [{ type: "geojson", url }], {
+        remote: { [url]: { state: "ready", features: many } },
+      })
+      expect(model.notes).toEqual(["This GeoJSON is too large to draw."])
+    })
+
+    it("colors features by the first matching rule", () => {
+      const model = withContext(
+        [],
+        [
+          {
+            type: "geojson",
+            source: "countries",
+            rules: [
+              { property: "name", operation: "eq", value: "Box", color: "ok" },
+            ],
+          },
+        ],
+        { atlases: { countries: [outline] } }
+      )
+      const layer = model.layers[0]
+      expect(layer.kind === "geojson" && layer.features[0].style.fill).toBe(
+        "var(--threshold-ok)"
+      )
+    })
+  })
+
+  describe("lookup locations", () => {
+    const places = table(
+      { name: "country", type: "string", values: ["France", "Atlantis"] },
+      { name: "value", values: [1, 2] }
+    )
+    const gazetteers: Gazetteers = {
+      countries: {
+        find: (value) => (value === "France" ? { lon: 2, lat: 46 } : null),
+      },
+    }
+
+    it("places rows through the gazetteer and skips the ones it cannot find", () => {
+      const model = withContext(
+        [places],
+        [{ type: "markers", location: "lookup", lookupField: "country" }],
+        { gazetteers }
+      )
+      expect(model.markers).toHaveLength(1)
+      expect(model.markers[0].lon).toBeCloseTo(2, 10)
+      expect(model.skipped).toBe(1)
+    })
+
+    it("uses the first text field when no lookup field is named", () => {
+      const model = withContext(
+        [places],
+        [{ type: "markers", location: "lookup" }],
+        { gazetteers }
+      )
+      expect(model.markers).toHaveLength(1)
+    })
+
+    it("stays quiet while the gazetteer loads", () => {
+      const model = withContext(
+        [places],
+        [{ type: "markers", location: "lookup" }],
+        {}
+      )
+      expect(model.markers).toEqual([])
+      expect(model.skipped).toBe(0)
+      expect(model.notes).toEqual([])
+      expect(model.reason).toBeNull()
+    })
+
+    it("says airports are not available and skips the rows", () => {
+      const model = withContext(
+        [places],
+        [{ type: "markers", location: "lookup", gazetteer: "airports" }],
+        { gazetteers }
+      )
+      expect(model.markers).toEqual([])
+      expect(model.skipped).toBe(2)
+      expect(model.notes).toEqual(["Airport lookup is not available."])
+    })
+
+    it("feeds heatmaps the same way", () => {
+      const model = withContext(
+        [places],
+        [{ type: "heatmap", location: "lookup" }],
+        { gazetteers }
+      )
+      const layer = model.layers[0]
+      expect(layer.kind === "heatmap" && layer.points).toHaveLength(1)
+    })
+  })
+
+  describe("without locations", () => {
+    it("explains when a heatmap finds none", () => {
+      const model = withContext(
+        [table({ name: "value", values: [1] })],
+        [{ type: "heatmap" }]
+      )
+      expect(model.reason).toBe(noLocationReason)
+    })
+
+    it("does not explain when a standalone layer still draws", () => {
+      const model = withContext(
+        [table({ name: "value", values: [1] })],
+        [{ type: "heatmap" }, { type: "dayNight" }]
+      )
+      expect(model.reason).toBeNull()
+    })
+  })
+
+  it("shares the location budget between marker and heatmap layers", () => {
+    const rows = maxMarkers - 1
+    const big = table(
+      { name: "lat", values: Array.from({ length: rows }, () => 1) },
+      { name: "lon", values: Array.from({ length: rows }, () => 2) }
+    )
+    const model = withContext([big], [{ type: "heatmap" }, { type: "markers" }])
+    const heat = model.layers[0]
+    expect(heat.kind === "heatmap" && heat.points).toHaveLength(rows)
+    expect(model.markers).toHaveLength(maxMarkers - rows)
+    expect(model.truncated).toBe(rows - (maxMarkers - rows))
+  })
+})
+
+describe("layerNeeds", () => {
+  const url = "https://data.example/a.geojson"
+
+  it("lists the bundled sources and remote files the layers read", () => {
+    expect(
+      layerNeeds({
+        layers: [
+          { type: "geojson", source: "usa-states" },
+          { type: "geojson", url },
+          { type: "markers", location: "lookup", gazetteer: "countries" },
+          { type: "markers", location: "lookup" },
+        ],
+      })
+    ).toEqual({ atlases: ["usa-states", "countries"], urls: [url] })
+  })
+
+  it("prefers a URL over a bundled source and ignores unusable URLs", () => {
+    expect(
+      layerNeeds({
+        layers: [
+          { type: "geojson", source: "countries", url },
+          { type: "geojson", url: "http://x.test/a.json" },
+        ],
+      })
+    ).toEqual({ atlases: [], urls: [url] })
+  })
+
+  it("needs nothing for airports, coordinates or other layers", () => {
+    expect(
+      layerNeeds({
+        layers: [
+          { type: "markers", location: "lookup", gazetteer: "airports" },
+          { type: "markers" },
+          { type: "heatmap" },
+          { type: "dayNight" },
+        ],
+      })
+    ).toEqual({ atlases: [], urls: [] })
+  })
+
+  it("reads the flat display of a map that has no layers list", () => {
+    expect(layerNeeds({})).toEqual({ atlases: [], urls: [] })
   })
 })
 
@@ -602,6 +1001,57 @@ describe("fitPoints", () => {
   it("keeps the last row of each series when asked", () => {
     const points = fitPoints(model, { lastOnly: true })
     expect(points.map((p) => p.lat).sort()).toEqual([20, 40])
+  })
+
+  it("fits the layers that place things beyond markers", () => {
+    const url = "https://data.example/a.geojson"
+    const wide = geoModel(
+      [
+        table(
+          { name: "lat", values: [5, 6] },
+          { name: "lon", values: [7, 8] },
+          { name: "time", type: "time", values: [1, 2] }
+        ),
+      ],
+      createFieldResolver(panel()),
+      displayWithDefaults("geomap", {
+        layers: [
+          { type: "heatmap", name: "heat" },
+          { type: "route", name: "path" },
+          { type: "dayNight", name: "night" },
+          { type: "geojson", name: "shape", url },
+        ],
+      }),
+      "light",
+      {
+        remote: {
+          [url]: {
+            state: "ready",
+            features: [
+              {
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [-20, -10],
+                    [30, 40],
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      }
+    )
+    expect(fitPoints(wide, { lastOnly: false })).toHaveLength(2 + 2 + 2)
+    expect(fitPoints(wide, { layer: "shape", lastOnly: false })).toEqual([
+      { lon: -20, lat: -10 },
+      { lon: 30, lat: 40 },
+    ])
+    expect(fitPoints(wide, { layer: "night", lastOnly: false })).toHaveLength(6)
+    expect(fitPoints(wide, { layer: "path", lastOnly: true })).toEqual([
+      expect.objectContaining({ lat: 6, lon: 8 }),
+    ])
   })
 })
 
