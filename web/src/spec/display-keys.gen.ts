@@ -83,7 +83,17 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   "logs": [
     "wrap",
     "showTime",
-    "order"
+    "order",
+    "showLabels",
+    "showCommonLabels",
+    "details",
+    "prettify",
+    "dedup",
+    "controls",
+    "fontSize",
+    "highlight",
+    "infiniteScroll",
+    "detailsMode"
   ],
   "barchart": [
     "orientation",

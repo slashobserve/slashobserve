@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 6,
-      "imported": 3,
-      "partial": 3,
+      "imported": 4,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -158,14 +158,9 @@
         "type": "logs",
         "source_type": "logs",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.prettifyLogMessage",
-          "options.showLabels"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -586,7 +581,9 @@
             ],
             "display": {
               "wrap": true,
-              "showTime": true
+              "showTime": true,
+              "showLabels": true,
+              "prettify": true
             }
           }
         ]

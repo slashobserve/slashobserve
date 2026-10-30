@@ -2757,6 +2757,54 @@
                       "newest",
                       "oldest"
                     ]
+                  },
+                  "showLabels": {
+                    "type": "boolean"
+                  },
+                  "showCommonLabels": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "details": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "prettify": {
+                    "type": "boolean"
+                  },
+                  "dedup": {
+                    "enum": [
+                      "none",
+                      "exact",
+                      "numbers",
+                      "signature"
+                    ]
+                  },
+                  "controls": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "fontSize": {
+                    "enum": [
+                      "default",
+                      "small"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "highlight": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "infiniteScroll": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "detailsMode": {
+                    "enum": [
+                      "inline",
+                      "sidebar"
+                    ],
+                    "x-omitFromPrompt": true
                   }
                 }
               }

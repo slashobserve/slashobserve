@@ -401,6 +401,16 @@ type Display struct {
 	Wrap               *bool              `json:"wrap,omitempty"`
 	ShowTime           *bool              `json:"showTime,omitempty"`
 	Order              string             `json:"order,omitempty"`
+	ShowLabels         *bool              `json:"showLabels,omitempty"`
+	ShowCommonLabels   *bool              `json:"showCommonLabels,omitempty"`
+	Details            *bool              `json:"details,omitempty"`
+	Prettify           *bool              `json:"prettify,omitempty"`
+	Dedup              string             `json:"dedup,omitempty"`
+	Controls           *bool              `json:"controls,omitempty"`
+	FontSize           string             `json:"fontSize,omitempty"`
+	Highlight          *bool              `json:"highlight,omitempty"`
+	InfiniteScroll     *bool              `json:"infiniteScroll,omitempty"`
+	DetailsMode        string             `json:"detailsMode,omitempty"`
 	XField             string             `json:"xField,omitempty"`
 	BarWidth           *float64           `json:"barWidth,omitempty"`
 	GroupWidth         *float64           `json:"groupWidth,omitempty"`
