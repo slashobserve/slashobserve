@@ -1,0 +1,23 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "text",
+      "title": "Notes",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "content": "Hello",
+      "mode": "rich"
+    }
+  ]
+}

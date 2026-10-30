@@ -58,7 +58,7 @@ If it changes again, the run fails.
 
 A revision starts from the current document and keeps panel ids, positions and everything the prompt does not ask to change, so [comments](versions.md#comments) stay attached to their panels.
 A comment on a panel asks to change that panel unless it says otherwise.
-The save tools reject a document that creates or edits a placeholder panel, and the model is told not to delete an unverified panel or its queries to make a save pass (see [Import Grafana dashboards](../use/import-grafana.md)).
+The save tools reject a document that creates or edits a placeholder panel, writes HTML tags in a text panel, or adds or changes a canvas element's actions (see [Maps, canvases and actions](observespec.md#maps-canvases-and-actions)), and the model is told not to delete an unverified panel or its queries to make a save pass (see [Import Grafana dashboards](../use/import-grafana.md)).
 
 ## Whose permissions it uses
 

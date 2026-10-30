@@ -16,6 +16,7 @@ type schemaNode struct {
 	Properties map[string]json.RawMessage `json:"properties"`
 	OneOf      []schemaNode               `json:"oneOf"`
 	AllOf      []json.RawMessage          `json:"allOf"`
+	Items      *schemaNode                `json:"items"`
 	Ref        string                     `json:"$ref"`
 }
 
@@ -48,6 +49,19 @@ func jsonFields(t reflect.Type) []jsonField {
 			continue
 		}
 		out = append(out, jsonField{name: name, omitEmpty: slices.Contains(strings.Split(opts, ","), "omitempty")})
+	}
+	return out
+}
+
+func propertyNode(t *testing.T, node schemaNode, name string) schemaNode {
+	t.Helper()
+	raw, ok := node.Properties[name]
+	if !ok {
+		t.Fatalf("schema has no property %q", name)
+	}
+	var out schemaNode
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("decode property %q: %v", name, err)
 	}
 	return out
 }
@@ -118,6 +132,14 @@ func TestTypesMatchSchema(t *testing.T) {
 		{"CanvasElement", reflect.TypeFor[spec.CanvasElement](), []schemaNode{d["canvasElement"]}},
 		{"CanvasConnection", reflect.TypeFor[spec.CanvasConnection](), []schemaNode{d["canvasConnection"]}},
 		{"Display", reflect.TypeFor[spec.Display](), []schemaNode{displayNode(t, doc)}},
+		{"TextCode", reflect.TypeFor[spec.TextCode](), []schemaNode{propertyNode(t, d["textPanel"], "code")}},
+		{"CanvasPlacement", reflect.TypeFor[spec.CanvasPlacement](), []schemaNode{propertyNode(t, d["canvasElement"], "placement")}},
+		{"CanvasVertex", reflect.TypeFor[spec.CanvasVertex](), []schemaNode{*propertyNode(t, d["canvasConnection"], "vertices").Items}},
+		{"ImageRef", reflect.TypeFor[spec.ImageRef](), d["imageRef"].OneOf},
+		{"Action", reflect.TypeFor[spec.Action](), []schemaNode{d["action"]}},
+		{"ActionParam", reflect.TypeFor[spec.ActionParam](), []schemaNode{d["actionParam"]}},
+		{"GeomapLayer", reflect.TypeFor[spec.GeomapLayer](), []schemaNode{d["geomapLayer"]}},
+		{"GeomapRule", reflect.TypeFor[spec.GeomapRule](), []schemaNode{d["geomapRule"]}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

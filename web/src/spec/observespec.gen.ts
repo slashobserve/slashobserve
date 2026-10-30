@@ -557,6 +557,14 @@ export interface TextPanel {
    * Markdown, rendered sanitized.
    */
   content: string;
+  /**
+   * markdown (default): Markdown with sanitized inline HTML. html: sanitized HTML. code: the content shown as code. The agent never writes HTML.
+   */
+  mode?: "markdown" | "html" | "code";
+  code?: {
+    language?: "plaintext" | "json" | "yaml" | "xml" | "sql" | "go" | "typescript" | "markdown" | "html";
+    lineNumbers?: boolean;
+  };
 }
 /**
  * Written only by the importer for a Grafana panel we cannot render yet; the agent may move or delete it but not create one.

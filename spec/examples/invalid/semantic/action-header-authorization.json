@@ -1,0 +1,53 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "canvas",
+      "title": "Diagram",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "query": "up"
+        }
+      ],
+      "display": {
+        "elements": [
+          {
+            "id": "deploy",
+            "kind": "button",
+            "left": 10,
+            "top": 10,
+            "width": 20,
+            "height": 20,
+            "text": "Deploy",
+            "actions": [
+              {
+                "title": "Deploy",
+                "method": "POST",
+                "url": "https://deploy.example.com/api/deploy",
+                "headers": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer abc"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

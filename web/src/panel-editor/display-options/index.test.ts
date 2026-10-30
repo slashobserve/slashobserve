@@ -4,8 +4,45 @@ import { displayKeysByType, type DisplayPanelType } from "@/spec"
 
 import { displayOptions } from "./index"
 
+const geomapKeysTheEditorPlansDeclareLater = [
+  "basemap",
+  "basemapTheme",
+  "basemapLabels",
+  "esriServer",
+  "basemapUrl",
+  "basemapAttribution",
+  "basemapOpacity",
+  "minZoom",
+  "maxZoom",
+  "fitLayer",
+  "fitLastOnly",
+  "fitPadding",
+  "sharedView",
+  "showZoom",
+  "mouseWheelZoom",
+  "showAttribution",
+  "showScale",
+  "showMeasure",
+  "showDebug",
+  "tooltip",
+  "layers",
+]
+
+const canvasKeysTheEditorPlansDeclareLater = [
+  "backgroundColor",
+  "backgroundImage",
+  "backgroundSize",
+  "borderColor",
+  "borderWidth",
+  "borderRadius",
+  "panZoom",
+  "infinitePan",
+  "tooltip",
+]
+
 const editedElsewhere: Partial<Record<DisplayPanelType, string[]>> = {
-  canvas: ["elements", "connections"],
+  geomap: geomapKeysTheEditorPlansDeclareLater,
+  canvas: ["elements", "connections", ...canvasKeysTheEditorPlansDeclareLater],
 }
 
 const types = Object.keys(displayOptions) as DisplayPanelType[]

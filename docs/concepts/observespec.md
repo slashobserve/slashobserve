@@ -89,6 +89,8 @@ Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piecha
 The other panel types are:
 
 - `text`, which holds Markdown in `content`, rendered sanitized.
+  Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
+  People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
 - `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
   They have no datasource and no queries.
 - `row`, described below.
@@ -96,6 +98,44 @@ The other panel types are:
   The agent may move or delete one but never creates or edits one.
 
 A data panel can also set `timeFrom` and `timeShift` to override the dashboard's time range, `interval` (the same forms as a query's) and `maxDataPoints` to shape the step of its queries, and `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
+
+## Maps, canvases and actions
+
+These options are all optional, and a dashboard that leaves them out looks the same as before.
+The web app draws them as support lands; an option it does not draw yet is kept and ignored.
+
+A `geomap` panel can load map tiles and draw several layers.
+Its `display` takes:
+
+- `view`: `fit`, `world`, `coords` or a region (`north-america`, `south-america`, `europe`, `africa`, `west-asia`, `south-asia`, `south-east-asia`, `east-asia`, `australia` or `oceania`).
+- `basemap`: `outline` (the default), `carto`, `esri`, `osm`, `xyz` or `none`, with `basemapTheme`, `basemapLabels`, `esriServer`, `basemapUrl` for `xyz`, `basemapAttribution` and `basemapOpacity`.
+- `minZoom`, `maxZoom` and `zoom`: `minZoom` cannot exceed `maxZoom`, and when all three are set `zoom` lies between them.
+- Fit and controls: `fitLayer`, `fitLastOnly`, `fitPadding`, `sharedView`, `showZoom`, `mouseWheelZoom`, `showAttribution`, `showScale`, `showMeasure`, `showDebug` and `tooltip` (`details` or `none`).
+- `layers`: up to 10 layers, each with a `type` (`markers`, `heatmap`, `geojson`, `dayNight`, `route`, `photos`, `network`, `carto`, `esri`, `osm` or `xyz`) and the options of that type, such as `query`, `location`, `latField`, `lonField`, `rules` and `opacity`.
+  When `layers` is set, the list is the whole layer set, so the flat marker options (`location`, `latField`, `lonField`, `geohashField`, `sizeField`, `colorField`, `markerSize`, `markerSizeMax`) are refused with `geomap_layers_conflict`.
+
+A `canvas` panel takes a background (`backgroundColor`, `backgroundImage`, `backgroundSize`), a border (`borderColor`, `borderWidth`, `borderRadius`), `panZoom`, `infinitePan` and `tooltip`.
+An image is `{ "url": "https://..." }` or `{ "field": "<field>" }`.
+A canvas element can have the kinds `icon`, `button`, `server`, `triangle`, `cloud`, `parallelogram`, `windTurbine`, `droneTop`, `droneFront` and `droneSide` next to `metric`, `text`, `rectangle` and `ellipse`, and options such as `placement`, `rotation`, `valign`, `image`, `links` and `actions`.
+`placement` wins over `left`, `top`, `width` and `height` when present: numbers are pixels of the panel body, or percent on an axis whose mode is `scale`.
+A connection can set `path`, `vertices`, `lineStyle`, `arrow`, `widthField`, `minWidth` and `maxWidth`.
+
+An element's `actions` are HTTP requests that a person triggers from the panel:
+
+```json
+{ "title": "Deploy", "method": "POST", "url": "https://deploy.example.com/api/deploy", "body": "{\"env\": \"${env}\"}", "confirm": "Deploy to ${env}?" }
+```
+
+- A `url` is an `https` address with the host written out; `${name}` references may appear only after the host.
+- `headers` and `query` take `name` and `value` pairs.
+  Credentials and transport headers (such as `Authorization`, `Cookie` or a name containing `token`, `secret` or `password`) are refused with `action_header_not_allowed`, because the server adds what it needs.
+- The `url`, `body` and header and query values may reference declared variables, `__from`, `__to`, `__user.login`, `__user.email`, `__user.name`, `__user.id`, `__value.raw`, `__value.text`, `__value.numeric` and `__data.fields.<field>`.
+  Any other name is refused with `unknown_variable`.
+- `oneClick` on an element (`action` or `link`) needs at least one action or link.
+
+People and imports write HTML text panels and canvas actions.
+The agent and MCP clients cannot add or change them, and cannot write HTML tags in any text panel: a save that does is refused with `html_not_allowed` or `action_not_allowed`.
+They may still move or delete such a panel or element.
 
 ## Queries and datasources
 

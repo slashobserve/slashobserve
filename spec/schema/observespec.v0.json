@@ -2006,7 +2006,17 @@
                     "enum": [
                       "fit",
                       "world",
-                      "coords"
+                      "coords",
+                      "north-america",
+                      "south-america",
+                      "europe",
+                      "africa",
+                      "west-asia",
+                      "south-asia",
+                      "south-east-asia",
+                      "east-asia",
+                      "australia",
+                      "oceania"
                     ]
                   },
                   "lat": {
@@ -2055,6 +2065,106 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 100
+                  },
+                  "basemap": {
+                    "enum": [
+                      "outline",
+                      "carto",
+                      "esri",
+                      "osm",
+                      "xyz",
+                      "none"
+                    ]
+                  },
+                  "basemapTheme": {
+                    "enum": [
+                      "auto",
+                      "light",
+                      "dark"
+                    ]
+                  },
+                  "basemapLabels": {
+                    "type": "boolean"
+                  },
+                  "esriServer": {
+                    "enum": [
+                      "streets",
+                      "world-imagery",
+                      "world-physical",
+                      "topo",
+                      "usa-topo",
+                      "ocean"
+                    ]
+                  },
+                  "basemapUrl": {
+                    "$ref": "#/$defs/httpsUrl"
+                  },
+                  "basemapAttribution": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "basemapOpacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "minZoom": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 18
+                  },
+                  "maxZoom": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 18
+                  },
+                  "fitLayer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "fitLastOnly": {
+                    "type": "boolean"
+                  },
+                  "fitPadding": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  "sharedView": {
+                    "type": "boolean"
+                  },
+                  "showZoom": {
+                    "type": "boolean"
+                  },
+                  "mouseWheelZoom": {
+                    "type": "boolean"
+                  },
+                  "showAttribution": {
+                    "type": "boolean"
+                  },
+                  "showScale": {
+                    "type": "boolean"
+                  },
+                  "showMeasure": {
+                    "type": "boolean"
+                  },
+                  "showDebug": {
+                    "type": "boolean"
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "details",
+                      "none"
+                    ]
+                  },
+                  "layers": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                      "$ref": "#/$defs/geomapLayer"
+                    }
                   }
                 }
               }
@@ -2091,6 +2201,46 @@
                     "items": {
                       "$ref": "#/$defs/canvasConnection"
                     }
+                  },
+                  "backgroundColor": {
+                    "$ref": "#/$defs/color"
+                  },
+                  "backgroundImage": {
+                    "$ref": "#/$defs/imageRef"
+                  },
+                  "backgroundSize": {
+                    "enum": [
+                      "original",
+                      "contain",
+                      "cover",
+                      "fill",
+                      "tile"
+                    ]
+                  },
+                  "borderColor": {
+                    "$ref": "#/$defs/color"
+                  },
+                  "borderWidth": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  },
+                  "borderRadius": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "panZoom": {
+                    "type": "boolean"
+                  },
+                  "infinitePan": {
+                    "type": "boolean"
+                  },
+                  "tooltip": {
+                    "enum": [
+                      "details",
+                      "none"
+                    ]
                   }
                 }
               }
@@ -2271,6 +2421,36 @@
           "type": "string",
           "maxLength": 20000,
           "description": "Markdown, rendered sanitized."
+        },
+        "mode": {
+          "enum": [
+            "markdown",
+            "html",
+            "code"
+          ],
+          "description": "markdown (default): Markdown with sanitized inline HTML. html: sanitized HTML. code: the content shown as code. The agent never writes HTML."
+        },
+        "code": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "enum": [
+                "plaintext",
+                "json",
+                "yaml",
+                "xml",
+                "sql",
+                "go",
+                "typescript",
+                "markdown",
+                "html"
+              ]
+            },
+            "lineNumbers": {
+              "type": "boolean"
+            }
+          }
         }
       },
       "required": [
@@ -2450,7 +2630,17 @@
             "metric",
             "text",
             "rectangle",
-            "ellipse"
+            "ellipse",
+            "icon",
+            "button",
+            "server",
+            "triangle",
+            "cloud",
+            "parallelogram",
+            "windTurbine",
+            "droneTop",
+            "droneFront",
+            "droneSide"
           ]
         },
         "left": {
@@ -2501,6 +2691,149 @@
             "center",
             "right"
           ]
+        },
+        "placement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "horizontal",
+            "vertical"
+          ],
+          "properties": {
+            "horizontal": {
+              "enum": [
+                "left",
+                "right",
+                "leftright",
+                "center",
+                "scale"
+              ]
+            },
+            "vertical": {
+              "enum": [
+                "top",
+                "bottom",
+                "topbottom",
+                "center",
+                "scale"
+              ]
+            },
+            "left": {
+              "type": "number"
+            },
+            "right": {
+              "type": "number"
+            },
+            "top": {
+              "type": "number"
+            },
+            "bottom": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "rotation": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "valign": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom"
+          ]
+        },
+        "borderWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "backgroundImage": {
+          "$ref": "#/$defs/imageRef"
+        },
+        "backgroundSize": {
+          "enum": [
+            "original",
+            "contain",
+            "cover",
+            "fill",
+            "tile"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,64}$"
+        },
+        "image": {
+          "$ref": "#/$defs/imageRef"
+        },
+        "iconColor": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "server": {
+          "enum": [
+            "single",
+            "stack",
+            "database",
+            "terminal"
+          ]
+        },
+        "buttonStyle": {
+          "enum": [
+            "primary",
+            "secondary",
+            "success",
+            "destructive"
+          ]
+        },
+        "accentColor": {
+          "$ref": "#/$defs/canvasColor"
+        },
+        "rateField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "yawField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "pitchField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "rollField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "links": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/link"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "oneClick": {
+          "enum": [
+            "link",
+            "action"
+          ]
         }
       }
     },
@@ -2531,6 +2864,414 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 10
+        },
+        "path": {
+          "enum": [
+            "straight",
+            "curved"
+          ]
+        },
+        "vertices": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            }
+          }
+        },
+        "lineStyle": {
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "arrow": {
+          "enum": [
+            "none",
+            "forward",
+            "reverse",
+            "both"
+          ]
+        },
+        "widthField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "minWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "maxWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    },
+    "httpsUrl": {
+      "type": "string",
+      "maxLength": 2000,
+      "pattern": "^https://[A-Za-z0-9.-]+(:443)?(/[^\\s]*)?$",
+      "description": "An https address whose host is written out; ${var} references may appear only after the host."
+    },
+    "imageRef": {
+      "title": "ImageRef",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "$ref": "#/$defs/httpsUrl"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "field"
+          ],
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/fieldName"
+            }
+          }
+        }
+      ]
+    },
+    "actionParam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$"
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "action": {
+      "title": "Action",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "url"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "contentType": {
+          "enum": [
+            "application/json",
+            "text/plain",
+            "application/x-www-form-urlencoded"
+          ]
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 10000
+        },
+        "headers": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/actionParam"
+          }
+        },
+        "query": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/actionParam"
+          }
+        },
+        "confirm": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "geomapRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "property",
+        "operation",
+        "value"
+      ],
+      "properties": {
+        "property": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "operation": {
+          "enum": [
+            "eq",
+            "neq",
+            "lt",
+            "lte",
+            "gt",
+            "gte"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "geomapLayer": {
+      "title": "GeomapLayer",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "markers",
+            "heatmap",
+            "geojson",
+            "dayNight",
+            "route",
+            "photos",
+            "network",
+            "carto",
+            "esri",
+            "osm",
+            "xyz"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "query": {
+          "$ref": "#/$defs/queryRef"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "tooltip": {
+          "type": "boolean"
+        },
+        "location": {
+          "enum": [
+            "auto",
+            "coords",
+            "geohash",
+            "lookup"
+          ]
+        },
+        "latField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "lonField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "geohashField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "lookupField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "gazetteer": {
+          "enum": [
+            "countries",
+            "usa-states",
+            "airports"
+          ]
+        },
+        "sizeField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "colorField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "markerSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "markerSizeMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "symbol": {
+          "enum": [
+            "circle",
+            "square",
+            "triangle",
+            "star",
+            "cross",
+            "x"
+          ]
+        },
+        "textField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "textSize": {
+          "type": "integer",
+          "minimum": 6,
+          "maximum": 48
+        },
+        "rotationField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "weightField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "blur": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "source": {
+          "enum": [
+            "countries",
+            "usa-states"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/geomapRule"
+          }
+        },
+        "showSun": {
+          "type": "boolean"
+        },
+        "nightColor": {
+          "$ref": "#/$defs/color"
+        },
+        "arrow": {
+          "enum": [
+            "none",
+            "forward",
+            "reverse",
+            "both"
+          ]
+        },
+        "lineWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "imageField": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "shape": {
+          "enum": [
+            "square",
+            "circle"
+          ]
+        },
+        "border": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "theme": {
+          "enum": [
+            "auto",
+            "light",
+            "dark"
+          ]
+        },
+        "labels": {
+          "type": "boolean"
+        },
+        "server": {
+          "enum": [
+            "streets",
+            "world-imagery",
+            "world-physical",
+            "topo",
+            "usa-topo",
+            "ocean"
+          ]
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       }
     },
