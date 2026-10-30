@@ -13,6 +13,7 @@ func reusingDashboard() *spec.Dashboard {
 	d := testDashboard()
 	d.Panels = append(d.Panels,
 		spec.Panel{ID: "p_reuse", Type: spec.Table, Title: "reuse", Queries: []spec.Query{{Source: &spec.DashboardSource{Panel: "p_ts", WithTransforms: true}}}},
+		spec.Panel{ID: "p_reuse_hidden", Type: spec.Table, Title: "hidden", Queries: []spec.Query{{Hide: true, Source: &spec.DashboardSource{Panel: "p_ts"}}}},
 		spec.Panel{ID: "p_reuse_row", Type: spec.Row, Panels: []spec.Panel{
 			{ID: "p_reuse_child", Type: spec.Stat, Title: "child", Queries: []spec.Query{{Source: &spec.DashboardSource{Panel: "p_child"}}}},
 		}},
@@ -79,6 +80,19 @@ func TestPanelThatReusesAnotherUsesTheSourcesKindAndRowChildren(t *testing.T) {
 
 	if body.Meta.Kind != queryproxy.KindInstant || body.Meta.SourcePanel != "p_child" {
 		t.Fatalf("meta = %+v, want an instant run of p_child", body.Meta)
+	}
+}
+
+func TestHiddenReusingQueryReturnsNoFramesAndRunsNothing(t *testing.T) {
+	hn := newReusingHarness(t)
+
+	body := decodeData(t, hn.get(hn.dataPath("p_reuse_hidden", window+"&var-job=api"), ""))
+
+	if string(body.Frames) != "[]" || len(body.Meta.Queries) != 0 || body.Meta.SourcePanel != "p_ts" || body.Meta.Kind != queryproxy.KindRange {
+		t.Fatalf("frames %s, meta %+v; want no frames and no queries from a range panel", body.Frames, body.Meta)
+	}
+	if ranges, instants, _, _ := hn.ds.counts(); ranges != 0 || instants != 0 {
+		t.Fatalf("%d range and %d instant queries, want none", ranges, instants)
 	}
 }
 

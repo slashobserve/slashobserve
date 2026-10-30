@@ -159,8 +159,9 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, fmt.Errorf("%w: %q", queryproxy.ErrPanelNotFound, panelID))
 		return
 	}
-	sourcePanel := ""
+	sourcePanel, hidden := "", false
 	if source, reuses := d.SourceOf(panelID); reuses {
+		hidden = found.Panel.Queries[0].Hide
 		found, panelID, sourcePanel = source, source.Panel.ID, source.Panel.ID
 	}
 	now := time.Now()
@@ -184,6 +185,10 @@ func (h *Handler) data(c *gin.Context) {
 		h.fail(c, err)
 		return
 	}
+	if hidden {
+		writeData(c, noQueriesEntry(kind, al, now), false, now, sourcePanel)
+		return
+	}
 	key := dataKey(id, version, panelID, kind, al, selections, scope)
 	if entry, at, ok := h.caches.data.Get(key); ok {
 		writeData(c, entry, true, at, sourcePanel)
@@ -197,6 +202,14 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	writeData(c, entry, false, entry.executedAt, sourcePanel)
+}
+
+func noQueriesEntry(kind queryproxy.Kind, al alignment, now time.Time) dataEntry {
+	entry := dataEntry{frames: json.RawMessage("[]"), queries: []queryMeta{}, kind: kind, from: al.rng.From, to: al.rng.To, executedAt: now}
+	if kind == queryproxy.KindRange {
+		entry.step = queryproxy.StepFor(al.rng, al.maxDataPoints)
+	}
+	return entry
 }
 
 func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, panelID string, al alignment, selections map[string]queryproxy.Selection, user datasource.QueryUser) (result dataEntry, err error) {
