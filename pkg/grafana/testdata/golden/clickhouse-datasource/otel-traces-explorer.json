@@ -538,7 +538,6 @@
               "yBuckets": {
                 "mode": "size"
               },
-              "yBucketLogBase": 2,
               "yUnit": "ms",
               "showValues": "auto"
             }

@@ -112,7 +112,9 @@ var grafanaDefaults = map[string]any{
 
 var typeDefaults = map[spec.PanelType]map[string]any{
 	spec.Heatmap: {
-		"options.selectionMode": "x",
+		"options.selectionMode":                             "x",
+		"options.calculation.yBuckets.scale.log":            grafanaHeatmapLogBase,
+		"fieldConfig.defaults.custom.scaleDistribution.log": grafanaHeatmapLogBase,
 	},
 	spec.Text: {
 		"options.mode": "markdown",

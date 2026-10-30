@@ -33,6 +33,7 @@ const (
 	grafanaHeatmapExponent  = 0.5
 	grafanaHeatmapGap       = 1
 	grafanaHeatmapFilterLow = 1e-9
+	grafanaHeatmapLogBase   = 2
 	grafanaExemplarColor    = "rgba(255,0,255,0.7)"
 	minColorSteps           = 2
 	maxColorSteps           = 128
@@ -603,6 +604,8 @@ func (b *panelBuild) heatmapBuckets(path string, size func(any) (float64, bool))
 		b.consume(path + ".value")
 	}
 	switch {
+	case buckets.Mode == "count" && buckets.Value == nil:
+		return nil
 	case buckets.Mode != "":
 	case buckets.Value != nil:
 		buckets.Mode = "size"
@@ -667,7 +670,14 @@ func (b *panelBuild) heatmapLogBase(path string) (int, bool) {
 		return 0, false
 	}
 	b.consume(path)
-	return base, true
+	return specHeatmapLogBase(base), true
+}
+
+func specHeatmapLogBase(base int) int {
+	if base == grafanaHeatmapLogBase {
+		return 0
+	}
+	return base
 }
 
 func (b *panelBuild) heatmapYAxis(d *spec.Display) {

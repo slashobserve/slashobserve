@@ -42,6 +42,12 @@ func TestHeatmapBucketsAreImportedPerAxis(t *testing.T) {
 		{"a mode without a value is automatic", `{"calculate":true,"calculation":{"yBuckets":{"mode":"size"}}}`, func(d spec.Display) bool {
 			return d.YBuckets != nil && d.YBuckets.Mode == "size" && d.YBuckets.Value == nil
 		}},
+		{"a count without a value is the default row count", `{"calculate":true,"calculation":{"yBuckets":{"mode":"count"}}}`, func(d spec.Display) bool {
+			return d.YBuckets == nil
+		}},
+		{"a count without a value is one column per sample", `{"calculate":true,"calculation":{"xBuckets":{"mode":"count","value":""}}}`, func(d spec.Display) bool {
+			return d.XBuckets == nil
+		}},
 		{"a value without a mode is a size", `{"calculate":true,"calculation":{"yBuckets":{"value":"5"}}}`, func(d spec.Display) bool {
 			return sameBuckets(d.YBuckets, "size", 5)
 		}},
@@ -51,8 +57,8 @@ func TestHeatmapBucketsAreImportedPerAxis(t *testing.T) {
 		{"a log y scale with its base", `{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"log","log":10}}}}`, func(d spec.Display) bool {
 			return d.YBucketScale == "log" && d.YBucketLogBase == 10
 		}},
-		{"a symlog y scale", `{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"symlog","log":2}}}}`, func(d spec.Display) bool {
-			return d.YBucketScale == "symlog" && d.YBucketLogBase == 2
+		{"log base 2 is the default", `{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"symlog","log":2}}}}`, func(d spec.Display) bool {
+			return d.YBucketScale == "symlog" && d.YBucketLogBase == 0
 		}},
 		{"a linear y scale is the default", `{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"linear"}}}}`, func(d spec.Display) bool {
 			return d.YBucketScale == "" && d.YBucketLogBase == 0
@@ -82,6 +88,16 @@ func TestHeatmapLinearYScaleOverridesALogAxis(t *testing.T) {
 	}
 }
 
+func TestHeatmapLogBase2ResetsALogBase10Axis(t *testing.T) {
+	doc := panelDoc("heatmap", upTarget+`,"fieldConfig":{"defaults":{"custom":{"scaleDistribution":{"type":"log","log":10}}},"overrides":[]},"options":{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"log","log":2}}}}`)
+	panel, line := convertedPanel(t, doc)
+	requireImported(t, line)
+	d := displayOf(t, panel)
+	if d.YScale != "log" || d.YBucketScale != "log" || d.YBucketLogBase != 0 {
+		t.Fatalf("display = %+v", d)
+	}
+}
+
 func TestHeatmapBucketsGrafanaCannotMapAreReported(t *testing.T) {
 	cases := []struct {
 		name, options, path string
@@ -93,7 +109,7 @@ func TestHeatmapBucketsGrafanaCannotMapAreReported(t *testing.T) {
 			return d.XBuckets != nil && d.XBuckets.Value == nil
 		}},
 		{"a negative count", `{"calculate":true,"calculation":{"yBuckets":{"mode":"count","value":-3}}}`, "options.calculation.yBuckets.value", func(d spec.Display) bool {
-			return d.YBuckets != nil && d.YBuckets.Value == nil
+			return d.YBuckets == nil
 		}},
 		{"a log base other than 2 and 10", `{"calculate":true,"calculation":{"yBuckets":{"scale":{"type":"log","log":5}}}}`, "options.calculation.yBuckets.scale.log", func(d spec.Display) bool {
 			return d.YBucketScale == "log" && d.YBucketLogBase == 0
@@ -213,7 +229,7 @@ func TestHeatmapLogAndSymlogYScales(t *testing.T) {
 		panel, line := convertedPanel(t, doc)
 		requireImported(t, line)
 		d := displayOf(t, panel)
-		if d.YScale != scale || d.YBucketLogBase != 2 {
+		if d.YScale != scale || d.YBucketLogBase != 0 {
 			t.Fatalf("%s: display = %+v", scale, d)
 		}
 	}
@@ -313,7 +329,7 @@ func TestLegacyHeatmapAxesAndCards(t *testing.T) {
 	if d.YUnit != "s" || d.YDecimals == nil || *d.YDecimals != 1 || d.YMin == nil || *d.YMin != 0 || d.YMax == nil || *d.YMax != 50 {
 		t.Fatalf("display = %+v", d)
 	}
-	if d.YScale != "log" || d.YBucketLogBase != 2 || d.TooltipHistogram == nil || !*d.TooltipHistogram || d.Legend != "hidden" || d.YAxis != "" {
+	if d.YScale != "log" || d.YBucketLogBase != 0 || d.TooltipHistogram == nil || !*d.TooltipHistogram || d.Legend != "hidden" || d.YAxis != "" {
 		t.Fatalf("display = %+v", d)
 	}
 }
