@@ -2,12 +2,15 @@ import type { Selections } from "@/api/keys"
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
+import type { Gazetteers } from "../geomap/gazetteer/lookup"
+
 import { filterByAdhoc, type ReusedFilter } from "./ad-hoc-filter"
 import { calculateField } from "./calculate"
 import { concatenate } from "./concatenate"
 import { configFromData } from "./config-from-data"
 import { convertFieldType } from "./convert-type"
 import { extractFields } from "./extract-fields"
+import { fieldLookup } from "./field-lookup"
 import { filterFieldsByName } from "./filter"
 import { filterByRefId } from "./filter-ref"
 import { filterByValue } from "./filter-value"
@@ -34,6 +37,7 @@ import { rowsToFields } from "./rows-to-fields"
 import { stampSeriesNames, type DatasourceTypeOf } from "./series-names"
 import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
+import { spatial } from "./spatial"
 import { timeSeriesTable } from "./time-series-table"
 import { transpose } from "./transpose"
 import { copyFrame, type PreparedFrame } from "./names"
@@ -49,7 +53,8 @@ export {
 function applyTransform(
   frames: PreparedFrame[],
   transform: Transform,
-  vars: Selections | undefined
+  vars: Selections | undefined,
+  gazetteers: Gazetteers
 ): PreparedFrame[] {
   switch (transform.type) {
     case "merge":
@@ -114,20 +119,27 @@ function applyTransform(
       return regression(frames, transform)
     case "transpose":
       return transpose(frames, transform)
+    case "spatial":
+      return spatial(frames, transform, gazetteers)
+    case "fieldLookup":
+      return fieldLookup(frames, transform, gazetteers)
   }
 }
 
 function applyScoped(
   frames: PreparedFrame[],
   transform: Transform,
-  vars: Selections | undefined
+  vars: Selections | undefined,
+  gazetteers: Gazetteers
 ): PreparedFrame[] {
   const { queries } = transform
-  if (queries === undefined) return applyTransform(frames, transform, vars)
+  if (queries === undefined) {
+    return applyTransform(frames, transform, vars, gazetteers)
+  }
   const selected = frames.filter((frame) => queries.includes(frame.ref))
   if (selected.length === 0) return frames.map(copyFrame)
   const chosen = new Set(selected)
-  const transformed = applyTransform(selected, transform, vars)
+  const transformed = applyTransform(selected, transform, vars, gazetteers)
   return frames.flatMap((frame) => {
     if (frame === selected[0]) return transformed
     return chosen.has(frame) ? [] : [copyFrame(frame)]
@@ -137,10 +149,11 @@ function applyScoped(
 export function applyTransforms(
   frames: PreparedFrame[],
   transforms: readonly Transform[] | undefined,
-  vars?: Selections
+  vars?: Selections,
+  gazetteers: Gazetteers = {}
 ): PreparedFrame[] {
   return (transforms ?? []).reduce(
-    (current, transform) => applyScoped(current, transform, vars),
+    (current, transform) => applyScoped(current, transform, vars, gazetteers),
     frames
   )
 }
@@ -150,7 +163,8 @@ export function prepareFrames(
   frames: WireFrame[],
   datasourceTypeOf?: DatasourceTypeOf,
   reusedFilter?: ReusedFilter,
-  vars?: Selections
+  vars?: Selections,
+  gazetteers?: Gazetteers
 ): PreparedFrame[] {
   const named = applyQueryFormats(
     panel,
@@ -158,10 +172,16 @@ export function prepareFrames(
   )
   const transforms = panel.transform ?? []
   const after = reusedFilter?.after ?? 0
-  const source = applyTransforms(named, transforms.slice(0, after), vars)
+  const source = applyTransforms(
+    named,
+    transforms.slice(0, after),
+    vars,
+    gazetteers
+  )
   return applyTransforms(
     filterByAdhoc(source, reusedFilter?.filters ?? []),
     transforms.slice(after),
-    vars
+    vars,
+    gazetteers
   )
 }

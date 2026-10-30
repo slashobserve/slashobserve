@@ -3532,8 +3532,121 @@
           "required": [
             "type"
           ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "spatial"
+            },
+            "action": {
+              "description": "prepare (the default) adds lat and lon fields from the source location; calculate adds the heading or distance from the previous row, or the area of the polygon the rows outline; modify builds lines.",
+              "enum": [
+                "prepare",
+                "calculate",
+                "modify"
+              ]
+            },
+            "source": {
+              "$ref": "#/$defs/spatialLocation"
+            },
+            "calc": {
+              "description": "For calculate: heading in degrees and distance in meters from the previous located row, or area in square meters of the polygon whose corners are the located rows in order. Absent means heading.",
+              "enum": [
+                "heading",
+                "distance",
+                "area"
+              ]
+            },
+            "field": {
+              "description": "The name of the calculated field. Absent means Heading, Distance or Area.",
+              "$ref": "#/$defs/fieldName"
+            },
+            "modify": {
+              "description": "For modify: lineBuilder draws one line per row from the source to the target location; asLine keeps the located rows, in order, as the points of one line. Absent means lineBuilder.",
+              "enum": [
+                "lineBuilder",
+                "asLine"
+              ]
+            },
+            "target": {
+              "$ref": "#/$defs/spatialLocation"
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "fieldLookup"
+            },
+            "lookupField": {
+              "description": "The text field holding the names or codes to look up. Absent means the first text field.",
+              "$ref": "#/$defs/fieldName"
+            },
+            "gazetteer": {
+              "description": "The built-in list the names are looked up in. Absent means countries.",
+              "enum": [
+                "countries",
+                "usa-states"
+              ]
+            },
+            "queries": {
+              "x-omitFromPrompt": true,
+              "$ref": "#/$defs/transformQueries"
+            }
+          },
+          "required": [
+            "type"
+          ]
         }
       ]
+    },
+    "spatialLocation": {
+      "x-omitFromPrompt": true,
+      "title": "SpatialLocation",
+      "description": "Where a row is: auto (the default) takes latitude and longitude fields named lat, latitude, lon, lng or longitude, else a field named geohash; coords names the latitude and longitude fields; geohash names the geohash field; lookup names the text field looked up in the gazetteer (countries by default).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "auto",
+            "coords",
+            "geohash",
+            "lookup"
+          ]
+        },
+        "latitude": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "longitude": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "geohash": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "lookup": {
+          "$ref": "#/$defs/fieldName"
+        },
+        "gazetteer": {
+          "enum": [
+            "countries",
+            "usa-states"
+          ]
+        }
+      }
     },
     "dataPanel": {
       "title": "DataPanel",

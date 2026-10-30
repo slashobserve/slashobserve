@@ -786,6 +786,34 @@ export type Transform =
       yLogBase?: 2 | 10;
       keepOriginalData?: boolean;
       queries?: TransformQueries30;
+    }
+  | {
+      type: "spatial";
+      /**
+       * prepare (the default) adds lat and lon fields from the source location; calculate adds the heading or distance from the previous row, or the area of the polygon the rows outline; modify builds lines.
+       */
+      action?: "prepare" | "calculate" | "modify";
+      source?: SpatialLocation;
+      /**
+       * For calculate: heading in degrees and distance in meters from the previous located row, or area in square meters of the polygon whose corners are the located rows in order. Absent means heading.
+       */
+      calc?: "heading" | "distance" | "area";
+      field?: FieldName1;
+      /**
+       * For modify: lineBuilder draws one line per row from the source to the target location; asLine keeps the located rows, in order, as the points of one line. Absent means lineBuilder.
+       */
+      modify?: "lineBuilder" | "asLine";
+      target?: SpatialLocation;
+      queries?: TransformQueries31;
+    }
+  | {
+      type: "fieldLookup";
+      lookupField?: FieldName2;
+      /**
+       * The built-in list the names are looked up in. Absent means countries.
+       */
+      gazetteer?: "countries" | "usa-states";
+      queries?: TransformQueries32;
     };
 /**
  * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
@@ -1012,6 +1040,28 @@ export type TransformQueries29 = QueryRef[];
  * @maxItems 26
  */
 export type TransformQueries30 = QueryRef[];
+/**
+ * A field name or series name in the panel's frames.
+ */
+export type FieldName1 = string;
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries31 = QueryRef[];
+/**
+ * A field name or series name in the panel's frames.
+ */
+export type FieldName2 = string;
+/**
+ * The queries a transformation applies to: only their frames go through it, the other frames pass through unchanged, and absent means every query.
+ *
+ * @minItems 1
+ * @maxItems 26
+ */
+export type TransformQueries32 = QueryRef[];
 
 /**
  * ObserveSpec v0: one SlashObserve dashboard. Absent fields mean the default. Frozen for milestone 1 (Ishan, 2026-10-18).
@@ -1530,6 +1580,17 @@ export interface Override1 {
 export interface HeatmapBuckets {
   mode: "size" | "count";
   value?: number;
+}
+/**
+ * Where a row is: auto (the default) takes latitude and longitude fields named lat, latitude, lon, lng or longitude, else a field named geohash; coords names the latitude and longitude fields; geohash names the geohash field; lookup names the text field looked up in the gazetteer (countries by default).
+ */
+export interface SpatialLocation {
+  mode?: "auto" | "coords" | "geohash" | "lookup";
+  latitude?: FieldName;
+  longitude?: FieldName;
+  geohash?: FieldName;
+  lookup?: FieldName;
+  gazetteer?: "countries" | "usa-states";
 }
 export interface TextPanel {
   /**

@@ -95,6 +95,8 @@ var transformSpecs = map[string]transformSpec{
 	"regression":         {handled: []string{"modelType", "degree", "xFieldName", "yFieldName", "predictionCount"}, build: regressionTransform},
 	"heatmap":            {handled: []string{"xBuckets", "yBuckets", "keepOriginalData"}, build: heatmapTransform},
 	"transpose":          {handled: []string{"firstFieldName", "restFieldsName", "emptyValue"}, build: transposeTransform},
+	"spatial":            {handled: []string{"action", "source", "calculate", "modify"}, build: spatialTransform},
+	"fieldLookup":        {handled: []string{"lookupField", "gazetteer"}, build: fieldLookupTransform},
 }
 
 func (b *panelBuild) convertTransforms() {
