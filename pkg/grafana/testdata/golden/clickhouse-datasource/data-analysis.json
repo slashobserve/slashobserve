@@ -387,11 +387,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "transformations[1]",
           "fieldConfig.defaults.custom.axisLabel",
           "fieldConfig.defaults.custom.axisWidth"
         ],
@@ -1027,6 +1025,10 @@
               "table",
               "rows"
             ]
+          },
+          {
+            "type": "prepareTimeSeries",
+            "format": "many"
           }
         ],
         "display": {

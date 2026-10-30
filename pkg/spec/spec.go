@@ -305,6 +305,24 @@ type Transform struct {
 	KeepTime     bool              `json:"keepTime,omitempty"`
 	Paths        []FieldPath       `json:"paths,omitempty"`
 	Delimiter    string            `json:"delimiter,omitempty"`
+	ValueLabel   string            `json:"valueLabel,omitempty"`
+	Value        string            `json:"value,omitempty"`
+	On           []string          `json:"on,omitempty"`
+	Fields       []string          `json:"fields,omitempty"`
+	KeepFields   bool              `json:"keepFields,omitempty"`
+	Naming       string            `json:"naming,omitempty"`
+	Stats        map[string]string `json:"stats,omitempty"`
+	Mappings     []ConfigMapping   `json:"mappings,omitempty"`
+	ConfigQuery  string            `json:"configQuery,omitempty"`
+	ApplyTo      *Match            `json:"applyTo,omitempty"`
+	NameMode     string            `json:"nameMode,omitempty"`
+	NameLabel    string            `json:"nameLabel,omitempty"`
+}
+
+type ConfigMapping struct {
+	Field   string `json:"field"`
+	To      string `json:"to"`
+	Reducer string `json:"reducer,omitempty"`
 }
 
 type Conversion struct {

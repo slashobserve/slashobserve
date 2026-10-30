@@ -1885,6 +1885,267 @@
             "type",
             "field"
           ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "labelsToFields"
+            },
+            "mode": {
+              "enum": [
+                "columns",
+                "rows"
+              ]
+            },
+            "include": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/fieldName"
+              }
+            },
+            "valueLabel": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "joinByLabels"
+            },
+            "value": {
+              "$ref": "#/$defs/fieldName"
+            },
+            "on": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "$ref": "#/$defs/fieldName"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "partitionByValues"
+            },
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "$ref": "#/$defs/fieldName"
+              }
+            },
+            "keepFields": {
+              "type": "boolean"
+            },
+            "naming": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "labels"
+                  ]
+                },
+                {
+                  "x-omitFromPrompt": true,
+                  "enum": [
+                    "name",
+                    "append"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "fields"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "prepareTimeSeries"
+            },
+            "format": {
+              "enum": [
+                "wide",
+                "many",
+                "long"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "format"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "timeSeriesTable"
+            },
+            "stats": {
+              "type": "object",
+              "maxProperties": 26,
+              "propertyNames": {
+                "$ref": "#/$defs/queryRef"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/reducer"
+              }
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "rowsToFields"
+            },
+            "mappings": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "to": {
+                    "enum": [
+                      "name",
+                      "value",
+                      "unit",
+                      "min",
+                      "max",
+                      "decimals",
+                      "displayName",
+                      "noValue",
+                      "color"
+                    ]
+                  }
+                },
+                "required": [
+                  "field",
+                  "to"
+                ]
+              }
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "x-omitFromPrompt": true,
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "configFromData"
+            },
+            "configQuery": {
+              "$ref": "#/$defs/queryRef"
+            },
+            "mappings": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/fieldName"
+                  },
+                  "to": {
+                    "enum": [
+                      "unit",
+                      "min",
+                      "max",
+                      "decimals",
+                      "displayName",
+                      "noValue",
+                      "color"
+                    ]
+                  },
+                  "reducer": {
+                    "$ref": "#/$defs/reducer"
+                  }
+                },
+                "required": [
+                  "field",
+                  "to"
+                ]
+              }
+            },
+            "applyTo": {
+              "$ref": "#/$defs/match"
+            }
+          },
+          "required": [
+            "type",
+            "configQuery",
+            "mappings"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "concatenate"
+            },
+            "nameMode": {
+              "enum": [
+                "drop",
+                "field",
+                "label"
+              ]
+            },
+            "nameLabel": {
+              "x-omitFromPrompt": true,
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "type"
+          ]
         }
       ]
     },

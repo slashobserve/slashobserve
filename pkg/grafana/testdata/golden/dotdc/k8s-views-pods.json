@@ -552,12 +552,10 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "transformations[0]",
           "fieldConfig.defaults.custom.filterable",
           "fieldConfig.defaults.custom.wrapText"
         ],
@@ -582,12 +580,10 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "transformations[0]",
           "fieldConfig.defaults.custom.filterable",
           "fieldConfig.defaults.custom.wrapText"
         ],
@@ -1782,6 +1778,15 @@
             ],
             "transform": [
               {
+                "type": "labelsToFields",
+                "include": [
+                  "namespace",
+                  "pod",
+                  "reason",
+                  "container"
+                ]
+              },
+              {
                 "type": "filterFieldsByName",
                 "include": [
                   "namespace",
@@ -1852,6 +1857,15 @@
               }
             ],
             "transform": [
+              {
+                "type": "labelsToFields",
+                "include": [
+                  "namespace",
+                  "pod",
+                  "reason",
+                  "container"
+                ]
+              },
               {
                 "type": "filterFieldsByName",
                 "include": [

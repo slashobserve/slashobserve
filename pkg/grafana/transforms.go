@@ -37,8 +37,9 @@ var exprPattern = regexp.MustCompile(`^\s*\S+\s*[-+*/]\s*\S+\s*$`)
 type transformBuilder func(b *panelBuild, opts map[string]any, path string) (spec.Transform, bool)
 
 type transformSpec struct {
-	handled []string
-	build   transformBuilder
+	handled    []string
+	allOptions bool
+	build      transformBuilder
 }
 
 var transformSpecs = map[string]transformSpec{
@@ -59,6 +60,14 @@ var transformSpecs = map[string]transformSpec{
 	"filterByValue":      {handled: []string{"type", "match", "filters"}, build: filterByValueTransform},
 	"filterByRefId":      {handled: []string{"include"}, build: filterByRefIDTransform},
 	"extractFields":      {handled: []string{"source", "format", "replace", "keepTime", "jsonPaths", "delimiter", "regExp"}, build: extractFieldsTransform},
+	"labelsToFields":     {handled: []string{"mode", "keepLabels", "valueLabel"}, build: labelsToFieldsTransform},
+	"joinByLabels":       {handled: []string{"value", "join"}, build: joinByLabelsTransform},
+	"partitionByValues":  {handled: []string{"fields", "keepFields", "naming"}, build: partitionByValuesTransform},
+	"prepareTimeSeries":  {handled: []string{"format"}, build: prepareTimeSeriesTransform},
+	"timeSeriesTable":    {allOptions: true, build: timeSeriesTableTransform},
+	"rowsToFields":       {handled: []string{"mappings"}, build: rowsToFieldsTransform},
+	"configFromData":     {handled: []string{"configRefId", "mappings", "applyTo"}, build: configFromDataTransform},
+	"concatenate":        {handled: []string{"frameNameMode", "frameNameLabel"}, build: concatenateTransform},
 }
 
 func (b *panelBuild) convertTransforms() {
@@ -90,7 +99,11 @@ func (b *panelBuild) convertTransform(t map[string]any, path string) (spec.Trans
 	}
 	opts, _ := asObject(t["options"])
 	tr, ok := entry.build(b, opts, path)
-	b.transformExtras(t, opts, entry.handled, path)
+	handled := entry.handled
+	if entry.allOptions {
+		handled = sortedKeys(opts)
+	}
+	b.transformExtras(t, opts, handled, path)
 	return tr, ok
 }
 

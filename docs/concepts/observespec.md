@@ -209,6 +209,15 @@ A panel has at most 50 overrides.
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.
 The steps are `merge`, `seriesToRows`, `organize`, `reduce`, `joinByField`, `filterFieldsByName`, `calculateField`, `sortBy` and `limit`.
 Seven more steps reshape single fields and filter rows: `convertFieldType` (`conversions` of `field` and `to`: `number`, `string`, `time`, `boolean`, `enum` or `other`, with `dateFormat` and `joinWith`), `formatString` (`field`, `format` and, for `substring`, `start` and `end`), `formatTime` (`field`, a date `format` made of `YYYY YY MM M DD D HH H hh h mm ss SSS A a`, and `utc`), `renameByRegex` (`regex` and `renameTo`, where `$1` is a captured group), `filterByValue` (`keep` and `match`, and `filters` of `field`, `op` and `value`, or `from` and `to` for `range`), `filterByRefId` (`include` lists the query refs to keep) and `extractFields` (`field`, `format` of `auto`, `json`, `kvp`, `delimiter` or `regexp`, `paths`, `delimiter`, `regex`, `replace` and `keepTime`).
+Eight more steps reshape frames by their labels and layout:
+`labelsToFields` (`mode` of `columns` or `rows`, `include` to keep some labels, `valueLabel` to name the value field after a label),
+`joinByLabels` (`value` is the label whose values become columns and `on` the labels to join on),
+`partitionByValues` (`fields`, `keepFields`, and `naming` of `labels`, `name` or `append`),
+`prepareTimeSeries` (`format` of `wide`, `many` or `long`),
+`timeSeriesTable` (one row per series with a trend and a reduced value, `stats` choosing the reducer per query ref, `lastNotNull` by default),
+`rowsToFields` (each row becomes a field, with `mappings` of a column `field` to `name`, `value`, `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color`),
+`configFromData` (reads field settings from the frame of the `configQuery` ref, with `mappings` of `field` to `unit`, `min`, `max`, `decimals`, `displayName`, `noValue` or `color` and an optional `reducer`, and applies them to the number fields or to the fields `applyTo` matches) and
+`concatenate` (puts the fields of every frame side by side, and `nameMode` of `drop`, `field` or `label` with `nameLabel` says where the frame name goes).
 Field names match a field's name or its series name, and a step that names a field the data does not have changes nothing.
 Prefer a query that returns the shape you need, and use a transform when it cannot.
 

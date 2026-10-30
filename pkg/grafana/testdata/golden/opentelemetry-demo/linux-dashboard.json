@@ -53,8 +53,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 4,
-      "partial": 15,
+      "imported": 5,
+      "partial": 14,
       "placeholder": 0,
       "unverified": 0
     },
@@ -584,13 +584,9 @@
         "type": "table",
         "source_type": "table",
         "row": "Details",
-        "status": "partial",
-        "reasons": [
-          "Some transformations are not supported yet."
-        ],
-        "paths": [
-          "transformations[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "transmit_bytes",
@@ -1795,6 +1791,9 @@
               }
             ],
             "transform": [
+              {
+                "type": "timeSeriesTable"
+              },
               {
                 "type": "joinByField",
                 "mode": "outer",

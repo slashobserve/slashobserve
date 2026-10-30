@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 import type { WireField } from "@/panels/frames"
-import { prepareFrames } from "@/panels/transforms"
+import { prepareFrames, type PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
 import { createFieldResolver } from "."
@@ -276,6 +276,25 @@ describe("field config resolution", () => {
       })
     )
     expect(resolver.displayName(f, f.fields[1])).toBe("Value!")
+  })
+
+  it("applies config carried by the field under the panel's overrides", () => {
+    const carrying: PreparedFrame = {
+      ref: "A",
+      fields: [
+        time,
+        { ...value(), config: { unit: "bytes", max: 80, min: 1 } },
+      ],
+    }
+    const resolver = createFieldResolver(
+      panel({
+        max: 10,
+        overrides: [{ match: { fieldType: "number" }, min: 5 }],
+      })
+    )
+    const config = resolver.configFor(carrying, carrying.fields[1])
+    expect(config).toMatchObject({ unit: "bytes", max: 80, min: 5 })
+    expect(resolver.configFor(carrying, carrying.fields[0]).max).toBe(10)
   })
 
   it("returns the same config object for the same field", () => {
