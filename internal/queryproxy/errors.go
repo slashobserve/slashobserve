@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/queryproxy/expr"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -39,6 +40,7 @@ const (
 	CodeVariableUnresolved spec.IssueCode = "variable_unresolved"
 	CodeTimeRangeInvalid   spec.IssueCode = "time_range_invalid"
 	CodeTooManyRequests    spec.IssueCode = "too_many_requests"
+	CodeExpressionFailed   spec.IssueCode = "expression_error"
 )
 
 const (
@@ -62,6 +64,8 @@ func Classify(err error) (status int, code, message string) {
 		return http.StatusUnprocessableEntity, string(CodeQueryInvalid), err.Error()
 	case errors.Is(err, datasource.ErrForbiddenQuery):
 		return http.StatusUnprocessableEntity, string(CodeQueryForbidden), err.Error()
+	case errors.Is(err, expr.ErrExpression):
+		return http.StatusUnprocessableEntity, string(CodeExpressionFailed), err.Error()
 	case errors.Is(err, datasource.ErrLimitExceeded):
 		return http.StatusUnprocessableEntity, string(CodeLimitExceeded), err.Error()
 	case errors.Is(err, datasource.ErrTimeout):
