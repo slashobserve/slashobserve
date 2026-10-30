@@ -973,12 +973,12 @@ export interface DataPanel1 {
     | "geomap"
     | "canvas"
     | "alertlist";
-  datasource: DatasourceRef;
+  datasource?: DatasourceRef;
   /**
    * @minItems 1
    * @maxItems 26
    */
-  queries: (PanelQuery | ExpressionQuery)[];
+  queries: (PanelQuery | ExpressionQuery | DashboardQuery)[];
   /**
    * @maxItems 50
    */
@@ -1077,6 +1077,23 @@ export interface ExpressionQuery {
          */
         params: number[];
       };
+}
+/**
+ * Reuses the results of another data panel of this dashboard (Grafana's -- Dashboard -- source); a panel that has one has exactly this query and no datasource, interval, maxDataPoints, timeFrom or timeShift of its own.
+ */
+export interface DashboardQuery {
+  ref?: QueryRef;
+  hide?: boolean;
+  source: {
+    /**
+     * The id of the data panel whose results are reused; it must not itself reuse another panel or repeat.
+     */
+    panel: string;
+    /**
+     * Apply the source panel's transforms to its results before this panel's own.
+     */
+    withTransforms?: boolean;
+  };
 }
 export interface Override1 {
   match: Match;

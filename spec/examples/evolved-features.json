@@ -83,7 +83,10 @@
       "panels": [
         { "id": "p_errors", "type": "stat", "title": "Error logs",
           "gridPos": { "x": 0, "y": 13, "w": 6, "h": 4 }, "datasource": "ch",
-          "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }] }
+          "queries": [{ "query": "SELECT count() FROM otel_logs WHERE SeverityText = 'ERROR' AND $__timeFilter(Timestamp)" }] },
+        { "id": "p_reuse", "type": "table", "title": "Requests and errors as a table",
+          "gridPos": { "x": 6, "y": 13, "w": 12, "h": 4 },
+          "queries": [{ "ref": "A", "source": { "panel": "p_rps", "withTransforms": true } }] }
       ] }
   ]
 }

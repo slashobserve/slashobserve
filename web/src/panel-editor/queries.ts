@@ -126,6 +126,7 @@ export function previewQuery({
   maxDataPoints,
 }: PreviewArgs) {
   const tz = requestZone(timezone)
+  const datasource = panel.datasource ?? ""
   return queryOptions<PanelDataResponse>({
     queryKey: editorKeys.preview(dashboardId, version, panel.id, {
       panel: stableJson(panel),
@@ -142,8 +143,7 @@ export function previewQuery({
               params: {
                 path: {
                   uid:
-                    resolveDatasourceRef(panel.datasource, selections) ??
-                    panel.datasource,
+                    resolveDatasourceRef(datasource, selections) ?? datasource,
                 },
               },
               body: {

@@ -1,4 +1,5 @@
 import {
+  dashboardQuery,
   dashlistPanel,
   dataPanel,
   expressionQuery,
@@ -52,6 +53,7 @@ const panelBranches: Record<string, AjvValidate> = {
 const queryBranches = {
   query: panelQuery as unknown as AjvValidate,
   expression: expressionQuery as unknown as AjvValidate,
+  source: dashboardQuery as unknown as AjvValidate,
 }
 
 function branchFor(panel: Record<string, unknown>): AjvValidate | undefined {
@@ -149,7 +151,9 @@ function queryErrors(errors: AjvError[], site: PanelSite): AjvError[] {
     const pointer = `${site.pointer}/queries/${i}`
     const branch = Object.hasOwn(query, "expression")
       ? queryBranches.expression
-      : queryBranches.query
+      : Object.hasOwn(query, "source")
+        ? queryBranches.source
+        : queryBranches.query
     branch(query, { instancePath: pointer })
     out = [
       ...out.filter((error) => !isWithin(error.instancePath, pointer)),

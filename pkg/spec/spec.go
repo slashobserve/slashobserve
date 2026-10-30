@@ -314,17 +314,23 @@ type Panel struct {
 }
 
 type Query struct {
-	Ref            string      `json:"ref,omitempty"`
-	Query          string      `json:"query,omitempty"`
-	Legend         string      `json:"legend,omitempty"`
-	Datasource     string      `json:"datasource,omitempty"`
-	Instant        bool        `json:"instant,omitempty"`
-	Format         string      `json:"format,omitempty"`
-	Interval       string      `json:"interval,omitempty"`
-	IntervalFactor int         `json:"intervalFactor,omitempty"`
-	Exemplar       bool        `json:"exemplar,omitempty"`
-	Hide           bool        `json:"hide,omitempty"`
-	Expression     *Expression `json:"expression,omitempty"`
+	Ref            string           `json:"ref,omitempty"`
+	Query          string           `json:"query,omitempty"`
+	Legend         string           `json:"legend,omitempty"`
+	Datasource     string           `json:"datasource,omitempty"`
+	Instant        bool             `json:"instant,omitempty"`
+	Format         string           `json:"format,omitempty"`
+	Interval       string           `json:"interval,omitempty"`
+	IntervalFactor int              `json:"intervalFactor,omitempty"`
+	Exemplar       bool             `json:"exemplar,omitempty"`
+	Hide           bool             `json:"hide,omitempty"`
+	Expression     *Expression      `json:"expression,omitempty"`
+	Source         *DashboardSource `json:"source,omitempty"`
+}
+
+type DashboardSource struct {
+	Panel          string `json:"panel"`
+	WithTransforms bool   `json:"withTransforms,omitempty"`
 }
 
 type Expression struct {

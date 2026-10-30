@@ -2013,6 +2013,42 @@
         "expression"
       ]
     },
+    "dashboardQuery": {
+      "title": "DashboardQuery",
+      "description": "Reuses the results of another data panel of this dashboard (Grafana's -- Dashboard -- source); a panel that has one has exactly this query and no datasource, interval, maxDataPoints, timeFrom or timeShift of its own.",
+      "x-omitFromPrompt": true,
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/queryRef"
+        },
+        "hide": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "panel": {
+              "description": "The id of the data panel whose results are reused; it must not itself reuse another panel or repeat.",
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+            },
+            "withTransforms": {
+              "description": "Apply the source panel's transforms to its results before this panel's own.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "panel"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
     "transform": {
       "title": "Transform",
       "type": "object",
@@ -2830,7 +2866,6 @@
         "type",
         "title",
         "gridPos",
-        "datasource",
         "queries"
       ],
       "allOf": [
@@ -4908,6 +4943,39 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "required": [
+              "queries"
+            ],
+            "properties": {
+              "queries": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "source"
+                  ]
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "datasource": {
+                "x-omitFromPrompt": false
+              }
+            },
+            "required": [
+              "datasource"
+            ]
+          }
         }
       ],
       "properties": {
@@ -4968,6 +5036,10 @@
               },
               {
                 "$ref": "#/$defs/expressionQuery",
+                "x-omitFromPrompt": true
+              },
+              {
+                "$ref": "#/$defs/dashboardQuery",
                 "x-omitFromPrompt": true
               }
             ]

@@ -30,9 +30,11 @@ import {
   datasourceRefType,
   findPanel,
   isDataPanel,
-  isExpressionQuery,
+  isPanelQuery,
+  panelTitle,
   queryRef,
   resolveDatasourceRef,
+  reusesPanel,
   type Dashboard,
   type DatasourceVariable,
 } from "@/spec"
@@ -139,6 +141,13 @@ export default function PanelEditor({
       ),
     [spec.variables]
   )
+  const sourceTitle = useCallback(
+    (panelId: string) => {
+      const found = findPanel(spec, panelId)
+      return found ? panelTitle(found.panel) : panelId
+    },
+    [spec]
+  )
   const resolveDatasource = useMemo<ResolveDatasource>(
     () => (ref) => ({
       uid: resolveDatasourceRef(ref, selections ?? {}) ?? ref,
@@ -222,7 +231,7 @@ export default function PanelEditor({
   const queriesOk = isDataPanel(current)
     ? current.queries.every(
         (query) =>
-          isExpressionQuery(query) ||
+          !isPanelQuery(query) ||
           (query.query.trim() !== "" &&
             [...query.query].length <= maxQueryLength)
       )
@@ -357,7 +366,7 @@ export default function PanelEditor({
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
   const active = data?.queries[activeQuery]
   const activeDatasource = resolveDatasource(
-    (active && !isExpressionQuery(active) ? active.datasource : undefined) ??
+    (active && isPanelQuery(active) ? active.datasource : undefined) ??
       data?.datasource ??
       ""
   )
@@ -393,7 +402,7 @@ export default function PanelEditor({
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 narrow:grid-cols-1">
               <div className="flex min-w-0 flex-col gap-3">
-                {data ? (
+                {data && !reusesPanel(data) ? (
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <Label htmlFor={datasourceId} className="text-[13px]">
@@ -401,7 +410,7 @@ export default function PanelEditor({
                       </Label>
                       <DatasourceSelect
                         id={datasourceId}
-                        value={data.datasource}
+                        value={data.datasource ?? ""}
                         variables={datasourceVariables}
                         disabled={locked}
                         onChange={(uid) =>
@@ -429,6 +438,7 @@ export default function PanelEditor({
                   datasourceVariables={datasourceVariables}
                   resolveDatasource={resolveDatasource}
                   issuesByQuery={issuesByQuery}
+                  sourceTitle={sourceTitle}
                   onActiveChange={setActiveRef}
                   onRemoved={(ref) =>
                     setProblem((current) => withoutQuery(current, ref))

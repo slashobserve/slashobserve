@@ -1,0 +1,48 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "timeseries",
+      "title": "Requests",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "ref": "A",
+          "query": "up"
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "type": "table",
+      "title": "Requests table",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "queries": [
+        {
+          "ref": "A",
+          "source": {
+            "panel": "p2",
+            "withTransforms": true
+          }
+        }
+      ]
+    }
+  ]
+}
