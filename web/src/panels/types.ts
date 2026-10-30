@@ -1,7 +1,7 @@
 import type { ComponentType } from "react"
 
 import type { Selections } from "@/api/keys"
-import type { PanelDataMeta } from "@/dashboards/queries"
+import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import type {
   DashlistPanel,
   DataPanel,
@@ -31,6 +31,7 @@ export type PanelRendererProps = {
     "row" | "seriesName" | "fieldName" | "value" | "valueText"
   >
   ghostFrames?: PreparedFrame[]
+  exemplars?: WireFrame[]
 }
 
 export type PanelRenderer = ComponentType<PanelRendererProps>

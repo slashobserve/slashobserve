@@ -1,5 +1,6 @@
 import {
   displayKeysByType,
+  instantPanelTypes,
   isDataPanel,
   queryRef,
   type DashlistPanel,
@@ -38,6 +39,7 @@ export type DraftAction =
   | { type: "setQuery"; index: number; query: string }
   | { type: "setLegend"; index: number; legend: string }
   | { type: "setQueryDatasource"; index: number; uid: string | null }
+  | { type: "setExemplar"; index: number; exemplar: boolean }
   | { type: "setPanelDatasource"; uid: string }
   | { type: "addQuery" }
   | { type: "removeQuery"; index: number }
@@ -55,6 +57,13 @@ export const maxQueries = 26
 
 export function displayKeysFor(type: DataPanelType): readonly string[] {
   return displayKeysByType[type] ?? []
+}
+
+export function runsAsRange(
+  query: PanelQuery,
+  panelType: DataPanelType
+): boolean {
+  return query.instant !== true && !instantPanelTypes.includes(panelType)
 }
 
 export function nextRef(queries: readonly PanelQuery[]): string {
@@ -155,6 +164,11 @@ export function draftReducer(
       return editQuery(state, action.index, (query) => {
         if (action.uid === null) delete query.datasource
         else query.datasource = action.uid
+      })
+    case "setExemplar":
+      return editQuery(state, action.index, (query) => {
+        if (action.exemplar) query.exemplar = true
+        else delete query.exemplar
       })
     case "setPanelDatasource":
       return editData(state, (panel) => {

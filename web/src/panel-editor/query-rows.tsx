@@ -15,7 +15,12 @@ import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import { cn } from "@/lib/utils"
 import { isDataPanel, queryRef, type DatasourceVariable } from "@/spec"
 
-import { maxQueries, type DraftAction, type EditablePanel } from "./draft"
+import {
+  maxQueries,
+  runsAsRange,
+  type DraftAction,
+  type EditablePanel,
+} from "./draft"
 import { QueryRow, type ResolveDatasource } from "./query-row"
 
 export const maxContentLength = 20000
@@ -144,6 +149,10 @@ export function QueryRows({
             }
             onDatasourceChange={(uid) =>
               dispatch({ type: "setQueryDatasource", index, uid })
+            }
+            exemplarsOffered={runsAsRange(query, draft.type)}
+            onExemplarChange={(exemplar) =>
+              dispatch({ type: "setExemplar", index, exemplar })
             }
             onRemove={() => {
               removedAt.current = index

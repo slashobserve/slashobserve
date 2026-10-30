@@ -18,6 +18,7 @@ import {
   activeQueryIndex,
   isEditablePanel,
   nextRef,
+  runsAsRange,
   startDraft,
   type DraftAction,
   type EditablePanel,
@@ -112,6 +113,28 @@ describe("query actions", () => {
       legend: "",
     })
     expect("legend" in queriesOf(cleared)[0]).toBe(false)
+  })
+
+  it("sets exemplars and removes the key when turned off", () => {
+    const on = apply(dataPanel(), {
+      type: "setExemplar",
+      index: 0,
+      exemplar: true,
+    })
+    expect(queriesOf(on)[0].exemplar).toBe(true)
+    const off = draftReducer(on, {
+      type: "setExemplar",
+      index: 0,
+      exemplar: false,
+    })
+    expect("exemplar" in queriesOf(off)[0]).toBe(false)
+  })
+
+  it("leaves the state alone when the exemplar index is out of range", () => {
+    const data = startDraft(1, dataPanel())
+    expect(
+      draftReducer(data, { type: "setExemplar", index: 3, exemplar: true })
+    ).toBe(data)
   })
 
   it("sets a query datasource and removes it with null", () => {
@@ -600,5 +623,17 @@ describe("displayKeysFor", () => {
         schemaKeys.get(type)
       )
     }
+  })
+})
+
+describe("runsAsRange", () => {
+  it("is false for an instant query or a panel type that runs instant", () => {
+    expect(runsAsRange({ query: "up" }, "timeseries")).toBe(true)
+    expect(runsAsRange({ query: "up", instant: false }, "stat")).toBe(true)
+    expect(runsAsRange({ query: "up", instant: true }, "timeseries")).toBe(
+      false
+    )
+    expect(runsAsRange({ query: "up" }, "table")).toBe(false)
+    expect(runsAsRange({ query: "up" }, "alertlist")).toBe(false)
   })
 })

@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react"
 import uPlot from "uplot"
 import "uplot/dist/uPlot.min.css"
 
-import type { PanelDataMeta } from "@/dashboards/queries"
+import type { PanelDataMeta, WireFrame } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { formatDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
@@ -38,10 +38,13 @@ import {
   type ThresholdLines,
   type XAxis,
 } from "./plot-model"
+import { exemplarPoints } from "./exemplars"
 import {
   cursorPlugin,
+  exemplarsPlugin,
   thresholdsPlugin,
   tooltipPlugin,
+  type ExemplarLayer,
   type TooltipSeries,
   type TooltipView,
 } from "./plugins"
@@ -72,6 +75,8 @@ const axisLabelSize = 18
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const barSize: [number, number] = [0.6, 64]
 const ghostDash = [2, 3]
+const noteHeight = 16
+const noExemplars: ExemplarLayer = { points: [], seriesKeys: [] }
 
 const pathBuilders: Record<Interpolation, uPlot.Series.PathBuilder> = {
   linear: uPlot.paths.linear!(),
@@ -84,6 +89,7 @@ type Latest = {
   model: Model
   state: PlotState
   entries: TooltipSeries[]
+  exemplars: ExemplarLayer
   meta: PanelDataMeta
   width: number
   chartHeight: number
@@ -222,7 +228,8 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         () => latest.current.entries,
         (x) =>
           xAxis.kind === "time" ? formatDateTime(x * 1000) : xAxis.format(x),
-        () => peerTooltip.current
+        () => peerTooltip.current,
+        () => latest.current.exemplars
       )
     )
   }
@@ -230,6 +237,15 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
     plugins.push(
       thresholdsPlugin(model.thresholds.list, model.thresholds.mode, (color) =>
         resolveColor(thresholdColor(color))
+      )
+    )
+  }
+  if (timed && !customPainted) {
+    plugins.push(
+      exemplarsPlugin(
+        first,
+        () => latest.current.exemplars,
+        () => latest.current.entries
       )
     )
   }
@@ -438,6 +454,47 @@ function modelFor(
   }
 }
 
+function exemplarRange(
+  meta: PanelDataMeta,
+  xs: readonly number[]
+): [number, number] {
+  const from = Date.parse(meta.from) / 1000
+  const to = Date.parse(meta.to) / 1000
+  if (Number.isFinite(from) && Number.isFinite(to) && to > from) {
+    return [from, to]
+  }
+  return [xs[0] ?? 0, xs[xs.length - 1] ?? 0]
+}
+
+function exemplarLayerFor(
+  frames: readonly WireFrame[],
+  aligned: AlignedFrames,
+  series: ChartSeries[],
+  meta: PanelDataMeta
+): ExemplarLayer {
+  if (frames.length === 0) return noExemplars
+  const alignedByKey = new Map(
+    aligned.series.map((entry) => [entry.key, entry])
+  )
+  const matchable = series.flatMap((entry) => {
+    const source = alignedByKey.get(entry.key)
+    return source
+      ? [
+          {
+            key: entry.key,
+            ref: source.frame.ref,
+            labels: source.frame.labels,
+            scale: scaleOf[entry.axis],
+          },
+        ]
+      : []
+  })
+  return {
+    points: exemplarPoints(frames, matchable, exemplarRange(meta, aligned.xs)),
+    seriesKeys: series.map((entry) => entry.key),
+  }
+}
+
 export type ChartProps = PanelRendererProps & {
   aligned: AlignedFrames
   configs: FieldConfig[]
@@ -460,6 +517,7 @@ export function TimeseriesChart({
   xAxis = timeAxis,
   draw,
   rowColor,
+  exemplars,
 }: ChartProps) {
   const { resolved: theme } = useTheme()
   const hostRef = useRef<HTMLDivElement>(null)
@@ -541,7 +599,15 @@ export function TimeseriesChart({
     : 0
   const chartWidth = width - legendWidth
   const bottomLegend = legendShown && placement === "bottom"
-  const chartHeight = Math.max(0, height - (bottomLegend ? legendHeight : 0))
+  const exemplarsDrawn = xAxis.kind === "time" && draw === undefined
+  const exemplarsTruncated =
+    exemplarsDrawn && meta.queries.some((q) => q.exemplars === "truncated")
+  const chartHeight = Math.max(
+    0,
+    height -
+      (bottomLegend ? legendHeight : 0) -
+      (exemplarsTruncated ? noteHeight : 0)
+  )
   const ready = chartWidth > 0 && chartHeight > 0
   const signature = series
     .map((entry) => `${entry.key}\u0001${entry.label}`)
@@ -576,6 +642,14 @@ export function TimeseriesChart({
     }
   }, [aligned.xs, ghosts, series, hidden, rowColor])
 
+  const exemplarLayer = useMemo(
+    () =>
+      exemplarsDrawn
+        ? exemplarLayerFor(exemplars ?? [], aligned, series, meta)
+        : noExemplars,
+    [exemplarsDrawn, exemplars, aligned, series, meta]
+  )
+
   const model = modelFor(
     panel,
     series,
@@ -588,6 +662,7 @@ export function TimeseriesChart({
     model,
     state,
     entries,
+    exemplars: exemplarLayer,
     meta,
     width: chartWidth,
     chartHeight,
@@ -598,6 +673,7 @@ export function TimeseriesChart({
       model,
       state,
       entries,
+      exemplars: exemplarLayer,
       meta,
       width: chartWidth,
       chartHeight,
@@ -689,6 +765,10 @@ export function TimeseriesChart({
   }, [state, series, ghosts.length])
 
   useLayoutEffect(() => {
+    plotRef.current?.redraw(false)
+  }, [exemplarLayer])
+
+  useLayoutEffect(() => {
     const plot = plotRef.current
     if (!plot || !ready) return
     if (plot.width !== chartWidth || plot.height !== chartHeight) {
@@ -721,9 +801,14 @@ export function TimeseriesChart({
     (name) => model.axes[name]
   )
   const axisLabels = axisNames.flatMap((name) => model.axes[name]?.label ?? [])
+  const exemplarCount = exemplarLayer.points.length
+  const exemplarSuffix =
+    exemplarCount > 0
+      ? `, ${exemplarCount} ${exemplarCount === 1 ? "exemplar" : "exemplars"}`
+      : ""
   const plotName =
     xAxis.kind === "time"
-      ? `${panel.title}: ${series.length} series, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
+      ? `${panel.title}: ${series.length} series${exemplarSuffix}, ${formatDateTime(meta.from)} to ${formatDateTime(meta.to)}`
       : `${panel.title}: ${series.length} series`
 
   return (
@@ -735,21 +820,31 @@ export function TimeseriesChart({
       )}
       style={{ width, height }}
     >
-      <div
-        ref={containerRef}
-        role="img"
-        aria-label={
-          axisLabels.length > 0
-            ? `${plotName}, axes: ${axisLabels.join(", ")}`
-            : plotName
-        }
-        data-axes={axisNames.join(" ")}
-        data-series={series.length}
-        data-ghosts={ghosts.length}
-        data-stack={firstStackMode(series)}
-        className="ts-chart shrink-0 overflow-hidden"
-        style={{ width: chartWidth, height: chartHeight }}
-      />
+      <div className="flex shrink-0 flex-col" style={{ width: chartWidth }}>
+        <div
+          ref={containerRef}
+          role="img"
+          aria-label={
+            axisLabels.length > 0
+              ? `${plotName}, axes: ${axisLabels.join(", ")}`
+              : plotName
+          }
+          data-axes={axisNames.join(" ")}
+          data-series={series.length}
+          data-ghosts={ghosts.length}
+          data-stack={firstStackMode(series)}
+          className="ts-chart shrink-0 overflow-hidden"
+          style={{ width: chartWidth, height: chartHeight }}
+        />
+        {exemplarsTruncated ? (
+          <p
+            className="truncate text-xs leading-4 text-muted-foreground"
+            style={{ height: noteHeight }}
+          >
+            Showing the newest 2,000 exemplars.
+          </p>
+        ) : null}
+      </div>
       {legendShown && legendMode === "table" ? (
         <LegendTable
           {...legendProps}
