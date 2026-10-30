@@ -68,6 +68,7 @@ func (s *Service) Register(api auth.Routes) {
 	edit := s.access.RequireDashboard(folders.NeedEdit)
 	g.GET("/:id", auth.RoleViewer, view, s.getDashboard)
 	g.PATCH("/:id", auth.RoleViewer, edit, s.moveDashboard)
+	g.DELETE("/:id", auth.RoleViewer, edit, s.deleteDashboard)
 	g.GET("/:id/versions", auth.RoleViewer, view, s.listVersions)
 	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
 	g.POST("/:id/versions", auth.RoleViewer, edit, s.addVersion)
@@ -257,6 +258,18 @@ func (s *Service) moveDashboard(c *gin.Context) {
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 
+func (s *Service) deleteDashboard(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	if err := s.Delete(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		s.fail(c, "delete dashboard", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (s *Service) listVersions(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "id")
 	if !ok {
@@ -398,6 +411,8 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", invalidInput.Message)
 	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrInvalidRange):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	case errors.Is(err, ErrBeingCreated):
+		httpapi.AbortError(c, http.StatusConflict, "dashboard_being_created", "the agent is still creating this dashboard; try again when it finishes")
 	default:
 		principal := httpapi.Caller(c)
 		attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}

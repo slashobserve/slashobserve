@@ -71,6 +71,9 @@ func (s *Service) SubmitSuggestion(ctx context.Context, dashboardID pgtype.UUID,
 		}
 		return nil
 	})
+	if db.IsForeignKeyViolation(err) {
+		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	}
 	return row, err
 }
 

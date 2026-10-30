@@ -38,6 +38,7 @@ var (
 	ErrFolderNotFound = errors.New("folder not found")
 	ErrInvalidCursor  = errors.New("invalid cursor")
 	ErrInvalidRange   = errors.New("from must be less than to")
+	ErrBeingCreated   = errors.New("the agent is still creating this dashboard")
 )
 
 type ConflictError struct {
@@ -494,6 +495,19 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 	s.logger.InfoContext(ctx, "dashboard moved",
 		slog.String("actor_id", by.ID), slog.String("dashboard_id", dash.ID), slog.String("folder_id", target.ID.String()))
 	return dash, ver, nil
+}
+
+func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
+	access, err := s.need(ctx, by, id, folders.NeedEdit)
+	if err != nil {
+		return err
+	}
+	if err := s.store.delete(ctx, id, authorOf(by)); err != nil {
+		return err
+	}
+	s.logger.InfoContext(ctx, "dashboard deleted",
+		slog.String("actor_id", by.ID), slog.String("dashboard_id", id.String()), slog.String("folder_id", access.Folder.ID.String()))
+	return nil
 }
 
 func (s *Service) ListVersions(ctx context.Context, id pgtype.UUID, limit int, cursor string) ([]VersionMeta, string, error) {

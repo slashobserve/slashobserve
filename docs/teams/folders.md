@@ -24,12 +24,12 @@ A folder is open or restricted, and the folder's settings page (**Folder setting
 Each entry gives a level.
 A person gets the higher of the level their role gives and the levels of the entries that match them, but never more than their role allows, so an entry never lowers access and never lifts a Viewer or Commenter:
 
-| Level   | May                                                                     |
-| ------- | ----------------------------------------------------------------------- |
-| View    | See the folder and its dashboards.                                      |
-| Comment | Also comment and reply.                                                 |
-| Edit    | Also change dashboards, send requests to the agent and move dashboards. |
-| Admin   | Also rename the folder, delete it and change its list.                  |
+| Level   | May                                                                                |
+| ------- | ---------------------------------------------------------------------------------- |
+| View    | See the folder and its dashboards.                                                 |
+| Comment | Also comment and reply.                                                            |
+| Edit    | Also change dashboards, send requests to the agent, and move or delete dashboards. |
+| Admin   | Also rename the folder, delete it and change its list.                             |
 
 Some rules that follow from the roles:
 

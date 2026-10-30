@@ -75,6 +75,9 @@ func (s *Service) submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequ
 		row, err = s.Enqueue(ctx, q, p)
 		return err
 	})
+	if db.IsForeignKeyViolation(err) {
+		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	}
 	return row, err
 }
 

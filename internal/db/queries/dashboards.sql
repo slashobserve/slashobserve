@@ -156,6 +156,15 @@ WHERE dashboard_id = @id AND (sqlc.narg('before')::int IS NULL OR version < sqlc
 ORDER BY version DESC
 LIMIT @row_limit;
 
+-- name: DeleteDashboard :execrows
+DELETE FROM dashboards d
+WHERE d.id = @id
+  AND NOT EXISTS (
+    SELECT 1 FROM dashboard_versions v
+    JOIN agent_requests r ON r.id = v.agent_request_id
+    WHERE v.dashboard_id = d.id AND r.source = 'observe' AND r.status IN ('queued', 'running')
+  );
+
 -- name: MoveDashboard :one
 UPDATE dashboards SET folder_id = @folder_id WHERE id = @id RETURNING *;
 

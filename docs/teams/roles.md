@@ -8,7 +8,7 @@ Every person and every service account has one of four instance roles, from the 
 | Role      | May                                                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Admin     | Everything an Editor may, in every folder, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
-| Editor    | Create, edit, import and restore dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.         |
+| Editor    | Create, edit, import, restore and delete dashboards, run canvas actions, create folders, chat and send requests to the agent, comment, and keep their own saved prompts. |
 | Commenter | View dashboards and versions, and add comments. Cannot create, import or edit dashboards or send requests to the agent, in any folder.                                   |
 | Viewer    | View dashboards and versions only, in any folder.                                                                                                                        |
 

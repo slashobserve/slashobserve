@@ -240,6 +240,32 @@ dashboards-id:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteDashboard
+    summary: Delete a dashboard with every version, comment, agent request and import record.
+    description: >-
+      Needs Edit on the dashboard. The delete cannot be undone.
+      Open event streams receive `dashboard.deleted` and then end.
+      While the `/observe` chat that created the dashboard is still queued or running, the delete is refused.
+    responses:
+      "204":
+        description: The dashboard and everything that belongs to it are deleted.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The agent is still creating this dashboard (`dashboard_being_created`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 dashboards-id-versions:
   parameters:
     - name: id
