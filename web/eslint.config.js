@@ -5,6 +5,25 @@ import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
 import { defineConfig, globalIgnores } from "eslint/config"
 
+const rawHtmlSelectors = [
+  {
+    selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+    message:
+      "HTML reaches the page only through the text panel's sanitizer, as React elements.",
+  },
+  {
+    selector:
+      "AssignmentExpression > MemberExpression[property.name=/^(innerHTML|outerHTML)$/]",
+    message:
+      "HTML reaches the page only through the text panel's sanitizer, as React elements.",
+  },
+  {
+    selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+    message:
+      "HTML reaches the page only through the text panel's sanitizer, as React elements.",
+  },
+]
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -33,12 +52,13 @@ export default defineConfig([
           message:
             "Wrap buttonVariants() in cn() so variant classes override base classes.",
         },
+        ...rawHtmlSelectors,
       ],
     },
   },
   {
     files: ["src/components/ui/**"],
-    rules: { "no-restricted-syntax": "off" },
+    rules: { "no-restricted-syntax": ["error", ...rawHtmlSelectors] },
   },
   {
     files: [
