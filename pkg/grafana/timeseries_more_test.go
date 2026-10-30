@@ -60,10 +60,24 @@ func TestInsertNullsOverrideCannotTurnOffThePanelsNulls(t *testing.T) {
 	}
 }
 
-func TestInsertNullsIsNotConvertedOnOtherTypes(t *testing.T) {
-	_, line := customPanelOf(t, "barchart", `{"insertNulls":60000}`, "")
-	if line.Status != statusPartial {
-		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+func TestPlotOnlyPropsAreReportedOnBarChartAndHistogram(t *testing.T) {
+	customs := map[string]string{
+		"insertNulls":          `{"insertNulls":60000}`,
+		"barAlignment":         `{"barAlignment":1}`,
+		"barWidthFactor":       `{"barWidthFactor":0.8}`,
+		"barMaxWidth":          `{"barMaxWidth":20}`,
+		"thresholdsStyle line": `{"thresholdsStyle":{"mode":"line"}}`,
+		"thresholdsStyle area": `{"thresholdsStyle":{"mode":"area"}}`,
+	}
+	for _, typ := range []string{"barchart", "histogram"} {
+		for name, custom := range customs {
+			t.Run(typ+" "+name, func(t *testing.T) {
+				_, line := customPanelOf(t, typ, custom, "")
+				if line.Status != statusPartial || len(line.Paths) != 1 {
+					t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+				}
+			})
+		}
 	}
 }
 

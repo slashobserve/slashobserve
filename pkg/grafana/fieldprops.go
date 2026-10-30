@@ -3,6 +3,7 @@ package grafana
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
 	"slices"
@@ -133,6 +134,8 @@ var plotDrawnPropIDs = map[string]bool{
 	"custom.thresholdsStyle": true,
 }
 
+var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
+
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
 var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
@@ -141,19 +144,46 @@ var legendTooltipHidingTypes = map[spec.PanelType]bool{
 	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true,
 }
 
-var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
-
 var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
-	spec.BarChart: true, spec.Histogram: true, spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
+	spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
 }
 
 var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
 
 var barPanelTypes = map[spec.PanelType]bool{spec.BarChart: true, spec.Histogram: true}
 
-var timelineDrawnProps = map[string]propHandler{
-	"custom.lineWidth": propBorderLineWidth,
-	"custom.spanNulls": propSpanNulls,
+var histogramPanelTypes = map[spec.PanelType]bool{spec.Histogram: true}
+
+var tablePanelTypes = map[spec.PanelType]bool{spec.Table: true}
+
+var plotOrBarPanelTypes = union(plotPanelTypes, barPanelTypes)
+
+func union(sets ...map[spec.PanelType]bool) map[spec.PanelType]bool {
+	out := map[spec.PanelType]bool{}
+	for _, set := range sets {
+		maps.Copy(out, set)
+	}
+	return out
+}
+
+func propIDs(ids ...string) map[string]bool {
+	set := map[string]bool{}
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set
+}
+
+type propGate struct {
+	ids     map[string]bool
+	types   map[spec.PanelType]bool
+	outside bool
+	handler propHandler
+	skip    bool
+}
+
+func (g propGate) decides(id string, typ spec.PanelType) bool {
+	return g.ids[id] && g.types[typ] != g.outside
 }
 
 func propBorderLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -168,43 +198,29 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
 }
 
-func (b *panelBuild) barPropHandler(id string) (handler propHandler, decided bool) {
-	if !barPanelTypes[b.typ] {
-		return nil, false
-	}
-	switch {
-	case id == "custom.lineWidth":
-		return propBorderLineWidth, true
-	case lineStylePropIDs[id]:
-		return nil, true
-	case id == "custom.stacking" && b.typ == spec.Histogram:
-		return propHistogramStacking, true
-	}
-	return nil, false
+var propGates = []propGate{
+	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
+	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
+	{ids: propIDs("custom.lineWidth"), types: union(timelinePanelTypes, barPanelTypes), handler: propBorderLineWidth},
+	{ids: propIDs("custom.spanNulls"), types: timelinePanelTypes},
+	{ids: lineStylePropIDs, types: barPanelTypes, skip: true},
+	{ids: propIDs("custom.stacking"), types: histogramPanelTypes, handler: propHistogramStacking},
+	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},
+	{ids: axisPropIDs, types: plotOrBarPanelTypes, outside: true, skip: true},
+	{ids: lineStylePropIDs, types: lineStyleDrawnOnlyByGrafana, skip: true},
+	{ids: lineStylePropIDs, types: plotOrBarPanelTypes, outside: true, handler: propLineStyleUnused},
 }
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
-	if tableColumnProps[id] && b.typ != spec.Table {
-		return nil, false
-	}
-	if seriesDrawingPropIDs[id] && !seriesDrawingTypes[b.typ] {
-		return nil, false
-	}
-	if handler, drawn := timelineDrawnProps[id]; drawn && timelinePanelTypes[b.typ] {
-		return handler, true
-	}
-	if handler, decided := b.barPropHandler(id); decided {
-		return handler, handler != nil
-	}
-	if plotDrawnPropIDs[id] && !plotPanelTypes[b.typ] {
-		return nil, false
-	}
-	if !plotPanelTypes[b.typ] && !barPanelTypes[b.typ] {
-		if axisPropIDs[id] || (lineStylePropIDs[id] && lineStyleDrawnOnlyByGrafana[b.typ]) {
-			return nil, false
-		}
-		if lineStylePropIDs[id] {
-			return propLineStyleUnused, true
+	for _, gate := range propGates {
+		if gate.decides(id, b.typ) {
+			if gate.skip {
+				return nil, false
+			}
+			if gate.handler != nil {
+				return gate.handler, true
+			}
+			break
 		}
 	}
 	handler, ok := propHandlers[id]
