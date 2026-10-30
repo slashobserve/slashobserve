@@ -22,6 +22,7 @@ const anchors = {
   plasma: ["--series-7", "--series-5", "--threshold-warning"],
   inferno: ["--series-7", "--threshold-critical", "--threshold-warning"],
   cividis: ["--series-1", "--muted-foreground", "--threshold-warning"],
+  warm: ["--series-7", "--series-2", "--threshold-warning"],
 } as const
 
 const hues = {

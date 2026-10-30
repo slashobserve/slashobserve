@@ -953,3 +953,128 @@ func (b *panelBuild) legacyTableOverride(match spec.Match, props spec.FieldProps
 	}
 	b.addOverride(spec.Override{Match: match, FieldProps: props}, path)
 }
+
+func (b *panelBuild) legacyHeatmap(d *spec.Display) {
+	preBucketed := asString(b.raw["dataFormat"]) == "tsbuckets"
+	calculate := !preBucketed
+	d.Calculate = &calculate
+	b.consume("dataFormat", "heatmap")
+	b.legacyHeatmapColors(d)
+	d.CellGap = b.heatmapIntOption("cards.cardPadding", grafanaHeatmapGap, 0, maxCellGap)
+	d.CellRadius = b.heatmapIntOption("cards.cardRound", 0, 0, maxCellRadius)
+	if !flagOr(b.raw, "hideZeroBuckets", false) {
+		d.HideBelow = ptr(-1.0)
+	}
+	b.consume("hideZeroBuckets")
+	if shown, ok := b.boolOption("legend.show"); ok && !*shown {
+		d.Legend = "hidden"
+	}
+	if reverse, ok := b.boolOption("reverseYBuckets"); ok && *reverse {
+		d.YReverse = reverse
+	}
+	b.legacyHeatmapTooltip(d)
+	b.legacyHeatmapAxes(d)
+	if preBucketed {
+		b.legacyRowsLayout(d)
+		b.consume("xBucketNumber", "xBucketSize", "yBucketNumber", "yBucketSize")
+		return
+	}
+	d.XBuckets = b.legacyBuckets("xBucketNumber", "xBucketSize", xBucketSize)
+	d.YBuckets = b.legacyBuckets("yBucketNumber", "yBucketSize", yBucketSize)
+	b.consume("yBucketBound")
+}
+
+func (b *panelBuild) legacyHeatmapColors(d *spec.Display) {
+	if b.enumOption("color.mode", "spectrum", "opacity") == "opacity" {
+		b.heatmapFill(d, "color.cardColor")
+		if b.enumOption("color.colorScale", "sqrt", "linear") == "linear" {
+			b.consume("color.exponent")
+		} else {
+			d.ColorScale = "exponential"
+			b.heatmapExponent(d, "color.exponent")
+		}
+		b.consume("color.colorScheme")
+	} else {
+		d.ColorMode = "scheme"
+		b.heatmapScheme(d, "color.colorScheme", "interpolate", "Spectral")
+		b.consume("color.cardColor", "color.colorScale", "color.exponent")
+	}
+	d.ColorSteps = grafanaHeatmapSteps
+	d.ColorMin = b.heatmapNumberOption("color.min")
+	d.ColorMax = b.heatmapNumberOption("color.max")
+}
+
+func (b *panelBuild) legacyHeatmapTooltip(d *spec.Display) {
+	if shown, ok := b.boolOption("tooltip.show"); ok && !*shown {
+		d.Tooltip = "hidden"
+	}
+	if flag, ok := b.boolOption("tooltip.showHistogram"); ok && *flag {
+		d.TooltipHistogram = flag
+	}
+	if v, ok := b.take("tooltipDecimals"); ok && v != nil {
+		b.partial("tooltipDecimals", "The tooltip decimals are not supported yet.")
+	}
+	if shown, ok := b.boolOption("xAxis.show"); ok && !*shown {
+		b.partial("xAxis.show", "The time axis of a heatmap cannot be hidden yet.")
+	}
+}
+
+func (b *panelBuild) legacyHeatmapAxes(d *spec.Display) {
+	if v, ok := b.take("yAxis.format"); ok {
+		b.heatmapUnit(&d.YUnit, v, "yAxis.format")
+	}
+	d.YDecimals = b.heatmapDecimals("yAxis.decimals")
+	d.YMin = b.heatmapNumberOption("yAxis.min")
+	d.YMax = b.heatmapNumberOption("yAxis.max")
+	if shown, ok := b.boolOption("yAxis.show"); ok && !*shown {
+		d.YAxis = "hidden"
+	}
+	if v, ok := b.take("yAxis.splitFactor"); ok && v != nil {
+		b.partial("yAxis.splitFactor", "The bucket split factor is not supported yet.")
+	}
+	if v, ok := b.take("yAxis.logBase"); ok {
+		base, valid := numberValue(v)
+		switch {
+		case !valid, base == 1:
+		case base == 2 || base == defaultLogBase:
+			d.YScale = "log"
+			d.YBucketLogBase = int(base)
+		default:
+			b.partial("yAxis.logBase", logBaseReason)
+		}
+	}
+}
+
+func (b *panelBuild) legacyRowsLayout(d *spec.Display) {
+	switch b.enumOption("yBucketBound", "auto", "upper", "middle", "lower") {
+	case "upper":
+		d.RowsLayout = "le"
+	case "lower":
+		d.RowsLayout = "ge"
+	}
+}
+
+func (b *panelBuild) legacyBuckets(countPath, sizePath string, size func(any) (float64, bool)) *spec.Buckets {
+	count, hasCount := b.legacyBucketValue(countPath, numberValue)
+	sizeValue, hasSize := b.legacyBucketValue(sizePath, size)
+	switch {
+	case hasCount:
+		return &spec.Buckets{Mode: "count", Value: &count}
+	case hasSize:
+		return &spec.Buckets{Mode: "size", Value: &sizeValue}
+	}
+	return nil
+}
+
+func (b *panelBuild) legacyBucketValue(path string, parse func(any) (float64, bool)) (float64, bool) {
+	v, ok := b.take(path)
+	if !ok || v == nil || v == "" {
+		return 0, false
+	}
+	value, valid := parse(v)
+	if !valid || value <= 0 {
+		b.partial(path, "The bucket size or count must be a positive number.")
+		return 0, false
+	}
+	return value, true
+}

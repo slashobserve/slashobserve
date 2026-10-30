@@ -14,6 +14,7 @@ export type DisplayOption =
       label: string
       options: readonly Option[]
       absent?: string
+      numeric?: boolean
     }
   | { kind: "toggle"; key: string; label: string }
   | { kind: "reducer"; key: string; label: string }
@@ -37,6 +38,13 @@ export type DisplayOption =
       label: string
       placeholder: string
       maxLength: number
+    }
+  | {
+      kind: "buckets"
+      key: string
+      label: string
+      sizeHint: string
+      countHint: string
     }
   | { kind: "tags"; key: string; label: string; max: number }
   | { kind: "names"; key: string; label: string; max: number }

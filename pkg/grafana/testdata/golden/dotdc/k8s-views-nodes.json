@@ -87,7 +87,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only."
+          "Exemplars are drawn on time series and heatmaps only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -112,7 +112,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
+          "Exemplars are drawn on time series and heatmaps only.",
           "Some transformations are not supported yet."
         ],
         "paths": [
@@ -160,7 +160,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only."
+          "Exemplars are drawn on time series and heatmaps only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -206,7 +206,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only."
+          "Exemplars are drawn on time series and heatmaps only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -231,7 +231,7 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only."
+          "Exemplars are drawn on time series and heatmaps only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -704,7 +704,7 @@
         "row": "Kubernetes Storage",
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
+          "Exemplars are drawn on time series and heatmaps only.",
           "Some transformations are not supported yet."
         ],
         "paths": [

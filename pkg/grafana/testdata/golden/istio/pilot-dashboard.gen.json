@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 11,
-      "partial": 2,
+      "imported": 13,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -288,16 +288,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Push Information",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.calculation.xBuckets.mode",
-          "options.calculation.xBuckets.value",
-          "options.yAxis.decimals",
-          "options.yAxis.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -316,16 +309,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Push Information",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.calculation.xBuckets.mode",
-          "options.calculation.xBuckets.value",
-          "options.yAxis.decimals",
-          "options.yAxis.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -828,6 +814,12 @@
               "colorMode": "scheme",
               "colorScheme": "redYellowGreen",
               "colorSteps": 128,
+              "xBuckets": {
+                "mode": "size",
+                "value": 60
+              },
+              "yUnit": "s",
+              "yDecimals": 0,
               "showValues": "auto"
             }
           },
@@ -855,6 +847,12 @@
               "colorMode": "scheme",
               "colorScheme": "redYellowGreen",
               "colorSteps": 128,
+              "xBuckets": {
+                "mode": "size",
+                "value": 60
+              },
+              "yUnit": "bytes",
+              "yDecimals": 0,
               "showValues": "auto"
             }
           }

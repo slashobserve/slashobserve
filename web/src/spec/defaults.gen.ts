@@ -146,7 +146,14 @@ export const specDefaults = {
       "cellRadius": 0,
       "legend": "bottom",
       "hideBelow": 0,
-      "showValues": "never"
+      "showValues": "never",
+      "tooltip": "single",
+      "tooltipHistogram": false,
+      "tooltipColorScale": false,
+      "rowsLayout": "auto",
+      "yAxis": "left",
+      "yReverse": false,
+      "exemplars": true
     },
     "histogram": {
       "stack": "normal",

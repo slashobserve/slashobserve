@@ -173,6 +173,12 @@ A `heatmap` panel colors its cells with `colorMode`: `opacity` (the default) var
 `colorScale` (`linear`, the default, or `exponential`) and `colorExponent` (0.1 to 2, 0.5 when absent) bend the opacity of the opacity mode only.
 `cellGap` (0 to 25 pixels) and `cellRadius` (0 to 10) shape the cells, `showValues` (`auto` where the text fits, `always` or `never`, the default) writes each count in its cell, and `cellUnit` and `cellDecimals` format the counts in the cells, the tooltip and the color legend.
 `hideBelow` (0 when absent) and `hideAbove` leave out cells whose count is at or below, or at or above, them, and those cells do not count toward the color range.
+With `calculate` on, `xBuckets` and `yBuckets` choose the buckets: `{ "mode": "size", "value": 60 }` makes columns of 60 seconds (a y bucket is `value` wide in the unit of the data) and `{ "mode": "count", "value": 30 }` makes that many columns or rows; with no `value`, `size` picks a round step (about 16 rows, or the sample step for columns) and `count` keeps the default of 16 rows and one column per sample.
+`yBucketScale` (`linear`, `log` or `symlog`, else the heatmap's `yScale`) spaces the calculated rows and `yBucketLogBase` (2 or 10, 2 when absent) sets the base of the log and symlog scales.
+`rowsLayout` says how bucket series are named: `auto` (the `le` label), `le` or `ge` (the series name is the upper or lower bound; `ge` rows are de-accumulated from above) or `unknown` (ordinal rows).
+`yUnit` and `yDecimals` format the row labels (the field's unit when absent), `yMin` and `yMax` crop the rows, `yReverse` puts the first row on top, and `yAxis` (`left`, `right` or `hidden`), `yAxisWidth` (0 to 400 pixels) and `yAxisLabel` set the row axis.
+`tooltip` is `single` (the hovered cell, the default), `all` (every row of the hovered column) or `hidden`; `tooltipHistogram` adds a bar per row for the hovered column, `tooltipColorScale` marks the count on the color scale, and `tooltipMaxWidth` and `tooltipMaxHeight` (100 to 2000 pixels) clip it.
+`exemplars` (on by default) draws the exemplars of queries with `exemplar: true` as diamonds in `exemplarColor` (the foreground color when absent), placed by time and value.
 `legend: "hidden"` removes the color legend under the chart.
 The agent prompt does not list these options.
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
@@ -271,7 +277,7 @@ A query has the text in `query` and, optionally:
 - `format`, one of `timeseries`, `table`, `heatmap` or `logs`.
 - `interval`, the smallest step: a duration such as `30s`, or `${name}` naming an `interval` variable, which then gives the step the viewer selected, `$__auto` included.
 - `intervalFactor`, a whole number from 2 to 10 that multiplies the query's step, as Grafana's resolution 1/N does.
-- `exemplar`, on a Prometheus range query, to also fetch its exemplars.
+- `exemplar`, on a Prometheus range query, to also fetch its exemplars, which a time series and a heatmap draw.
 - `hide`, to keep the query out of the panel's data.
 
 The query language follows the datasource: PromQL for Prometheus and a single SQL `SELECT` for ClickHouse.
@@ -314,7 +320,7 @@ Other panel types ignore `cell`, and the agent prompt does not list it.
 A `table` column also takes `width` and `minWidth` (20 to 2000 pixels), `align` (`auto`, the default, right-aligns numbers and left-aligns the rest, or `left`, `center`, `right`), `filterable` (a button in the header opens a checklist of the column's distinct values and keeps the rows that match), `inspect` (a button in every cell opens its full value in a dialog) and `hideHeader` (the header text is hidden visually but still read by screen readers).
 A column with `width` has exactly that width, the other columns share what is left and never get narrower than their `minWidth`, and the table scrolls sideways when they do not fit; with none of them set the browser sizes the columns from their content.
 `colorMode` chooses how a color is picked: `palette` (the series palette, the default when no `color` is set), `paletteByName` (a palette color from a stable hash of the series name, so a series keeps its color when others come and go), `fixed` (the `color`, the default when one is set), `shades` (the `color` in a step lighter or darker per series), `thresholds` (each series takes the color of the threshold its value reaches) or `scheme` (each value or series takes a color from the ramp `colorScheme` names, by its place between the field's `min` and `max`, else the data range).
-`colorScheme` is one of `greenYellowRed`, `redYellowGreen`, `blueYellowRed`, `yellowRed`, `bluePurple`, `yellowBlue`, `blues`, `reds`, `greens`, `purples`, `oranges`, `viridis`, `magma`, `plasma`, `inferno` or `cividis`; every ramp is built from the theme's own colors, so light and dark themes follow it.
+`colorScheme` is one of `greenYellowRed`, `redYellowGreen`, `blueYellowRed`, `yellowRed`, `bluePurple`, `yellowBlue`, `blues`, `reds`, `greens`, `purples`, `oranges`, `viridis`, `magma`, `plasma`, `inferno`, `cividis` or `warm`; every ramp is built from the theme's own colors, so light and dark themes follow it.
 `colorBy` is the value of a series that picks its color under `thresholds` and `scheme`: `last` (the default), `min` or `max`.
 Time series and trend panels draw every `colorMode`, while stat, gauge, bar gauge, table cells with colored values, bar chart and XY chart draw `scheme`; stat, gauge, bar gauge, table, bar chart, pie chart and XY chart already color values by their thresholds.
 Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.

@@ -147,19 +147,8 @@
           "color.mode",
           "dataFormat",
           "hideZeroBuckets",
-          "highlightCards",
           "legend.show",
-          "options.calculation.xBuckets.mode",
-          "options.calculation.yBuckets.mode",
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
           "options.tooltip.show",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.decimals",
-          "options.yAxis.min",
-          "options.yAxis.reverse",
-          "options.yAxis.unit",
           "reverseYBuckets",
           "tooltip.show",
           "tooltip.showHistogram",
@@ -1191,7 +1180,17 @@
               "colorScheme": "redYellowGreen",
               "colorSteps": 128,
               "cellGap": 2,
-              "cellDecimals": 5
+              "cellDecimals": 5,
+              "xBuckets": {
+                "mode": "size"
+              },
+              "yBuckets": {
+                "mode": "size"
+              },
+              "rowsLayout": "le",
+              "yUnit": "s",
+              "yDecimals": 0,
+              "yMin": 0
             }
           },
           {

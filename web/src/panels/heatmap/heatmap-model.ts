@@ -30,6 +30,7 @@ export type HeatmapModel = {
   min: number
   max: number
   unit: string | undefined
+  reversed: boolean
 }
 
 export const calculatedRows = 16
@@ -38,6 +39,135 @@ const minOpacity = 0.1
 const defaultExponent = 0.5
 const labelFontSize = 11
 const labelPadding = 2
+const maxColumns = 1000
+const maxRows = 1000
+const niceSteps = [1, 2, 2.5, 5, 10]
+const defaultLogBase = 2
+
+type BucketMode = "size" | "count"
+type BucketSpec = { mode: BucketMode; value: number | null }
+type BucketScale = "linear" | "log" | "symlog"
+type RowsLayout = "auto" | "le" | "ge" | "unknown"
+
+function bucketSpec(raw: unknown): BucketSpec | null {
+  if (typeof raw !== "object" || raw === null) return null
+  const { mode, value } = raw as { mode?: unknown; value?: unknown }
+  if (mode !== "size" && mode !== "count") return null
+  return {
+    mode,
+    value:
+      typeof value === "number" && Number.isFinite(value) && value > 0
+        ? value
+        : null,
+  }
+}
+
+function niceStep(raw: number): number {
+  if (!(raw > 0) || !Number.isFinite(raw)) return 1
+  const magnitude = 10 ** Math.floor(Math.log10(raw))
+  const unit = niceSteps.find((step) => step * magnitude >= raw * 0.999999)
+  return (unit ?? 10) * magnitude
+}
+
+function sampleStep(xs: number[]): number {
+  let step = Infinity
+  for (let i = 1; i < xs.length; i++) step = Math.min(step, xs[i] - xs[i - 1])
+  return Number.isFinite(step) && step > 0 ? step : 1000
+}
+
+type Columns = { xs: number[]; column: number[] }
+
+function groupColumns(xs: number[], spec: BucketSpec | null): Columns {
+  const own: Columns = { xs, column: xs.map((_, i) => i) }
+  if (!spec || xs.length === 0) return own
+  if (spec.mode === "count" && spec.value === null) return own
+  const first = xs[0]
+  const last = xs[xs.length - 1]
+  const span = last - first
+  let width: number
+  let origin = first
+  let count: number
+  if (spec.mode === "count") {
+    count = Math.min(maxColumns, Math.max(1, Math.round(spec.value ?? 1)))
+    width = span / count
+    if (!(width > 0)) return { xs: [first], column: xs.map(() => 0) }
+  } else {
+    width = Math.max(
+      spec.value === null ? sampleStep(xs) : spec.value * 1000,
+      span / maxColumns
+    )
+    origin = Math.floor(first / width) * width
+    count = Math.floor((last - origin) / width) + 1
+  }
+  const column = xs.map((ms) =>
+    Math.min(count - 1, Math.max(0, Math.floor((ms - origin) / width)))
+  )
+  return {
+    xs: Array.from({ length: count }, (_, i) => origin + i * width),
+    column,
+  }
+}
+
+const scales: Record<
+  BucketScale,
+  (base: number) => { to: (v: number) => number; from: (t: number) => number }
+> = {
+  linear: () => ({ to: (v) => v, from: (t) => t }),
+  log: (base) => {
+    const ln = Math.log(base)
+    return { to: (v) => Math.log(v) / ln, from: (t) => base ** t }
+  },
+  symlog: (base) => {
+    const ln = Math.log(base)
+    return {
+      to: (v) => Math.sign(v) * (Math.log1p(Math.abs(v)) / ln),
+      from: (t) => Math.sign(t) * (base ** Math.abs(t) - 1),
+    }
+  },
+}
+
+type RowGrid = { edges: number[]; indexOf: (value: number) => number }
+
+function rowGrid(
+  low: number,
+  high: number,
+  spec: BucketSpec | null,
+  scale: BucketScale,
+  base: number
+): RowGrid {
+  const { to, from } =
+    scales[scale === "log" && low <= 0 ? "linear" : scale](base)
+  const start = to(low)
+  const span = to(high) - start
+  if (spec?.mode !== "size") {
+    const rows = Math.min(
+      maxRows,
+      Math.max(1, Math.round(spec?.value ?? calculatedRows))
+    )
+    const edges = Array.from({ length: rows + 1 }, (_, i) =>
+      i === rows ? high : from(start + (span * i) / rows)
+    )
+    return {
+      edges,
+      indexOf: (value) =>
+        Math.min(
+          rows - 1,
+          Math.floor((span === 0 ? 0 : (to(value) - start) / span) * rows)
+        ),
+    }
+  }
+  const step = Math.max(
+    spec.value ?? niceStep(span / calculatedRows),
+    span / maxRows
+  )
+  const origin = Math.floor(start / step) * step
+  const rows = Math.max(1, Math.ceil((to(high) - origin) / step - 1e-9))
+  return {
+    edges: Array.from({ length: rows + 1 }, (_, i) => from(origin + i * step)),
+    indexOf: (value) =>
+      Math.min(rows - 1, Math.max(0, Math.floor((to(value) - origin) / step))),
+  }
+}
 
 type Entry = {
   frame: PreparedFrame
@@ -106,35 +236,79 @@ function deaccumulate(columns: (number | null)[][]): (number | null)[][] {
   )
 }
 
+type Labelling = { unit: string | undefined; decimals: number | undefined }
+
 function boundFormatter(
   bounds: number[],
-  unit: string | undefined
+  labelling: Labelling
 ): (bound: number) => string {
-  const decimals = axisDecimals(bounds.filter(Number.isFinite), unit)
-  return (bound) => formatValue(bound, unit, decimals)
+  const decimals = axisDecimals(
+    bounds.filter(Number.isFinite),
+    labelling.unit,
+    labelling.decimals
+  )
+  return (bound) => formatValue(bound, labelling.unit, decimals)
 }
 
-function exactFormatter(unit: string | undefined): (bound: number) => string {
-  return (bound) => formatValue(bound, unit, ownDecimals(bound, unit))
+function exactFormatter(labelling: Labelling): (bound: number) => string {
+  return (bound) =>
+    formatValue(
+      bound,
+      labelling.unit,
+      labelling.decimals ?? ownDecimals(bound, labelling.unit)
+    )
 }
+
+function deaccumulateFromAbove(
+  columns: (number | null)[][]
+): (number | null)[][] {
+  return columns.map((column, row) =>
+    column.map((value, col) => {
+      if (value === null) return null
+      const upper = row < columns.length - 1 ? (columns[row + 1][col] ?? 0) : 0
+      return Math.max(0, value - upper)
+    })
+  )
+}
+
+type Shape = Pick<HeatmapModel, "rows" | "cells">
 
 function bucketModel(
   entries: Entry[],
   xs: number[],
-  unit: string | undefined,
-  cumulative: boolean
-): Pick<HeatmapModel, "rows" | "cells"> {
+  labelling: Labelling,
+  cumulative: boolean,
+  layout: "le" | "ge",
+  boundOf: (entry: Entry) => number
+): Shape {
   const byBound = new Map<number, (number | null)[]>()
-  for (const { frame, values } of entries) {
-    const bound = parseBound(frame.labels?.le) ?? Infinity
+  for (const entry of entries) {
+    const bound = boundOf(entry)
     byBound.set(
       bound,
-      sumInto(byBound.get(bound) ?? new Array(xs.length).fill(null), values)
+      sumInto(
+        byBound.get(bound) ?? new Array(xs.length).fill(null),
+        entry.values
+      )
     )
   }
   const bounds = [...byBound.keys()].sort((a, b) => a - b)
   const raw = bounds.map((bound) => byBound.get(bound) ?? [])
-  const format = exactFormatter(unit)
+  const format = exactFormatter(labelling)
+  if (layout === "ge") {
+    const rows = bounds.map((from, i): HeatmapRow => {
+      const label = format(from)
+      const to = i < bounds.length - 1 ? bounds[i + 1] : undefined
+      return {
+        label,
+        from,
+        to,
+        range:
+          to === undefined ? `${label} and above` : `${label} - ${format(to)}`,
+      }
+    })
+    return { rows, cells: cumulative ? deaccumulateFromAbove(raw) : raw }
+  }
   const rows = bounds.map((to, i): HeatmapRow => {
     const from = i > 0 ? bounds[i - 1] : to > 0 ? 0 : undefined
     const label = format(to)
@@ -149,63 +323,90 @@ function bucketModel(
   return { rows, cells: cumulative ? deaccumulate(raw) : raw }
 }
 
+type Calculation = {
+  x: BucketSpec | null
+  y: BucketSpec | null
+  scale: BucketScale
+  base: number
+}
+
 function calculatedModel(
   entries: Entry[],
   xs: number[],
-  unit: string | undefined,
-  logarithmic: boolean
-): Pick<HeatmapModel, "rows" | "cells"> {
+  labelling: Labelling,
+  calculation: Calculation
+): Shape & { xs: number[] } {
   const numbers = entries.flatMap(({ values }) => values.filter(isNumber))
-  if (numbers.length === 0) return { rows: [], cells: [] }
+  if (numbers.length === 0) return { rows: [], cells: [], xs }
   let low = Infinity
   let high = -Infinity
   for (const value of numbers) {
     if (value < low) low = value
     if (value > high) high = value
   }
-  const log = logarithmic && low > 0
-  const toScale = (value: number) => (log ? Math.log(value) : value)
-  const fromScale = (value: number) => (log ? Math.exp(value) : value)
-  const start = toScale(low)
-  const span = toScale(high) - start
-  const edges = Array.from({ length: calculatedRows + 1 }, (_, i) =>
-    i === calculatedRows ? high : fromScale(start + (span * i) / calculatedRows)
+  const grid = rowGrid(
+    low,
+    high,
+    calculation.y,
+    calculation.scale,
+    calculation.base
   )
-  const format = boundFormatter(edges, unit)
-  const rows = edges.slice(0, calculatedRows).map((from, i): HeatmapRow => {
+  const columns = groupColumns(xs, calculation.x)
+  const format = boundFormatter(grid.edges, labelling)
+  const rows = grid.edges.slice(0, -1).map((from, i): HeatmapRow => {
     const label = format(from)
     return {
       label,
       from,
-      to: edges[i + 1],
-      range: `${label} - ${format(edges[i + 1])}`,
+      to: grid.edges[i + 1],
+      range: `${label} - ${format(grid.edges[i + 1])}`,
     }
   })
-  const cells = rows.map(() => new Array<number | null>(xs.length).fill(0))
+  const cells = rows.map(() =>
+    new Array<number | null>(columns.xs.length).fill(0)
+  )
   for (const { values } of entries) {
     values.forEach((value, col) => {
       if (value === null) return
-      const position = span === 0 ? 0 : (toScale(value) - start) / span
-      const row = Math.min(
-        calculatedRows - 1,
-        Math.floor(position * calculatedRows)
-      )
-      cells[row][col] = (cells[row][col] ?? 0) + 1
+      const row = grid.indexOf(value)
+      const target = columns.column[col]
+      cells[row][target] = (cells[row][target] ?? 0) + 1
     })
   }
-  return { rows, cells }
+  return { rows, cells, xs: columns.xs }
 }
 
-function ordinalModel(
-  entries: Entry[],
-  fields: FieldResolver
-): Pick<HeatmapModel, "rows" | "cells"> {
+function ordinalModel(entries: Entry[], fields: FieldResolver): Shape {
   const labels = entries.map(({ frame, field }) =>
     fields.displayName(frame, field)
   )
   return {
     rows: labels.map((label) => ({ label, range: label })),
     cells: entries.map(({ values }) => values),
+  }
+}
+
+function inWindow(
+  row: HeatmapRow,
+  low: number | undefined,
+  high: number | undefined
+): boolean {
+  if (low !== undefined && row.to !== undefined && row.to <= low) return false
+  return !(high !== undefined && row.from !== undefined && row.from >= high)
+}
+
+function arranged(
+  shape: Shape,
+  window: { low: number | undefined; high: number | undefined },
+  reversed: boolean
+): Shape {
+  const kept = shape.rows.flatMap((row, index) =>
+    inWindow(row, window.low, window.high) ? [index] : []
+  )
+  const order = reversed ? kept.reverse() : kept
+  return {
+    rows: order.map((index) => shape.rows[index]),
+    cells: order.map((index) => shape.cells[index]),
   }
 }
 
@@ -310,36 +511,80 @@ export function heatmapModel(
   display: Record<string, unknown>,
   queries: DataPanel["queries"]
 ): HeatmapModel {
-  const { xs, entries } = entriesOf(frames, fields)
+  const { xs: sampleXs, entries } = entriesOf(frames, fields)
   const unit = entries[0]?.config.unit
+  const labelling: Labelling = {
+    unit: typeof display.yUnit === "string" ? display.yUnit : unit,
+    decimals: numberOf(display.yDecimals),
+  }
+  const layout = rowsLayoutOf(display.rowsLayout)
+  const boundOf = (entry: Entry) =>
+    parseBound(entry.frame.labels?.le) ??
+    (layout === "le" || layout === "ge"
+      ? parseBound(fields.displayName(entry.frame, entry.field))
+      : null)
   const isBuckets =
     entries.length > 0 &&
     display.calculate !== true &&
-    entries.every(({ frame }) => parseBound(frame.labels?.le) !== null)
+    layout !== "unknown" &&
+    entries.every((entry) => boundOf(entry) !== null)
   const mode: HeatmapMode =
     display.calculate === true
       ? "calculated"
       : isBuckets
         ? "buckets"
         : "ordinal"
-  const shape =
-    mode === "calculated"
-      ? calculatedModel(entries, xs, unit, display.yScale === "log")
-      : mode === "buckets"
-        ? bucketModel(
-            entries,
-            xs,
-            unit,
-            queries.some((query) => query.format === "heatmap")
-          )
-        : ordinalModel(entries, fields)
+  const scale =
+    bucketScaleOf(display.yBucketScale) ?? bucketScaleOf(display.yScale)
+  let xs = sampleXs
+  let shape: Shape
+  if (mode === "calculated") {
+    const calculated = calculatedModel(entries, sampleXs, labelling, {
+      x: bucketSpec(display.xBuckets),
+      y: bucketSpec(display.yBuckets),
+      scale: scale ?? "linear",
+      base: display.yBucketLogBase === 10 ? 10 : defaultLogBase,
+    })
+    xs = calculated.xs
+    shape = calculated
+  } else if (mode === "buckets") {
+    shape = bucketModel(
+      entries,
+      sampleXs,
+      labelling,
+      queries.some((query) => query.format === "heatmap"),
+      layout === "ge" ? "ge" : "le",
+      (entry) => boundOf(entry) ?? Infinity
+    )
+  } else {
+    shape = ordinalModel(entries, fields)
+  }
+  const reversed = display.yReverse === true
+  const arrangedShape = arranged(
+    shape,
+    { low: numberOf(display.yMin), high: numberOf(display.yMax) },
+    reversed
+  )
   return {
     mode,
     xs,
     unit,
-    ...shape,
-    ...extent(shape.cells, shownCell(display)),
+    reversed,
+    ...arrangedShape,
+    ...extent(arrangedShape.cells, shownCell(display)),
   }
+}
+
+function rowsLayoutOf(value: unknown): RowsLayout {
+  return value === "le" || value === "ge" || value === "unknown"
+    ? value
+    : "auto"
+}
+
+function bucketScaleOf(value: unknown): BucketScale | undefined {
+  return value === "linear" || value === "log" || value === "symlog"
+    ? value
+    : undefined
 }
 
 export function colorPosition(look: HeatmapLook, value: number): number {

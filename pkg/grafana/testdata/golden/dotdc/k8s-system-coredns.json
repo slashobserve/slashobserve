@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 10,
-      "partial": 4,
+      "imported": 13,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,7 +45,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only."
+          "Exemplars are drawn on time series and heatmaps only."
         ],
         "paths": [
           "targets[0].exemplar"
@@ -285,19 +285,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -316,19 +306,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -347,19 +327,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -831,6 +801,7 @@
           "colorScheme": "blueYellowRed",
           "colorSteps": 64,
           "cellGap": 1,
+          "yUnit": "s",
           "showValues": "auto"
         }
       },
@@ -857,6 +828,7 @@
           "colorScheme": "blueYellowRed",
           "colorSteps": 64,
           "cellGap": 1,
+          "yUnit": "decbytes",
           "showValues": "auto"
         }
       },
@@ -883,6 +855,7 @@
           "colorScheme": "blueYellowRed",
           "colorSteps": 64,
           "cellGap": 1,
+          "yUnit": "decbytes",
           "showValues": "auto"
         }
       }

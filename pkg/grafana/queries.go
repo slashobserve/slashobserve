@@ -14,6 +14,8 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
+var exemplarPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Heatmap: true}
+
 const (
 	maxPanelQueries   = 26
 	maxLegend         = 200
@@ -24,7 +26,7 @@ const (
 	sqlFormatTraces   = 3
 	expressionDropped = "Server-side expressions are not supported yet."
 
-	exemplarsTimeSeriesOnly = "Exemplars are drawn on time series only."
+	exemplarsDrawnOnly = "Exemplars are drawn on time series and heatmaps only."
 
 	minResolutionFactor = 2
 	maxResolutionFactor = 10
@@ -317,8 +319,8 @@ func (tb *targetBuild) prometheus() (spec.Query, string) {
 		q.Format = "heatmap"
 	}
 	if truthy(tb.t["exemplar"]) {
-		if q.Instant || tb.b.typ != spec.Timeseries {
-			tb.partial("exemplar", exemplarsTimeSeriesOnly)
+		if q.Instant || !exemplarPanelTypes[tb.b.typ] {
+			tb.partial("exemplar", exemplarsDrawnOnly)
 		} else {
 			q.Exemplar = true
 		}

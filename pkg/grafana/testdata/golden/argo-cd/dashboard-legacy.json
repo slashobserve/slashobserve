@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 35,
-      "imported": 4,
-      "partial": 31,
+      "imported": 5,
+      "partial": 30,
       "placeholder": 0,
       "unverified": 0
     },
@@ -461,30 +461,9 @@
         "type": "heatmap",
         "source_type": "heatmap",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "This heatmap uses the old Grafana heatmap; its options are imported as far as they map.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "dataFormat",
-          "color.cardColor",
-          "color.colorScale",
-          "color.colorScheme",
-          "color.exponent",
-          "color.mode",
-          "hideZeroBuckets",
-          "highlightCards",
-          "legend.show",
-          "reverseYBuckets",
-          "tooltip.show",
-          "tooltip.showHistogram",
-          "xAxis.show",
-          "yAxis.format",
-          "yAxis.logBase",
-          "yAxis.show",
-          "yBucketBound"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1565,7 +1544,16 @@
                 "format": "heatmap",
                 "intervalFactor": 5
               }
-            ]
+            ],
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "hideBelow": -1,
+              "yUnit": "short",
+              "tooltipHistogram": true
+            }
           },
           {
             "id": "p34",

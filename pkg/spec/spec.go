@@ -504,6 +504,11 @@ type FieldPath struct {
 	Alias string `json:"alias,omitempty"`
 }
 
+type Buckets struct {
+	Mode  string   `json:"mode"`
+	Value *float64 `json:"value,omitempty"`
+}
+
 type Display struct {
 	Legend             string             `json:"legend,omitempty"`
 	LegendValues       []string           `json:"legendValues,omitempty"`
@@ -572,6 +577,23 @@ type Display struct {
 	CellDecimals       *int               `json:"cellDecimals,omitempty"`
 	HideBelow          *float64           `json:"hideBelow,omitempty"`
 	HideAbove          *float64           `json:"hideAbove,omitempty"`
+	XBuckets           *Buckets           `json:"xBuckets,omitempty"`
+	YBuckets           *Buckets           `json:"yBuckets,omitempty"`
+	YBucketScale       string             `json:"yBucketScale,omitempty"`
+	YBucketLogBase     int                `json:"yBucketLogBase,omitempty"`
+	RowsLayout         string             `json:"rowsLayout,omitempty"`
+	YUnit              string             `json:"yUnit,omitempty"`
+	YDecimals          *int               `json:"yDecimals,omitempty"`
+	YMin               *float64           `json:"yMin,omitempty"`
+	YMax               *float64           `json:"yMax,omitempty"`
+	YReverse           *bool              `json:"yReverse,omitempty"`
+	YAxis              string             `json:"yAxis,omitempty"`
+	YAxisWidth         *int               `json:"yAxisWidth,omitempty"`
+	YAxisLabel         string             `json:"yAxisLabel,omitempty"`
+	TooltipHistogram   *bool              `json:"tooltipHistogram,omitempty"`
+	TooltipColorScale  *bool              `json:"tooltipColorScale,omitempty"`
+	Exemplars          *bool              `json:"exemplars,omitempty"`
+	ExemplarColor      string             `json:"exemplarColor,omitempty"`
 	BucketSize         *float64           `json:"bucketSize,omitempty"`
 	BucketCount        int                `json:"bucketCount,omitempty"`
 	BucketOffset       *float64           `json:"bucketOffset,omitempty"`
