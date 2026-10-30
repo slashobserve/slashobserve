@@ -58,12 +58,15 @@ import {
 import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
+import { detailsBlockReason } from "./edit/details"
+import { DetailsDialog } from "./edit/details-dialog"
 import {
   EditControls,
   findFirstMoveHandle,
   NewerVersionNotice,
 } from "./edit/edit-controls"
 import {
+  editLayoutButtonId,
   focusWhenIdle,
   useGridEditable,
   useLayoutStore,
@@ -486,6 +489,7 @@ function DashboardView({
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editGuard = useRef<EditGuard>(null)
   const [cursor] = useState(createSharedCursor)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const savedCursor = savedCursorSync(spec)
   const cursorSync = search.cursor ?? savedCursor
   useLayoutEffect(() => cursor.setMode(cursorSync), [cursor, cursorSync])
@@ -624,7 +628,13 @@ function DashboardView({
         !canEdit && !editing && cardVisible && !cardLayout.stacked
       }
       pinned={pinned}
+      detailsBlockedBy={detailsBlockReason({
+        pinned,
+        editingLayout: editing,
+        editingPanel,
+      })}
       onEditLayout={beginLayoutEdit}
+      onEditDetails={() => setDetailsOpen(true)}
       onExport={() => downloadSpec(spec, spec.title, version)}
       cursorSync={cursorSync}
       onCursorSyncChange={chooseCursorSync}
@@ -767,6 +777,14 @@ function DashboardView({
           onClose={closeCard}
         />
       ) : null}
+      <DetailsDialog
+        dashboardId={dashboardId}
+        spec={envelopeSpec}
+        version={envelopeVersion}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+      />
     </div>
   )
 }

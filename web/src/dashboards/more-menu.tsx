@@ -6,6 +6,7 @@ import {
   KeyIcon,
   LayoutGridIcon,
   LogOutIcon,
+  PencilIcon,
 } from "lucide-react"
 
 import {
@@ -36,7 +37,9 @@ type Props = {
   canEditLayout: boolean
   layoutBlockedByActivity: boolean
   pinned: boolean
+  detailsBlockedBy: string | null
   onEditLayout: () => void
+  onEditDetails: () => void
   onExport: () => void
   cursorSync: CursorSync
   onCursorSyncChange: (mode: CursorSync) => void
@@ -47,7 +50,9 @@ export function MoreMenu({
   canEditLayout,
   layoutBlockedByActivity,
   pinned,
+  detailsBlockedBy,
   onEditLayout,
+  onEditDetails,
   onExport,
   cursorSync,
   onCursorSyncChange,
@@ -63,7 +68,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, export, chart hover, API keys, sign out"
+            aria-label="More: edit layout, edit details, export, chart hover, API keys, sign out"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -96,6 +101,17 @@ export function MoreMenu({
               : canEditLayout
                 ? "Edit layout"
                 : "Edit layout (close activity first)"}
+          </DropdownMenuItem>
+        ) : null}
+        {mayEdit ? (
+          <DropdownMenuItem
+            disabled={detailsBlockedBy !== null}
+            onClick={onEditDetails}
+          >
+            <PencilIcon aria-hidden="true" />
+            {detailsBlockedBy === null
+              ? "Edit details"
+              : `Edit details (${detailsBlockedBy})`}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={onExport}>
