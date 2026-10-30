@@ -39,4 +39,5 @@ export type DisplayOption =
       maxLength: number
     }
   | { kind: "tags"; key: string; label: string; max: number }
+  | { kind: "names"; key: string; label: string; max: number }
   | { kind: "note"; text: string }

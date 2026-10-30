@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { parseNumber, parseTags } from "./parse"
+import { parseNames, parseNumber, parseTags } from "./parse"
 import type { NumberRule } from "./types"
 
 const bucketSize: NumberRule = { min: 0, minExclusive: true, max: Infinity }
@@ -85,5 +85,29 @@ describe("parseTags", () => {
 
   it("accepts a tag of 40 characters", () => {
     expect(parseTags("a".repeat(40))).toEqual(["a".repeat(40)])
+  })
+})
+
+describe("parseNames", () => {
+  it("keeps the case and punctuation of field names", () => {
+    expect(parseNames(" Pod, http_requests_total ,Zone A ,, pod")).toEqual([
+      "Pod",
+      "http_requests_total",
+      "Zone A",
+      "pod",
+    ])
+  })
+
+  it("reads an empty entry as no names", () => {
+    expect(parseNames(" , ")).toEqual([])
+  })
+
+  it("keeps the first of repeated names", () => {
+    expect(parseNames("Pod, Zone, Pod")).toEqual(["Pod", "Zone"])
+  })
+
+  it("accepts a name of 200 characters and refuses 201", () => {
+    expect(parseNames("A".repeat(200))).toEqual(["A".repeat(200)])
+    expect(parseNames("A".repeat(201))).toBeNull()
   })
 })

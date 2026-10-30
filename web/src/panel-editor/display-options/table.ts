@@ -38,6 +38,6 @@ export const table: readonly DisplayOption[] = [
       { value: "count", label: "Count" },
     ],
   },
-  { kind: "tags", key: "footerFields", label: "Footer columns", max: 50 },
+  { kind: "names", key: "footerFields", label: "Footer columns", max: 50 },
   { kind: "toggle", key: "footerCountRows", label: "Footer row count" },
 ]

@@ -8,7 +8,7 @@ import {
 } from "@/spec"
 
 import { displayOptions } from "./display-options/index"
-import { parseNumber, parseTags } from "./display-options/parse"
+import { parseNames, parseNumber, parseTags } from "./display-options/parse"
 import { reducerOptions } from "./display-options/shared"
 import type { DisplayOption, NumberRule } from "./display-options/types"
 import type { DraftAction } from "./draft"
@@ -261,42 +261,58 @@ function TextOption({
   )
 }
 
-function TagsOption({
+const listKinds = {
+  tags: {
+    parse: parseTags,
+    placeholder: "All tags",
+    allowed: "Lowercase letters, digits, dots, dashes and underscores.",
+  },
+  names: {
+    parse: parseNames,
+    placeholder: "All columns",
+    allowed: "Names of up to 200 characters, in any case.",
+  },
+}
+
+function ListOption({
   controls,
+  kind,
   label,
   name,
   max,
 }: {
   controls: Controls
+  kind: keyof typeof listKinds
   label: string
   name: string
   max: number
 }) {
+  const { parse, placeholder, allowed } = listKinds[kind]
   const stored = list(controls.display, name).join(", ")
   const { entry, edit } = useEntry(stored)
-  const tagsOf = (value: string) => {
-    const tags = parseTags(value)
-    return tags !== null && tags.length <= max ? tags : null
+  const itemsOf = (value: string) => {
+    const items = parse(value)
+    return items !== null && items.length <= max ? items : null
   }
-  const invalid = tagsOf(entry) === null
-  const hint = `Separated by commas. Lowercase letters, digits, dots, dashes and underscores. At most ${max}.`
+  const invalid = itemsOf(entry) === null
+  const hint = `Separated by commas. ${allowed} At most ${max}.`
   return (
     <EntryField label={label} hint={hint} invalid={invalid}>
       {(props) => (
         <Input
           {...props}
           value={entry}
-          placeholder="All tags"
+          placeholder={placeholder}
           readOnly={controls.disabled}
           onChange={(event) => {
             const next = event.target.value
-            const tags = tagsOf(next)
-            if (tags === null) {
+            const items = itemsOf(next)
+            if (items === null) {
               edit(next, stored)
               return
             }
-            edit(next, tags.join(", "))
-            controls.set(name, tags)
+            edit(next, items.join(", "))
+            controls.set(name, items)
           }}
         />
       )}
@@ -366,9 +382,11 @@ function OptionControl({
         />
       )
     case "tags":
+    case "names":
       return (
-        <TagsOption
+        <ListOption
           controls={controls}
+          kind={option.kind}
           label={option.label}
           name={option.key}
           max={option.max}
