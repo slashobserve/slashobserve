@@ -524,7 +524,7 @@ suite() {
 
   curl -sS -o /dev/null -D "$TMP/index.headers" "$BASE_URL/"
   grep -qi '^x-frame-options: DENY' "$TMP/index.headers" || fail "X-Frame-Options header missing"
-  grep -qi "^content-security-policy: frame-ancestors 'none'" "$TMP/index.headers" || fail "frame-ancestors CSP missing"
+  grep -qi "^content-security-policy: .*frame-ancestors 'none'" "$TMP/index.headers" || fail "frame-ancestors CSP missing"
   pass "responses forbid framing"
 
   out="$(curl -sS -o "$TMP/me-anon" -D "$TMP/me-anon.headers" -w '%{http_code}' "$BASE_URL/api/v1/me")"
