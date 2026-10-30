@@ -966,64 +966,54 @@ func geomapOptions(view, layers string) string {
 	return fmt.Sprintf(`"options":{"view":%s,"layers":[%s],"controls":{"mouseWheelZoom":true,"showZoom":true,"showAttribution":true},"tooltip":{"mode":"details"}}`, view, layers)
 }
 
-func TestGeomapImportsItsFirstMarkersLayer(t *testing.T) {
+func TestGeomapImportsItsMarkersLayer(t *testing.T) {
 	const plainStyle = `{"color":{"fixed":"dark-green"},"opacity":0.4,"size":{"fixed":5,"min":2,"max":15}}`
+	const tiles = `"basemap":"carto","mouseWheelZoom":true`
 	cases := []struct {
 		name, options string
 		display       string
-		color         string
 		paths         []string
 	}{
 		{
 			name:    "coordinates with a sized and colored field",
 			options: geomapOptions(`{"id":"coords","lat":52,"lon":5,"zoom":4}`, geomapLayer(`{"mode":"coords","latitude":"lat","longitude":"lon"}`, `{"color":{"field":"Value","fixed":"red"},"size":{"field":"Value","min":3,"max":20}}`)),
-			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,"location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20}`,
+			display: `{"view":"coords","lat":52,"lon":5,"zoom":4,"location":"coords","latField":"lat","lonField":"lon","sizeField":"Value","colorField":"Value","markerSize":3,"markerSizeMax":20,` + tiles + `}`,
 		},
 		{
-			name:    "geohash with a fixed size and color",
+			name:    "geohash with a fixed size and color keeps the color on its layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"geohash","geohash":"hash"}`, `{"color":{"fixed":"blue"},"size":{"fixed":9,"min":2,"max":15}}`)),
-			display: `{"location":"geohash","geohashField":"hash","markerSize":9}`,
-			color:   "#5794F2",
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"geohash","geohashField":"hash","markerSize":9,"color":"#5794F2"}]}`,
 		},
 		{
 			name:    "world view and automatic location",
 			options: geomapOptions(`{"id":"zero","lat":0,"lon":0,"zoom":1}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"world"}`,
-			color:   "#37872D",
+			display: `{"view":"world",` + tiles + `}`,
 		},
 		{
-			name:    "a lookup layer is reported",
+			name:    "a lookup layer is written as a layer",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"lookup","lookup":"country","gazetteer":"public/gazetteer/countries.json"}`, plainStyle)),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.layers[0].location"},
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers","location":"lookup","lookupField":"country","gazetteer":"countries"}]}`,
 		},
 		{
-			name:    "a named region is reported",
+			name:    "a named region is imported",
 			options: geomapOptions(`{"id":"europe","lat":46,"lon":14,"zoom":4}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.view.id"},
+			display: `{"view":"europe",` + tiles + `}`,
 		},
 		{
 			name:    "coordinates outside the range are reported",
 			options: geomapOptions(`{"id":"coords","lat":120,"lon":5,"zoom":30}`, geomapLayer(`{"mode":"auto"}`, plainStyle)),
-			display: `{"view":"coords","lon":5}`,
-			color:   "#37872D",
+			display: `{"view":"coords","lon":5,` + tiles + `}`,
 			paths:   []string{"options.view.lat", "options.view.zoom"},
 		},
 		{
-			name:    "a second markers layer and a heatmap layer are reported",
+			name:    "several layers are all written",
 			options: geomapOptions(`{"id":"fit"}`, geomapLayer(`{"mode":"auto"}`, plainStyle)+","+geomapLayer(`{"mode":"auto"}`, plainStyle)+`,{"type":"heatmap","config":{}}`),
-			display: "null",
-			color:   "#37872D",
-			paths:   []string{"options.layers[1]", "options.layers[2]"},
+			display: `{` + tiles + `,"layers":[{"type":"markers","name":"Markers"},{"type":"markers","name":"Markers"},{"type":"heatmap"}]}`,
 		},
 		{
-			name:    "the base map and non-default controls are reported",
+			name:    "controls that differ from the defaults are imported",
 			options: `"options":{"basemap":{"type":"default"},"controls":{"mouseWheelZoom":false,"showScale":true},"layers":[],"view":{"id":"fit"}}`,
-			display: "null",
-			paths:   []string{"options.basemap", "options.controls.mouseWheelZoom", "options.controls.showScale"},
+			display: `{"basemap":"carto","showScale":true}`,
 		},
 	}
 	for _, tc := range cases {
@@ -1032,8 +1022,8 @@ func TestGeomapImportsItsFirstMarkersLayer(t *testing.T) {
 			if got := displayJSON(t, panel); got != tc.display {
 				t.Errorf("display = %s, want %s", got, tc.display)
 			}
-			if panel.Color != tc.color {
-				t.Errorf("color = %q, want %q", panel.Color, tc.color)
+			if panel.Color != "" {
+				t.Errorf("color = %q, want none", panel.Color)
 			}
 			if !slices.Equal(line.Paths, tc.paths) {
 				t.Errorf("paths = %v, want %v (reasons %v)", line.Paths, tc.paths, line.Reasons)
@@ -1150,15 +1140,24 @@ func TestCanvasPlacementInPercentIsKept(t *testing.T) {
 	}
 }
 
-func TestCanvasPixelPlacementBecomesPercentAndIsReported(t *testing.T) {
+func TestCanvasPixelPlacementIsKeptWithAPercentFallback(t *testing.T) {
 	cases := []struct {
 		name, placement, constraint string
 		want                        [4]float64
+		kept                        spec.CanvasPlacement
 	}{
-		{"left and top", `{"left":72,"top":34,"width":144,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{10, 10, 20, 20}},
-		{"right and bottom", `{"right":72,"bottom":34,"width":144,"height":68}`, `{"horizontal":"right","vertical":"bottom"}`, [4]float64{70, 70, 20, 20}},
-		{"left and right", `{"left":72,"right":72,"top":0,"height":340}`, `{"horizontal":"leftright","vertical":"top"}`, [4]float64{10, 0, 80, 100}},
-		{"past the panel", `{"left":1000,"top":-50,"width":2000,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{100, 0, 100, 20}},
+		{"left and top", `{"left":72,"top":34,"width":144,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{10, 10, 20, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "top", Left: ptr(72.0), Top: ptr(34.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"right and bottom", `{"right":72,"bottom":34,"width":144,"height":68}`, `{"horizontal":"right","vertical":"bottom"}`, [4]float64{70, 70, 20, 20},
+			spec.CanvasPlacement{Horizontal: "right", Vertical: "bottom", Right: ptr(72.0), Bottom: ptr(34.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"left and right", `{"left":72,"right":72,"top":0,"height":340}`, `{"horizontal":"leftright","vertical":"top"}`, [4]float64{10, 0, 80, 100},
+			spec.CanvasPlacement{Horizontal: "leftright", Vertical: "top", Left: ptr(72.0), Right: ptr(72.0), Top: ptr(0.0), Height: ptr(340.0)}},
+		{"centered", `{"left":0,"top":0,"width":144,"height":68}`, `{"horizontal":"center","vertical":"center"}`, [4]float64{40, 40, 20, 20},
+			spec.CanvasPlacement{Horizontal: "center", Vertical: "center", Left: ptr(0.0), Top: ptr(0.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"percent on one axis only", `{"left":72,"top":10,"width":144,"height":20}`, `{"horizontal":"left","vertical":"scale"}`, [4]float64{10, 10, 20, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "scale", Left: ptr(72.0), Top: ptr(10.0), Width: ptr(144.0), Height: ptr(20.0)}},
+		{"past the panel", `{"left":1000,"top":-50,"width":2000,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{100, 0, 100, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "top", Left: ptr(1000.0), Top: ptr(-50.0), Width: ptr(2000.0), Height: ptr(68.0)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1170,10 +1169,26 @@ func TestCanvasPixelPlacementBecomesPercentAndIsReported(t *testing.T) {
 			if got := [4]float64{els[0].Left, els[0].Top, els[0].Width, els[0].Height}; got != tc.want {
 				t.Errorf("box = %v, want %v", got, tc.want)
 			}
-			if !slices.Contains(line.Paths, "options.root.elements[0].placement") || !slices.Contains(line.Reasons, canvasPixelReason) {
-				t.Errorf("paths = %v, reasons = %v, want the pixel conversion reported", line.Paths, line.Reasons)
+			if !reflect.DeepEqual(els[0].Placement, &tc.kept) {
+				t.Errorf("placement = %+v, want %+v", els[0].Placement, tc.kept)
+			}
+			if len(line.Paths) != 0 {
+				t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 			}
 		})
+	}
+}
+
+func TestCanvasPixelPlacementInsideAGroupBecomesPercentAndIsReported(t *testing.T) {
+	group := `{"type":"frame","name":"Group","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":50,"height":50},"elements":[` +
+		`{"type":"rectangle","name":"Inner","constraint":{"horizontal":"left","vertical":"top"},"placement":{"left":72,"top":34,"width":144,"height":68}}]}`
+	panel, line := canvasPanel(t, 12, 10, group)
+	els := canvasElements(t, panel)
+	if len(els) != 1 || els[0].Placement != nil {
+		t.Fatalf("elements = %+v", els)
+	}
+	if !slices.Contains(line.Paths, "options.root.elements[0].elements[0].placement") || !slices.Contains(line.Reasons, canvasPixelReason) {
+		t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 	}
 }
 
@@ -1214,18 +1229,17 @@ func TestCanvasColorsStyleAndFieldColors(t *testing.T) {
 }
 
 func TestCanvasOptionsWithoutACounterpartAreReported(t *testing.T) {
-	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":45}`
-	element := `{"type":"rectangle","name":"m",` + scaled + `,"config":{"size":100,"valign":"top"},` +
-		`"background":{"color":{"field":"other"},"image":{"fixed":"img/a.png"}},"border":{"width":3,"radius":4,"color":{"fixed":"red"}}}`
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":900}`
+	element := `{"type":"rectangle","name":"m",` + scaled + `,"config":{"size":100},` +
+		`"background":{"color":{"field":"other"},"image":{"fixed":"img/a.png"}},"border":{"width":30,"radius":400,"color":{"fixed":"red"}}}`
 	_, line := canvasPanel(t, 12, 10, element)
 	want := []string{
 		"options.root.elements[0].placement.rotation",
 		"options.root.elements[0].background.color.field",
 		"options.root.elements[0].border.width",
 		"options.root.elements[0].border.radius",
-		"options.root.elements[0].background.image",
+		"options.root.elements[0].background.image.fixed",
 		"options.root.elements[0].config.size",
-		"options.root.elements[0].config.valign",
 	}
 	for _, path := range want {
 		if !slices.Contains(line.Paths, path) {
@@ -1234,30 +1248,15 @@ func TestCanvasOptionsWithoutACounterpartAreReported(t *testing.T) {
 	}
 }
 
-func TestCanvasLeavesOutUnsupportedElementsAndNeverImportsLinksOrActions(t *testing.T) {
+func TestCanvasLeavesOutUnsupportedElements(t *testing.T) {
 	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
-	elements := `{"type":"server","name":"s",` + scaled + `},` +
-		`{"type":"rectangle","name":"r",` + scaled + `,"links":[{"title":"Docs","url":"https://example.com"}],"actions":[{"type":"fetch","fetch":{"url":"https://example.com/restart","method":"POST"}}]}`
+	elements := `{"type":"wind-farm","name":"s",` + scaled + `},{"type":"rectangle","name":"r",` + scaled + `}`
 	panel, line := canvasPanel(t, 12, 10, elements)
 	if els := canvasElements(t, panel); len(els) != 1 || els[0].ID != "r" {
 		t.Fatalf("elements = %+v, want only the rectangle", els)
 	}
-	for _, path := range []string{"options.root.elements[0]", "options.root.elements[1].links", "options.root.elements[1].actions"} {
-		if !slices.Contains(line.Paths, path) {
-			t.Errorf("paths = %v, want %s reported", line.Paths, path)
-		}
-	}
-	if !slices.Contains(line.Reasons, fmt.Sprintf(canvasTypeReason, "server")) {
-		t.Errorf("reasons = %v", line.Reasons)
-	}
-	data, err := json.Marshal(panel)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, word := range []string{"actions", "links", "fetch", "example.com"} {
-		if strings.Contains(string(data), word) {
-			t.Errorf("the imported panel holds %q: %s", word, data)
-		}
+	if !slices.Contains(line.Paths, "options.root.elements[0]") || !slices.Contains(line.Reasons, fmt.Sprintf(canvasTypeReason, "wind-farm")) {
+		t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 	}
 }
 
@@ -1292,19 +1291,15 @@ func TestCanvasConnectionsFollowElementNames(t *testing.T) {
 	panel, line := canvasPanel(t, 12, 10, elements)
 	want := []spec.CanvasConnection{
 		{From: "A", To: "B", Color: "#5794F2", Width: 4},
-		{From: "A", To: "B", Color: "field", Field: "cpu"},
-		{From: "A", To: "B", Width: 5},
+		{From: "A", To: "B", Color: "field", Field: "cpu", Path: "curved", LineStyle: "dashed"},
+		{From: "A", To: "Icon"},
+		{From: "A", To: "B", WidthField: "cpu"},
 	}
 	if got := displayOf(t, panel).Connections; !reflect.DeepEqual(got, want) {
 		t.Fatalf("connections = %+v, want %+v", got, want)
 	}
-	for _, path := range []string{
-		"options.root.elements[0].connections[1].path", "options.root.elements[0].connections[1].lineStyle.style",
-		"options.root.elements[0].connections[2]", "options.root.elements[0].connections[3]", "options.root.elements[0].connections[4].size.field",
-	} {
-		if !slices.Contains(line.Paths, path) {
-			t.Errorf("paths = %v, want %s reported", line.Paths, path)
-		}
+	if !slices.Equal(line.Paths, []string{"options.root.elements[0].connections[2]"}) {
+		t.Errorf("paths = %v, want only the connection to a missing element", line.Paths)
 	}
 }
 

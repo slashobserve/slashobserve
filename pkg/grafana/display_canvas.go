@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -26,27 +27,28 @@ const (
 
 	canvasTypeReason       = "Canvas element type %s is not supported; it was left out."
 	canvasFrameReason      = "Grouped elements were flattened."
-	canvasPixelReason      = "Element positions were converted to percentages of the panel and may shift."
+	canvasPixelReason      = "Positions inside a group were converted to percentages of the panel and may shift."
 	canvasPlacementReason  = "A canvas element needs a position and a size; it was left out."
-	canvasRotationReason   = "Rotated elements are drawn upright."
+	canvasRotationReason   = "Only rotations from -360 to 360 degrees are supported."
 	canvasTemplateReason   = "Text templates are not supported; the template is shown as plain text."
 	canvasFieldReason      = "A color taken from a field other than the element's own is not supported."
-	canvasBorderReason     = "Only 1 pixel borders are supported."
-	canvasRadiusReason     = "Rounded borders are not supported."
-	canvasImageReason      = "Background images are not supported."
-	canvasValignReason     = "Text is centered vertically."
-	canvasLinksReason      = "Links on canvas elements are not supported."
-	canvasActionsReason    = "Canvas actions are never imported."
+	canvasBorderReason     = "Only border widths from 0 to 20 are supported."
+	canvasRadiusReason     = "Only corner radii from 0 to 100 are supported."
+	canvasImageReason      = "Only images at https addresses written out in full, or taken from a field, are supported."
+	canvasIconReason       = "This icon cannot be loaded; only the bundled icons and https images are supported."
+	canvasImageModeReason  = "Image mappings are not supported."
 	canvasFontReason       = "Only font sizes from 8 to 72 are supported."
 	canvasAlignReason      = "Only left, center and right alignment is supported."
 	canvasElementsReason   = "A canvas holds at most 50 elements."
-	canvasBackgroundReason = "The canvas background is not drawn."
 	canvasConnectionReason = "A connection to an element that was left out, or to itself, is not kept."
 	canvasConnLimitReason  = "A canvas holds at most 100 connections."
-	canvasCurvedReason     = "Curved connections are drawn straight."
-	canvasLineStyleReason  = "Only solid connection lines are supported."
-	canvasConnSizeReason   = "Only fixed connection widths from 1 to 10 are supported."
-	canvasConnFieldReason  = "Connection widths taken from a field are not supported."
+	canvasConnSizeReason   = "Only connection widths from 1 to 10 are supported."
+	canvasConnModeReason   = "Connection widths and directions that follow a rule are not supported."
+	canvasVerticesReason   = "Bends in a connection are not supported yet."
+	canvasMaxBorderWidth   = 20
+	canvasMaxRadius        = 100
+	canvasMaxRotation      = 360
+	bundledIconPrefix      = "img/icons/unicons/"
 )
 
 var canvasIDInvalid = regexp.MustCompile(`[^A-Za-z0-9_-]`)
@@ -79,14 +81,37 @@ func displayCanvas(b *panelBuild) {
 		height: max(float64(b.n.pos.h*canvasRowPixels-canvasRowGapPixels-canvasHeaderPixels), 1),
 		names:  map[string]string{}, ids: map[string]bool{},
 	}
-	b.consume(root+".type", root+".name", root+".constraint", root+".placement", root+".border")
-	if fixed := strings.ToLower(asString(lookupValue(b.raw, root+".background.color.fixed"))); fixed != "" && fixed != "transparent" {
-		b.partial(root+".background", canvasBackgroundReason)
-	}
-	b.consume(root + ".background")
+	c.root(root)
 	items, _ := asArray(lookupValue(b.raw, root+".elements"))
 	c.walk(items, root+".elements", canvasBox{0, 0, 100, 100})
 	c.connections()
+}
+
+func (c *canvasBuild) root(root string) {
+	c.b.consume(root+".type", root+".name", root+".constraint", root+".placement")
+	c.d.PanZoom, _ = c.b.boolOption("options.panZoom")
+	c.d.InfinitePan, _ = c.b.boolOption("options.infinitePan")
+	c.rootTooltip()
+	el, _ := asObject(lookupValue(c.b.raw, root))
+	c.d.BackgroundColor = c.color(el, root, "background.color", "")
+	c.d.BackgroundImage, c.d.BackgroundSize = c.backgroundImage(el, root)
+	if width, ok := c.borderWidth(el, root); ok && width > 0 {
+		c.d.BorderWidth = &width
+		c.d.BorderColor = c.color(el, root, "border.color", "")
+	}
+	c.d.BorderRadius = c.radius(el, root)
+	c.b.consume(root + ".border")
+}
+
+func (c *canvasBuild) rootTooltip() {
+	switch asString(lookupValue(c.b.raw, "options.tooltip.mode")) {
+	case "", "details":
+		c.d.Tooltip = "details"
+		c.b.consume("options.tooltip.mode")
+	case "none":
+		c.d.Tooltip = "none"
+		c.b.consume("options.tooltip.mode")
+	}
 }
 
 func (c *canvasBuild) walk(items []any, base string, parent canvasBox) {
@@ -99,16 +124,18 @@ func (c *canvasBuild) walk(items []any, base string, parent canvasBox) {
 		switch typ := asString(el["type"]); typ {
 		case "frame":
 			c.frame(el, path, parent)
-		case "metric-value", "text", "rectangle", "ellipse":
-			c.element(el, path, typ, parent)
 		default:
+			if _, known := canvasKinds[typ]; known {
+				c.element(el, path, typ, parent)
+				continue
+			}
 			c.b.partial(path, fmt.Sprintf(canvasTypeReason, typ))
 		}
 	}
 }
 
 func (c *canvasBuild) frame(el map[string]any, path string, parent canvasBox) {
-	box, ok := c.place(el, path, parent)
+	box, _, ok := c.place(el, path, parent)
 	c.b.partial(path+".type", canvasFrameReason)
 	c.b.consume(path+".name", path+".constraint", path+".placement", path+".background", path+".border", path+".config")
 	if !ok {
@@ -124,16 +151,19 @@ func (c *canvasBuild) element(el map[string]any, path, typ string, parent canvas
 		c.b.partial(path, canvasElementsReason)
 		return
 	}
-	box, ok := c.place(el, path, parent)
+	box, placement, ok := c.place(el, path, parent)
 	if !ok {
 		c.b.partial(path, canvasPlacementReason)
 		return
 	}
 	name := asString(el["name"])
-	out := spec.CanvasElement{ID: c.uniqueID(name), Kind: canvasKind(el, typ), Left: box.left, Top: box.top, Width: box.width, Height: box.height}
+	out := spec.CanvasElement{ID: c.uniqueID(name), Kind: canvasKind(el, typ), Left: box.left, Top: box.top, Width: box.width, Height: box.height, Placement: placement}
 	c.b.consume(path+".type", path+".name")
 	c.text(&out, el, path, typ)
 	c.look(&out, el, path)
+	c.kindSettings(&out, el, path)
+	c.elementLinks(&out, el, path)
+	c.elementActions(&out, el, path)
 	c.d.Elements = append(c.d.Elements, out)
 	if _, taken := c.names[name]; !taken && name != "" {
 		c.names[name] = out.ID
@@ -141,25 +171,96 @@ func (c *canvasBuild) element(el map[string]any, path, typ string, parent canvas
 	if items, _ := asArray(el["connections"]); len(items) > 0 {
 		c.links = append(c.links, canvasLinks{from: out.ID, path: path + ".connections", items: items})
 	}
-	if present(el["links"]) {
-		c.b.partial(path+".links", canvasLinksReason)
+}
+
+var canvasKinds = map[string]string{
+	"metric-value":  "metric",
+	"text":          "text",
+	"rectangle":     "rectangle",
+	"ellipse":       "ellipse",
+	"icon":          "icon",
+	"button":        "button",
+	"server":        "server",
+	"triangle":      "triangle",
+	"cloud":         "cloud",
+	"parallelogram": "parallelogram",
+	"windTurbine":   "windTurbine",
+	"droneTop":      "droneTop",
+	"droneFront":    "droneFront",
+	"droneSide":     "droneSide",
+}
+
+var canvasServerKinds = []string{"single", "stack", "database", "terminal"}
+
+var canvasButtonStyles = []string{"primary", "secondary", "success", "destructive"}
+
+func canvasKind(el map[string]any, typ string) string {
+	if typ == "text" && asString(lookupValue(el, "config.text.mode")) == "field" {
+		return "metric"
 	}
-	if present(el["actions"]) {
-		c.b.partial(path+".actions", canvasActionsReason)
+	return canvasKinds[typ]
+}
+
+func (c *canvasBuild) kindSettings(out *spec.CanvasElement, el map[string]any, path string) {
+	switch out.Kind {
+	case "icon":
+		c.icon(out, el, path)
+	case "server":
+		c.server(out, el, path)
+	case "button":
+		out.ButtonStyle = c.b.enumOption(path+".config.style.variant", canvasButtonStyles...)
+		c.buttonAction(out, el, path)
+	case "windTurbine":
+		out.RateField = c.b.fieldNameOption(path + ".config.rpm.field")
+	case "droneTop":
+		out.YawField = c.b.fieldNameOption(path + ".config.yawAngle.field")
+	case "droneFront":
+		out.RollField = c.b.fieldNameOption(path + ".config.rollAngle.field")
+	case "droneSide":
+		out.PitchField = c.b.fieldNameOption(path + ".config.pitchAngle.field")
 	}
 }
 
-func canvasKind(el map[string]any, typ string) string {
-	switch typ {
-	case "metric-value":
-		return "metric"
-	case "text":
-		if asString(lookupValue(el, "config.text.mode")) == "field" {
-			return "metric"
-		}
-		return "text"
+func (c *canvasBuild) server(out *spec.CanvasElement, el map[string]any, path string) {
+	if kind := strings.ToLower(asString(lookupValue(el, "config.type"))); slices.Contains(canvasServerKinds, kind) {
+		out.Server = kind
+		c.b.consume(path + ".config.type")
 	}
-	return typ
+	out.AccentColor = c.color(el, path, "config.statusColor", "")
+}
+
+func (c *canvasBuild) icon(out *spec.CanvasElement, el map[string]any, path string) {
+	base := path + ".config.path"
+	cfg, _ := asObject(lookupValue(el, "config.path"))
+	c.b.consume(base)
+	switch mode := asString(cfg["mode"]); mode {
+	case "field":
+		if field := asString(cfg["field"]); field != "" && validLength(field, maxFieldName) {
+			out.Image = &spec.ImageRef{Field: field}
+		} else {
+			c.b.issues.add(base+".field", canvasIconReason)
+		}
+	case "", "fixed":
+		c.fixedIcon(out, base+".fixed", strings.TrimSpace(asString(cfg["fixed"])))
+	default:
+		c.b.issues.add(base+".mode", canvasIconReason)
+	}
+	out.IconColor = c.color(el, path, "config.fill", "")
+}
+
+var canvasIconName = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
+
+func (c *canvasBuild) fixedIcon(out *spec.CanvasElement, at, value string) {
+	name := strings.TrimSuffix(strings.TrimPrefix(value, bundledIconPrefix), ".svg")
+	switch {
+	case value == "":
+	case strings.HasPrefix(value, bundledIconPrefix) && canvasIconName.MatchString(name):
+		out.Icon = name
+	case literalHTTPS(value):
+		out.Image = &spec.ImageRef{URL: value}
+	default:
+		c.b.issues.add(at, canvasIconReason)
+	}
 }
 
 func (c *canvasBuild) uniqueID(name string) string {
@@ -190,14 +291,28 @@ func optionalNumber(v any) *float64 {
 	return &f
 }
 
-func axisPlace(start, end, size *float64, total float64) (pos, length float64, ok bool) {
+func axisPlace(kind string, start, end, size *float64, total float64) (pos, length float64, ok bool) {
+	if pos, length, ok = axisAs(kind, start, end, size, total); ok {
+		return pos, length, true
+	}
+	for _, fallback := range []string{"start", "end", "both"} {
+		if pos, length, ok = axisAs(fallback, start, end, size, total); ok {
+			return pos, length, true
+		}
+	}
+	return 0, 0, false
+}
+
+func axisAs(kind string, start, end, size *float64, total float64) (pos, length float64, ok bool) {
 	switch {
-	case start != nil && size != nil:
-		return *start, *size, true
-	case end != nil && size != nil:
+	case kind == "center" && start != nil && size != nil:
+		return total/2 + *start - *size/2, *size, true
+	case kind == "end" && end != nil && size != nil:
 		return total - *end - *size, *size, true
-	case start != nil && end != nil:
+	case kind == "both" && start != nil && end != nil:
 		return *start, total - *start - *end, true
+	case kind == "start" && start != nil && size != nil:
+		return *start, *size, true
 	}
 	return 0, 0, false
 }
@@ -206,35 +321,98 @@ func roundPercent(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
-func (c *canvasBuild) place(el map[string]any, path string, parent canvasBox) (canvasBox, bool) {
+var (
+	canvasHorizontalModes = []string{"left", "right", "leftright", "center", "scale"}
+	canvasVerticalModes   = []string{"top", "bottom", "topbottom", "center", "scale"}
+)
+
+func constraintMode(raw any, modes []string) string {
+	if mode := asString(raw); slices.Contains(modes, mode) {
+		return mode
+	}
+	return modes[0]
+}
+
+var canvasAxisKinds = map[string]string{
+	"left": "start", "top": "start", "right": "end", "bottom": "end",
+	"leftright": "both", "topbottom": "both", "center": "center", "scale": "scale",
+}
+
+type canvasAxis struct {
+	kind              string
+	start, end, size  *float64
+	pos, length, base float64
+}
+
+func (c *canvasBuild) axis(mode string, start, end, size *float64, extent float64) (canvasAxis, bool) {
+	a := canvasAxis{kind: canvasAxisKinds[mode], start: start, end: end, size: size, base: extent}
+	if a.kind == "scale" {
+		a.base = 100
+	}
+	var ok bool
+	a.pos, a.length, ok = axisPlace(a.kind, start, end, size, a.base)
+	return a, ok && a.length > 0
+}
+
+func (a canvasAxis) percent() (pos, length float64) {
+	return a.pos / a.base * 100, a.length / a.base * 100
+}
+
+func (c *canvasBuild) place(el map[string]any, path string, parent canvasBox) (canvasBox, *spec.CanvasPlacement, bool) {
 	placement, _ := asObject(el["placement"])
 	constraint, _ := asObject(el["constraint"])
-	scaled := asString(constraint["horizontal"]) == "scale" && asString(constraint["vertical"]) == "scale"
-	totalW, totalH := 100.0, 100.0
-	if !scaled {
-		totalW, totalH = parent.width/100*c.width, parent.height/100*c.height
+	hMode := constraintMode(constraint["horizontal"], canvasHorizontalModes)
+	vMode := constraintMode(constraint["vertical"], canvasVerticalModes)
+	x, okX := c.axis(hMode, optionalNumber(placement["left"]), optionalNumber(placement["right"]), optionalNumber(placement["width"]), parent.width/100*c.width)
+	y, okY := c.axis(vMode, optionalNumber(placement["top"]), optionalNumber(placement["bottom"]), optionalNumber(placement["height"]), parent.height/100*c.height)
+	c.b.consume(path+".constraint", path+".placement.left", path+".placement.right", path+".placement.top", path+".placement.bottom", path+".placement.width", path+".placement.height")
+	if !okX || !okY {
+		return canvasBox{}, nil, false
 	}
-	x, w, okX := axisPlace(optionalNumber(placement["left"]), optionalNumber(placement["right"]), optionalNumber(placement["width"]), totalW)
-	y, h, okY := axisPlace(optionalNumber(placement["top"]), optionalNumber(placement["bottom"]), optionalNumber(placement["height"]), totalH)
-	if rotation := optionalNumber(placement["rotation"]); rotation != nil && *rotation != 0 {
-		c.b.partial(path+".placement.rotation", canvasRotationReason)
-	}
-	c.b.consume(path+".constraint", path+".placement")
-	if !okX || !okY || w <= 0 || h <= 0 {
-		return canvasBox{}, false
-	}
-	if !scaled {
+	inBody := parent == canvasBox{0, 0, 100, 100}
+	scaled := hMode == "scale" && vMode == "scale"
+	if !inBody && !scaled {
 		c.b.partial(path+".placement", canvasPixelReason)
-		x, w, y, h = x/totalW*100, w/totalW*100, y/totalH*100, h/totalH*100
 	}
-	x, y = min(max(x, 0), 100), min(max(y, 0), 100)
-	w, h = min(max(w, 0.01), 100), min(max(h, 0.01), 100)
-	return canvasBox{
-		left:   roundPercent(parent.left + x*parent.width/100),
-		top:    roundPercent(parent.top + y*parent.height/100),
-		width:  roundPercent(max(w*parent.width/100, 0.01)),
-		height: roundPercent(max(h*parent.height/100, 0.01)),
+	px, pw := x.percent()
+	py, ph := y.percent()
+	px, py = min(max(px, 0), 100), min(max(py, 0), 100)
+	pw, ph = min(max(pw, 0.01), 100), min(max(ph, 0.01), 100)
+	box := canvasBox{
+		left:   roundPercent(parent.left + px*parent.width/100),
+		top:    roundPercent(parent.top + py*parent.height/100),
+		width:  roundPercent(max(pw*parent.width/100, 0.01)),
+		height: roundPercent(max(ph*parent.height/100, 0.01)),
+	}
+	if !inBody || scaled {
+		return box, nil, true
+	}
+	return box, &spec.CanvasPlacement{
+		Horizontal: hMode, Vertical: vMode,
+		Left: x.startValue(), Right: x.endValue(), Width: x.sizeValue(),
+		Top: y.startValue(), Bottom: y.endValue(), Height: y.sizeValue(),
 	}, true
+}
+
+func (a canvasAxis) startValue() *float64 {
+	if a.kind == "end" {
+		return nil
+	}
+	return a.start
+}
+
+func (a canvasAxis) endValue() *float64 {
+	if a.kind == "end" || a.kind == "both" {
+		return a.end
+	}
+	return nil
+}
+
+func (a canvasAxis) sizeValue() *float64 {
+	if a.kind == "both" {
+		return nil
+	}
+	return a.size
 }
 
 func (c *canvasBuild) text(out *spec.CanvasElement, el map[string]any, path, typ string) {
@@ -264,15 +442,60 @@ func (c *canvasBuild) look(out *spec.CanvasElement, el map[string]any, path stri
 	out.Fill = c.color(el, path, "background.color", out.Field)
 	out.TextColor = c.color(el, path, "config.color", out.Field)
 	c.border(out, el, path)
-	if present(lookupValue(el, "background.image.fixed")) {
-		c.b.partial(path+".background.image", canvasImageReason)
-	}
-	c.b.consume(path + ".background.image")
+	out.BackgroundImage, out.BackgroundSize = c.backgroundImage(el, path)
 	c.fontAndAlign(out, el, path)
-	if valign := asString(lookupValue(el, "config.valign")); valign != "" && valign != "middle" {
-		c.b.partial(path+".config.valign", canvasValignReason)
+	if valign := c.b.enumOption(path+".config.valign", "top", "middle", "bottom"); valign != c.defaults.VAlign {
+		out.VAlign = valign
 	}
-	c.b.consume(path + ".config.valign")
+	out.Rotation = c.rotation(el, path)
+}
+
+func (c *canvasBuild) rotation(el map[string]any, path string) *float64 {
+	at := path + ".placement.rotation"
+	rotation := optionalNumber(lookupValue(el, "placement.rotation"))
+	c.b.consume(at)
+	switch {
+	case rotation == nil || *rotation == 0:
+		return nil
+	case math.Abs(*rotation) > canvasMaxRotation:
+		c.b.issues.add(at, canvasRotationReason)
+		return nil
+	}
+	return rotation
+}
+
+func (c *canvasBuild) backgroundImage(el map[string]any, path string) (*spec.ImageRef, string) {
+	base := path + ".background"
+	cfg, _ := asObject(lookupValue(el, "background.image"))
+	if cfg == nil {
+		return nil, ""
+	}
+	c.b.consume(base + ".image")
+	var image *spec.ImageRef
+	switch mode := asString(cfg["mode"]); mode {
+	case "", "fixed":
+		image = c.fixedImage(base+".image.fixed", strings.TrimSpace(asString(cfg["fixed"])))
+	case "field":
+		if field := asString(cfg["field"]); field != "" && validLength(field, maxFieldName) {
+			image = &spec.ImageRef{Field: field}
+		} else {
+			c.b.issues.add(base+".image.field", canvasImageReason)
+		}
+	default:
+		c.b.issues.add(base+".image.mode", canvasImageModeReason)
+	}
+	return image, c.b.enumOption(base+".size", "original", "contain", "cover", "fill", "tile")
+}
+
+func (c *canvasBuild) fixedImage(at, value string) *spec.ImageRef {
+	switch {
+	case value == "":
+		return nil
+	case literalHTTPS(value):
+		return &spec.ImageRef{URL: value}
+	}
+	c.b.issues.add(at, canvasImageReason)
+	return nil
 }
 
 func (c *canvasBuild) color(el map[string]any, path, rel, ownField string) string {
@@ -298,18 +521,46 @@ func (c *canvasBuild) color(el map[string]any, path, rel, ownField string) strin
 }
 
 func (c *canvasBuild) border(out *spec.CanvasElement, el map[string]any, path string) {
-	width := optionalNumber(lookupValue(el, "border.width"))
-	if width != nil && *width > 0 {
+	if width, ok := c.borderWidth(el, path); ok && width > 0 {
 		out.Stroke = c.color(el, path, "border.color", out.Field)
-		if *width != 1 {
-			c.b.partial(path+".border.width", canvasBorderReason)
+		if width != c.defaults.BorderWidth {
+			out.BorderWidth = &width
 		}
 	}
 	c.b.consume(path + ".border.color")
-	if radius := optionalNumber(lookupValue(el, "border.radius")); radius != nil && *radius > 0 {
-		c.b.partial(path+".border.radius", canvasRadiusReason)
+	if radius := c.radius(el, path); radius != nil && *radius != c.defaults.Radius {
+		out.Radius = radius
 	}
-	c.b.consume(path+".border.width", path+".border.radius")
+}
+
+func (c *canvasBuild) borderWidth(el map[string]any, path string) (int, bool) {
+	at := path + ".border.width"
+	raw := optionalNumber(lookupValue(el, "border.width"))
+	c.b.consume(at)
+	if raw == nil {
+		return 0, false
+	}
+	width := int(math.Round(*raw))
+	if width < 0 || width > canvasMaxBorderWidth {
+		c.b.issues.add(at, canvasBorderReason)
+		return 0, false
+	}
+	return width, true
+}
+
+func (c *canvasBuild) radius(el map[string]any, path string) *int {
+	at := path + ".border.radius"
+	raw := optionalNumber(lookupValue(el, "border.radius"))
+	c.b.consume(at)
+	if raw == nil {
+		return nil
+	}
+	radius := int(math.Round(*raw))
+	if radius < 0 || radius > canvasMaxRadius {
+		c.b.issues.add(at, canvasRadiusReason)
+		return nil
+	}
+	return &radius
 }
 
 func (c *canvasBuild) fontAndAlign(out *spec.CanvasElement, el map[string]any, path string) {
@@ -362,7 +613,29 @@ func (c *canvasBuild) connection(conn map[string]any, path, from, to string, def
 	} else {
 		out.Color = c.color(conn, path, "color", "")
 	}
-	if v, ok := lookup(conn, "size.fixed"); ok {
+	c.connectionWidth(&out, conn, path, defaultWidth)
+	if asString(conn["path"]) == "curved" {
+		out.Path = "curved"
+	}
+	c.b.consume(path + ".path")
+	if style := asString(lookupValue(conn, "lineStyle.style")); style == "dashed" || style == "dotted" {
+		out.LineStyle = style
+	}
+	c.connectionArrow(&out, conn, path)
+	if present(conn["vertices"]) {
+		c.b.partial(path+".vertices", canvasVerticesReason)
+	}
+	c.b.consume(path+".lineStyle", path+".source", path+".target", path+".sourceOriginal", path+".targetOriginal", path+".targetName")
+	return out
+}
+
+func (c *canvasBuild) connectionWidth(out *spec.CanvasConnection, conn map[string]any, path string, defaultWidth int) {
+	if field := asString(lookupValue(conn, "size.field")); field != "" && validLength(field, maxFieldName) {
+		out.WidthField = field
+		out.MinWidth = c.connectionBound(conn, path+".size.min")
+		out.MaxWidth = c.connectionBound(conn, path+".size.max")
+		c.b.consume(path+".size.field", path+".size.fixed")
+	} else if v, ok := lookup(conn, "size.fixed"); ok {
 		f, isNumber := numberValue(v)
 		n := int(math.Round(f))
 		if !isNumber || n < canvasMinConnWidth || n > canvasMaxConnWidth {
@@ -370,17 +643,37 @@ func (c *canvasBuild) connection(conn map[string]any, path, from, to string, def
 		} else if n != defaultWidth {
 			out.Width = n
 		}
+		c.b.consume(path+".size.fixed", path+".size.min", path+".size.max")
 	}
-	if present(lookupValue(conn, "size.field")) {
-		c.b.partial(path+".size.field", canvasConnFieldReason)
+	if mode := asString(lookupValue(conn, "size.mode")); mode != "" {
+		c.b.partial(path+".size.mode", canvasConnModeReason)
 	}
-	if asString(conn["path"]) == "curved" {
-		c.b.partial(path+".path", canvasCurvedReason)
+}
+
+func (c *canvasBuild) connectionBound(conn map[string]any, at string) int {
+	v, ok := c.b.take(at)
+	if !ok {
+		return 0
 	}
-	if style := asString(lookupValue(conn, "lineStyle.style")); style != "" && style != "solid" {
-		c.b.partial(path+".lineStyle.style", canvasLineStyleReason)
+	f, isNumber := numberValue(v)
+	n := int(math.Round(f))
+	if !isNumber || n < canvasMinConnWidth || n > canvasMaxConnWidth {
+		c.b.issues.add(at, canvasConnSizeReason)
+		return 0
 	}
-	c.b.consume(path+".size", path+".path", path+".lineStyle", path+".source", path+".target", path+".vertices",
-		path+".sourceOriginal", path+".targetOriginal", path+".targetName")
-	return out
+	return n
+}
+
+func (c *canvasBuild) connectionArrow(out *spec.CanvasConnection, conn map[string]any, path string) {
+	if asString(lookupValue(conn, "direction.mode")) == "field" {
+		c.b.partial(path+".direction", canvasConnModeReason)
+		return
+	}
+	switch direction := asString(lookupValue(conn, "direction.fixed")); direction {
+	case "forward", "reverse", "both":
+		out.Arrow = direction
+		c.b.consume(path + ".direction")
+	case "none":
+		c.b.consume(path + ".direction")
+	}
 }

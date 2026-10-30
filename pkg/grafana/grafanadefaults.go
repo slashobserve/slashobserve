@@ -169,6 +169,10 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 		"options.layers[].tooltip":                              true,
 		"options.layers[].config.showLegend":                    true,
 		"options.layers[].config.style.opacity":                 0.4,
+		"options.layers[].config.style.color.fixed":             "dark-green",
+		"options.layers[].config.show":                          "to",
+		"options.layers[].config.sun":                           false,
+		"options.layers[].config.nightColor":                    "#a7a6ba4D",
 		"options.layers[].config.style.symbol.fixed":            "img/icons/marker/circle.svg",
 		"options.layers[].config.style.symbol.mode":             "fixed",
 		"options.layers[].config.style.rotation.fixed":          0,
@@ -214,10 +218,6 @@ var partialReasons = map[string]string{
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
 	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
-	"options.controls":                              "Map controls are not configurable.",
-	"options.layers":                                "Some layer options are not supported yet.",
-	"options.panZoom":                               "Panning and zooming the canvas is not supported.",
-	"options.infinitePan":                           "Panning and zooming the canvas is not supported.",
 	"options.enableInfiniteScrolling":               "Infinite scrolling of logs is not supported yet.",
 	"options.dashboardAlerts":                       "Listing only the alerts of this dashboard is not supported.",
 	"options.groupMode":                             "Grouping alerts is not supported.",
@@ -267,7 +267,14 @@ var cosmeticOptions = map[string]cosmeticOption{
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
 	},
 	"options.layers[].name": {
-		why: "the map shows no layer names",
+		why: "a layer name is used only to pick the layer the map fits to, and a single markers layer is imported as flat keys without it",
+	},
+	"options.basemap.name": {
+		why: "the name only labels the basemap in Grafana's layer list",
+	},
+	"options.basemap.type": {
+		values: []any{"carto"},
+		why:    "an absent basemap is imported as CARTO, which is the basemap Grafana draws by default",
 	},
 	"options.color.scale": {
 		values: []any{"exponential"},
@@ -281,6 +288,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"options.showAdvancedTypes": {
 		why: "the canvas has no drag editor, so its element picker is not shown",
+	},
+	"options.code.showMiniMap": {
+		why: "the code view has no minimap",
 	},
 	"options.showHeadings": {
 		why: "the dashboard list shows plain links without headings",

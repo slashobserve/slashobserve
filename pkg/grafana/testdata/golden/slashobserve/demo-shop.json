@@ -1410,7 +1410,9 @@
               "sizeField": "requests",
               "colorField": "error_ratio",
               "markerSize": 8,
-              "markerSizeMax": 30
+              "markerSizeMax": 30,
+              "basemap": "carto",
+              "mouseWheelZoom": true
             }
           },
           {
@@ -1458,6 +1460,7 @@
               }
             ],
             "display": {
+              "tooltip": "details",
               "elements": [
                 {
                   "id": "Frontend_label",

@@ -546,6 +546,8 @@ func (b *panelBuild) textContent() string {
 	return cut
 }
 
+var textCodeLanguages = []string{"json", "yaml", "xml", "sql", "go", "typescript", "markdown", "html"}
+
 func (b *panelBuild) textMode() {
 	path := "options.mode"
 	v, ok := b.value(path)
@@ -553,17 +555,38 @@ func (b *panelBuild) textMode() {
 		path = "mode"
 		v, ok = b.value(path)
 	}
-	if !ok {
-		return
+	if ok {
+		b.consume(path)
 	}
-	b.consume(path)
 	switch asString(v) {
-	case "", "markdown":
 	case "html":
-		b.partial(path, "HTML text is shown as Markdown.")
+		b.panel.Mode = "html"
+	case "code":
+		b.panel.Mode = "code"
+		b.panel.Code = b.textCode()
 	default:
-		b.partial(path, "Code text is shown as Markdown.")
+		b.consume("options.code")
 	}
+}
+
+func (b *panelBuild) textCode() *spec.TextCode {
+	code := &spec.TextCode{}
+	if v, ok := b.take("options.code.language"); ok {
+		language := asString(v)
+		switch {
+		case slices.Contains(textCodeLanguages, language):
+			code.Language = language
+		case language != "" && language != "plaintext":
+			b.issues.add("options.code.language", "This language is shown as plain text.")
+		}
+	}
+	if flag, ok := b.boolOption("options.code.showLineNumbers"); ok && *flag {
+		code.LineNumbers = flag
+	}
+	if code.Language == "" && code.LineNumbers == nil {
+		return nil
+	}
+	return code
 }
 
 func (b *panelBuild) finish() *builtPanel {
