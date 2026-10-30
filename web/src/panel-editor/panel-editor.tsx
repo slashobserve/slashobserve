@@ -30,6 +30,7 @@ import {
   datasourceRefType,
   findPanel,
   isDataPanel,
+  isExpressionQuery,
   queryRef,
   resolveDatasourceRef,
   type Dashboard,
@@ -221,7 +222,9 @@ export default function PanelEditor({
   const queriesOk = isDataPanel(current)
     ? current.queries.every(
         (query) =>
-          query.query.trim() !== "" && [...query.query].length <= maxQueryLength
+          isExpressionQuery(query) ||
+          (query.query.trim() !== "" &&
+            [...query.query].length <= maxQueryLength)
       )
     : current.type !== "text" || [...current.content].length <= maxContentLength
   const locked = readOnly || saving || applying
@@ -354,7 +357,9 @@ export default function PanelEditor({
   const activeQuery = data ? activeQueryIndex(data.queries, activeRef) : 0
   const active = data?.queries[activeQuery]
   const activeDatasource = resolveDatasource(
-    active?.datasource ?? data?.datasource ?? ""
+    (active && !isExpressionQuery(active) ? active.datasource : undefined) ??
+      data?.datasource ??
+      ""
   )
 
   return (

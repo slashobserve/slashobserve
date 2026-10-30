@@ -314,16 +314,31 @@ type Panel struct {
 }
 
 type Query struct {
-	Ref            string `json:"ref,omitempty"`
-	Query          string `json:"query"`
-	Legend         string `json:"legend,omitempty"`
-	Datasource     string `json:"datasource,omitempty"`
-	Instant        bool   `json:"instant,omitempty"`
-	Format         string `json:"format,omitempty"`
-	Interval       string `json:"interval,omitempty"`
-	IntervalFactor int    `json:"intervalFactor,omitempty"`
-	Exemplar       bool   `json:"exemplar,omitempty"`
-	Hide           bool   `json:"hide,omitempty"`
+	Ref            string      `json:"ref,omitempty"`
+	Query          string      `json:"query,omitempty"`
+	Legend         string      `json:"legend,omitempty"`
+	Datasource     string      `json:"datasource,omitempty"`
+	Instant        bool        `json:"instant,omitempty"`
+	Format         string      `json:"format,omitempty"`
+	Interval       string      `json:"interval,omitempty"`
+	IntervalFactor int         `json:"intervalFactor,omitempty"`
+	Exemplar       bool        `json:"exemplar,omitempty"`
+	Hide           bool        `json:"hide,omitempty"`
+	Expression     *Expression `json:"expression,omitempty"`
+}
+
+type Expression struct {
+	Type        string    `json:"type"`
+	Math        string    `json:"math,omitempty"`
+	Input       string    `json:"input,omitempty"`
+	Reducer     string    `json:"reducer,omitempty"`
+	Mode        string    `json:"mode,omitempty"`
+	ReplaceWith *float64  `json:"replaceWith,omitempty"`
+	Window      string    `json:"window,omitempty"`
+	Downsampler string    `json:"downsampler,omitempty"`
+	Upsampler   string    `json:"upsampler,omitempty"`
+	Evaluator   string    `json:"evaluator,omitempty"`
+	Params      []float64 `json:"params,omitempty"`
 }
 
 type FieldProps struct {

@@ -5,7 +5,7 @@ import {
   formatValue,
   ownDecimals,
 } from "@/lib/units"
-import type { DataPanel } from "@/spec"
+import { isExpressionQuery, type DataPanel } from "@/spec"
 
 import type { FieldConfig, FieldResolver } from "../field-config"
 import { isNumber } from "../reducers"
@@ -243,7 +243,9 @@ export function heatmapModel(
             entries,
             xs,
             unit,
-            queries.some((query) => query.format === "heatmap")
+            queries.some(
+              (query) => !isExpressionQuery(query) && query.format === "heatmap"
+            )
           )
         : ordinalModel(entries, fields)
   return { mode, xs, unit, ...shape, ...extent(shape.cells) }

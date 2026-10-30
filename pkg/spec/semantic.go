@@ -25,6 +25,7 @@ func checkSemantics(d *Dashboard) []Issue {
 	issues = append(issues, checkThresholds(entries)...)
 	issues = append(issues, checkMinMax(entries)...)
 	issues = append(issues, checkQueryRefs(entries)...)
+	issues = append(issues, checkExpressions(entries)...)
 	issues = append(issues, checkOverrideMembers(entries)...)
 	issues = append(issues, checkRepeat(d, entries)...)
 	issues = append(issues, checkDatasourceRefs(d)...)

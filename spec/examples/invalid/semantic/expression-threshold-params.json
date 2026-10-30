@@ -1,0 +1,39 @@
+{
+  "specVersion": "0",
+  "title": "Minimal",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "p1",
+      "type": "stat",
+      "title": "Log rows",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "prom",
+      "queries": [
+        {
+          "ref": "A",
+          "query": "up"
+        },
+        {
+          "ref": "E",
+          "expression": {
+            "type": "threshold",
+            "input": "A",
+            "evaluator": "withinRange",
+            "params": [
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

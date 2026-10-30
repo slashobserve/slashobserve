@@ -67,6 +67,17 @@
     { "id": "p_world", "type": "placeholder", "title": "Traffic map",
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 4 },
       "reason": "Grafana panel type worldmap is not supported yet", "sourceType": "worldmap" },
+    { "id": "p_expressions", "type": "timeseries", "title": "Error ratio with expressions",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 4 }, "datasource": "prom",
+      "queries": [
+        { "ref": "A", "query": "sum(rate(http_requests_total{service=\"checkout\",status=~\"5..\"}[$__rate_interval]))", "hide": true },
+        { "ref": "B", "query": "sum(rate(http_requests_total{service=\"checkout\"}[$__rate_interval]))", "hide": true },
+        { "ref": "ratio", "expression": { "type": "math", "math": "$A / $B * 100" } },
+        { "ref": "peak", "expression": { "type": "reduce", "input": "ratio", "reducer": "max", "mode": "dropNonNumbers" } },
+        { "ref": "smooth", "expression": { "type": "resample", "input": "ratio", "window": "5m", "downsampler": "mean", "upsampler": "pad" } },
+        { "ref": "breach", "hide": true, "expression": { "type": "threshold", "input": "smooth", "evaluator": "gt", "params": [5] } }
+      ],
+      "unit": "percent" },
     { "id": "r_logs", "type": "row", "title": "Logs", "collapsed": false,
       "gridPos": { "x": 0, "y": 12, "w": 24, "h": 1 },
       "panels": [

@@ -1,6 +1,12 @@
 import { sameJson } from "@/lib/json"
 import { joinNames } from "@/observe/conversation"
-import { isDataPanel, queryRef, type PanelQuery, type Threshold } from "@/spec"
+import {
+  isDataPanel,
+  isExpressionQuery,
+  queryRef,
+  type DataQuery,
+  type Threshold,
+} from "@/spec"
 
 import type { EditablePanel } from "./draft"
 
@@ -126,17 +132,18 @@ function trimmed(value: unknown): unknown {
   return typeof value === "string" ? value.trim() : value
 }
 
-function queriesOf(panel: Fields): PanelQuery[] {
-  return Array.isArray(panel.queries) ? (panel.queries as PanelQuery[]) : []
+function queriesOf(panel: Fields): DataQuery[] {
+  return Array.isArray(panel.queries) ? (panel.queries as DataQuery[]) : []
 }
 
-function withoutRef(query: PanelQuery): Fields {
+function withoutRef(query: DataQuery): Fields {
   const rest: Fields = { ...query }
   delete rest.ref
   return rest
 }
 
-function normaliseQuery(query: PanelQuery): PanelQuery {
+function normaliseQuery(query: DataQuery): DataQuery {
+  if (isExpressionQuery(query)) return query
   const next = { ...query }
   const legend = next.legend?.trim()
   if (legend) next.legend = legend
@@ -151,7 +158,7 @@ export function normalisePanel(panel: EditablePanel): EditablePanel {
   return next
 }
 
-export function queryChanged(base: PanelQuery, draft: PanelQuery): boolean {
+export function queryChanged(base: DataQuery, draft: DataQuery): boolean {
   return !sameJson(
     withoutRef(normaliseQuery(base)),
     withoutRef(normaliseQuery(draft))
@@ -160,8 +167,8 @@ export function queryChanged(base: PanelQuery, draft: PanelQuery): boolean {
 
 function sameQueries(a: unknown, b: unknown): boolean {
   if (!Array.isArray(a) || !Array.isArray(b)) return sameJson(a, b)
-  const before = a as PanelQuery[]
-  const after = b as PanelQuery[]
+  const before = a as DataQuery[]
+  const after = b as DataQuery[]
   return (
     before.length === after.length &&
     before.every(
@@ -206,11 +213,23 @@ function queryChanges(base: Fields, draft: Fields): Change[] {
       changes.push({ key: `queries.${ref}.new`, label: `new query ${ref}` })
       return
     }
+    if (isExpressionQuery(before) || isExpressionQuery(query)) {
+      if (!sameJson(withoutRef(before), withoutRef(query))) {
+        changes.push({
+          key: `queries.${ref}.expression`,
+          label: `expression ${ref}`,
+        })
+      }
+      return
+    }
     if (!sameJson(before.query, query.query)) {
       changes.push({ key: `queries.${ref}.query`, label: name })
     }
     if (
-      !sameJson(normaliseQuery(before).legend, normaliseQuery(query).legend)
+      !sameJson(
+        before.legend?.trim() || undefined,
+        query.legend?.trim() || undefined
+      )
     ) {
       changes.push({
         key: `queries.${ref}.legend`,
@@ -223,7 +242,7 @@ function queryChanges(base: Fields, draft: Fields): Change[] {
         label: `${name} datasource`,
       })
     }
-    const options = (value: PanelQuery) => {
+    const options = (value: DataQuery) => {
       const rest = withoutRef(value)
       for (const key of ["query", "legend", "datasource"]) {
         delete rest[key]
