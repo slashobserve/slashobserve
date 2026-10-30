@@ -70,8 +70,8 @@ A new dashboard goes to the folder the requester last created a dashboard in, el
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
 
-The built-in agent has 15 of the 19 tools: the 11 above, plus `list_datasources`, `list_dashboards`, `get_dashboard` and `get_spec_guide`.
-The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply.
+The built-in agent has 14 of the 19 tools: the 11 above, plus `list_datasources`, `list_dashboards` and `get_dashboard`.
+The comment tools and `list_folders` are for MCP clients only, so the agent never writes or resolves a comment reply; `get_spec_guide` is for MCP clients too, because the agent's system prompt already holds the guide, schema and example it returns.
 When a revision request comes from a comment, the server resolves that thread itself once a version is saved.
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results (see [LLM providers](../connect/llm-providers.md)).

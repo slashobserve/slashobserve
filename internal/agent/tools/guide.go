@@ -11,7 +11,7 @@ import (
 
 func (r *Registry) guideEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},
+		{Tool{Name: nameGetSpecGuide, Description: descGetSpecGuide, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.getSpecGuide},
 	}
 }
 
