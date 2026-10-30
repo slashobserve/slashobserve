@@ -224,7 +224,7 @@ function alignedBuckets(
   }
 }
 
-function bucketsOf(
+export function bucketsOf(
   min: number,
   max: number,
   display: Record<string, unknown>
@@ -244,7 +244,7 @@ function bucketsOf(
   return equalBuckets(min, max, count)
 }
 
-function edgesOf({ start, size, count, end }: Buckets): number[] {
+export function edgesOf({ start, size, count, end }: Buckets): number[] {
   const edges = Array.from({ length: count + 1 }, (_, i) =>
     clean(start + i * size)
   )
@@ -252,7 +252,10 @@ function edgesOf({ start, size, count, end }: Buckets): number[] {
   return edges
 }
 
-function bucketIndex(value: number, { start, size, count }: Buckets): number {
+export function bucketIndex(
+  value: number,
+  { start, size, count }: Buckets
+): number {
   if (size === 0) return 0
   return Math.min(count - 1, Math.max(0, Math.floor((value - start) / size)))
 }

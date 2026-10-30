@@ -493,6 +493,28 @@ type Transform struct {
 	ApplyTo      *Match            `json:"applyTo,omitempty"`
 	NameMode     string            `json:"nameMode,omitempty"`
 	NameLabel    string            `json:"nameLabel,omitempty"`
+	By           []string          `json:"by,omitempty"`
+	Aggregate    []Aggregation     `json:"aggregate,omitempty"`
+	HideHeaders  bool              `json:"hideHeaders,omitempty"`
+	Column       string            `json:"column,omitempty"`
+	Row          string            `json:"row,omitempty"`
+	Empty        string            `json:"empty,omitempty"`
+	BucketCount  int               `json:"bucketCount,omitempty"`
+	BucketSize   float64           `json:"bucketSize,omitempty"`
+	BucketOffset float64           `json:"bucketOffset,omitempty"`
+	Combine      bool              `json:"combine,omitempty"`
+	Model        string            `json:"model,omitempty"`
+	Degree       int               `json:"degree,omitempty"`
+	X            string            `json:"x,omitempty"`
+	Y            string            `json:"y,omitempty"`
+	Predictions  int               `json:"predictions,omitempty"`
+	FirstName    string            `json:"firstName,omitempty"`
+	RestName     string            `json:"restName,omitempty"`
+}
+
+type Aggregation struct {
+	Field    string   `json:"field"`
+	Reducers []string `json:"reducers"`
 }
 
 type ConfigMapping struct {

@@ -12,6 +12,10 @@ import { filterByValue } from "./filter-value"
 import { applyQueryFormats } from "./format"
 import { formatString } from "./format-string"
 import { formatTime } from "./format-time"
+import { groupBy } from "./group-by"
+import { groupToNestedTable } from "./group-to-nested-table"
+import { groupingToMatrix } from "./grouping-to-matrix"
+import { histogram } from "./histogram"
 import { joinByField } from "./join"
 import { joinByLabels } from "./join-by-labels"
 import { labelsToFields } from "./labels-to-fields"
@@ -21,12 +25,14 @@ import { organize } from "./organize"
 import { partitionByValues } from "./partition-by-values"
 import { prepareTimeSeries } from "./prepare-time-series"
 import { reduceFrames } from "./reduce"
+import { regression } from "./regression"
 import { renameByRegex } from "./rename-regex"
 import { rowsToFields } from "./rows-to-fields"
 import { stampSeriesNames, type DatasourceTypeOf } from "./series-names"
 import { seriesToRows } from "./series-to-rows"
 import { sortBy } from "./sort"
 import { timeSeriesTable } from "./time-series-table"
+import { transpose } from "./transpose"
 import type { PreparedFrame } from "./names"
 export type { DatasourceTypeOf } from "./series-names"
 
@@ -90,6 +96,18 @@ function applyTransform(
       return configFromData(frames, transform)
     case "concatenate":
       return concatenate(frames, transform)
+    case "groupBy":
+      return groupBy(frames, transform)
+    case "groupingToMatrix":
+      return groupingToMatrix(frames, transform)
+    case "groupToNestedTable":
+      return groupToNestedTable(frames, transform)
+    case "histogram":
+      return histogram(frames, transform)
+    case "regression":
+      return regression(frames, transform)
+    case "transpose":
+      return transpose(frames, transform)
   }
 }
 

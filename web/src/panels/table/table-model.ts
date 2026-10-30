@@ -46,11 +46,13 @@ type RowSource = {
   frame: PreparedFrame
   fields: Record<string, PreparedField>
 }
+export type NestedRows = { frame: PreparedFrame; headers: boolean }
 export type TableRow = {
   key: string
   values: Record<string, unknown>
   at: RowAt
   source: RowSource
+  nested: NestedRows | null
 }
 export type FooterRow = { label: string; cells: (string | null)[] }
 export type TableModel = {
@@ -90,6 +92,22 @@ function stringField(name: string, values: unknown[] = []): PreparedField {
   return { name, type: "string", values }
 }
 
+function isFrame(value: unknown): value is PreparedFrame {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as PreparedFrame).fields)
+  )
+}
+
+function nestedAt(frame: PreparedFrame, index: number): NestedRows | null {
+  const field = frame.fields.find((candidate) => candidate.nested)
+  const value = field?.values[index]
+  return field?.nested && isFrame(value)
+    ? { frame: value, headers: field.nested.headers }
+    : null
+}
+
 function hasLabels(frame: PreparedFrame): boolean {
   return Object.keys(frame.labels ?? {}).length > 0
 }
@@ -121,7 +139,8 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
   frames.forEach((frame, frameIndex) => {
     const used = new Set<string>()
     const sourceFields: Record<string, PreparedField> = {}
-    const keys = frame.fields.map((field, index) => {
+    const shown = frame.fields.filter((field) => !field.nested)
+    const keys = shown.map((field, index) => {
       let key = `field:${field.name}`
       if (used.has(key)) key = `${key}#${index}`
       used.add(key)
@@ -147,7 +166,7 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
       const values: Record<string, unknown> = withRef
         ? { [refKey]: frame.ref }
         : {}
-      frame.fields.forEach((field, at) => {
+      shown.forEach((field, at) => {
         values[keys[at]] = field.values[index] ?? null
       })
       rows.push({
@@ -155,6 +174,7 @@ function unlabeledTable(frames: PreparedFrame[]): Built {
         values,
         at: { frame, index },
         source: { frame, fields: sourceFields },
+        nested: nestedAt(frame, index),
       })
     }
   })
@@ -186,7 +206,7 @@ function labeledTable(frames: PreparedFrame[]): Built {
   const valueDrafts = new Map<string, Draft>()
   for (const frame of frames) {
     for (const field of frame.fields) {
-      if (field.type === "time") continue
+      if (field.type === "time" || field.nested) continue
       let draft = valueDrafts.get(field.name)
       if (!draft) {
         draft = {
@@ -213,7 +233,7 @@ function labeledTable(frames: PreparedFrame[]): Built {
       rowFields.push(stringField(key, [value]))
     }
     for (const field of frame.fields) {
-      if (field.type === "time") continue
+      if (field.type === "time" || field.nested) continue
       const value = lastValue(field) ?? null
       values[`field:${field.name}`] = value
       sourceFields[`field:${field.name}`] = field
@@ -225,6 +245,7 @@ function labeledTable(frames: PreparedFrame[]): Built {
       values,
       at: { frame: { ...frame, fields: rowFields }, index: 0 },
       source: { frame, fields: sourceFields },
+      nested: null,
     }
   })
   return { drafts, rows }

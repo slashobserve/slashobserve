@@ -555,14 +555,14 @@
         "reasons": [
           "Moved or resized to fit the grid.",
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some transformations are not supported yet.",
+          "Some reducers are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "gridPos",
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[1].properties[0]",
-          "transformations[0]",
+          "transformations[0].options.fields.instance.aggregations",
           "options.filterable",
           "options.showSearch"
         ],
@@ -1964,6 +1964,16 @@
               }
             ],
             "filterable": true,
+            "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "job",
+                  "name",
+                  "value"
+                ]
+              }
+            ],
             "display": {
               "sortBy": "job",
               "sortDesc": true

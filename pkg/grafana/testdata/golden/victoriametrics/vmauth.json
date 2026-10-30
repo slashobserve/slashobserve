@@ -634,13 +634,11 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[1].properties[0]",
-          "transformations[0]",
           "options.filterable",
           "options.showSearch"
         ],
@@ -1722,6 +1720,15 @@
               }
             ],
             "filterable": true,
+            "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "name",
+                  "value"
+                ]
+              }
+            ],
             "display": {
               "sortBy": "job",
               "sortDesc": true

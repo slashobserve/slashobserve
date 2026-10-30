@@ -192,10 +192,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet."
+          "Some reducers are not supported yet."
         ],
         "paths": [
-          "transformations[0]"
+          "transformations[0].options.fields.instance.aggregations"
         ],
         "queries": [
           {
@@ -217,10 +217,10 @@
         "row": "Overview",
         "status": "partial",
         "reasons": [
-          "Some transformations are not supported yet."
+          "Some reducers are not supported yet."
         ],
         "paths": [
-          "transformations[0]"
+          "transformations[0].options.fields.instance.aggregations"
         ],
         "queries": [
           {
@@ -892,6 +892,16 @@
                 "instant": true,
                 "format": "table"
               }
+            ],
+            "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "job",
+                  "name",
+                  "value"
+                ]
+              }
             ]
           },
           {
@@ -911,6 +921,15 @@
                 "legend": "{{object_type_name}} {{event_type}}",
                 "instant": true,
                 "format": "table"
+              }
+            ],
+            "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "name",
+                  "value"
+                ]
               }
             ]
           },

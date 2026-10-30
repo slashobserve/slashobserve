@@ -595,6 +595,75 @@ export type Transform =
       type: "concatenate";
       nameMode?: "drop" | "field" | "label";
       nameLabel?: string;
+    }
+  | {
+      type: "groupBy";
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      by?: FieldName[];
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      aggregate?: {
+        field: FieldName;
+        /**
+         * @minItems 1
+         * @maxItems 10
+         */
+        reducers: Reducer[];
+      }[];
+    }
+  | {
+      type: "groupingToMatrix";
+      column?: FieldName;
+      row?: FieldName;
+      value?: FieldName;
+      empty?: "empty" | "zero" | "true" | "false";
+    }
+  | {
+      type: "groupToNestedTable";
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      by?: FieldName[];
+      /**
+       * @minItems 1
+       * @maxItems 20
+       */
+      aggregate?: {
+        field: FieldName;
+        /**
+         * @minItems 1
+         * @maxItems 10
+         */
+        reducers: Reducer[];
+      }[];
+      hideHeaders?: boolean;
+    }
+  | {
+      type: "histogram";
+      bucketCount?: number;
+      bucketSize?: number;
+      bucketOffset?: number;
+      combine?: boolean;
+    }
+  | {
+      type: "regression";
+      model?: "linear" | "polynomial";
+      degree?: number;
+      x?: FieldName;
+      y?: FieldName;
+      predictions?: number;
+    }
+  | {
+      type: "transpose";
+      firstName?: FieldName;
+      restName?: FieldName;
+      empty?: "empty" | "zero" | "true" | "false";
     };
 /**
  * A field name or series name in the panel's frames.

@@ -11,9 +11,9 @@ import {
 
 type PartitionOptions = Extract<Transform, { type: "partitionByValues" }>
 
-type Group = { values: string[]; rows: number[] }
+export type Group = { values: string[]; rows: number[] }
 
-function groupRows(keys: PreparedField[], count: number): Group[] {
+export function groupRows(keys: PreparedField[], count: number): Group[] {
   const groups = new Map<string, Group>()
   for (let row = 0; row < count; row++) {
     const values = keys.map((key) => String(cell(key, row) ?? ""))

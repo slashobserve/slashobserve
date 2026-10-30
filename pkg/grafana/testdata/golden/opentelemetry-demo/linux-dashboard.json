@@ -632,7 +632,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
           "transformations[2].options.binary",
           "transformations[3].options.binary",
           "options.frameIndex"
@@ -1893,6 +1892,44 @@
               }
             ],
             "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "mountpoint"
+                ],
+                "aggregate": [
+                  {
+                    "field": "/oldroot",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "/var/lib",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value #free",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value #total",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  }
+                ]
+              },
               {
                 "type": "merge"
               },

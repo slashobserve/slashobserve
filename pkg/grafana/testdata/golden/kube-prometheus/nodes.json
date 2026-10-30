@@ -209,7 +209,6 @@
           "Some transformations are not supported yet."
         ],
         "paths": [
-          "transformations[0]",
           "transformations[2].options.binary",
           "transformations[3].options.binary"
         ],
@@ -614,6 +613,26 @@
               }
             ],
             "transform": [
+              {
+                "type": "groupBy",
+                "by": [
+                  "mountpoint"
+                ],
+                "aggregate": [
+                  {
+                    "field": "Value #A",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  },
+                  {
+                    "field": "Value #B",
+                    "reducers": [
+                      "lastNotNull"
+                    ]
+                  }
+                ]
+              },
               {
                 "type": "merge"
               },

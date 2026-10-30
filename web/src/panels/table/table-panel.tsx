@@ -1,8 +1,16 @@
-import { memo, useCallback, useMemo, useState, type CSSProperties } from "react"
+import {
+  memo,
+  useCallback,
+  useId,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   BracesIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ClockIcon,
@@ -68,11 +76,13 @@ import {
   sparklineAt,
   tableModel,
   type Cell,
+  type NestedRows,
   type TableColumn,
   type TableRow as ModelRow,
 } from "./table-model"
 
 const maxRows = 1000
+const expandWidth = 32
 
 const typeIcons = {
   number: HashIcon,
@@ -267,26 +277,142 @@ function BodyCell({
   )
 }
 
+function NestedTable({
+  nested,
+  fields,
+  label,
+}: {
+  nested: NestedRows
+  fields: FieldResolver
+  label: string
+}) {
+  const model = useMemo(
+    () => tableModel([nested.frame], fields),
+    [nested.frame, fields]
+  )
+  return (
+    <table className="w-full" aria-label={label}>
+      {nested.headers ? (
+        <thead>
+          <tr className="border-b border-border">
+            {model.columns.map((column) => (
+              <th
+                key={column.key}
+                scope="col"
+                className={cn(
+                  "px-2 py-1 font-medium",
+                  column.type === "number" ? "text-right" : "text-left"
+                )}
+              >
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+      ) : null}
+      <tbody>
+        {model.rows.slice(0, maxRows).map((row) => (
+          <tr key={row.key} className="border-b border-border last:border-b-0">
+            {model.columns.map((column) => (
+              <td
+                key={column.key}
+                className={cn(
+                  "px-2 py-1",
+                  column.type === "number" && "text-right tabular-nums"
+                )}
+              >
+                {cellOf(fields, column, row).text}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+type Expansion = {
+  expandable: boolean
+  expanded: boolean
+  detailId: string
+  frozen: boolean
+  onToggle: (key: string) => void
+}
+
+function ExpandCell({
+  row,
+  label,
+  expansion: { detailId, expanded, frozen, onToggle },
+}: {
+  row: ModelRow
+  label: string
+  expansion: Omit<Expansion, "expandable">
+}) {
+  const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon
+  return (
+    <TableCell
+      style={frozen ? stickyStyle(0) : undefined}
+      className={cn("px-1", frozen && "z-[1] bg-card")}
+    >
+      {row.nested ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={detailId}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+          onClick={() => onToggle(row.key)}
+          className="inline-flex size-6 items-center justify-center rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Chevron className="size-4" aria-hidden="true" />
+        </button>
+      ) : null}
+    </TableCell>
+  )
+}
+
 const BodyRow = memo(function BodyRow({
   views,
-  ...shared
-}: RowShared & { views: ColumnView[] }) {
+  expandable,
+  ...rest
+}: RowShared & Expansion & { views: ColumnView[] }) {
+  const { expanded, detailId, frozen, onToggle, ...shared } = rest
+  const expansion = { expanded, detailId, frozen, onToggle }
   const rowColor = rowFill(
     shared.fields,
     views.map((view) => view.column),
     shared.row
   )
+  const label = views[0]
+    ? cellOf(shared.fields, views[0].column, shared.row).text
+    : "row"
+  const { nested } = shared.row
   return (
-    <TableRow>
-      {views.map((view) => (
-        <BodyCell
-          key={view.column.key}
-          view={view}
-          rowColor={rowColor}
-          {...shared}
-        />
-      ))}
-    </TableRow>
+    <>
+      <TableRow>
+        {expandable ? (
+          <ExpandCell row={shared.row} label={label} expansion={expansion} />
+        ) : null}
+        {views.map((view) => (
+          <BodyCell
+            key={view.column.key}
+            view={view}
+            rowColor={rowColor}
+            {...shared}
+          />
+        ))}
+      </TableRow>
+      {expanded && nested ? (
+        <TableRow id={detailId} className="hover:bg-transparent">
+          <TableCell colSpan={views.length + 1} className="p-2 pl-8">
+            <NestedTable
+              nested={nested}
+              fields={shared.fields}
+              label={`${label} rows`}
+            />
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
   )
 })
 
@@ -400,6 +526,12 @@ const TablePanel: PanelRenderer = ({
   )
   const [filters, setFilters] = useState<ColumnFilters>(new Map())
   const [requestedPage, setPage] = useState(0)
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  const baseId = useId()
+  const expandable = useMemo(
+    () => model.rows.some((row) => row.nested !== null),
+    [model.rows]
+  )
   const showHeader = display.header !== false
   const rowHeight = rowHeightOf(display)
   const frozen = frozenCount(display)
@@ -428,15 +560,16 @@ const TablePanel: PanelRenderer = ({
 
   const views = useMemo(() => {
     const offsets = layout ? stickyOffsets(layout.widths, frozen) : []
+    const shift = expandable ? expandWidth : 0
     return model.columns.map((column, index): ColumnView => ({
       column,
       align: alignOf(column.config.align, column.type),
       inspect: column.config.inspect,
       filterable: column.config.filterable,
       hideHeader: column.config.hideHeader,
-      left: offsets[index] ?? null,
+      left: offsets[index] === undefined ? null : offsets[index] + shift,
     }))
-  }, [model.columns, layout, frozen])
+  }, [model.columns, layout, frozen, expandable])
 
   const filtered = useMemo(() => {
     const byKey = new Map(model.columns.map((column) => [column.key, column]))
@@ -480,6 +613,14 @@ const TablePanel: PanelRenderer = ({
     setPage(0)
   }
 
+  const toggleOpen = useCallback((key: string) => {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  }, [])
+
   function changeFilters(next: ColumnFilters) {
     setFilters(next)
     setPage(0)
@@ -499,11 +640,17 @@ const TablePanel: PanelRenderer = ({
           data-slot="table"
           className={cn("caption-bottom", !fixed && "w-full")}
           style={
-            layout ? { tableLayout: "fixed", width: layout.total } : undefined
+            layout
+              ? {
+                  tableLayout: "fixed",
+                  width: layout.total + (expandable ? expandWidth : 0),
+                }
+              : undefined
           }
         >
           {layout ? (
             <colgroup>
+              {expandable ? <col style={{ width: expandWidth }} /> : null}
               {layout.widths.map((columnWidth, index) => (
                 <col
                   key={views[index].column.key}
@@ -520,6 +667,14 @@ const TablePanel: PanelRenderer = ({
             }
           >
             <TableRow className="hover:bg-transparent">
+              {expandable ? (
+                <TableHead
+                  style={frozen > 0 ? stickyStyle(0) : undefined}
+                  className={cn("h-8 px-1", frozen > 0 && "z-[1] bg-card")}
+                >
+                  <span className="sr-only">Details</span>
+                </TableHead>
+              ) : null}
               {views.map((view) => (
                 <HeaderCell
                   key={view.column.key}
@@ -549,6 +704,11 @@ const TablePanel: PanelRenderer = ({
                 scope={links}
                 padding={rowHeight}
                 fixed={fixed}
+                expandable={expandable}
+                expanded={open.has(row.key)}
+                detailId={`${baseId}-${row.key}`}
+                frozen={frozen > 0}
+                onToggle={toggleOpen}
               />
             ))}
           </TableBody>
@@ -559,6 +719,7 @@ const TablePanel: PanelRenderer = ({
                   key={footerRow.label}
                   className="hover:bg-transparent"
                 >
+                  {expandable ? <TableCell className="px-1" /> : null}
                   {views.map((view, index) => {
                     const className = cn(
                       "px-2 py-1",
