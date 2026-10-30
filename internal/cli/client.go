@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 const (
@@ -32,8 +34,8 @@ type client struct {
 }
 
 const (
-	codeForbiddenRole = "forbidden_role"
-	forbiddenRoleHint = "This key's service account role does not allow it; an admin can change the role on the API keys page."
+	forbiddenRoleHint   = "This key's service account role does not allow it; an admin can change the role on the API keys page."
+	forbiddenAccessHint = "This key cannot see that dashboard or its folder. A folder Admin or an instance Admin decides who sees a folder, but access lists name people and groups, which a key never matches, so use a key of an Admin service account or of the service account that created the folder."
 )
 
 type apiError struct {
@@ -51,10 +53,23 @@ func (e *apiError) Error() string {
 		return e.message
 	}
 	text := fmt.Sprintf("%s (%s)", e.message, e.code)
-	if e.code == codeForbiddenRole {
-		text += "\n" + forbiddenRoleHint
+	if hint := e.hint(); hint != "" {
+		text += "\n" + hint
 	}
 	return text
+}
+
+func (e *apiError) hint() string {
+	if e.code != forbidden.Code {
+		return ""
+	}
+	switch e.message {
+	case forbidden.RoleMessage:
+		return forbiddenRoleHint
+	case forbidden.AccessMessage:
+		return forbiddenAccessHint
+	}
+	return ""
 }
 
 func (a *app) newClient() (*client, error) {

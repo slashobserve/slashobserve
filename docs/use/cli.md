@@ -61,8 +61,11 @@ The CLI reads its settings in this order: flags, the environment, then the saved
 | Server  | `--server` | `OBSERVE_SERVER`     |
 | Key     | `--token`  | `OBSERVE_TOKEN`      |
 
-A refusal with the code `forbidden_role` prints a hint that an Admin can change the key's role on the API keys page.
-The same code also covers a dashboard or folder the key cannot see or change, so check the folder access before the role.
+A refusal with the code `forbidden_role` comes in two kinds, and the CLI prints a hint for each.
+When the message is "your role does not allow this", the hint says an Admin can change the key's role on the API keys page.
+When the message is "you do not have access to this dashboard", the key cannot see that dashboard or its folder.
+The hint then says that a folder Admin or an instance Admin decides who sees a folder, but that a key matches no access list entry, because entries name people and groups.
+Use a key of an Admin service account or of the service account that created the folder, as described in [Folders](../teams/folders.md).
 
 A saved key is sent only to the server it was saved for.
 To use another server, pass `--token` or set `OBSERVE_TOKEN`.
