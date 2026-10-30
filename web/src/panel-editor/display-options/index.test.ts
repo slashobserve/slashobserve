@@ -11,22 +11,12 @@ const geomapKeysTheEditorPlansDeclareLater = [
   "layers",
 ]
 
-const canvasKeysTheEditorPlansDeclareLater = [
-  "backgroundColor",
-  "backgroundImage",
-  "backgroundSize",
-  "borderColor",
-  "borderWidth",
-  "borderRadius",
-  "panZoom",
-  "infinitePan",
-  "tooltip",
-]
+const canvasKeysEditedInTheJsonView = ["backgroundImage", "backgroundSize"]
 
 const editedElsewhere: Partial<Record<DisplayPanelType, string[]>> = {
   geomap: geomapKeysTheEditorPlansDeclareLater,
   xychart: ["series"],
-  canvas: ["elements", "connections", ...canvasKeysTheEditorPlansDeclareLater],
+  canvas: ["elements", "connections", ...canvasKeysEditedInTheJsonView],
 }
 
 const types = Object.keys(displayOptions) as DisplayPanelType[]
