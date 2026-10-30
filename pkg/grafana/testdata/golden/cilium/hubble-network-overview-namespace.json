@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 8,
-      "imported": 5,
-      "partial": 3,
+      "imported": 7,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,14 +85,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Flows processed",
-        "status": "partial",
-        "reasons": [
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.minVizHeight",
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -111,14 +106,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "Flows processed",
-        "status": "partial",
-        "reasons": [
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.minVizHeight",
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

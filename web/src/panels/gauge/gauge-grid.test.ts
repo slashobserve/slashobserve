@@ -20,3 +20,64 @@ describe("gaugeGrid", () => {
     expect(gaugeGrid(count, width, height)).toEqual({ columns, rows })
   })
 })
+
+describe("gaugeGrid with size limits", () => {
+  it.each([
+    [
+      "no limit that bites",
+      4,
+      400,
+      400,
+      { minWidth: 100, minHeight: 100 },
+      2,
+      2,
+    ],
+    [
+      "a minimum width that rules out the widest grid",
+      4,
+      400,
+      100,
+      { minWidth: 150 },
+      2,
+      2,
+    ],
+    [
+      "a minimum height that rules out many rows",
+      4,
+      400,
+      400,
+      { minHeight: 300 },
+      4,
+      1,
+    ],
+    [
+      "limits that fit nowhere fill the width and scroll",
+      6,
+      300,
+      200,
+      { minWidth: 120, minHeight: 150 },
+      2,
+      3,
+    ],
+    [
+      "a minimum wider than the body keeps one column",
+      3,
+      100,
+      200,
+      { minWidth: 300, minHeight: 300 },
+      1,
+      3,
+    ],
+    [
+      "more columns than gauges are never used",
+      2,
+      1000,
+      100,
+      { minWidth: 10, minHeight: 300 },
+      2,
+      1,
+    ],
+  ])("lays out %s", (_name, count, width, height, limits, columns, rows) => {
+    expect(gaugeGrid(count, width, height, limits)).toEqual({ columns, rows })
+  })
+})

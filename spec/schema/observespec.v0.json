@@ -2163,6 +2163,33 @@
                   },
                   "thresholdMarkers": {
                     "type": "boolean"
+                  },
+                  "thresholdLabels": {
+                    "type": "boolean"
+                  },
+                  "minWidth": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "minHeight": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "titleSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "valueSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
                   }
                 }
               }
@@ -2208,6 +2235,62 @@
                       "horizontal",
                       "vertical"
                     ]
+                  },
+                  "barStyle": {
+                    "enum": [
+                      "basic",
+                      "lcd"
+                    ],
+                    "x-omitFromPrompt": true
+                  },
+                  "valueMode": {
+                    "enum": [
+                      "color",
+                      "text",
+                      "hidden"
+                    ]
+                  },
+                  "namePlacement": {
+                    "enum": [
+                      "auto",
+                      "top",
+                      "left",
+                      "hidden"
+                    ]
+                  },
+                  "showUnfilled": {
+                    "type": "boolean",
+                    "x-omitFromPrompt": true
+                  },
+                  "minWidth": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "minHeight": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "maxHeight": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2000,
+                    "x-omitFromPrompt": true
+                  },
+                  "titleSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
+                  },
+                  "valueSize": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "x-omitFromPrompt": true
                   }
                 }
               }

@@ -114,15 +114,6 @@ var grafanaDefaults = map[string]any{
 }
 
 var typeDefaults = map[spec.PanelType]map[string]any{
-	spec.Gauge: {
-		"options.minVizHeight": 75,
-		"options.minVizWidth":  75,
-	},
-	spec.BarGauge: {
-		"options.minVizHeight": 16,
-		"options.minVizWidth":  8,
-		"options.displayMode":  "gradient",
-	},
 	spec.Text: {
 		"options.mode": "markdown",
 	},
@@ -225,12 +216,8 @@ var partialReasons = map[string]string{
 	"fieldConfig.defaults.custom.transform":         "Negative-Y series are drawn as positive.",
 	"fieldConfig.overrides":                         "Some overrides use matchers or properties that are not supported yet.",
 	"transformations":                               "Some transformations are not supported yet.",
-	"options.displayMode":                           "Bar styles are drawn in the SlashObserve style.",
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
-	"options.minVizHeight":                          "Size limits are not kept.",
-	"options.minVizWidth":                           "Size limits are not kept.",
-	"options.showThresholdLabels":                   "Threshold labels are not shown.",
 	"fieldConfig.defaults.color":                    "This color scheme is not supported yet; series use the default palette.",
 	"options.colorByField":                          "Coloring bars by a field is not supported yet.",
 	"options.xTickLabelRotation":                    "Axis labels are drawn in the SlashObserve style.",
@@ -267,6 +254,10 @@ var cosmeticOptions = map[string]cosmeticOption{
 	},
 	"fieldConfig.defaults.custom.minWidth": {
 		why: "table columns are sized by the browser from their content and have no minimum width",
+	},
+	"options.displayMode": {
+		values: []any{"gradient", "basic"},
+		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",
 	},
 	"options.tooltip.sort": {
 		values: []any{"desc"},

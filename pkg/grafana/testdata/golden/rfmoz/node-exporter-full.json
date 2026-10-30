@@ -45,15 +45,10 @@
         "row": "Quick CPU / Mem / Disk",
         "status": "partial",
         "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Size limits are not kept."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.displayMode",
-          "options.legend.showLegend",
-          "options.minVizHeight",
-          "options.minVizWidth"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -2947,15 +2942,11 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Bar styles are drawn in the SlashObserve style."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.fieldMinMax",
-          "options.displayMode",
-          "options.legend.showLegend",
-          "options.maxVizHeight",
-          "options.sizing"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -2977,14 +2968,10 @@
         "row": "Network Traffic",
         "status": "partial",
         "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.displayMode",
-          "options.legend.showLegend",
-          "options.maxVizHeight",
-          "options.sizing"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -3934,11 +3921,9 @@
         "row": "Node Exporter",
         "status": "partial",
         "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.displayMode",
           "options.legend.showLegend"
         ],
         "queries": [
@@ -8348,7 +8333,10 @@
               }
             ],
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "minWidth": 8,
+              "minHeight": 16,
+              "maxHeight": 30
             }
           },
           {
@@ -8379,7 +8367,10 @@
               }
             ],
             "display": {
-              "orientation": "horizontal"
+              "orientation": "horizontal",
+              "minWidth": 8,
+              "minHeight": 16,
+              "maxHeight": 30
             }
           }
         ]

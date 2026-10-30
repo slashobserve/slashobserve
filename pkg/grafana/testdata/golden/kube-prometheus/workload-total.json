@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 6,
-      "partial": 4,
+      "imported": 10,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,15 +43,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.showUnfilled"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -70,15 +64,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.showUnfilled"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -97,15 +85,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.showUnfilled"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -124,15 +106,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.showUnfilled"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -363,7 +339,10 @@
         ],
         "unit": "bps",
         "color": "#73BF69",
-        "interval": "1m"
+        "interval": "1m",
+        "display": {
+          "showUnfilled": false
+        }
       },
       {
         "id": "p2",
@@ -384,7 +363,10 @@
         ],
         "unit": "bps",
         "color": "#73BF69",
-        "interval": "1m"
+        "interval": "1m",
+        "display": {
+          "showUnfilled": false
+        }
       },
       {
         "id": "p3",
@@ -405,7 +387,10 @@
         ],
         "unit": "bps",
         "color": "#73BF69",
-        "interval": "1m"
+        "interval": "1m",
+        "display": {
+          "showUnfilled": false
+        }
       },
       {
         "id": "p4",
@@ -426,7 +411,10 @@
         ],
         "unit": "bps",
         "color": "#73BF69",
-        "interval": "1m"
+        "interval": "1m",
+        "display": {
+          "showUnfilled": false
+        }
       },
       {
         "id": "p5",

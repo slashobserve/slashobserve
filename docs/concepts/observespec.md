@@ -129,6 +129,12 @@ A `stat` panel has more optional `display` keys.
 `percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
 `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
 `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
+A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
+A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
+Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
+Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
+`minWidth` and `minHeight` keep each gauge or bar at least that many pixels (1 to 2000), the panel scrolls when they do not fit, and a bar gauge's `maxHeight` caps the height of a horizontal bar.
+`titleSize` and `valueSize` set the size in pixels (1 to 200) of the name and the value text of a gauge or a bar gauge.
 
 ## Maps, canvases and actions
 

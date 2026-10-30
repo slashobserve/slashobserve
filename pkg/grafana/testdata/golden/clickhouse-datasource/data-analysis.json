@@ -171,16 +171,11 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Size limits are not kept."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.displayMode",
-          "options.legend.showLegend",
-          "options.minVizHeight",
-          "options.minVizWidth"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -203,16 +198,11 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Bar styles are drawn in the SlashObserve style.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Size limits are not kept."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.displayMode",
-          "options.legend.showLegend",
-          "options.minVizHeight",
-          "options.minVizWidth"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -413,14 +403,11 @@
         "status": "partial",
         "reasons": [
           "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Size limits are not kept."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.legend.showLegend",
-          "options.minVizHeight",
-          "options.minVizWidth"
+          "options.legend.showLegend"
         ],
         "queries": [
           {
@@ -729,7 +716,8 @@
         ],
         "display": {
           "allValues": true,
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "barStyle": "lcd"
         }
       },
       {
@@ -760,7 +748,8 @@
         ],
         "display": {
           "allValues": true,
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "barStyle": "lcd"
         }
       },
       {

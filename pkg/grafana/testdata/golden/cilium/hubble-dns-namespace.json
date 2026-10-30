@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 4,
-      "imported": 3,
-      "partial": 1,
+      "imported": 4,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -64,14 +64,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": "DNS",
-        "status": "partial",
-        "reasons": [
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.minVizHeight",
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",

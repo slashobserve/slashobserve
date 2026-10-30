@@ -363,6 +363,14 @@ type Display struct {
 	PercentChangeColor string             `json:"percentChangeColor,omitempty"`
 	WideLayout         *bool              `json:"wideLayout,omitempty"`
 	ThresholdMarkers   *bool              `json:"thresholdMarkers,omitempty"`
+	ThresholdLabels    *bool              `json:"thresholdLabels,omitempty"`
+	BarStyle           string             `json:"barStyle,omitempty"`
+	ValueMode          string             `json:"valueMode,omitempty"`
+	NamePlacement      string             `json:"namePlacement,omitempty"`
+	ShowUnfilled       *bool              `json:"showUnfilled,omitempty"`
+	MinWidth           int                `json:"minWidth,omitempty"`
+	MinHeight          int                `json:"minHeight,omitempty"`
+	MaxHeight          int                `json:"maxHeight,omitempty"`
 	Header             *bool              `json:"header,omitempty"`
 	Footer             []string           `json:"footer,omitempty"`
 	PieType            string             `json:"pieType,omitempty"`

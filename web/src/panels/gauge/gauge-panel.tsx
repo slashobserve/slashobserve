@@ -9,15 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { anchorProps, NewTabMark } from "@/dashboards/dashboard-links"
+import { cn } from "@/lib/utils"
 
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
 import {
+  gaugeLimits,
   gaugeLinks,
   gaugeModel,
+  gaugeSizes,
+  labelPosition,
   valueFontSize,
   type Gauge,
+  type GaugeSizes,
 } from "./gauge-model"
 import { gaugeGrid, gridGap } from "./gauge-grid"
 import { GaugeSvg } from "./gauge-svg"
@@ -59,6 +64,7 @@ function MoreLinks({ links }: { links: ResolvedLink[] }) {
 type CellProps = {
   gauge: Gauge
   named: boolean
+  sizes: GaugeSizes
   fields: FieldResolver
   scope: Omit<
     LinkScope,
@@ -73,7 +79,7 @@ function offsetRow(offset: number): CSSProperties {
   return { top: `calc(50% + ${offset}cqmin)`, transform: "translateY(-50%)" }
 }
 
-function GaugeCell({ gauge, named, fields, scope }: CellProps) {
+function GaugeCell({ gauge, named, sizes, fields, scope }: CellProps) {
   const [first, ...more] = gaugeLinks(gauge, fields, scope)
   const { level, label: word } = gauge.threshold
   const Icon = level === "base" ? null : thresholdIcons[level]
@@ -86,7 +92,9 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
         data-gauge-value=""
         className="leading-none font-semibold text-foreground tabular-nums"
         style={{
-          fontSize: `${valueFontSize(gauge.text, more.length > 0).toFixed(2)}cqmin`,
+          fontSize: sizes.valueSize
+            ? `${sizes.valueSize}px`
+            : `${valueFontSize(gauge.text, more.length > 0).toFixed(2)}cqmin`,
         }}
       >
         {first ? (
@@ -124,6 +132,24 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
         className="absolute inset-0"
       >
         <GaugeSvg gauge={gauge} />
+        {gauge.labels.map((label) => {
+          const { x, y } = labelPosition(label.fraction)
+          return (
+            <span
+              key={`${label.fraction}:${label.text}`}
+              data-threshold-label=""
+              className="absolute leading-none text-muted-foreground tabular-nums"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                transform: "translate(-50%, -50%)",
+                fontSize: "clamp(9px, 5cqmin, 12px)",
+              }}
+            >
+              {label.text}
+            </span>
+          )
+        })}
         {first ? null : value}
         {named ? (
           <div
@@ -133,7 +159,11 @@ function GaugeCell({ gauge, named, fields, scope }: CellProps) {
             <span
               title={gauge.name}
               className="max-w-[70cqmin] truncate leading-none text-muted-foreground"
-              style={{ fontSize: "clamp(11px, 7cqmin, 16px)" }}
+              style={{
+                fontSize: sizes.titleSize
+                  ? `${sizes.titleSize}px`
+                  : "clamp(11px, 7cqmin, 16px)",
+              }}
             >
               {gauge.name}
             </span>
@@ -177,21 +207,29 @@ const GaugePanel: PanelRenderer = ({
     () => gaugeModel(frames, fields, display),
     [frames, fields, display]
   )
+  const limits = gaugeLimits(display)
+  const sizes = gaugeSizes(display)
   const { columns, rows } = gaugeGrid(
     gauges.length,
     width - bodyInsetX,
-    height - bodyInsetY
+    height - bodyInsetY,
+    limits
   )
+  const limited =
+    limits.minWidth !== undefined || limits.minHeight !== undefined
   return (
     <div
       data-gauge-grid
-      className="grid overflow-hidden p-2 pt-0"
+      className={cn(
+        "grid p-2 pt-0",
+        limited ? "overflow-auto" : "overflow-hidden"
+      )}
       style={{
         width,
         height,
         gap: gridGap,
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${columns}, minmax(${limits.minWidth ?? 0}px, 1fr))`,
+        gridTemplateRows: `repeat(${rows}, minmax(${limits.minHeight ?? 0}px, 1fr))`,
       }}
     >
       {gauges.map((gauge) => (
@@ -199,6 +237,7 @@ const GaugePanel: PanelRenderer = ({
           key={gauge.key}
           gauge={gauge}
           named={gauges.length > 1}
+          sizes={sizes}
           fields={fields}
           scope={links}
         />

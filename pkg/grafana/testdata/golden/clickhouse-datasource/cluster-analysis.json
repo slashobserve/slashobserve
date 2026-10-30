@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 1,
-      "partial": 12,
+      "imported": 3,
+      "partial": 10,
       "placeholder": 0,
       "unverified": 0
     },
@@ -229,15 +229,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
-          "Bar styles are drawn in the SlashObserve style.",
-          "Size limits are not kept."
+          "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[1]",
-          "options.displayMode",
-          "options.minVizHeight",
-          "options.minVizWidth"
+          "fieldConfig.overrides[0].properties[1]"
         ],
         "queries": [
           {
@@ -284,16 +279,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.minVizHeight",
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -343,16 +331,9 @@
         "type": "bargauge",
         "source_type": "bargauge",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Bar styles are drawn in the SlashObserve style.",
-          "Size limits are not kept."
-        ],
-        "paths": [
-          "options.displayMode",
-          "options.minVizHeight",
-          "options.minVizWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -738,7 +719,8 @@
         ],
         "display": {
           "allValues": true,
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "barStyle": "lcd"
         }
       },
       {
@@ -855,7 +837,8 @@
         ],
         "display": {
           "allValues": true,
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "barStyle": "lcd"
         }
       },
       {
@@ -1010,7 +993,8 @@
           }
         ],
         "display": {
-          "orientation": "horizontal"
+          "orientation": "horizontal",
+          "barStyle": "lcd"
         }
       },
       {

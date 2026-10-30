@@ -36,6 +36,24 @@ export type Bar = {
 
 export type BargaugeModel = { bars: Bar[] }
 
+export type NamePlacement = "above" | "below" | "left" | "hidden"
+
+export type BarLimits = {
+  minWidth?: number
+  minHeight?: number
+  maxHeight?: number
+}
+
+export type BarSizes = { titleSize?: number; valueSize?: number }
+
+export type BarStyle = "basic" | "lcd"
+
+export type ValueMode = "color" | "text" | "hidden"
+
+const lcdCellSize = 10
+const lcdMinCells = 4
+const lcdMaxCells = 40
+
 type Entry = ReduceItem
 
 export function reducerOf(display: Record<string, unknown>): Reducer {
@@ -54,6 +72,60 @@ export function orientationOf(
   if (display.orientation === "horizontal") return "horizontal"
   if (display.orientation === "vertical") return "vertical"
   return size.width > size.height ? "horizontal" : "vertical"
+}
+
+export function namePlacementOf(
+  display: Record<string, unknown>,
+  orientation: Orientation
+): NamePlacement {
+  const placement = display.namePlacement
+  if (placement === "hidden") return "hidden"
+  if (orientation === "horizontal") {
+    return placement === "left" ? "left" : "above"
+  }
+  return placement === "top" ? "above" : "below"
+}
+
+export function barStyleOf(display: Record<string, unknown>): BarStyle {
+  return display.barStyle === "lcd" ? "lcd" : "basic"
+}
+
+export function valueModeOf(display: Record<string, unknown>): ValueMode {
+  if (display.valueMode === "hidden") return "hidden"
+  return display.valueMode === "text" ? "text" : "color"
+}
+
+export function showUnfilledOf(display: Record<string, unknown>): boolean {
+  return display.showUnfilled !== false
+}
+
+function positive(value: unknown): number | undefined {
+  return typeof value === "number" && value > 0 ? value : undefined
+}
+
+export function barLimits(display: Record<string, unknown>): BarLimits {
+  return {
+    minWidth: positive(display.minWidth),
+    minHeight: positive(display.minHeight),
+    maxHeight: positive(display.maxHeight),
+  }
+}
+
+export function barSizes(display: Record<string, unknown>): BarSizes {
+  return {
+    titleSize: positive(display.titleSize),
+    valueSize: positive(display.valueSize),
+  }
+}
+
+export function lcdCellCount(extent: number): number {
+  const fitting = Math.floor(extent / lcdCellSize)
+  return Math.min(lcdMaxCells, Math.max(lcdMinCells, fitting))
+}
+
+export function lcdLitCells(fraction: number, cells: number): number {
+  if (!(fraction > 0)) return 0
+  return Math.min(cells, Math.max(1, Math.round(fraction * cells)))
 }
 
 function sharedRange(entries: Entry[]): { low: number; high: number } {

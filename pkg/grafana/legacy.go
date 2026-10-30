@@ -707,7 +707,8 @@ func (b *panelBuild) singlestatGauge(p *spec.FieldProps, d *spec.Display) {
 		d.ThresholdMarkers = &flag
 	}
 	if truthy(gauge["thresholdLabels"]) {
-		b.partial("gauge.thresholdLabels", "Threshold labels are not shown.")
+		labels := true
+		d.ThresholdLabels = &labels
 	}
 }
 
