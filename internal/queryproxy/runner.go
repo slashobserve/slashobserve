@@ -512,13 +512,14 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 	if err != nil {
 		return nil, err
 	}
-	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), scanQueryUse(q.Query), req.Range, req.Selections, req.User, st)
+	use := scanQueryUse(q.Query)
+	vars, err := r.variablesFor(ctx, req.Dashboard, len(req.Dashboard.Variables), use, req.Range, req.Selections, req.User, st)
 	if err != nil {
 		return nil, err
 	}
 	dq := datasource.Query{Text: q.Query, Format: q.Format, Variables: vars, Limits: req.Limits, Dashboard: req.Dashboard.Title, User: req.User}
-	if inst.Datasource.Type() == string(spec.Prometheus) {
-		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID); err != nil {
+	if applies := implicitScope(inst.Datasource.Type(), use); applies != nil {
+		if dq.Filters, err = r.implicitFilters(st, req.Dashboard, req.Selections, inst.UID, applies); err != nil {
 			return nil, err
 		}
 	}

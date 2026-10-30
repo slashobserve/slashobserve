@@ -484,11 +484,21 @@ func (c *parseCache) storeFilters(name string, raw []string, filters []datasourc
 	c.filters[name] = parsedFilters{raw: slices.Clone(raw), filters: filters}
 }
 
-func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map[string]Selection, uid string) ([]datasource.AdhocFilter, error) {
+func implicitScope(dsType string, use queryUse) func(spec.Variable) bool {
+	switch dsType {
+	case string(spec.Prometheus):
+		return func(spec.Variable) bool { return true }
+	case string(spec.ClickHouse):
+		return func(v spec.Variable) bool { return v.ApplyToAll && !use.variables[v.Name] }
+	}
+	return nil
+}
+
+func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map[string]Selection, uid string, applies func(spec.Variable) bool) ([]datasource.AdhocFilter, error) {
 	var out []datasource.AdhocFilter
 	for _, v := range d.Variables {
 		sel := selections[v.Name]
-		if v.Type != spec.AdhocVariable || len(sel.Values) == 0 {
+		if v.Type != spec.AdhocVariable || len(sel.Values) == 0 || !applies(v) {
 			continue
 		}
 		resolved, err := ResolveDatasourceUID(d, v.Datasource, selections)

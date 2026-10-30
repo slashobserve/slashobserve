@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"time"
 
@@ -109,7 +110,11 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 	timeout := effectiveTimeout(ctx, lim.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, lim.Timeout)
 	defer cancel()
-	rs, err := d.fetch(ctx, text, lim, nil)
+	extra, err := d.tableFilters(ctx, text, q.Filters)
+	if err != nil {
+		return nil, lim, err
+	}
+	rs, err := d.fetchWith(ctx, text, lim, nil, extra)
 	if err != nil {
 		return nil, lim, mapError(ctx, err, timeout)
 	}
@@ -117,7 +122,11 @@ func (d *Datasource) run(ctx context.Context, q datasource.Query, r datasource.T
 }
 
 func (d *Datasource) fetch(ctx context.Context, text string, lim datasource.Limits, params ch.Parameters) (*resultSet, error) {
-	ctx = ch.Context(ctx, queryOptions(lim, params)...)
+	return d.fetchWith(ctx, text, lim, params, nil)
+}
+
+func (d *Datasource) fetchWith(ctx context.Context, text string, lim datasource.Limits, params ch.Parameters, extra ch.Settings) (*resultSet, error) {
+	ctx = ch.Context(ctx, queryOptions(lim, params, extra)...)
 	rows, err := d.conn.Query(ctx, text)
 	if err != nil {
 		return nil, err
@@ -125,13 +134,15 @@ func (d *Datasource) fetch(ctx context.Context, text string, lim datasource.Limi
 	return scanRows(rows, lim.MaxRows)
 }
 
-func queryOptions(lim datasource.Limits, params ch.Parameters) []ch.QueryOption {
-	opts := []ch.QueryOption{ch.WithSettings(ch.Settings{
+func queryOptions(lim datasource.Limits, params ch.Parameters, extra ch.Settings) []ch.QueryOption {
+	settings := ch.Settings{
 		"max_execution_time":   int(max(1, (lim.Timeout+time.Second-1)/time.Second)),
 		"max_result_rows":      lim.MaxRows,
 		"max_result_bytes":     maxResultBytes,
 		"result_overflow_mode": "throw",
-	})}
+	}
+	maps.Copy(settings, extra)
+	opts := []ch.QueryOption{ch.WithSettings(settings)}
 	if len(params) > 0 {
 		opts = append(opts, ch.WithParameters(params))
 	}
