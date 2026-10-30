@@ -163,6 +163,24 @@ func TestDashboardSourceSemanticIssues(t *testing.T) {
 	}
 }
 
+func TestOverridesOfAReusingPanelMatchTheSourcesRefs(t *testing.T) {
+	source := `{"id":"src","type":"timeseries","title":"Source","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"ref":"S","query":"up"}]}`
+	withOverride := func(ref string) []byte {
+		dependent := reusePanel("dep", 0, `,"overrides":[{"match":{"query":"`+ref+`"},"color":"critical"}]`, `{"ref":"R","source":{"panel":"src"}}`)
+		return dsDashboard("", source+","+dependent)
+	}
+
+	if _, err := spec.Parse(withOverride("S")); err != nil {
+		t.Fatalf("an override on the source's ref: Parse error = %v, want none", err)
+	}
+
+	issues := parseIssues(t, withOverride("R"))
+	want := spec.Issue{Path: "/panels/1/overrides/0/match/query", Code: spec.CodeUnknownQueryRef}
+	if len(issues) != 1 || issues[0].Path != want.Path || issues[0].Code != want.Code {
+		t.Fatalf("an override on the reusing query's own ref: issues = %+v, want %+v", issues, want)
+	}
+}
+
 func TestDashboardSourceSchemaRejections(t *testing.T) {
 	cases := []struct {
 		name   string

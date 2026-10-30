@@ -76,3 +76,16 @@ func hasDashboardSource(p *Panel) bool {
 	}
 	return false
 }
+
+func (d *Dashboard) SourceOf(id string) (PanelEntry, bool) {
+	entry, ok := d.FindPanel(id)
+	if !ok {
+		return PanelEntry{}, false
+	}
+	source, reuses := entry.Panel.DashboardSource()
+	if !reuses {
+		return PanelEntry{}, false
+	}
+	target, ok := d.FindDataPanel(source.Panel)
+	return target, ok
+}
