@@ -1,0 +1,19 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/nodeGraph/panelcfg.cue",
+    "public/app/plugins/panel/nodeGraph/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.nodes.mainStatUnit=ms", "path": "options.nodes.mainStatUnit", "value": "ms" },
+    { "id": "options.nodes.secondaryStatUnit=percent", "path": "options.nodes.secondaryStatUnit", "value": "percent" },
+    { "id": "options.nodes.arcs=errors-red", "path": "options.nodes.arcs", "value": [{"field": "errors", "color": "red"}] },
+    { "id": "options.nodes.arcs=ok-errors", "path": "options.nodes.arcs", "value": [{"field": "ok", "color": "green"}, {"field": "errors", "color": "red"}] },
+    { "id": "options.edges.mainStatUnit=ms", "path": "options.edges.mainStatUnit", "value": "ms" },
+    { "id": "options.edges.secondaryStatUnit=percent", "path": "options.edges.secondaryStatUnit", "value": "percent" },
+    { "id": "options.zoomMode=greedy", "path": "options.zoomMode", "value": "greedy", "expect": "cosmetic" },
+    { "id": "options.layoutAlgorithm=force", "path": "options.layoutAlgorithm", "value": "force" },
+    { "id": "options.layoutAlgorithm=grid", "path": "options.layoutAlgorithm", "value": "grid" }
+  ]
+}

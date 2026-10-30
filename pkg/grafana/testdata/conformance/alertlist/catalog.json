@@ -1,0 +1,33 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/alertlist/module.tsx",
+    "public/app/plugins/panel/alertlist/types.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.viewMode=stat", "path": "options.viewMode", "value": "stat" },
+    { "id": "options.groupMode=custom", "path": "options.groupMode", "value": "custom" },
+    { "id": "options.groupBy=severity", "path": "options.groupBy", "value": ["severity"], "with": {"options.groupMode": "custom"} },
+    { "id": "options.maxItems=50", "path": "options.maxItems", "value": 50 },
+    { "id": "options.sortOrder=2", "path": "options.sortOrder", "value": 2 },
+    { "id": "options.sortOrder=3", "path": "options.sortOrder", "value": 3 },
+    { "id": "options.sortOrder=4", "path": "options.sortOrder", "value": 4 },
+    { "id": "options.sortOrder=5", "path": "options.sortOrder", "value": 5 },
+    { "id": "options.alertName=HighLatency", "path": "options.alertName", "value": "HighLatency" },
+    { "id": "options.alertInstanceLabelFilter=severity-critical", "path": "options.alertInstanceLabelFilter", "value": "severity=\"critical\"" },
+    { "id": "options.showInstances=true", "path": "options.showInstances", "value": true },
+    { "id": "options.showInactiveAlerts=true", "path": "options.showInactiveAlerts", "value": true },
+    { "id": "options.stateFilter.firing=false", "path": "options.stateFilter.firing", "value": false },
+    { "id": "options.stateFilter.pending=false", "path": "options.stateFilter.pending", "value": false },
+    { "id": "options.stateFilter.recovering=false", "path": "options.stateFilter.recovering", "value": false, "with": {"options.datasource": "-- Grafana --"}, "expect": "excluded" },
+    { "id": "options.stateFilter.error=false", "path": "options.stateFilter.error", "value": false, "with": {"options.datasource": "-- Grafana --"}, "expect": "excluded" },
+    { "id": "options.stateFilter.noData=true", "path": "options.stateFilter.noData", "value": true, "with": {"options.datasource": "-- Grafana --"}, "expect": "excluded" },
+    { "id": "options.stateFilter.normal=true", "path": "options.stateFilter.normal", "value": true },
+    { "id": "options.dashboardAlerts=true", "path": "options.dashboardAlerts", "value": true, "expect": "excluded" },
+    { "id": "options.folder=alerts-folder", "path": "options.folder", "value": {"uid": "abc", "title": "Alerts"}, "expect": "excluded" },
+    { "id": "options.datasource=grafana-managed", "path": "options.datasource", "value": "-- Grafana --", "expect": "excluded" },
+    { "id": "options.show=legacy-current", "path": "options.show", "value": "current", "expect": "excluded" },
+    { "id": "options.stateFilter=legacy-alerting", "path": "options.stateFilter", "value": ["alerting"], "expect": "excluded" }
+  ]
+}

@@ -1,0 +1,14 @@
+fieldConfig.defaults.custom.neutral=50
+options.minVizHeight=120
+options.minVizWidth=120
+options.orientation=horizontal
+options.orientation=vertical
+options.reduceOptions.calcs=min-max
+options.reduceOptions.fields=all-fields
+options.reduceOptions.fields=value-regex
+options.reduceOptions.limit=10
+options.reduceOptions.values=true
+options.showThresholdLabels=true
+options.sizing=manual
+options.text.titleSize=20
+options.text.valueSize=40

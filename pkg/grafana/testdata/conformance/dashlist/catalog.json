@@ -1,0 +1,24 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/dashlist/panelcfg.cue",
+    "public/app/plugins/panel/dashlist/panelcfg.gen.ts",
+    "public/app/plugins/panel/dashlist/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.showStarred=false", "path": "options.showStarred", "value": false },
+    { "id": "options.showRecentlyViewed=true", "path": "options.showRecentlyViewed", "value": true },
+    { "id": "options.showSearch=true", "path": "options.showSearch", "value": true },
+    { "id": "options.showHeadings=false", "path": "options.showHeadings", "value": false, "expect": "cosmetic" },
+    { "id": "options.showFolderNames=false", "path": "options.showFolderNames", "value": false, "expect": "cosmetic" },
+    { "id": "options.query=checkout", "path": "options.query", "value": "checkout" },
+    { "id": "options.tags=prod", "path": "options.tags", "value": ["prod"] },
+    { "id": "options.tags=prod-web", "path": "options.tags", "value": ["prod", "web"] },
+    { "id": "options.folderUID=abc123", "path": "options.folderUID", "value": "abc123" },
+    { "id": "options.folderId=7", "path": "options.folderId", "value": 7 },
+    { "id": "options.maxItems=25", "path": "options.maxItems", "value": 25 },
+    { "id": "options.includeVars=true", "path": "options.includeVars", "value": true },
+    { "id": "options.keepTime=true", "path": "options.keepTime", "value": true }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/news/panelcfg.cue",
+    "public/app/plugins/panel/news/panelcfg.gen.ts",
+    "public/app/plugins/panel/news/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.feedUrl=https:-example.com-feed.xml", "path": "options.feedUrl", "value": "https://example.com/feed.xml" },
+    { "id": "options.showImage=false", "path": "options.showImage", "value": false }
+  ]
+}

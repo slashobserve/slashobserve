@@ -1,0 +1,5 @@
+options.groupBy=severity
+options.groupMode=custom
+options.showInactiveAlerts=true
+options.showInstances=true
+options.stateFilter.normal=true

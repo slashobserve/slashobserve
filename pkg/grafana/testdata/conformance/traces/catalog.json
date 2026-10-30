@@ -1,0 +1,18 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/traces/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.spanFilters.query=checkout", "path": "options.spanFilters.query", "value": "checkout" },
+    { "id": "options.spanFilters.matchesOnly=true", "path": "options.spanFilters.matchesOnly", "value": true },
+    { "id": "options.spanFilters.criticalPathOnly=true", "path": "options.spanFilters.criticalPathOnly", "value": true },
+    { "id": "options.spanFilters.serviceName=checkout", "path": "options.spanFilters.serviceName", "value": ["checkout"] },
+    { "id": "options.spanFilters.serviceNameOperator=not-equal", "path": "options.spanFilters.serviceNameOperator", "value": "!=" },
+    { "id": "options.spanFilters.spanName=GET", "path": "options.spanFilters.spanName", "value": ["GET"] },
+    { "id": "options.spanFilters.spanNameOperator=not-equal", "path": "options.spanFilters.spanNameOperator", "value": "!=" },
+    { "id": "options.spanFilters.from=10ms", "path": "options.spanFilters.from", "value": "10ms" },
+    { "id": "options.spanFilters.to=1s", "path": "options.spanFilters.to", "value": "1s" }
+  ]
+}

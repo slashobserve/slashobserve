@@ -1,0 +1,39 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/stat/panelcfg.cue",
+    "public/app/plugins/panel/stat/module.tsx",
+    "public/app/plugins/panel/stat/common.ts",
+    "packages/grafana-schema/src/common/mudball.cue"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "transparent=true", "path": "transparent", "value": true },
+    { "id": "hideTimeOverride=true", "path": "hideTimeOverride", "value": true },
+    { "id": "options.graphMode=none", "path": "options.graphMode", "value": "none" },
+    { "id": "options.graphMode=line", "path": "options.graphMode", "value": "line" },
+    { "id": "options.colorMode=background", "path": "options.colorMode", "value": "background" },
+    { "id": "options.colorMode=background_solid", "path": "options.colorMode", "value": "background_solid" },
+    { "id": "options.colorMode=none", "path": "options.colorMode", "value": "none" },
+    { "id": "options.justifyMode=center", "path": "options.justifyMode", "value": "center" },
+    { "id": "options.textMode=value", "path": "options.textMode", "value": "value" },
+    { "id": "options.textMode=value_and_name", "path": "options.textMode", "value": "value_and_name" },
+    { "id": "options.textMode=name", "path": "options.textMode", "value": "name" },
+    { "id": "options.textMode=none", "path": "options.textMode", "value": "none" },
+    { "id": "options.wideLayout=false", "path": "options.wideLayout", "value": false, "with": {"options.textMode": "value_and_name"} },
+    { "id": "options.showPercentChange=true", "path": "options.showPercentChange", "value": true },
+    { "id": "options.percentChangeColorMode=inverted", "path": "options.percentChangeColorMode", "value": "inverted", "with": {"options.showPercentChange": true} },
+    { "id": "options.percentChangeColorMode=same_as_value", "path": "options.percentChangeColorMode", "value": "same_as_value", "with": {"options.showPercentChange": true} },
+    { "id": "options.text.titleSize=20", "path": "options.text.titleSize", "value": 20 },
+    { "id": "options.text.valueSize=40", "path": "options.text.valueSize", "value": 40 },
+    { "id": "options.text.percentSize=14", "path": "options.text.percentSize", "value": 14 },
+    { "id": "options.orientation=vertical", "path": "options.orientation", "value": "vertical" },
+    { "id": "options.orientation=horizontal", "path": "options.orientation", "value": "horizontal" },
+    { "id": "options.reduceOptions.values=true", "path": "options.reduceOptions.values", "value": true },
+    { "id": "options.reduceOptions.limit=10", "path": "options.reduceOptions.limit", "value": 10, "with": {"options.reduceOptions.values": true} },
+    { "id": "options.reduceOptions.calcs=mean", "path": "options.reduceOptions.calcs", "value": ["mean"] },
+    { "id": "options.reduceOptions.calcs=min-max", "path": "options.reduceOptions.calcs", "value": ["min", "max"] },
+    { "id": "options.reduceOptions.fields=all-fields", "path": "options.reduceOptions.fields", "value": "/.*/" },
+    { "id": "options.reduceOptions.fields=value-regex", "path": "options.reduceOptions.fields", "value": "/^Value$/" }
+  ]
+}

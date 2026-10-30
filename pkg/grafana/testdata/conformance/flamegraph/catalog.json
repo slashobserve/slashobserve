@@ -1,0 +1,11 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/flamegraph/module.tsx"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "fieldConfig.defaults.unit=ms", "path": "fieldConfig.defaults.unit", "value": "ms" },
+    { "id": "fieldConfig.defaults.decimals=2", "path": "fieldConfig.defaults.decimals", "value": 2 }
+  ]
+}

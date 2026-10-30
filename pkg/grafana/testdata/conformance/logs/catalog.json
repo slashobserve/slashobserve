@@ -1,0 +1,32 @@
+{
+  "grafana": "v12.3.0",
+  "sources": [
+    "public/app/plugins/panel/logs/panelcfg.cue",
+    "public/app/plugins/panel/logs/module.tsx",
+    "packages/grafana-schema/src/common/common.gen.ts"
+  ],
+  "root": "panels[0]",
+  "entries": [
+    { "id": "options.dedupStrategy=exact", "path": "options.dedupStrategy", "value": "exact" },
+    { "id": "options.dedupStrategy=numbers", "path": "options.dedupStrategy", "value": "numbers" },
+    { "id": "options.dedupStrategy=signature", "path": "options.dedupStrategy", "value": "signature" },
+    { "id": "options.showCommonLabels=true", "path": "options.showCommonLabels", "value": true },
+    { "id": "options.showLabels=true", "path": "options.showLabels", "value": true },
+    { "id": "options.showTime=true", "path": "options.showTime", "value": true },
+    { "id": "options.wrapLogMessage=true", "path": "options.wrapLogMessage", "value": true },
+    { "id": "options.prettifyLogMessage=true", "path": "options.prettifyLogMessage", "value": true },
+    { "id": "options.enableLogDetails=false", "path": "options.enableLogDetails", "value": false },
+    { "id": "options.enableInfiniteScrolling=true", "path": "options.enableInfiniteScrolling", "value": true },
+    { "id": "options.sortOrder=Ascending", "path": "options.sortOrder", "value": "Ascending" },
+    { "id": "options.syntaxHighlighting=true", "path": "options.syntaxHighlighting", "value": true },
+    { "id": "options.showLogContextToggle=true", "path": "options.showLogContextToggle", "value": true },
+    { "id": "options.showFieldSelector=true", "path": "options.showFieldSelector", "value": true },
+    { "id": "options.showControls=true", "path": "options.showControls", "value": true },
+    { "id": "options.fontSize=small", "path": "options.fontSize", "value": "small" },
+    { "id": "options.detailsMode=inline", "path": "options.detailsMode", "value": "inline" },
+    { "id": "options.detailsMode=sidebar", "path": "options.detailsMode", "value": "sidebar" },
+    { "id": "options.timestampResolution=ns", "path": "options.timestampResolution", "value": "ns" },
+    { "id": "options.showLogAttributes=false", "path": "options.showLogAttributes", "value": false },
+    { "id": "options.displayedFields=level", "path": "options.displayedFields", "value": ["level"] }
+  ]
+}

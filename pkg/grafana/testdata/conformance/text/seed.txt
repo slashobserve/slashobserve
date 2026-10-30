@@ -1,0 +1,12 @@
+options.code.language=go
+options.code.language=html
+options.code.language=json
+options.code.language=markdown
+options.code.language=sql
+options.code.language=typescript
+options.code.language=xml
+options.code.language=yaml
+options.code.showLineNumbers=true
+options.code.showMiniMap=true
+options.mode=code
+options.mode=html
