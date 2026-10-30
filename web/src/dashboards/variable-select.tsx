@@ -24,16 +24,12 @@ import {
   ValueSelect,
 } from "./variable-controls/value-select"
 import { variableLabel, VariableBox } from "./variable-controls/variable-box"
-import { normalizeMultiSelection } from "./variables"
+import { normalizeMultiSelection, optionTexts } from "./variables"
 
 type Props = {
   variable: QueryVariable | CustomVariable
   state: VariableState
   onChange: (values: string[]) => void
-}
-
-function optionLabel(value: string): string {
-  return value === ALL ? "All" : value
 }
 
 export function VariableSelect({ variable, state, onChange }: Props) {
@@ -46,6 +42,11 @@ export function VariableSelect({ variable, state, onChange }: Props) {
     ...(variable.includeAll ? [ALL] : []),
     ...(state.options ?? []),
   ]
+  const textOf = optionTexts({
+    values: state.options ?? [],
+    texts: state.texts,
+  })
+  const optionLabel = (value: string) => (value === ALL ? "All" : textOf(value))
 
   let control
   if (status === "loading") {

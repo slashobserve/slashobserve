@@ -40,12 +40,15 @@ Each type has its own fields:
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
-`regex` keeps only the values it matches, or the part of each value it captures, and `sort` is one of:
+`regex` keeps only the values it matches, or the part of each value it captures; named groups `text` and `value` set what the picker shows and what is selected, a `text` group alone keeps the whole value, and `sort` (which orders by the shown text) is one of:
 
 - `alpha` and `alphaDesc` compare by character, so every capital letter sorts before every lowercase letter.
 - `alphaCaseInsensitive` and `alphaCaseInsensitiveDesc` compare by character after lowercasing, so `a` comes before `B`; values that differ only in case keep a fixed order, capitals first.
 - `num` and `numDesc` compare by the first number in each value, and values with no number come first in `num`.
 - `natural` and `naturalDesc` compare digit runs as numbers and other text by character, so `a9` comes before `a10`; with equal numbers, the longer run comes first, so `007` comes before `7`.
+
+A `custom` variable's `options` are strings, or `{ "text": "Production", "value": "prod" }` objects that show `text` in the picker while the selection, the URL and the queries use `value`.
+The values list of a `query` variable carries the same texts when its regex captures them.
 
 `allowCustomValue: true` on a `query` or `custom` variable lets the viewer enter a value that is not in its list.
 A `custom` variable refuses a value outside its `options` unless it sets `allowCustomValue`, and a `query` variable accepts any value either way.

@@ -9,6 +9,7 @@ import {
   parentKeyOf,
   variableDisplay,
   intervalOptions,
+  optionTexts,
   valuesRequests,
 } from "./variables"
 import type { IntervalVariable, Variable } from "@/spec"
@@ -102,6 +103,41 @@ describe("variableDisplay", () => {
       shown: { values: ["prod", "dev"], truncated: false },
       selectable: ["prod", "dev"],
     })
+  })
+
+  it("shows the text of custom options and keeps the value selectable", () => {
+    const mixed: Variable = {
+      name: "tier",
+      type: "custom",
+      options: ["gold", { text: "Silver tier", value: "silver" }],
+    }
+    expect(variableDisplay(mixed, request)).toEqual({
+      status: "ready",
+      shown: {
+        values: ["gold", "silver"],
+        texts: ["gold", "Silver tier"],
+        truncated: false,
+      },
+      selectable: ["gold", "silver"],
+    })
+  })
+
+  it("leaves texts out when every custom option text equals its value", () => {
+    const same: Variable = {
+      name: "tier",
+      type: "custom",
+      options: ["gold", { text: "silver", value: "silver" }],
+    }
+    expect(variableDisplay(same, request).shown).toEqual({
+      values: ["gold", "silver"],
+      truncated: false,
+    })
+    expect(variableDisplay(same, request).shown).not.toHaveProperty("texts")
+  })
+
+  it("passes the texts of fetched values through", () => {
+    const data = { values: ["a", "b"], texts: ["A", "B"], truncated: false }
+    expect(variableDisplay(route, { ...request, data }).shown).toBe(data)
   })
 
   it("shows fresh values as ready", () => {
@@ -495,6 +531,84 @@ const requestIdle = {
   isError: false,
   isFetching: true,
 }
+
+describe("optionTexts", () => {
+  it("maps each value to the text at its index", () => {
+    const textOf = optionTexts({
+      values: ["a", "b", "c"],
+      texts: ["Alpha", "Beta", "c"],
+    })
+    expect([textOf("a"), textOf("b"), textOf("c")]).toEqual([
+      "Alpha",
+      "Beta",
+      "c",
+    ])
+  })
+
+  it("falls back to the value when there are no texts or the value is unknown", () => {
+    expect(optionTexts({ values: ["a"] })("a")).toBe("a")
+    expect(optionTexts(undefined)("x")).toBe("x")
+    expect(optionTexts({ values: ["a"], texts: ["Alpha"] })("zzz")).toBe("zzz")
+  })
+
+  it("keeps the first text of a repeated value and tolerates short texts", () => {
+    const textOf = optionTexts({
+      values: ["a", "a", "b"],
+      texts: ["One", "Two"],
+    })
+    expect(textOf("a")).toBe("One")
+    expect(textOf("b")).toBe("b")
+  })
+})
+
+describe("saved ad hoc filters", () => {
+  const saved: Variable = {
+    name: "af",
+    type: "adhoc",
+    datasource: "prom",
+    default: [
+      { key: "job", operator: "=", value: "api" },
+      { key: "env", operator: "=~", value: "p.*" },
+    ],
+  }
+  const plain: Variable = { name: "af", type: "adhoc", datasource: "prom" }
+  const savedTexts = ["job|=|api", "env|=~|p.*"]
+
+  it("selects the saved filters when the URL has none", () => {
+    expect(resolveSelections([saved], {}, {}).selections).toEqual({
+      af: savedTexts,
+    })
+  })
+
+  it("lets URL filters replace the saved ones", () => {
+    expect(
+      resolveSelections([saved], { af: ["a|=|b"] }, {}).selections
+    ).toEqual({ af: ["a|=|b"] })
+  })
+
+  it("keeps an explicit empty value as an explicit empty selection", () => {
+    expect(resolveSelections([saved], { af: [""] }, {}).selections).toEqual({
+      af: [""],
+    })
+    expect(
+      resolveSelections([saved], { af: ["broken"] }, {}).selections
+    ).toEqual({ af: [""] })
+  })
+
+  it("writes var-<name>= when all filters are cleared", () => {
+    expect(applyVariableChange([saved], { af: ["a|=|b"] }, "af", [])).toEqual({
+      af: [""],
+    })
+    expect(applyVariableChange([saved], {}, "af", [])).toEqual({ af: [""] })
+  })
+
+  it("keeps the parameter out of the URL when there is nothing saved to override", () => {
+    expect(applyVariableChange([plain], { af: ["a|=|b"] }, "af", [])).toEqual(
+      {}
+    )
+    expect(resolveSelections([plain], { af: [""] }, {}).selections).toEqual({})
+  })
+})
 
 describe("applyVariableChange with every type", () => {
   const text: Variable = { name: "svc", type: "textbox" }

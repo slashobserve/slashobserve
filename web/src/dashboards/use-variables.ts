@@ -21,6 +21,7 @@ import {
 export type VariableState = {
   variable: Variable
   options: string[] | undefined
+  texts: string[] | undefined
   truncated: boolean
   status: "loading" | "refreshing" | "ready" | "error"
   selected: string[]
@@ -158,6 +159,7 @@ export function useVariables({
   const states: VariableState[] = variables.map((variable, index) => ({
     variable,
     options: displays[index].shown?.values,
+    texts: displays[index].shown?.texts,
     truncated: displays[index].shown?.truncated ?? false,
     status: displays[index].status,
     selected: resolved.selections[variable.name] ?? [],

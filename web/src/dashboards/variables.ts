@@ -1,5 +1,6 @@
 import type { Selections } from "@/api/keys"
 import type {
+  AdhocVariable,
   CustomVariable,
   DatasourceVariable,
   IntervalVariable,
@@ -33,7 +34,23 @@ export function sortSelections(selections: Selections): Selections {
   return out
 }
 
-export type ValuesData = { values: string[]; truncated: boolean }
+export type ValuesData = {
+  values: string[]
+  texts?: string[]
+  truncated: boolean
+}
+
+export function optionTexts(
+  data: Pick<ValuesData, "values" | "texts"> | undefined
+): (value: string) => string {
+  const { values, texts } = data ?? { values: [] }
+  if (!texts) return (value) => value
+  const byValue = new Map<string, string>()
+  values.forEach((value, index) => {
+    if (!byValue.has(value)) byValue.set(value, texts[index] ?? value)
+  })
+  return (value) => byValue.get(value) ?? value
+}
 
 export type LoadedValues = { data: ValuesData; parentKey: string }
 
@@ -50,13 +67,12 @@ export function parentKeyOf(selections: Selections): string {
 function localDisplay(variable: Variable): VariableDisplay | undefined {
   switch (variable.type) {
     case "custom":
-      return readyDisplay(
-        variable.options.map((option) =>
-          typeof option === "string" ? option : option.value
-        )
-      )
+      return readyDisplay(customOptions(variable))
     case "interval":
-      return readyDisplay(intervalOptions(variable))
+      return readyDisplay({
+        values: intervalOptions(variable),
+        truncated: false,
+      })
     case "constant":
     case "textbox":
     case "adhoc":
@@ -66,12 +82,19 @@ function localDisplay(variable: Variable): VariableDisplay | undefined {
   }
 }
 
-function readyDisplay(values: string[]): VariableDisplay {
-  return {
-    status: "ready",
-    shown: { values, truncated: false },
-    selectable: values,
+function customOptions(variable: CustomVariable): ValuesData {
+  const values: string[] = []
+  const texts: string[] = []
+  for (const option of variable.options) {
+    values.push(typeof option === "string" ? option : option.value)
+    texts.push(typeof option === "string" ? option : option.text)
   }
+  const differs = texts.some((text, index) => text !== values[index])
+  return { values, ...(differs ? { texts } : {}), truncated: false }
+}
+
+function readyDisplay(data: ValuesData): VariableDisplay {
+  return { status: "ready", shown: data, selectable: data.values }
 }
 
 export function variableDisplay(
@@ -127,6 +150,27 @@ function declaredSelection(
   return values.includes(ALL) ? [ALL] : values
 }
 
+function savedFilters(variable: AdhocVariable): string[] {
+  return (variable.default ?? []).map((filter) =>
+    formatFilter({
+      key: filter.key,
+      op: filter.operator,
+      value: filter.value,
+    })
+  )
+}
+
+function adhocSelection(
+  variable: AdhocVariable,
+  urlValues: string[]
+): string[] | undefined {
+  const saved = savedFilters(variable)
+  if (urlValues.length === 0) return saved.length > 0 ? saved : undefined
+  const filters = parseFilters(urlValues)
+  if (filters.length > 0) return filters.map(formatFilter)
+  return saved.length > 0 ? [""] : undefined
+}
+
 function intervalSelection(
   variable: IntervalVariable,
   urlValue: string | undefined
@@ -171,10 +215,8 @@ export function resolveSelections(
         selections[variable.name] = [intervalSelection(variable, urlValues[0])]
         break
       case "adhoc": {
-        const filters = parseFilters(urlValues)
-        if (filters.length > 0) {
-          selections[variable.name] = filters.map(formatFilter)
-        }
+        const selection = adhocSelection(variable, urlValues)
+        if (selection) selections[variable.name] = selection
         break
       }
       case "datasource": {
@@ -254,7 +296,11 @@ export function applyVariableChange(
   for (const [key, value] of Object.entries(urlVars)) {
     if (key !== name && !later.has(key)) next[key] = value
   }
+  const variable = variables[index]
   if (values.length > 0) next[name] = values
+  else if (variable?.type === "adhoc" && savedFilters(variable).length > 0) {
+    next[name] = [""]
+  }
   return next
 }
 

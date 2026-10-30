@@ -43,7 +43,8 @@ export function AdhocControl({
 
   function add(filter: AdhocFilter) {
     const text = formatFilter(filter)
-    if (!state.selected.includes(text)) onChange([...state.selected, text])
+    const current = filters.map((item) => item.text)
+    if (!current.includes(text)) onChange([...current, text])
     setOpen(false)
   }
 

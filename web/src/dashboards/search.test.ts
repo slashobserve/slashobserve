@@ -233,6 +233,20 @@ describe("withVariables", () => {
   })
 })
 
+describe("explicit empty variable value", () => {
+  it("round-trips through the URL as var-<name>=", () => {
+    const text = stringifySearch(searchFromState({ vars: { af: [""] } }))
+    expect(text).toBe("?var-af=")
+    expect(validateDashboardSearch(parseSearch(text)).vars).toEqual({
+      af: [""],
+    })
+  })
+
+  it("sends var-<name>= on API calls", () => {
+    expect(stringifySearch(withVariables({}, { af: [""] }))).toBe("?var-af=")
+  })
+})
+
 describe("panelEditorShowsNewerVersion", () => {
   it.each([
     ["no panel editor is open", {}, false],
