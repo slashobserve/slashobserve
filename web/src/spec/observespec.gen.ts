@@ -783,6 +783,10 @@ export interface PanelQuery {
    * Grafana's resolution 1/N: the query's step is multiplied by N.
    */
   intervalFactor?: number;
+  /**
+   * Prometheus only: also fetch exemplars for this range query and mark them on the chart.
+   */
+  exemplar?: boolean;
   hide?: boolean;
 }
 export interface Override1 {

@@ -214,6 +214,7 @@ type Query struct {
 	Format         string `json:"format,omitempty"`
 	Interval       string `json:"interval,omitempty"`
 	IntervalFactor int    `json:"intervalFactor,omitempty"`
+	Exemplar       bool   `json:"exemplar,omitempty"`
 	Hide           bool   `json:"hide,omitempty"`
 }
 
