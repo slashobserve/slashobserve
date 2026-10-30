@@ -9,8 +9,10 @@ import {
   minZoom,
   panBy,
   project,
+  unproject,
   worldSize,
   worldView,
+  zoomAround,
 } from "./projection"
 
 describe("project", () => {
@@ -97,6 +99,81 @@ describe("zoom limits", () => {
   it("sizes the world as a square that doubles per zoom level", () => {
     expect(worldSize(1)).toBe(2 * worldSize(0))
     expect(worldSize(0)).toBe(256)
+  })
+})
+
+describe("zoom limits from the panel", () => {
+  it("keeps zoom between the panel minimum and maximum", () => {
+    const limits = { min: 3, max: 6 }
+    expect(clampZoom(1, 600, 300, limits)).toBe(3)
+    expect(clampZoom(9, 600, 300, limits)).toBe(6)
+    expect(clampZoom(4.5, 600, 300, limits)).toBe(4.5)
+  })
+
+  it("never zooms out past the world view whatever the minimum says", () => {
+    expect(clampZoom(0, 600, 300, { min: -4 })).toBe(minZoom(600, 300))
+  })
+
+  it("lets the maximum win when the limits cross", () => {
+    expect(clampZoom(8, 600, 300, { min: 7, max: 5 })).toBe(5)
+    expect(clampZoom(1, 600, 300, { min: 7, max: 5 })).toBe(5)
+  })
+
+  it("keeps a fitted view inside the limits", () => {
+    const points = [{ lon: 10, lat: 50 }]
+    expect(fitBounds(points, 600, 300, { limits: { max: 4 } }).zoom).toBe(4)
+    expect(fitBounds(points, 600, 300, { limits: { min: 8 } }).zoom).toBe(8)
+    expect(fitBounds([], 600, 300, { limits: { min: 5 } }).zoom).toBe(5)
+  })
+
+  it("pads the fit by the given pixels", () => {
+    const points = [
+      { lon: -20, lat: 10 },
+      { lon: 20, lat: 30 },
+    ]
+    const tight = fitBounds(points, 600, 400, { padding: 0 })
+    const padded = fitBounds(points, 600, 400, { padding: 100 })
+    expect(tight.zoom).toBeGreaterThan(padded.zoom)
+    expect(tight.center).toEqual(padded.center)
+  })
+})
+
+describe("unproject", () => {
+  it("undoes project", () => {
+    for (const [lon, lat] of [
+      [0, 0],
+      [139.69, 35.68],
+      [-74, 40.7],
+      [151.2, -33.87],
+    ]) {
+      const { x, y } = project(lon, lat)
+      const back = unproject(x, y)
+      expect(back.lon).toBeCloseTo(lon, 6)
+      expect(back.lat).toBeCloseTo(lat, 6)
+    }
+  })
+})
+
+describe("zoomAround", () => {
+  const view = { center: { x: 0.5, y: 0.5 }, zoom: 3 }
+
+  it("keeps the point under the pointer in place", () => {
+    const [width, height, px, py] = [800, 400, 600, 100]
+    const next = zoomAround(view, 4, px, py, width, height)
+    const worldX = (zoom: number, center: number) =>
+      center + (px - width / 2) / worldSize(zoom)
+    const worldY = (zoom: number, center: number) =>
+      center + (py - height / 2) / worldSize(zoom)
+    expect(worldX(4, next.center.x)).toBeCloseTo(worldX(3, 0.5), 10)
+    expect(worldY(4, next.center.y)).toBeCloseTo(worldY(3, 0.5), 10)
+  })
+
+  it("leaves the center alone when the pointer is at the center", () => {
+    expect(zoomAround(view, 5, 400, 200, 800, 400).center).toEqual(view.center)
+  })
+
+  it("stops at the limits", () => {
+    expect(zoomAround(view, 12, 10, 10, 800, 400, { max: 5 }).zoom).toBe(5)
   })
 })
 
