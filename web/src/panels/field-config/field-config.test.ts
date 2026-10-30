@@ -47,6 +47,8 @@ describe("field config resolution", () => {
       lineWidth: 2,
       points: "auto",
       pointSize: 4,
+      pointShape: "circle",
+      pointStrokeWidth: 0,
       spanNulls: false,
       stack: "none",
       axis: "left",

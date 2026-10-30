@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 11,
-      "partial": 5,
+      "imported": 12,
+      "partial": 4,
       "placeholder": 3,
       "unverified": 0
     },
@@ -118,13 +118,9 @@
         "type": "xychart",
         "source_type": "xychart",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Choosing the Y, color and size fields is not supported; they are picked automatically."
-        ],
-        "paths": [
-          "options.series[0].y"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -590,10 +586,16 @@
           }
         ],
         "fill": 50,
+        "pointStrokeWidth": 1,
         "display": {
-          "xField": "severity",
           "show": "points+lines",
-          "pointSize": 6
+          "pointSize": 6,
+          "series": [
+            {
+              "x": "severity",
+              "y": "/^(?:body_length)$/"
+            }
+          ]
         }
       },
       {

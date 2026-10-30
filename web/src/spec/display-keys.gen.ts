@@ -221,8 +221,20 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "xField",
     "show",
     "pointSize",
+    "pointSizeMin",
+    "pointSizeMax",
+    "series",
     "legend",
-    "tooltip"
+    "tooltip",
+    "legendMode",
+    "legendValues",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight"
   ],
   "candlestick": [
     "mode",

@@ -1404,6 +1404,19 @@
           "minimum": 1,
           "maximum": 40
         },
+        "pointShape": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "circle",
+            "square"
+          ]
+        },
+        "pointStrokeWidth": {
+          "x-omitFromPrompt": true,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
         "spanNulls": {
           "anyOf": [
             {
@@ -4263,6 +4276,57 @@
                     "minimum": 1,
                     "maximum": 40
                   },
+                  "pointSizeMin": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "pointSizeMax": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "series": {
+                    "x-omitFromPrompt": true,
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "$ref": "#/$defs/queryRef"
+                        },
+                        "frame": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "x": {
+                          "$ref": "#/$defs/fieldName"
+                        },
+                        "y": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "size": {
+                          "$ref": "#/$defs/fieldName"
+                        },
+                        "color": {
+                          "$ref": "#/$defs/fieldName"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  },
                   "legend": {
                     "enum": [
                       "bottom",
@@ -4276,6 +4340,67 @@
                       "all",
                       "hidden"
                     ]
+                  },
+                  "legendMode": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "list",
+                      "table"
+                    ]
+                  },
+                  "legendValues": {
+                    "x-omitFromPrompt": true,
+                    "type": "array",
+                    "maxItems": 8,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/$defs/reducer"
+                    }
+                  },
+                  "legendSortBy": {
+                    "x-omitFromPrompt": true,
+                    "anyOf": [
+                      {
+                        "const": "name"
+                      },
+                      {
+                        "$ref": "#/$defs/reducer"
+                      }
+                    ]
+                  },
+                  "legendSortDesc": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "legendWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 40,
+                    "maximum": 2000
+                  },
+                  "tooltipSort": {
+                    "x-omitFromPrompt": true,
+                    "enum": [
+                      "none",
+                      "asc",
+                      "desc"
+                    ]
+                  },
+                  "tooltipHideZeros": {
+                    "x-omitFromPrompt": true,
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
                   }
                 }
               }

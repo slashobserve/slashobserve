@@ -65,7 +65,7 @@ type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 var propOrder = []string{
 	"unit", "decimals", "min", "max", "fieldMinMax", "displayName", "noValue", "thresholds", "mappings", "links",
 	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
-	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.spanNulls",
+	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.pointShape", "custom.pointStrokeWidth", "custom.spanNulls",
 	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
@@ -94,6 +94,8 @@ var propHandlers = map[string]propHandler{
 	"custom.lineWidth":         propLineWidth,
 	"custom.showPoints":        propShowPoints,
 	"custom.pointSize":         propPointSize,
+	"custom.pointShape":        propPointShape,
+	"custom.pointStrokeWidth":  propPointStrokeWidth,
 	"custom.spanNulls":         propSpanNulls,
 	"custom.stacking":          propStacking,
 	"custom.axisPlacement":     propAxisPlacement,
@@ -150,7 +152,7 @@ var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: 
 var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
 
 var legendTooltipHidingTypes = map[spec.PanelType]bool{
-	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true,
+	spec.Timeseries: true, spec.Trend: true, spec.PieChart: true, spec.BarChart: true, spec.Histogram: true, spec.XYChart: true,
 }
 
 var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
@@ -165,7 +167,15 @@ var histogramPanelTypes = map[spec.PanelType]bool{spec.Histogram: true}
 
 var tablePanelTypes = map[spec.PanelType]bool{spec.Table: true}
 
+var xyPanelTypes = map[spec.PanelType]bool{spec.XYChart: true}
+
+var xyPointPropIDs = propIDs("custom.pointShape", "custom.pointStrokeWidth")
+
 var plotOrBarPanelTypes = union(plotPanelTypes, barPanelTypes)
+
+var sortsInSeriesOrder = union(barPanelTypes, xyPanelTypes)
+
+var axisDrawnPanelTypes = union(plotOrBarPanelTypes, xyPanelTypes)
 
 func union(sets ...map[spec.PanelType]bool) map[spec.PanelType]bool {
 	out := map[spec.PanelType]bool{}
@@ -203,6 +213,18 @@ func propBorderLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	}
 }
 
+func propXYLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok {
+		return
+	}
+	width := int(math.Round(min(max(f, 0), maxLineWidth)))
+	if width != grafanaLineWidth || s.whole {
+		p.LineWidth = &width
+	}
+}
+
 func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
 }
@@ -211,12 +233,14 @@ var propGates = []propGate{
 	{ids: propIDs("fieldMinMax"), types: rangeSharingTypes, outside: true, skip: true},
 	{ids: tableColumnProps, types: tablePanelTypes, outside: true, skip: true},
 	{ids: seriesDrawingPropIDs, types: seriesDrawingTypes, outside: true, skip: true},
+	{ids: xyPointPropIDs, types: xyPanelTypes, outside: true, skip: true},
+	{ids: propIDs("custom.lineWidth"), types: xyPanelTypes, handler: propXYLineWidth},
 	{ids: propIDs("custom.lineWidth"), types: union(timelinePanelTypes, barPanelTypes), handler: propBorderLineWidth},
 	{ids: propIDs("custom.spanNulls"), types: timelinePanelTypes},
 	{ids: lineStylePropIDs, types: barPanelTypes, skip: true},
 	{ids: propIDs("custom.stacking"), types: histogramPanelTypes, handler: propHistogramStacking},
 	{ids: plotDrawnPropIDs, types: plotPanelTypes, outside: true, skip: true},
-	{ids: axisPropIDs, types: plotOrBarPanelTypes, outside: true, skip: true},
+	{ids: axisPropIDs, types: axisDrawnPanelTypes, outside: true, skip: true},
 	{ids: lineStylePropIDs, types: lineStyleDrawnOnlyByGrafana, skip: true},
 	{ids: lineStylePropIDs, types: plotOrBarPanelTypes, outside: true, handler: propLineStyleUnused},
 }
@@ -688,7 +712,7 @@ func propFillOpacity(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
 	if f, ok := numberValue(v); ok {
 		fill := int(math.Round(min(max(f, 0), 100)))
-		if fill == 0 && (timelinePanelTypes[b.typ] || barPanelTypes[b.typ]) {
+		if fill == 0 && (timelinePanelTypes[b.typ] || barPanelTypes[b.typ] || xyPanelTypes[b.typ]) {
 			b.partial(s.at(""), opaqueFillReason)
 		}
 		p.Fill = &fill
@@ -719,11 +743,13 @@ func propLineStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 }
 
 const (
-	maxLineWidth     = 10
-	canvasLineWidth  = 2
-	grafanaPointSize = 5
-	canvasPointSize  = 4
-	maxSpanNullsMs   = 31536000000
+	maxLineWidth        = 10
+	canvasLineWidth     = 2
+	grafanaLineWidth    = 1
+	grafanaPointSize    = 5
+	canvasPointSize     = 4
+	maxSpanNullsMs      = 31536000000
+	maxPointStrokeWidth = 20
 )
 
 func lineWidthFor(width float64) int {
@@ -806,6 +832,32 @@ func (b *panelBuild) pointsHidden(p *spec.FieldProps) bool {
 func setPointSize(p *spec.FieldProps, size int, explicit bool) {
 	if size != canvasPointSize || explicit {
 		p.PointSize = &size
+	}
+}
+
+func propPointShape(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	switch shape := asString(v); shape {
+	case "square":
+		p.PointShape = shape
+	case "circle":
+		if s.whole {
+			p.PointShape = shape
+		}
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The point shape %s is not supported yet.", shape))
+	}
+}
+
+func propPointStrokeWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok {
+		return
+	}
+	width := int(math.Round(min(max(f, 0), maxPointStrokeWidth)))
+	if width != 0 || s.whole {
+		p.PointStrokeWidth = &width
 	}
 }
 
@@ -1138,7 +1190,7 @@ func propHideFrom(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		switch {
 		case !legendTooltipHidingTypes[b.typ]:
 			if hide {
-				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend, bar chart, histogram and pie chart panels only.", key))
+				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series, trend, bar chart, histogram, pie chart and XY chart panels only.", key))
 			}
 		case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
 			*targets[key] = &hide

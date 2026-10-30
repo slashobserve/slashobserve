@@ -95,6 +95,8 @@ The settings column has:
   Histogram panels add **Bucket offset**, **Stacking** (Stacked, Percent or Overlaid) and **Combine all series**, next to the bucket size, bucket count, legend and tooltip options.
   A bar chart or histogram tooltip shows the hovered series or all series, in the order of **Tooltip sort**; **Hide zero values in the tooltip** is on by default for a histogram.
   Clicking an entry in a bar chart or histogram legend hides its series, and the rest are redrawn.
+  XY chart panels add **Smallest point size** and **Largest point size**, which a series with a size field scales between, and the same legend and tooltip options as a histogram; the series mapping (the x, y, size and color fields and the name of each series) is edited in the JSON view.
+  An XY chart draws a point in the color of its color field when the series has one, clicking a legend entry hides the series, and the tooltip lists the size and color values of the hovered point.
   Gauge panels add **Show threshold labels**, **Minimum gauge width**, **Minimum gauge height**, **Title size** and **Value size**.
   Bar gauge panels add **Bar style** (Basic or LCD), **Value** (With threshold state, Plain text or Hidden), **Name placement**, **Show unfilled area**, **Minimum bar width**, **Minimum bar height**, **Maximum bar height**, **Title size** and **Value size**; sizes are in pixels.
   Logs panels add **Show unique labels**, **Show common labels**, **Log details**, **Details placement** (under the line or in a side panel), **Prettify JSON messages**, **Deduplication**, **Controls bar**, **Font size** and **Highlight key=value and levels**.

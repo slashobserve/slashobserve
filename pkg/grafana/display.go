@@ -228,7 +228,7 @@ func (b *panelBuild) tooltipSizeOption(path string) int {
 }
 
 func (b *panelBuild) writtenTooltipSort(d *spec.Display, sort string) string {
-	if barPanelTypes[b.typ] {
+	if sortsInSeriesOrder[b.typ] {
 		return sort
 	}
 	if sort == "desc" || !b.listsSeveralSeries(d) {

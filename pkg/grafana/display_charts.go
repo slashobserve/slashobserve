@@ -12,8 +12,10 @@ const (
 	datagridReason      = "Editing cells is not supported; the grid is shown as a table."
 	shareReason         = "Only row heights and column widths from 0.1 to 1 are supported."
 	forceLayoutReason   = "The force layout is drawn layered."
-	xyMappingReason     = "Only a manual mapping with one series and an X field chosen by name is supported; the fields are picked automatically."
-	xyMatcherReason     = "Choosing the Y, color and size fields is not supported; they are picked automatically."
+	xyMatcherReason     = "Only fields chosen by name, and Y fields chosen by name, names or a regular expression, are supported."
+	xyExcludeReason     = "The excluded fields must be a list of names."
+	xySeriesCountReason = "At most 20 series are supported."
+	pointRangeReason    = "The smallest point size must not exceed the largest."
 	widthReason         = "Only widths above 0 and up to 1 are supported."
 	pointSizeReason     = "Only point sizes from 1 to 40 are supported."
 	fieldNameLenReason  = "A field name must be between 1 and 200 characters."
@@ -22,6 +24,9 @@ const (
 	minShare            = 0.1
 	maxFieldName        = 200
 	maxPointSize        = 40
+	maxXYSeries         = 20
+	maxXYMatcher        = 500
+	maxXYPointSize      = 100
 	minTickRotation     = -90
 	maxTickRotation     = 90
 	maxTickSpacing      = 500
@@ -146,47 +151,221 @@ func displayTrend(b *panelBuild) {
 func displayXYChart(b *panelBuild) {
 	d := b.disp()
 	d.XField = b.fieldNameOption("options.dims.x")
-	if d.XField == "" {
-		d.XField = b.manualXField()
-	}
+	b.xySeriesMapping(d)
 	d.Show = b.enumOption("fieldConfig.defaults.custom.show", "points", "lines", "points+lines")
 	b.pointSizeOption(d)
-	b.legendAndTooltip(d)
+	b.pointSizeRange(d)
+	b.seriesLegendAndTooltip(d)
 }
 
-func (b *panelBuild) manualXField() string {
-	if asString(lookupValue(b.raw, "options.mapping")) != "manual" {
-		return ""
+func (b *panelBuild) xySeriesMapping(d *spec.Display) {
+	mode := b.enumOption("options.mapping", "auto", "manual")
+	if mode == "" {
+		mode = b.enumOption("options.seriesMapping", "auto", "manual")
 	}
-	series, _ := asArray(lookupValue(b.raw, "options.series"))
-	if len(series) != 1 {
-		b.partial("options.mapping", xyMappingReason)
-		b.partial("options.series", xyMappingReason)
-		return ""
+	if mode == "manual" {
+		d.Series = b.xyManualSeries()
+		return
 	}
-	only, _ := asObject(series[0])
-	field := matcherByName(only["x"])
-	if field == "" || !validLength(field, maxFieldName) {
-		b.partial("options.mapping", xyMappingReason)
-		b.partial("options.series", xyMappingReason)
-		return ""
+	if exclude := b.xyExcludedFields(); exclude != "" {
+		d.Series = []spec.XYSeries{{X: d.XField, Y: exclude}}
 	}
-	b.consume("options.mapping", "options.series[0].x")
-	for _, key := range []string{"y", "color", "size"} {
-		if present(only[key]) {
-			b.partial("options.series[0]."+key, xyMatcherReason)
-		}
-	}
-	return field
 }
 
-func matcherByName(v any) string {
+func (b *panelBuild) xyExcludedFields() string {
+	const path = "options.dims.exclude"
+	v, ok := b.value(path)
+	if !ok {
+		return ""
+	}
+	pattern, valid := namesMatch(map[string]any{"names": v, "mode": "exclude"})
+	if !valid || len(pattern.SeriesRegex) > maxXYMatcher {
+		b.partial(path, xyExcludeReason)
+		return ""
+	}
+	b.consume(path)
+	return pattern.SeriesRegex
+}
+
+func (b *panelBuild) xyManualSeries() []spec.XYSeries {
+	items, _ := asArray(lookupValue(b.raw, "options.series"))
+	if len(items) == 0 {
+		return []spec.XYSeries{{}}
+	}
+	if len(items) > maxXYSeries {
+		b.partial("options.series", xySeriesCountReason)
+		items = items[:maxXYSeries]
+	}
+	series := make([]spec.XYSeries, len(items))
+	for i, item := range items {
+		entry, _ := asObject(item)
+		series[i] = b.xySeriesEntry(fmt.Sprintf("options.series[%d]", i), entry)
+	}
+	return series
+}
+
+func (b *panelBuild) xySeriesEntry(path string, entry map[string]any) spec.XYSeries {
+	var series spec.XYSeries
+	series.X = b.xyFieldMatcher(path, "x", entry)
+	series.Size = b.xyFieldMatcher(path, "size", entry)
+	series.Color = b.xyFieldMatcher(path, "color", entry)
+	series.Y = b.xyYMatcher(path+".y", entry["y"])
+	series.Query, series.Frame = b.xyFrameMatcher(path+".frame", entry["frame"])
+	series.Name = b.xyName(path+".name", entry["name"])
+	b.xyLegacyPointFields(path, entry, &series)
+	return series
+}
+
+func (b *panelBuild) xyFieldMatcher(path, key string, entry map[string]any) string {
+	v, ok := entry[key]
+	if !ok {
+		return ""
+	}
+	site := path + "." + key
+	if name, isText := v.(string); isText {
+		return b.xyFieldName(site, site, name)
+	}
+	id, options := matcherOf(v)
+	name, isText := options.(string)
+	if id != "byName" || !isText {
+		b.partial(site, xyMatcherReason)
+		return ""
+	}
+	return b.xyFieldName(site, site+".matcher", name)
+}
+
+func (b *panelBuild) xyFieldName(site, consumed, name string) string {
+	if !validLength(name, maxFieldName) {
+		b.partial(site, fieldNameLenReason)
+		return ""
+	}
+	b.consume(consumed)
+	return name
+}
+
+func matcherOf(v any) (string, any) {
 	side, _ := asObject(v)
 	matcher, _ := asObject(side["matcher"])
-	if asString(matcher["id"]) != "byName" {
+	return asString(matcher["id"]), matcher["options"]
+}
+
+func (b *panelBuild) xyYMatcher(path string, v any) string {
+	if v == nil {
 		return ""
 	}
-	return asString(matcher["options"])
+	if name, isText := v.(string); isText {
+		return b.xyPattern(path, path, name)
+	}
+	id, options := matcherOf(v)
+	site := path + ".matcher"
+	switch id {
+	case "byName":
+		if name, isText := options.(string); isText && !strings.HasPrefix(name, "/") {
+			return b.xyPattern(path, site, name)
+		}
+	case "byRegexp":
+		if pattern, isText := options.(string); isText {
+			return b.xyPattern(path, site, "/"+pattern+"/")
+		}
+	case "byNames":
+		if names, isList := asArray(options); isList {
+			options = map[string]any{"names": names}
+		}
+		if pattern, valid := namesMatch(options); valid {
+			return b.xyPattern(path, site, slashed(pattern.SeriesRegex))
+		}
+	}
+	b.partial(path, xyMatcherReason)
+	return ""
+}
+
+func slashed(pattern string) string {
+	if strings.HasPrefix(pattern, "/") {
+		return pattern
+	}
+	return "/" + pattern + "/"
+}
+
+func (b *panelBuild) xyPattern(path, consumed, pattern string) string {
+	if !validLength(pattern, maxXYMatcher) {
+		b.partial(path, xyMatcherReason)
+		return ""
+	}
+	b.consume(consumed)
+	return pattern
+}
+
+func (b *panelBuild) xyFrameMatcher(path string, v any) (query, frame string) {
+	if v == nil {
+		return "", ""
+	}
+	id, options := matcherOf(v)
+	text, isText := options.(string)
+	switch {
+	case id == "byRefId" && isText:
+		if ref, known := b.refs[text]; known {
+			b.consume(path + ".matcher")
+			return ref, ""
+		}
+	case id == "byName" && isText && !strings.HasPrefix(text, "/"):
+		return "", b.xyPattern(path, path+".matcher", text)
+	case id == "byRegexp" && isText:
+		return "", b.xyPattern(path, path+".matcher", "/"+text+"/")
+	}
+	b.partial(path, xyMatcherReason)
+	return "", ""
+}
+
+func (b *panelBuild) xyName(path string, v any) string {
+	if v == nil {
+		return ""
+	}
+	if name, isText := v.(string); isText {
+		return b.xyDisplayName(path, name)
+	}
+	cfg, _ := asObject(v)
+	name, isText := cfg["fixed"].(string)
+	if !isText {
+		return ""
+	}
+	return b.xyDisplayName(path+".fixed", name)
+}
+
+func (b *panelBuild) xyDisplayName(path, name string) string {
+	if !validLength(name, maxFieldName) {
+		b.partial(path, fieldNameLenReason)
+		return ""
+	}
+	b.consume(path)
+	return name
+}
+
+func (b *panelBuild) xyLegacyPointFields(path string, entry map[string]any, series *spec.XYSeries) {
+	for _, legacy := range []struct {
+		key    string
+		target *string
+	}{{"pointSize", &series.Size}, {"pointColor", &series.Color}} {
+		cfg, ok := asObject(entry[legacy.key])
+		if !ok {
+			continue
+		}
+		field, isText := cfg["field"].(string)
+		if !isText || *legacy.target != "" {
+			continue
+		}
+		site := path + "." + legacy.key + ".field"
+		*legacy.target = b.xyFieldName(site, site, field)
+	}
+}
+
+func (b *panelBuild) pointSizeRange(d *spec.Display) {
+	d.PointSizeMin = b.boundedIntOption("fieldConfig.defaults.custom.pointSize.min", 1, maxXYPointSize)
+	d.PointSizeMax = b.boundedIntOption("fieldConfig.defaults.custom.pointSize.max", 1, maxXYPointSize)
+	if d.PointSizeMin != 0 && d.PointSizeMax != 0 && d.PointSizeMin > d.PointSizeMax {
+		b.partial("fieldConfig.defaults.custom.pointSize.min", pointRangeReason)
+		b.partial("fieldConfig.defaults.custom.pointSize.max", pointRangeReason)
+		d.PointSizeMin, d.PointSizeMax = 0, 0
+	}
 }
 
 func (b *panelBuild) pointSizeOption(d *spec.Display) {
