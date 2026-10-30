@@ -65,7 +65,8 @@ function ContentField({
         onChange={(event) => onChange(event.target.value)}
       />
       <p className="text-xs text-muted-foreground">
-        Markdown. HTML is removed.
+        Markdown with HTML. HTML is cleaned: scripts, styles, forms and embeds
+        are removed.
       </p>
     </div>
   )

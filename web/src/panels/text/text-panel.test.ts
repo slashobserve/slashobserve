@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Selections } from "@/api/keys"
+import type { TextPanel as TextPanelSpec } from "@/spec"
 
 import TextPanel from "./text-panel"
 
@@ -14,14 +15,21 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function render(content: string, vars: Selections = {}): string {
-  const html = renderToStaticMarkup(
+type TextOptions = Pick<TextPanelSpec, "mode" | "code">
+
+function renderWrapped(
+  content: string,
+  vars: Selections = {},
+  options: TextOptions = {}
+): string {
+  return renderToStaticMarkup(
     createElement(TextPanel, {
       panel: {
         id: "tx",
         type: "text",
         gridPos: { x: 0, y: 0, w: 6, h: 4 },
         content,
+        ...options,
       },
       width: 400,
       height: 200,
@@ -30,7 +38,16 @@ function render(content: string, vars: Selections = {}): string {
       to: "now",
     })
   )
-  return html.replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")
+}
+
+function render(
+  content: string,
+  vars: Selections = {},
+  options: TextOptions = {}
+): string {
+  return renderWrapped(content, vars, options)
+    .replace(/^<div[^>]*>/, "")
+    .replace(/<\/div>$/, "")
 }
 
 describe("text panel markup", () => {
@@ -54,10 +71,26 @@ describe("text panel markup", () => {
     expect(html).toContain("after")
   })
 
-  it("drops raw img elements and their event handlers", () => {
+  it("keeps a raw img element but removes its event handlers", () => {
     const html = render("a <img src=x onerror=alert(1)> b")
-    expect(html).not.toMatch(/<img/i)
     expect(html).not.toContain("onerror")
+  })
+
+  it("loads a raw https img through the server", () => {
+    const html = render('a <img src="https://cdn.example.com/a.png"> b')
+    expect(html).toContain(
+      `src="/api/v1/assets/image?url=${encodeURIComponent("https://cdn.example.com/a.png")}"`
+    )
+    expect(html).not.toContain('src="https://')
+  })
+
+  it("renders inline HTML in Markdown inside the sanitizer's rules", () => {
+    const html = render(
+      "<center><font color='red'>warn</font></center>\n\n<div style='position:fixed;color:red'>box</div>"
+    )
+    expect(html).toContain("<center>")
+    expect(html).toContain('<font color="red">warn</font>')
+    expect(html).toContain('<div style="color:red">box</div>')
   })
 
   it.each([
@@ -67,12 +100,85 @@ describe("text panel markup", () => {
     "<div style='position:fixed;inset:0'>cover</div>",
     "<style>body{display:none}</style>",
     "<svg onload=alert(1)></svg>",
-  ])("drops raw HTML %s", (raw) => {
+  ])("sanitizes raw HTML %s", (raw) => {
     const html = render(`text\n\n${raw}\n\ntext`)
-    expect(html).not.toMatch(/<(iframe|form|input|style|svg|div)\b/i)
+    expect(html).not.toMatch(/<(iframe|form|input|style|svg)\b/i)
     expect(html).not.toMatch(/\bon\w+=/i)
     expect(html).not.toContain("javascript:")
     expect(html).not.toContain("position:fixed")
+    expect(html).not.toContain("inset")
+  })
+
+  it("keeps the task list checkboxes of GitHub-flavoured Markdown", () => {
+    expect(render("- [x] done\n- [ ] todo")).toContain(
+      '<input type="checkbox" disabled="" checked=""/>'
+    )
+  })
+})
+
+describe("text panel modes", () => {
+  it("defaults to Markdown", () => {
+    const html = renderWrapped("# Title")
+    expect(html).toContain('data-mode="markdown"')
+    expect(html).toContain("<h1")
+  })
+
+  it("renders sanitized HTML in html mode, with Markdown left as text", () => {
+    const html = renderWrapped(
+      "# not a heading\n<p style='color:red' onclick='x()'>hi</p><script>alert(1)</script>",
+      {},
+      { mode: "html" }
+    )
+    expect(html).toContain('data-mode="html"')
+    expect(html).toContain("# not a heading")
+    expect(html).not.toContain("<h1")
+    expect(html).toContain('<p style="color:red"')
+    expect(html).not.toContain("onclick")
+    expect(html).not.toContain("alert(1)")
+  })
+
+  it("loads an image in html mode through the server", () => {
+    const html = render(
+      '<img src="https://cdn.example.com/a.png" alt="logo">',
+      {},
+      { mode: "html" }
+    )
+    expect(html).toContain("/api/v1/assets/image?url=")
+    expect(html).not.toContain('src="https://')
+  })
+
+  it("shows the content as code in code mode", () => {
+    const html = renderWrapped(
+      "# Title\n<script>alert(1)</script>",
+      {},
+      { mode: "code", code: { language: "markdown" } }
+    )
+    expect(html).toContain('data-mode="code"')
+    expect(html).toContain('data-language="markdown"')
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;")
+    expect(html).not.toContain("<h1")
+    expect(html).not.toContain("<script")
+  })
+
+  it("numbers the lines of code, with the numbers hidden from readers", () => {
+    const html = render(
+      "a\nb",
+      {},
+      { mode: "code", code: { lineNumbers: true } }
+    )
+    expect(html).toContain('aria-hidden="true"')
+    expect(html).toMatch(/>1<\/span>.*a<\/span>.*>2<\/span>.*b<\/span>/)
+  })
+
+  it("inserts a variable into code as written", () => {
+    const html = render("x=${v}", { v: ["a&b"] }, { mode: "code" })
+    expect(html).toContain("x=a&amp;b")
+  })
+
+  it("keeps whatever the HTML draws inside the panel box", () => {
+    const html = renderWrapped("x", {}, { mode: "html" })
+    expect(html).toContain("[contain:paint]")
+    expect(html).toContain("isolate")
   })
 })
 
