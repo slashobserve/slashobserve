@@ -53,8 +53,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 3,
-      "partial": 16,
+      "imported": 4,
+      "partial": 15,
       "placeholder": 0,
       "unverified": 0
     },
@@ -394,13 +394,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic",
-        "status": "partial",
-        "reasons": [
-          "Smoothed or stepped lines are drawn straight."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "busy system",
@@ -518,8 +514,7 @@
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -550,14 +545,12 @@
         "reasons": [
           "The query is empty.",
           "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[2]",
           "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -1398,6 +1391,8 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 40,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "stack": "percent",
             "overrides": [
               {
@@ -1485,6 +1480,7 @@
             "unit": "bytes",
             "min": 0,
             "fill": 40,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -1662,6 +1658,8 @@
             ],
             "unit": "binBps",
             "fill": 40,
+            "points": "never",
+            "spanNulls": 3600000,
             "display": {
               "tooltip": "all"
             }
@@ -1693,6 +1691,8 @@
             ],
             "unit": "Bps",
             "fill": 40,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }

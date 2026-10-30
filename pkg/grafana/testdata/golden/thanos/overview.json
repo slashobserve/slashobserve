@@ -45,13 +45,12 @@
         "row": "Instant Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -73,13 +72,12 @@
         "row": "Instant Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -101,12 +99,12 @@
         "row": "Instant Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -128,13 +126,12 @@
         "row": "Range Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -156,13 +153,12 @@
         "row": "Range Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -184,12 +180,12 @@
         "row": "Range Query",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -211,13 +207,12 @@
         "row": "Store",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -239,13 +234,12 @@
         "row": "Store",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -267,12 +261,12 @@
         "row": "Store",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -294,13 +288,12 @@
         "row": "Sidecar",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -322,13 +315,12 @@
         "row": "Sidecar",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -350,12 +342,12 @@
         "row": "Sidecar",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -377,13 +369,12 @@
         "row": "Receive",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -405,13 +396,12 @@
         "row": "Receive",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -433,12 +423,12 @@
         "row": "Receive",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -460,13 +450,12 @@
         "row": "Rule",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -488,13 +477,12 @@
         "row": "Rule",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -516,12 +504,12 @@
         "row": "Rule",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -543,13 +531,12 @@
         "row": "Compact",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -571,13 +558,12 @@
         "row": "Compact",
         "status": "partial",
         "reasons": [
-          "Only plain links are supported; links to other dashboards are not kept.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet.",
+          "Only plain links are supported; links to other dashboards are not kept."
         ],
         "paths": [
-          "links[0]",
-          "linewidth",
-          "nullPointMode"
+          "nullPointMode",
+          "links[0]"
         ],
         "queries": [
           {
@@ -664,6 +650,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -720,6 +707,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -800,6 +788,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -856,6 +845,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -936,6 +926,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1070,6 +1061,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1150,6 +1142,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1284,6 +1277,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1364,6 +1358,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1420,6 +1415,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1501,6 +1497,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal"
           },
           {
@@ -1526,6 +1523,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1607,6 +1605,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal"
           },
           {
@@ -1632,6 +1631,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {

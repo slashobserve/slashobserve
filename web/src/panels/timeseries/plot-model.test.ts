@@ -29,6 +29,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     style: "line",
     fill: 0,
     lineStyle: "solid",
+    lineInterpolation: "linear",
+    lineWidth: 2,
+    points: "auto",
+    pointSize: 4,
+    spanNulls: false,
     stack: "none",
     axis: "left",
     hidden: false,
@@ -53,6 +58,11 @@ function series(
     line: "solid",
     style: "line",
     fill: 0,
+    interpolation: "linear",
+    lineWidth: 2,
+    points: "auto",
+    pointSize: 4,
+    spanNulls: false,
     axis: "left",
     stack: "none",
     hidden: false,
@@ -144,6 +154,35 @@ describe("plotStateFor", () => {
     const down2 = stacked("down2", [-2, -2])
     const { state } = plotStateFor([1, 2], [], [up, down1, down2], new Set())
     expect(state.bands).toEqual([{ series: [3, 2], dir: 1 }])
+  })
+})
+
+describe("plotStateFor span nulls", () => {
+  const xs = [0, 10, 20, 30]
+  const gappy: Cell[] = [1, null, 3, 4]
+
+  it("joins gaps up to the number of milliseconds", () => {
+    const { state } = plotStateFor(
+      xs,
+      [],
+      [series("a", gappy, { spanNulls: 20000 })],
+      new Set()
+    )
+    expect(state.data[1]).toEqual([1, undefined, 3, 4])
+  })
+
+  it("leaves a longer gap and the gaps of a series without a limit alone", () => {
+    const { state } = plotStateFor(
+      xs,
+      [],
+      [
+        series("a", gappy, { spanNulls: 19999 }),
+        series("b", gappy, { spanNulls: true }),
+        series("c", gappy),
+      ],
+      new Set()
+    )
+    expect(state.data.slice(1)).toEqual([gappy, gappy, gappy])
   })
 })
 

@@ -179,7 +179,11 @@ See [Datasources and variables](datasources-and-variables.md).
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
-The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `stack`, `axis` and `hidden`.
+The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis` and `hidden`.
+`lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
+`lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
+`points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style.
+`spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical` or a `#rrggbb` hex value.
 A unit is a Grafana unit id such as `reqps`, `s`, `bytes` or `percentunit`, or a custom `suffix:` or `prefix:` unit.

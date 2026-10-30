@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 10,
-      "imported": 2,
-      "partial": 8,
+      "imported": 9,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -104,13 +104,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Discovery",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -150,13 +146,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Retrieval",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -203,13 +195,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Retrieval",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -228,13 +216,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -253,13 +237,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Storage",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -278,13 +258,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Query",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -303,13 +279,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Query",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -505,6 +477,7 @@
             "unit": "ms",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -529,6 +502,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -567,6 +542,7 @@
             "unit": "ms",
             "min": 0,
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -607,6 +583,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -632,6 +610,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -670,6 +650,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -695,6 +677,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -733,6 +717,8 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"
@@ -758,6 +744,8 @@
             "unit": "ms",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "display": {
               "tooltip": "all"

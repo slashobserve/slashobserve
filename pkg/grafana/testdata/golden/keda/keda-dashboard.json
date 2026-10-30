@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 0,
-      "partial": 7,
+      "imported": 2,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,14 +45,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Some Grafana options of this panel are not supported yet."
+          "Unit Errors/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -74,14 +70,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Some Grafana options of this panel are not supported yet."
+          "Unit Errors/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -103,14 +95,10 @@
         "row": "Metric Server",
         "status": "partial",
         "reasons": [
-          "Unit Errors/sec is not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Some Grafana options of this panel are not supported yet."
+          "Unit Errors/sec is not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unit",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.unit"
         ],
         "queries": [
           {
@@ -130,15 +118,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Scale Target",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -157,13 +139,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Scale Target",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -196,7 +174,6 @@
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.lineWidth",
           "options.legend.showLegend",
           "options.legend.width",
           "options.rowHeight"
@@ -327,6 +304,8 @@
               }
             ],
             "fill": 25,
+            "points": "never",
+            "spanNulls": true,
             "overrides": [
               {
                 "match": {
@@ -367,6 +346,8 @@
               }
             ],
             "fill": 25,
+            "points": "never",
+            "spanNulls": true,
             "overrides": [
               {
                 "match": {
@@ -407,6 +388,8 @@
               }
             ],
             "fill": 25,
+            "points": "never",
+            "spanNulls": true,
             "overrides": [
               {
                 "match": {
@@ -449,6 +432,8 @@
             ],
             "unit": "none",
             "fill": 25,
+            "points": "never",
+            "spanNulls": true,
             "overrides": [
               {
                 "match": {
@@ -531,6 +516,7 @@
               }
             ],
             "fill": 70,
+            "lineWidth": 0,
             "display": {
               "showValues": "never"
             }

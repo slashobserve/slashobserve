@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 125,
-      "imported": 87,
-      "partial": 38,
+      "imported": 88,
+      "partial": 37,
       "placeholder": 0,
       "unverified": 0
     },
@@ -304,13 +304,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Smoothed or stepped lines are drawn straight."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -472,11 +468,9 @@
         "row": "CPU / Memory / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Smoothed or stepped lines are drawn straight.",
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.lineInterpolation",
           "fieldConfig.overrides[8].properties[2].value.group"
         ],
         "queries": [
@@ -4621,6 +4615,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 40,
+            "lineInterpolation": "smooth",
             "stack": "percent",
             "overrides": [
               {
@@ -4868,6 +4863,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 70,
+            "lineInterpolation": "smooth",
             "stack": "percent",
             "overrides": [
               {

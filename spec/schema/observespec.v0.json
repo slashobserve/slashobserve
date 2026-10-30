@@ -970,6 +970,43 @@
             "dotted"
           ]
         },
+        "lineInterpolation": {
+          "enum": [
+            "linear",
+            "smooth",
+            "stepBefore",
+            "stepAfter"
+          ]
+        },
+        "lineWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "points": {
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ]
+        },
+        "pointSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        },
+        "spanNulls": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31536000000
+            }
+          ]
+        },
         "stack": {
           "enum": [
             "none",

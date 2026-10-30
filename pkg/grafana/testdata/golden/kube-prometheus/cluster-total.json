@@ -418,6 +418,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -442,6 +443,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -596,6 +598,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -620,6 +623,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -644,6 +648,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -668,6 +673,7 @@
           }
         ],
         "unit": "bps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -692,6 +698,7 @@
           }
         ],
         "unit": "pps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -716,6 +723,7 @@
           }
         ],
         "unit": "pps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -740,6 +748,7 @@
           }
         ],
         "unit": "pps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -764,6 +773,7 @@
           }
         ],
         "unit": "pps",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -788,6 +798,7 @@
           }
         ],
         "unit": "percentunit",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -812,6 +823,7 @@
           }
         ],
         "unit": "percentunit",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 14,
-      "imported": 5,
-      "partial": 9,
+      "imported": 7,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -150,12 +150,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0]",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.overrides[0]"
         ],
         "queries": [
           {
@@ -182,7 +180,6 @@
         ],
         "paths": [
           "fieldConfig.overrides[3]",
-          "fieldConfig.defaults.custom.spanNulls",
           "options.tooltip.sort"
         ],
         "queries": [
@@ -203,13 +200,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -235,13 +228,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -265,8 +254,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -780,6 +768,8 @@
         ],
         "unit": "reqps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "legend": "right",
           "legendValues": [
@@ -807,6 +797,8 @@
           }
         ],
         "unit": "percentunit",
+        "points": "never",
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -860,6 +852,8 @@
         ],
         "unit": "Bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "legend": "hidden",
           "legendValues": [
@@ -890,6 +884,8 @@
           }
         ],
         "unit": "bytes",
+        "points": "never",
+        "spanNulls": true,
         "overrides": [
           {
             "match": {
@@ -940,6 +936,8 @@
           }
         ],
         "unit": "none",
+        "points": "never",
+        "spanNulls": true,
         "display": {
           "legend": "hidden",
           "legendValues": [

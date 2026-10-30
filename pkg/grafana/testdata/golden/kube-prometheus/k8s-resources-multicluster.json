@@ -490,6 +490,7 @@
             "legend": "__auto"
           }
         ],
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -611,6 +612,7 @@
           }
         ],
         "unit": "bytes",
+        "points": "never",
         "interval": "1m",
         "display": {
           "legend": "right",

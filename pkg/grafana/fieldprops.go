@@ -44,27 +44,33 @@ type propHandler func(b *panelBuild, p *spec.FieldProps, v any, s propSite)
 
 var propOrder = []string{
 	"unit", "decimals", "min", "max", "displayName", "noValue", "thresholds", "mappings", "links",
-	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle", "custom.stacking",
-	"custom.axisPlacement", "custom.hideFrom",
+	"color", "custom.drawStyle", "custom.fillOpacity", "custom.lineStyle",
+	"custom.lineInterpolation", "custom.lineWidth", "custom.showPoints", "custom.pointSize", "custom.spanNulls",
+	"custom.stacking", "custom.axisPlacement", "custom.hideFrom",
 }
 
 var propHandlers = map[string]propHandler{
-	"unit":                 propUnit,
-	"decimals":             propDecimals,
-	"min":                  propMin,
-	"max":                  propMax,
-	"displayName":          propDisplayName,
-	"noValue":              propNoValue,
-	"thresholds":           propThresholds,
-	"mappings":             propMappings,
-	"links":                propLinks,
-	"color":                propColor,
-	"custom.drawStyle":     propDrawStyle,
-	"custom.fillOpacity":   propFillOpacity,
-	"custom.lineStyle":     propLineStyle,
-	"custom.stacking":      propStacking,
-	"custom.axisPlacement": propAxisPlacement,
-	"custom.hideFrom":      propHideFrom,
+	"unit":                     propUnit,
+	"decimals":                 propDecimals,
+	"min":                      propMin,
+	"max":                      propMax,
+	"displayName":              propDisplayName,
+	"noValue":                  propNoValue,
+	"thresholds":               propThresholds,
+	"mappings":                 propMappings,
+	"links":                    propLinks,
+	"color":                    propColor,
+	"custom.drawStyle":         propDrawStyle,
+	"custom.fillOpacity":       propFillOpacity,
+	"custom.lineStyle":         propLineStyle,
+	"custom.lineInterpolation": propLineInterpolation,
+	"custom.lineWidth":         propLineWidth,
+	"custom.showPoints":        propShowPoints,
+	"custom.pointSize":         propPointSize,
+	"custom.spanNulls":         propSpanNulls,
+	"custom.stacking":          propStacking,
+	"custom.axisPlacement":     propAxisPlacement,
+	"custom.hideFrom":          propHideFrom,
 }
 
 var unitSet = sync.OnceValue(func() map[string]bool {
@@ -422,6 +428,111 @@ func propLineStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		p.LineStyle = "dotted"
 	case "solid":
 		p.LineStyle = "solid"
+	}
+}
+
+const (
+	maxLineWidth     = 10
+	canvasLineWidth  = 2
+	grafanaPointSize = 5
+	canvasPointSize  = 4
+	maxSpanNullsMs   = 31536000000
+)
+
+func lineWidthFor(width float64) int {
+	n := int(math.Round(min(max(width, 0), maxLineWidth)))
+	if n == 1 {
+		return canvasLineWidth
+	}
+	return n
+}
+
+func pointSizeFor(size float64) int {
+	n := int(math.Round(min(max(size, 1), maxPointSize)))
+	if n == grafanaPointSize {
+		return canvasPointSize
+	}
+	return n
+}
+
+func propLineInterpolation(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	switch mode := asString(v); mode {
+	case "linear":
+		if s.whole {
+			p.LineInterpolation = mode
+		}
+	case "smooth", "stepBefore", "stepAfter":
+		p.LineInterpolation = mode
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The line interpolation %s is not supported yet.", mode))
+	}
+}
+
+func propLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if f, ok := numberValue(v); ok {
+		setLineWidth(p, lineWidthFor(f), s.whole)
+	}
+}
+
+func setLineWidth(p *spec.FieldProps, width int, explicit bool) {
+	if width != canvasLineWidth || explicit {
+		p.LineWidth = &width
+	}
+}
+
+func propShowPoints(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	switch mode := asString(v); mode {
+	case "always", "never":
+		p.Points = mode
+	case "auto":
+		if s.whole {
+			p.Points = mode
+		}
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The point display %s is not supported yet.", mode))
+	}
+}
+
+func propPointSize(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	f, ok := numberValue(v)
+	if !ok {
+		return
+	}
+	shown := p.Points == "always" || p.Style == "points" || b.panel.Points == "always" || b.panel.Style == "points"
+	if s.whole || shown {
+		setPointSize(p, pointSizeFor(f), s.whole)
+	}
+}
+
+func setPointSize(p *spec.FieldProps, size int, explicit bool) {
+	if size != canvasPointSize || explicit {
+		p.PointSize = &size
+	}
+}
+
+func propSpanNulls(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if on, isBool := v.(bool); isBool {
+		setSpanNulls(p, on, s.whole)
+		return
+	}
+	f, ok := numberValue(v)
+	switch {
+	case !ok:
+	case f >= 1:
+		p.SpanNulls = int64(math.Round(min(f, maxSpanNullsMs)))
+	default:
+		setSpanNulls(p, false, s.whole)
+	}
+}
+
+func setSpanNulls(p *spec.FieldProps, on, explicit bool) {
+	if on || explicit {
+		p.SpanNulls = on
 	}
 }
 

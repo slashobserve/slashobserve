@@ -344,16 +344,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -384,16 +380,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -423,15 +415,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -454,15 +442,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -485,15 +469,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are not supported yet.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -517,16 +497,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -550,16 +526,12 @@
         "reasons": [
           "Exemplars are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "fieldConfig.defaults.color",
-          "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "fieldConfig.defaults.custom.axisLabel"
         ],
         "queries": [
           {
@@ -641,15 +613,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -678,15 +646,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -715,15 +679,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -752,15 +712,11 @@
         "row": "Network",
         "status": "partial",
         "reasons": [
-          "Exemplars are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look.",
-          "Smoothed or stepped lines are drawn straight."
+          "Exemplars are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
-          "targets[1].exemplar",
-          "fieldConfig.defaults.custom.gradientMode",
-          "fieldConfig.defaults.custom.lineInterpolation"
+          "targets[1].exemplar"
         ],
         "queries": [
           {
@@ -1508,6 +1464,8 @@
             ],
             "thresholdMode": "percentage",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1561,6 +1519,8 @@
             ],
             "thresholdMode": "percentage",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1588,6 +1548,8 @@
             "unit": "none",
             "decimals": 4,
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "overrides": [
               {
                 "match": {
@@ -1627,6 +1589,8 @@
             "unit": "bytes",
             "decimals": 2,
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1658,6 +1622,8 @@
             "unit": "s",
             "decimals": 2,
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendValues": [
@@ -1709,6 +1675,8 @@
             ],
             "thresholdMode": "percentage",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1742,6 +1710,8 @@
             ],
             "thresholdMode": "percentage",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "legend": "right",
               "legendMode": "table",
@@ -1940,6 +1910,8 @@
             ],
             "unit": "binBps",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -1969,6 +1941,8 @@
             ],
             "unit": "pps",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -1998,6 +1972,8 @@
             ],
             "unit": "pps",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -2027,6 +2003,8 @@
             ],
             "unit": "pps",
             "fill": 25,
+            "lineInterpolation": "smooth",
+            "points": "never",
             "display": {
               "tooltip": "all"
             }

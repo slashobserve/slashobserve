@@ -1054,6 +1054,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1081,6 +1082,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1110,6 +1112,7 @@
             "min": 0,
             "max": 1,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1137,6 +1140,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1164,6 +1168,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1192,6 +1197,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1220,6 +1226,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1260,6 +1267,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull"
@@ -1286,6 +1294,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1316,6 +1325,7 @@
             "min": 0,
             "max": 1,
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1343,6 +1353,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1371,6 +1382,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1399,6 +1411,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1439,6 +1452,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "stack": "normal",
             "display": {
               "legendValues": [
@@ -1467,6 +1481,7 @@
             ],
             "unit": "none",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1495,6 +1510,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",
@@ -1523,6 +1539,7 @@
             ],
             "unit": "s",
             "fill": 10,
+            "points": "never",
             "display": {
               "legendValues": [
                 "lastNotNull",

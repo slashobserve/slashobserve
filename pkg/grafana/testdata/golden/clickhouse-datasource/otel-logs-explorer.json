@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 6,
-      "imported": 0,
-      "partial": 6,
+      "imported": 2,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,13 +43,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -152,13 +148,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "$service",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -323,6 +315,8 @@
             ],
             "style": "bars",
             "fill": 80,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {
@@ -523,6 +517,8 @@
             ],
             "style": "bars",
             "fill": 80,
+            "lineWidth": 0,
+            "points": "never",
             "stack": "normal",
             "overrides": [
               {

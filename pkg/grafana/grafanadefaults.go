@@ -221,8 +221,6 @@ var typeDefaults = map[spec.PanelType]map[string]any{
 }
 
 var partialReasons = map[string]string{
-	"fieldConfig.defaults.custom.gradientMode":      "Gradient fill is not part of the SlashObserve look.",
-	"fieldConfig.defaults.custom.lineInterpolation": "Smoothed or stepped lines are drawn straight.",
 	"fieldConfig.defaults.custom.scaleDistribution": "Logarithmic axes are not supported yet.",
 	"fieldConfig.defaults.custom.transform":         "Negative-Y series are drawn as positive.",
 	"fieldConfig.overrides":                         "Some overrides use matchers or properties that are not supported yet.",
@@ -261,17 +259,11 @@ type cosmeticOption struct {
 }
 
 var cosmeticOptions = map[string]cosmeticOption{
-	"fieldConfig.defaults.custom.showPoints": {
-		values: []any{"never"},
-		why:    "timeseries marks only isolated samples (points.show is false with an isolatedPoints filter), never one marker per sample",
+	"fieldConfig.defaults.custom.gradientMode": {
+		why: "the renderer draws every fill flat by the no-gradients rule (decision 8)",
 	},
-	"fieldConfig.defaults.custom.lineWidth": {
-		values: []any{2},
-		why:    "timeseries draws every series line 2px wide",
-	},
-	"linewidth": {
-		values: []any{2},
-		why:    "timeseries draws every series line 2px wide",
+	"fillGradient": {
+		why: "the renderer draws every fill flat by the no-gradients rule (decision 8)",
 	},
 	"fieldConfig.defaults.custom.minWidth": {
 		why: "table columns are sized by the browser from their content and have no minimum width",

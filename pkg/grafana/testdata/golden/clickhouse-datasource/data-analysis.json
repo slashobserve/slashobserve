@@ -247,13 +247,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.gradientMode"
+          "fieldConfig.defaults.custom.axisSoftMin"
         ],
         "queries": [
           {
@@ -275,13 +273,11 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet.",
-          "Gradient fill is not part of the SlashObserve look."
+          "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.custom.axisGridShow",
-          "fieldConfig.defaults.custom.axisSoftMin",
-          "fieldConfig.defaults.custom.gradientMode"
+          "fieldConfig.defaults.custom.axisSoftMin"
         ],
         "queries": [
           {
@@ -410,9 +406,7 @@
         "paths": [
           "transformations[1]",
           "fieldConfig.defaults.custom.axisLabel",
-          "fieldConfig.defaults.custom.axisWidth",
-          "fieldConfig.defaults.custom.showPoints",
-          "fieldConfig.defaults.custom.spanNulls"
+          "fieldConfig.defaults.custom.axisWidth"
         ],
         "queries": [
           {
@@ -1020,6 +1014,8 @@
           }
         ],
         "fill": 10,
+        "points": "always",
+        "spanNulls": true,
         "transform": [
           {
             "type": "organize",

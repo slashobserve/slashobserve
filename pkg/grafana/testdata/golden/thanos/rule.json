@@ -45,7 +45,7 @@
         "row": "Rule Group Evaluations",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -70,7 +70,7 @@
         "row": "Rule Group Evaluations",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -95,7 +95,7 @@
         "row": "Rule Group Evaluations",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -120,7 +120,7 @@
         "row": "Rule Group Evaluations",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -145,7 +145,7 @@
         "row": "Alert Sent",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -170,10 +170,9 @@
         "row": "Alert Sent",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -196,10 +195,9 @@
         "row": "Alert Sent",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -223,16 +221,12 @@
         "status": "partial",
         "reasons": [
           "Some Grafana options of this query are not supported yet.",
-          "The series override option fillGradient is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "targets[0].logBase",
           "targets[1].logBase",
           "targets[2].logBase",
-          "seriesOverrides[0].fillGradient",
-          "seriesOverrides[1].fillGradient",
-          "seriesOverrides[2].fillGradient",
           "nullPointMode"
         ],
         "queries": [
@@ -269,7 +263,7 @@
         "row": "Alert Queue",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -294,10 +288,9 @@
         "row": "Alert Queue",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -320,10 +313,9 @@
         "row": "gRPC (Unary)",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -346,10 +338,9 @@
         "row": "gRPC (Unary)",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -373,16 +364,12 @@
         "status": "partial",
         "reasons": [
           "Some Grafana options of this query are not supported yet.",
-          "The series override option fillGradient is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "targets[0].logBase",
           "targets[1].logBase",
           "targets[2].logBase",
-          "seriesOverrides[0].fillGradient",
-          "seriesOverrides[1].fillGradient",
-          "seriesOverrides[2].fillGradient",
           "nullPointMode"
         ],
         "queries": [
@@ -419,10 +406,9 @@
         "row": "gRPC (Stream)",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -445,10 +431,9 @@
         "row": "gRPC (Stream)",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
-          "linewidth",
           "nullPointMode"
         ],
         "queries": [
@@ -472,16 +457,12 @@
         "status": "partial",
         "reasons": [
           "Some Grafana options of this query are not supported yet.",
-          "The series override option fillGradient is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "targets[0].logBase",
           "targets[1].logBase",
           "targets[2].logBase",
-          "seriesOverrides[0].fillGradient",
-          "seriesOverrides[1].fillGradient",
-          "seriesOverrides[2].fillGradient",
           "nullPointMode"
         ],
         "queries": [
@@ -518,7 +499,7 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -578,7 +559,7 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -603,7 +584,7 @@
         "row": "Resources",
         "status": "partial",
         "reasons": [
-          "Some Grafana options of this panel are not supported yet."
+          "Drawing missing values as zero is not supported yet."
         ],
         "paths": [
           "nullPointMode"
@@ -831,6 +812,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal"
           },
           {
@@ -856,6 +838,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -985,6 +968,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1031,6 +1015,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1165,6 +1150,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1270,6 +1256,7 @@
             "unit": "short",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {
@@ -1404,6 +1391,7 @@
             "unit": "percentunit",
             "min": 0,
             "fill": 100,
+            "lineWidth": 0,
             "stack": "normal",
             "overrides": [
               {

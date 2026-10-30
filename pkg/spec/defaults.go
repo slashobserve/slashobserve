@@ -11,13 +11,18 @@ import (
 )
 
 type FieldPropsDefaults struct {
-	ThresholdMode string `json:"thresholdMode"`
-	Style         string `json:"style"`
-	Fill          int    `json:"fill"`
-	LineStyle     string `json:"lineStyle"`
-	Stack         string `json:"stack"`
-	Axis          string `json:"axis"`
-	Hidden        bool   `json:"hidden"`
+	ThresholdMode     string `json:"thresholdMode"`
+	Style             string `json:"style"`
+	Fill              int    `json:"fill"`
+	LineStyle         string `json:"lineStyle"`
+	LineInterpolation string `json:"lineInterpolation"`
+	LineWidth         int    `json:"lineWidth"`
+	Points            string `json:"points"`
+	PointSize         int    `json:"pointSize"`
+	SpanNulls         bool   `json:"spanNulls"`
+	Stack             string `json:"stack"`
+	Axis              string `json:"axis"`
+	Hidden            bool   `json:"hidden"`
 }
 
 type QueryDefaults struct {

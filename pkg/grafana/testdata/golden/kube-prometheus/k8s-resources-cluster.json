@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 22,
-      "imported": 10,
-      "partial": 12,
+      "imported": 22,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -169,13 +169,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -257,13 +253,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -401,13 +393,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -426,13 +414,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -451,13 +435,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -476,13 +456,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -501,13 +477,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -526,13 +498,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -551,13 +519,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -576,13 +540,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -601,13 +561,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -626,13 +582,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.spanNulls"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -898,6 +850,8 @@
           }
         ],
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1040,6 +994,8 @@
         ],
         "unit": "bytes",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1312,6 +1268,8 @@
         ],
         "unit": "bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1339,6 +1297,8 @@
         ],
         "unit": "bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1366,6 +1326,8 @@
         ],
         "unit": "bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1393,6 +1355,8 @@
         ],
         "unit": "bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1420,6 +1384,8 @@
         ],
         "unit": "pps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1447,6 +1413,8 @@
         ],
         "unit": "pps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1474,6 +1442,8 @@
         ],
         "unit": "pps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1501,6 +1471,8 @@
         ],
         "unit": "pps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1528,6 +1500,8 @@
         ],
         "unit": "iops",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",
@@ -1555,6 +1529,8 @@
         ],
         "unit": "Bps",
         "fill": 10,
+        "points": "never",
+        "spanNulls": true,
         "interval": "1m",
         "display": {
           "legend": "right",

@@ -22,6 +22,11 @@ function config(props: Partial<FieldConfig> = {}): FieldConfig {
     style: "line",
     fill: 0,
     lineStyle: "solid",
+    lineInterpolation: "linear",
+    lineWidth: 2,
+    points: "auto",
+    pointSize: 4,
+    spanNulls: false,
     stack: "none",
     axis: "left",
     hidden: false,
@@ -66,6 +71,53 @@ describe("seriesStyles", () => {
     )
     expect(explicit).toMatchObject({ dash: [2, 3], line: "dotted" })
   })
+
+  it("carries the line shape props of the config", () => {
+    const [style] = seriesStyles(
+      aligned,
+      [
+        config({
+          lineInterpolation: "smooth",
+          lineWidth: 5,
+          points: "always",
+          pointSize: 9,
+          spanNulls: 60000,
+        }),
+      ],
+      new Map()
+    )
+    expect(style).toMatchObject({
+      interpolation: "smooth",
+      lineWidth: 5,
+      points: "always",
+      pointSize: 9,
+      spanNulls: 60000,
+    })
+  })
+
+  it.each(["normal", "percent"] as const)(
+    "draws a %s stacked series linear whatever its interpolation",
+    (stack) => {
+      const [style] = seriesStyles(
+        aligned,
+        [config({ lineInterpolation: "stepAfter", stack })],
+        new Map()
+      )
+      expect(style.interpolation).toBe("linear")
+    }
+  )
+
+  it.each(["smooth", "stepBefore", "stepAfter"] as const)(
+    "keeps %s on an unstacked series",
+    (lineInterpolation) => {
+      const [style] = seriesStyles(
+        aligned,
+        [config({ lineInterpolation })],
+        new Map()
+      )
+      expect(style.interpolation).toBe(lineInterpolation)
+    }
+  )
 
   it("marks configured hidden series", () => {
     const [style] = seriesStyles(aligned, [config({ hidden: true })], new Map())

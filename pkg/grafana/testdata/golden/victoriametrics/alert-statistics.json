@@ -48,7 +48,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.lineWidth",
           "options.alignValue",
           "options.legend.showLegend"
         ],
@@ -333,6 +332,7 @@
           }
         ],
         "fill": 70,
+        "lineWidth": 0,
         "display": {
           "showValues": "never"
         }

@@ -218,23 +218,28 @@ type Query struct {
 }
 
 type FieldProps struct {
-	Unit          string      `json:"unit,omitempty"`
-	Decimals      *int        `json:"decimals,omitempty"`
-	Min           *float64    `json:"min,omitempty"`
-	Max           *float64    `json:"max,omitempty"`
-	Thresholds    []Threshold `json:"thresholds,omitempty"`
-	ThresholdMode string      `json:"thresholdMode,omitempty"`
-	Color         string      `json:"color,omitempty"`
-	DisplayName   string      `json:"displayName,omitempty"`
-	NoValue       string      `json:"noValue,omitempty"`
-	Mappings      []Mapping   `json:"mappings,omitempty"`
-	Links         []Link      `json:"links,omitempty"`
-	Style         string      `json:"style,omitempty"`
-	Fill          *int        `json:"fill,omitempty"`
-	LineStyle     string      `json:"lineStyle,omitempty"`
-	Stack         string      `json:"stack,omitempty"`
-	Axis          string      `json:"axis,omitempty"`
-	Hidden        *bool       `json:"hidden,omitempty"`
+	Unit              string      `json:"unit,omitempty"`
+	Decimals          *int        `json:"decimals,omitempty"`
+	Min               *float64    `json:"min,omitempty"`
+	Max               *float64    `json:"max,omitempty"`
+	Thresholds        []Threshold `json:"thresholds,omitempty"`
+	ThresholdMode     string      `json:"thresholdMode,omitempty"`
+	Color             string      `json:"color,omitempty"`
+	DisplayName       string      `json:"displayName,omitempty"`
+	NoValue           string      `json:"noValue,omitempty"`
+	Mappings          []Mapping   `json:"mappings,omitempty"`
+	Links             []Link      `json:"links,omitempty"`
+	Style             string      `json:"style,omitempty"`
+	Fill              *int        `json:"fill,omitempty"`
+	LineStyle         string      `json:"lineStyle,omitempty"`
+	LineInterpolation string      `json:"lineInterpolation,omitempty"`
+	LineWidth         *int        `json:"lineWidth,omitempty"`
+	Points            string      `json:"points,omitempty"`
+	PointSize         *int        `json:"pointSize,omitempty"`
+	SpanNulls         any         `json:"spanNulls,omitempty"`
+	Stack             string      `json:"stack,omitempty"`
+	Axis              string      `json:"axis,omitempty"`
+	Hidden            *bool       `json:"hidden,omitempty"`
 }
 
 type Threshold struct {

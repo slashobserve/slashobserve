@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 0,
-      "partial": 7,
+      "imported": 1,
+      "partial": 6,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,12 +45,10 @@
         "row": "Global Traffic",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
           "options.legend.calcs",
           "options.legend.displayMode"
         ],
@@ -74,12 +72,10 @@
         "row": "Global Traffic",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
           "options.legend.calcs",
           "options.legend.displayMode"
         ],
@@ -103,12 +99,10 @@
         "row": "Global Traffic",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
           "options.legend.calcs",
           "options.legend.displayMode"
         ],
@@ -132,12 +126,10 @@
         "row": "Global Traffic",
         "status": "partial",
         "reasons": [
-          "Gradient fill is not part of the SlashObserve look.",
           "Some Grafana options of this panel are not supported yet.",
           "Legend tables are not supported; the legend is a plain list."
         ],
         "paths": [
-          "fieldConfig.defaults.custom.gradientMode",
           "options.legend.calcs",
           "options.legend.displayMode"
         ],
@@ -249,13 +241,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Istio Component Versions",
-        "status": "partial",
-        "reasons": [
-          "Gradient fill is not part of the SlashObserve look."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.gradientMode"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -329,6 +317,7 @@
             "unit": "reqps",
             "color": "#5794F2",
             "fill": 10,
+            "points": "never",
             "interval": "5s"
           },
           {
@@ -351,6 +340,7 @@
             "unit": "percentunit",
             "color": "#5794F2",
             "fill": 10,
+            "points": "never",
             "interval": "5s"
           },
           {
@@ -373,6 +363,7 @@
             "unit": "reqps",
             "color": "#5794F2",
             "fill": 10,
+            "points": "never",
             "interval": "5s"
           },
           {
@@ -395,6 +386,7 @@
             "unit": "reqps",
             "color": "#5794F2",
             "fill": 10,
+            "points": "never",
             "interval": "5s"
           },
           {
@@ -617,6 +609,7 @@
               }
             ],
             "fill": 10,
+            "points": "never",
             "interval": "5s"
           }
         ]

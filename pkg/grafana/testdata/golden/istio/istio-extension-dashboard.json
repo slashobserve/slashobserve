@@ -270,6 +270,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -297,6 +298,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -333,6 +335,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -364,6 +367,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -391,6 +395,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -429,6 +434,7 @@
             ],
             "unit": "bytes",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
@@ -454,6 +460,7 @@
             ],
             "unit": "short",
             "fill": 10,
+            "points": "never",
             "display": {
               "tooltip": "all"
             }
