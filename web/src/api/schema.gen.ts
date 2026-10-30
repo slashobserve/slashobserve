@@ -429,7 +429,7 @@ export interface paths {
         get: operations["getFolderPermissions"];
         /**
          * Replace the people and groups a folder is restricted to.
-         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A level never raises an instance role past Edit for Viewers and Commenters. The General folder is never restricted.
+         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A level never lifts a person above their instance role: a Viewer only views and a Commenter only comments, whatever the level. The General folder is never restricted.
          */
         put: operations["setFolderPermissions"];
         post?: never;
@@ -1221,7 +1221,7 @@ export interface components {
             create: boolean;
         };
         /** @enum {string} */
-        FolderLevel: "view" | "edit" | "admin";
+        FolderLevel: "view" | "comment" | "edit" | "admin";
         Folder: {
             /** Format: uuid */
             id: string;

@@ -19,16 +19,40 @@ export type GrantChange =
   | { kind: "remove"; entry: Entry }
   | { kind: "clear" }
 
-const levels: readonly Level[] = ["view", "edit", "admin"]
+const levels: readonly Level[] = ["view", "comment", "edit", "admin"]
 
 export const levelLabels: Record<Level, string> = {
   view: "View",
+  comment: "Comment",
   edit: "Edit",
   admin: "Admin",
 }
 
 const maxGroupBytes = 256
-const lowRoleAdminReason = "Needs the Editor role or higher"
+
+const viewerReason =
+  "A Viewer only views. Change their role on People to give more."
+const commenterReason =
+  "A Commenter only comments. Change their role on People to give more."
+const editorReason = "An Editor always edits folders they can see."
+const adminReason = "Admins manage every folder."
+
+const disabledReasons: Partial<
+  Record<NonNullable<Entry["user"]>["role"], Partial<Record<Level, string>>>
+> = {
+  viewer: {
+    comment: viewerReason,
+    edit: viewerReason,
+    admin: viewerReason,
+  },
+  commenter: { edit: commenterReason, admin: commenterReason },
+  editor: { view: editorReason, comment: editorReason },
+  admin: {
+    view: adminReason,
+    comment: adminReason,
+    edit: adminReason,
+  },
+}
 
 function hasControlCharacter(text: string): boolean {
   return Array.from(text).some((char) => {
@@ -113,9 +137,9 @@ export function levelOptions(
   target: Entry | GranteeInput
 ): { level: Level; disabledReason: string | null }[] {
   const role = "kind" in target ? target.user?.role : undefined
-  const capped = role === "viewer" || role === "commenter"
+  const reasons = role === undefined ? undefined : disabledReasons[role]
   return levels.map((level) => ({
     level,
-    disabledReason: capped && level === "admin" ? lowRoleAdminReason : null,
+    disabledReason: reasons?.[level] ?? null,
   }))
 }

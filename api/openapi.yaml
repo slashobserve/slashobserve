@@ -476,7 +476,7 @@ components:
           description: Create dashboards in the folder (needs the Editor role as well as Edit on the folder).
     FolderLevel:
       type: string
-      enum: [view, edit, admin]
+      enum: [view, comment, edit, admin]
     Folder:
       type: object
       additionalProperties: false

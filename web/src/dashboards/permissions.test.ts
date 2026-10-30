@@ -58,7 +58,7 @@ describe("readerNote", () => {
     "names the %s role in the read-only note",
     (role, label) => {
       expect(readerNote("read-only", role)).toBe(
-        `You can view this dashboard as a ${label}. Ask an Admin if you need to comment.`
+        `You can view this dashboard as a ${label}. To comment, ask an Admin to make you a Commenter.`
       )
     }
   )

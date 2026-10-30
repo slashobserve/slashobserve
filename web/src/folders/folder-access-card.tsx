@@ -221,9 +221,9 @@ function AccessCard({
       {readOnly ? null : (
         <p className="px-4 pb-3.5 text-xs text-muted-foreground">
           Groups come from the <span className="font-mono">groups</span> claim
-          of your identity provider. Viewers and Commenters can be given up to
-          Edit here: they can then edit dashboards in this folder, but cannot
-          manage it.
+          of your identity provider. Access never goes above a person&apos;s
+          role: a Viewer given Edit still only views, and a Commenter given Edit
+          only comments.
         </p>
       )}
       <AlertDialog open={confirmingClear} onOpenChange={changeClearOpen}>
