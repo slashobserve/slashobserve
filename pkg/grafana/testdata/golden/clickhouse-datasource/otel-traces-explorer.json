@@ -334,7 +334,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "service",
@@ -344,7 +345,8 @@
         "query": "SELECT ServiceName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) GROUP BY ServiceName ORDER BY count() DESC LIMIT 10",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "operation",
@@ -354,7 +356,8 @@
         "query": "SELECT DISTINCT SpanName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) AND $__conditionalAll(ServiceName IN (${service:singlequote}), $service) ORDER BY SpanName LIMIT 200",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "status",
@@ -364,7 +367,8 @@
         "query": "SELECT DISTINCT StatusCode FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) ORDER BY StatusCode",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "min_duration",

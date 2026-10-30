@@ -103,7 +103,8 @@
         "query": "SELECT DISTINCT service_name FROM default.test_grafana",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

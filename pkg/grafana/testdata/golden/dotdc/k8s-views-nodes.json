@@ -1083,7 +1083,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "resolution",
@@ -1104,7 +1105,8 @@
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info{cluster=\"$cluster\"}, node)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -1113,7 +1115,8 @@
         "datasource": "${datasource}",
         "query": "label_values(node_uname_info{nodename=~\"(?i:($node)(\\\\.[a-z0-9.-]+)?)\", cluster=\"$cluster\"}, instance)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "panels": [

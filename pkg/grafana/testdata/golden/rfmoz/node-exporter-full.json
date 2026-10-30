@@ -3972,7 +3972,8 @@
         "type": "query",
         "datasource": "${ds_prometheus}",
         "query": "label_values(node_uname_info, job)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "nodename",
@@ -3980,7 +3981,8 @@
         "type": "query",
         "datasource": "${ds_prometheus}",
         "query": "label_values(node_uname_info{job=\"$job\"}, nodename)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "node",
@@ -3988,7 +3990,8 @@
         "type": "query",
         "datasource": "${ds_prometheus}",
         "query": "label_values(node_uname_info{job=\"$job\", nodename=\"$nodename\"}, instance)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       }
     ],
     "links": [

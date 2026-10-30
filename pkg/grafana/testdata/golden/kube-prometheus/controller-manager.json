@@ -305,7 +305,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kube-controller-manager\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -315,7 +316,8 @@
         "query": "label_values(up{cluster=\"$cluster\", job=\"kube-controller-manager\"}, instance)",
         "sort": "alpha",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

@@ -326,7 +326,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kube-scheduler\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -336,7 +337,8 @@
         "query": "label_values(up{job=\"kube-scheduler\", cluster=\"$cluster\"}, instance)",
         "refresh": "timeRange",
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       }
     ],
     "panels": [

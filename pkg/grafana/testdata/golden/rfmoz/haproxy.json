@@ -2782,7 +2782,8 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(haproxy_process_start_time_seconds,instance)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "backend",
@@ -2792,7 +2793,8 @@
         "query": "label_values(haproxy_backend_status{instance=\"$host\"}, proxy)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "frontend",
@@ -2802,7 +2804,8 @@
         "query": "label_values(haproxy_frontend_status{instance=\"$host\"}, proxy)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "server",
@@ -2812,7 +2815,8 @@
         "query": "label_values(haproxy_server_status{instance=\"$host\"}, server)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "code",
@@ -2822,7 +2826,8 @@
         "query": "label_values(haproxy_server_http_responses_total{instance=\"$host\"}, code)",
         "sort": "alpha",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "interval",

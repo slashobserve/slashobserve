@@ -491,7 +491,8 @@
         "query": "label_values(vm_app_version{version=~\"^vmbackupmanager.*\"}, job)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -500,7 +501,8 @@
         "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "adhoc",

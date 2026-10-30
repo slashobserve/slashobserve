@@ -1973,7 +1973,8 @@
         "name": "job",
         "type": "query",
         "datasource": "${ds}",
-        "query": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)"
+        "query": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -1982,7 +1983,8 @@
         "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "version",
@@ -1991,7 +1993,8 @@
         "datasource": "${ds}",
         "query": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},  version)",
         "regex": "/.*-(?:tags|heads)-(.*)-(?:0|dirty)-.*/",
-        "sort": "alphaDesc"
+        "sort": "alphaDesc",
+        "allowCustomValue": true
       },
       {
         "name": "adhoc",

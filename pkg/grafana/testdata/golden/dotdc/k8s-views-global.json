@@ -956,7 +956,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "resolution",
@@ -977,7 +978,8 @@
         "datasource": "${datasource}",
         "query": "label_values(node_cpu_seconds_total{cluster=\"$cluster\"},job)",
         "sort": "alpha",
-        "multi": true
+        "multi": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

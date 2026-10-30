@@ -971,7 +971,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=~\".*thanos-receive.*\"}, job)",
         "sort": "alphaDesc",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "tenant",
@@ -980,7 +981,8 @@
         "datasource": "${datasource}",
         "query": "label_values(http_requests_total{job=~\"$job\", tenant!=\"\"}, tenant)",
         "sort": "alphaDesc",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "interval",

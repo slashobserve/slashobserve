@@ -638,7 +638,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=~\".*thanos-query.*\"}, job)",
         "sort": "alphaDesc",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

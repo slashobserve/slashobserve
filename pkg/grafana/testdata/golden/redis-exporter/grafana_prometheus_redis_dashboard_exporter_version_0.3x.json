@@ -395,7 +395,8 @@
         "name": "addr",
         "type": "query",
         "datasource": "prom",
-        "query": "label_values(redis_up, addr)"
+        "query": "label_values(redis_up, addr)",
+        "allowCustomValue": true
       }
     ],
     "panels": [

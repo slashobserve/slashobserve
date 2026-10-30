@@ -681,22 +681,6 @@
         ]
       },
       {
-        "subject": "variable k8s_cluster_name",
-        "status": "partial",
-        "reason": "Some Grafana options of this variable are not supported yet.",
-        "paths": [
-          "templating.list[1].allowCustomValue"
-        ]
-      },
-      {
-        "subject": "variable host_name",
-        "status": "partial",
-        "reason": "Case-insensitive sorting is not supported; the values are sorted case-sensitively.",
-        "paths": [
-          "templating.list[3].sort"
-        ]
-      },
-      {
         "subject": "variable host_count",
         "status": "partial",
         "reason": "Its query uses $ip, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable.",
@@ -738,7 +722,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "node_name",
@@ -758,10 +743,11 @@
         "type": "query",
         "datasource": "${DS_PROMETHEUS}",
         "query": "label_values(otelcol_process_uptime_seconds_total,host_name)",
-        "sort": "alpha",
+        "sort": "alphaCaseInsensitive",
         "refresh": "timeRange",
         "includeAll": true,
         "allValue": ".*",
+        "allowCustomValue": true,
         "default": "docker-desktop"
       }
     ],

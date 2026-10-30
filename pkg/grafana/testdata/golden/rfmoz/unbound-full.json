@@ -1112,7 +1112,8 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(unbound_up, instance)",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       }
     ],
     "links": [

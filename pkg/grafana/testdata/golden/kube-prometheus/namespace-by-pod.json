@@ -298,7 +298,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics/cadvisor\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -310,6 +311,7 @@
         "refresh": "timeRange",
         "includeAll": true,
         "allValue": ".+",
+        "allowCustomValue": true,
         "default": "kube-system"
       }
     ],

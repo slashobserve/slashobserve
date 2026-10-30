@@ -596,7 +596,8 @@
         "type": "query",
         "datasource": "${ds}",
         "query": "label_values(operator_log_messages_total,job)",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -604,7 +605,8 @@
         "datasource": "${ds}",
         "query": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "version",
@@ -612,7 +614,8 @@
         "type": "query",
         "datasource": "${ds}",
         "query": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
-        "sort": "alphaDesc"
+        "sort": "alphaDesc",
+        "allowCustomValue": true
       },
       {
         "name": "adhoc",

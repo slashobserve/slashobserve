@@ -346,7 +346,8 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(hubble_http_requests_total, cluster)",
-        "sort": "alphaDesc"
+        "sort": "alphaDesc",
+        "allowCustomValue": true
       },
       {
         "name": "destination_namespace",
@@ -355,7 +356,8 @@
         "datasource": "prom",
         "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\"}, destination_namespace)",
         "sort": "alphaDesc",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "destination_workload",
@@ -363,14 +365,16 @@
         "type": "query",
         "datasource": "prom",
         "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\"}, destination_workload)",
-        "sort": "alphaDesc"
+        "sort": "alphaDesc",
+        "allowCustomValue": true
       },
       {
         "name": "reporter",
         "label": "Reporter",
         "type": "query",
         "datasource": "prom",
-        "query": "label_values(hubble_http_requests_total, reporter)"
+        "query": "label_values(hubble_http_requests_total, reporter)",
+        "allowCustomValue": true
       },
       {
         "name": "source_namespace",
@@ -379,7 +383,8 @@
         "datasource": "prom",
         "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\"}, source_namespace)",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "source_workload",
@@ -388,7 +393,8 @@
         "datasource": "prom",
         "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", source_namespace=~\"${source_namespace}\"}, source_workload)",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

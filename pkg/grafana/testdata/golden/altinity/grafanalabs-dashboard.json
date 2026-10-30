@@ -135,6 +135,7 @@
         "query": "SELECT DISTINCT Name FROM default.test_alerts",
         "refresh": "timeRange",
         "multi": true,
+        "allowCustomValue": true,
         "default": [
           "test2"
         ]

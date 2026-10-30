@@ -613,7 +613,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics\"}, cluster)",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -622,7 +623,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=\"kubelet\", metrics_path=\"/metrics\",cluster=\"$cluster\"}, instance)",
         "refresh": "timeRange",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

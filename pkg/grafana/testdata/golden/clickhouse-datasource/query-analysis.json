@@ -326,7 +326,8 @@
         "datasource": "${datasource}",
         "query": "SELECT DISTINCT(query_kind) as query_kind FROM ${query_log} WHERE query_kind != ''",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "type",
@@ -335,7 +336,8 @@
         "datasource": "${datasource}",
         "query": "SELECT type FROM ${query_log} GROUP BY type",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "user",
@@ -344,7 +346,8 @@
         "datasource": "${datasource}",
         "query": "SELECT DISTINCT(initial_user) FROM ${query_log} WHERE initial_user != '' LIMIT 100",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

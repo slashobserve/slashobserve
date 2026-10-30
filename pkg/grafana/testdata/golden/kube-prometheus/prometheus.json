@@ -324,7 +324,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       },
       {
         "name": "job",
@@ -336,7 +337,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -348,7 +350,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".+"
+        "allValue": ".+",
+        "allowCustomValue": true
       }
     ],
     "panels": [

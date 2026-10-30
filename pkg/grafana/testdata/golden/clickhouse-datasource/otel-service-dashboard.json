@@ -506,7 +506,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "SELECT database FROM system.tables WHERE name IN ('otel_logs', 'otel_traces') GROUP BY database HAVING count(DISTINCT name) = 2 ORDER BY database",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "service",
@@ -515,7 +516,8 @@
         "datasource": "${datasource}",
         "query": "SELECT DISTINCT ServiceName FROM ${database}.otel_traces WHERE $__timeFilter(Timestamp) ORDER BY ServiceName",
         "sort": "alpha",
-        "refresh": "timeRange"
+        "refresh": "timeRange",
+        "allowCustomValue": true
       },
       {
         "name": "operation",
@@ -526,7 +528,8 @@
         "sort": "alpha",
         "refresh": "timeRange",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "search",

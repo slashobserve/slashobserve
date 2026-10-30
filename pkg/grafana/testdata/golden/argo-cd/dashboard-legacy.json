@@ -965,7 +965,8 @@
         "query": "label_values(kube_pod_info, namespace)",
         "regex": ".*argocd.*",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "project",
@@ -974,7 +975,8 @@
         "query": "label_values(argocd_app_health_status, project)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

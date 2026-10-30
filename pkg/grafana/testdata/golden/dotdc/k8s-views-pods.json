@@ -762,7 +762,8 @@
         "type": "query",
         "datasource": "${datasource}",
         "query": "label_values(kube_node_info,cluster)",
-        "sort": "alpha"
+        "sort": "alpha",
+        "allowCustomValue": true
       },
       {
         "name": "namespace",
@@ -770,6 +771,7 @@
         "datasource": "${datasource}",
         "query": "label_values(kube_pod_info{cluster=\"$cluster\"}, namespace)",
         "sort": "alpha",
+        "allowCustomValue": true,
         "default": "monitoring"
       },
       {
@@ -781,7 +783,8 @@
         "refresh": "timeRange",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "resolution",
@@ -803,6 +806,7 @@
         "query": "label_values(kube_pod_info{namespace=\"$namespace\", cluster=\"$cluster\"},job)",
         "sort": "alpha",
         "multi": true,
+        "allowCustomValue": true,
         "default": "kube-state-metrics"
       }
     ],

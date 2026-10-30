@@ -465,7 +465,8 @@
         "datasource": "${datasource}",
         "query": "SELECT name FROM system.databases;\n",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "table",
@@ -474,7 +475,8 @@
         "datasource": "${datasource}",
         "query": "SELECT name FROM system.tables WHERE database IN (${database:singlequote})",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [

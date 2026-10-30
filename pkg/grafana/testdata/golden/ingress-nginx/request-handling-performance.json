@@ -269,7 +269,8 @@
         "query": "label_values(nginx_ingress_controller_requests, ingress) ",
         "sort": "alphaDesc",
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       }
     ],
     "panels": [

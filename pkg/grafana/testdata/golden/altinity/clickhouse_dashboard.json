@@ -320,14 +320,6 @@
         ]
       },
       {
-        "subject": "variable adhoc",
-        "status": "partial",
-        "reason": "Saved filters are not kept.",
-        "paths": [
-          "templating.list[4].filters"
-        ]
-      },
-      {
         "subject": "repeated panels",
         "status": "partial",
         "reason": "Grafana saved copies of repeated panels and rows; SlashObserve repeats them from their variable, so only the original is imported.",
@@ -361,13 +353,15 @@
         "datasource": "ch",
         "query": "SELECT DISTINCT [service_name, ' test array'] FROM default.test_grafana",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "remote_host",
         "type": "query",
         "datasource": "ch",
         "query": "SELECT DISTINCT concat(host_name, ':', toString(port)) AS remote_host FROM system.clusters",
+        "allowCustomValue": true,
         "default": "localhost:9000"
       },
       {
@@ -375,6 +369,7 @@
         "type": "query",
         "datasource": "ch",
         "query": "SELECT DISTINCT cluster FROM system.clusters",
+        "allowCustomValue": true,
         "default": "test_shard_localhost"
       },
       {
@@ -384,6 +379,7 @@
         "query": "SELECT DISTINCT service_name FROM default.test_grafana",
         "multi": true,
         "includeAll": true,
+        "allowCustomValue": true,
         "default": [
           "postgresql",
           "mysql"
@@ -392,7 +388,14 @@
       {
         "name": "adhoc",
         "type": "adhoc",
-        "datasource": "ch"
+        "datasource": "ch",
+        "default": [
+          {
+            "key": "default.test_grafana.service_name",
+            "operator": "=~",
+            "value": "%sql%"
+          }
+        ]
       }
     ],
     "panels": [

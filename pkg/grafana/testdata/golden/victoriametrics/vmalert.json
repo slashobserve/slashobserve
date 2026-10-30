@@ -1007,7 +1007,8 @@
         "datasource": "${ds}",
         "query": "label_values(vm_app_version{version=~\"^vmalert.*\"}, job)",
         "multi": true,
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       },
       {
         "name": "instance",
@@ -1016,7 +1017,8 @@
         "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "file",
@@ -1025,7 +1027,8 @@
         "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "group",
@@ -1034,7 +1037,8 @@
         "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"}, group)",
         "multi": true,
         "includeAll": true,
-        "allValue": ".*"
+        "allValue": ".*",
+        "allowCustomValue": true
       },
       {
         "name": "topk",
@@ -1046,7 +1050,8 @@
           "30",
           "40",
           "50"
-        ]
+        ],
+        "allowCustomValue": true
       },
       {
         "name": "filter",

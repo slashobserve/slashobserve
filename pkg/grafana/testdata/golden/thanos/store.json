@@ -990,7 +990,8 @@
         "datasource": "${datasource}",
         "query": "label_values(up{job=~\".*thanos-store.*\"}, job)",
         "sort": "alphaDesc",
-        "includeAll": true
+        "includeAll": true,
+        "allowCustomValue": true
       }
     ],
     "panels": [
