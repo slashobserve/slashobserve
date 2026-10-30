@@ -142,6 +142,7 @@ func New(c Config) *Agent {
 		if t.MCPOnly {
 			continue
 		}
+		t = t.ForAgent()
 		specs = append(specs, llm.ToolSpec{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema})
 	}
 	return &Agent{

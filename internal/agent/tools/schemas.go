@@ -23,7 +23,7 @@ const (
 )
 
 const (
-	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so call get_spec_guide first if you have not read it, and fix any rejected panels it names. Pass folder_id (see list_folders) to choose the folder; the default is the folder you last created a dashboard in, else General. Never include a placeholder panel."
+	descCreateDashboard = "Save a new dashboard from an ObserveSpec document and get its id and URL. Every panel query runs during the save, so {read_guide}, and fix any rejected panels it names. {folder_choice}Never include a placeholder panel."
 	descGetDashboard    = "Read a saved dashboard's ObserveSpec at its latest version, or at a given version. Use it before revising a dashboard."
 	descGetSchema       = "List the tables of a ClickHouse datasource, or the columns of one table. Use it before writing SQL."
 	descGetSpecGuide    = "Get the ObserveSpec authoring guide, JSON Schema and an example. Read it before calling create_dashboard or update_dashboard."
@@ -49,13 +49,13 @@ const (
 	propSearch     = `"search":{"type":"string","maxLength":200,"description":"Case-insensitive substring filter."}`
 	propTable      = `"table":{"type":"string","description":"ClickHouse table such as otel_logs; not used by Prometheus."}`
 	propDiscLimit  = `"limit":{"type":"integer","minimum":1,"maximum":500,"description":"Maximum items to return. Default 100."}`
-	propQuery      = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL or ClickHouse SQL, using the macros in get_spec_guide."}`
+	propQuery      = `"query":{"type":"string","minLength":1,"maxLength":65536,"description":"PromQL or ClickHouse SQL, using the macros in {guide_ref}."}`
 	propFrom       = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-1h."}`
 	propTo         = `"to":{"type":"string","description":"End time such as now or an RFC 3339 time. Default now."}`
 	propVariables  = `"variables":{"type":"object","maxProperties":20,"additionalProperties":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"string"}},"description":"Values for the $variables the query references, by variable name."}`
 	propDashTitle  = `"dashboard_title":{"type":"string","maxLength":200,"description":"Title that $__dashboard expands to in the query. Default Untitled dashboard."}`
 	propFormat     = `"format":{"type":"string","enum":["timeseries","table","heatmap","logs"],"description":"Result shape. On ClickHouse, table and logs keep the rows and columns as selected; otherwise a leading time column is split into one series per combination of string columns. Use the format the panel will have. Default timeseries."}`
-	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see get_spec_guide."}`
+	propSpec       = `"spec":{"type":"object","description":"The complete ObserveSpec document; see {guide_ref}."}`
 	propSummary    = `"summary":{"type":"string","minLength":1,"maxLength":500,"description":"One line describing the change."}`
 	propDashID     = `"dashboard_id":{"type":"string","description":"Dashboard id."}`
 	propFolderID   = `"folder_id":{"type":"string","format":"uuid","description":"Folder id from list_folders. Default your last used folder, else General."}`
@@ -87,7 +87,7 @@ const (
 
 	schemaGetDashboard = `{"type":"object","properties":{` + propDashID + `,"version":{"type":"integer","minimum":1,"description":"Version number. Default latest."}},"required":["dashboard_id"],"additionalProperties":false}`
 
-	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `,` + propFolderID + `},"required":["spec"],"additionalProperties":false}`
+	schemaCreateDashboard = `{"type":"object","properties":{` + propSpec + `,` + propSummary + `{folder_prop}},"required":["spec"],"additionalProperties":false}`
 
 	schemaUpdateDashboard = `{"type":"object","properties":{` + propDashID + `,"parent_version":{"type":"integer","minimum":1,"description":"The version this change is based on."},` + propSpec + `,` + propSummary + `},"required":["spec"],"additionalProperties":false}`
 )

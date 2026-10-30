@@ -1719,6 +1719,11 @@ func TestAgentDoesNotOfferMCPOnlyTools(t *testing.T) {
 	offered := map[string]bool{}
 	for _, spec := range provider.started()[0].Tools {
 		offered[spec.Name] = true
+		for _, tool := range registry.List() {
+			if tool.MCPOnly && strings.Contains(spec.Description+string(spec.InputSchema), tool.Name) {
+				t.Errorf("%s is offered with text that mentions %s", spec.Name, tool.Name)
+			}
+		}
 	}
 	mcpOnly := 0
 	for _, tool := range registry.List() {

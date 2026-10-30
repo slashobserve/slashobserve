@@ -333,9 +333,12 @@ func validateRun(run Run) (pgtype.UUID, error) {
 	return pgtype.UUID{}, fmt.Errorf("%w: unknown mode %q", errInvalidRun, string(run.Mode))
 }
 
-func checkSpecPresent(raw json.RawMessage) (Result, bool) {
+func checkSpecPresent(raw json.RawMessage, inRun bool) (Result, bool) {
 	if trimmed := bytes.TrimSpace(raw); len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		return invalid("spec is required; see get_spec_guide"), false
+		if inRun {
+			return invalid("%s", missingSpecAgent), false
+		}
+		return invalid("%s", missingSpecMCP), false
 	}
 	return Result{}, true
 }
@@ -349,7 +352,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec); !ok {
+	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
 		return res, nil
 	}
 	if scoped {
@@ -395,7 +398,7 @@ func (r *Registry) updateDashboard(ctx context.Context, input json.RawMessage) (
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
-	if res, ok := checkSpecPresent(in.Spec); !ok {
+	if res, ok := checkSpecPresent(in.Spec, scoped); !ok {
 		return res, nil
 	}
 	if scoped && run.Mode == ModeSuggest {

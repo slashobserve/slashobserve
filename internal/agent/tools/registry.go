@@ -69,6 +69,9 @@ type Tool struct {
 	ReadOnly    bool
 	MCPOnly     bool
 	MinRole     auth.Role
+
+	AgentDescription string
+	AgentInputSchema json.RawMessage
 }
 
 type Result struct {
@@ -154,6 +157,8 @@ func New(d Deps) *Registry {
 		if e.tool.MinRole == "" {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
+		e.tool.AgentDescription, e.tool.AgentInputSchema = agentWording.render(e.tool)
+		e.tool.Description, e.tool.InputSchema = mcpWording.render(e.tool)
 		r.entries[e.tool.Name] = e
 		r.tools = append(r.tools, e.tool)
 	}
@@ -165,6 +170,7 @@ func (r *Registry) List() []Tool {
 	out := make([]Tool, len(r.tools))
 	for i, t := range r.tools {
 		t.InputSchema = bytes.Clone(t.InputSchema)
+		t.AgentInputSchema = bytes.Clone(t.AgentInputSchema)
 		out[i] = t
 	}
 	return out
