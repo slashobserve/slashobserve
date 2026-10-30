@@ -1,6 +1,7 @@
 import { useRef } from "react"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import {
+  CopyIcon,
   DownloadIcon,
   EllipsisIcon,
   KeyIcon,
@@ -39,9 +40,11 @@ type Props = {
   layoutBlockedByActivity: boolean
   pinned: boolean
   detailsBlockedBy: string | null
+  duplicateBlockedBy: string | null
   deleteBlockedBy: string | null
   onEditLayout: () => void
   onEditDetails: () => void
+  onDuplicate: (() => void) | null
   onDelete: () => void
   onExport: () => void
   cursorSync: CursorSync
@@ -54,9 +57,11 @@ export function MoreMenu({
   layoutBlockedByActivity,
   pinned,
   detailsBlockedBy,
+  duplicateBlockedBy,
   deleteBlockedBy,
   onEditLayout,
   onEditDetails,
+  onDuplicate,
   onDelete,
   onExport,
   cursorSync,
@@ -73,7 +78,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, edit details, export, chart hover, delete, API keys, sign out"
+            aria-label="More: edit layout, edit details, export, duplicate, chart hover, delete, API keys, sign out"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -123,6 +128,17 @@ export function MoreMenu({
           <DownloadIcon aria-hidden="true" />
           Export spec JSON
         </DropdownMenuItem>
+        {onDuplicate !== null ? (
+          <DropdownMenuItem
+            disabled={duplicateBlockedBy !== null}
+            onClick={onDuplicate}
+          >
+            <CopyIcon aria-hidden="true" />
+            {duplicateBlockedBy === null
+              ? "Duplicate..."
+              : `Duplicate (${duplicateBlockedBy})`}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex items-center gap-4">

@@ -98,6 +98,29 @@ export function useMoveDashboard() {
   })
 }
 
+export function useDuplicateDashboard(sourceId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (input: { title: string; folderId: string }) =>
+      api
+        .POST("/dashboards/{id}/duplicate", {
+          params: { path: { id: sourceId } },
+          body: { title: input.title, folder_id: input.folderId },
+        })
+        .then(unwrap),
+    onSettled: () =>
+      Promise.all(
+        [
+          dashboardKeys.list(),
+          dashboardKeys.titles(),
+          dashboardKeys.tags(),
+          folderKeys.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+      ),
+  })
+}
+
 export function useDeleteDashboard(id: string) {
   const queryClient = useQueryClient()
   return useMutation({

@@ -22,6 +22,7 @@ import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { useComments } from "@/comments/queries"
 import { openThreadCount, openThreadsByPanel } from "@/comments/threads"
 import { Skeleton } from "@/components/ui/skeleton"
+import { foldersQuery } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { refreshToMs, timeOptionsFor } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
@@ -60,6 +61,8 @@ import { DashboardGrid, gridMargin, gridRowHeight } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardTopRow } from "./dashboard-top-row"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
+import { duplicateBlockReason, duplicateTargets } from "./duplicate"
+import { DuplicateDashboardDialog } from "./duplicate-dashboard-dialog"
 import { detailsBlockReason } from "./edit/details"
 import { DetailsDialog } from "./edit/details-dialog"
 import {
@@ -494,6 +497,9 @@ function DashboardView({
   const [cursor] = useState(createSharedCursor)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
+  const folders = useQuery(foldersQuery()).data ?? []
+  const duplicate = duplicateTargets(folders, envelope.dashboard.folder.id)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const savedCursor = savedCursorSync(spec)
@@ -639,9 +645,16 @@ function DashboardView({
         editingLayout: editing,
         editingPanel,
       })}
+      duplicateBlockedBy={duplicateBlockReason({
+        pinned,
+        editingLayout: editing,
+      })}
       deleteBlockedBy={editing ? "finish the layout first" : null}
       onEditLayout={beginLayoutEdit}
       onEditDetails={() => setDetailsOpen(true)}
+      onDuplicate={
+        duplicate.choices.length > 0 ? () => setDuplicating(true) : null
+      }
       onDelete={() => setDeleting(true)}
       onExport={() => downloadSpec(spec, spec.title, version)}
       cursorSync={cursorSync}
@@ -791,6 +804,13 @@ function DashboardView({
         version={envelopeVersion}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
+      />
+      <DuplicateDashboardDialog
+        source={{ id: dashboardId, title: spec.title, version: latestVersion }}
+        targets={duplicate}
+        open={duplicating}
+        onOpenChange={setDuplicating}
         finalFocus={() => document.getElementById(editLayoutButtonId) ?? true}
       />
       <DeleteDashboardDialog

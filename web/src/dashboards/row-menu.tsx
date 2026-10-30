@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { EllipsisIcon } from "lucide-react"
+import { CopyIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,8 @@ import { loadProblemText } from "@/service-accounts/queries"
 import type { DashboardSummary } from "./dashboard-columns"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"
 import { neighbourAfterDelete } from "./delete-dashboard"
+import { duplicateTargets } from "./duplicate"
+import { DuplicateDashboardDialog } from "./duplicate-dashboard-dialog"
 import { useMoveDashboard } from "./queries"
 
 type Target = { id: string; title: string }
@@ -61,7 +63,11 @@ export function DashboardRowMenu({
   const neighbour = useRef<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const current = dashboard.folder.id
+  const canEdit = dashboard.permissions.edit
+  const targets = duplicateTargets(folders, current)
+  const canDuplicate = targets.choices.length > 0
   const choices = folders.filter(
     (folder) => folder.permissions.edit || folder.id === current
   )
@@ -106,6 +112,8 @@ export function DashboardRowMenu({
     focusAfterDelete(neighbour.current)
   }
 
+  if (!canEdit && !canDuplicate) return null
+
   return (
     <>
       <DropdownMenu>
@@ -130,46 +138,73 @@ export function DashboardRowMenu({
             return !leave
           }}
         >
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Move to folder</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={current}
-              onValueChange={(id) => {
-                const target = choices.find((folder) => folder.id === id)
-                if (target !== undefined) moveTo(target)
+          {canDuplicate ? (
+            <DropdownMenuItem
+              onClick={() => {
+                leaveFocusAlone.current = true
+                setDuplicating(true)
               }}
             >
-              {choices.map((folder) => (
-                <DropdownMenuRadioItem
-                  closeOnClick
-                  key={folder.id}
-                  value={folder.id}
+              <CopyIcon aria-hidden="true" />
+              Duplicate...
+            </DropdownMenuItem>
+          ) : null}
+          {canEdit ? (
+            <>
+              {canDuplicate ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Move to folder</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={current}
+                  onValueChange={(id) => {
+                    const target = choices.find((folder) => folder.id === id)
+                    if (target !== undefined) moveTo(target)
+                  }}
                 >
-                  {folder.title}
-                  {folder.id === current ? (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      Current
-                    </span>
-                  ) : null}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => {
-              leaveFocusAlone.current = true
-              setCreating(true)
-            }}
-          >
-            New folder
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={startDelete}>
-            Delete dashboard...
-          </DropdownMenuItem>
+                  {choices.map((folder) => (
+                    <DropdownMenuRadioItem
+                      closeOnClick
+                      key={folder.id}
+                      value={folder.id}
+                    >
+                      {folder.title}
+                      {folder.id === current ? (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Current
+                        </span>
+                      ) : null}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  leaveFocusAlone.current = true
+                  setCreating(true)
+                }}
+              >
+                New folder
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={startDelete}>
+                Delete dashboard...
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      <DuplicateDashboardDialog
+        source={{
+          id: dashboard.id,
+          title: dashboard.title,
+          version: dashboard.latest_version,
+        }}
+        targets={targets}
+        open={duplicating}
+        onOpenChange={setDuplicating}
+        finalFocus={() => trigger.current ?? true}
+      />
       <NewFolderDialog
         open={creating}
         onOpenChange={setCreating}
