@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 103,
-      "imported": 77,
-      "partial": 26,
+      "imported": 99,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,15 +45,11 @@
         "row": "Basic General Info",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "This color scheme is not supported yet; series use the default palette."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[7].properties[4]",
-          "fieldConfig.overrides[8].properties[4]",
-          "fieldConfig.overrides[7].properties[0].value.group",
-          "fieldConfig.overrides[8].properties[3].value.group"
+          "fieldConfig.overrides[8].properties[4]"
         ],
         "queries": [
           {
@@ -94,13 +90,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic General Info",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -126,13 +118,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic General Info",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -158,13 +146,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic General Info",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -190,13 +174,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic General Info",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -271,14 +251,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests / Responses",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.overrides[1].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -318,13 +293,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests / Responses",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -539,13 +510,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests / Responses",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -578,13 +545,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Requests / Responses",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -617,13 +580,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -649,13 +608,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -681,13 +636,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -713,13 +664,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -745,13 +692,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -777,13 +720,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -893,13 +832,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -925,13 +860,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Throughput / Connections",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1020,13 +951,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Sessions",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1480,13 +1407,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Health and Weight",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1533,13 +1456,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Health and Weight",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1852,13 +1771,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1891,13 +1806,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2287,13 +2198,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Process Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2882,6 +2789,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Back.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*1.*/"
                 },
                 "color": "#6ED0E0"
@@ -2971,6 +2884,14 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3008,6 +2929,14 @@
             "unit": "bps",
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3043,6 +2972,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Back.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3078,6 +3015,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Back.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3211,6 +3156,20 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Error.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/.*Denied.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3247,6 +3206,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Denied.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3562,6 +3529,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "error (-) / recover (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Error.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3605,6 +3580,14 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "error (-) / recover (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Error.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3656,6 +3639,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3692,6 +3683,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3728,6 +3727,14 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3765,6 +3772,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "deny (-) / accept (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Denied.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3801,6 +3816,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "error (-) / attempt (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Error.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -3839,6 +3862,14 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "error (-) / attempts (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Error.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -3996,6 +4027,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "server (-) / client (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Server.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -4032,6 +4071,14 @@
             "decimals": 1,
             "fill": 20,
             "axisLabel": "server (-) / client (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Server.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -4156,6 +4203,14 @@
             "fill": 20,
             "stack": "normal",
             "axisLabel": "fail (-) / total (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Denied.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -4814,6 +4869,14 @@
             ],
             "unit": "short",
             "fill": 20,
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Weight reduction - .*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -4881,6 +4944,14 @@
             ],
             "unit": "short",
             "fill": 20,
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Weight reduction - .*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "right",
               "legendValues": [
@@ -5349,6 +5420,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Bypas.*/"
                 },
                 "fill": 0
@@ -5396,6 +5473,12 @@
             "fill": 20,
             "axisLabel": "out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*OUT.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Bypas.*/"
@@ -6029,6 +6112,14 @@
             "unit": "ops",
             "fill": 20,
             "axisLabel": "back (-) / front (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*backend.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",

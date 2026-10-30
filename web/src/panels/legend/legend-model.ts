@@ -17,6 +17,7 @@ export type LegendSource = {
   key: string
   label: string
   values: readonly unknown[]
+  hidden?: boolean
 }
 
 export function effectiveLegendMode(
@@ -69,6 +70,7 @@ export function legendOrder(
     .map((source, index): Entry => ({ source, index }))
     .filter(
       ({ source }) =>
+        !source.hidden &&
         !(options.hideEmpty && isEmpty(source)) &&
         !(options.hideZero && isAllZero(source))
     )

@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 36,
-      "imported": 20,
-      "partial": 16,
+      "imported": 28,
+      "partial": 8,
       "placeholder": 0,
       "unverified": 0
     },
@@ -403,13 +403,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -435,13 +431,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Basic CPU / Mem / Net / Disk",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -490,11 +482,9 @@
         "row": "Basic CPU / Mem / Net / Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.defaults.fieldMinMax"
         ],
         "queries": [
@@ -529,13 +519,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "P",
@@ -561,13 +547,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -593,13 +575,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "P",
@@ -625,13 +603,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network Traffic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "P",
@@ -860,13 +834,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Disk Filesystem",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -892,13 +862,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Disk Filesystem",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1785,6 +1751,14 @@
             "unit": "bps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Tx.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -1821,6 +1795,14 @@
             "unit": "Bps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*out.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -1895,6 +1877,14 @@
             "unit": "bytes",
             "fill": 40,
             "axisLabel": "used (-) / available (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Used.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -1946,6 +1936,14 @@
             "unit": "pps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Tx.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -1982,6 +1980,14 @@
             "unit": "pps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Tx.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -2019,6 +2025,14 @@
             "unit": "pps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Tx.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -2056,6 +2070,14 @@
             "unit": "pps",
             "fill": 40,
             "axisLabel": "out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Tx.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -2403,6 +2425,14 @@
             "unit": "iops",
             "fill": 40,
             "axisLabel": "write (–) / read (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Write.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",
@@ -2439,6 +2469,14 @@
             "unit": "Bps",
             "fill": 40,
             "axisLabel": "write (–) / read (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Write.*/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "min",

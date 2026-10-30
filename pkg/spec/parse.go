@@ -354,8 +354,8 @@ type exclusiveMembers struct {
 
 var exclusiveMembersByRule = map[string]exclusiveMembers{
 	schemaID + "#/$defs/match": {
-		message: "match must have exactly one of query, series, seriesRegex, field, fieldType",
-		keys:    []string{"query", "series", "seriesRegex", "field", "fieldType"},
+		message: "match must have exactly one of query, series, seriesRegex, field, fieldType, value",
+		keys:    []string{"query", "series", "seriesRegex", "field", "fieldType", "value"},
 	},
 	schemaID + "#/$defs/mapping": {
 		message: "mapping must have exactly one of value, range, regex, special",

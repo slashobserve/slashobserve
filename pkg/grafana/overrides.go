@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -133,8 +134,80 @@ func (b *panelBuild) matchFor(matcher map[string]any) (spec.Match, bool) {
 		return spec.Match{Query: ref}, isText && ok
 	case "byType":
 		return spec.Match{FieldType: text}, isText && slices.Contains(overrideFieldTypes, text)
+	case "byNames":
+		return namesMatch(options)
+	case "byValue":
+		return valueMatch(options)
 	}
 	return spec.Match{}, false
+}
+
+var valueMatchOps = []string{"eq", "neq", "lt", "lte", "gt", "gte"}
+
+func valueMatch(options any) (spec.Match, bool) {
+	cfg, ok := asObject(options)
+	if !ok {
+		return spec.Match{}, false
+	}
+	reducer := asString(cfg["reducer"])
+	op := asString(cfg["op"])
+	value, isNumber := numberValue(cfg["value"])
+	if !isReducer(reducer) || !slices.Contains(valueMatchOps, op) || !isNumber {
+		return spec.Match{}, false
+	}
+	return spec.Match{Value: &spec.ValueMatch{Reducer: reducer, Op: op, Value: value}}, true
+}
+
+func namesMatch(options any) (spec.Match, bool) {
+	cfg, ok := asObject(options)
+	if !ok {
+		return spec.Match{}, false
+	}
+	items, _ := asArray(cfg["names"])
+	escaped := make([]string, 0, len(items))
+	for _, item := range items {
+		name, isText := item.(string)
+		if !isText {
+			return spec.Match{}, false
+		}
+		escaped = append(escaped, escapeRegexLiteral(name))
+	}
+	if len(escaped) == 0 {
+		return spec.Match{}, false
+	}
+	alternatives := strings.Join(escaped, "|")
+	var pattern string
+	switch asString(cfg["mode"]) {
+	case "", "include":
+		pattern = "^(?:" + alternatives + ")$"
+	case "exclude":
+		pattern = "/^(?!(?:" + alternatives + ")$).*$/"
+	default:
+		return spec.Match{}, false
+	}
+	return spec.Match{SeriesRegex: pattern}, validLength(pattern, maxRegexMatch)
+}
+
+const regexMetacharacters = `\^$.*+?()[]{}|/`
+
+func escapeRegexLiteral(name string) string {
+	var out strings.Builder
+	for _, r := range name {
+		switch {
+		case strings.ContainsRune(regexMetacharacters, r):
+			out.WriteByte('\\')
+			out.WriteRune(r)
+		case r == '\n':
+			out.WriteString(`\n`)
+		case r == '\r':
+			out.WriteString(`\r`)
+		case r == '\t':
+			out.WriteString(`\t`)
+		default:
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
 }
 
 func validLength(s string, limit int) bool {

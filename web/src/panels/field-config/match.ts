@@ -1,6 +1,8 @@
 import type { PreparedField, PreparedFrame } from "@/panels/transforms"
 import { compileNamePattern, type Match } from "@/spec"
 
+import { reduce } from "../reducers"
+
 type MatchSubject = {
   frame: PreparedFrame
   field: PreparedField
@@ -10,6 +12,29 @@ type MatchSubject = {
 export type Matcher = (subject: MatchSubject) => boolean
 
 const never: Matcher = () => false
+
+type ValueMatch = Extract<Match, { value: unknown }>["value"]
+
+const comparisons: Record<ValueMatch["op"], (a: number, b: number) => boolean> =
+  {
+    eq: (a, b) => a === b,
+    neq: (a, b) => a !== b,
+    lt: (a, b) => a < b,
+    lte: (a, b) => a <= b,
+    gt: (a, b) => a > b,
+    gte: (a, b) => a >= b,
+  }
+
+function compileValueMatch({ reducer, op, value }: ValueMatch): Matcher {
+  const compare = comparisons[op]
+  const reduced = new WeakMap<PreparedField, number | null>()
+  return ({ field }) => {
+    if (field.type !== "number") return false
+    if (!reduced.has(field)) reduced.set(field, reduce(field.values, reducer))
+    const result = reduced.get(field)
+    return result !== null && result !== undefined && compare(result, value)
+  }
+}
 
 export function compileMatch(match: Match): Matcher {
   if ("query" in match) {
@@ -34,5 +59,6 @@ export function compileMatch(match: Match): Matcher {
     return ({ field }) =>
       (field.type === "bool" ? "boolean" : field.type) === type
   }
+  if ("value" in match) return compileValueMatch(match.value)
   return never
 }

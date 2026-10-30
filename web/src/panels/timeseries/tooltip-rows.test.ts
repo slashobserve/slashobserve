@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  candidateRows,
   tooltipRows,
   type StackEntry,
   type TooltipRow,
@@ -132,5 +133,27 @@ describe("tooltipRows", () => {
       ],
       total: 3,
     })
+  })
+})
+
+describe("candidateRows", () => {
+  const entries = [
+    { hideInTooltip: false, values: [1, 2] },
+    { hideInTooltip: true, values: [3, 4] },
+    { hideInTooltip: false, values: [null, 6] },
+    { hideInTooltip: false, values: [7, undefined] },
+  ]
+
+  it("lists the numeric values at the index of the series that are shown", () => {
+    expect(candidateRows(entries, 1, () => true)).toEqual([
+      { index: 0, value: 2 },
+      { index: 2, value: 6 },
+    ])
+  })
+
+  it("skips gaps and series the plot has switched off", () => {
+    expect(candidateRows(entries, 0, (index) => index !== 0)).toEqual([
+      { index: 3, value: 7 },
+    ])
   })
 })

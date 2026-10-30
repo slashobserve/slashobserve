@@ -274,6 +274,11 @@ type FieldProps struct {
 	AxisBorder        *bool       `json:"axisBorder,omitempty"`
 	AxisColor         string      `json:"axisColor,omitempty"`
 	Cell              *Cell       `json:"cell,omitempty"`
+	ValueTransform    string      `json:"valueTransform,omitempty"`
+	HideInLegend      *bool       `json:"hideInLegend,omitempty"`
+	HideInTooltip     *bool       `json:"hideInTooltip,omitempty"`
+	StackGroup        string      `json:"stackGroup,omitempty"`
+	FillBelowTo       string      `json:"fillBelowTo,omitempty"`
 }
 
 type Cell struct {
@@ -312,11 +317,18 @@ type Override struct {
 }
 
 type Match struct {
-	Query       string `json:"query,omitempty"`
-	Series      string `json:"series,omitempty"`
-	SeriesRegex string `json:"seriesRegex,omitempty"`
-	Field       string `json:"field,omitempty"`
-	FieldType   string `json:"fieldType,omitempty"`
+	Query       string      `json:"query,omitempty"`
+	Series      string      `json:"series,omitempty"`
+	SeriesRegex string      `json:"seriesRegex,omitempty"`
+	Field       string      `json:"field,omitempty"`
+	FieldType   string      `json:"fieldType,omitempty"`
+	Value       *ValueMatch `json:"value,omitempty"`
+}
+
+type ValueMatch struct {
+	Reducer string  `json:"reducer"`
+	Op      string  `json:"op"`
+	Value   float64 `json:"value"`
 }
 
 type Transform struct {

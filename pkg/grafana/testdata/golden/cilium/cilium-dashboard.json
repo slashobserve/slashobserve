@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 77,
-      "imported": 39,
-      "partial": 38,
+      "imported": 52,
+      "partial": 25,
       "placeholder": 0,
       "unverified": 0
     },
@@ -64,13 +64,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[1].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -103,13 +99,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Generic",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[4].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -817,13 +809,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[17].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -870,13 +858,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[17].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -923,13 +907,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[17].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -976,13 +956,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[17].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1141,13 +1117,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[2].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -1187,13 +1159,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[2].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1323,13 +1291,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[4].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1355,13 +1319,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[6].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1408,13 +1368,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[3].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1447,13 +1403,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[3].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1472,13 +1424,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cilium",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[3].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2149,7 +2097,8 @@
             "match": {
               "series": "max"
             },
-            "lineWidth": 0
+            "lineWidth": 0,
+            "fillBelowTo": "min"
           },
           {
             "match": {
@@ -2231,7 +2180,8 @@
                 "match": {
                   "series": "Max Virtual Memory"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "Min Virtual Memory"
               },
               {
                 "match": {
@@ -3184,7 +3134,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -3341,7 +3292,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -3498,7 +3450,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -3655,7 +3608,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -3870,7 +3824,8 @@
                 "match": {
                   "series": "Max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "Min"
               },
               {
                 "match": {
@@ -3978,7 +3933,8 @@
                 "match": {
                   "series": "Max Nodes"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "Min Nodes"
               },
               {
                 "match": {
@@ -4183,7 +4139,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -4275,7 +4232,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min trigger"
               },
               {
                 "match": {
@@ -4404,7 +4362,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -4463,7 +4422,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {
@@ -4532,7 +4492,8 @@
                 "match": {
                   "series": "max"
                 },
-                "lineWidth": 0
+                "lineWidth": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {

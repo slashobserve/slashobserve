@@ -450,12 +450,6 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 	case "dashes":
 		props.LineStyle = lineStyleFor(truthy(v))
 		return true
-	case "stack":
-		flag, isBool := v.(bool)
-		if isBool {
-			props.Stack = stackFor(flag)
-		}
-		return isBool
 	case "yaxis":
 		return secondAxis(props, v, axes)
 	case "hiddenSeries":
@@ -463,7 +457,69 @@ func (b *panelBuild) seriesOverrideKey(props *spec.FieldProps, key string, o map
 		props.Hidden = &hidden
 		return true
 	}
+	return seriesDrawingOverrideKey(props, key, o)
+}
+
+func seriesDrawingOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {
+	v := o[key]
+	switch key {
+	case "stack":
+		return legacyStack(props, v)
+	case "transform":
+		return legacyTransform(props, v)
+	case "legend":
+		return setLegacyHide(&props.HideInLegend, v, false)
+	case "hideTooltip":
+		return setLegacyHide(&props.HideInTooltip, v, true)
+	case "fillBelowTo":
+		name, isText := v.(string)
+		if isText && validLength(name, maxFillBelowTo) {
+			props.FillBelowTo = name
+		}
+		return isText && validLength(name, maxFillBelowTo)
+	case "zindex":
+		return isCosmetic("seriesOverrides[].zindex", v)
+	}
 	return lineShapeOverrideKey(props, key, o)
+}
+
+func legacyStack(props *spec.FieldProps, v any) bool {
+	switch x := v.(type) {
+	case bool:
+		props.Stack = stackFor(x)
+	case string:
+		if !validLength(x, maxStackGroup) {
+			return false
+		}
+		props.Stack = stackFor(true)
+		if x != defaultStackGroup {
+			props.StackGroup = x
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func legacyTransform(props *spec.FieldProps, v any) bool {
+	switch asString(v) {
+	case "negative-Y":
+		props.ValueTransform = "negativeY"
+	case "constant":
+		props.ValueTransform = "constant"
+	default:
+		return false
+	}
+	return true
+}
+
+func setLegacyHide(target **bool, v any, hideWhen bool) bool {
+	flag, isBool := v.(bool)
+	if isBool && flag == hideWhen {
+		hidden := true
+		*target = &hidden
+	}
+	return isBool
 }
 
 func lineShapeOverrideKey(props *spec.FieldProps, key string, o map[string]any) bool {

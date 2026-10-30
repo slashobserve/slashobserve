@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 172,
-      "imported": 133,
-      "partial": 39,
+      "imported": 171,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -411,13 +411,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Basic Net / Disk Info",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -618,13 +614,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "CPU Memory Net Disk",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -671,13 +663,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "CPU Memory Net Disk",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -703,13 +691,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "CPU Memory Net Disk",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1001,13 +985,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Meminfo",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "D",
@@ -1201,13 +1181,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1233,13 +1209,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Memory Detail Vmstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2896,13 +2868,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Disk Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2928,13 +2896,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Disk Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2960,13 +2924,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Disk Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2992,13 +2952,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Disk Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -3045,13 +3001,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Disk Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -3266,13 +3218,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -3298,13 +3246,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "E",
@@ -3330,13 +3274,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "G",
@@ -3362,13 +3302,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -3394,13 +3330,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "M",
@@ -3426,13 +3358,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "I",
@@ -3458,13 +3386,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network traffic Detail",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "K",
@@ -3686,13 +3610,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -3732,13 +3652,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "K",
@@ -3764,13 +3680,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -3796,13 +3708,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -3828,13 +3736,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "H",
@@ -3860,13 +3764,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "G",
@@ -4039,13 +3939,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "J",
@@ -4120,13 +4016,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat TCP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "E",
@@ -4383,13 +4275,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat TCP Linux MIPs",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "R",
@@ -5388,14 +5276,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat UDP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform",
-          "seriesOverrides[1].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -5421,14 +5304,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat UDP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform",
-          "seriesOverrides[1].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -5475,13 +5353,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat UDP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "B",
@@ -5507,13 +5381,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat UDP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -5560,13 +5430,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "I",
@@ -5620,13 +5486,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "E",
@@ -5687,13 +5549,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "J",
@@ -5733,13 +5591,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "O",
@@ -5779,13 +5633,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "G",
@@ -5825,13 +5675,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network Netstat ICMP",
-        "status": "partial",
-        "reasons": [
-          "The series override option transform is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].transform"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "C",
@@ -6995,6 +6841,12 @@
               },
               {
                 "match": {
+                  "seriesRegex": "/.*trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*/"
                 },
                 "color": "#7EB26D"
@@ -7493,6 +7345,12 @@
               },
               {
                 "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*/"
                 },
                 "color": "#7EB26D"
@@ -7608,6 +7466,12 @@
             "fill": 20,
             "axisLabel": "IO read (-) / write (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*sda_.*/"
@@ -7772,6 +7636,12 @@
                   "series": "io time"
                 },
                 "color": "#890F02"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/.*read*./"
+                },
+                "valueTransform": "negativeY"
               },
               {
                 "match": {
@@ -9236,6 +9106,12 @@
                   "series": "VmallocUsed"
                 },
                 "color": "#EA6460"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/.*Inactive *./"
+                },
+                "valueTransform": "negativeY"
               }
             ],
             "display": {
@@ -10190,6 +10066,14 @@
             "unit": "short",
             "fill": 20,
             "axisLabel": "Pages out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*out/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -10227,6 +10111,14 @@
             "unit": "short",
             "fill": 20,
             "axisLabel": "Pages out (-) / in (+)",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*out/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legendValues": [
                 "mean",
@@ -17076,6 +16968,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*sda_.*/"
                 },
                 "color": "#7EB26D"
@@ -17233,6 +17131,12 @@
             "fill": 20,
             "axisLabel": "Bytes read (-) / write (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*sda_.*/"
@@ -17394,6 +17298,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*sda_.*/"
                 },
                 "color": "#7EB26D"
@@ -17553,6 +17463,12 @@
             "fill": 20,
             "axisLabel": "Sectors read (-) / write (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*sda_.*/"
@@ -17872,6 +17788,12 @@
             "fill": 20,
             "axisLabel": "I/Os",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Read.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*sda_.*/"
@@ -18755,6 +18677,12 @@
               },
               {
                 "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*/"
                 },
                 "color": "#7EB26D"
@@ -18837,6 +18765,12 @@
             "fill": 20,
             "axisLabel": "Packets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*lo.*.errors.*/"
@@ -18925,6 +18859,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*.drop.*/"
                 },
                 "color": "#7EB26D"
@@ -19009,6 +18949,12 @@
             "fill": 20,
             "axisLabel": "Packets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*lo.*.compressed.*/"
@@ -19097,6 +19043,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*.multicast.*/"
                 },
                 "color": "#7EB26D"
@@ -19183,6 +19135,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*lo.*.fifo.*/"
                 },
                 "color": "#7EB26D"
@@ -19267,6 +19225,12 @@
             "fill": 20,
             "axisLabel": "Packets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Trans.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*lo.*.frame.*/"
@@ -19669,6 +19633,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Discards.*/"
                 },
                 "color": "#7EB26D"
@@ -19723,6 +19693,12 @@
             "fill": 20,
             "axisLabel": "Octets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Octets.*/"
@@ -19799,6 +19775,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Octets.*/"
                 },
                 "color": "#7EB26D"
@@ -19870,6 +19852,12 @@
             "fill": 20,
             "axisLabel": "Octets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Octets.*/"
@@ -19946,6 +19934,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Octets.*/"
                 },
                 "color": "#7EB26D"
@@ -20018,6 +20012,12 @@
             "fill": 20,
             "axisLabel": "Octets out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Octets.*/"
@@ -20337,6 +20337,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Discards.*/"
                 },
                 "color": "#7EB26D"
@@ -20429,6 +20435,12 @@
             "fill": 20,
             "axisLabel": "Segments out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*InSegs.*/"
@@ -20786,6 +20798,12 @@
             "fill": 20,
             "axisLabel": "Counter out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Sent.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "series": "SyncookiesSent - SYN cookies sent"
@@ -22100,6 +22118,18 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/.*Snd.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Datagrams.*/"
                 },
                 "color": "#EAB839"
@@ -22166,6 +22196,18 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/.*Snd.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*bufErrors.*/"
                 },
                 "color": "#70DBED"
@@ -22213,6 +22255,12 @@
             "fill": 20,
             "axisLabel": "Datagrams out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Datagrams.*/"
@@ -22279,6 +22327,12 @@
             "fill": 20,
             "axisLabel": "Datagrams out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*bufErrors.*/"
@@ -22366,6 +22420,12 @@
             "fill": 20,
             "axisLabel": "Messages out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*Type3.*/"
@@ -22483,6 +22543,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Type3.*/"
                 },
                 "color": "#EAB839"
@@ -22580,6 +22646,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*Msgs.*/"
                 },
                 "color": "#6ED0E0"
@@ -22645,6 +22717,12 @@
             "fill": 20,
             "axisLabel": "Messages out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*TimestampReps.*/"
@@ -22714,6 +22792,12 @@
             "overrides": [
               {
                 "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
+              {
+                "match": {
                   "seriesRegex": "/.*EchoReps.*/"
                 },
                 "color": "#D683CE"
@@ -22779,6 +22863,12 @@
             "fill": 20,
             "axisLabel": "Messages out (-) / in (+)",
             "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/.*Out.*/"
+                },
+                "valueTransform": "negativeY"
+              },
               {
                 "match": {
                   "seriesRegex": "/.*AddrMaskReps.*/"

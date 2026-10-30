@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 33,
-      "imported": 28,
-      "partial": 5,
+      "imported": 29,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,14 +43,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "General Processing",
-        "status": "partial",
-        "reasons": [
-          "The series override option fillBelowTo is not supported yet."
-        ],
-        "paths": [
-          "seriesOverrides[0].fillBelowTo",
-          "seriesOverrides[1].fillBelowTo"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -827,13 +822,15 @@
                 "match": {
                   "series": "max"
                 },
-                "style": "points"
+                "style": "points",
+                "fillBelowTo": "avg"
               },
               {
                 "match": {
                   "series": "avg"
                 },
-                "fill": 0
+                "fill": 0,
+                "fillBelowTo": "min"
               },
               {
                 "match": {

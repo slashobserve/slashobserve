@@ -15,6 +15,7 @@ import {
 import { formatTogether, type DrawStyle } from "./series-config"
 import type { Cell } from "./stack"
 import {
+  candidateRows,
   tooltipRows,
   type StackEntry,
   type TooltipRow,
@@ -37,6 +38,7 @@ export type TooltipSeries = {
   values: Cell[]
   stacked: boolean
   below: number | null
+  hideInTooltip: boolean
   rowColor?: (row: number) => string
 }
 
@@ -295,13 +297,11 @@ export function tooltipPlugin(
         const rowsMode = anchor.peer ? "all" : mode
 
         const meta = series()
-        const rows: Row[] = []
-        meta.forEach((entry, index) => {
-          const value = entry.values[idx]
-          if (u.series[first + index]?.show && typeof value === "number") {
-            rows.push({ index, value })
-          }
-        })
+        const rows = candidateRows(
+          meta,
+          idx,
+          (index) => u.series[first + index]?.show === true
+        )
         if (rows.length === 0) return hide()
         const listed =
           rowsMode === "single"

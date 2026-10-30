@@ -551,6 +551,7 @@ func effectiveRefs(built []*builtQuery) []string {
 
 func (b *panelBuild) assignQueries() {
 	refs := effectiveRefs(b.built)
+	explicit := explicitRefIDs(b.built)
 	panelDS := b.built[0].src.ref()
 	b.panel.Datasource = panelDS
 	for k, bq := range b.built {
@@ -573,6 +574,7 @@ func (b *panelBuild) assignQueries() {
 		line.Ref = ptr(refs[k])
 		line.Datasource = ptr(bq.src.ref())
 		if bq.refID == "" {
+			b.mapImpliedRef(bq.index, refs[k], explicit)
 			continue
 		}
 		if _, mapped := b.refs[bq.refID]; !mapped {
@@ -581,6 +583,28 @@ func (b *panelBuild) assignQueries() {
 		if refs[k] != bq.refID {
 			line.Rewrites = append(line.Rewrites, fmt.Sprintf("refId %s -> %s", bq.refID, refs[k]))
 		}
+	}
+}
+
+const impliedRefLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func explicitRefIDs(built []*builtQuery) map[string]bool {
+	explicit := map[string]bool{}
+	for _, bq := range built {
+		if bq.refID != "" {
+			explicit[bq.refID] = true
+		}
+	}
+	return explicit
+}
+
+func (b *panelBuild) mapImpliedRef(position int, ref string, explicit map[string]bool) {
+	if position >= len(impliedRefLetters) {
+		return
+	}
+	implied := impliedRefLetters[position : position+1]
+	if !explicit[implied] {
+		b.refs[implied] = ref
 	}
 }
 

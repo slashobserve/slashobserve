@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 9,
-      "imported": 7,
-      "partial": 2,
+      "imported": 9,
+      "partial": 0,
       "placeholder": 0,
       "unverified": 0
     },
@@ -127,13 +127,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -159,13 +155,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Some overrides use matchers or properties that are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.overrides[0].properties[0]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "",
@@ -458,6 +450,14 @@
             "fill": 100,
             "points": "never",
             "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/Transmit/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "hidden",
               "tooltip": "all"
@@ -488,6 +488,14 @@
             "fill": 100,
             "points": "never",
             "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/Transmit/"
+                },
+                "valueTransform": "negativeY"
+              }
+            ],
             "display": {
               "legend": "hidden",
               "tooltip": "all"

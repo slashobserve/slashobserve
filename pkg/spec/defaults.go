@@ -28,6 +28,9 @@ type FieldPropsDefaults struct {
 	AxisCenteredZero  bool   `json:"axisCenteredZero"`
 	AxisBorder        bool   `json:"axisBorder"`
 	AxisColor         string `json:"axisColor"`
+	HideInLegend      bool   `json:"hideInLegend"`
+	HideInTooltip     bool   `json:"hideInTooltip"`
+	StackGroup        string `json:"stackGroup"`
 }
 
 type QueryDefaults struct {

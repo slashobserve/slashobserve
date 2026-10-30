@@ -225,6 +225,10 @@ The axis options belong to the axis a series draws on, and the first series on a
 `scale` is `linear` (the default), `log` (with `logBase` 2 or 10, 10 by default; values at or below zero are not drawn) or `symlog` (linear within `linearThreshold` of zero, 1 by default, and logarithmic outside).
 `axisCenteredZero` makes the range symmetric around zero.
 `axisWidth` fixes the width of the axis in pixels (0 to 400), `axisGrid` shows or hides its grid lines (by default only the left axis, or the right one when there is no left axis, draws a grid), `axisBorder` draws a line along the axis, and `axisColor` is `text` (the default) or `series` (the axis takes the color of its first series).
+`valueTransform` draws a series `negativeY` (below zero, mirrored, while the legend and tooltip keep its real values) or `constant` (a flat line at its first value).
+`hideInLegend` and `hideInTooltip` leave a series out of the legend or the tooltip but keep it drawn, and `hidden` leaves it out of the chart.
+`stackGroup` (up to 50 characters, `A` by default) makes series stack with the others of the same group only, and `fillBelowTo` is the name of another series: the area between the two is filled, in the series' color at its `fill` (20% when `fill` is 0), and it is ignored for a stacked series or a name no series has.
+Only `timeseries` and `trend` panels draw these five options.
 A percent stack always uses a 0 to 100% axis whatever the scale.
 A `table` panel also takes `cell`, which sets how a column draws its cells: its `type` is `auto` (the plain cell, colored by thresholds and colored mappings), `text` (colored by the threshold, mapping or field `color`), `background` (filled with that color, with text chosen for contrast; `wholeRow` fills the whole row), `gauge` (a bar over the column's range, `gaugeStyle` `basic` or `lcd`), `sparkline` (a mini chart of an array of numbers, such as the `Trend` column of a `timeSeriesTable` transform, drawn with the column's `style`, `fill`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `min`, `max`, `axisSoftMin` and `axisSoftMax`), `json` (a disclosure with the pretty-printed value), `image` (the value is an https address, drawn through the server, with `imageAlt` and `imageTitle`), `links` (the field's data links as anchors) or `pill` (the value split on commas into labels).
 `valueMode` (`color`, `text`, the default, or `hidden`) sets how a gauge or sparkline cell shows its value, and `wrap` lets the cell's text wrap onto several lines.
@@ -236,7 +240,8 @@ A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `r
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
 
-An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field` or `fieldType`, and at least one option to apply.
+An override has a `match`, which selects by `query` (a `ref`), `series`, `seriesRegex`, `field`, `fieldType` or `value`, and at least one option to apply.
+A `value` match selects the number fields whose `reducer` result compares to `value` with `op` (`eq`, `neq`, `lt`, `lte`, `gt` or `gte`).
 A panel has at most 50 overrides.
 
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.

@@ -27,6 +27,10 @@ const (
 	maxAxisLabel   = 100
 	maxAxisWidth   = 400
 	defaultLogBase = 10
+	maxStackGroup  = 50
+	maxFillBelowTo = 200
+
+	defaultStackGroup = "A"
 
 	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
 	logBaseReason     = "Only log base 2 and 10 are supported."
@@ -55,6 +59,7 @@ var propOrder = []string{
 	"custom.axisLabel", "custom.axisSoftMin", "custom.axisSoftMax", "custom.scaleDistribution",
 	"custom.axisCenteredZero", "custom.axisWidth", "custom.axisGridShow", "custom.axisBorderShow", "custom.axisColorMode",
 	"custom.cellOptions", "custom.displayMode", "custom.wrapText",
+	"custom.transform", "custom.fillBelowTo",
 }
 
 var propHandlers = map[string]propHandler{
@@ -91,6 +96,8 @@ var propHandlers = map[string]propHandler{
 	"custom.cellOptions":       propCellOptions,
 	"custom.displayMode":       propDisplayMode,
 	"custom.wrapText":          propWrapText,
+	"custom.transform":         propValueTransform,
+	"custom.fillBelowTo":       propFillBelowTo,
 }
 
 var lineStylePropIDs = map[string]bool{
@@ -104,6 +111,10 @@ var axisPropIDs = map[string]bool{
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
+var seriesDrawingTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
+
+var seriesDrawingPropIDs = map[string]bool{"custom.transform": true, "custom.fillBelowTo": true}
+
 var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 	spec.BarChart: true, spec.Histogram: true, spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
 }
@@ -114,6 +125,9 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
 	if tableCellProps[id] && b.typ != spec.Table {
+		return nil, false
+	}
+	if seriesDrawingPropIDs[id] && !seriesDrawingTypes[b.typ] {
 		return nil, false
 	}
 	if !plotPanelTypes[b.typ] {
@@ -620,6 +634,49 @@ func propStacking(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	case "normal", "percent", "none":
 		p.Stack = mode
 	}
+	if seriesDrawingTypes[b.typ] {
+		b.stackGroup(p, cfg["group"], s)
+	}
+}
+
+func (b *panelBuild) stackGroup(p *spec.FieldProps, v any, s propSite) {
+	group, ok := v.(string)
+	if !ok || group == "" {
+		return
+	}
+	b.consume(s.value + ".group")
+	switch {
+	case !validLength(group, maxStackGroup):
+		b.partial(s.at(".group"), "The stacking group name is kept up to 50 characters.")
+	case group != defaultStackGroup || (s.whole && b.panel.StackGroup != ""):
+		p.StackGroup = group
+	}
+}
+
+func propValueTransform(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	switch kind := asString(v); kind {
+	case "":
+	case "negative-Y":
+		p.ValueTransform = "negativeY"
+	case "constant":
+		p.ValueTransform = "constant"
+	default:
+		b.partial(s.at(""), fmt.Sprintf("The value transform %s is not supported yet.", kind))
+	}
+}
+
+func propFillBelowTo(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	name, _ := v.(string)
+	if name == "" {
+		return
+	}
+	if !validLength(name, maxFillBelowTo) {
+		b.partial(s.at(""), "The series to fill down to has a name longer than 200 characters.")
+		return
+	}
+	p.FillBelowTo = name
 }
 
 func propAxisPlacement(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
@@ -763,9 +820,17 @@ func propHideFrom(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 		hidden := true
 		p.Hidden = &hidden
 	}
+	targets := map[string]**bool{"legend": &p.HideInLegend, "tooltip": &p.HideInTooltip}
+	panelLevel := map[string]*bool{"legend": b.panel.HideInLegend, "tooltip": b.panel.HideInTooltip}
 	for _, key := range []string{"legend", "tooltip"} {
-		if truthy(cfg[key]) {
-			b.partial(s.at("."+key), fmt.Sprintf("Hiding a series from the %s is not supported yet.", key))
+		hide, isBool := cfg[key].(bool)
+		switch {
+		case !seriesDrawingTypes[b.typ]:
+			if hide {
+				b.partial(s.at("."+key), fmt.Sprintf("Hiding series from the %s works on time series and trend panels only.", key))
+			}
+		case hide || (isBool && s.whole && panelLevel[key] != nil && *panelLevel[key]):
+			*targets[key] = &hide
 		}
 		b.consume(s.value + "." + key)
 	}

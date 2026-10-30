@@ -93,6 +93,15 @@ describe("legendOrder", () => {
     expect(legendOrder(mixed, { ...plain, hideEmpty: true })).toEqual([0, 2])
   })
 
+  it("leaves out series marked hidden whatever their values", () => {
+    const marked = [
+      source("shown", [1, 2]),
+      { ...source("marked", [3, 4]), hidden: true },
+      { ...source("kept", [5, 6]), hidden: false },
+    ]
+    expect(legendOrder(marked, plain)).toEqual([0, 2])
+  })
+
   it("sorts only the series that stay shown", () => {
     expect(
       legendOrder(sources, { ...plain, sortBy: "max", hideEmpty: true })

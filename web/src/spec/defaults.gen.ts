@@ -17,7 +17,10 @@ export const specDefaults = {
     "logBase": 10,
     "axisCenteredZero": false,
     "axisBorder": false,
-    "axisColor": "text"
+    "axisColor": "text",
+    "hideInLegend": false,
+    "hideInTooltip": false,
+    "stackGroup": "A"
   },
   "query": {
     "instant": false,

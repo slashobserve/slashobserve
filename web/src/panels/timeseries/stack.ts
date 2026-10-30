@@ -32,17 +32,18 @@ export function stackDirection(values: readonly Cell[]): Direction {
 
 type Group = { members: number[]; mode: StackMode; direction: Direction }
 
-function stackGroups(
+function groupMembers(
   values: readonly (readonly Cell[])[],
   modes: readonly StackMode[],
   axes: readonly string[],
-  styles: readonly string[]
+  styles: readonly string[],
+  stackGroups: readonly string[]
 ): Group[] {
   const groups = new Map<string, Group>()
   modes.forEach((mode, index) => {
     if (mode === "none") return
     const direction = stackDirection(values[index])
-    const key = `${direction}\u0000${mode}\u0000${axes[index]}\u0000${styles[index]}`
+    const key = `${direction}\u0000${mode}\u0000${axes[index]}\u0000${styles[index]}\u0000${stackGroups[index]}`
     const group = groups.get(key)
     if (group) group.members.push(index)
     else groups.set(key, { members: [index], mode, direction })
@@ -54,16 +55,18 @@ export function stackSeries(
   values: readonly (readonly Cell[])[],
   modes: readonly StackMode[],
   axes: readonly string[],
-  styles: readonly string[]
+  styles: readonly string[],
+  stackGroups: readonly string[]
 ): Stacked {
   const drawn: Cell[][] = values.map((series) => [...series])
   const below = modes.map(() => null as number | null)
   const directions = modes.map((): Direction => 1)
-  for (const { members, mode, direction } of stackGroups(
+  for (const { members, mode, direction } of groupMembers(
     values,
     modes,
     axes,
-    styles
+    styles,
+    stackGroups
   )) {
     const length = values[members[0]].length
     const sums = new Array<number>(length).fill(0)
