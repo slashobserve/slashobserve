@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
+import { heatmap } from "@/panels/transforms/heatmap"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
@@ -858,5 +859,141 @@ describe("y axis rows", () => {
       "0.500",
       "0.750",
     ])
+  })
+})
+
+function cellFrame(
+  cells: [x: number, yMin: number, yMax: number, count: number][]
+): PreparedFrame {
+  return {
+    ref: "A",
+    fields: [
+      { name: "xMin", type: "time", values: cells.map((c) => c[0]) },
+      { name: "yMin", type: "number", values: cells.map((c) => c[1]) },
+      { name: "yMax", type: "number", values: cells.map((c) => c[2]) },
+      { name: "count", type: "number", values: cells.map((c) => c[3]) },
+    ],
+  }
+}
+
+describe("cell frame of the heatmap transformation", () => {
+  const sparse = cellFrame([
+    [20, 5, 10, 3],
+    [10, 0, 5, 2],
+    [10, 5, 10, 1],
+    [30, 10, 15, 4],
+  ])
+
+  it("draws one column per distinct xMin and one row per yMin and yMax pair, lowest first", () => {
+    const model = build([sparse])
+    expect(model.mode).toBe("calculated")
+    expect(model.xs).toEqual([10, 20, 30])
+    expect(model.rows.map((row) => [row.from, row.to])).toEqual([
+      [0, 5],
+      [5, 10],
+      [10, 15],
+    ])
+    expect(model.rows.map((row) => row.label)).toEqual(["0", "5", "10"])
+    expect(model.rows[1].range).toBe("5 - 10")
+  })
+
+  it("colors cells by count and leaves the cells it has no row for empty", () => {
+    const model = build([sparse])
+    expect(model.cells).toEqual([
+      [2, 0, 0],
+      [1, 3, 0],
+      [0, 0, 4],
+    ])
+    expect(model.max).toBe(4)
+    expect(model.min).toBe(1)
+  })
+
+  it("reads the cells instead of the original series it travels with", () => {
+    const original = series([10, 20, 30], [1, 6, 11])
+    const model = build([original, sparse])
+    expect(model.xs).toEqual([10, 20, 30])
+    expect(model.rows).toHaveLength(3)
+    expect(model.cells[2]).toEqual([0, 0, 4])
+  })
+
+  it("adds up the cells of several frames", () => {
+    const model = build([
+      cellFrame([[10, 0, 5, 1]]),
+      cellFrame([
+        [10, 0, 5, 2],
+        [20, 0, 5, 5],
+      ]),
+    ])
+    expect(model.cells).toEqual([[3, 5]])
+  })
+
+  it("skips rows with a missing or non-numeric value", () => {
+    const broken = cellFrame([
+      [10, 0, 5, 1],
+      [20, 0, 5, 1],
+    ])
+    broken.fields[1].values[1] = null
+    broken.fields[3].values.push("x")
+    broken.fields[0].values.push(30)
+    broken.fields[1].values.push(0)
+    broken.fields[2].values.push(5)
+    const model = build([broken])
+    expect(model.xs).toEqual([10])
+    expect(model.cells).toEqual([[1]])
+  })
+
+  it("follows the y axis options like every other mode", () => {
+    const model = build([sparse], {}, { yReverse: true, yMin: 5, yUnit: "ms" })
+    expect(model.rows.map((row) => row.from)).toEqual([10, 5])
+    expect(model.rows[0].label).toBe("10 ms")
+    expect(model.cells).toEqual([
+      [0, 0, 4],
+      [1, 3, 0],
+    ])
+  })
+
+  it("describes a cell by its bucket and count", () => {
+    const model = build([sparse])
+    const format = formatCounts([model.min, model.max])
+    expect(cellText(model, { row: 1, col: 1 }, format)).toMatch(
+      /, bucket 5 - 10, count 3$/
+    )
+  })
+
+  it("reads a frame that lacks one of the four columns as an ordinary series", () => {
+    const partial = cellFrame([[10, 0, 5, 1]])
+    partial.fields = partial.fields.filter((field) => field.name !== "count")
+    expect(build([partial]).mode).toBe("ordinal")
+    const wrongType = cellFrame([[10, 0, 5, 1]])
+    wrongType.fields[0] = { name: "xMin", type: "number", values: [10] }
+    expect(build([wrongType]).mode).toBe("ordinal")
+  })
+
+  it("draws what the panel's own calculation draws for the same samples", () => {
+    const minute = 60_000
+    const samples = series(
+      [0, minute, 2 * minute, 3 * minute],
+      [1, 5, 9, 17],
+      {}
+    )
+    const own = build(
+      [samples],
+      {},
+      {
+        calculate: true,
+        yBuckets: { mode: "count", value: 4 },
+      }
+    )
+    const transformed = build(
+      heatmap([samples], {
+        type: "heatmap",
+        yBuckets: { mode: "count", value: 4 },
+      })
+    )
+    expect(transformed.xs).toEqual(own.xs)
+    expect(transformed.rows.map((row) => [row.from, row.to])).toEqual(
+      own.rows.map((row) => [row.from, row.to])
+    )
+    expect(transformed.cells).toEqual(own.cells)
   })
 })

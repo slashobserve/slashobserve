@@ -391,6 +391,77 @@ export function calculatedModel(
   return { rows, cells, xs: columns.xs }
 }
 
+type CellColumns = {
+  xMin: unknown[]
+  yMin: unknown[]
+  yMax: unknown[]
+  count: unknown[]
+}
+
+function cellColumns(frame: PreparedFrame): CellColumns | null {
+  const column = (name: string, type: PreparedField["type"]) =>
+    frame.fields.find((field) => field.name === name && field.type === type)
+  const xMin = column("xMin", "time")
+  const yMin = column("yMin", "number")
+  const yMax = column("yMax", "number")
+  const count = column("count", "number")
+  if (!xMin || !yMin || !yMax || !count) return null
+  return {
+    xMin: xMin.values,
+    yMin: yMin.values,
+    yMax: yMax.values,
+    count: count.values,
+  }
+}
+
+type CountedCell = { x: number; from: number; to: number; count: number }
+
+function countedCells(columns: CellColumns[]): CountedCell[] {
+  return columns.flatMap(({ xMin, yMin, yMax, count }) =>
+    xMin.flatMap((x, row): CountedCell[] => {
+      const [from, to, n] = [yMin[row], yMax[row], count[row]]
+      return isNumber(x) && isNumber(from) && isNumber(to) && isNumber(n)
+        ? [{ x, from, to, count: n }]
+        : []
+    })
+  )
+}
+
+function countedModel(
+  columns: CellColumns[],
+  labelling: Labelling
+): Shape & { xs: number[] } {
+  const counted = countedCells(columns)
+  const xs = [...new Set(counted.map((cell) => cell.x))].sort((a, b) => a - b)
+  const bandKey = (from: number, to: number) => `${from}:${to}`
+  const bands = new Map(
+    counted.map((cell) => [bandKey(cell.from, cell.to), cell] as const)
+  )
+  const edges = [...bands.values()].sort(
+    (a, b) => a.from - b.from || a.to - b.to
+  )
+  const column = new Map(xs.map((x, at) => [x, at]))
+  const row = new Map(
+    edges.map((edge, at) => [bandKey(edge.from, edge.to), at])
+  )
+  const cells = edges.map(() => new Array<number | null>(xs.length).fill(0))
+  for (const cell of counted) {
+    const at = row.get(bandKey(cell.from, cell.to)) ?? 0
+    const target = column.get(cell.x) ?? 0
+    cells[at][target] = (cells[at][target] ?? 0) + cell.count
+  }
+  const bounds = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))]
+  const format = boundFormatter(
+    bounds.sort((a, b) => a - b),
+    labelling
+  )
+  const rows = edges.map(({ from, to }): HeatmapRow => {
+    const label = format(from)
+    return { label, from, to, range: `${label} - ${format(to)}` }
+  })
+  return { xs, rows, cells }
+}
+
 function ordinalModel(entries: Entry[], fields: FieldResolver): Shape {
   const labels = entries.map(({ frame, field }) =>
     fields.displayName(frame, field)
@@ -526,6 +597,14 @@ export function heatmapModel(
   display: Record<string, unknown>,
   queries: DataPanel["queries"]
 ): HeatmapModel {
+  const counted = frames.flatMap((frame) => cellColumns(frame) ?? [])
+  if (counted.length > 0) {
+    const model = countedModel(counted, {
+      unit: typeof display.yUnit === "string" ? display.yUnit : undefined,
+      decimals: numberOf(display.yDecimals),
+    })
+    return finished("calculated", model.xs, undefined, model, display)
+  }
   const { xs: sampleXs, entries } = entriesOf(frames, fields)
   const unit = entries[0]?.config.unit
   const labelling: Labelling = {
@@ -576,6 +655,16 @@ export function heatmapModel(
   } else {
     shape = ordinalModel(entries, fields)
   }
+  return finished(mode, xs, unit, shape, display)
+}
+
+function finished(
+  mode: HeatmapMode,
+  xs: number[],
+  unit: string | undefined,
+  shape: Shape,
+  display: Record<string, unknown>
+): HeatmapModel {
   const reversed = display.yReverse === true
   const arrangedShape = arranged(
     shape,

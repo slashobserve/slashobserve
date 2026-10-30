@@ -650,8 +650,16 @@ func (b *panelBuild) heatmapYBucketScale(d *spec.Display) {
 		d.YBucketScale = scale
 	}
 	if written {
-		d.YBucketLogBase = base
+		b.setYBucketLogBase(d, base, "options.calculation.yBuckets.scale.log")
 	}
+}
+
+func (b *panelBuild) setYBucketLogBase(d *spec.Display, base int, path string) {
+	if base != 0 && (d.Calculate == nil || !*d.Calculate) {
+		b.partial(path, uncalculatedLogBaseReason)
+		return
+	}
+	d.YBucketLogBase = base
 }
 
 func (b *panelBuild) heatmapRowScale(path string) (scale string, base int, written bool) {
@@ -938,8 +946,9 @@ func (b *panelBuild) heatmapScale(d *spec.Display) {
 	}
 	d.YScale = scale
 	b.consume(typePath)
-	if base, ok := b.heatmapLogBase("fieldConfig.defaults.custom.scaleDistribution.log"); ok {
-		d.YBucketLogBase = base
+	const basePath = "fieldConfig.defaults.custom.scaleDistribution.log"
+	if base, ok := b.heatmapLogBase(basePath); ok {
+		b.setYBucketLogBase(d, base, basePath)
 	}
 }
 
