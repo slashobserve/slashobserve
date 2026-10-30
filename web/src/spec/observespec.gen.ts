@@ -840,7 +840,8 @@ export interface FieldProps {
     | "magma"
     | "plasma"
     | "inferno"
-    | "cividis";
+    | "cividis"
+    | "warm";
   colorBy?: "last" | "min" | "max";
   displayName?: string;
   noValue?: string;

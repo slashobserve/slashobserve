@@ -29,7 +29,7 @@ var heatmapSchemes = map[string]string{
 	"Blues": "blues", "Greens": "greens", "Oranges": "oranges", "Purples": "purples", "Reds": "reds",
 	"RdYlGn": "redYellowGreen", "Spectral": "redYellowGreen", "RdYlBu": "blueYellowRed",
 	"BuPu": "bluePurple", "YlOrRd": "yellowRed", "OrRd": "yellowRed", "YlGnBu": "yellowBlue",
-	"Viridis": "viridis", "Magma": "magma", "Plasma": "plasma", "Inferno": "inferno", "Cividis": "cividis",
+	"Viridis": "viridis", "Magma": "magma", "Plasma": "plasma", "Inferno": "inferno", "Cividis": "cividis", "Warm": "warm",
 }
 
 var thresholdHexFamilies = map[string]string{

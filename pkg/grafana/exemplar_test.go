@@ -37,8 +37,8 @@ func TestExemplarOnAnInstantOnlyTargetIsDroppedAndReported(t *testing.T) {
 	if panel.Queries[0].Exemplar || !panel.Queries[0].Instant {
 		t.Fatalf("query = %+v, want an instant query without exemplar", panel.Queries[0])
 	}
-	if !slices.Equal(line.Paths, []string{"targets[0].exemplar"}) || !slices.Contains(line.Reasons, exemplarsTimeSeriesOnly) {
-		t.Fatalf("paths = %v, reasons = %v, want the exemplar path with %q", line.Paths, line.Reasons, exemplarsTimeSeriesOnly)
+	if !slices.Equal(line.Paths, []string{"targets[0].exemplar"}) || !slices.Contains(line.Reasons, exemplarsDrawnOnly) {
+		t.Fatalf("paths = %v, reasons = %v, want the exemplar path with %q", line.Paths, line.Reasons, exemplarsDrawnOnly)
 	}
 }
 
@@ -59,8 +59,8 @@ func TestExemplarOnAPanelThatDrawsNoneIsDroppedAndReported(t *testing.T) {
 			if panel.Queries[0].Exemplar {
 				t.Fatalf("query = %+v, want no exemplar", panel.Queries[0])
 			}
-			if !slices.Contains(line.Reasons, exemplarsTimeSeriesOnly) {
-				t.Fatalf("reasons = %v, want %q", line.Reasons, exemplarsTimeSeriesOnly)
+			if !slices.Contains(line.Reasons, exemplarsDrawnOnly) {
+				t.Fatalf("reasons = %v, want %q", line.Reasons, exemplarsDrawnOnly)
 			}
 		})
 	}

@@ -111,6 +111,9 @@ var grafanaDefaults = map[string]any{
 }
 
 var typeDefaults = map[spec.PanelType]map[string]any{
+	spec.Heatmap: {
+		"options.selectionMode": "x",
+	},
 	spec.Text: {
 		"options.mode": "markdown",
 	},
@@ -267,6 +270,9 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.color.scale": {
 		values: []any{"exponential"},
 		why:    "exponential is Grafana's own default scale and an absent scale is imported as exponential, so writing it changes nothing",
+	},
+	"highlightCards": {
+		why: "the heatmap draws no highlight around the hovered card, only its tooltip",
 	},
 	"options.inlineEditing": {
 		why: "the canvas has no drag editor",

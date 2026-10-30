@@ -1320,7 +1320,8 @@
             "magma",
             "plasma",
             "inferno",
-            "cividis"
+            "cividis",
+            "warm"
           ]
         },
         "colorBy": {
@@ -3464,7 +3465,8 @@
                   "yScale": {
                     "enum": [
                       "linear",
-                      "log"
+                      "log",
+                      "symlog"
                     ]
                   },
                   "colorMode": {
@@ -3493,7 +3495,8 @@
                       "magma",
                       "plasma",
                       "inferno",
-                      "cividis"
+                      "cividis",
+                      "warm"
                     ]
                   },
                   "colorSteps": {
@@ -3584,6 +3587,164 @@
                       "always",
                       "never"
                     ]
+                  },
+                  "xBuckets": {
+                    "x-omitFromPrompt": true,
+                    "description": "How calculate groups time into columns: size is seconds per column and count is the number of columns; without a value the size is the data step and the count is one column per sample time. Absent keeps one column per sample time.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "enum": [
+                          "size",
+                          "count"
+                        ]
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
+                  },
+                  "yBuckets": {
+                    "x-omitFromPrompt": true,
+                    "description": "How calculate groups values into rows: size is the value range of a row (the exponent step on a log scale) and count is the number of rows; without a value the size is a round step that gives about 16 rows and the count is 16. Absent means 16 rows.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "enum": [
+                          "size",
+                          "count"
+                        ]
+                      },
+                      "value": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
+                  },
+                  "yBucketScale": {
+                    "x-omitFromPrompt": true,
+                    "description": "Spacing of calculated rows; absent follows yScale.",
+                    "enum": [
+                      "linear",
+                      "log",
+                      "symlog"
+                    ]
+                  },
+                  "yBucketLogBase": {
+                    "x-omitFromPrompt": true,
+                    "description": "Base of a logarithmic yBucketScale; 2 when absent.",
+                    "enum": [
+                      2,
+                      10
+                    ]
+                  },
+                  "rowsLayout": {
+                    "x-omitFromPrompt": true,
+                    "description": "How pre-bucketed series are read: le takes each bound as the upper edge of its row, ge as the lower edge, unknown draws one ordinary row per series, and auto uses le for series with an le label.",
+                    "enum": [
+                      "auto",
+                      "le",
+                      "ge",
+                      "unknown"
+                    ]
+                  },
+                  "yUnit": {
+                    "x-omitFromPrompt": true,
+                    "description": "Unit of the row labels; absent uses the field's unit.",
+                    "$ref": "#/$defs/unit"
+                  },
+                  "yDecimals": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "yMin": {
+                    "x-omitFromPrompt": true,
+                    "description": "Rows that end at or below this value are not drawn.",
+                    "type": "number"
+                  },
+                  "yMax": {
+                    "x-omitFromPrompt": true,
+                    "description": "Rows that start at or above this value are not drawn.",
+                    "type": "number"
+                  },
+                  "yReverse": {
+                    "x-omitFromPrompt": true,
+                    "description": "Draws the lowest row at the top.",
+                    "type": "boolean"
+                  },
+                  "yAxis": {
+                    "x-omitFromPrompt": true,
+                    "description": "Side of the row labels; left when absent.",
+                    "enum": [
+                      "left",
+                      "right",
+                      "hidden"
+                    ]
+                  },
+                  "yAxisWidth": {
+                    "x-omitFromPrompt": true,
+                    "description": "Width of the row labels in pixels; absent fits the longest label.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 400
+                  },
+                  "yAxisLabel": {
+                    "x-omitFromPrompt": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "tooltip": {
+                    "x-omitFromPrompt": true,
+                    "description": "single shows the hovered cell, all lists every row of its column, hidden shows no tooltip; single when absent.",
+                    "enum": [
+                      "single",
+                      "all",
+                      "hidden"
+                    ]
+                  },
+                  "tooltipHistogram": {
+                    "x-omitFromPrompt": true,
+                    "description": "Adds a small histogram of the hovered column's rows to the tooltip.",
+                    "type": "boolean"
+                  },
+                  "tooltipColorScale": {
+                    "x-omitFromPrompt": true,
+                    "description": "Adds the color scale to the tooltip with a marker at the hovered value.",
+                    "type": "boolean"
+                  },
+                  "tooltipMaxWidth": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "tooltipMaxHeight": {
+                    "x-omitFromPrompt": true,
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 2000
+                  },
+                  "exemplars": {
+                    "x-omitFromPrompt": true,
+                    "description": "Whether the exemplars of queries that ask for them are drawn; true when absent.",
+                    "type": "boolean"
+                  },
+                  "exemplarColor": {
+                    "x-omitFromPrompt": true,
+                    "description": "The color of exemplar diamonds; absent means the foreground color.",
+                    "$ref": "#/$defs/color"
                   }
                 }
               }

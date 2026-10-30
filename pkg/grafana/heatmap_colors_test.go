@@ -3,7 +3,6 @@ package grafana
 import (
 	"encoding/json"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -87,7 +86,7 @@ func TestHeatmapColorsTheRendererCannotDrawAreReported(t *testing.T) {
 		name, color, path string
 		check             func(spec.Display) bool
 	}{
-		{"a scheme with no token ramp", `{"scheme":"Warm"}`, "options.color.scheme", func(d spec.Display) bool {
+		{"a scheme with no token ramp", `{"scheme":"Cool"}`, "options.color.scheme", func(d spec.Display) bool {
 			return d.ColorMode == "scheme" && d.ColorScheme == ""
 		}},
 		{"a fill with no token hue", `{"mode":"opacity","fill":"purple"}`, "options.color.fill", func(d spec.Display) bool {
@@ -209,17 +208,6 @@ func TestHeatmapLegendAndCellValues(t *testing.T) {
 				t.Fatalf("legend %q, showValues %q", d.Legend, d.ShowValues)
 			}
 		})
-	}
-}
-
-func TestLegacyHeatmapKeepsItsOwnOptions(t *testing.T) {
-	doc := strings.Replace(panelDoc("heatmap", upTarget+`,"dataFormat":"tsbuckets"`), `"schemaVersion":39`, `"schemaVersion":30`, 1)
-	panel, line := convertedPanel(t, doc)
-	if line.Status != statusPartial || !slices.Contains(line.Paths, "dataFormat") {
-		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
-	}
-	if panel.Display != nil {
-		t.Fatalf("display = %+v", *panel.Display)
 	}
 }
 

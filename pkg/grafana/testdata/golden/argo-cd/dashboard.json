@@ -347,7 +347,6 @@
           "color.mode",
           "dataFormat",
           "hideZeroBuckets",
-          "highlightCards",
           "legend.show",
           "reverseYBuckets",
           "tooltip.show",
@@ -726,15 +725,7 @@
           "dataFormat",
           "fieldConfig.defaults.unitScale",
           "hideZeroBuckets",
-          "highlightCards",
           "legend.show",
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit",
           "reverseYBuckets",
           "tooltip.show",
           "tooltip.showHistogram",
@@ -775,15 +766,7 @@
           "dataFormat",
           "fieldConfig.defaults.unitScale",
           "hideZeroBuckets",
-          "highlightCards",
           "legend.show",
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit",
           "reverseYBuckets",
           "tooltip.show",
           "tooltip.showHistogram",
@@ -2334,7 +2317,8 @@
               "colorMode": "scheme",
               "colorScheme": "redYellowGreen",
               "colorSteps": 128,
-              "cellGap": 2
+              "cellGap": 2,
+              "yUnit": "short"
             }
           },
           {
@@ -2361,7 +2345,8 @@
               "colorMode": "scheme",
               "colorScheme": "redYellowGreen",
               "colorSteps": 128,
-              "cellGap": 2
+              "cellGap": 2,
+              "yUnit": "short"
             }
           },
           {

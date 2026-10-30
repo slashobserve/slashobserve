@@ -37,7 +37,7 @@ A row is "Query A", "Query B" and so on, up to 26.
 Type the query in the editor; a query is at most 20000 characters.
 The server lints the query, and the problems show under the line with "Error: `<message>` (line 2, column 14)", or "Warning: ..." for a lesser one.
 A clean query shows "Query is valid.", and "Lint is unavailable right now." means the check did not run, not that the query is wrong.
-A Prometheus range query also has an **Exemplars** checkbox; when it is on, a time series marks the exemplars Prometheus stored for the query as diamonds on the chart, and hovering one lists its labels (a trace id first) in the tooltip.
+A Prometheus range query also has an **Exemplars** checkbox; when it is on, a time series or a heatmap marks the exemplars Prometheus stored for the query as diamonds on the chart, and hovering one lists its labels (a trace id first) in the tooltip.
 **Legend** sets the name of each series (up to 200 characters), and **Add query** adds a row.
 **Remove query A** appears when the panel has more than one query.
 Rows carry a "New" or "Changed" marker against the saved version.

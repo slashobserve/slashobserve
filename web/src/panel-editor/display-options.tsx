@@ -49,24 +49,32 @@ function Choice({
   name,
   options,
   absent,
+  numeric,
 }: {
   controls: Controls
   label: string
   name: string
   options: readonly Option[]
   absent?: string
+  numeric?: boolean
 }) {
+  const stored = controls.display[name]
   return (
     <SelectField
       label={label}
-      value={text(controls.display, name)}
+      value={numeric ? String(stored ?? "") : text(controls.display, name)}
       options={
         absent === undefined
           ? options
           : [{ value: "", label: absent }, ...options]
       }
       disabled={controls.disabled}
-      onChange={(value) => controls.set(name, value === "" ? undefined : value)}
+      onChange={(value) =>
+        controls.set(
+          name,
+          value === "" ? undefined : numeric ? Number(value) : value
+        )
+      }
     />
   )
 }
@@ -261,6 +269,97 @@ function TextOption({
   )
 }
 
+const bucketModes: readonly Option[] = [
+  { value: "", label: "Automatic" },
+  { value: "size", label: "Size" },
+  { value: "count", label: "Count" },
+]
+
+const bucketValueRule: NumberRule = {
+  min: 0,
+  max: Infinity,
+  minExclusive: true,
+}
+
+function BucketsOption({
+  controls,
+  label,
+  name,
+  sizeHint,
+  countHint,
+}: {
+  controls: Controls
+  label: string
+  name: string
+  sizeHint: string
+  countHint: string
+}) {
+  const stored = controls.display[name] as
+    { mode?: string; value?: number } | undefined
+  const mode = stored?.mode ?? ""
+  const current = typeof stored?.value === "number" ? String(stored.value) : ""
+  const { entry, edit } = useEntry(current)
+  const trimmed = entry.trim()
+  const invalid =
+    trimmed !== "" && parseNumber(trimmed, bucketValueRule) === null
+  return (
+    <>
+      <SelectField
+        label={`${label} mode`}
+        value={mode}
+        options={bucketModes}
+        disabled={controls.disabled}
+        onChange={(next) => {
+          if (next === "") {
+            controls.set(name, undefined)
+            return
+          }
+          controls.set(name, {
+            mode: next,
+            ...(typeof stored?.value === "number"
+              ? { value: stored.value }
+              : {}),
+          })
+        }}
+      />
+      {mode === "" ? null : (
+        <EntryField
+          label={`${label} value`}
+          hint={mode === "size" ? sizeHint : countHint}
+          invalid={invalid}
+        >
+          {(props) => (
+            <Input
+              {...props}
+              inputMode="decimal"
+              value={entry}
+              placeholder="Auto"
+              readOnly={controls.disabled}
+              onChange={(event) => {
+                const next = event.target.value
+                const nextTrimmed = next.trim()
+                const number =
+                  nextTrimmed === ""
+                    ? undefined
+                    : parseNumber(nextTrimmed, bucketValueRule)
+                if (number === null) {
+                  edit(next, current)
+                  return
+                }
+                edit(next, number === undefined ? "" : String(number))
+                controls.set(name, {
+                  mode,
+                  ...(number === undefined ? {} : { value: number }),
+                })
+              }}
+            />
+          )}
+        </EntryField>
+      )}
+    </>
+  )
+}
+
 const listKinds = {
   tags: {
     parse: parseTags,
@@ -336,6 +435,7 @@ function OptionControl({
           name={option.key}
           options={option.options}
           absent={option.absent}
+          numeric={option.numeric}
         />
       )
     case "toggle":
@@ -379,6 +479,16 @@ function OptionControl({
           name={option.key}
           placeholder={option.placeholder}
           maxLength={option.maxLength}
+        />
+      )
+    case "buckets":
+      return (
+        <BucketsOption
+          controls={controls}
+          label={option.label}
+          name={option.key}
+          sizeHint={option.sizeHint}
+          countHint={option.countHint}
         />
       )
     case "tags":

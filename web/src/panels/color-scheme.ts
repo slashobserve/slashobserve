@@ -32,6 +32,7 @@ const ramps: Record<ColorScheme, Ramp> = {
   plasma: { kind: "path", stops: [purple, "--series-5", warning] },
   inferno: { kind: "path", stops: [purple, critical, warning] },
   cividis: { kind: "path", stops: [blue, "--muted-foreground", warning] },
+  warm: { kind: "path", stops: [purple, orange, warning] },
 }
 
 export const schemes = Object.keys(ramps) as ColorScheme[]

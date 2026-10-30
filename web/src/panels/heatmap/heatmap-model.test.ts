@@ -577,3 +577,286 @@ describe("columnAt", () => {
     expect(columnAt(xs, 4501)).toBeNull()
   })
 })
+
+describe("calculated time buckets", () => {
+  const times = Array.from({ length: 10 }, (_, i) => i * 1000)
+  const frame = series(
+    times,
+    times.map((_, i) => i)
+  )
+
+  function perColumn(display: Record<string, unknown>) {
+    const model = build([frame], {}, { calculate: true, ...display })
+    return {
+      xs: model.xs,
+      totals: model.xs.map((_, col) =>
+        model.cells.reduce((sum, row) => sum + (row[col] ?? 0), 0)
+      ),
+    }
+  }
+
+  it("keeps one column per sample time without xBuckets", () => {
+    expect(perColumn({}).xs).toEqual(times)
+  })
+
+  it("splits the time range into a number of columns", () => {
+    const { xs, totals } = perColumn({ xBuckets: { mode: "count", value: 2 } })
+    expect(xs).toEqual([0, 4500])
+    expect(totals).toEqual([5, 5])
+  })
+
+  it("makes columns of a size in seconds aligned to multiples of it", () => {
+    const { xs, totals } = perColumn({ xBuckets: { mode: "size", value: 3 } })
+    expect(xs).toEqual([0, 3000, 6000, 9000])
+    expect(totals).toEqual([3, 3, 3, 1])
+  })
+
+  it("aligns a size to its multiples even when the data starts between them", () => {
+    const shifted = series([1500, 2500, 3500], [1, 2, 3])
+    const model = build(
+      [shifted],
+      {},
+      { calculate: true, xBuckets: { mode: "size", value: 2 } }
+    )
+    expect(model.xs).toEqual([0, 2000])
+  })
+
+  it("sizes columns by the data step when the size has no value", () => {
+    const sparse = series([0, 2000, 4000], [1, 2, 3])
+    const model = build(
+      [sparse],
+      {},
+      { calculate: true, xBuckets: { mode: "size" } }
+    )
+    expect(model.xs).toEqual([0, 2000, 4000])
+  })
+
+  it("keeps the sample columns for a count without a value", () => {
+    expect(perColumn({ xBuckets: { mode: "count" } }).xs).toEqual(times)
+  })
+
+  it("leaves a single sample time in one column", () => {
+    const model = build(
+      [series([5000], [3])],
+      {},
+      { calculate: true, xBuckets: { mode: "count", value: 4 } }
+    )
+    expect(model.xs).toEqual([5000])
+  })
+})
+
+describe("calculated value buckets", () => {
+  const values = [0, 4, 8, 12, 16]
+  const frame = series(
+    values.map((_, i) => i),
+    values
+  )
+
+  function rowCounts(display: Record<string, unknown>, data = frame) {
+    const model = build([data], {}, { calculate: true, ...display })
+    return {
+      model,
+      counts: model.cells.map((row) =>
+        row.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+      ),
+    }
+  }
+
+  it("uses a number of rows", () => {
+    const { model, counts } = rowCounts({
+      yBuckets: { mode: "count", value: 4 },
+    })
+    expect(model.rows.map((row) => row.from)).toEqual([0, 4, 8, 12])
+    expect(model.rows[3].to).toBe(16)
+    expect(counts).toEqual([1, 1, 1, 2])
+  })
+
+  it("uses rows of a size whose edges are multiples of it", () => {
+    const { model, counts } = rowCounts({
+      yBuckets: { mode: "size", value: 5 },
+    })
+    expect(model.rows.map((row) => row.from)).toEqual([0, 5, 10, 15])
+    expect(model.rows[3].to).toBe(20)
+    expect(counts).toEqual([2, 1, 1, 1])
+  })
+
+  it("picks a round size for about 16 rows when the size has no value", () => {
+    const wide = series([1, 2], [0, 100])
+    const { model } = rowCounts({ yBuckets: { mode: "size" } }, wide)
+    expect(model.rows).toHaveLength(10)
+    expect(model.rows[1].from).toBe(10)
+    expect(model.rows[9].to).toBe(100)
+  })
+
+  it("keeps 16 rows for a count without a value", () => {
+    expect(rowCounts({ yBuckets: { mode: "count" } }).model.rows).toHaveLength(
+      calculatedRows
+    )
+  })
+
+  it("steps by powers of the base on a log scale", () => {
+    const wide = series([1, 2, 3], [1, 50, 5000])
+    const { model, counts } = rowCounts(
+      {
+        yBuckets: { mode: "size", value: 1 },
+        yBucketScale: "log",
+        yBucketLogBase: 10,
+      },
+      wide
+    )
+    expect(model.rows.map((row) => row.from)).toEqual(
+      [1, 10, 100, 1000].map((edge) => expect.closeTo(edge, 6))
+    )
+    expect(counts).toEqual([1, 1, 0, 1])
+    expect(model.cells[1]).toEqual([0, 1, 0])
+    expect(model.cells[3]).toEqual([0, 0, 1])
+  })
+
+  it("puts zero in the middle row of a symmetric log scale", () => {
+    const signed = series([1, 2, 3], [-10, 0, 10])
+    const { model } = rowCounts({ yBucketScale: "symlog" }, signed)
+    expect(model.cells[8][1]).toBe(1)
+    expect(model.cells[0][0]).toBe(1)
+    expect(model.cells[15][2]).toBe(1)
+  })
+
+  it("lets yBucketScale win over yScale", () => {
+    const wide = series([1, 2], [1, 10000])
+    const { model } = rowCounts({ yScale: "log", yBucketScale: "linear" }, wide)
+    expect(model.rows[1].from).toBeCloseTo(625.9375, 3)
+  })
+
+  it("falls back to the base 2 when none is written", () => {
+    const wide = series([1, 2], [1, 256])
+    const { model } = rowCounts(
+      { yBucketScale: "log", yBuckets: { mode: "size", value: 2 } },
+      wide
+    )
+    expect(model.rows.map((row) => row.from)).toEqual(
+      [1, 4, 16, 64].map((edge) => expect.closeTo(edge, 6))
+    )
+  })
+})
+
+describe("pre-bucketed layouts", () => {
+  const cumulative = [
+    series([1], [10], { le: "1" }),
+    series([1], [6], { le: "5" }),
+    series([1], [3], { le: "10" }),
+  ]
+
+  it("reads each bound as the upper edge for le", () => {
+    const model = build(cumulative, {}, { rowsLayout: "le" })
+    expect(model.rows.map(({ from, to }) => [from, to])).toEqual([
+      [0, 1],
+      [1, 5],
+      [5, 10],
+    ])
+  })
+
+  it("reads each bound as the lower edge for ge, the last row open above", () => {
+    const model = build(cumulative, {}, { rowsLayout: "ge" })
+    expect(model.mode).toBe("buckets")
+    expect(model.rows.map(({ from, to }) => [from, to])).toEqual([
+      [1, 5],
+      [5, 10],
+      [10, undefined],
+    ])
+    expect(model.rows.map((row) => row.range)).toEqual([
+      "1 - 5",
+      "5 - 10",
+      "10 and above",
+    ])
+    expect(model.cells).toEqual([[10], [6], [3]])
+  })
+
+  it("de-accumulates from the highest bound for ge in the heatmap format", () => {
+    const model = build(
+      cumulative,
+      { queries: bucketQuery },
+      { rowsLayout: "ge" }
+    )
+    expect(model.cells).toEqual([[4], [3], [3]])
+  })
+
+  it("draws one ordinary row per series for unknown", () => {
+    const model = build(cumulative, {}, { rowsLayout: "unknown" })
+    expect(model.mode).toBe("ordinal")
+    expect(model.rows).toHaveLength(3)
+  })
+
+  it("reads series named by a number as bounds only when the layout is written", () => {
+    const named = (name: string, value: number): PreparedFrame => ({
+      ref: "A",
+      labels: {},
+      fields: [
+        { name: "Time", type: "time", values: [1] },
+        { name, type: "number", values: [value] },
+      ],
+    })
+    const frames = [named("1", 4), named("5", 2)]
+    expect(build(frames).mode).toBe("ordinal")
+    const model = build(frames, {}, { rowsLayout: "le" })
+    expect(model.mode).toBe("buckets")
+    expect(model.rows.map((row) => row.label)).toEqual(["1", "5"])
+  })
+})
+
+describe("y axis rows", () => {
+  const frames = [
+    series([1], [1], { le: "1" }),
+    series([1], [2], { le: "5" }),
+    series([1], [3], { le: "10" }),
+    series([1], [4], { le: "+Inf" }),
+  ]
+  const labels = (
+    display: Record<string, unknown>,
+    extra: Partial<DataPanel> = {}
+  ) => build(frames, extra, display).rows.map((row) => row.label)
+
+  it("drops rows that end at or below yMin and start at or above yMax", () => {
+    expect(labels({ yMin: 1, yMax: 10 })).toEqual(["5", "10"])
+  })
+
+  it("keeps rows that only partly lie in the window", () => {
+    expect(labels({ yMin: 2, yMax: 6 })).toEqual(["5", "10"])
+  })
+
+  it("keeps only the open top row above the last bound", () => {
+    expect(labels({ yMin: 20, yMax: 30 })).toEqual(["+Inf"])
+  })
+
+  it("has no rows when the window holds none", () => {
+    expect(labels({ yMin: 5, yMax: 5 })).toEqual([])
+  })
+
+  it("draws the lowest row last when reversed, with its cells", () => {
+    const model = build(frames, {}, { yReverse: true })
+    expect(model.reversed).toBe(true)
+    expect(model.rows.map((row) => row.label)).toEqual(["+Inf", "10", "5", "1"])
+    expect(model.cells).toEqual([[4], [3], [2], [1]])
+  })
+
+  it("formats labels with yUnit and yDecimals", () => {
+    const model = build(
+      [series([1], [1], { le: "0.5" }), series([1], [1], { le: "+Inf" })],
+      {},
+      { yUnit: "percentunit", yDecimals: 1 }
+    )
+    expect(model.rows[0].label).toBe("50.0%")
+  })
+
+  it("formats calculated rows with yDecimals", () => {
+    const model = build(
+      [series([1, 2], [0, 1])],
+      {},
+      { calculate: true, yDecimals: 3, yBuckets: { mode: "count", value: 4 } }
+    )
+    expect(model.rows.map((row) => row.label)).toEqual([
+      "0.000",
+      "0.250",
+      "0.500",
+      "0.750",
+    ])
+  })
+})

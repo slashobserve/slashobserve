@@ -5,6 +5,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -32,6 +33,7 @@ const (
 	grafanaHeatmapExponent  = 0.5
 	grafanaHeatmapGap       = 1
 	grafanaHeatmapFilterLow = 1e-9
+	grafanaExemplarColor    = "rgba(255,0,255,0.7)"
 	minColorSteps           = 2
 	maxColorSteps           = 128
 	minColorExponent        = 0.1
@@ -40,9 +42,12 @@ const (
 	maxCellRadius           = 10
 )
 
+var bucketDurationSeconds = map[string]float64{"": 1, "ms": 0.001, "s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hr": 3600, "d": 86400, "w": 604800}
+
 var (
-	timeFromPattern  = regexp.MustCompile(`^(?:now-)?([1-9][0-9]*)([smhdwMy])$`)
-	timeShiftPattern = regexp.MustCompile(`^[1-9][0-9]*[smhdwMy]$`)
+	timeFromPattern       = regexp.MustCompile(`^(?:now-)?([1-9][0-9]*)([smhdwMy])$`)
+	timeShiftPattern      = regexp.MustCompile(`^[1-9][0-9]*[smhdwMy]$`)
+	bucketDurationPattern = regexp.MustCompile(`^(\d+(?:\.\d+)?)(ms|s|sec|m|min|h|hr|d|w)?$`)
 )
 
 var displayBuilders = map[spec.PanelType]func(*panelBuild){
@@ -542,10 +547,8 @@ func displayHeatmap(b *panelBuild) {
 		d.Calculate = flag
 	}
 	b.heatmapScale(d)
-	if format := asString(b.raw["dataFormat"]); format != "" && b.c.schemaVersion() < legacyHeatmapV {
-		calculate := format != "tsbuckets"
-		d.Calculate = &calculate
-		b.partial("dataFormat", "This heatmap uses the old Grafana heatmap; its options are imported as far as they map.")
+	if b.isLegacyHeatmap() {
+		b.legacyHeatmap(d)
 		return
 	}
 	b.heatmapColors(d)
@@ -555,6 +558,230 @@ func displayHeatmap(b *panelBuild) {
 		d.Legend = "hidden"
 	}
 	b.heatmapShowValues(d)
+	b.heatmapCalculation(d)
+	b.heatmapYAxis(d)
+	b.heatmapRowsLayout(d)
+	b.heatmapTooltip(d)
+	b.heatmapExemplarColor(d)
+}
+
+func (b *panelBuild) heatmapExemplarColor(d *spec.Display) {
+	const path = "options.exemplars.color"
+	if v, ok := b.value(path); ok && v == grafanaExemplarColor {
+		b.consume(path)
+		return
+	}
+	d.ExemplarColor = b.heatmapColorValue(path)
+}
+
+func (b *panelBuild) isLegacyHeatmap() bool {
+	return asString(b.raw["dataFormat"]) != "" && b.c.schemaVersion() < legacyHeatmapV
+}
+
+func (b *panelBuild) heatmapCalculation(d *spec.Display) {
+	d.XBuckets = b.heatmapBuckets("options.calculation.xBuckets", xBucketSize)
+	d.YBuckets = b.heatmapBuckets("options.calculation.yBuckets", yBucketSize)
+	b.heatmapXBucketScale()
+	b.heatmapYBucketScale(d)
+}
+
+func (b *panelBuild) heatmapBuckets(path string, size func(any) (float64, bool)) *spec.Buckets {
+	mode := b.enumOption(path+".mode", "size", "count")
+	buckets := &spec.Buckets{Mode: mode}
+	if v, ok := b.value(path + ".value"); ok && v != nil && v != "" {
+		parse := numberValue
+		if mode != "count" {
+			parse = size
+		}
+		if value, valid := parse(v); valid && value > 0 {
+			buckets.Value = &value
+			b.consume(path + ".value")
+		} else {
+			b.partial(path+".value", "The bucket size or count must be a positive number.")
+		}
+	} else if ok {
+		b.consume(path + ".value")
+	}
+	switch {
+	case buckets.Mode != "":
+	case buckets.Value != nil:
+		buckets.Mode = "size"
+	default:
+		return nil
+	}
+	return buckets
+}
+
+func yBucketSize(v any) (float64, bool) {
+	return numberValue(v)
+}
+
+func xBucketSize(v any) (float64, bool) {
+	if f, ok := asFloat(v); ok {
+		return f, true
+	}
+	m := bucketDurationPattern.FindStringSubmatch(strings.TrimSpace(asString(v)))
+	if m == nil {
+		return 0, false
+	}
+	n, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, false
+	}
+	return n * bucketDurationSeconds[m[2]], true
+}
+
+func (b *panelBuild) heatmapXBucketScale() {
+	const path = "options.calculation.xBuckets.scale"
+	scale := b.enumOption(path+".type", "linear", "log", "symlog")
+	if scale == "log" || scale == "symlog" {
+		b.partial(path+".type", "Logarithmic time buckets are not supported yet.")
+		return
+	}
+	b.consume(path + ".log")
+}
+
+func (b *panelBuild) heatmapYBucketScale(d *spec.Display) {
+	const path = "options.calculation.yBuckets.scale"
+	scale := b.enumOption(path+".type", "linear", "log", "symlog")
+	if scale != "linear" || d.YScale != "" {
+		d.YBucketScale = scale
+	}
+	if scale != "log" && scale != "symlog" {
+		b.consume(path + ".log")
+		return
+	}
+	if base, written := b.heatmapLogBase(path + ".log"); written {
+		d.YBucketLogBase = base
+	}
+}
+
+func (b *panelBuild) heatmapLogBase(path string) (int, bool) {
+	v, ok := b.value(path)
+	if !ok || v == nil {
+		return 0, false
+	}
+	base, isInt := asInt(v)
+	if !isInt || (base != 2 && base != defaultLogBase) {
+		b.partial(path, logBaseReason)
+		return 0, false
+	}
+	b.consume(path)
+	return base, true
+}
+
+func (b *panelBuild) heatmapYAxis(d *spec.Display) {
+	const prefix = "options.yAxis."
+	switch v, _ := b.value(prefix + "axisPlacement"); asString(v) {
+	case "right", "hidden":
+		d.YAxis = b.enumOption(prefix+"axisPlacement", "right", "hidden")
+	case "left", "auto":
+		b.consume(prefix + "axisPlacement")
+	}
+	if v, ok := b.take(prefix + "unit"); ok {
+		b.heatmapUnit(&d.YUnit, v, prefix+"unit")
+	}
+	d.YDecimals = b.heatmapDecimals(prefix + "decimals")
+	d.YMin = b.heatmapNumberOption(prefix + "min")
+	d.YMax = b.heatmapNumberOption(prefix + "max")
+	if n, ok := b.heatmapWholeNumber(prefix+"axisWidth", 0, maxAxisWidth); ok {
+		d.YAxisWidth = &n
+	}
+	b.heatmapAxisLabel(d, prefix+"axisLabel")
+	if reverse, ok := b.boolOption(prefix + "reverse"); ok && *reverse {
+		d.YReverse = reverse
+	}
+}
+
+func (b *panelBuild) heatmapAxisLabel(d *spec.Display, path string) {
+	v, _ := b.take(path)
+	label := strings.TrimSpace(asString(v))
+	if label == "" {
+		return
+	}
+	cut, wasCut := cutRunes(label, maxAxisLabel)
+	if wasCut {
+		b.partial(path, "The axis label was cut to 100 characters.")
+	}
+	d.YAxisLabel = cut
+}
+
+func (b *panelBuild) heatmapRowsLayout(d *spec.Display) {
+	if layout := b.enumOption("options.rowsFrame.layout", "auto", "le", "ge", "unknown"); layout != "auto" {
+		d.RowsLayout = layout
+	}
+}
+
+func (b *panelBuild) heatmapTooltip(d *spec.Display) {
+	switch b.enumOption("options.tooltip.mode", "single", "multi", "none") {
+	case "multi":
+		d.Tooltip = "all"
+	case "none":
+		d.Tooltip = "hidden"
+	}
+	if flag, ok := b.boolOption("options.tooltip.yHistogram"); ok && *flag {
+		d.TooltipHistogram = flag
+	}
+	if flag, ok := b.boolOption("options.tooltip.showColorScale"); ok && *flag {
+		d.TooltipColorScale = flag
+	}
+	d.TooltipMaxWidth = b.tooltipSizeOption("options.tooltip.maxWidth")
+	d.TooltipMaxHeight = b.tooltipSizeOption("options.tooltip.maxHeight")
+}
+
+func (b *panelBuild) heatmapColorValue(path string) string {
+	v, _ := b.value(path)
+	name := strings.TrimSpace(asString(v))
+	if name == "" {
+		return ""
+	}
+	color, ok := thresholdColor(name)
+	if _, literal := literalColor(name); !ok || (!literal && strings.HasPrefix(color, "#")) {
+		b.partial(path, fmt.Sprintf("The heatmap color %q is not supported yet.", name))
+		return ""
+	}
+	b.consume(path)
+	return color
+}
+
+func (b *panelBuild) heatmapUnit(target *string, v any, path string) {
+	unit, isText := v.(string)
+	if !isText || unit == "" {
+		return
+	}
+	if imported, valid := importedUnit(unit); valid {
+		*target = imported
+	} else {
+		b.partial(path, fmt.Sprintf("Unit %s is not supported yet.", unit))
+	}
+}
+
+func (b *panelBuild) heatmapDecimals(path string) *int {
+	v, ok := b.take(path)
+	if !ok || v == nil {
+		return nil
+	}
+	decimals, isNumber := numberValue(v)
+	n := int(decimals)
+	if !isNumber || float64(n) != decimals || n < 0 || n > maxDecimals {
+		b.partial(path, "Decimals are kept as a whole number between 0 and 10.")
+		return nil
+	}
+	return &n
+}
+
+func (b *panelBuild) heatmapWholeNumber(path string, low, high int) (int, bool) {
+	v, ok := b.take(path)
+	if !ok || v == nil {
+		return 0, false
+	}
+	f, isNumber := numberValue(v)
+	n := int(f)
+	if !isNumber || float64(n) != f || n < low || n > high {
+		b.partial(path, fmt.Sprintf("This value is kept as a whole number between %d and %d.", low, high))
+		return 0, false
+	}
+	return n, true
 }
 
 func (b *panelBuild) heatmapColors(d *spec.Display) {
@@ -564,10 +791,10 @@ func (b *panelBuild) heatmapColors(d *spec.Display) {
 	}
 	if mode == "scheme" {
 		d.ColorMode = "scheme"
-		b.heatmapScheme(d)
+		b.heatmapScheme(d, "options.color.scheme", "", grafanaHeatmapScheme)
 		b.consume("options.color.fill", "options.color.scale", "options.color.exponent")
 	} else {
-		b.heatmapFill(d)
+		b.heatmapFill(d, "options.color.fill")
 		b.heatmapScaleAndExponent(d)
 		b.consume("options.color.scheme")
 	}
@@ -579,12 +806,11 @@ func (b *panelBuild) heatmapColors(d *spec.Display) {
 	}
 }
 
-func (b *panelBuild) heatmapScheme(d *spec.Display) {
-	const path = "options.color.scheme"
+func (b *panelBuild) heatmapScheme(d *spec.Display, path, prefix, fallback string) {
 	v, _ := b.take(path)
-	name := asString(v)
+	name := strings.TrimPrefix(asString(v), prefix)
 	if name == "" {
-		name = grafanaHeatmapScheme
+		name = fallback
 	}
 	scheme, ok := heatmapSchemes[name]
 	switch {
@@ -595,19 +821,13 @@ func (b *panelBuild) heatmapScheme(d *spec.Display) {
 	}
 }
 
-func (b *panelBuild) heatmapFill(d *spec.Display) {
-	const path = "options.color.fill"
-	v, _ := b.take(path)
-	name := strings.TrimSpace(asString(v))
-	if name == "" {
-		name = grafanaHeatmapFill
-	}
-	color, ok := thresholdColor(name)
-	if _, literal := literalColor(name); !ok || (!literal && strings.HasPrefix(color, "#")) {
-		b.partial(path, fmt.Sprintf("The heatmap color %q is not supported yet.", name))
+func (b *panelBuild) heatmapFill(d *spec.Display, path string) {
+	if v, _ := b.value(path); strings.TrimSpace(asString(v)) == "" {
+		b.consume(path)
+		d.ColorFill, _ = thresholdColor(grafanaHeatmapFill)
 		return
 	}
-	d.ColorFill = color
+	d.ColorFill = b.heatmapColorValue(path)
 }
 
 func (b *panelBuild) heatmapScaleAndExponent(d *spec.Display) {
@@ -620,7 +840,10 @@ func (b *panelBuild) heatmapScaleAndExponent(d *spec.Display) {
 		return
 	}
 	d.ColorScale = scale
-	const path = "options.color.exponent"
+	b.heatmapExponent(d, "options.color.exponent")
+}
+
+func (b *panelBuild) heatmapExponent(d *spec.Display, path string) {
 	v, ok := b.take(path)
 	if !ok || v == nil {
 		return
@@ -638,23 +861,9 @@ func (b *panelBuild) heatmapCells(d *spec.Display) {
 	d.CellGap = b.heatmapIntOption("options.cellGap", grafanaHeatmapGap, 0, maxCellGap)
 	d.CellRadius = b.heatmapIntOption("options.cellRadius", 0, 0, maxCellRadius)
 	if v, ok := b.take("options.cellValues.unit"); ok {
-		if unit, isText := v.(string); isText && unit != "" {
-			if imported, valid := importedUnit(unit); valid {
-				d.CellUnit = imported
-			} else {
-				b.partial("options.cellValues.unit", fmt.Sprintf("Unit %s is not supported yet.", unit))
-			}
-		}
+		b.heatmapUnit(&d.CellUnit, v, "options.cellValues.unit")
 	}
-	if v, ok := b.take("options.cellValues.decimals"); ok && v != nil {
-		decimals, isNumber := numberValue(v)
-		n := int(decimals)
-		if !isNumber || float64(n) != decimals || n < 0 || n > maxDecimals {
-			b.partial("options.cellValues.decimals", "Decimals are kept as a whole number between 0 and 10.")
-			return
-		}
-		d.CellDecimals = &n
-	}
+	d.CellDecimals = b.heatmapDecimals("options.cellValues.decimals")
 }
 
 func (b *panelBuild) heatmapValueFilters(d *spec.Display) {
@@ -702,17 +911,21 @@ func (b *panelBuild) heatmapIntOption(path string, fallback, low, high int) int 
 }
 
 func (b *panelBuild) heatmapScale(d *spec.Display) {
-	v, _ := b.value("fieldConfig.defaults.custom.scaleDistribution.type")
+	const typePath = "fieldConfig.defaults.custom.scaleDistribution.type"
+	v, _ := b.value(typePath)
 	scale := asString(v)
 	if scale == "" {
 		scale = asString(lookupValue(b.raw, "options.yAxis.scaleType"))
 		b.consume("options.yAxis.scaleType")
 	}
-	if scale != "log" {
+	if scale != "log" && scale != "symlog" {
 		return
 	}
-	d.YScale = "log"
-	b.consume("fieldConfig.defaults.custom.scaleDistribution")
+	d.YScale = scale
+	b.consume(typePath)
+	if base, ok := b.heatmapLogBase("fieldConfig.defaults.custom.scaleDistribution.log"); ok {
+		d.YBucketLogBase = base
+	}
 }
 
 func displayHistogram(b *panelBuild) {

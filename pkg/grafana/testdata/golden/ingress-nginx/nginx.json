@@ -358,13 +358,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Exemplars are drawn on time series only.",
-          "The heatmap color scheme Warm is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "targets[0].exemplar",
-          "options.color.scheme",
           "color.cardColor",
           "color.colorScale",
           "color.colorScheme",
@@ -372,15 +368,7 @@
           "color.mode",
           "dataFormat",
           "hideZeroBuckets",
-          "highlightCards",
           "legend.show",
-          "options.exemplars.color",
-          "options.rowsFrame.layout",
-          "options.tooltip.showColorScale",
-          "options.tooltip.yHistogram",
-          "options.yAxis.axisPlacement",
-          "options.yAxis.reverse",
-          "options.yAxis.unit",
           "reverseYBuckets",
           "tooltip.show",
           "tooltip.showHistogram",
@@ -1104,13 +1092,17 @@
           {
             "query": "sum(increase(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le)",
             "legend": "{{le}}",
-            "format": "heatmap"
+            "format": "heatmap",
+            "exemplar": true
           }
         ],
         "display": {
           "colorMode": "scheme",
+          "colorScheme": "warm",
           "colorSteps": 128,
-          "cellGap": 2
+          "cellGap": 2,
+          "yUnit": "s",
+          "tooltipHistogram": true
         }
       },
       {

@@ -103,11 +103,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.color",
-          "options.calculation.xBuckets.mode",
-          "options.calculation.yBuckets.mode",
-          "options.tooltip.show",
-          "options.tooltip.yHistogram",
-          "options.yAxis.unit"
+          "options.tooltip.show"
         ],
         "queries": [
           {
@@ -536,6 +532,14 @@
               "colorScheme": "oranges",
               "colorSteps": 64,
               "cellGap": 1,
+              "xBuckets": {
+                "mode": "size"
+              },
+              "yBuckets": {
+                "mode": "size"
+              },
+              "yBucketLogBase": 2,
+              "yUnit": "ms",
               "showValues": "auto"
             }
           },
