@@ -1140,15 +1140,24 @@ func TestCanvasPlacementInPercentIsKept(t *testing.T) {
 	}
 }
 
-func TestCanvasPixelPlacementBecomesPercentAndIsReported(t *testing.T) {
+func TestCanvasPixelPlacementIsKeptWithAPercentFallback(t *testing.T) {
 	cases := []struct {
 		name, placement, constraint string
 		want                        [4]float64
+		kept                        spec.CanvasPlacement
 	}{
-		{"left and top", `{"left":72,"top":34,"width":144,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{10, 10, 20, 20}},
-		{"right and bottom", `{"right":72,"bottom":34,"width":144,"height":68}`, `{"horizontal":"right","vertical":"bottom"}`, [4]float64{70, 70, 20, 20}},
-		{"left and right", `{"left":72,"right":72,"top":0,"height":340}`, `{"horizontal":"leftright","vertical":"top"}`, [4]float64{10, 0, 80, 100}},
-		{"past the panel", `{"left":1000,"top":-50,"width":2000,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{100, 0, 100, 20}},
+		{"left and top", `{"left":72,"top":34,"width":144,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{10, 10, 20, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "top", Left: ptr(72.0), Top: ptr(34.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"right and bottom", `{"right":72,"bottom":34,"width":144,"height":68}`, `{"horizontal":"right","vertical":"bottom"}`, [4]float64{70, 70, 20, 20},
+			spec.CanvasPlacement{Horizontal: "right", Vertical: "bottom", Right: ptr(72.0), Bottom: ptr(34.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"left and right", `{"left":72,"right":72,"top":0,"height":340}`, `{"horizontal":"leftright","vertical":"top"}`, [4]float64{10, 0, 80, 100},
+			spec.CanvasPlacement{Horizontal: "leftright", Vertical: "top", Left: ptr(72.0), Right: ptr(72.0), Top: ptr(0.0), Height: ptr(340.0)}},
+		{"centered", `{"left":0,"top":0,"width":144,"height":68}`, `{"horizontal":"center","vertical":"center"}`, [4]float64{40, 40, 20, 20},
+			spec.CanvasPlacement{Horizontal: "center", Vertical: "center", Left: ptr(0.0), Top: ptr(0.0), Width: ptr(144.0), Height: ptr(68.0)}},
+		{"percent on one axis only", `{"left":72,"top":10,"width":144,"height":20}`, `{"horizontal":"left","vertical":"scale"}`, [4]float64{10, 10, 20, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "scale", Left: ptr(72.0), Top: ptr(10.0), Width: ptr(144.0), Height: ptr(20.0)}},
+		{"past the panel", `{"left":1000,"top":-50,"width":2000,"height":68}`, `{"horizontal":"left","vertical":"top"}`, [4]float64{100, 0, 100, 20},
+			spec.CanvasPlacement{Horizontal: "left", Vertical: "top", Left: ptr(1000.0), Top: ptr(-50.0), Width: ptr(2000.0), Height: ptr(68.0)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1160,10 +1169,26 @@ func TestCanvasPixelPlacementBecomesPercentAndIsReported(t *testing.T) {
 			if got := [4]float64{els[0].Left, els[0].Top, els[0].Width, els[0].Height}; got != tc.want {
 				t.Errorf("box = %v, want %v", got, tc.want)
 			}
-			if !slices.Contains(line.Paths, "options.root.elements[0].placement") || !slices.Contains(line.Reasons, canvasPixelReason) {
-				t.Errorf("paths = %v, reasons = %v, want the pixel conversion reported", line.Paths, line.Reasons)
+			if !reflect.DeepEqual(els[0].Placement, &tc.kept) {
+				t.Errorf("placement = %+v, want %+v", els[0].Placement, tc.kept)
+			}
+			if len(line.Paths) != 0 {
+				t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 			}
 		})
+	}
+}
+
+func TestCanvasPixelPlacementInsideAGroupBecomesPercentAndIsReported(t *testing.T) {
+	group := `{"type":"frame","name":"Group","constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":50,"height":50},"elements":[` +
+		`{"type":"rectangle","name":"Inner","constraint":{"horizontal":"left","vertical":"top"},"placement":{"left":72,"top":34,"width":144,"height":68}}]}`
+	panel, line := canvasPanel(t, 12, 10, group)
+	els := canvasElements(t, panel)
+	if len(els) != 1 || els[0].Placement != nil {
+		t.Fatalf("elements = %+v", els)
+	}
+	if !slices.Contains(line.Paths, "options.root.elements[0].elements[0].placement") || !slices.Contains(line.Reasons, canvasPixelReason) {
+		t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 	}
 }
 
@@ -1204,18 +1229,17 @@ func TestCanvasColorsStyleAndFieldColors(t *testing.T) {
 }
 
 func TestCanvasOptionsWithoutACounterpartAreReported(t *testing.T) {
-	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":45}`
-	element := `{"type":"rectangle","name":"m",` + scaled + `,"config":{"size":100,"valign":"top"},` +
-		`"background":{"color":{"field":"other"},"image":{"fixed":"img/a.png"}},"border":{"width":3,"radius":4,"color":{"fixed":"red"}}}`
+	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10,"rotation":900}`
+	element := `{"type":"rectangle","name":"m",` + scaled + `,"config":{"size":100},` +
+		`"background":{"color":{"field":"other"},"image":{"fixed":"img/a.png"}},"border":{"width":30,"radius":400,"color":{"fixed":"red"}}}`
 	_, line := canvasPanel(t, 12, 10, element)
 	want := []string{
 		"options.root.elements[0].placement.rotation",
 		"options.root.elements[0].background.color.field",
 		"options.root.elements[0].border.width",
 		"options.root.elements[0].border.radius",
-		"options.root.elements[0].background.image",
+		"options.root.elements[0].background.image.fixed",
 		"options.root.elements[0].config.size",
-		"options.root.elements[0].config.valign",
 	}
 	for _, path := range want {
 		if !slices.Contains(line.Paths, path) {
@@ -1224,30 +1248,15 @@ func TestCanvasOptionsWithoutACounterpartAreReported(t *testing.T) {
 	}
 }
 
-func TestCanvasLeavesOutUnsupportedElementsAndNeverImportsLinksOrActions(t *testing.T) {
+func TestCanvasLeavesOutUnsupportedElements(t *testing.T) {
 	const scaled = `"constraint":{"horizontal":"scale","vertical":"scale"},"placement":{"left":0,"top":0,"width":10,"height":10}`
-	elements := `{"type":"server","name":"s",` + scaled + `},` +
-		`{"type":"rectangle","name":"r",` + scaled + `,"links":[{"title":"Docs","url":"https://example.com"}],"actions":[{"type":"fetch","fetch":{"url":"https://example.com/restart","method":"POST"}}]}`
+	elements := `{"type":"wind-farm","name":"s",` + scaled + `},{"type":"rectangle","name":"r",` + scaled + `}`
 	panel, line := canvasPanel(t, 12, 10, elements)
 	if els := canvasElements(t, panel); len(els) != 1 || els[0].ID != "r" {
 		t.Fatalf("elements = %+v, want only the rectangle", els)
 	}
-	for _, path := range []string{"options.root.elements[0]", "options.root.elements[1].links", "options.root.elements[1].actions"} {
-		if !slices.Contains(line.Paths, path) {
-			t.Errorf("paths = %v, want %s reported", line.Paths, path)
-		}
-	}
-	if !slices.Contains(line.Reasons, fmt.Sprintf(canvasTypeReason, "server")) {
-		t.Errorf("reasons = %v", line.Reasons)
-	}
-	data, err := json.Marshal(panel)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, word := range []string{"actions", "links", "fetch", "example.com"} {
-		if strings.Contains(string(data), word) {
-			t.Errorf("the imported panel holds %q: %s", word, data)
-		}
+	if !slices.Contains(line.Paths, "options.root.elements[0]") || !slices.Contains(line.Reasons, fmt.Sprintf(canvasTypeReason, "wind-farm")) {
+		t.Errorf("paths = %v, reasons = %v", line.Paths, line.Reasons)
 	}
 }
 
@@ -1282,19 +1291,15 @@ func TestCanvasConnectionsFollowElementNames(t *testing.T) {
 	panel, line := canvasPanel(t, 12, 10, elements)
 	want := []spec.CanvasConnection{
 		{From: "A", To: "B", Color: "#5794F2", Width: 4},
-		{From: "A", To: "B", Color: "field", Field: "cpu"},
-		{From: "A", To: "B", Width: 5},
+		{From: "A", To: "B", Color: "field", Field: "cpu", Path: "curved", LineStyle: "dashed"},
+		{From: "A", To: "Icon"},
+		{From: "A", To: "B", WidthField: "cpu"},
 	}
 	if got := displayOf(t, panel).Connections; !reflect.DeepEqual(got, want) {
 		t.Fatalf("connections = %+v, want %+v", got, want)
 	}
-	for _, path := range []string{
-		"options.root.elements[0].connections[1].path", "options.root.elements[0].connections[1].lineStyle.style",
-		"options.root.elements[0].connections[2]", "options.root.elements[0].connections[3]", "options.root.elements[0].connections[4].size.field",
-	} {
-		if !slices.Contains(line.Paths, path) {
-			t.Errorf("paths = %v, want %s reported", line.Paths, path)
-		}
+	if !slices.Equal(line.Paths, []string{"options.root.elements[0].connections[2]"}) {
+		t.Errorf("paths = %v, want only the connection to a missing element", line.Paths)
 	}
 }
 

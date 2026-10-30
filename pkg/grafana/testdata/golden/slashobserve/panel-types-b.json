@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 4,
-      "partial": 5,
+      "imported": 5,
+      "partial": 4,
       "placeholder": 2,
       "unverified": 0
     },
@@ -139,12 +139,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "The color \"text\" is not supported yet.",
-          "Only 1 pixel borders are supported."
+          "The color \"text\" is not supported yet."
         ],
         "paths": [
-          "options.root.elements[1].config.color.fixed",
-          "options.root.elements[1].border.width"
+          "options.root.elements[1].config.color.fixed"
         ],
         "queries": [
           {
@@ -164,16 +162,9 @@
         "type": "canvas",
         "source_type": "canvas",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Element positions were converted to percentages of the panel and may shift.",
-          "Canvas element type server is not supported; it was left out."
-        ],
-        "paths": [
-          "options.root.elements[0].placement",
-          "options.root.elements[1].placement",
-          "options.root.elements[2]"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -478,6 +469,7 @@
           }
         ],
         "display": {
+          "tooltip": "details",
           "elements": [
             {
               "id": "Requests",
@@ -501,7 +493,8 @@
               "text": "Backend",
               "fill": "#5794F2",
               "stroke": "#8AB8FF",
-              "align": "left"
+              "align": "left",
+              "borderWidth": 2
             },
             {
               "id": "Note",
@@ -553,6 +546,7 @@
           }
         ],
         "display": {
+          "tooltip": "details",
           "elements": [
             {
               "id": "Edge",
@@ -564,7 +558,15 @@
               "text": "Edge",
               "fill": "#d9d9d9",
               "textColor": "#000000",
-              "fontSize": 16
+              "fontSize": 16,
+              "placement": {
+                "horizontal": "left",
+                "vertical": "top",
+                "left": 100,
+                "top": 50,
+                "width": 120,
+                "height": 80
+              }
             },
             {
               "id": "Pool",
@@ -576,7 +578,40 @@
               "field": "Value",
               "fill": "field",
               "textColor": "#000000",
-              "fontSize": 20
+              "fontSize": 20,
+              "placement": {
+                "horizontal": "right",
+                "vertical": "top",
+                "right": 100,
+                "top": 50,
+                "width": 200,
+                "height": 80
+              }
+            },
+            {
+              "id": "Gateway",
+              "kind": "server",
+              "left": 41.67,
+              "top": 58.82,
+              "width": 13.89,
+              "height": 17.65,
+              "textColor": "#000000",
+              "fontSize": 16,
+              "placement": {
+                "horizontal": "left",
+                "vertical": "top",
+                "left": 300,
+                "top": 200,
+                "width": 100,
+                "height": 60
+              },
+              "links": [
+                {
+                  "title": "Docs",
+                  "url": "https://example.com",
+                  "newTab": true
+                }
+              ]
             }
           ]
         }

@@ -1460,6 +1460,7 @@
               }
             ],
             "display": {
+              "tooltip": "details",
               "elements": [
                 {
                   "id": "Frontend_label",

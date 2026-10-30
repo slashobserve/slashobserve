@@ -218,8 +218,6 @@ var partialReasons = map[string]string{
 	"options.legend.displayMode":                    legendTableReason,
 	"options.legend.asTable":                        legendTableReason,
 	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
-	"options.panZoom":                               "Panning and zooming the canvas is not supported.",
-	"options.infinitePan":                           "Panning and zooming the canvas is not supported.",
 	"options.enableInfiniteScrolling":               "Infinite scrolling of logs is not supported yet.",
 	"options.dashboardAlerts":                       "Listing only the alerts of this dashboard is not supported.",
 	"options.groupMode":                             "Grouping alerts is not supported.",
