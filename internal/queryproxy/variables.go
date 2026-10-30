@@ -82,7 +82,7 @@ func (r *Runner) Defaults(ctx context.Context, d *spec.Dashboard, rng datasource
 }
 
 func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng datasource.TimeRange, given map[string]Selection, user datasource.QueryUser, st *varState) (map[string]Selection, error) {
-	given = withoutEmptyAdhoc(d, given)
+	given = withoutEmptyApplied(d, given)
 	for _, name := range slices.Sorted(maps.Keys(given)) {
 		idx := variableIndex(d, name)
 		if idx < 0 {
@@ -123,11 +123,11 @@ func (r *Runner) complete(ctx context.Context, d *spec.Dashboard, upto int, rng 
 	return out, nil
 }
 
-func withoutEmptyAdhoc(d *spec.Dashboard, given map[string]Selection) map[string]Selection {
+func withoutEmptyApplied(d *spec.Dashboard, given map[string]Selection) map[string]Selection {
 	var out map[string]Selection
 	for name, sel := range given {
 		i := variableIndex(d, name)
-		if i < 0 || d.Variables[i].Type != spec.AdhocVariable || sel.All || len(sel.Values) != 1 || sel.Values[0] != "" {
+		if i < 0 || !d.Variables[i].Type.AppliesToQueries() || sel.All || len(sel.Values) != 1 || sel.Values[0] != "" {
 			continue
 		}
 		if out == nil {
@@ -150,6 +150,13 @@ func adhocDefault(v spec.Variable) Selection {
 		values[i] = f.Key + "|" + f.Operator + "|" + f.Value
 	}
 	return Selection{Values: values}
+}
+
+func groupByDefault(v spec.Variable) Selection {
+	if v.Default == nil {
+		return Selection{}
+	}
+	return Selection{Values: slices.Clone(v.Default.Values)}
 }
 
 func checkNeedsEarlier(v spec.Variable) bool {
@@ -185,6 +192,8 @@ func fixedDefault(v spec.Variable) (Selection, bool) {
 		return Selection{Values: []string{declaredValue(v)}}, true
 	case spec.AdhocVariable:
 		return adhocDefault(v), true
+	case spec.GroupByVariable:
+		return groupByDefault(v), true
 	case spec.QueryVariable, spec.CustomVariable:
 		if v.Default != nil && len(v.Default.Values) > 0 {
 			if slices.Contains(v.Default.Values, spec.SelectAll) {
@@ -238,8 +247,8 @@ func (r *Runner) resolveOptions(ctx context.Context, d *spec.Dashboard, idx int,
 	case spec.DatasourceVariable:
 		uids, err := r.datasourceValues(ctx, d, idx, rng, selections, user, st)
 		return spec.PlainOptions(uids...), err
-	case spec.AdhocVariable:
-		return nil, fmt.Errorf("%w: adhoc variable %q has no value list", ErrInvalidRequest, v.Name)
+	case spec.AdhocVariable, spec.GroupByVariable:
+		return nil, fmt.Errorf("%w: %s variable %q has no value list", ErrInvalidRequest, v.Type, v.Name)
 	}
 	return r.queryOptions(ctx, d, idx, rng, selections, user, st)
 }
@@ -387,7 +396,7 @@ func (r *Runner) variablesFor(ctx context.Context, d *spec.Dashboard, upto int, 
 		if err := r.checkSelection(ctx, d, i, rng, selections, user, st, sel); err != nil {
 			return nil, err
 		}
-		if v.Type == spec.AdhocVariable && !use.variables[v.Name] {
+		if v.Type.AppliesToQueries() && !use.variables[v.Name] {
 			continue
 		}
 		variable, err := r.variableFor(ctx, d, i, rng, use, selections, user, st)
@@ -525,6 +534,29 @@ func (r *Runner) implicitFilters(st *varState, d *spec.Dashboard, selections map
 		out = append(out, filters...)
 	}
 	return out, nil
+}
+
+func implicitGroupBy(d *spec.Dashboard, selections map[string]Selection, uid string, use queryUse) ([]string, error) {
+	var keys []string
+	for _, v := range d.Variables {
+		sel := selections[v.Name]
+		if v.Type != spec.GroupByVariable || len(sel.Values) == 0 || use.variables[v.Name] {
+			continue
+		}
+		resolved, err := ResolveDatasourceUID(d, v.Datasource, selections)
+		if err != nil {
+			return nil, err
+		}
+		if resolved != uid {
+			continue
+		}
+		for _, key := range sel.Values {
+			if !slices.Contains(keys, key) {
+				keys = append(keys, key)
+			}
+		}
+	}
+	return keys, nil
 }
 
 func parseAdhocFilter(name, dsType, text string) (datasource.AdhocFilter, error) {
@@ -669,10 +701,22 @@ func (r *Runner) checkSelectionUncached(ctx context.Context, d *spec.Dashboard, 
 		}
 		_, err := r.adhocFilters(st, d, v, sel)
 		return err
+	case v.Type == spec.GroupByVariable:
+		return checkGroupByKeys(v, sel)
 	case v.Type == spec.QueryVariable || v.Type == spec.CustomVariable:
 		return checkListSelection(v, sel)
 	}
 	return r.checkSingleSelection(ctx, d, idx, rng, selections, user, st, sel)
+}
+
+func checkGroupByKeys(v spec.Variable, sel Selection) error {
+	if len(sel.Values) > spec.MaxGroupByKeys {
+		return fmt.Errorf("%w: variable %q has more than %d labels", ErrInvalidRequest, v.Name, spec.MaxGroupByKeys)
+	}
+	if slices.ContainsFunc(sel.Values, func(key string) bool { return !spec.IsGroupByKey(key) }) {
+		return fmt.Errorf("%w: variable %q has a label that is not a valid label name", ErrInvalidRequest, v.Name)
+	}
+	return nil
 }
 
 func checkAll(v spec.Variable, sel Selection) error {

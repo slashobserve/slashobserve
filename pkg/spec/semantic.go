@@ -342,6 +342,15 @@ func IsLabelName(name string) bool {
 	return labelNamePattern.MatchString(name)
 }
 
+const (
+	MaxGroupByKeys      = 20
+	MaxGroupByKeyLength = 200
+)
+
+func IsGroupByKey(name string) bool {
+	return len(name) <= MaxGroupByKeyLength && IsLabelName(name)
+}
+
 var relativeTime = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/(fy|fQ|[smhdwMy]))?$`)
 
 type unitBounds struct{ min, max float64 }

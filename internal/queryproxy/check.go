@@ -245,6 +245,17 @@ func (r *Runner) checkVariableDatasource(d *spec.Dashboard, i int, v spec.Variab
 		if _, err := r.instance(v.Datasource); err != nil {
 			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
 		}
+	case spec.GroupByVariable:
+		if _, referenced := spec.DatasourceVariableName(v.Datasource); referenced {
+			return nil
+		}
+		inst, err := r.instance(v.Datasource)
+		switch {
+		case err != nil:
+			return []spec.Issue{issue(path+"/datasource", CodeUnknownDatasource, "datasource %q is not configured", v.Datasource)}
+		case inst.Datasource.Type() != string(spec.Prometheus):
+			return []spec.Issue{issue(path+"/datasource", spec.CodeInvalidReference, "group by variable %q needs a prometheus datasource", v.Name)}
+		}
 	case spec.DatasourceVariable:
 		return r.checkDatasourceDefault(path+"/default", v)
 	}

@@ -533,6 +533,11 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 			return nil, err
 		}
 	}
+	if inst.Datasource.Type() == string(spec.Prometheus) {
+		if dq.GroupBy, err = implicitGroupBy(req.Dashboard, req.Selections, inst.UID, use); err != nil {
+			return nil, err
+		}
+	}
 	minimum, err := r.minInterval(ctx, req, st, panel, q)
 	if err != nil {
 		return nil, err
