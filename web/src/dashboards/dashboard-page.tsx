@@ -26,6 +26,7 @@ import { refreshToMs, timeOptionsFor } from "@/lib/time"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
+import { CanvasActionProvider } from "@/panels/canvas/action-context"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
@@ -421,6 +422,15 @@ function DashboardView({
       unverifiedReasons(envelope.version.unverified, envelopeVersion, version),
     [envelope.version.unverified, envelopeVersion, version]
   )
+  const canvasActions = useMemo(
+    () => ({
+      dashboardId,
+      version,
+      latestVersion,
+      canRun: permissions.edit,
+    }),
+    [dashboardId, version, latestVersion, permissions.edit]
+  )
   const variables = useMemo(() => spec.variables ?? [], [spec])
   const timeOptions = useMemo(() => timeOptionsFor(spec), [spec])
 
@@ -670,62 +680,64 @@ function DashboardView({
           ref={gridBox}
           className="min-h-0 flex-1 overflow-auto pt-1 pr-2.5 pb-2.5 pl-4"
         >
-          <DashboardGrid
-            dashboardId={dashboardId}
-            spec={spec}
-            selections={selections}
-            values={values}
-            editable={editing && canEdit}
-            layout={editing ? session.layout : undefined}
-            onLayoutChange={editing ? setLayout : undefined}
-            renderPanel={(item, size) => (
-              <PanelContainer
-                dashboardId={dashboardId}
-                cursor={cursor}
-                version={version}
-                panel={item.panel}
-                reused={
-                  isDataPanel(item.panel)
-                    ? sourcePanelOf(spec, item.panel)
-                    : undefined
-                }
-                variables={variables}
-                title={item.title}
-                repeatOf={
-                  item.key === item.panel.id ? undefined : item.panel.id
-                }
-                width={size.width}
-                height={size.height}
-                from={search.from}
-                to={search.to}
-                timezone={spec.timezone}
-                rangeFrom={effectiveFrom}
-                rangeTo={effectiveTo}
-                selections={item.selections}
-                selectionsReady={ready}
-                blockedBy={blockedBy}
-                onRetryBlocked={onRetryBlocked}
-                refreshMs={refreshMs}
-                editable={editing && canEdit}
-                layoutSession={editing}
-                openComments={
-                  item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0
-                }
-                unverifiedReason={unverified.panels.get(item.panel.id)}
-                highlighted={
-                  item.panel.id === search.panel || item.panel.id === flashed
-                }
-                editingPanel={
-                  editingPanel && item.first && item.panel.id === search.panel
-                }
-                canComment={permissions.comment}
-                canEdit={permissions.edit}
-                focusOnRender={item.first && item.panel.id === linkedPanel}
-                onFocused={clearLinkedPanel}
-                composerRef={composerRef}
-              />
-            )}
-          />
+          <CanvasActionProvider value={canvasActions}>
+            <DashboardGrid
+              dashboardId={dashboardId}
+              spec={spec}
+              selections={selections}
+              values={values}
+              editable={editing && canEdit}
+              layout={editing ? session.layout : undefined}
+              onLayoutChange={editing ? setLayout : undefined}
+              renderPanel={(item, size) => (
+                <PanelContainer
+                  dashboardId={dashboardId}
+                  cursor={cursor}
+                  version={version}
+                  panel={item.panel}
+                  reused={
+                    isDataPanel(item.panel)
+                      ? sourcePanelOf(spec, item.panel)
+                      : undefined
+                  }
+                  variables={variables}
+                  title={item.title}
+                  repeatOf={
+                    item.key === item.panel.id ? undefined : item.panel.id
+                  }
+                  width={size.width}
+                  height={size.height}
+                  from={search.from}
+                  to={search.to}
+                  timezone={spec.timezone}
+                  rangeFrom={effectiveFrom}
+                  rangeTo={effectiveTo}
+                  selections={item.selections}
+                  selectionsReady={ready}
+                  blockedBy={blockedBy}
+                  onRetryBlocked={onRetryBlocked}
+                  refreshMs={refreshMs}
+                  editable={editing && canEdit}
+                  layoutSession={editing}
+                  openComments={
+                    item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0
+                  }
+                  unverifiedReason={unverified.panels.get(item.panel.id)}
+                  highlighted={
+                    item.panel.id === search.panel || item.panel.id === flashed
+                  }
+                  editingPanel={
+                    editingPanel && item.first && item.panel.id === search.panel
+                  }
+                  canComment={permissions.comment}
+                  canEdit={permissions.edit}
+                  focusOnRender={item.first && item.panel.id === linkedPanel}
+                  onFocused={clearLinkedPanel}
+                  composerRef={composerRef}
+                />
+              )}
+            />
+          </CanvasActionProvider>
         </main>
       </div>
       {cardVisible ? (

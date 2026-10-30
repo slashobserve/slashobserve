@@ -16,6 +16,7 @@ export const rowDefaults = specDefaults.row
 export const linkDefaults = specDefaults.link
 export const canvasElementDefaults = specDefaults.canvasElement
 export const canvasConnectionDefaults = specDefaults.canvasConnection
+export const actionDefaults = specDefaults.action
 export const textDefaults = specDefaults.text
 export const instantPanelTypes: readonly string[] = specDefaults.instantPanels
 

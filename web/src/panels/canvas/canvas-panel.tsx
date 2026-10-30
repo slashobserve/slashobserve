@@ -19,7 +19,14 @@ import {
   type View,
 } from "../nodeGraph/zoom"
 import type { PanelRenderer } from "../types"
-import { canvasModel, type CanvasLine } from "./canvas-model"
+import { ActionDialog, type PendingAction } from "./action-dialog"
+import { useCanvasActions } from "./action-context"
+import { actionRequest, disabledReason, type ElementAction } from "./actions"
+import {
+  canvasModel,
+  type CanvasElement,
+  type CanvasLine,
+} from "./canvas-model"
 import { arrowEnds, connectionPath, dashArray, lineCap } from "./connections"
 import {
   BackgroundImage,
@@ -30,6 +37,7 @@ import {
   Tooltip,
   type Hover,
 } from "./elements"
+import { interactionOf, resolveElementLinks } from "./element-links"
 import { clampView, zoomedView } from "./placement"
 
 type Drag = { x: number; y: number; view: View }
@@ -102,6 +110,8 @@ const CanvasPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  meta,
+  links,
   width,
   height,
 }) => {
@@ -117,6 +127,9 @@ const CanvasPanel: PanelRenderer = ({
   const drag = useRef<Drag | null>(null)
   const [pan, setView] = useState<View>(initialView)
   const [hover, setHover] = useState<Hover | null>(null)
+  const [pending, setPending] = useState<PendingAction | null>(null)
+  const actions = useCanvasActions()
+  const reason = disabledReason(actions)
   const view = root.panZoom
     ? clampView(pan, body, root.infinitePan)
     : initialView
@@ -126,8 +139,11 @@ const CanvasPanel: PanelRenderer = ({
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    const { target, currentTarget } = event
     const onControl =
-      event.target instanceof Element && event.target.closest("button, a")
+      !(target instanceof Element) ||
+      !currentTarget.contains(target) ||
+      target.closest("button, a")
     if (event.button !== 0 || onControl) return
     drag.current = { x: event.clientX, y: event.clientY, view }
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -159,9 +175,38 @@ const CanvasPanel: PanelRenderer = ({
     setHover({ details, x: clientX - origin.left, y: clientY - origin.top })
   }
 
+  const interactive = useMemo(
+    () =>
+      model.elements.map((element) => ({
+        element,
+        interaction: interactionOf(
+          element,
+          resolveElementLinks(element.links, element.value, links)
+        ),
+      })),
+    [model.elements, links]
+  )
+
+  function requestRun(element: CanvasElement, action: ElementAction) {
+    if (actions === null || reason !== null) return
+    setPending({
+      action,
+      request: actionRequest({
+        context: actions,
+        panelId: panel.id,
+        elementId: element.id,
+        value: element.value,
+        action,
+        vars: links.vars,
+        fromMs: Date.parse(meta.from),
+        toMs: Date.parse(meta.to),
+      }),
+    })
+  }
+
   const shaped = model.elements.filter(hasShape)
-  const drawn = model.elements.filter((element) =>
-    drawsContent(element, root.tooltip)
+  const drawn = interactive.filter(({ element, interaction }) =>
+    drawsContent(element, root.tooltip, interaction)
   )
   return (
     <div
@@ -205,13 +250,16 @@ const CanvasPanel: PanelRenderer = ({
             <ShapeItem key={element.key} element={element} />
           ))}
           <Lines lines={model.lines} width={width} height={height} />
-          {drawn.map((element) => (
+          {drawn.map(({ element, interaction }) => (
             <ContentItem
               key={element.key}
               element={element}
+              interaction={interaction}
+              reason={reason}
               tooltipOn={root.tooltip}
               onShow={showHover}
               onHide={() => setHover(null)}
+              onRun={(action) => requestRun(element, action)}
             />
           ))}
         </div>
@@ -263,6 +311,13 @@ const CanvasPanel: PanelRenderer = ({
       ) : null}
       {root.tooltip && hover ? (
         <Tooltip hover={hover} width={width} height={height} />
+      ) : null}
+      {pending !== null && actions !== null ? (
+        <ActionDialog
+          dashboardId={actions.dashboardId}
+          pending={pending}
+          onClose={() => setPending(null)}
+        />
       ) : null}
     </div>
   )

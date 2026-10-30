@@ -1,6 +1,7 @@
 import {
   canvasConnectionDefaults,
   canvasElementDefaults,
+  type Link,
   type Reducer,
 } from "@/spec"
 
@@ -15,6 +16,7 @@ import {
 import { reduce } from "../reducers"
 import { thresholdColor, type ThresholdLevel } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
+import { parseActions, type ActionValue, type ElementAction } from "./actions"
 import {
   scaledWidth,
   type ArrowMode,
@@ -22,6 +24,7 @@ import {
   type LineStyle,
   type Point,
 } from "./connections"
+import { parseLinks, type OneClick } from "./element-links"
 import {
   elementBox,
   parsePlacement,
@@ -92,6 +95,10 @@ export type CanvasElement = {
   angle: number
   details: Detail[]
   state: MetricState | null
+  links: Link[]
+  actions: ElementAction[]
+  oneClick: OneClick | null
+  value: ActionValue | null
 }
 
 export type CanvasLine = {
@@ -134,6 +141,7 @@ const valigns = ["top", "middle", "bottom"] as const
 const imageSizes = ["original", "contain", "cover", "fill", "tile"] as const
 const serverKinds = ["single", "stack", "database", "terminal"] as const
 const buttonStyles = ["primary", "secondary", "success", "destructive"] as const
+const oneClicks = ["link", "action"] as const
 const paths = ["straight", "curved"] as const
 const lineStyles = ["solid", "dashed", "dotted"] as const
 const arrows = ["none", "forward", "reverse", "both"] as const
@@ -261,6 +269,9 @@ type Parsed = {
   yawField: string | null
   pitchField: string | null
   rollField: string | null
+  links: Link[]
+  actions: unknown
+  oneClick: OneClick | null
 }
 
 function parseElement(raw: unknown): Parsed | null {
@@ -300,6 +311,9 @@ function parseElement(raw: unknown): Parsed | null {
     yawField: fieldName(raw.yawField),
     pitchField: fieldName(raw.pitchField),
     rollField: fieldName(raw.rollField),
+    links: parseLinks(raw.links),
+    actions: raw.actions,
+    oneClick: oneOf(oneClicks, raw.oneClick),
   }
 }
 
@@ -464,6 +478,36 @@ function lastText(
   return found
 }
 
+function lastValue(
+  frames: PreparedFrame[],
+  fields: FieldResolver,
+  name: string
+): string | null {
+  let found: string | null = null
+  for (const frame of frames) {
+    for (const field of frame.fields) {
+      const matches =
+        field.name === name ||
+        fields.seriesName(frame, field) === name ||
+        fields.displayName(frame, field) === name
+      if (!matches) continue
+      for (const value of field.values) {
+        if (value !== null && value !== undefined) found = String(value)
+      }
+    }
+  }
+  return found
+}
+
+function actionValueOf(bound: Bound): ActionValue {
+  const { value } = bound.entry
+  return {
+    raw: value === null ? "" : String(value),
+    text: bound.shown.text,
+    numeric: value !== null && Number.isFinite(value) ? value : null,
+  }
+}
+
 const angleFields = {
   droneTop: "yawField",
   droneFront: "rollField",
@@ -531,8 +575,12 @@ export function canvasModel(
     const fill = cssColor(parsed.fill, bound)
     const textColor = cssColor(parsed.textColor, bound)
     const details: Detail[] = []
-    if (bound && (parsed.field !== null || parsed.kind === "metric")) {
-      details.push({ name: bound.entry.displayName, text: bound.shown.text })
+    const valued =
+      bound && (parsed.field !== null || parsed.kind === "metric")
+        ? bound
+        : null
+    if (valued) {
+      details.push({ name: valued.entry.displayName, text: valued.shown.text })
     }
     const rate =
       parsed.kind === "windTurbine" ? bindNamed(parsed.rateField) : null
@@ -571,6 +619,12 @@ export function canvasModel(
       angle: bindNamed(angleField)?.shown.numeric ?? 0,
       details,
       state: stateOf(parsed, bound),
+      links: parsed.links,
+      actions: parseActions(parsed.actions, (name) =>
+        lastValue(frames, fields, name)
+      ),
+      oneClick: parsed.oneClick,
+      value: valued ? actionValueOf(valued) : null,
     }
   })
 
