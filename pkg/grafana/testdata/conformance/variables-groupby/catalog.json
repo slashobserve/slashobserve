@@ -9,7 +9,7 @@
   "entries": [
     { "id": "type=groupby", "path": "type", "value": "groupby" },
     { "id": "datasource=clickhouse", "path": "datasource", "value": {"type": "grafana-clickhouse-datasource", "uid": "ch"}, "with": {"type": "groupby"} },
-    { "id": "multi=true", "path": "multi", "value": true, "with": {"type": "groupby"} },
+    { "id": "multi=true", "path": "multi", "value": true, "with": {"type": "groupby"}, "expect": "bookkeeping" },
     { "id": "current=job", "path": "current", "value": {"text": "job", "value": "job"}, "with": {"type": "groupby"} },
     { "id": "current=list", "path": "current", "value": {"text": ["job", "instance"], "value": ["job", "instance"]}, "with": {"type": "groupby", "multi": true} },
     { "id": "options=saved-keys", "path": "options", "value": [{"text": "job", "value": "job"}, {"text": "instance", "value": "instance"}], "with": {"type": "groupby"} },

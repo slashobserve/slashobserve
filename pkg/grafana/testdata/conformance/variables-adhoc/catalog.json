@@ -19,6 +19,7 @@
     { "id": "filters=condition", "path": "filters", "value": [{"key": "job", "operator": "=", "value": "api", "condition": "OR"}] },
     { "id": "baseFilters=equals", "path": "baseFilters", "value": [{"key": "env", "operator": "=", "value": "prod"}] },
     { "id": "defaultKeys=job", "path": "defaultKeys", "value": [{"text": "job", "value": "job"}] },
+    { "id": "enableGroupBy=true", "path": "enableGroupBy", "value": true },
     { "id": "allowCustomValue=false", "path": "allowCustomValue", "value": false },
     { "id": "hide=1", "path": "hide", "value": 1 },
     { "id": "hide=2", "path": "hide", "value": 2 },

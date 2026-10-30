@@ -16,7 +16,7 @@ func applyGroupBy(expr string, keys []string) (string, error) {
 	}
 	parser.Inspect(tree, func(node parser.Node, _ []parser.Node) error {
 		aggregation, ok := node.(*parser.AggregateExpr)
-		if !ok || aggregation.Without {
+		if !ok {
 			return nil
 		}
 		for _, key := range keys {

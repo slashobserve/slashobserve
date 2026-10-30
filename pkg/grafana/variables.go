@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	maxVariables       = 20
-	maxVariableOptions = 200
-	maxIntervalOptions = 50
-	maxQueryLength     = 20000
+	maxVariables          = 20
+	maxVariableNameLength = 40
+	maxVariableOptions    = 200
+	maxIntervalOptions    = 50
+	maxQueryLength        = 20000
 )
 
 var (
@@ -38,7 +39,7 @@ var variableHandledKeys = map[string][]string{
 	"interval":   {"query", "auto", "auto_count", "auto_min"},
 	"textbox":    {"query"},
 	"datasource": {"query", "regex", "multi", "includeAll"},
-	"adhoc":      {"filters", "baseFilters"},
+	"adhoc":      {"filters", "baseFilters", "enableGroupBy"},
 	"groupby":    {"multi", "defaultValue"},
 }
 
@@ -69,6 +70,7 @@ func (c *converter) convertVariables() {
 	templating, _ := asObject(c.src.dash["templating"])
 	list, _ := asArray(templating["list"])
 	seen := map[string]bool{}
+	taken := declaredNames(list)
 	for i, item := range list {
 		raw, ok := asObject(item)
 		if !ok {
@@ -100,6 +102,9 @@ func (c *converter) convertVariables() {
 		c.commonVariableFields(&v, raw, path, subject)
 		c.reportUnhandledKeys(raw, path, subject)
 		c.vars = append(c.vars, &builtVar{v: v, path: path})
+		if v.Type == spec.AdhocVariable {
+			c.adhocGroupBy(raw, path, v, taken)
+		}
 	}
 	c.dropVariablesNamingUndeclared()
 	var moved []string

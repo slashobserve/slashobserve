@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -117,5 +118,79 @@ func TestGroupByVariableOnAnotherDatasourceIsDroppedAndReported(t *testing.T) {
 				t.Fatalf("notes = %+v, want the reason %q at the datasource", notes, tc.reason)
 			}
 		})
+	}
+}
+
+func TestAdhocVariableWithGroupByImportsAGroupByVariableBesideIt(t *testing.T) {
+	res := convertVariables(t, `{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true,"hide":2}`)
+	if got, want := variableNames(res), []string{"filters", "filters_groupby"}; !slices.Equal(got, want) {
+		t.Fatalf("variables = %v, want %v", got, want)
+	}
+	adhoc, groupBy := variableNamed(t, res, "filters"), variableNamed(t, res, "filters_groupby")
+	if adhoc.Type != spec.AdhocVariable || groupBy.Type != spec.GroupByVariable || groupBy.Datasource != adhoc.Datasource || groupBy.Hide != "variable" {
+		t.Fatalf("variables = %+v and %+v, want an adhoc variable and a group by variable on its datasource with its hide", adhoc, groupBy)
+	}
+	if notes := notesFor(res, "variable filters"); len(notes) != 0 {
+		t.Fatalf("notes = %+v, want none", notes)
+	}
+}
+
+func TestAdhocVariableWithoutGroupByImportsAlone(t *testing.T) {
+	res := convertVariables(t, `{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":false}`)
+	if got := variableNames(res); !slices.Equal(got, []string{"filters"}) {
+		t.Fatalf("variables = %v, want only the adhoc variable", got)
+	}
+	if notes := notesFor(res, "variable filters"); len(notes) != 0 {
+		t.Fatalf("notes = %+v, want none", notes)
+	}
+}
+
+func TestAdhocGroupByVariableNameAvoidsDeclaredNames(t *testing.T) {
+	long := strings.Repeat("a", 40)
+	res := convertVariables(t,
+		`{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true}`,
+		`{"name":"filters_groupby","type":"custom","query":"a,b"}`,
+		`{"name":"`+long+`","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true}`,
+	)
+	got := variableNames(res)
+	if !slices.Contains(got, "filters_groupby2") || !slices.Contains(got, strings.Repeat("a", 32)+"_groupby") {
+		t.Fatalf("variables = %v, want filters_groupby2 and a name cut to 40 characters", got)
+	}
+	if len(got) != 5 {
+		t.Fatalf("variables = %v, want five distinct variables", got)
+	}
+	encoded, err := json.Marshal(res.Spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := spec.Parse(encoded); err != nil {
+		t.Fatalf("the Spec does not parse: %v", err)
+	}
+}
+
+func TestAdhocGroupByOnAnotherDatasourceIsReported(t *testing.T) {
+	const chRef = `{"uid":"ch","type":"grafana-clickhouse-datasource"}`
+	res := convertVariables(t, `{"name":"filters","type":"adhoc","datasource":`+chRef+`,"enableGroupBy":true}`)
+	if got := variableNames(res); !slices.Equal(got, []string{"filters"}) {
+		t.Fatalf("variables = %v, want only the adhoc variable", got)
+	}
+	notes := notesFor(res, "variable filters")
+	if len(notes) != 1 || notes[0].Reason != "Group-by on this datasource is not supported." || !hasPath(notes, "templating.list[0].enableGroupBy") {
+		t.Fatalf("notes = %+v, want the reason at enableGroupBy", notes)
+	}
+}
+
+func TestAdhocGroupByPastTheVariableLimitIsReported(t *testing.T) {
+	variables := make([]string, 0, 20)
+	for i := range 19 {
+		variables = append(variables, fmt.Sprintf(`{"name":"c%d","type":"constant","query":"x"}`, i))
+	}
+	variables = append(variables, `{"name":"filters","type":"adhoc","datasource":`+promRef+`,"enableGroupBy":true}`)
+	res := convertVariables(t, variables...)
+	if len(res.Spec.Variables) != 20 {
+		t.Fatalf("%d variables, want 20", len(res.Spec.Variables))
+	}
+	if notes := notesFor(res, "variable filters"); len(notes) != 1 || !hasPath(notes, "templating.list[19].enableGroupBy") {
+		t.Fatalf("notes = %+v, want one at enableGroupBy", notes)
 	}
 }

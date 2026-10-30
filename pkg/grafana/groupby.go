@@ -3,6 +3,7 @@ package grafana
 import (
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -71,4 +72,46 @@ func groupByKeys(selection any) []string {
 		}
 	}
 	return keys
+}
+
+func declaredNames(list []any) map[string]bool {
+	names := map[string]bool{}
+	for _, item := range list {
+		if raw, ok := asObject(item); ok {
+			names[asString(raw["name"])] = true
+		}
+	}
+	return names
+}
+
+func freeVariableName(base string, taken map[string]bool) string {
+	for n := 1; ; n++ {
+		suffix := "_groupby"
+		if n > 1 {
+			suffix += strconv.Itoa(n)
+		}
+		name := base[:min(len(base), maxVariableNameLength-len(suffix))] + suffix
+		if !taken[name] {
+			taken[name] = true
+			return name
+		}
+	}
+}
+
+func (c *converter) adhocGroupBy(raw map[string]any, path string, adhoc spec.Variable, taken map[string]bool) {
+	if !truthy(raw["enableGroupBy"]) {
+		return
+	}
+	subject := "variable " + adhoc.Name
+	at := path + ".enableGroupBy"
+	switch {
+	case c.adhocSources[adhoc.Name].kind != kindPrometheus:
+		c.note(subject, "Group-by on this datasource is not supported.", at)
+		return
+	case len(c.vars) >= maxVariables:
+		c.note(subject, fmt.Sprintf("A SlashObserve dashboard holds at most %d variables, so its group-by is not kept.", maxVariables), at)
+		return
+	}
+	name := freeVariableName(adhoc.Name, taken)
+	c.vars = append(c.vars, &builtVar{v: spec.Variable{Name: name, Type: spec.GroupByVariable, Datasource: adhoc.Datasource, Hide: adhoc.Hide}, path: path})
 }
