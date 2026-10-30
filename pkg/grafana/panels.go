@@ -11,14 +11,26 @@ import (
 )
 
 const (
-	maxPanelTitle       = 200
-	maxPanelDescription = 2000
-	maxTextContent      = 20000
-	maxPanelPaths       = 100
-	noQueriesReason     = "None of this panel's queries can be imported."
-	homePanelReason     = "Grafana's home page panels have no SlashObserve equivalent."
-	debugPanelReason    = "Grafana's debug and live panels have no SlashObserve equivalent."
+	maxPanelTitle          = 200
+	maxPanelDescription    = 2000
+	maxTextContent         = 20000
+	maxPanelPaths          = 100
+	noQueriesReason        = "None of this panel's queries can be imported."
+	livePanelReason        = "Grafana's live panels have no SlashObserve equivalent."
+	debugPanelReason       = "Grafana's debug panel showed raw query results; it is shown as a table."
+	transparentReason      = "Transparent panels are drawn with a border and background for now."
+	hideTimeOverrideReason = "The time override label is always shown."
+	docsURL                = "https://github.com/slashobserve/slashobserve/blob/main/docs/"
 )
+
+var homePanelContent = map[string]string{
+	"welcome": "Welcome to Grafana. This panel was Grafana's home page welcome panel.",
+	"gettingstarted": "Getting started with SlashObserve:\n\n" +
+		"- [ ] [Connect a datasource](" + docsURL + "connect/prometheus.md)\n" +
+		"- [ ] [Describe a dashboard to the agent](" + docsURL + "use/chat.md)\n" +
+		"- [ ] [Import more dashboards from Grafana](" + docsURL + "use/import-grafana.md)\n" +
+		"- [ ] [Invite your team](" + docsURL + "teams/roles.md)\n",
+}
 
 var convertiblePanelTypes = map[spec.PanelType]bool{
 	spec.Timeseries: true, spec.Stat: true, spec.Gauge: true, spec.BarGauge: true,
@@ -30,18 +42,15 @@ var convertiblePanelTypes = map[spec.PanelType]bool{
 }
 
 var placeholderReasons = map[string]string{
-	"annolist":       "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
-	"welcome":        homePanelReason,
-	"gettingstarted": homePanelReason,
-	"debug":          debugPanelReason,
-	"live":           debugPanelReason,
-	"alertGroups":    "Alertmanager is not supported yet.",
+	"annolist":    "SlashObserve has no annotations yet, so an annotation list has nothing to show.",
+	"live":        livePanelReason,
+	"alertGroups": "Alertmanager is not supported yet.",
 }
 
 var silentPanelKeys = map[string]bool{
 	"id": true, "gridPos": true, "type": true, "title": true, "description": true,
-	"datasource": true, "targets": true, "pluginVersion": true, "transparent": true,
-	"hideTimeOverride": true, "cacheTimeout": true, "queryCachingTTL": true,
+	"datasource": true, "targets": true, "pluginVersion": true,
+	"cacheTimeout": true, "queryCachingTTL": true,
 	"links": true, "repeat": true, "repeatDirection": true, "maxPerRow": true,
 	"timeFrom": true, "timeShift": true, "interval": true, "maxDataPoints": true,
 	"libraryPanel": true, "collapsed": true, "panels": true, "isNew": true,
@@ -153,6 +162,12 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 		return placeholderPanel(n, reason)
 	}
 	typ := spec.PanelType(n.typ)
+	switch n.sourceType {
+	case "welcome", "gettingstarted":
+		return c.newPanelBuild(n, spec.Text).buildTextPanel(func() string { return homePanelContent[n.sourceType] })
+	case "debug":
+		return c.debugPanel(n)
+	}
 	if !convertiblePanelTypes[typ] {
 		return placeholderPanel(n, c.unsupportedReason(n))
 	}
@@ -167,6 +182,19 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 			return placeholderPanel(n, reason)
 		}
 	}
+	b := c.newPanelBuild(n, typ)
+	switch typ {
+	case spec.Text:
+		return b.buildText()
+	case spec.DashList:
+		return b.buildDashList()
+	case spec.News:
+		return b.buildNews()
+	}
+	return b.buildData()
+}
+
+func (c *converter) newPanelBuild(n *panelNode, typ spec.PanelType) *panelBuild {
 	b := &panelBuild{c: c, n: n, raw: n.raw, typ: typ, consumed: map[string]bool{}, refs: map[string]string{}, instantRefs: map[string]string{}, issues: newIssueLog()}
 	b.panel = spec.Panel{
 		ID:      n.id,
@@ -176,14 +204,21 @@ func (c *converter) convertPanel(n *panelNode) *builtPanel {
 	if n.moved {
 		b.partial("gridPos", movedReason)
 	}
-	switch typ {
-	case spec.Text:
-		return b.buildText()
-	case spec.DashList:
-		return b.buildDashList()
-	case spec.News:
-		return b.buildNews()
+	return b
+}
+
+func (c *converter) debugPanel(n *panelNode) *builtPanel {
+	targets, _ := asArray(n.raw["targets"])
+	if len(targets) == 0 {
+		b := c.newPanelBuild(n, spec.Text)
+		b.partial("type", debugPanelReason)
+		return b.buildTextPanel(func() string { return debugPanelReason })
 	}
+	if reason := c.datasourceReason(n); reason != "" {
+		return placeholderPanel(n, reason)
+	}
+	b := c.newPanelBuild(n, spec.Table)
+	b.partial("type", debugPanelReason)
 	return b.buildData()
 }
 
@@ -441,6 +476,7 @@ func (b *panelBuild) buildData() *builtPanel {
 	b.convertTransforms()
 	b.convertDisplay()
 	b.convertPanelOptions()
+	b.convertPanelChrome()
 	b.convertLinks()
 	b.reportUnconsumed()
 	return b.finish()
@@ -477,13 +513,18 @@ func (b *panelBuild) noQueries() *builtPanel {
 }
 
 func (b *panelBuild) buildText() *builtPanel {
+	return b.buildTextPanel(b.textContent)
+}
+
+func (b *panelBuild) buildTextPanel(content func() string) *builtPanel {
 	b.panel.Title = b.title()
 	b.panel.Description = b.description()
-	content := b.textContent()
-	b.panel.Content = &content
+	text := content()
+	b.panel.Content = &text
 	if asString(b.raw["repeat"]) != "" {
 		b.partial("repeat", "Repeating text panels is not supported yet.")
 	}
+	b.convertPanelChrome()
 	b.convertLinks()
 	b.reportUnconsumed()
 	return b.finish()

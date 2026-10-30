@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 13,
-      "imported": 13,
-      "partial": 0,
+      "imported": 12,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,9 +43,13 @@
         "type": "text",
         "source_type": "text",
         "row": "Performance Dashboard Notes",
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "Transparent panels are drawn with a border and background for now."
+        ],
+        "paths": [
+          "transparent"
+        ],
         "queries": []
       },
       {
@@ -445,6 +449,7 @@
               "w": 24,
               "h": 6
             },
+            "transparent": true,
             "content": "The charts on this dashboard are intended to show Istio main components cost in terms of resources utilization under steady load.\n\n- **vCPU / 1k rps:** shows vCPU utilization by the main Istio components normalized by 1000 requests/second. When idle or low traffic, this chart will be blank. The curve for istio-proxy refers to the services sidecars only.\n- **vCPU:** vCPU utilization by Istio components, not normalized.\n- **Memory:** memory footprint for the components. Telemetry and policy are normalized by 1k rps, and no data is shown  when there is no traffic. For ingress and istio-proxy, the data is per instance.\n- **Bytes transferred / sec:** shows the number of bytes flowing through each Istio component.\n\n\n"
           }
         ]

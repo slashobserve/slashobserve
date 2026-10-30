@@ -3735,6 +3735,10 @@
           "minimum": 10,
           "maximum": 11000
         },
+        "transparent": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
+        },
         "display": {
           "type": "object"
         }
@@ -3765,6 +3769,10 @@
         },
         "type": {
           "const": "text"
+        },
+        "transparent": {
+          "x-omitFromPrompt": true,
+          "type": "boolean"
         },
         "content": {
           "type": "string",

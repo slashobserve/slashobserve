@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 70,
-      "partial": 6,
+      "imported": 69,
+      "partial": 7,
       "placeholder": 0,
       "unverified": 0
     },
@@ -1646,9 +1646,13 @@
         "type": "text",
         "source_type": "text",
         "row": "Drilldown",
-        "status": "imported",
-        "reasons": [],
-        "paths": [],
+        "status": "partial",
+        "reasons": [
+          "Transparent panels are drawn with a border and background for now."
+        ],
+        "paths": [
+          "transparent"
+        ],
         "queries": []
       },
       {
@@ -4499,6 +4503,7 @@
               "w": 17,
               "h": 2
             },
+            "transparent": true,
             "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance, or a single instance in cases like memory breakdown."
           },
           {

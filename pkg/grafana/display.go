@@ -561,6 +561,31 @@ func (b *panelBuild) convertRepeat() {
 	}
 }
 
+func (b *panelBuild) convertPanelChrome() {
+	b.convertTransparent()
+	b.convertHideTimeOverride()
+}
+
+func (b *panelBuild) convertTransparent() {
+	if !truthy(b.raw["transparent"]) {
+		b.consume("transparent")
+		return
+	}
+	if b.typ != spec.Text && !b.typ.IsData() {
+		return
+	}
+	b.panel.Transparent = true
+	b.partial("transparent", transparentReason)
+}
+
+func (b *panelBuild) convertHideTimeOverride() {
+	if truthy(b.raw["hideTimeOverride"]) && (b.panel.TimeFrom != "" || b.panel.TimeShift != "") {
+		b.partial("hideTimeOverride", hideTimeOverrideReason)
+		return
+	}
+	b.consume("hideTimeOverride")
+}
+
 func (b *panelBuild) convertPanelTimes() {
 	if from := strings.TrimSpace(asString(b.raw["timeFrom"])); from != "" {
 		if m := timeFromPattern.FindStringSubmatch(from); m != nil {

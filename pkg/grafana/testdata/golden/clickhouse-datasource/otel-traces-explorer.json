@@ -143,11 +143,13 @@
         "status": "partial",
         "reasons": [
           "Grafana shows this panel without a title.",
-          "This color scheme is not supported yet; series use the default palette."
+          "This color scheme is not supported yet; series use the default palette.",
+          "Transparent panels are drawn with a border and background for now."
         ],
         "paths": [
           "title",
-          "fieldConfig.defaults.color"
+          "fieldConfig.defaults.color",
+          "transparent"
         ],
         "queries": [
           {
@@ -169,10 +171,12 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title."
+          "Grafana shows this panel without a title.",
+          "Transparent panels are drawn with a border and background for now."
         ],
         "paths": [
-          "title"
+          "title",
+          "transparent"
         ],
         "queries": [
           {
@@ -194,10 +198,12 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title."
+          "Grafana shows this panel without a title.",
+          "Transparent panels are drawn with a border and background for now."
         ],
         "paths": [
-          "title"
+          "title",
+          "transparent"
         ],
         "queries": [
           {
@@ -219,10 +225,12 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Grafana shows this panel without a title."
+          "Grafana shows this panel without a title.",
+          "Transparent panels are drawn with a border and background for now."
         ],
         "paths": [
-          "title"
+          "title",
+          "transparent"
         ],
         "queries": [
           {
@@ -557,6 +565,7 @@
               }
             ],
             "interval": "${interval}",
+            "transparent": true,
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -584,6 +593,7 @@
             ],
             "color": "#F2495C",
             "interval": "${interval}",
+            "transparent": true,
             "display": {
               "reduce": "sum",
               "colorMode": "none",
@@ -611,6 +621,7 @@
             "unit": "ms",
             "color": "#FF9830",
             "interval": "${interval}",
+            "transparent": true,
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",
@@ -638,6 +649,7 @@
             "unit": "ms",
             "color": "#5794F2",
             "interval": "${interval}",
+            "transparent": true,
             "display": {
               "colorMode": "none",
               "textMode": "valueAndName",

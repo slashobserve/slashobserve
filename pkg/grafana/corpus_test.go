@@ -29,7 +29,7 @@ const (
 	minimumRatio            = 90
 	minimumFull             = 65.6
 	fullSlack               = 0.5
-	maximumOpenPlaceholders = 11
+	maximumOpenPlaceholders = 8
 	worklistSize            = 10
 	maxLinePaths            = 100
 	tooManyPanels           = "too_many_panels"

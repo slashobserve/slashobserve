@@ -95,7 +95,9 @@ Directories are created when their phase starts; this is where things go.
   A panel, query or variable that uses a Grafana datasource variable keeps it as `${name}` and the variable's matched datasource becomes its `default` (a `${DS_*}` reference declared in `__inputs` is pinned to its match, as Grafana's import does); if the datasource variable cannot be imported, its references fall back to the match with a dashboard note, and a panel lists at most 100 paths.
   A Prometheus range target's `exemplar: true` imports as `exemplar` on a time series panel; on an instant-only target or on any other panel type, which draw no exemplars, it is dropped and reported as "Exemplars are drawn on time series only."
   A min step written as a variable imports as `${name}`, a single-select custom variable of durations used as a min step imports as an interval variable, and `intervalFactor` 2 to 10 is kept.
-  Grafana's renamed and retired panel types import as their modern type (`graph`, `table-old`, `singlestat`, `grafana-singlestat-panel`, `datagrid`, `logs-new`, `logstable`, `grafana-piechart-panel`), and `annolist`, `welcome`, `gettingstarted`, `debug`, `live` and `alertGroups` become placeholders with their own reason.
+  Grafana's renamed and retired panel types import as their modern type (`graph`, `table-old`, `singlestat`, `grafana-singlestat-panel`, `datagrid`, `logs-new`, `logstable`, `grafana-piechart-panel`), and `annolist`, `live` and `alertGroups` become placeholders with their own reason.
+  A `welcome` panel imports as a text panel with a one-line note, `gettingstarted` as a text checklist linking the docs, and `debug` as a table over its own targets (a text panel saying the same without targets), the debug ones partial with a reason.
+  `transparent` is written on data and text panels and still reported until the renderer draws it without a frame; `hideTimeOverride` is reported when the panel has a `timeFrom` or `timeShift`, because the override label is always shown, and consumed silently otherwise.
   `grafana-worldmap-panel` imports as `geomap` and `natel-discrete-panel` as `state-timeline`.
   Altinity whole-query macros (`$rate`, `$columns` and their families) expand on import to plain SQL that returns long rows (time, key, value), so the stored query never depends on Altinity's macro engine; a ClickHouse builder's settings drop silently when its generated SQL is kept.
   Alert lists import as one Prometheus `ALERTS` query, and Grafana-managed or legacy ones become placeholders.
@@ -550,7 +552,7 @@ Directories are created when their phase starts; this is where things go.
 - Imports are the one tolerant first save: `POST /api/v1/imports` saves version 1 even when queries fail and records those panels and variables in `version.unverified` and the import report.
   Later saves run every query; a failing panel or variable is kept only while the parent version lists it as unverified and it is unchanged (see Dashboards), and the agent is told never to delete an unverified panel unless asked.
   The original Grafana JSON is stored in `imports.original` and is never returned by the API or shown to the agent.
-- Every Grafana built-in panel type is a Spec type, an import-time mapping onto one, or a placeholder with a stated reason (`annolist`, `welcome`, `gettingstarted`, `debug`, `live`, `alertGroups`).
+- Every Grafana built-in panel type is a Spec type, an import-time mapping onto one, or a placeholder with a stated reason (`annolist`, `live`, `alertGroups`).
 - Anything Enterprise will extend goes behind an interface in `pkg/extension`; core never imports Enterprise code.
 - `razorpay/slashdocs` is a reference, not a dependency: never import its packages or copy whole files; credit any verbatim snippet in `NOTICE` under its MIT license.
 
