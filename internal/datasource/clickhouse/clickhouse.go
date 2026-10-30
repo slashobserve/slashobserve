@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/ttlcache"
 )
 
 const (
@@ -43,6 +44,8 @@ type Datasource struct {
 	maxExecution  atomic.Int64
 
 	tableFunctions atomic.Pointer[tableFunctionSet]
+	database       string
+	columns        *ttlcache.Cache[tableName, []string]
 }
 
 var _ datasource.Datasource = (*Datasource)(nil)
@@ -84,7 +87,7 @@ func New(opts Options) (*Datasource, error) {
 	if err != nil {
 		return nil, datasource.ConfigErrorf("invalid clickhouse options")
 	}
-	return &Datasource{conn: conn, limits: limits}, nil
+	return &Datasource{conn: conn, limits: limits, database: opts.Database, columns: ttlcache.New[tableName, []string](columnCacheTTL, columnCacheCost)}, nil
 }
 
 func (d *Datasource) Type() string { return "clickhouse" }

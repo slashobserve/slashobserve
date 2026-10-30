@@ -270,35 +270,42 @@ func TestIntervalDefault(t *testing.T) {
 	}
 }
 
-func TestClickHouseAdhocNoteListsTheQueriesItWillNotFilter(t *testing.T) {
-	const chRef = `{"type":"grafana-clickhouse-datasource","uid":"ch"}`
+func TestClickHouseAdhocVariableAppliesToAllQueries(t *testing.T) {
+	const (
+		officialRef = `{"type":"grafana-clickhouse-datasource","uid":"ch"}`
+		altinityRef = `{"type":"vertamedia-clickhouse-datasource","uid":"alt"}`
+		altinityWhy = "Grafana's Altinity plugin applies these filters to the outermost query only; SlashObserve applies them on every table a query reads, subqueries included."
+	)
 	adhoc := func(datasource string) string {
 		return `{"name":"filters","type":"adhoc","datasource":` + datasource + `}`
 	}
-	chPanel := func(id int, sql string) string {
-		return panelJSON(id, 0, id*4, 12, 4, `"type":"table","datasource":`+chRef+`,"targets":[{"refId":"A","rawSql":"`+sql+`","format":1}]`)
+	officialPanel := func(id int, sql string) string {
+		return panelJSON(id, 0, id*4, 12, 4, `"type":"table","datasource":`+officialRef+`,"targets":[{"refId":"A","rawSql":"`+sql+`","format":1}]`)
+	}
+	altinityPanel := func(id int, sql string) string {
+		return panelJSON(id, 0, id*4, 12, 4, `"type":"table","datasource":`+altinityRef+`,"targets":[{"refId":"A","query":"`+sql+`","format":"table"}]`)
 	}
 	promPanel := panelJSON(3, 0, 12, 12, 4, `"type":"stat","datasource":`+promRef+`,"targets":[{"refId":"A","expr":"up"}]`)
-	reasonFor := func(unfiltered string) string {
-		return "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $filters, so " + unfiltered + " not filtered."
-	}
 
 	cases := []struct {
 		name      string
 		variable  string
 		panels    []string
+		wantApply bool
 		wantPaths []string
-		wantCount string
 	}{
-		{"one of two queries uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2")}, []string{"panels[1].targets[0]"}, "1 query is"},
-		{"two of three queries use no variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2"), chPanel(3, "SELECT 3")}, []string{"panels[1].targets[0]", "panels[2].targets[0]"}, "2 queries are"},
-		{"every query uses the variable", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), chPanel(2, "SELECT 2 WHERE $filters")}, nil, ""},
-		{"queries on other datasources are not counted", adhoc(chRef), []string{chPanel(1, "SELECT 1 WHERE $filters"), promPanel}, nil, ""},
-		{"prometheus adhoc variables filter every query", adhoc(promRef), []string{promPanel, chPanel(1, "SELECT 1")}, nil, ""},
+		{"official plugin, queries that do not name the variable", adhoc(officialRef), []string{officialPanel(1, "SELECT 1 WHERE $filters"), officialPanel(2, "SELECT 2")}, true, nil},
+		{"official plugin, no query names the variable", adhoc(officialRef), []string{officialPanel(1, "SELECT 1")}, true, nil},
+		{"altinity plugin lists the queries Grafana filters on the outermost level only", adhoc(altinityRef), []string{altinityPanel(1, "SELECT 1 WHERE $filters"), altinityPanel(2, "SELECT 2")}, true, []string{"panels[1].targets[0]"}},
+		{"altinity plugin, every query names the variable", adhoc(altinityRef), []string{altinityPanel(1, "SELECT 1 WHERE $filters")}, true, nil},
+		{"prometheus adhoc variables already filter every query", adhoc(promRef), []string{promPanel, officialPanel(1, "SELECT 1")}, false, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := convertDoc(t, dashboardJSON(templating(tc.variable), tc.panels...))
+			if got := variableNamed(t, res, "filters").ApplyToAll; got != tc.wantApply {
+				t.Fatalf("applyToAll = %v, want %v", got, tc.wantApply)
+			}
 			var got []Note
 			for _, note := range notesFor(res, "variable filters") {
 				if note.Reason != "Saved filters are not kept." {
@@ -311,9 +318,8 @@ func TestClickHouseAdhocNoteListsTheQueriesItWillNotFilter(t *testing.T) {
 				}
 				return
 			}
-			wantReason := reasonFor(tc.wantCount)
-			if len(got) != 1 || got[0].Reason != wantReason || !slices.Equal(got[0].Paths, tc.wantPaths) {
-				t.Fatalf("notes = %+v, want one %q with paths %v", got, wantReason, tc.wantPaths)
+			if len(got) != 1 || got[0].Reason != altinityWhy || !slices.Equal(got[0].Paths, tc.wantPaths) {
+				t.Fatalf("notes = %+v, want one %q with paths %v", got, altinityWhy, tc.wantPaths)
 			}
 		})
 	}

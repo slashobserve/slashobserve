@@ -19,7 +19,8 @@
     { "name": "window", "type": "interval", "options": ["1m", "5m", "1h"], "auto": true, "autoSteps": 30, "autoMin": "10s", "default": "5m" },
     { "name": "filter", "type": "textbox", "default": "" },
     { "name": "source", "type": "datasource", "datasourceType": "prometheus", "regex": "prom.*", "default": "prom" },
-    { "name": "adhoc", "type": "adhoc", "datasource": "prom" }
+    { "name": "adhoc", "type": "adhoc", "datasource": "prom" },
+    { "name": "chfilters", "type": "adhoc", "datasource": "ch", "applyToAll": true }
   ],
   "panels": [
     { "id": "p_rps", "type": "timeseries", "title": "Requests and errors per second",

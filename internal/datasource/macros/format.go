@@ -86,10 +86,18 @@ func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (s
 	if len(v.Filters) == 0 {
 		return "1 = 1", nil
 	}
-	terms := make([]string, len(v.Filters))
-	for i, f := range v.Filters {
+	condition, ok := ClickHouseAdhocCondition(v.Filters)
+	if !ok {
+		return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
+	}
+	return condition, nil
+}
+
+func ClickHouseAdhocCondition(filters []datasource.AdhocFilter) (string, bool) {
+	terms := make([]string, len(filters))
+	for i, f := range filters {
 		if !spec.IsColumnArg(f.Key) || hasControlByte(f.Value) {
-			return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
+			return "", false
 		}
 		value := "'" + sqlStringEscaper.Replace(f.Value) + "'"
 		switch f.Op {
@@ -102,10 +110,10 @@ func expandAdhoc(d Dialect, ref spec.Reference, c ctx, v datasource.Variable) (s
 		case "!~":
 			terms[i] = "NOT match(" + f.Key + ", " + anchoredPattern(f.Value) + ")"
 		default:
-			return "", refErrorf(ref, "adhoc variable %s has an invalid filter", refLabel(ref))
+			return "", false
 		}
 	}
-	return "(" + strings.Join(terms, " AND ") + ")", nil
+	return "(" + strings.Join(terms, " AND ") + ")", true
 }
 
 func anchoredPattern(pattern string) string {

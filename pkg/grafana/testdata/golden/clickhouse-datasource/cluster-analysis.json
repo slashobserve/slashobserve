@@ -342,28 +342,7 @@
         ]
       }
     ],
-    "notes": [
-      {
-        "subject": "variable filters",
-        "status": "partial",
-        "reason": "Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $filters, so 13 queries are not filtered.",
-        "paths": [
-          "panels[0].targets[0]",
-          "panels[1].targets[0]",
-          "panels[2].targets[0]",
-          "panels[3].targets[0]",
-          "panels[4].targets[0]",
-          "panels[5].targets[0]",
-          "panels[6].targets[0]",
-          "panels[7].targets[0]",
-          "panels[8].targets[0]",
-          "panels[9].targets[0]",
-          "panels[10].targets[0]",
-          "panels[11].targets[0]",
-          "panels[12].targets[0]"
-        ]
-      }
-    ]
+    "notes": []
   },
   "spec": {
     "specVersion": "0",
@@ -392,7 +371,8 @@
       {
         "name": "filters",
         "type": "adhoc",
-        "datasource": "${datasource}"
+        "datasource": "${datasource}",
+        "applyToAll": true
       }
     ],
     "panels": [

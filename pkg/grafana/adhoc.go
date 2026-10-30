@@ -126,22 +126,15 @@ func compilesAsRegexp(pattern string) bool {
 func (c *converter) noteClickHouseAdhoc() {
 	for _, v := range c.vars {
 		src := c.adhocSources[v.v.Name]
-		if v.v.Type != spec.AdhocVariable || src == nil || src.kind != kindClickHouse {
+		if v.v.Type != spec.AdhocVariable || src == nil || src.typ != altinityPlugin {
 			continue
 		}
 		unfiltered, count := c.queriesWithout(v.v.Name, src)
 		if count == 0 {
 			continue
 		}
-		c.note("variable "+v.v.Name, fmt.Sprintf("Grafana applies these filters to every query on this datasource; SlashObserve applies them only in queries that use $%s, so %s not filtered.", v.v.Name, unfilteredQueries(count)), unfiltered...)
+		c.note("variable "+v.v.Name, "Grafana's Altinity plugin applies these filters to the outermost query only; SlashObserve applies them on every table a query reads, subqueries included.", unfiltered...)
 	}
-}
-
-func unfilteredQueries(count int) string {
-	if count == 1 {
-		return "1 query is"
-	}
-	return fmt.Sprintf("%d queries are", count)
 }
 
 func (c *converter) queriesWithout(variable string, src *sourceDS) ([]string, int) {

@@ -142,6 +142,7 @@ type Variable struct {
 	IncludeAll       bool           `json:"includeAll,omitempty"`
 	AllValue         string         `json:"allValue,omitempty"`
 	AllowCustomValue bool           `json:"allowCustomValue,omitempty"`
+	ApplyToAll       bool           `json:"applyToAll,omitempty"`
 	Value            string         `json:"value,omitempty"`
 	Auto             bool           `json:"auto,omitempty"`
 	AutoSteps        int            `json:"autoSteps,omitempty"`

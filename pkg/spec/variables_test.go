@@ -236,6 +236,43 @@ func TestAllowCustomValueSchema(t *testing.T) {
 	}
 }
 
+func TestApplyToAllVariable(t *testing.T) {
+	minimal := string(readExample(t, "minimal.json"))
+	with := func(variables string) []byte {
+		return []byte(strings.Replace(minimal, `"panels"`, fmt.Sprintf(`"variables": [%s], "panels"`, variables), 1))
+	}
+	source := func(dsType string) string {
+		return fmt.Sprintf(`{"name":"source","type":"datasource","datasourceType":%q}`, dsType)
+	}
+	cases := []struct {
+		name      string
+		variables string
+		code      spec.IssueCode
+		path      string
+	}{
+		{"literal datasource", `{"name":"f","type":"adhoc","datasource":"ch","applyToAll":true}`, "", ""},
+		{"clickhouse datasource variable", source("clickhouse") + `,{"name":"f","type":"adhoc","datasource":"${source}","applyToAll":true}`, "", ""},
+		{"prometheus datasource variable", source("prometheus") + `,{"name":"f","type":"adhoc","datasource":"${source}","applyToAll":true}`, spec.CodeInvalidReference, "/variables/1/applyToAll"},
+		{"prometheus datasource variable without the field", source("prometheus") + `,{"name":"f","type":"adhoc","datasource":"${source}"}`, "", ""},
+		{"only true is allowed", `{"name":"f","type":"adhoc","datasource":"ch","applyToAll":false}`, "schema", "/variables/0/applyToAll"},
+		{"other variable types have no such field", `{"name":"f","type":"custom","options":["a"],"applyToAll":true}`, "schema", "/variables/0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.code == "" {
+				if _, err := spec.Parse(with(tc.variables)); err != nil {
+					t.Fatalf("Parse: %v", err)
+				}
+				return
+			}
+			issues := parseIssues(t, with(tc.variables))
+			if !slices.ContainsFunc(issues, func(i spec.Issue) bool { return i.Path == tc.path && i.Code == tc.code }) {
+				t.Fatalf("issues = %+v, want %s at %q", issues, tc.code, tc.path)
+			}
+		})
+	}
+}
+
 func TestVariableDefinitionIssues(t *testing.T) {
 	minimal := string(readExample(t, "minimal.json"))
 	with := func(variables string) []byte {

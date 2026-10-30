@@ -16,6 +16,33 @@ func DatasourceVariableName(ref string) (string, bool) {
 	return m[1], true
 }
 
+func checkApplyToAll(d *Dashboard) []Issue {
+	types := map[string]DatasourceType{}
+	for _, v := range d.Variables {
+		if _, dup := types[v.Name]; !dup && v.Type == DatasourceVariable {
+			types[v.Name] = v.DatasourceType
+		}
+	}
+	var issues []Issue
+	for i, v := range d.Variables {
+		if !v.ApplyToAll {
+			continue
+		}
+		name, ok := DatasourceVariableName(v.Datasource)
+		if !ok {
+			continue
+		}
+		if typ, declared := types[name]; declared && typ != ClickHouse {
+			issues = append(issues, Issue{
+				Path:    pointer("variables", strconv.Itoa(i), "applyToAll"),
+				Code:    CodeInvalidReference,
+				Message: fmt.Sprintf("applyToAll needs a ClickHouse datasource, but ${%s} is a %s datasource variable; remove applyToAll", name, typ),
+			})
+		}
+	}
+	return issues
+}
+
 func checkDatasourceRefs(d *Dashboard) []Issue {
 	index := map[string]int{}
 	types := map[string]VariableType{}
