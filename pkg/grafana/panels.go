@@ -123,12 +123,14 @@ func notImportedReason(n int, one, many string) string {
 }
 
 type builtPanel struct {
-	node     *panelNode
-	panel    spec.Panel
-	line     PanelLine
-	children []*builtPanel
-	repeat   string
-	queries  []*builtQuery
+	node        *panelNode
+	panel       spec.Panel
+	line        PanelLine
+	children    []*builtPanel
+	repeat      string
+	queries     []*builtQuery
+	refs        map[string]string
+	instantRefs map[string]string
 }
 
 func (bp *builtPanel) isRow() bool {
@@ -229,7 +231,7 @@ func (c *converter) datasourceReason(n *panelNode) string {
 		return ""
 	}
 	for _, ref := range n.ds.targets {
-		if ref.supported() {
+		if ref.supported() || ref.isDashboard() {
 			return ""
 		}
 	}
@@ -589,7 +591,7 @@ func (b *panelBuild) finish() *builtPanel {
 		Queries:     queries,
 	}
 	b.panel.Display = b.display
-	return &builtPanel{node: n, panel: b.panel, line: line, queries: b.built}
+	return &builtPanel{node: n, panel: b.panel, line: line, queries: b.built, refs: b.refs, instantRefs: b.instantRefs}
 }
 
 func inlineLibraryPanels(dash map[string]any) {

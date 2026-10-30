@@ -381,7 +381,7 @@ func (b *panelBuild) dropBrokenExpressions() {
 		}
 		b.dropBuilt(k, reason)
 	}
-	if len(b.built) > 0 && b.firstDataQuery() < 0 {
+	if len(b.built) > 0 && b.firstDataQuery() < 0 && !b.reusesPanel() {
 		for len(b.built) > 0 {
 			b.dropBuilt(0, noExpressionInputReason)
 		}
