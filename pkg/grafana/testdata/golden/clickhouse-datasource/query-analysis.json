@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 11,
-      "imported": 8,
-      "partial": 3,
+      "imported": 9,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -87,7 +87,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
+          "The color mode thresholds is not drawn on histogram panels.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -217,13 +217,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -584,6 +580,8 @@
             "format": "logs"
           }
         ],
+        "colorMode": "scheme",
+        "colorScheme": "greenYellowRed",
         "fill": 20,
         "lineInterpolation": "smooth",
         "lineWidth": 3,

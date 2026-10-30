@@ -157,7 +157,7 @@
         "row": "Scale Target",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
+          "The color mode continuous-GrYlRd is not drawn on state-timeline panels.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [

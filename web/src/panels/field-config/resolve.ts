@@ -12,8 +12,11 @@ import {
   type Threshold,
 } from "@/spec"
 
+import type { ColorScheme } from "../color-scheme"
 import { interpolateDisplayName } from "./display-name"
 import { compileMatch } from "./match"
+
+type ColorMode = NonNullable<FieldProps["colorMode"]>
 
 export type FieldConfig = {
   unit?: string
@@ -23,6 +26,9 @@ export type FieldConfig = {
   thresholds?: Threshold[]
   thresholdMode: "absolute" | "percentage"
   color?: string
+  colorMode?: ColorMode
+  colorScheme?: ColorScheme
+  colorBy: "last" | "min" | "max"
   displayName?: string
   noValue?: string
   mappings: Mapping[]
@@ -65,6 +71,9 @@ const fieldPropKeys = [
   "thresholds",
   "thresholdMode",
   "color",
+  "colorMode",
+  "colorScheme",
+  "colorBy",
   "displayName",
   "noValue",
   "mappings",
@@ -92,6 +101,12 @@ const fieldPropKeys = [
   "axisBorder",
   "axisColor",
 ] as const satisfies readonly (keyof FieldProps)[]
+
+export function effectiveColorMode(
+  config: Pick<FieldConfig, "colorMode" | "color">
+): ColorMode {
+  return config.colorMode ?? (config.color ? "fixed" : "palette")
+}
 
 type Resolved = { seriesName: string; displayName: string; config: FieldConfig }
 

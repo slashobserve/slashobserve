@@ -1136,6 +1136,46 @@
         "color": {
           "$ref": "#/$defs/color"
         },
+        "colorMode": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "palette",
+            "paletteByName",
+            "fixed",
+            "shades",
+            "thresholds",
+            "scheme"
+          ]
+        },
+        "colorScheme": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "greenYellowRed",
+            "redYellowGreen",
+            "blueYellowRed",
+            "yellowRed",
+            "bluePurple",
+            "yellowBlue",
+            "blues",
+            "reds",
+            "greens",
+            "purples",
+            "oranges",
+            "viridis",
+            "magma",
+            "plasma",
+            "inferno",
+            "cividis"
+          ]
+        },
+        "colorBy": {
+          "x-omitFromPrompt": true,
+          "enum": [
+            "last",
+            "min",
+            "max"
+          ]
+        },
         "displayName": {
           "type": "string",
           "minLength": 1,

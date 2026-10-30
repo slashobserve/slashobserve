@@ -6,6 +6,7 @@ import { displayValue, fieldRange, type FieldConfig } from "."
 
 const config = (extra: Partial<FieldConfig> = {}): FieldConfig => ({
   thresholdMode: "absolute",
+  colorBy: "last",
   style: "line",
   fill: 0,
   lineStyle: "solid",

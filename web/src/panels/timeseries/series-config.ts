@@ -1,8 +1,14 @@
 import { commonDecimals } from "@/lib/units"
 import type { FieldProps, Reducer } from "@/spec"
 
-import { styleForSlot, type LineStyle, type SlotMap } from "../colors"
-import { displayValue, type FieldConfig } from "../field-config"
+import { hashSlot, styleForSlot, type LineStyle, type SlotMap } from "../colors"
+import { rangePosition, schemeColor } from "../color-scheme"
+import {
+  displayValue,
+  effectiveColorMode,
+  type FieldConfig,
+} from "../field-config"
+import { reduce } from "../reducers"
 import { thresholdColor } from "../thresholds"
 import type { AlignedSeries } from "./align"
 import {
@@ -48,14 +54,105 @@ function stackSafeInterpolation(
   return stack === "none" ? interpolation : "linear"
 }
 
+type ColoredSeries = Pick<AlignedSeries, "key" | "label" | "values">
+
+type Range = { min?: number; max?: number }
+
+const shadeFloorPercent = 45
+
+function dataRange(aligned: readonly ColoredSeries[]): Range {
+  let min: number | undefined
+  let max: number | undefined
+  for (const { values } of aligned) {
+    for (const value of values) {
+      if (typeof value !== "number" || !Number.isFinite(value)) continue
+      if (min === undefined || value < min) min = value
+      if (max === undefined || value > max) max = value
+    }
+  }
+  return { min, max }
+}
+
+function colorValue(series: ColoredSeries, config: FieldConfig): number | null {
+  return reduce(
+    series.values,
+    config.colorBy === "last" ? "lastNotNull" : config.colorBy
+  )
+}
+
+function shadeOf(base: string, position: number, count: number): string {
+  if (count < 2) return base
+  const percent = Math.round(
+    100 - ((100 - shadeFloorPercent) * position) / (count - 1)
+  )
+  return `color-mix(in oklab, ${base} ${percent}%, var(--background))`
+}
+
+function seriesColors(
+  aligned: readonly ColoredSeries[],
+  configs: readonly FieldConfig[],
+  slotColors: readonly string[]
+): string[] {
+  const range = dataRange(aligned)
+  const shaded = aligned.flatMap((_, index) =>
+    effectiveColorMode(configs[index]) === "shades" && !configs[index].hidden
+      ? [index]
+      : []
+  )
+  return aligned.map((series, index) => {
+    const config = configs[index]
+    const slotColor = slotColors[index]
+    const fixed = config.color ? thresholdColor(config.color) : slotColor
+    switch (effectiveColorMode(config)) {
+      case "fixed":
+        return fixed
+      case "shades":
+        return shadeOf(fixed, shaded.indexOf(index), shaded.length)
+      case "paletteByName":
+        return styleForSlot(hashSlot(series.label)).color
+      case "thresholds": {
+        const value = colorValue(series, config)
+        return (
+          displayValue(value, config, {
+            fieldMin: range.min,
+            fieldMax: range.max,
+          }).threshold.color ?? slotColor
+        )
+      }
+      case "scheme": {
+        const value = colorValue(series, config)
+        const min = config.min ?? range.min
+        const max = config.max ?? range.max
+        if (
+          !config.colorScheme ||
+          value === null ||
+          min === undefined ||
+          max === undefined
+        ) {
+          return slotColor
+        }
+        return schemeColor(config.colorScheme, rangePosition(value, min, max))
+      }
+      default:
+        return slotColor
+    }
+  })
+}
+
 export function seriesStyles(
-  aligned: readonly Pick<AlignedSeries, "key" | "label">[],
+  aligned: readonly ColoredSeries[],
   configs: readonly FieldConfig[],
   slots: SlotMap
 ): StyledSeries[] {
+  const slotStyles = aligned.map(({ key }) => styleForSlot(slots.get(key) ?? 0))
+  const colors = seriesColors(
+    aligned,
+    configs,
+    slotStyles.map(({ color }) => color)
+  )
   return aligned.map(({ key, label }, index) => {
     const config = configs[index]
-    const slot = styleForSlot(slots.get(key) ?? 0)
+    const slot = slotStyles[index]
     const explicit =
       config.lineStyle === "solid"
         ? undefined
@@ -63,7 +160,7 @@ export function seriesStyles(
     return {
       key,
       label,
-      color: config.color ? thresholdColor(config.color) : slot.color,
+      color: colors[index],
       dash: explicit?.dash ?? slot.dash,
       line: explicit?.line ?? slot.line,
       style: config.style,

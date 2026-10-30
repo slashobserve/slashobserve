@@ -4,6 +4,7 @@ import type { Reducer } from "@/spec"
 
 import {
   displayValue,
+  effectiveColorMode,
   fieldRange,
   isDataLink,
   resolveLink,
@@ -223,6 +224,7 @@ function labeledTable(frames: PreparedFrame[]): Built {
 function isColored(config: FieldConfig): boolean {
   return (
     (config.thresholds?.length ?? 0) > 0 ||
+    effectiveColorMode(config) === "scheme" ||
     config.mappings.some((mapping) => mapping.color !== undefined)
   )
 }

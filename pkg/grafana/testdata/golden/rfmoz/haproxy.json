@@ -46,7 +46,7 @@
         "status": "partial",
         "reasons": [
           "Some overrides use matchers or properties that are not supported yet.",
-          "This color scheme is not supported yet; series use the default palette."
+          "This fixed color is not supported yet."
         ],
         "paths": [
           "fieldConfig.overrides[0].properties[0]",

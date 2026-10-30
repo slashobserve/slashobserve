@@ -28,8 +28,7 @@ const (
 	maxAxisWidth   = 400
 	defaultLogBase = 10
 
-	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
-	logBaseReason     = "Only log base 2 and 10 are supported."
+	logBaseReason = "Only log base 2 and 10 are supported."
 )
 
 type propSite struct {
@@ -460,24 +459,88 @@ func propColor(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	if !ok {
 		return
 	}
-	mode := asString(cfg["mode"])
+	reset := s.whole && b.colorResettable()
+	if reason := b.applyColorMode(p, cfg, asString(cfg["mode"]), reset); reason != "" {
+		b.partial(s.at(""), reason)
+	}
+}
+
+func (b *panelBuild) applyColorMode(p *spec.FieldProps, cfg map[string]any, mode string, reset bool) string {
 	switch {
 	case mode == "" || mode == "palette-classic":
-		return
-	case mode == "thresholds" && thresholdColoredTypes[b.typ]:
-		return
+		if reset {
+			p.ColorMode = "palette"
+		}
+		return ""
 	case mode == "fixed" || mode == "shades":
-		if color, ok := seriesColor(asString(cfg["fixedColor"])); ok {
-			p.Color = color
-			return
+		return b.applyFixedColor(p, cfg, mode, reset)
+	case mode == "palette-classic-by-name" || mode == "thresholds" || continuousSchemes[mode] != "":
+		return b.applyDrawnColorMode(p, cfg, mode, reset)
+	}
+	return fmt.Sprintf("The color mode %s is not supported yet.", mode)
+}
+
+func (b *panelBuild) applyFixedColor(p *spec.FieldProps, cfg map[string]any, mode string, reset bool) string {
+	color, ok := seriesColor(asString(cfg["fixedColor"]))
+	if !ok {
+		return "This fixed color is not supported yet."
+	}
+	p.Color = color
+	switch {
+	case mode == "shades" && seriesColoredTypes[b.typ]:
+		p.ColorMode = "shades"
+	case reset:
+		p.ColorMode = "fixed"
+	}
+	return ""
+}
+
+func (b *panelBuild) applyDrawnColorMode(p *spec.FieldProps, cfg map[string]any, mode string, reset bool) string {
+	scheme := continuousSchemes[mode]
+	series := seriesColoredTypes[b.typ]
+	switch {
+	case mode == "palette-classic-by-name" && series:
+		p.ColorMode = "paletteByName"
+	case mode == "thresholds" && thresholdColoredTypes[b.typ]:
+	case mode == "thresholds" && series:
+		p.ColorMode = "thresholds"
+		setColorBy(p, cfg, reset)
+	case scheme != "" && series:
+		p.ColorMode, p.ColorScheme = "scheme", scheme
+		setColorBy(p, cfg, reset)
+	case scheme != "" && b.typ == spec.Table && !b.cellColoring():
+	case scheme != "" && schemeColoredTypes[b.typ]:
+		p.ColorMode, p.ColorScheme = "scheme", scheme
+	default:
+		return fmt.Sprintf("The color mode %s is not drawn on %s panels.", mode, b.typ)
+	}
+	return ""
+}
+
+func setColorBy(p *spec.FieldProps, cfg map[string]any, explicit bool) {
+	switch by := asString(cfg["seriesBy"]); by {
+	case "min", "max":
+		p.ColorBy = by
+	case "last":
+		if explicit {
+			p.ColorBy = by
 		}
 	}
-	b.partial(s.at(""), colorSchemeReason)
+}
+
+func (b *panelBuild) colorResettable() bool {
+	return b.panel.Color != "" || b.panel.ColorMode != ""
+}
+
+var seriesColoredTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true}
+
+var schemeColoredTypes = map[spec.PanelType]bool{
+	spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true, spec.BarChart: true, spec.XYChart: true,
 }
 
 var thresholdColoredTypes = map[spec.PanelType]bool{
 	spec.Stat: true, spec.Gauge: true, spec.BarGauge: true, spec.Table: true, spec.StateTimeline: true,
-	spec.StatusHistory: true, spec.Geomap: true, spec.Canvas: true,
+	spec.StatusHistory: true, spec.Geomap: true, spec.Canvas: true, spec.PieChart: true, spec.BarChart: true, spec.XYChart: true,
 }
 
 func propDrawStyle(b *panelBuild, p *spec.FieldProps, v any, s propSite) {

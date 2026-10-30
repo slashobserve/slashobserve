@@ -12,6 +12,7 @@ import (
 
 type FieldPropsDefaults struct {
 	ThresholdMode     string `json:"thresholdMode"`
+	ColorBy           string `json:"colorBy"`
 	Style             string `json:"style"`
 	Fill              int    `json:"fill"`
 	LineStyle         string `json:"lineStyle"`

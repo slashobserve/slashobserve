@@ -105,7 +105,7 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette.",
+          "The color mode scheme is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
@@ -142,7 +142,7 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
+          "This fixed color is not supported yet."
         ],
         "paths": [
           "fieldConfig.defaults.color"

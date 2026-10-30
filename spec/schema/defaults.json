@@ -1,5 +1,5 @@
 {
-  "fieldProps": {"thresholdMode": "absolute", "style": "line", "fill": 0, "lineStyle": "solid", "lineInterpolation": "linear", "lineWidth": 2, "points": "auto", "pointSize": 4, "spanNulls": false, "stack": "none", "axis": "left", "hidden": false, "scale": "linear", "logBase": 10, "axisCenteredZero": false, "axisBorder": false, "axisColor": "text"},
+  "fieldProps": {"thresholdMode": "absolute", "colorBy": "last", "style": "line", "fill": 0, "lineStyle": "solid", "lineInterpolation": "linear", "lineWidth": 2, "points": "auto", "pointSize": 4, "spanNulls": false, "stack": "none", "axis": "left", "hidden": false, "scale": "linear", "logBase": 10, "axisCenteredZero": false, "axisBorder": false, "axisColor": "text"},
   "query": {"instant": false, "hide": false, "format": "timeseries"},
   "variable": {"refresh": "load", "multi": false, "includeAll": false},
   "row": {"collapsed": false},

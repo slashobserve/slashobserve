@@ -705,13 +705,11 @@
         "status": "partial",
         "reasons": [
           "Exemplars are drawn on time series only.",
-          "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
           "targets[1].exemplar",
-          "fieldConfig.defaults.color",
           "transformations[0]"
         ],
         "queries": [

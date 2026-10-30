@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 25,
-      "imported": 17,
-      "partial": 8,
+      "imported": 21,
+      "partial": 4,
       "placeholder": 0,
       "unverified": 0
     },
@@ -338,13 +338,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -370,13 +366,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Resources",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -465,13 +457,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -490,13 +478,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Kubernetes",
-        "status": "partial",
-        "reasons": [
-          "This color scheme is not supported yet; series use the default palette."
-        ],
-        "paths": [
-          "fieldConfig.defaults.color"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1416,6 +1400,7 @@
               }
             ],
             "thresholdMode": "percentage",
+            "colorMode": "thresholds",
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
@@ -1473,6 +1458,7 @@
               }
             ],
             "thresholdMode": "percentage",
+            "colorMode": "thresholds",
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
@@ -1637,6 +1623,7 @@
               }
             ],
             "thresholdMode": "percentage",
+            "colorMode": "thresholds",
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",
@@ -1674,6 +1661,7 @@
               }
             ],
             "thresholdMode": "percentage",
+            "colorMode": "thresholds",
             "fill": 25,
             "lineInterpolation": "smooth",
             "points": "never",

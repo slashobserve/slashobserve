@@ -246,6 +246,9 @@ type FieldProps struct {
 	Thresholds        []Threshold `json:"thresholds,omitempty"`
 	ThresholdMode     string      `json:"thresholdMode,omitempty"`
 	Color             string      `json:"color,omitempty"`
+	ColorMode         string      `json:"colorMode,omitempty"`
+	ColorScheme       string      `json:"colorScheme,omitempty"`
+	ColorBy           string      `json:"colorBy,omitempty"`
 	DisplayName       string      `json:"displayName,omitempty"`
 	NoValue           string      `json:"noValue,omitempty"`
 	Mappings          []Mapping   `json:"mappings,omitempty"`

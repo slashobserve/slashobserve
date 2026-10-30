@@ -214,7 +214,7 @@ See [Datasources and variables](datasources-and-variables.md).
 ## Field options, overrides and transforms
 
 A data panel carries its display options directly, and an override repeats the same options for the series or fields it matches.
-The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
+The options are `unit`, `decimals`, `min`, `max`, `thresholds` and `thresholdMode`, `color`, `colorMode`, `colorScheme`, `colorBy`, `displayName`, `noValue`, `mappings`, `links`, and for charts `style`, `fill`, `lineStyle`, `lineInterpolation`, `lineWidth`, `points`, `pointSize`, `spanNulls`, `stack`, `axis`, `hidden`, and for the axes `axisLabel`, `axisSoftMin`, `axisSoftMax`, `scale`, `logBase`, `linearThreshold`, `axisCenteredZero`, `axisWidth`, `axisGrid`, `axisBorder` and `axisColor`.
 `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
 `lineWidth` is 0 to 10 pixels (2 by default; 0 draws no line, so a filled series shows only its fill).
 `points` is `auto` (a marker on samples with no neighbour, the default), `always` or `never`, and `pointSize` is the marker diameter in pixels, 1 to 40 (4 by default), which also sizes the markers of the `points` style.
@@ -226,6 +226,10 @@ The axis options belong to the axis a series draws on, and the first series on a
 `axisCenteredZero` makes the range symmetric around zero.
 `axisWidth` fixes the width of the axis in pixels (0 to 400), `axisGrid` shows or hides its grid lines (by default only the left axis, or the right one when there is no left axis, draws a grid), `axisBorder` draws a line along the axis, and `axisColor` is `text` (the default) or `series` (the axis takes the color of its first series).
 A percent stack always uses a 0 to 100% axis whatever the scale.
+`colorMode` chooses how a color is picked: `palette` (the series palette, the default when no `color` is set), `paletteByName` (a palette color from a stable hash of the series name, so a series keeps its color when others come and go), `fixed` (the `color`, the default when one is set), `shades` (the `color` in a step lighter or darker per series), `thresholds` (each series takes the color of the threshold its value reaches) or `scheme` (each value or series takes a color from the ramp `colorScheme` names, by its place between the field's `min` and `max`, else the data range).
+`colorScheme` is one of `greenYellowRed`, `redYellowGreen`, `blueYellowRed`, `yellowRed`, `bluePurple`, `yellowBlue`, `blues`, `reds`, `greens`, `purples`, `oranges`, `viridis`, `magma`, `plasma`, `inferno` or `cividis`; every ramp is built from the theme's own colors, so light and dark themes follow it.
+`colorBy` is the value of a series that picks its color under `thresholds` and `scheme`: `last` (the default), `min` or `max`.
+Time series and trend panels draw every `colorMode`, while stat, gauge, bar gauge, table cells with colored values, bar chart and XY chart draw `scheme`; stat, gauge, bar gauge, table, bar chart, pie chart and XY chart already color values by their thresholds.
 Only `timeseries`, `trend` and `candlestick` panels draw the line style and axis options, so other panel types ignore them and a Grafana import reports them there.
 Thresholds ascend, and the first step may leave out `value` to act as the base color.
 A color is `ok`, `info`, `warning`, `critical` or a `#rrggbb` hex value.

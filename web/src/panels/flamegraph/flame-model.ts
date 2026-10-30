@@ -1,4 +1,4 @@
-import { styleForSlot } from "../colors"
+import { hashSlot, styleForSlot } from "../colors"
 import {
   displayValue,
   type FieldConfig,
@@ -36,7 +36,6 @@ export const brokenOrderReason =
   "The rows are not in depth-first order: a level jumps down by more than one."
 export const diffNote = "Diff profiles show the left side."
 
-const hueCount = 8
 const separators = [".", "/", "::"]
 
 function findField(frame: PreparedFrame, name: string) {
@@ -51,15 +50,6 @@ function hasField(frame: PreparedFrame, name: string): boolean {
 export function packagePrefix(label: string): string {
   const cut = Math.max(...separators.map((token) => label.lastIndexOf(token)))
   return cut > 0 ? label.slice(0, cut) : label
-}
-
-function hashSlot(text: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0) % hueCount
 }
 
 export function colorOf(label: string): string {

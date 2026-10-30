@@ -17,8 +17,16 @@ export function readChartColors() {
 }
 
 export function resolveColor(color: string): string {
-  const match = /^var\((--[\w-]+)\)$/.exec(color)
-  return match ? cssVar(match[1]) : color
+  return color.replace(/var\((--[\w-]+)\)/g, (_, name: string) => cssVar(name))
+}
+
+export function hashSlot(text: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) % hueCount
 }
 
 export type SlotMap = ReadonlyMap<string, number>
