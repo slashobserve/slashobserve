@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useId, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { CircleAlertIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
+import { foldersQuery } from "@/folders/queries"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { isEditableTarget } from "@/lib/shortcuts"
@@ -11,6 +12,12 @@ import { cn } from "@/lib/utils"
 
 import { DatasourcesCard } from "./datasources-card"
 import { importFailure, previewFailure } from "./errors"
+import { FolderCard } from "./folder-card"
+import {
+  automaticFolder,
+  folderChoices,
+  requestedFolder,
+} from "./folder-choice"
 import {
   newSource,
   previewQuery,
@@ -41,6 +48,12 @@ export function ImportPage() {
   const [mapping, setMapping] = useState<Mapping>(noMapping)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [folder, setFolder] = useState(automaticFolder)
+  const folders = useQuery(foldersQuery())
+  const choices = useMemo(
+    () => folderChoices(folders.data ?? []),
+    [folders.data]
+  )
   const importDashboard = useImportDashboard()
   const resetImport = importDashboard.reset
   const result = importDashboard.data ?? null
@@ -154,7 +167,11 @@ export function ImportPage() {
 
   const runImport = () => {
     if (!source) return
-    importDashboard.mutate({ source, mapping })
+    importDashboard.mutate({
+      source,
+      mapping,
+      folder: requestedFolder(folder, choices),
+    })
   }
 
   const importError = importDashboard.isError
@@ -182,11 +199,20 @@ export function ImportPage() {
   let status
   if (result) {
     status = (
-      <p id={statusId} role="status" className="text-[13px]">
-        <StatusLabel tone="ok">
-          Imported as {result.dashboard.title}, version {result.version.version}
-        </StatusLabel>
-      </p>
+      <div
+        id={statusId}
+        role="status"
+        className="flex flex-col gap-1 text-[13px]"
+      >
+        <p>
+          <StatusLabel tone="ok">
+            Imported as {result.dashboard.title}, version{" "}
+            {result.version.version}
+          </StatusLabel>
+        </p>
+        <p>In folder {result.dashboard.folder.title}.</p>
+        {result.folder_note ? <p>{result.folder_note}</p> : null}
+      </div>
     )
   } else if (importError) {
     status = (
@@ -273,6 +299,15 @@ export function ImportPage() {
             onText={acceptText}
             onRetry={() => void preview.refetch()}
           />
+          {source ? (
+            <FolderCard
+              choices={choices}
+              value={requestedFolder(folder, choices) ?? automaticFolder}
+              failed={folders.isError}
+              disabled={result !== null || importDashboard.isPending}
+              onChange={setFolder}
+            />
+          ) : null}
           {datasources ? (
             <DatasourcesCard
               datasources={datasources}
