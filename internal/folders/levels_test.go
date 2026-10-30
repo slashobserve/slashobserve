@@ -15,16 +15,17 @@ func TestLevelFor(t *testing.T) {
 		facts Facts
 		want  want
 	}{
-		{"unrestricted folder", Facts{}, want{LevelView, LevelView, LevelEdit, LevelAdmin}},
+		{"unrestricted folder", Facts{}, want{LevelView, LevelComment, LevelEdit, LevelAdmin}},
 		{"restricted with no matching row", Facts{Restricted: true}, want{LevelNone, LevelNone, LevelNone, LevelAdmin}},
-		{"restricted with a view row", Facts{Restricted: true, Grants: []Level{LevelView}}, want{LevelView, LevelView, LevelEdit, LevelAdmin}},
-		{"restricted with an edit row", Facts{Restricted: true, Grants: []Level{LevelEdit}}, want{LevelEdit, LevelEdit, LevelEdit, LevelAdmin}},
-		{"restricted with an admin row", Facts{Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
-		{"several rows, the highest wins", Facts{Restricted: true, Grants: []Level{LevelView, LevelAdmin, LevelEdit}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
-		{"several rows without admin", Facts{Restricted: true, Grants: []Level{LevelView, LevelEdit}}, want{LevelEdit, LevelEdit, LevelEdit, LevelAdmin}},
-		{"creator of a restricted folder with no row", Facts{Restricted: true, Creator: true}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
-		{"creator of an unrestricted folder", Facts{Creator: true}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
-		{"creator with a view row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelView}}, want{LevelEdit, LevelEdit, LevelAdmin, LevelAdmin}},
+		{"restricted with a view row", Facts{Restricted: true, Grants: []Level{LevelView}}, want{LevelView, LevelComment, LevelEdit, LevelAdmin}},
+		{"restricted with a comment row", Facts{Restricted: true, Grants: []Level{LevelComment}}, want{LevelView, LevelComment, LevelEdit, LevelAdmin}},
+		{"restricted with an edit row", Facts{Restricted: true, Grants: []Level{LevelEdit}}, want{LevelView, LevelComment, LevelEdit, LevelAdmin}},
+		{"restricted with an admin row", Facts{Restricted: true, Grants: []Level{LevelAdmin}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
+		{"several rows, the highest wins", Facts{Restricted: true, Grants: []Level{LevelView, LevelAdmin, LevelEdit}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
+		{"several rows without admin", Facts{Restricted: true, Grants: []Level{LevelView, LevelEdit}}, want{LevelView, LevelComment, LevelEdit, LevelAdmin}},
+		{"creator of a restricted folder with no row", Facts{Restricted: true, Creator: true}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
+		{"creator of an unrestricted folder", Facts{Creator: true}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
+		{"creator with a view row", Facts{Restricted: true, Creator: true, Grants: []Level{LevelView}}, want{LevelView, LevelComment, LevelAdmin, LevelAdmin}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -52,37 +53,19 @@ func TestLevelForRefusesAnUnknownRole(t *testing.T) {
 }
 
 func TestAbilitiesFor(t *testing.T) {
-	none := Abilities{}
-	view := Abilities{View: true}
-	viewComment := Abilities{View: true, Comment: true}
-	edit := Abilities{View: true, Comment: true, Edit: true}
-	editCreate := Abilities{View: true, Comment: true, Edit: true, Create: true}
-	everything := Abilities{View: true, Comment: true, Edit: true, Manage: true, Create: true}
 	cases := []struct {
-		role  auth.Role
 		level Level
 		want  Abilities
 	}{
-		{auth.RoleViewer, LevelNone, none},
-		{auth.RoleViewer, LevelView, view},
-		{auth.RoleViewer, LevelEdit, edit},
-		{auth.RoleViewer, LevelAdmin, Abilities{View: true, Comment: true, Edit: true, Manage: true}},
-		{auth.RoleCommenter, LevelNone, none},
-		{auth.RoleCommenter, LevelView, viewComment},
-		{auth.RoleCommenter, LevelEdit, edit},
-		{auth.RoleCommenter, LevelAdmin, Abilities{View: true, Comment: true, Edit: true, Manage: true}},
-		{auth.RoleEditor, LevelNone, none},
-		{auth.RoleEditor, LevelView, viewComment},
-		{auth.RoleEditor, LevelEdit, editCreate},
-		{auth.RoleEditor, LevelAdmin, everything},
-		{auth.RoleAdmin, LevelNone, none},
-		{auth.RoleAdmin, LevelView, viewComment},
-		{auth.RoleAdmin, LevelEdit, editCreate},
-		{auth.RoleAdmin, LevelAdmin, everything},
+		{LevelNone, Abilities{}},
+		{LevelView, Abilities{View: true}},
+		{LevelComment, Abilities{View: true, Comment: true}},
+		{LevelEdit, Abilities{View: true, Comment: true, Edit: true, Create: true}},
+		{LevelAdmin, Abilities{View: true, Comment: true, Edit: true, Manage: true, Create: true}},
 	}
 	for _, tc := range cases {
-		t.Run(string(tc.role)+" at "+tc.level.String(), func(t *testing.T) {
-			if got := AbilitiesFor(tc.role, tc.level); got != tc.want {
+		t.Run(tc.level.String(), func(t *testing.T) {
+			if got := AbilitiesFor(tc.level); got != tc.want {
 				t.Errorf("abilities = %+v, want %+v", got, tc.want)
 			}
 		})
@@ -98,39 +81,39 @@ func TestLevelForNamedCases(t *testing.T) {
 		want      Abilities
 	}{
 		{
-			"Viewer with an Edit row can Edit but not Create or Manage",
+			"Viewer given Edit still only views",
 			auth.RoleViewer, Facts{Restricted: true, Grants: []Level{LevelEdit}},
-			LevelEdit, Abilities{View: true, Comment: true, Edit: true},
+			LevelView, Abilities{View: true},
 		},
 		{
-			"Commenter with an Admin row gets Edit",
+			"Commenter given Edit only comments",
+			auth.RoleCommenter, Facts{Restricted: true, Grants: []Level{LevelEdit}},
+			LevelComment, Abilities{View: true, Comment: true},
+		},
+		{
+			"Commenter given Admin only comments",
 			auth.RoleCommenter, Facts{Restricted: true, Grants: []Level{LevelAdmin}},
-			LevelEdit, Abilities{View: true, Comment: true, Edit: true},
+			LevelComment, Abilities{View: true, Comment: true},
 		},
 		{
-			"Editor with a View row on a restricted folder gets Edit",
+			"Editor given View on a restricted folder edits",
 			auth.RoleEditor, Facts{Restricted: true, Grants: []Level{LevelView}},
 			LevelEdit, Abilities{View: true, Comment: true, Edit: true, Create: true},
 		},
 		{
-			"Admin with no row on a restricted folder gets Manage",
-			auth.RoleAdmin, Facts{Restricted: true},
+			"Editor given Admin manages",
+			auth.RoleEditor, Facts{Restricted: true, Grants: []Level{LevelAdmin}},
 			LevelAdmin, Abilities{View: true, Comment: true, Edit: true, Manage: true, Create: true},
-		},
-		{
-			"Viewer with a View row can View but not Comment",
-			auth.RoleViewer, Facts{Restricted: true, Grants: []Level{LevelView}},
-			LevelView, Abilities{View: true},
-		},
-		{
-			"Commenter with a View row can Comment",
-			auth.RoleCommenter, Facts{Restricted: true, Grants: []Level{LevelView}},
-			LevelView, Abilities{View: true, Comment: true},
 		},
 		{
 			"Viewer on a restricted folder with no row sees nothing",
 			auth.RoleViewer, Facts{Restricted: true},
 			LevelNone, Abilities{},
+		},
+		{
+			"Admin with no row on a restricted folder manages",
+			auth.RoleAdmin, Facts{Restricted: true},
+			LevelAdmin, Abilities{View: true, Comment: true, Edit: true, Manage: true, Create: true},
 		},
 	}
 	for _, tc := range cases {
@@ -139,7 +122,7 @@ func TestLevelForNamedCases(t *testing.T) {
 			if level != tc.wantLevel {
 				t.Fatalf("level = %s, want %s", level, tc.wantLevel)
 			}
-			if got := AbilitiesFor(tc.role, level); got != tc.want {
+			if got := AbilitiesFor(level); got != tc.want {
 				t.Errorf("abilities = %+v, want %+v", got, tc.want)
 			}
 		})
@@ -173,6 +156,7 @@ func TestParseLevel(t *testing.T) {
 		ok   bool
 	}{
 		{"view", LevelView, true},
+		{"comment", LevelComment, true},
 		{"edit", LevelEdit, true},
 		{"admin", LevelAdmin, true},
 		{"none", LevelNone, false},

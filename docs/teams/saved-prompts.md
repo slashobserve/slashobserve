@@ -64,5 +64,5 @@ An Admin can also edit and delete any shared prompt, but cannot see another pers
 | Commenter | None in the web app, which shows a note instead of the chat box. The API refuses a change. |
 | Viewer    | None in the web app, which shows a note instead of the chat box. The API refuses a change. |
 
-Running a prompt starts a new dashboard, which needs the Editor role, so a folder grant of Edit does not let a Commenter or Viewer run one (see [Roles](roles.md) and [Folders and access](folders.md)).
+Running a prompt starts a new dashboard, which needs the Editor role, so Commenters and Viewers cannot run one (see [Roles](roles.md) and [Folders and access](folders.md)).
 A key can run shared prompts with `observe run` when its service account is an Editor or Admin.

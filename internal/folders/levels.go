@@ -7,6 +7,7 @@ type Level int
 const (
 	LevelNone Level = iota
 	LevelView
+	LevelComment
 	LevelEdit
 	LevelAdmin
 )
@@ -15,6 +16,8 @@ func ParseLevel(s string) (Level, bool) {
 	switch s {
 	case "view":
 		return LevelView, true
+	case "comment":
+		return LevelComment, true
 	case "edit":
 		return LevelEdit, true
 	case "admin":
@@ -27,6 +30,8 @@ func (l Level) String() string {
 	switch l {
 	case LevelView:
 		return "view"
+	case LevelComment:
+		return "comment"
 	case LevelEdit:
 		return "edit"
 	case LevelAdmin:
@@ -41,50 +46,47 @@ type Facts struct {
 	Creator    bool
 }
 
-func baseLevel(role auth.Role) Level {
+func roleLevels(role auth.Role) (floor, ceiling Level) {
 	switch role {
+	case auth.RoleViewer:
+		return LevelView, LevelView
+	case auth.RoleCommenter:
+		return LevelComment, LevelComment
 	case auth.RoleEditor:
-		return LevelEdit
-	case auth.RoleCommenter, auth.RoleViewer:
-		return LevelView
+		return LevelEdit, LevelAdmin
 	}
-	return LevelNone
+	return LevelNone, LevelNone
 }
 
 func LevelFor(role auth.Role, f Facts) Level {
 	if role == auth.RoleAdmin {
 		return LevelAdmin
 	}
-	base := baseLevel(role)
-	if base == LevelNone || f.Restricted && len(f.Grants) == 0 && !f.Creator {
+	floor, ceiling := roleLevels(role)
+	if ceiling == LevelNone || f.Restricted && len(f.Grants) == 0 && !f.Creator {
 		return LevelNone
 	}
-	level := base
+	level := floor
 	for _, g := range f.Grants {
 		level = max(level, g)
 	}
 	if f.Creator {
 		level = LevelAdmin
 	}
-	if !role.AtLeast(auth.RoleEditor) {
-		level = min(level, LevelEdit)
-	}
-	return level
+	return min(level, ceiling)
 }
 
 type Abilities struct {
 	View, Comment, Edit, Manage, Create bool
 }
 
-func AbilitiesFor(role auth.Role, l Level) Abilities {
-	canView := l >= LevelView
-	canEdit := l >= LevelEdit
+func AbilitiesFor(l Level) Abilities {
 	return Abilities{
-		View:    canView,
-		Comment: canView && (role.AtLeast(auth.RoleCommenter) || canEdit),
-		Edit:    canEdit,
+		View:    l >= LevelView,
+		Comment: l >= LevelComment,
+		Edit:    l >= LevelEdit,
 		Manage:  l == LevelAdmin,
-		Create:  canEdit && role.AtLeast(auth.RoleEditor),
+		Create:  l >= LevelEdit,
 	}
 }
 

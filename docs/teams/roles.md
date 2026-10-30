@@ -5,12 +5,12 @@ description: The four instance roles and how a person's role is decided.
 
 Every person and every service account has one of four instance roles, from the most to the least permitted: Admin, Editor, Commenter and Viewer.
 
-| Role      | May                                                                                                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Role      | May                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Admin     | Everything an Editor may, in every folder, plus the People and Datasources pages (change roles, sign people out), service accounts and keys, and the outbound allowlist. |
-| Editor    | Create, edit, import and restore dashboards, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                           |
-| Commenter | View dashboards and versions, and add comments. Cannot create or import dashboards, and cannot edit or send requests to the agent unless a folder grants Edit.        |
-| Viewer    | View dashboards and versions only. Cannot comment, unless a folder grants Edit.                                                                                        |
+| Editor    | Create, edit, import and restore dashboards, create folders, chat and send requests to the agent, comment, and keep their own saved prompts.                             |
+| Commenter | View dashboards and versions, and add comments. Cannot create, import or edit dashboards or send requests to the agent, in any folder.                                   |
+| Viewer    | View dashboards and versions only, in any folder.                                                                                                                        |
 
 A request the role does not allow is refused with `403` and the code `forbidden_role`.
 A service-account key can never create or revoke keys, whatever its role.

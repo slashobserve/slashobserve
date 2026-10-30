@@ -75,7 +75,7 @@ type seenEntries struct {
 func (s *seenEntries) parse(b entryBody) (entry, error) {
 	level, ok := ParseLevel(b.Level)
 	if !ok {
-		return entry{}, errors.New("level must be view, edit or admin")
+		return entry{}, errors.New("level must be view, comment, edit or admin")
 	}
 	present := 0
 	for _, p := range []*string{b.UserID, b.Email, b.Group} {
