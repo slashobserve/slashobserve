@@ -537,13 +537,10 @@
         "row": "Kubernetes",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.filterable",
-          "fieldConfig.defaults.custom.wrapText"
+          "fieldConfig.defaults.custom.filterable"
         ],
         "queries": [
           {
@@ -565,13 +562,10 @@
         "row": "Kubernetes",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "fieldConfig.defaults.custom.filterable",
-          "fieldConfig.defaults.custom.wrapText"
+          "fieldConfig.defaults.custom.filterable"
         ],
         "queries": [
           {
@@ -1770,7 +1764,10 @@
                     "text": "ImagePullBackOff",
                     "color": "warning"
                   }
-                ]
+                ],
+                "cell": {
+                  "type": "background"
+                }
               }
             ],
             "transform": [
@@ -1850,7 +1847,10 @@
                     "text": "False",
                     "color": "critical"
                   }
-                ]
+                ],
+                "cell": {
+                  "type": "background"
+                }
               }
             ],
             "transform": [

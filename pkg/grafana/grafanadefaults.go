@@ -252,6 +252,13 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"fieldConfig.defaults.custom.minWidth": {
 		why: "table columns are sized by the browser from their content and have no minimum width",
 	},
+	"fieldConfig.defaults.custom.cellOptions.mode": {
+		values: []any{"gradient", "basic"},
+		why:    "table cells are drawn flat by the no-gradients rule (decision 8)",
+	},
+	"fieldConfig.defaults.custom.cellOptions.gradientMode": {
+		why: "table cells are drawn flat by the no-gradients rule (decision 8)",
+	},
 	"options.displayMode": {
 		values: []any{"gradient", "basic"},
 		why:    "bar gauges are drawn flat by the no-gradients rule (decision 8)",

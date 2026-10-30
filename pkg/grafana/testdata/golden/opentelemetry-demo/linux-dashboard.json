@@ -642,12 +642,10 @@
         "row": "Details",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some transformations are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
           "transformations[0]",
           "transformations[2].options.binary",
           "transformations[3].options.binary",
@@ -1839,6 +1837,15 @@
               }
             ],
             "unit": "bytes",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
             "overrides": [
               {
                 "match": {
@@ -1846,7 +1853,11 @@
                 },
                 "unit": "percentunit",
                 "min": 0,
-                "max": 1
+                "max": 1,
+                "cell": {
+                  "type": "gauge",
+                  "valueMode": "color"
+                }
               }
             ],
             "transform": [

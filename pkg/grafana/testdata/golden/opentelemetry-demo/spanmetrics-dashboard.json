@@ -162,14 +162,11 @@
         "row": "span_names Level - Throughput",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
           "Some transformations are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
           "fieldConfig.overrides[0].properties[1]",
-          "fieldConfig.overrides[1].properties[0]",
           "fieldConfig.overrides[1].properties[1]",
           "transformations[2].options.reduce.include",
           "transformations[3].options.reduce.include"
@@ -535,6 +532,35 @@
             ],
             "unit": "reqps",
             "decimals": 2,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "bRate"
+                },
+                "cell": {
+                  "type": "gauge",
+                  "gaugeStyle": "lcd"
+                }
+              },
+              {
+                "match": {
+                  "field": "eRate"
+                },
+                "cell": {
+                  "type": "gauge",
+                  "gaugeStyle": "lcd"
+                }
+              }
+            ],
             "transform": [
               {
                 "type": "joinByField",

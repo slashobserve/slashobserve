@@ -206,11 +206,9 @@
         "row": "Disk",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some transformations are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[4].properties[1]",
           "transformations[0]",
           "transformations[2].options.binary",
           "transformations[3].options.binary"
@@ -565,6 +563,19 @@
               }
             ],
             "unit": "decbytes",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.8,
+                "color": "warning"
+              },
+              {
+                "value": 0.9,
+                "color": "critical"
+              }
+            ],
             "overrides": [
               {
                 "match": {
@@ -572,7 +583,10 @@
                 },
                 "unit": "percentunit",
                 "min": 0,
-                "max": 1
+                "max": 1,
+                "cell": {
+                  "type": "gauge"
+                }
               }
             ],
             "transform": [

@@ -73,12 +73,10 @@
         "row": "Trace Search",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Mapped values must be between 1 and 200 characters.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[2].properties[1]",
           "fieldConfig.overrides[2].properties[2]",
           "fieldConfig.defaults.custom.inspect",
           "options.footer.countRows",
@@ -244,13 +242,9 @@
         "row": "$service",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[1].properties[2]",
-          "fieldConfig.overrides[2].properties[3]",
-          "fieldConfig.overrides[5].properties[0]",
           "fieldConfig.defaults.custom.inspect",
           "options.sortBy[0].desc",
           "options.sortBy[0].displayName"
@@ -491,7 +485,10 @@
                     "value": "Unset",
                     "text": "-"
                   }
-                ]
+                ],
+                "cell": {
+                  "type": "text"
+                }
               }
             ],
             "display": {
@@ -672,7 +669,10 @@
                     "value": 1,
                     "color": "critical"
                   }
-                ]
+                ],
+                "cell": {
+                  "type": "background"
+                }
               },
               {
                 "match": {
@@ -688,7 +688,10 @@
                     "value": 10,
                     "color": "critical"
                   }
-                ]
+                ],
+                "cell": {
+                  "type": "background"
+                }
               },
               {
                 "match": {
@@ -706,7 +709,10 @@
                 "match": {
                   "field": "Top Error"
                 },
-                "color": "#F2495C"
+                "color": "#F2495C",
+                "cell": {
+                  "type": "text"
+                }
               }
             ]
           }

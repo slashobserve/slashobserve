@@ -802,6 +802,18 @@ export interface FieldProps {
   axisGrid?: boolean;
   axisBorder?: boolean;
   axisColor?: "text" | "series";
+  /**
+   * How a table column draws its cells; absent means the plain cell with colors from thresholds and colored mappings. Only table panels draw it.
+   */
+  cell?: {
+    type: "auto" | "text" | "background" | "gauge" | "sparkline" | "json" | "image" | "links" | "pill";
+    gaugeStyle?: "basic" | "lcd";
+    valueMode?: "color" | "text" | "hidden";
+    wholeRow?: boolean;
+    wrap?: boolean;
+    imageAlt?: string;
+    imageTitle?: string;
+  };
 }
 /**
  * Only the first step may omit value; it is then the base color below every other step.

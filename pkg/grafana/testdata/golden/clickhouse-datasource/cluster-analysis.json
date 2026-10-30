@@ -195,16 +195,13 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "This color scheme is not supported yet; series use the default palette.",
+          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[1]",
           "fieldConfig.overrides[1].properties[0]",
-          "fieldConfig.overrides[1].properties[1]",
           "fieldConfig.overrides[2].properties[0]",
-          "fieldConfig.overrides[2].properties[1]",
           "fieldConfig.overrides[3].properties[0]",
           "fieldConfig.overrides[4].properties[0]",
           "fieldConfig.defaults.custom.align"
@@ -254,11 +251,9 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[4].properties[4]",
           "fieldConfig.defaults.custom.align"
         ],
         "queries": [
@@ -307,9 +302,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[4]",
           "fieldConfig.overrides[3].properties[1]",
-          "fieldConfig.overrides[4].properties[2]",
           "transformations[1]",
           "fieldConfig.defaults.custom.align"
         ],
@@ -667,7 +660,26 @@
                 "text": "local",
                 "color": "ok"
               }
-            ]
+            ],
+            "cell": {
+              "type": "background"
+            }
+          },
+          {
+            "match": {
+              "field": "Errors count"
+            },
+            "cell": {
+              "type": "background"
+            }
+          },
+          {
+            "match": {
+              "field": "Slowdowns count"
+            },
+            "cell": {
+              "type": "background"
+            }
           }
         ],
         "transform": [
@@ -775,7 +787,10 @@
                 "value": 1,
                 "color": "ok"
               }
-            ]
+            ],
+            "cell": {
+              "type": "background"
+            }
           }
         ],
         "transform": [
@@ -887,7 +902,10 @@
                 "value": 1,
                 "color": "ok"
               }
-            ]
+            ],
+            "cell": {
+              "type": "background"
+            }
           },
           {
             "match": {
@@ -904,7 +922,10 @@
                 "text": "failure",
                 "color": "critical"
               }
-            ]
+            ],
+            "cell": {
+              "type": "background"
+            }
           }
         ],
         "transform": [

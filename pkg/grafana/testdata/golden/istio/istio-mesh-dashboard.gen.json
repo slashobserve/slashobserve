@@ -156,7 +156,6 @@
           "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[4].properties[3]",
           "fieldConfig.overrides[7].properties[0]",
           "fieldConfig.overrides[8].properties[0]",
           "fieldConfig.overrides[9].properties[0]"
@@ -486,7 +485,10 @@
                     "color": "ok"
                   }
                 ],
-                "displayName": "Success Rate"
+                "displayName": "Success Rate",
+                "cell": {
+                  "type": "background"
+                }
               },
               {
                 "match": {

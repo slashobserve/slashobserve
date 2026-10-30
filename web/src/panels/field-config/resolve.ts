@@ -49,6 +49,7 @@ export type FieldConfig = {
   axisGrid?: boolean
   axisBorder: boolean
   axisColor: "text" | "series"
+  cell?: FieldProps["cell"]
 }
 
 export type FieldResolver = {
@@ -91,6 +92,7 @@ const fieldPropKeys = [
   "axisGrid",
   "axisBorder",
   "axisColor",
+  "cell",
 ] as const satisfies readonly (keyof FieldProps)[]
 
 type Resolved = { seriesName: string; displayName: string; config: FieldConfig }

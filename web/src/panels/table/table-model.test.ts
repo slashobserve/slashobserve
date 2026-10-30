@@ -8,6 +8,10 @@ import type { DataPanel } from "@/spec"
 import {
   cellLinks,
   cellOf,
+  cellSpecAt,
+  gaugeFractionAt,
+  rowFill,
+  sparklineAt,
   tableModel,
   type TableColumn,
   type TableModel,
@@ -487,5 +491,98 @@ describe("table rows from several queries", () => {
     })
     expect(cell("Value", 0).text).toBe("90")
     expect(cell("Value", 1).text).toBe("slow")
+  })
+})
+
+describe("table cell types", () => {
+  const thresholds = [
+    { color: "ok" as const },
+    { value: 10, color: "warning" as const },
+  ]
+  const rows = frame([number([5, 50, null], "n")])
+
+  it("keeps the plain cell and threshold colors with no cell type", () => {
+    const { model, fields } = build([rows], { thresholds })
+    expect(cellSpecAt(fields, model.columns[0], model.rows[0]).type).toBe(
+      "auto"
+    )
+  })
+
+  it("colors a text cell by the field color when there are no thresholds", () => {
+    const withColor = build([rows], {
+      color: "info",
+      cell: { type: "text" },
+    })
+    expect(withColor.cell("n", 0)).toMatchObject({
+      color: "var(--threshold-info)",
+      level: "base",
+    })
+    const plain = build([rows], { color: "info" })
+    expect(plain.cell("n", 0).color).toBeNull()
+  })
+
+  it("keeps the threshold word on a background cell", () => {
+    const { cell } = build([rows], { thresholds, cell: { type: "background" } })
+    expect(cell("n", 1)).toMatchObject({
+      color: "var(--threshold-warning)",
+      word: "Warning",
+    })
+  })
+
+  it("takes the whole row color from the first whole-row background cell", () => {
+    const { model, fields } = build(
+      [frame([text(["a", "b"], "name"), number([5, 50], "n")])],
+      {
+        overrides: [
+          {
+            match: { field: "n" },
+            thresholds,
+            cell: { type: "background", wholeRow: true },
+          },
+        ],
+      }
+    )
+    expect(rowFill(fields, model.columns, model.rows[0])).toBe(
+      "var(--threshold-ok)"
+    )
+    expect(rowFill(fields, model.columns, model.rows[1])).toBe(
+      "var(--threshold-warning)"
+    )
+  })
+
+  it("leaves rows unfilled when no background cell asks for the whole row", () => {
+    const { model, fields } = build([rows], {
+      thresholds,
+      cell: { type: "background" },
+    })
+    expect(rowFill(fields, model.columns, model.rows[0])).toBeNull()
+  })
+
+  it("shows a sparkline cell's last value and keeps its series", () => {
+    const trend = frame([
+      text(["a"], "pod"),
+      { name: "Trend", type: "other", values: [[1, null, 3]] },
+    ])
+    const { model, fields, cell } = build([trend], {
+      cell: { type: "sparkline" },
+      lineWidth: 3,
+    })
+    expect(cell("Trend", 0).text).toBe("3")
+    const spark = sparklineAt(fields, model.columns[1], model.rows[0])
+    expect(spark?.values).toEqual([1, null, 3])
+    expect(spark?.options.lineWidth).toBe(3)
+  })
+
+  it("ranges a percent gauge cell from 0 to 100", () => {
+    const { model, fields } = build([frame([number([25], "n")])], {
+      unit: "percent",
+      cell: { type: "gauge" },
+    })
+    expect(gaugeFractionAt(fields, model.columns[0], model.rows[0])).toEqual({
+      min: 0,
+      max: 100,
+      value: 25,
+      fraction: 0.25,
+    })
   })
 })
