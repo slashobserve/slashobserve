@@ -41,8 +41,8 @@
     "verified": false,
     "counts": {
       "total": 19,
-      "imported": 0,
-      "partial": 12,
+      "imported": 6,
+      "partial": 6,
       "placeholder": 7,
       "unverified": 0
     },
@@ -216,15 +216,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -243,15 +237,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -270,15 +258,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -297,17 +279,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.sortBy",
-          "options.legend.sortDesc",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -326,15 +300,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -353,15 +321,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Billing",
-        "status": "partial",
-        "reasons": [
-          "Legend tables are not supported; the legend is a plain list.",
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.displayMode",
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -752,7 +714,8 @@
             ],
             "unit": "short",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table"
             }
           },
           {
@@ -774,7 +737,8 @@
             ],
             "unit": "none",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table"
             }
           },
           {
@@ -796,7 +760,8 @@
             ],
             "unit": "none",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table"
             }
           },
           {
@@ -818,7 +783,9 @@
             ],
             "unit": "short",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table",
+              "legendSortBy": "value"
             }
           },
           {
@@ -840,7 +807,8 @@
             ],
             "unit": "bytes",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table"
             }
           },
           {
@@ -862,7 +830,8 @@
             ],
             "unit": "short",
             "display": {
-              "legend": "bottom"
+              "legend": "bottom",
+              "legendMode": "table"
             }
           },
           {

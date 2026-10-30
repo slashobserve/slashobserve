@@ -452,7 +452,8 @@
         ],
         "display": {
           "legend": "bottom",
-          "allValues": true
+          "allValues": true,
+          "legendShow": []
         }
       },
       {

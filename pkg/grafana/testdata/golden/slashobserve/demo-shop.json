@@ -5,7 +5,7 @@
     "title": "Demo shop (Grafana)",
     "uid": "demo-shop",
     "schema_version": 39,
-    "bytes": 66933,
+    "bytes": 67097,
     "panels": 27,
     "rows": 6,
     "variables": 2
@@ -830,7 +830,15 @@
             ],
             "unit": "short",
             "display": {
-              "pieType": "donut"
+              "legendMode": "table",
+              "legendSortBy": "value",
+              "legendSortDesc": true,
+              "tooltip": "all",
+              "tooltipSort": "desc",
+              "pieType": "donut",
+              "sliceLabels": [
+                "percent"
+              ]
             }
           }
         ]

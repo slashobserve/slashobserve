@@ -71,7 +71,20 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "limit",
     "fields",
     "pieType",
-    "legend"
+    "legend",
+    "sliceLabels",
+    "titleSize",
+    "valueSize",
+    "legendShow",
+    "legendMode",
+    "legendSortBy",
+    "legendSortDesc",
+    "legendWidth",
+    "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight"
   ],
   "heatmap": [
     "calculate",

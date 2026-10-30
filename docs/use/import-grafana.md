@@ -46,6 +46,11 @@ A dashboard's time settings carry over to the [dashboard fields](../concepts/obs
 A unit imports as itself, and unit text Grafana does not know imports as the suffix Grafana shows, up to 20 characters.
 A stat, gauge, bar gauge or pie chart imports its value options: the first reducer, "Show" as every value (`allValues`, with `limit` when it is not 5000) and the `fields` name or pattern.
 Grafana uses only the first reducer of these panels, so extra reducers are dropped without a note.
+A pie chart also imports its slice labels (name, value and percent), their text sizes (`text.titleSize` and `text.valueSize`, from 1 to 200 pixels), its legend and its tooltip.
+The legend imports its placement, list or table mode, the values it shows (value and percent), the sort by name or value, the sort order and the width.
+A legend sorted by a calculation such as Mean is still reported, and so are the pie chart's sort order, orientation and legend calculations.
+The tooltip imports its mode, sort, "Hide zeros" and maximum width and height.
+A series hidden from the legend or the tooltip in the field options imports on a pie chart as it does on a time series, and stays drawn.
 A stat panel imports its text alignment (`justifyMode`), title and value sizes (`text.titleSize` and `text.valueSize`, from 6 to 200 pixels), percent change (`showPercentChange` and `percentChangeColorMode`) and `wideLayout`; a size outside that range is reported, and the percent size (`text.percentSize`) is still reported.
 A gauge imports its threshold labels and a bar gauge its `lcd` display mode, value mode, name placement and unfilled area; both import their text sizes (`text.titleSize` and `text.valueSize`, from 1 to 200 pixels).
 The `basic` and `gradient` bar gauge display modes import as the basic bar, because bar gauges are drawn flat.

@@ -135,6 +135,10 @@ A `stat` panel has more optional `display` keys.
 `percentChange: true` shows the change between the first and last value of the range next to the value, with an arrow and, for screen readers, the words "up" or "down".
 `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
 `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
+A `piechart` panel has more optional `display` keys.
+`sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
+Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
+Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
 A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
 A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.

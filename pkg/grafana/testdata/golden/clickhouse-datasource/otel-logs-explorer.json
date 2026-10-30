@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 6,
-      "imported": 4,
-      "partial": 2,
+      "imported": 5,
+      "partial": 1,
       "placeholder": 0,
       "unverified": 0
     },
@@ -85,13 +85,9 @@
         "type": "piechart",
         "source_type": "piechart",
         "row": "Overview",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.legend.values"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -455,7 +451,10 @@
               "reduce": "sum",
               "allValues": true,
               "fields": "/Count/",
-              "pieType": "donut"
+              "pieType": "donut",
+              "legendShow": [
+                "value"
+              ]
             }
           },
           {

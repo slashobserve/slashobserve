@@ -11,7 +11,7 @@
     "gauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "thresholdMarkers": true, "thresholdLabels": false},
     "bargauge": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "orientation": "auto", "barStyle": "basic", "valueMode": "color", "namePlacement": "auto", "showUnfilled": true},
     "table": {"header": true, "footer": []},
-    "piechart": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "pieType": "pie", "legend": "right"},
+    "piechart": {"reduce": "lastNotNull", "allValues": false, "limit": 5000, "pieType": "pie", "legend": "right", "sliceLabels": [], "legendShow": ["value", "percent"], "legendMode": "list", "legendSortDesc": false, "tooltip": "single", "tooltipSort": "none", "tooltipHideZeros": false},
     "heatmap": {"calculate": false, "yScale": "linear"},
     "histogram": {},
     "state-timeline": {"mergeValues": true, "showValues": "auto"},
