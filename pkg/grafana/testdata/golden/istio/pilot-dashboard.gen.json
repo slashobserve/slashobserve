@@ -1,0 +1,962 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Istio Control Plane Dashboard",
+    "uid": "1813f692a8e4ac77155348d4c7d2fba8",
+    "schema_version": 39,
+    "bytes": 25086,
+    "panels": 13,
+    "rows": 4,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 13,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 13,
+      "imported": 1,
+      "partial": 12,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Pilot Versions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Deployed Versions",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource Usage",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "Memory Allocations",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource Usage",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource Usage",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource Usage",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "XDS Pushes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Push Information",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Push Information",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Push Information",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Push Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Push Information",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "Push Time",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Push Information",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.calculation.xBuckets.mode",
+          "options.calculation.xBuckets.value",
+          "options.cellGap",
+          "options.color.mode",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.yAxis.decimals",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Push Size",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "Push Information",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.calculation.xBuckets.mode",
+          "options.calculation.xBuckets.value",
+          "options.cellGap",
+          "options.color.mode",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.yAxis.decimals",
+          "options.yAxis.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[15]",
+        "title": "Validation",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Webhooks",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[16]",
+        "title": "Injection",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Webhooks",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Istio Control Plane Dashboard",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "15s",
+    "timezone": "utc",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Deployed Versions",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Pilot Versions",
+            "description": "Version number of each running instance",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (tag) (istio_build{component=\"pilot\"})",
+                "legend": "Version ({{tag}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s"
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "row",
+        "title": "Resource Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "description": "Memory usage of each running instance",
+            "gridPos": {
+              "x": 0,
+              "y": 7,
+              "w": 6,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (container_memory_working_set_bytes{container=\"discovery\",pod=~\"istiod-.*\"})",
+                "legend": "Container ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (go_memstats_stack_inuse_bytes{app=\"istiod\"})",
+                "legend": "Stack ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (go_memstats_heap_inuse_bytes{app=\"istiod\"})",
+                "legend": "Heap (In Use) ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (go_memstats_heap_alloc_bytes{app=\"istiod\"})",
+                "legend": "Heap (Allocated) ({{pod}})"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Memory Allocations",
+            "description": "Details about memory allocations",
+            "gridPos": {
+              "x": 6,
+              "y": 7,
+              "w": 6,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (rate(go_memstats_alloc_bytes_total{app=\"istiod\"}[$__rate_interval]))",
+                "legend": "Bytes ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (rate(go_memstats_mallocs_total{app=\"istiod\"}[$__rate_interval]))",
+                "legend": "Objects ({{pod}})"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "description": "CPU usage of each running instance",
+            "gridPos": {
+              "x": 12,
+              "y": 7,
+              "w": 6,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (irate(container_cpu_usage_seconds_total{container=\"discovery\",pod=~\"istiod-.*\"}[$__rate_interval]))",
+                "legend": "Container ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "description": "Goroutine count for each running instance",
+            "gridPos": {
+              "x": 18,
+              "y": 7,
+              "w": 6,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (go_goroutines{app=\"istiod\"})",
+                "legend": "Goroutines ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p8",
+        "type": "row",
+        "title": "Push Information",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "XDS Pushes",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (type) (irate(pilot_xds_pushes[$__rate_interval]))",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "cds"
+                },
+                "displayName": "Clusters"
+              },
+              {
+                "match": {
+                  "series": "eds"
+                },
+                "displayName": "Endpoints"
+              },
+              {
+                "match": {
+                  "series": "lds"
+                },
+                "displayName": "Listeners"
+              },
+              {
+                "match": {
+                  "series": "rds"
+                },
+                "displayName": "Routes"
+              },
+              {
+                "match": {
+                  "series": "nds"
+                },
+                "displayName": "DNS Tables"
+              },
+              {
+                "match": {
+                  "series": "istio.io/debug"
+                },
+                "displayName": "Debug"
+              },
+              {
+                "match": {
+                  "series": "istio.io/debug/syncz"
+                },
+                "displayName": "Debug"
+              },
+              {
+                "match": {
+                  "series": "wads"
+                },
+                "displayName": "Authorization"
+              },
+              {
+                "match": {
+                  "series": "wds"
+                },
+                "displayName": "Workloads"
+              },
+              {
+                "match": {
+                  "series": "type.googleapis.com/istio.security.Authorization"
+                },
+                "displayName": "Authorizations"
+              },
+              {
+                "match": {
+                  "series": "type.googleapis.com/istio.workload.Address"
+                },
+                "displayName": "Addresses"
+              }
+            ],
+            "interval": "15s"
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Events",
+            "description": "Size of each xDS push.\n",
+            "gridPos": {
+              "x": 8,
+              "y": 18,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (type,event) (rate(pilot_k8s_reg_events[$__rate_interval]))",
+                "legend": "{{event}} {{type}}"
+              },
+              {
+                "query": "sum by (type,event) (rate(pilot_k8s_cfg_events[$__rate_interval]))",
+                "legend": "{{event}} {{type}}"
+              },
+              {
+                "query": "sum by (type) (rate(pilot_push_triggers[$__rate_interval]))",
+                "legend": "Push {{type}}"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Connections",
+            "description": "Total number of XDS connections\n",
+            "gridPos": {
+              "x": 16,
+              "y": 18,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(envoy_cluster_upstream_cx_active{cluster_name=\"xds-grpc\"})",
+                "legend": "Connections (client reported)"
+              },
+              {
+                "query": "sum (pilot_xds)",
+                "legend": "Connections (server reported)"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Push Errors",
+            "description": "Number of push errors. Many of these are at least potentional fatal and should be explored in-depth via Istiod logs.\nNote: metrics here do not use rate() to avoid missing transition from \"No series\"; series are not reported if there are no errors at all.\n",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (type) (pilot_total_xds_rejects)",
+                "legend": "Rejected Config ({{type}})"
+              },
+              {
+                "query": "pilot_total_xds_internal_errors",
+                "legend": "Internal Errors"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p13",
+            "type": "heatmap",
+            "title": "Push Time",
+            "description": "Count of active and pending proxies managed by each instance.\nPending is expected to converge to zero.\n",
+            "gridPos": {
+              "x": 8,
+              "y": 28,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(pilot_xds_push_time_bucket{}[$__rate_interval])) by (le)",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ],
+            "interval": "1m"
+          },
+          {
+            "id": "p14",
+            "type": "heatmap",
+            "title": "Push Size",
+            "description": "Size of each xDS push.\n",
+            "gridPos": {
+              "x": 16,
+              "y": 28,
+              "w": 8,
+              "h": 10
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(pilot_xds_config_size_bytes_bucket{}[$__rate_interval])) by (le)",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ],
+            "interval": "1m"
+          }
+        ]
+      },
+      {
+        "id": "p15",
+        "type": "row",
+        "title": "Webhooks",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Validation",
+            "description": "Rate of XDS push operations, by type. This is incremented on a per-proxy basis.\n",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum (rate(galley_validation_passed[$__rate_interval]))",
+                "legend": "Success"
+              },
+              {
+                "query": "sum (rate(galley_validation_failed[$__rate_interval]))",
+                "legend": "Failure"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s"
+          },
+          {
+            "id": "p17",
+            "type": "timeseries",
+            "title": "Injection",
+            "description": "Size of each xDS push.\n",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum (rate(sidecar_injection_success_total[$__rate_interval]))",
+                "legend": "Success"
+              },
+              {
+                "query": "sum (rate(sidecar_injection_failure_total[$__rate_interval]))",
+                "legend": "Failure"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s"
+          }
+        ]
+      }
+    ]
+  }
+}

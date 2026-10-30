@@ -114,6 +114,126 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
   - `k8s-views-nodes.json`
   - `k8s-views-pods.json`
 
+## istio
+
+- Repository: https://github.com/istio/istio
+- Commit: 5d6e72d799871777a1dedc5022c35e65217ae6bf
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `manifests/addons/dashboards/<file>.json`
+- Files:
+  - `istio-extension-dashboard.json`
+  - `istio-mesh-dashboard.gen.json`
+  - `istio-performance-dashboard.json`
+  - `pilot-dashboard.gen.json`
+  - `ztunnel-dashboard.gen.json`
+
+## thanos
+
+- Repository: https://github.com/thanos-io/thanos
+- Commit: 729fda3209156689a1f0c0a3bd00d2de170cc161
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `examples/dashboards/<file>.json`
+- Files:
+  - `bucket-replicate.json`
+  - `compact.json`
+  - `overview.json`
+  - `query.json`
+  - `query-frontend.json`
+  - `receive.json`
+  - `rule.json`
+  - `sidecar.json`
+  - `store.json`
+
+## victoriametrics
+
+- Repository: https://github.com/VictoriaMetrics/VictoriaMetrics
+- Commit: 71587d516976997b2d48833935ec351de6f63da4
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `dashboards/<file>.json`
+- Files:
+  - `alert-statistics.json`
+  - `backupmanager.json`
+  - `clusterbytenant.json`
+  - `operator.json`
+  - `victoriametrics.json`
+  - `vmalert.json`
+  - `vmauth.json`
+
+## ingress-nginx
+
+- Repository: https://github.com/kubernetes/ingress-nginx
+- Commit: dbb11b92ddb77bee9c35e462479129354c84f939
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `deploy/grafana/dashboards/<file>.json`
+- Files:
+  - `nginx.json`
+  - `request-handling-performance.json`
+
+## argo-cd
+
+- Repository: https://github.com/argoproj/argo-cd
+- Commit: 0a82eca9c8e80d79b6262c3eefb24e6864401496
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `examples/<file>.json` for `dashboard-legacy.json`; `docs/operator-manual/notifications/<file>.json` for `grafana-dashboard.json`.
+- Files:
+  - `dashboard-legacy.json`
+  - `grafana-dashboard.json`
+
+## redis-exporter
+
+- Repository: https://github.com/oliver006/redis_exporter
+- Commit: 2c638069517553c8ed6a766749eabad5b777099b
+- License: MIT
+- Fetched: 2026-10-30
+- Path in repository: `contrib/<file>.json`
+- Files:
+  - `grafana_prometheus_redis_dashboard.json`
+  - `grafana_prometheus_redis_dashboard_exporter_version_0.3x.json`
+
+## keda
+
+- Repository: https://github.com/kedacore/keda
+- Commit: 3447193c9eb69adeb0dd73b6fa5f17b5ff26a880
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `config/grafana/<file>.json`
+- Files:
+  - `keda-dashboard.json`
+
+## opentelemetry-demo
+
+- Repository: https://github.com/open-telemetry/opentelemetry-demo
+- Commit: 33bd823107b1b38eaa88dd4ef625cc16d60475d4
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `src/grafana/provisioning/dashboards/demo/<file>.json`
+- Files:
+  - `agent-services.json`
+  - `exemplars-dashboard.json`
+  - `linux-dashboard.json`
+  - `NGINX-metrics.json`
+  - `self-observability.json`
+  - `spanmetrics-dashboard.json`
+
+## cilium
+
+- Repository: https://github.com/cilium/cilium
+- Commit: 80b1c726a14ab0e50a9257e274aa29408a3d3918
+- License: Apache-2.0
+- Fetched: 2026-10-30
+- Path in repository: `install/kubernetes/cilium/files/cilium-agent/dashboards/<file>.json` for `cilium-dashboard.json`; `install/kubernetes/cilium/files/hubble/dashboards/<file>.json` for `hubble-dashboard.json`, `hubble-l7-http-metrics-by-workload.json`, `hubble-dns-namespace.json`, `hubble-network-overview-namespace.json`.
+- Files:
+  - `cilium-dashboard.json`
+  - `hubble-dashboard.json`
+  - `hubble-dns-namespace.json`
+  - `hubble-l7-http-metrics-by-workload.json`
+  - `hubble-network-overview-namespace.json`
+
 ## slashobserve
 
 - Repository: https://github.com/slashobserve/slashobserve (this repository)
@@ -140,53 +260,54 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 
 Counted over every corpus JSON file: top-level `panels`, nested row `panels`, and legacy `rows[].panels`.
 Each legacy `rows[]` entry is also counted as one `row`, although it is a dashboard-level object and not a panel.
-Only `rfmoz/node-exporter-full-old.json` has legacy rows: its 19 entries account for the gap between 1344 panels and the stated 1363, and between 172 and the stated 191 for that file.
-The corpus holds 61 dashboards and 1363 panels including rows.
-Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141) and `rfmoz/haproxy.json` (113).
+Legacy rows occur in these files, with their entry counts: `rfmoz/node-exporter-full-old.json` (19), `thanos/bucket-replicate.json` (2), `thanos/compact.json` (7), `thanos/overview.json` (7), `thanos/query-frontend.json` (3), `thanos/query.json` (7), `thanos/receive.json` (11), `thanos/rule.json` (6), `thanos/sidecar.json` (5), `thanos/store.json` (9).
+They account for the gap between 2153 entries and the stated 2229.
+The corpus holds 100 dashboards and 2229 panels including rows.
+Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141), `rfmoz/haproxy.json` (113).
 
 ### As written
 
 | Type | Count |
 | --- | --- |
-| timeseries | 762 |
-| graph | 173 |
-| row | 145 |
-| stat | 93 |
-| table | 60 |
-| gauge | 27 |
-| bargauge | 21 |
-| singlestat | 12 |
+| timeseries | 1095 |
+| graph | 398 |
+| row | 288 |
+| stat | 164 |
+| table | 92 |
+| gauge | 37 |
+| bargauge | 27 |
+| singlestat | 26 |
+| text | 16 |
+| heatmap | 12 |
+| piechart | 9 |
+| barchart | 8 |
 | logs | 7 |
-| heatmap | 6 |
-| barchart | 4 |
 | alertlist | 4 |
+| state-timeline | 4 |
 | canvas | 3 |
 | geomap | 3 |
-| grafana-worldmap-panel | 2 |
 | nodeGraph | 3 |
-| piechart | 3 |
-| text | 2 |
 | alertGroups | 2 |
 | annolist | 2 |
 | candlestick | 2 |
 | dashlist | 2 |
+| flamegraph | 2 |
+| grafana-worldmap-panel | 2 |
+| histogram | 2 |
+| news | 2 |
+| status-history | 2 |
+| traces | 2 |
+| trend | 2 |
+| xychart | 2 |
 | datagrid | 1 |
 | debug | 1 |
-| flamegraph | 2 |
 | gettingstarted | 1 |
 | grafana-singlestat-panel | 1 |
-| histogram | 2 |
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
 | natel-discrete-panel | 1 |
-| news | 2 |
-| state-timeline | 2 |
-| status-history | 2 |
-| traces | 2 |
-| trend | 2 |
 | welcome | 1 |
-| xychart | 2 |
 
 ### With `graph` folded into `timeseries`, `singlestat` into `stat` and `table-old` into `table`
 
@@ -194,40 +315,40 @@ No `table-old` panel occurs in the corpus.
 
 | Type | Count |
 | --- | --- |
-| timeseries | 935 |
-| row | 145 |
-| stat | 105 |
-| table | 60 |
-| gauge | 27 |
-| bargauge | 21 |
+| timeseries | 1493 |
+| row | 288 |
+| stat | 190 |
+| table | 92 |
+| gauge | 37 |
+| bargauge | 27 |
+| text | 16 |
+| heatmap | 12 |
+| piechart | 9 |
+| barchart | 8 |
 | logs | 7 |
-| heatmap | 6 |
-| barchart | 4 |
 | alertlist | 4 |
+| state-timeline | 4 |
 | canvas | 3 |
 | geomap | 3 |
-| grafana-worldmap-panel | 2 |
 | nodeGraph | 3 |
-| piechart | 3 |
-| text | 2 |
 | alertGroups | 2 |
 | annolist | 2 |
 | candlestick | 2 |
 | dashlist | 2 |
+| flamegraph | 2 |
+| grafana-worldmap-panel | 2 |
+| histogram | 2 |
+| news | 2 |
+| status-history | 2 |
+| traces | 2 |
+| trend | 2 |
+| xychart | 2 |
 | datagrid | 1 |
 | debug | 1 |
-| flamegraph | 2 |
 | gettingstarted | 1 |
 | grafana-singlestat-panel | 1 |
-| histogram | 2 |
 | live | 1 |
 | logs-new | 1 |
 | logstable | 1 |
 | natel-discrete-panel | 1 |
-| news | 2 |
-| state-timeline | 2 |
-| status-history | 2 |
-| traces | 2 |
-| trend | 2 |
 | welcome | 1 |
-| xychart | 2 |

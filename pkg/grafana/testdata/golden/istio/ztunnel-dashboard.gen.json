@@ -1,0 +1,774 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Istio Ztunnel Dashboard",
+    "uid": "12c58766acc81a1c835dd5059eaf2741",
+    "schema_version": 39,
+    "bytes": 19970,
+    "panels": 10,
+    "rows": 4,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 10,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 10,
+      "imported": 1,
+      "partial": 9,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Ztunnel Versions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Process",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Process",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Process",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Bytes Transmitted",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "DNS Request",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Unit qps is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "XDS Connections",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Operations",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "XDS Pushes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Operations",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Workload Manager",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Operations",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "Resource Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Resources",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Istio Ztunnel Dashboard",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "15s",
+    "timezone": "utc",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Process",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Ztunnel Versions",
+            "description": "Version number of each running instance",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (tag) (istio_build{component=\"ztunnel\"})",
+                "legend": "Version ({{tag}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "description": "Memory usage of each running instance",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (container_memory_working_set_bytes{container=\"istio-proxy\",pod=~\"ztunnel-.*\"})",
+                "legend": "Container ({{pod}})"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "CPU Usage",
+            "description": "CPU usage of each running instance",
+            "gridPos": {
+              "x": 16,
+              "y": 1,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (irate(container_cpu_usage_seconds_total{container=\"istio-proxy\",pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Container ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p5",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "Connections",
+            "description": "Connections opened and closed per instance",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (rate(istio_tcp_connections_opened_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Opened ({{pod}})"
+              },
+              {
+                "query": "-sum by (pod) (rate(istio_tcp_connections_closed_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Closed ({{pod}})"
+              }
+            ],
+            "unit": "cps",
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Bytes Transmitted",
+            "description": "Bytes sent and received per instance",
+            "gridPos": {
+              "x": 8,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (rate(istio_tcp_sent_bytes_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Sent ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (rate(istio_tcp_received_bytes_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Received ({{pod}})"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "DNS Request",
+            "description": "DNS queries received per instance",
+            "gridPos": {
+              "x": 16,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (rate(istio_dns_requests_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "Request ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p9",
+        "type": "row",
+        "title": "Operations",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "XDS Connections",
+            "description": "Count of XDS connection terminations.\nThis will typically spike every 30min for each instance.\n",
+            "gridPos": {
+              "x": 0,
+              "y": 19,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (rate(istio_xds_connection_terminations_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "XDS Connection Terminations ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "XDS Pushes",
+            "gridPos": {
+              "x": 8,
+              "y": 19,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (url) (irate(istio_xds_message_total{pod=~\"ztunnel-.*\"}[$__rate_interval]))",
+                "legend": "{{url}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "cds"
+                },
+                "displayName": "Clusters"
+              },
+              {
+                "match": {
+                  "series": "eds"
+                },
+                "displayName": "Endpoints"
+              },
+              {
+                "match": {
+                  "series": "lds"
+                },
+                "displayName": "Listeners"
+              },
+              {
+                "match": {
+                  "series": "rds"
+                },
+                "displayName": "Routes"
+              },
+              {
+                "match": {
+                  "series": "nds"
+                },
+                "displayName": "DNS Tables"
+              },
+              {
+                "match": {
+                  "series": "istio.io/debug"
+                },
+                "displayName": "Debug"
+              },
+              {
+                "match": {
+                  "series": "istio.io/debug/syncz"
+                },
+                "displayName": "Debug"
+              },
+              {
+                "match": {
+                  "series": "wads"
+                },
+                "displayName": "Authorization"
+              },
+              {
+                "match": {
+                  "series": "wds"
+                },
+                "displayName": "Workloads"
+              },
+              {
+                "match": {
+                  "series": "type.googleapis.com/istio.security.Authorization"
+                },
+                "displayName": "Authorizations"
+              },
+              {
+                "match": {
+                  "series": "type.googleapis.com/istio.workload.Address"
+                },
+                "displayName": "Addresses"
+              }
+            ],
+            "interval": "15s"
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Workload Manager",
+            "description": "Count of active and pending proxies managed by each instance.\nPending is expected to converge to zero.\n",
+            "gridPos": {
+              "x": 16,
+              "y": 19,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (workload_manager_active_proxy_count{pod=~\"ztunnel-.*\"})",
+                "legend": "Active Proxies ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (workload_manager_pending_proxy_count{pod=~\"ztunnel-.*\"})",
+                "legend": "Pending Proxies ({{pod}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "row",
+        "title": "Network Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Resource Usage",
+            "description": "Active TCP connections, open file descriptors, and open sockets per instance",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (pod) (istio_tcp_connections_opened_total{app=\"ztunnel\"}) - sum by (pod) (istio_tcp_connections_closed_total{app=\"ztunnel\"})",
+                "legend": "TCP Connections ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (process_open_fds{app=\"ztunnel\"})",
+                "legend": "Open File Descriptors ({{pod}})"
+              },
+              {
+                "query": "sum by (pod) (istio_tcp_sockets_open{app=\"ztunnel\"})",
+                "legend": "Open Sockets ({{pod}})"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "fill": 10,
+            "interval": "5s",
+            "display": {
+              "legendValues": [
+                "last",
+                "max"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

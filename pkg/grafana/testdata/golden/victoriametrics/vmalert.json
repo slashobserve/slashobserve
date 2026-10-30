@@ -1,0 +1,2584 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "VictoriaMetrics - vmalert",
+    "uid": "LzldHAVnz",
+    "schema_version": 41,
+    "bytes": 138030,
+    "panels": 41,
+    "rows": 7,
+    "variables": 7
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 41,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 41,
+      "imported": 9,
+      "partial": 32,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[1]",
+        "title": "Config update",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[2]",
+        "title": "Alerting rules",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[3]",
+        "title": "Recording rules",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[4]",
+        "title": "Errors",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p48",
+        "grafana_id": 48,
+        "grafana_path": "panels[5]",
+        "title": "No data errors",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p45",
+        "grafana_id": 45,
+        "grafana_path": "panels[6]",
+        "title": "",
+        "type": "table",
+        "source_type": "table",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "fieldConfig.overrides[0].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[7]",
+        "title": "Uptime",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[9]",
+        "title": "Alerts fired total ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[10]",
+        "title": "Top $topk groups avg evaluation duration ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[11]",
+        "title": "Rules execution rate ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[12]",
+        "title": "Rules execution errors ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[13].panels[0]",
+        "title": "Memory usage % ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[13].panels[1]",
+        "title": "CPU usage %($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p65",
+        "grafana_id": 65,
+        "grafana_path": "panels[13].panels[2]",
+        "title": "RSS anonymous memory % usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[13].panels[3]",
+        "title": "CPU usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p57",
+        "grafana_id": 57,
+        "grafana_path": "panels[13].panels[4]",
+        "title": "Memory usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p66",
+        "grafana_id": 66,
+        "grafana_path": "panels[13].panels[5]",
+        "title": "CPU pressure",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p67",
+        "grafana_id": 67,
+        "grafana_path": "panels[13].panels[6]",
+        "title": "Memory pressure",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[13].panels[7]",
+        "title": "Goroutines ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[13].panels[8]",
+        "title": "Open FDs usage % ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[13].panels[9]",
+        "title": "Go scheduling latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p59",
+        "grafana_id": 59,
+        "grafana_path": "panels[13].panels[10]",
+        "title": "CPU spent on GC ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p64",
+        "grafana_id": 64,
+        "grafana_path": "panels[13].panels[11]",
+        "title": "Memory allocations rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p50",
+        "grafana_id": 50,
+        "grafana_path": "panels[14].panels[0]",
+        "title": "Non-default flags",
+        "type": "table",
+        "source_type": "table",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Moved or resized to fit the grid.",
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "gridPos",
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.overrides[1].properties[0]",
+          "transformations[0]",
+          "fieldConfig.defaults.custom.filterable",
+          "options.filterable",
+          "options.showSearch",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p58",
+        "grafana_id": 58,
+        "grafana_path": "panels[14].panels[1]",
+        "title": "Missed evaluations ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Moved or resized to fit the grid.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "gridPos",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p63",
+        "grafana_id": 63,
+        "grafana_path": "panels[14].panels[2]",
+        "title": "Restarts ($job)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Moved or resized to fit the grid.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "gridPos",
+          "fieldConfig.defaults.custom.axisSoftMin",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p70",
+        "grafana_id": 70,
+        "grafana_path": "panels[14].panels[3]",
+        "title": "Group Iteration Reset ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Moved or resized to fit the grid.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "gridPos",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[15].panels[0]",
+        "title": "Top $topk active alerts ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerting rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[15].panels[1]",
+        "title": "Errors ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerting rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[15].panels[2]",
+        "title": "Pending ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerting rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[15].panels[3]",
+        "title": "Errors rate to Alertmanager",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerting rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[15].panels[4]",
+        "title": "Requests rate to Alertmanager by job ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Alerting rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[16].panels[0]",
+        "title": "Top $topk rules by produced samples ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Recording rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[16].panels[1]",
+        "title": "Rules with 0 produced samples ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Recording rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[16].panels[2]",
+        "title": "Errors ($group)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Recording rules ($instance)",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p52",
+        "grafana_id": 52,
+        "grafana_path": "panels[17].panels[0]",
+        "title": "Datapoints send rate ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[17].panels[1]",
+        "title": "Bytes write rate ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p53",
+        "grafana_id": 53,
+        "grafana_path": "panels[17].panels[2]",
+        "title": "Datapoints drop rate ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p68",
+        "grafana_id": 68,
+        "grafana_path": "panels[17].panels[3]",
+        "title": "Remote write queue size ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p69",
+        "grafana_id": 69,
+        "grafana_path": "panels[17].panels[4]",
+        "title": "Rows per request ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p54",
+        "grafana_id": 54,
+        "grafana_path": "panels[17].panels[5]",
+        "title": "Connections ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Remote write",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics - vmalert",
+    "description": "Overview for VictoriaMetrics vmalert v1.117.0 or higher",
+    "tags": [
+      "victoriametrics"
+    ],
+    "time": {
+      "from": "now-3h",
+      "to": "now"
+    },
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{version=~\"^vmalert.*\"}, job)",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "file",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "group",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"}, group)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "topk",
+        "type": "custom",
+        "options": [
+          "5",
+          "10",
+          "20",
+          "30",
+          "40",
+          "50"
+        ]
+      },
+      {
+        "name": "filter",
+        "type": "adhoc",
+        "datasource": "${ds}"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/victoriametrics/vmalert/",
+        "newTab": true
+      },
+      {
+        "title": "Troubleshooting",
+        "url": "https://docs.victoriametrics.com/victoriametrics/vmalert/#troubleshooting",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      },
+      {
+        "title": "Releases",
+        "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p47",
+        "type": "row",
+        "title": "Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p6",
+            "type": "stat",
+            "title": "Config update",
+            "description": "Shows if the last configuration update was successful. \"Not Ok\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 )"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "Ok",
+                "color": "ok"
+              },
+              {
+                "range": [
+                  1,
+                  999999
+                ],
+                "text": "Not Ok",
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p9",
+            "type": "stat",
+            "title": "Alerting rules",
+            "description": "Shows the total number of loaded alerting rules across selected instances and groups.",
+            "gridPos": {
+              "x": 4,
+              "y": 1,
+              "w": 5,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p7",
+            "type": "stat",
+            "title": "Recording rules",
+            "description": "Shows the total number of loaded recording rules across selected instances and groups.",
+            "gridPos": {
+              "x": 9,
+              "y": 1,
+              "w": 5,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "stat",
+            "title": "Errors",
+            "description": "Shows the total number of errors generated by recording/alerting rules for selected instances and groups.",
+            "gridPos": {
+              "x": 14,
+              "y": 1,
+              "w": 5,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval]))) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])))"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p48",
+            "type": "stat",
+            "title": "No data errors",
+            "description": "Shows number of Recording Rules which produce no data.\n\n Usually it means that such rules are misconfigured, since they give no output during the evaluation.\nPlease check if rule's expression is correct and it is working as expected.",
+            "gridPos": {
+              "x": 19,
+              "y": 1,
+              "w": 5,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\"} < 1)"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "0"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p45",
+            "type": "table",
+            "title": "Panel 45",
+            "gridPos": {
+              "x": 0,
+              "y": 4,
+              "w": 9,
+              "h": 4
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "displayName": "Count"
+              }
+            ]
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Uptime",
+            "gridPos": {
+              "x": 9,
+              "y": 4,
+              "w": 15,
+              "h": 4
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p11",
+        "type": "row",
+        "title": "Overview ($instance)",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "Alerts fired total ($instance)",
+            "description": "Shows the number of fired alerts by job.",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vmalert_alerts_fired_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p23",
+            "type": "timeseries",
+            "title": "Top $topk groups avg evaluation duration ($group)",
+            "description": "Top $topk groups by evaluation duration. Shows groups that take the most of time during the evaluation across all instances.",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
+                "legend": "({{job}}) {{group}}({{file}})"
+              }
+            ],
+            "unit": "s",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p24",
+            "type": "timeseries",
+            "title": "Rules execution rate ($instance)",
+            "description": "Shows how many requests (executions) per second vmalert sends to the configured datasource.",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_execution_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p25",
+            "type": "timeseries",
+            "title": "Rules execution errors ($instance)",
+            "description": "Shows the error rate while executing configured rules. Non-zero value means there are some issues with existing rules. Check the logs to get more details.",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_execution_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p43",
+        "type": "row",
+        "title": "Resource usage",
+        "gridPos": {
+          "x": 0,
+          "y": 25,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Memory usage % ($instance)",
+            "description": "How much resident memory (RAM) the process is actually using, compared to its allowed container or system limit.\n\n- Good: Below 70% most of the time, maybe spiking a bit under load.\n- Bad: Above 90% for more than 5 minutes = risk of out-of-memory (OOM) kill.",
+            "gridPos": {
+              "x": 0,
+              "y": 26,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "links": [
+              {
+                "title": "Profiling",
+                "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#profiling",
+                "newTab": true
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "CPU usage %($instance)",
+            "description": "Shows the CPU usage percentage per vmalert instance. \nIf you think that usage is abnormal or unexpected pls file an issue and attach CPU profile if possible.",
+            "gridPos": {
+              "x": 12,
+              "y": 26,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n  rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n  / \n  process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "links": [
+              {
+                "title": "Profiling",
+                "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#profiling",
+                "newTab": true
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p65",
+            "type": "timeseries",
+            "title": "RSS anonymous memory % usage",
+            "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%",
+            "gridPos": {
+              "x": 0,
+              "y": 34,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(instance)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p56",
+            "type": "timeseries",
+            "title": "CPU usage ($instance)",
+            "description": "Shows the max number of CPU cores used  by a `job` and the corresponding limit.",
+            "gridPos": {
+              "x": 12,
+              "y": 34,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "{{job}}"
+              },
+              {
+                "query": "min(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+                "legend": "limit ({{job}})"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "links": [
+              {
+                "title": "Profiling",
+                "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#profiling",
+                "newTab": true
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p57",
+            "type": "timeseries",
+            "title": "Memory usage ($instance)",
+            "description": "Amount of used RSS memory\n\nIf you think that usage is abnormal or unexpected, please file an issue and attach memory profile if possible.",
+            "gridPos": {
+              "x": 0,
+              "y": 42,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n) by(job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "links": [
+              {
+                "title": "Profiling",
+                "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#profiling",
+                "newTab": true
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p66",
+            "type": "timeseries",
+            "title": "CPU pressure",
+            "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 100ms. It only becomes a concern if it consistently climbs above 50-100ms and aligns with latency spikes or GC slowdowns.",
+            "gridPos": {
+              "x": 12,
+              "y": 42,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(process_pressure_cpu_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+                "legend": "{{instance}} - waiting",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum(rate(process_pressure_cpu_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+                "legend": "{{instance}} - stalled",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "s",
+            "decimals": 0,
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p67",
+            "type": "timeseries",
+            "title": "Memory pressure",
+            "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\n**Lower is better.**\n\nPressure is measured as amount of time within 1sec time window the process was:\n- waiting: at least one thread was blocked on memory.\n- stalled: every thread was blocked on memory (severe pressure).\n\nElevated memory pressure can slowdown the process performance by utilizing more disk IO. Consider increasing amount of available RAM limit or decreasing the load on the process.\n\nSee major page faults rate panel in Troubleshooting section if this metric continued to be high.",
+            "gridPos": {
+              "x": 0,
+              "y": 50,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(process_pressure_memory_waiting_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+                "legend": "{{instance}} - waiting",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum(rate(process_pressure_memory_stalled_seconds_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+                "legend": "{{instance}} - stalled",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "s",
+            "decimals": 0,
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p41",
+            "type": "timeseries",
+            "title": "Goroutines ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 50,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p39",
+            "type": "timeseries",
+            "title": "Open FDs usage % ($instance)",
+            "description": "Panel shows the percentage of open file descriptors in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
+            "gridPos": {
+              "x": 0,
+              "y": 58,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 3,
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Go scheduling latency",
+            "description": "Shows the time goroutines have spent in runnable state before actually running.\n\n**Lower is better.**\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+            "gridPos": {
+              "x": 12,
+              "y": 58,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "s",
+            "decimals": 0,
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.1,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p59",
+            "type": "timeseries",
+            "title": "CPU spent on GC ($instance)",
+            "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/victoriametrics/troubleshooting/ ",
+            "gridPos": {
+              "x": 0,
+              "y": 66,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n  rate(go_gc_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n / rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n ) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p64",
+            "type": "timeseries",
+            "title": "Memory allocations rate",
+            "description": "Shows the rate of allocations in memory. Sudden increase in allocations would mean increased pressure on Go Garbage Collector and can saturate CPU resources of the application.",
+            "gridPos": {
+              "x": 0,
+              "y": 74,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(go_memstats_alloc_bytes_total{job=~\"$job\"}[$__rate_interval])) by (job, instance)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p62",
+        "type": "row",
+        "title": "Troubleshooting",
+        "gridPos": {
+          "x": 0,
+          "y": 26,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p50",
+            "type": "table",
+            "title": "Non-default flags",
+            "gridPos": {
+              "x": 0,
+              "y": 27,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p58",
+            "type": "timeseries",
+            "title": "Missed evaluations ($instance)",
+            "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/victoriametrics/vmalert/#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/victoriametrics/troubleshooting/#slow-queries.\"",
+            "gridPos": {
+              "x": 12,
+              "y": 27,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
+                "legend": "({{job}}) {{group}}({{file}})",
+                "interval": "1m"
+              }
+            ],
+            "unit": "short",
+            "style": "bars",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p63",
+            "type": "timeseries",
+            "title": "Restarts ($job)",
+            "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+            "gridPos": {
+              "x": 0,
+              "y": 34,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "unit": "none",
+            "decimals": 0,
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p70",
+            "type": "timeseries",
+            "title": "Group Iteration Reset ($instance)",
+            "description": "Group iteration reset can be caused by irregular delays during evaluation or by the system wall clock being moved backward.\nIf it is caused by host clock changes, vmalert could generate duplicate results for the group rules, since some evaluations could be repeated.\nCheck the host clock time synchronization configuration if this happens frequently.\n",
+            "gridPos": {
+              "x": 12,
+              "y": 34,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vmalert_iteration_reset_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
+                "legend": "({{job}}) {{group}}({{file}})",
+                "interval": "1m"
+              }
+            ],
+            "unit": "short",
+            "style": "bars",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p17",
+        "type": "row",
+        "title": "Alerting rules ($instance)",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Top $topk active alerts ($group)",
+            "description": "Shows top $topk current active (firing) alerting rules.",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
+                "legend": "({{job}}) {{group}}.{{alertname}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "Errors ($group)",
+            "description": "Shows the events when rule execution resulted into an error. Check the logs for more details.",
+            "gridPos": {
+              "x": 12,
+              "y": 28,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, alertname) > 0",
+                "legend": "({{job}}) {{group}}.{{alertname}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Pending ($group)",
+            "description": "Shows the current pending alerting rules per group.\nBy pending means the rule which remains active less than configured `for` parameter.",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0",
+                "legend": "({{job}}) {{group}}.{{alertname}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Errors rate to Alertmanager",
+            "description": "Shows the error rate for the attempts to send alerts to Alertmanager. If not zero it means there issues on attempt to send notification to Alertmanager and some alerts may be not delivered properly. Check the logs for more details.",
+            "gridPos": {
+              "x": 12,
+              "y": 36,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr) > 0",
+                "legend": "{{instance}} => {{addr}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "Requests rate to Alertmanager by job ($group)",
+            "description": "Shows how many alerts are sent to Alertmanager per second. Only active alerts are sent.",
+            "gridPos": {
+              "x": 0,
+              "y": 44,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_alerts_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, addr) > 0",
+                "legend": "{{job}} => {{addr}}"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p28",
+        "type": "row",
+        "title": "Recording rules ($instance)",
+        "gridPos": {
+          "x": 0,
+          "y": 28,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "Top $topk rules by produced samples ($group)",
+            "description": "Shows the top $topk recording rules which generate the most of [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Each generated sample is basically a time series which then ingested into configured remote storage. Rules with high numbers may cause the most pressure on the remote database and become a source of too high cardinality.",
+            "gridPos": {
+              "x": 0,
+              "y": 29,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
+                "legend": "({{job}}) {{group}}.{{recording}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p33",
+            "type": "timeseries",
+            "title": "Rules with 0 produced samples ($group)",
+            "description": "Shows the rules which do not produce any [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) during the evaluation. Usually it means that such rules are misconfigured, since they give no output during the evaluation.\nPlease check if rule's expression is correct and it is working as expected.",
+            "gridPos": {
+              "x": 12,
+              "y": 29,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"} < 1) by(job, group, file, recording)",
+                "legend": "({{job}}) {{group}}.{{recording}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "lastNotNull",
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "Errors ($group)",
+            "gridPos": {
+              "x": 0,
+              "y": 37,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, recording) > 0",
+                "legend": "({{job}}) {{group}}.{{recording}}({{file}})"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p55",
+        "type": "row",
+        "title": "Remote write",
+        "gridPos": {
+          "x": 0,
+          "y": 29,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p52",
+            "type": "timeseries",
+            "title": "Datapoints send rate ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_remotewrite_sent_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) default sum(rate(vmalert_remotewrite_sent_rows_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "__auto"
+              }
+            ]
+          },
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "Bytes write rate ($instance)",
+            "description": "Shows the global rate for number of written bytes via remote write connections.",
+            "gridPos": {
+              "x": 12,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_remotewrite_conn_bytes_written_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "decbytes",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p53",
+            "type": "timeseries",
+            "title": "Datapoints drop rate ($instance)",
+            "description": "Data could be dropped in two scenarios:\n1. The remote write queue(configured by -remoteWrite.maxQueueSize) is full:  \nThe queue can fill rapidly if heavy rules generate millions of series, or if remote write requests are unable to send data to the destination in a timely manner, resulting in data being jammed in the queue. Consider tuning -remoteWrite.maxQueueSize or -remoteWrite.concurrency.\nSee also Rows per request pannel.\n2. The request to the configured remote write URL failed(vmalert performs up to 5 retries before dropping the data).\n\nCheck vmalert's error logs for the specific error message.",
+            "gridPos": {
+              "x": 0,
+              "y": 38,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmalert_remotewrite_dropped_rows_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job) > 0",
+                "legend": "__auto"
+              }
+            ]
+          },
+          {
+            "id": "p68",
+            "type": "timeseries",
+            "title": "Remote write queue size ($instance)",
+            "description": "Displays the maximum 99th percentile of the number of time series pending in the remote write queue.\n\nThe maximum queue size is configured by remoteWrite.maxQueueSize. \nvmalert will begin dropping data if the queue has no room for newly generated data.\nThe queue can fill rapidly when heavy rules generate millions of series, or when remote write requests are unable to send data to the destination in a timely manner, causing data to accumulate in the queue. Consider tuning -remoteWrite.maxQueueSize or -remoteWrite.concurrency.\n\nSee also the Rows per request panel.",
+            "gridPos": {
+              "x": 12,
+              "y": 38,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(histogram_quantile(0.99, sum(increase(vmalert_remotewrite_queue_size_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))) > 1",
+                "legend": "current"
+              },
+              {
+                "query": "min(vmalert_remotewrite_queue_capacity{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "max"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#F2495C",
+                "fill": 0
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p69",
+            "type": "timeseries",
+            "title": "Rows per request ($instance)",
+            "description": "Displays the maximum 99th percentile of the number of data samples sent per request to the configured remote write URL.\nThe value is influenced by the utilization of the remote write queue. It is normal for this metric to remain low when there are no rules generating a large number of series, and to spike when heavy rules generate thousands of series.\nDuring periods of high load (when many heavy rules are generating results), the optimal value for rows per request should be high to maximize the efficiency of each push operation.\n\nIf you observe datapoint drops and consistently low values for rows per request, try checking the write latency between vmalert and the remote write destination, or increasing `-remoteWrite.flushInterval`.",
+            "gridPos": {
+              "x": 0,
+              "y": 46,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(histogram_quantile(0.99, sum(increase(vmalert_remotewrite_sent_rows_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+                "legend": "max"
+              }
+            ]
+          },
+          {
+            "id": "p54",
+            "type": "timeseries",
+            "title": "Connections ($instance)",
+            "description": "Shows current number of established connections to remote write endpoints.\n\n",
+            "gridPos": {
+              "x": 12,
+              "y": 46,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(max_over_time(vmalert_remotewrite_conns{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

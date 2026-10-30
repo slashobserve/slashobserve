@@ -1,0 +1,556 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Hubble / Network Overview (Namespace)",
+    "uid": "nlsO8tYVz",
+    "schema_version": 38,
+    "bytes": 26909,
+    "panels": 8,
+    "rows": 3,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 8,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 8,
+      "imported": 2,
+      "partial": 6,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[1]",
+        "title": "Flows processed by type",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Flows processed",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[2]",
+        "title": "Flows processed by verdict",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Flows processed",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[3]",
+        "title": "Top 10 sources",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Flows processed",
+        "status": "partial",
+        "reasons": [
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[4]",
+        "title": "Top 10 destinations",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Flows processed",
+        "status": "partial",
+        "reasons": [
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[6]",
+        "title": "Missing TCP SYN-ACKs",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Connection drops",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[7]",
+        "title": "Missing ICMP Echo Replys",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Connection drops",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[9]",
+        "title": "Network Policy drops by source",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Policy drops",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[10]",
+        "title": "Network Policy drops by destination",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Network Policy drops",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]",
+          "links[1]"
+        ]
+      },
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "The regular expression is not supported and is not applied.",
+        "paths": [
+          "templating.list[0].regex"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Hubble / Network Overview (Namespace)",
+    "tags": [
+      "kubecon-demo"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Data Source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(cilium_version, cluster)",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "source_namespace",
+        "label": "Source Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(source_namespace)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "destination_namespace",
+        "label": "Destination Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(destination_namespace)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p8",
+        "type": "row",
+        "title": "Flows processed",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Flows processed by type",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (type, subtype)",
+                "legend": "{{type}}/{{subtype}}"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal"
+          },
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "Flows processed by verdict",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (verdict)",
+                "legend": "{{verdict}}"
+              }
+            ],
+            "unit": "ops",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal"
+          },
+          {
+            "id": "p36",
+            "type": "bargauge",
+            "title": "Top 10 sources",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_flows_processed_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (source))",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p37",
+            "type": "bargauge",
+            "title": "Top 10 destinations",
+            "gridPos": {
+              "x": 12,
+              "y": 10,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_flows_processed_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (destination))",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Connection drops",
+        "gridPos": {
+          "x": 0,
+          "y": 19,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p23",
+            "type": "timeseries",
+            "title": "Missing TCP SYN-ACKs",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_tcp_flags_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\", flag=\"SYN\"}[$__rate_interval])) by (source) - sum(label_replace(sum(rate(hubble_tcp_flags_total{cluster=~\"$cluster\", source_namespace=~\"$destination_namespace\", destination_namespace=~\"$source_namespace\", flag=\"SYN-ACK\"}[$__rate_interval])) by (destination), \"source\", \"$1\", \"destination\", \"(.*)\")) without (destination) > 0",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Missing ICMP Echo Replys",
+            "gridPos": {
+              "x": 12,
+              "y": 20,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_icmp_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\", type=\"EchoRequest\"}[$__rate_interval])) by (source) - sum(label_replace(sum(rate(hubble_icmp_total{cluster=~\"$cluster\", source_namespace=~\"$destination_namespace\", destination_namespace=~\"$source_namespace\", type=\"EchoReply\"}[$__rate_interval])) by (destination), \"source\", \"$1\", \"destination\", \"(.*)\")) without (destination) > 0",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Network Policy drops",
+        "gridPos": {
+          "x": 0,
+          "y": 29,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "Network Policy drops by source",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_drop_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (source, reason) > 0",
+                "legend": "{{source}}: {{reason}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "Network Policy drops by destination",
+            "gridPos": {
+              "x": 12,
+              "y": 30,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_drop_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (destination, reason) > 0",
+                "legend": "{{destination}}: {{reason}}"
+              }
+            ],
+            "unit": "pps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

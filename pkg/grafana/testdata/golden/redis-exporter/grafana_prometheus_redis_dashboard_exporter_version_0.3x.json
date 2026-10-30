@@ -1,0 +1,817 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Prometheus Redis",
+    "uid": "",
+    "schema_version": 12,
+    "bytes": 27688,
+    "panels": 12,
+    "rows": 0,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 12,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 12,
+      "imported": 1,
+      "partial": 11,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[0]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "singlestat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[1]",
+        "title": "Clients",
+        "type": "stat",
+        "source_type": "singlestat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[2]",
+        "title": "Memory Usage",
+        "type": "gauge",
+        "source_type": "singlestat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[3]",
+        "title": "Commands Executed / sec",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution",
+          "tooltip.value_type"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[4]",
+        "title": "Hits / Misses per Sec",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "percentage",
+          "tooltip.msResolution"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[5]",
+        "title": "Total Memory Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution",
+          "tooltip.value_type"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[6]",
+        "title": "Network I/O",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution",
+          "tooltip.value_type"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[7]",
+        "title": "Total Items per DB",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "nullPointMode",
+          "tooltip.msResolution"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[8]",
+        "title": "Expiring vs Not-Expiring Keys",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[9]",
+        "title": "Expired / Evicted",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution",
+          "tooltip.value_type"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[10]",
+        "title": "Command Calls / sec",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode",
+          "tooltip.msResolution",
+          "tooltip.value_type"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[11]",
+        "title": "Clients",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Prometheus Redis",
+    "description": "Prometheus dashboard for Redis servers",
+    "tags": [
+      "prometheus",
+      "redis"
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "addr",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(redis_up, addr)"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p9",
+        "type": "stat",
+        "title": "Uptime",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 2,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "max(max_over_time(redis_uptime_in_seconds{addr=\"$addr\"}[$__interval]))",
+            "interval": "1800s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "s",
+        "decimals": 0,
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p12",
+        "type": "stat",
+        "title": "Clients",
+        "gridPos": {
+          "x": 2,
+          "y": 0,
+          "w": 2,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "redis_connected_clients{addr=\"$addr\"}",
+            "interval": "2s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "none",
+        "decimals": 0,
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "timeFrom": "now-1m",
+        "maxDataPoints": 100,
+        "display": {
+          "colorMode": "none"
+        }
+      },
+      {
+        "id": "p11",
+        "type": "gauge",
+        "title": "Memory Usage",
+        "gridPos": {
+          "x": 4,
+          "y": 0,
+          "w": 4,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "100 * (redis_memory_used_bytes{addr=~\"$addr\"}  / redis_memory_max_bytes{addr=~\"$addr\"} )",
+            "interval": "2s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "percent",
+        "decimals": 0,
+        "min": 0,
+        "max": 100,
+        "thresholds": [
+          {
+            "color": "#32ac2d"
+          },
+          {
+            "value": 80,
+            "color": "warning"
+          },
+          {
+            "value": 95,
+            "color": "#f53636"
+          }
+        ],
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "timeFrom": "now-1m",
+        "maxDataPoints": 100
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "Commands Executed / sec",
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(redis_commands_processed_total{addr=~\"$addr\"}[5m])",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "legend": "hidden",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p1",
+        "type": "timeseries",
+        "title": "Hits / Misses per Sec",
+        "gridPos": {
+          "x": 16,
+          "y": 0,
+          "w": 8,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "irate(redis_keyspace_hits_total{addr=\"$addr\"}[5m])",
+            "legend": "hits",
+            "interval": "240s",
+            "intervalFactor": 2
+          },
+          {
+            "query": "irate(redis_keyspace_misses_total{addr=\"$addr\"}[5m])",
+            "legend": "misses",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "short",
+        "decimals": 2,
+        "min": 0,
+        "fill": 10,
+        "display": {
+          "legend": "hidden",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p7",
+        "type": "timeseries",
+        "title": "Total Memory Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 7,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "redis_memory_used_bytes{addr=~\"$addr\"} ",
+            "legend": "used",
+            "interval": "240s",
+            "intervalFactor": 2
+          },
+          {
+            "query": "redis_memory_max_bytes{addr=~\"$addr\"} ",
+            "legend": "max",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "bytes",
+        "min": 0,
+        "fill": 10,
+        "overrides": [
+          {
+            "match": {
+              "series": "max"
+            },
+            "color": "#BF1B00"
+          }
+        ],
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "timeseries",
+        "title": "Network I/O",
+        "gridPos": {
+          "x": 12,
+          "y": 7,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "rate(redis_net_input_bytes_total{addr=\"$addr\"}[5m])",
+            "legend": "{{ input }}",
+            "interval": "240s",
+            "intervalFactor": 2
+          },
+          {
+            "query": "rate(redis_net_output_bytes_total{addr=\"$addr\"}[5m])",
+            "legend": "{{ output }}",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "bytes",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p5",
+        "type": "timeseries",
+        "title": "Total Items per DB",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum (redis_db_keys{addr=~\"$addr\"}) by (db)",
+            "legend": "{{ db }} ",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "none",
+        "fill": 70,
+        "stack": "normal",
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "lastNotNull"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p13",
+        "type": "timeseries",
+        "title": "Expiring vs Not-Expiring Keys",
+        "gridPos": {
+          "x": 12,
+          "y": 14,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum (redis_db_keys{addr=~\"$addr\"}) - sum (redis_db_keys_expiring{addr=~\"$addr\"}) ",
+            "legend": "not expiring",
+            "interval": "240s",
+            "intervalFactor": 2
+          },
+          {
+            "query": "sum (redis_db_keys_expiring{addr=~\"$addr\"}) ",
+            "legend": "expiring",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "short",
+        "fill": 70,
+        "stack": "normal",
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p8",
+        "type": "timeseries",
+        "title": "Expired / Evicted",
+        "gridPos": {
+          "x": 0,
+          "y": 21,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(redis_expired_keys_total{addr=~\"$addr\"}[5m])) by (addr)",
+            "legend": "expired",
+            "interval": "240s",
+            "intervalFactor": 2
+          },
+          {
+            "query": "sum(rate(redis_evicted_keys_total{addr=~\"$addr\"}[5m])) by (addr)",
+            "legend": "evicted",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "overrides": [
+          {
+            "match": {
+              "series": "evicts"
+            },
+            "color": "#890F02"
+          },
+          {
+            "match": {
+              "series": "memcached_items_evicted_total{instance=\"172.17.0.1:9150\",job=\"prometheus\"}"
+            },
+            "color": "#890F02"
+          },
+          {
+            "match": {
+              "series": "reclaims"
+            },
+            "color": "#3F6833"
+          },
+          {
+            "match": {
+              "series": "reclaims"
+            },
+            "unit": "short",
+            "axis": "right"
+          }
+        ],
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p14",
+        "type": "timeseries",
+        "title": "Command Calls / sec",
+        "gridPos": {
+          "x": 12,
+          "y": 21,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "topk(5, irate(redis_commands_total{addr=~\"$addr\"} [1m]))",
+            "legend": "{{ cmd }}",
+            "interval": "240s",
+            "intervalFactor": 2
+          }
+        ],
+        "unit": "short",
+        "fill": 80,
+        "stack": "normal",
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p16",
+        "type": "timeseries",
+        "title": "Clients",
+        "gridPos": {
+          "x": 0,
+          "y": 28,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "redis_connected_clients{addr=\"$addr\"}"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      }
+    ]
+  }
+}

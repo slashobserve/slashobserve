@@ -1,0 +1,321 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Cart Service Exemplars",
+    "uid": "ce6sd46kfkglca",
+    "schema_version": 41,
+    "bytes": 11128,
+    "panels": 5,
+    "rows": 2,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "webstore-metrics",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 5,
+      "imported": 0,
+      "partial": 5,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[0]",
+        "title": "",
+        "type": "text",
+        "source_type": "text",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "HTML text is shown as Markdown."
+        ],
+        "paths": [
+          "options.mode"
+        ],
+        "queries": []
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[2]",
+        "title": "GetCart Latency Heatmap with Exemplars",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "GetCart Exemplars",
+        "status": "partial",
+        "reasons": [
+          "Grafana runs an instant and a range query here; only the range query is kept.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].instant",
+          "targets[0].exemplar",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[3]",
+        "title": "95th Pct Cart GetCart Latency with Exemplars",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "GetCart Exemplars",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "AddItem Latency Heatmap with Exemplars",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": "AddItem Exemplars",
+        "status": "partial",
+        "reasons": [
+          "Grafana runs an instant and a range query here; only the range query is kept.",
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].instant",
+          "targets[0].exemplar",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[6]",
+        "title": "95th Pct Cart AddItem Latency with Exemplars",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "AddItem Exemplars",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Cart Service Exemplars",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p8",
+        "type": "text",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 2
+        },
+        "content": "This dashboard shows the use of metric exemplars.\nExemplars can be used to look up a trace in Jaeger.\nOnly the most recent exemplars may still be available in Jaeger.\n<br>\nChart panels may require 5 minutes after the Demo is started before rendering data."
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "GetCart Exemplars",
+        "gridPos": {
+          "x": 0,
+          "y": 2,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "heatmap",
+            "title": "GetCart Latency Heatmap with Exemplars",
+            "gridPos": {
+              "x": 0,
+              "y": 3,
+              "w": 24,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by(le) (rate(demo_cart_get_cart_latency_seconds_bucket[$__rate_interval]))",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ],
+            "interval": "2m"
+          },
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "95th Pct Cart GetCart Latency with Exemplars",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.95, sum by(le) (rate(demo_cart_get_cart_latency_seconds_bucket[$__rate_interval])))",
+                "legend": "p95 GetCart"
+              }
+            ],
+            "interval": "2m"
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "row",
+        "title": "AddItem Exemplars",
+        "gridPos": {
+          "x": 0,
+          "y": 22,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p6",
+            "type": "heatmap",
+            "title": "AddItem Latency Heatmap with Exemplars",
+            "gridPos": {
+              "x": 0,
+              "y": 23,
+              "w": 24,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum by(le) (rate(demo_cart_add_item_latency_seconds_bucket[$__rate_interval]))",
+                "legend": "{{le}}",
+                "format": "heatmap"
+              }
+            ],
+            "interval": "2m"
+          },
+          {
+            "id": "p1",
+            "type": "timeseries",
+            "title": "95th Pct Cart AddItem Latency with Exemplars",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 24,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.95, sum by(le) (rate(demo_cart_add_item_latency_seconds_bucket[$__rate_interval])))",
+                "legend": "p95 AddItem"
+              }
+            ],
+            "interval": "2m"
+          }
+        ]
+      }
+    ]
+  }
+}

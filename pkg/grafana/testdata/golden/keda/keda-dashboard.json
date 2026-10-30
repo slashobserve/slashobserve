@@ -1,0 +1,578 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "KEDA",
+    "uid": "asdasd8rvmMxdVk",
+    "schema_version": 38,
+    "bytes": 25442,
+    "panels": 7,
+    "rows": 2,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 7,
+      "imported": 0,
+      "partial": 7,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[1]",
+        "title": "Scaler Total Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Metric Server",
+        "status": "partial",
+        "reasons": [
+          "Unit Errors/sec is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Scaler Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Metric Server",
+        "status": "partial",
+        "reasons": [
+          "Unit Errors/sec is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[3]",
+        "title": "Scaled Object Errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Metric Server",
+        "status": "partial",
+        "reasons": [
+          "Unit Errors/sec is not supported yet.",
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[5]",
+        "title": "Scaler Metric Value",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Scale Target",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[6]",
+        "title": "Current/max replicas (time based)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Scale Target",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[7]",
+        "title": "Changes in replicas",
+        "type": "state-timeline",
+        "source_type": "state-timeline",
+        "row": "Scale Target",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "fieldConfig.defaults.custom.lineWidth",
+          "options.legend.showLegend",
+          "options.rowHeight"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[8]",
+        "title": "Current/max replicas",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Scale Target",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "KEDA",
+    "description": "Visualize metrics provided by KEDA",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(keda_scaler_active,exported_namespace)",
+        "sort": "alpha",
+        "default": "bhe-test"
+      },
+      {
+        "name": "scaledObject",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},scaledObject)",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "scaler",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},scaler)",
+        "refresh": "timeRange",
+        "default": "cronScaler"
+      },
+      {
+        "name": "metric",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(keda_scaler_active{exported_namespace=\"$namespace\"},metric)",
+        "refresh": "timeRange",
+        "default": "s0-cron-Etc-UTC-40xxxx-55xxxx"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p8",
+        "type": "row",
+        "title": "Metric Server",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Scaler Total Errors",
+            "description": "The total number of errors encountered for all scalers.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 8,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by(job) (rate(keda_scaler_detail_errors_total{}[5m]))",
+                "legend": "{{ job }}"
+              }
+            ],
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "http-demo"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "scaledObject"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "keda-system/keda-operator-metrics-apiserver"
+                },
+                "color": "#F2495C"
+              }
+            ]
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Scaler Errors",
+            "description": "The number of errors that have occurred for each scaler.",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 8,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by(scaler) (rate(keda_scaler_detail_errors_total{exported_namespace=~\"$namespace\", scaledObject=~\"$scaledObject\", scaler=~\"$scaler\"}[5m]))",
+                "legend": "{{ scaler }}"
+              }
+            ],
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "http-demo"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "scaler"
+                },
+                "color": "#F2495C"
+              },
+              {
+                "match": {
+                  "series": "prometheusScaler"
+                },
+                "color": "#F2495C"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Scaled Object Errors",
+            "description": "The number of errors that have occurred for each scaled object.",
+            "gridPos": {
+              "x": 16,
+              "y": 1,
+              "w": 8,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by(scaledObject) (rate(keda_scaled_object_errors_total{exported_namespace=~\"$namespace\", scaledObject=~\"$scaledObject\"}[5m]))",
+                "legend": "{{ scaledObject }}"
+              }
+            ],
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "http-demo"
+                },
+                "color": "#F2495C"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Scale Target",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Scaler Metric Value",
+            "description": "The current value for each scaler’s metric that would be used by the HPA in computing the target average.",
+            "gridPos": {
+              "x": 0,
+              "y": 11,
+              "w": 24,
+              "h": 9
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by(metric) (keda_scaler_metrics_value{exported_namespace=~\"$namespace\", metric=~\"$metric\", scaledObject=~\"$scaledObject\"})",
+                "legend": "{{ metric }}"
+              }
+            ],
+            "unit": "none",
+            "fill": 25,
+            "overrides": [
+              {
+                "match": {
+                  "series": "http-demo"
+                },
+                "color": "#5794F2"
+              }
+            ]
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "Current/max replicas (time based)",
+            "description": "shows current replicas against max ones based on time difference",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$namespace\",horizontalpodautoscaler=~\"keda-hpa-$scaledObject\"}",
+                "legend": "current_replicas"
+              },
+              {
+                "query": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"$namespace\",horizontalpodautoscaler=~\"keda-hpa-$scaledObject\"}",
+                "legend": "max_replicas"
+              }
+            ],
+            "unit": "short",
+            "fill": 21
+          },
+          {
+            "id": "p16",
+            "type": "state-timeline",
+            "title": "Changes in replicas",
+            "description": "shows current replicas against max ones based on time difference",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "delta(kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$namespace\",horizontalpodautoscaler=~\"keda-hpa-$scaledObject\"}[1m])",
+                "legend": "."
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "No scaling",
+                "color": "ok"
+              },
+              {
+                "range": [
+                  -200,
+                  0
+                ],
+                "text": "Scaling down",
+                "color": "critical"
+              },
+              {
+                "range": [
+                  0,
+                  200
+                ],
+                "text": "Scaling up",
+                "color": "critical"
+              }
+            ],
+            "fill": 70,
+            "display": {
+              "showValues": "never"
+            }
+          },
+          {
+            "id": "p15",
+            "type": "gauge",
+            "title": "Current/max replicas",
+            "description": "shows current replicas against max ones",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$namespace\",horizontalpodautoscaler=~\"keda-hpa-$scaledObject\"}",
+                "legend": "current_replicas",
+                "instant": true
+              },
+              {
+                "query": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"$namespace\",horizontalpodautoscaler=~\"keda-hpa-$scaledObject\"}",
+                "legend": "max_replicas",
+                "instant": true
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "thresholdMode": "percentage"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,465 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Istio Wasm Extension Dashboard",
+    "uid": "",
+    "schema_version": 38,
+    "bytes": 20500,
+    "panels": 7,
+    "rows": 3,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 7,
+      "imported": 7,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Active",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Wasm VMs",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[2]",
+        "title": "Created",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Wasm VMs",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[4]",
+        "title": "Cache Entry",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Wasm Module Remote Load",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[5]",
+        "title": "Cache Visit",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Wasm Module Remote Load",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[6]",
+        "title": "Remote Fetch",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Wasm Module Remote Load",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p72",
+        "grafana_id": 72,
+        "grafana_path": "panels[8]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[9]",
+        "title": "vCPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Istio Wasm Extension Dashboard",
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p3",
+        "type": "row",
+        "title": "Wasm VMs",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Active",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "avg(envoy_wasm_envoy_wasm_runtime_null_active)",
+                "legend": "native"
+              },
+              {
+                "query": "avg(envoy_wasm_envoy_wasm_runtime_v8_active)",
+                "legend": "v8"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "Created",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "avg(envoy_wasm_envoy_wasm_runtime_null_created)",
+                "legend": "native"
+              },
+              {
+                "query": "avg(envoy_wasm_envoy_wasm_runtime_v8_created)",
+                "legend": "v8"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p7",
+        "type": "row",
+        "title": "Wasm Module Remote Load",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Cache Entry",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "avg(envoy_wasm_remote_load_cache_entries)",
+                "legend": "entries"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Cache Visit",
+            "gridPos": {
+              "x": 8,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "avg(envoy_wasm_remote_load_cache_hits)",
+                "legend": "hits"
+              },
+              {
+                "query": "avg(envoy_wasm_remote_load_cache_misses)",
+                "legend": "misses"
+              },
+              {
+                "query": "avg(envoy_wasm_remote_load_cache_negative_hits)",
+                "legend": "negative hits"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Remote Fetch",
+            "gridPos": {
+              "x": 16,
+              "y": 10,
+              "w": 8,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "avg(envoy_wasm_remote_load_fetch_failures)",
+                "legend": "failures"
+              },
+              {
+                "query": "avg(envoy_wasm_remote_load_fetch_successes)",
+                "legend": "successes"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p71",
+        "type": "row",
+        "title": "Proxy Resource Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p72",
+            "type": "timeseries",
+            "title": "Memory",
+            "gridPos": {
+              "x": 0,
+              "y": 19,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{container=\"istio-proxy\"})",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "timeseries",
+            "title": "vCPU",
+            "gridPos": {
+              "x": 12,
+              "y": 19,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{container=\"istio-proxy\"}[$__rate_interval]))",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

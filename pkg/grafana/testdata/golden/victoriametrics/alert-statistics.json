@@ -1,0 +1,545 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "VictoriaMetrics - Alert statistics",
+    "uid": "ehXxUsGSk",
+    "schema_version": 41,
+    "bytes": 19984,
+    "panels": 7,
+    "rows": 0,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 7,
+      "imported": 0,
+      "partial": 7,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[0]",
+        "title": "Firing state of alerting rules on timeline",
+        "type": "state-timeline",
+        "source_type": "state-timeline",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineWidth",
+          "options.alignValue",
+          "options.legend.showLegend"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[1]",
+        "title": "Alerting groups",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.text.valueSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[2]",
+        "title": "Alerting rules",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.text.valueSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[3]",
+        "title": "Alerting pending",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.text.valueSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[4]",
+        "title": "Alerting firing",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.text.valueSize"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[5]",
+        "title": "FIRING over time by group",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[6]",
+        "title": "FIRING over time by rule",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics - Alert statistics",
+    "description": "Overview of alerts state in time based on metrics generated by VictoriaMetrics vmalert.",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "ds",
+        "label": "Datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{version=~\"^vmalert.*\"},job)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{job=~\"$job\"},instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "group",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vmalert_iteration_duration_seconds{}, group)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "topk",
+        "type": "custom",
+        "options": [
+          "5",
+          "10",
+          "20",
+          "30",
+          "50"
+        ],
+        "default": "10"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/victoriametrics/vmalert/",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p7",
+        "type": "state-timeline",
+        "title": "Firing state of alerting rules on timeline",
+        "description": "Shows the state of alerts on the selected time interval.\n\n Color represents the frequency of state changes: red is frequent, green is no state changes.",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 14
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "sort_desc(topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (alertname)))",
+            "legend": "__auto"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 1,
+            "color": "warning"
+          },
+          {
+            "value": 2,
+            "color": "warning"
+          },
+          {
+            "value": 3,
+            "color": "critical"
+          },
+          {
+            "value": 5,
+            "color": "critical"
+          }
+        ],
+        "fill": 70,
+        "display": {
+          "showValues": "never"
+        }
+      },
+      {
+        "id": "p5",
+        "type": "stat",
+        "title": "Alerting groups",
+        "description": "Shows the total number of loaded alerting rules across selected instances and groups.",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 6,
+          "h": 4
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "count(count(vmalert_alerting_rules_errors_total{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (group))"
+          }
+        ],
+        "min": 0,
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "display": {
+          "reduce": "last",
+          "colorMode": "none",
+          "graph": false
+        }
+      },
+      {
+        "id": "p8",
+        "type": "stat",
+        "title": "Alerting rules",
+        "description": "Shows the total number of loaded alerting rules across selected instances and groups.",
+        "gridPos": {
+          "x": 6,
+          "y": 14,
+          "w": 6,
+          "h": 4
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "count(vmalert_alerting_rules_errors_total{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})"
+          }
+        ],
+        "min": 0,
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ],
+        "display": {
+          "reduce": "last"
+        }
+      },
+      {
+        "id": "p9",
+        "type": "stat",
+        "title": "Alerting pending",
+        "description": "Shows the total number of pendings alerts in selected instances and grouping groups.",
+        "gridPos": {
+          "x": 12,
+          "y": 14,
+          "w": 6,
+          "h": 4
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "sum(vmalert_alerts_pending{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})"
+          }
+        ],
+        "min": 0,
+        "thresholds": [
+          {
+            "color": "warning"
+          }
+        ],
+        "display": {
+          "reduce": "last"
+        }
+      },
+      {
+        "id": "p10",
+        "type": "stat",
+        "title": "Alerting firing",
+        "description": "Shows the total number of firing alerts in selected instances and grouping groups.",
+        "gridPos": {
+          "x": 18,
+          "y": 14,
+          "w": 6,
+          "h": 4
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})"
+          }
+        ],
+        "min": 0,
+        "thresholds": [
+          {
+            "color": "critical"
+          }
+        ],
+        "display": {
+          "reduce": "last"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "table",
+        "title": "FIRING over time by group",
+        "gridPos": {
+          "x": 0,
+          "y": 18,
+          "w": 9,
+          "h": 13
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group) > 0)",
+            "legend": "__auto",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "Time",
+              "alertname"
+            ],
+            "rename": {
+              "Value": "Count",
+              "alertname": "Alert",
+              "group": "Group"
+            },
+            "order": [
+              "Time",
+              "group",
+              "alertname",
+              "Value"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "type": "table",
+        "title": "FIRING over time by rule",
+        "gridPos": {
+          "x": 9,
+          "y": 18,
+          "w": 15,
+          "h": 13
+        },
+        "datasource": "${ds}",
+        "queries": [
+          {
+            "query": "topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0)",
+            "legend": "__auto",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Alert"
+            },
+            "links": [
+              {
+                "title": "Alert",
+                "url": "/alerting/${ds:text}/${__value.text}/find",
+                "newTab": true
+              }
+            ]
+          }
+        ],
+        "transform": [
+          {
+            "type": "organize",
+            "exclude": [
+              "Time"
+            ],
+            "rename": {
+              "Value": "Count",
+              "alertname": "Alert",
+              "group": "Group"
+            },
+            "order": [
+              "Time",
+              "group",
+              "alertname",
+              "Value"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

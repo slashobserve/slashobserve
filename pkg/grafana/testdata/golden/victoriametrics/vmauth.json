@@ -1,0 +1,1900 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "VictoriaMetrics - vmauth",
+    "uid": "nbuo5Mr4k",
+    "schema_version": 42,
+    "bytes": 91411,
+    "panels": 27,
+    "rows": 5,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 27,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 27,
+      "imported": 4,
+      "partial": 23,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[1]",
+        "title": "Requests rate",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[2]",
+        "title": "Errors rate",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[3]",
+        "title": "Uptime",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Smoothed or stepped lines are drawn straight.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[4]",
+        "title": "Users count",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[5]",
+        "title": "Last config update",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[6]",
+        "title": "",
+        "type": "table",
+        "source_type": "table",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Grafana shows this panel without a title.",
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "title",
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[7]",
+        "title": "Available CPU",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p43",
+        "grafana_id": 43,
+        "grafana_path": "panels[8]",
+        "title": "Available memory",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[10]",
+        "title": "Requests rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[11]",
+        "title": "Requests duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[12]",
+        "title": "Requests error rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[13]",
+        "title": "Requests rejected rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[14]",
+        "title": "Concurrent requests usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[15]",
+        "title": "Concurrent limit reached",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[16].panels[0]",
+        "title": "RSS memory % usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[16].panels[1]",
+        "title": "CPU % usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[16].panels[2]",
+        "title": "TCP connections ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[16].panels[3]",
+        "title": "TCP connections rate ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[16].panels[4]",
+        "title": "Open FDs ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[16].panels[5]",
+        "title": "Goroutines ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[16].panels[6]",
+        "title": "Threads ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resource usage",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[17].panels[0]",
+        "title": "Non-default flags",
+        "type": "table",
+        "source_type": "table",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.overrides[1].properties[0]",
+          "transformations[0]",
+          "fieldConfig.defaults.custom.filterable",
+          "options.filterable",
+          "options.showSearch",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[17].panels[1]",
+        "title": "Logging rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[17].panels[2]",
+        "title": "Requests backend error rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[17].panels[3]",
+        "title": "Request body buffering duration P99",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[18].panels[0]",
+        "title": "CPU ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Drilldown",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[18].panels[1]",
+        "title": "Memory usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Drilldown",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.annotations.clustering",
+          "options.annotations.multiLane",
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      },
+      {
+        "subject": "variable ds",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[0].allowCustomValue"
+        ]
+      },
+      {
+        "subject": "variable job",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[1].allowCustomValue",
+          "templating.list[1].regexApplyTo"
+        ]
+      },
+      {
+        "subject": "variable instance",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[2].allowCustomValue",
+          "templating.list[2].regexApplyTo"
+        ]
+      },
+      {
+        "subject": "variable user",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[3].allowCustomValue",
+          "templating.list[3].regexApplyTo"
+        ]
+      },
+      {
+        "subject": "variable adhoc",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[4].allowCustomValue"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics - vmauth",
+    "description": "Overview for VictoriaMetrics vmauth v1.135.0 or higher",
+    "time": {
+      "from": "now-3h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
+        "sort": "alpha",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "sort": "alpha",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "user",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
+        "sort": "alpha",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "adhoc",
+        "type": "adhoc",
+        "datasource": "${ds}"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      },
+      {
+        "title": "Releases",
+        "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p44",
+        "type": "row",
+        "title": "Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "stat",
+            "title": "Requests rate",
+            "description": "Shows the rate of requests.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
+                "instant": true
+              }
+            ],
+            "unit": "reqps",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ]
+          },
+          {
+            "id": "p36",
+            "type": "stat",
+            "title": "Errors rate",
+            "description": "Shows the rate of request errors.",
+            "gridPos": {
+              "x": 4,
+              "y": 1,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+                "instant": true
+              }
+            ],
+            "unit": "reqps",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "warning"
+              }
+            ]
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Uptime",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 16,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(min_over_time(up{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+                "legend": "{{job}}"
+              }
+            ],
+            "decimals": 0,
+            "min": 0,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p31",
+            "type": "stat",
+            "title": "Users count",
+            "description": "Shows the total number of users defined in the configuration file.",
+            "gridPos": {
+              "x": 0,
+              "y": 4,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(count by(username) (vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"}))"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "noValue": "0",
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p30",
+            "type": "stat",
+            "title": "Last config update",
+            "description": "Shows if the last configuration update was successful. \"Not Ok\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
+            "gridPos": {
+              "x": 4,
+              "y": 4,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "Ok",
+                "color": "ok"
+              },
+              {
+                "range": [
+                  1,
+                  999999
+                ],
+                "text": "Not Ok",
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "reduce": "last"
+            }
+          },
+          {
+            "id": "p6",
+            "type": "table",
+            "title": "Panel 6",
+            "gridPos": {
+              "x": 8,
+              "y": 6,
+              "w": 16,
+              "h": 4
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "displayName": "Count"
+              }
+            ]
+          },
+          {
+            "id": "p42",
+            "type": "stat",
+            "title": "Available CPU",
+            "description": "Total number of available CPUs for all VM components.",
+            "gridPos": {
+              "x": 0,
+              "y": 7,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"})",
+                "instant": true
+              }
+            ],
+            "unit": "short",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p43",
+            "type": "stat",
+            "title": "Available memory",
+            "description": "Total size of available memory for all VM components.",
+            "gridPos": {
+              "x": 4,
+              "y": 7,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "instant": true
+              }
+            ],
+            "unit": "bytes",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p45",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Requests rate",
+            "description": "Shows the rate of requests per user.",
+            "gridPos": {
+              "x": 0,
+              "y": 11,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username) > 0",
+                "legend": "__auto"
+              },
+              {
+                "query": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+                "legend": "unauthorized_user"
+              }
+            ]
+          },
+          {
+            "id": "p19",
+            "type": "timeseries",
+            "title": "Requests duration",
+            "description": "Shows duration in seconds of user requests by quantile.",
+            "gridPos": {
+              "x": 12,
+              "y": 11,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+                "legend": "user: {{username}} q: {{quantile}}"
+              },
+              {
+                "query": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
+                "legend": "user: unauthorized q: {{ quantile}}"
+              }
+            ],
+            "unit": "s",
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ]
+            }
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Requests error rate",
+            "description": "Shows the request error rate per user.",
+            "gridPos": {
+              "x": 0,
+              "y": 20,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_user_request_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
+                "legend": "__auto"
+              },
+              {
+                "query": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+                "legend": "unauthorized_user"
+              }
+            ]
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Requests rejected rate",
+            "description": "Shows the rate of rejected requests by a reason.",
+            "gridPos": {
+              "x": 12,
+              "y": 20,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason) > 0",
+                "legend": "__auto"
+              }
+            ]
+          },
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "Concurrent requests usage",
+            "description": "Shows the percentage utilization of concurrent request capacity per user.",
+            "gridPos": {
+              "x": 0,
+              "y": 29,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+                "legend": "__auto",
+                "interval": "5m"
+              }
+            ],
+            "unit": "percentunit",
+            "max": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 0.9,
+                "color": "critical"
+              }
+            ],
+            "style": "bars",
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Concurrent limit reached",
+            "description": "The number of concurrent connections processed by vmauth reached one of limits. Possible solutions:\n- increase global limit with flag -maxConcurrentRequests\n- increase limit with flag: -maxConcurrentPerUserRequests for all users or with config option `max_concurrent_requests` per user.\n- deploy additional vmauth replicas\n- check requests latency at backend service and allocate resources to it if needed",
+            "gridPos": {
+              "x": 12,
+              "y": 29,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
+                "legend": "__auto",
+                "interval": "1m"
+              },
+              {
+                "query": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+                "legend": "unauthorized"
+              },
+              {
+                "query": "sum(rate(vmauth_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+                "legend": "global at {{ $instance }}"
+              }
+            ],
+            "style": "bars"
+          }
+        ]
+      },
+      {
+        "id": "p46",
+        "type": "row",
+        "title": "Resource usage",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p25",
+            "type": "timeseries",
+            "title": "RSS memory % usage ($instance)",
+            "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: max"
+              },
+              {
+                "query": "min(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: min"
+              },
+              {
+                "query": "quantile(0.5,\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: median"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "CPU % usage ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 39,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: max"
+              },
+              {
+                "query": "min(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: min"
+              },
+              {
+                "query": "quantile(0.5,\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "{{job}}: median"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p23",
+            "type": "timeseries",
+            "title": "TCP connections ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p24",
+            "type": "timeseries",
+            "title": "TCP connections rate ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 47,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Open FDs ($instance)",
+            "description": "Shows the percentage of open file descriptors compared to the limit set in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
+            "gridPos": {
+              "x": 0,
+              "y": 55,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(\n    max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_max_fds{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 2,
+            "min": 0,
+            "overrides": [
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#C4162A"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p21",
+            "type": "timeseries",
+            "title": "Goroutines ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 55,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(max_over_time(go_goroutines{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "Threads ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 63,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+                "legend": "__auto",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "min": 0,
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p47",
+        "type": "row",
+        "title": "Troubleshooting",
+        "gridPos": {
+          "x": 0,
+          "y": 39,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p34",
+            "type": "table",
+            "title": "Non-default flags",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Logging rate",
+            "description": "Shows number of generated error and warning messages in logs. Non-zero value may be a sign of connectivity or misconfiguration errors.",
+            "gridPos": {
+              "x": 12,
+              "y": 40,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
+                "legend": "__auto"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "max",
+                "last",
+                "mean"
+              ]
+            }
+          },
+          {
+            "id": "p41",
+            "type": "timeseries",
+            "title": "Requests backend error rate",
+            "description": "Shows the backend request error rate per user.\nThe value can be higher than the request error rate if:\n1. A single request is retried multiple times due to transient network errors, such as proxy idle timeout misconfiguration or sockets being closed by the OS.\n2. The request fails and is retried on other backends because of configured retry_status_codes.",
+            "gridPos": {
+              "x": 0,
+              "y": 48,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(vmauth_user_request_backend_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
+                "legend": "__auto"
+              },
+              {
+                "query": "sum(rate(vmauth_unauthorized_user_request_backend_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+                "legend": "unauthorized_user"
+              }
+            ]
+          },
+          {
+            "id": "p39",
+            "type": "timeseries",
+            "title": "Request body buffering duration P99",
+            "description": "This metric helps identify slow-uploading clients. Elevated buffering percentiles together with a drop in incoming request rate, in the absence of CPU, memory, or upstream saturation, usually indicate slow client uploads (for example, a client on EDGE connection).\n\nSlow clients can hold concurrency slots for extended periods, causing vmauth to hit concurrency limits and reject requests even when upstream services have sufficient capacity. Increasing `-requestBufferSize` decouples client upload speed from request processing, reducing concurrency pressure and protecting vmauth and upstream services, at the cost of higher memory usage.\n\nThis metric is available only when `-requestBufferSize` is non-zero (default: 32KiB). The maximum time vmauth waits for the request body to be fully read (or for the buffer to be filled) is controlled by `-maxQueueDuration` (default: 10s).\n\nRead more in [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering) documentation.",
+            "gridPos": {
+              "x": 12,
+              "y": 48,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(vmauth_buffer_request_body_duration_seconds{job=~\"$job\", instance=~\"$instance\",quantile=\"0.99\"}) by (job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "s",
+            "links": [
+              {
+                "title": "Request body buffering",
+                "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering",
+                "newTab": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p48",
+        "type": "row",
+        "title": "Drilldown",
+        "gridPos": {
+          "x": 0,
+          "y": 40,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "CPU ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 41,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance, pod)",
+                "legend": "__auto"
+              },
+              {
+                "query": "min(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(job)",
+                "legend": "{{job}}: limit"
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Limit"
+                },
+                "color": "#F2495C"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p27",
+            "type": "timeseries",
+            "title": "Memory usage ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 41,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "requested from system"
+              },
+              {
+                "query": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "heap inuse"
+              },
+              {
+                "query": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "stack inuse"
+              },
+              {
+                "query": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "resident"
+              },
+              {
+                "query": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "resident anonymous"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

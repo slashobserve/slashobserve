@@ -1,0 +1,662 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Agent Services",
+    "uid": "agent-services",
+    "schema_version": 42,
+    "bytes": 16662,
+    "panels": 10,
+    "rows": 4,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${prometheus_datasource}",
+      "name": "prometheus_datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 10,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 10,
+      "imported": 1,
+      "partial": 9,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Tool calls",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Chatbot requests",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Distinct tools invoked",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "LLM calls",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Tool call rate by tool",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Tool calls",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Tool call rate by service",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Tool calls",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Chatbot request rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Chatbot",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[11]",
+        "title": "Token usage rate (input vs output)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "LLM performance",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p13",
+        "grafana_id": 13,
+        "grafana_path": "panels[12]",
+        "title": "LLM call duration (p95)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "LLM performance",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[13]",
+        "title": "LLM call rate by model",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "LLM performance",
+        "status": "partial",
+        "reasons": [
+          "Unit items/sec is not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.unit",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${prometheus_datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable prometheus_datasource",
+        "status": "partial",
+        "reason": "The regular expression is not supported and is not applied.",
+        "paths": [
+          "templating.list[0].regex"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Agent Services",
+    "description": "Astronomy Shop agentic services: tool calls made by the agent and MCP services, chat volume from the chatbot UI, and LLM call/token metrics emitted automatically by the Traceloop/langchain instrumentation.",
+    "tags": [
+      "opentelemetry",
+      "agent",
+      "llm"
+    ],
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "prometheus_datasource",
+        "label": "Metrics",
+        "description": "OpenTelemetry metrics (Prometheus).",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "service_name",
+        "label": "Service",
+        "description": "Agentic services (agent, mcp, chatbot). Any new service emitting these metrics appears here automatically.",
+        "type": "query",
+        "datasource": "${prometheus_datasource}",
+        "query": "label_values({__name__=~\"demo_tool_calls_total|demo_chatbot_requests_total|gen_ai_client_operation_duration_seconds_count\"},service_name)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "stat",
+            "title": "Tool calls",
+            "description": "Rate of Astronomy Shop tool calls made by the agent service (direct calls) and the mcp service (proxied calls). Source: demo.tool.calls.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(demo_tool_calls_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "Tool calls"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "info"
+              }
+            ],
+            "color": "#5794F2"
+          },
+          {
+            "id": "p3",
+            "type": "stat",
+            "title": "Chatbot requests",
+            "description": "Rate of chat messages sent from the chatbot UI to the agent service. Source: demo.chatbot.requests.",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(demo_chatbot_requests_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "Chatbot requests"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "color": "#73BF69"
+          },
+          {
+            "id": "p4",
+            "type": "stat",
+            "title": "Distinct tools invoked",
+            "description": "Number of distinct Astronomy Shop tools invoked by the agent/mcp services in the selected time range.",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "count(count by (gen_ai_tool_name) (demo_tool_calls_total{service_name=~\"$service_name\"}))",
+                "legend": "Tools invoked",
+                "instant": true
+              }
+            ],
+            "unit": "none",
+            "thresholds": [
+              {
+                "color": "#B877D9"
+              }
+            ],
+            "display": {
+              "graph": false
+            }
+          },
+          {
+            "id": "p5",
+            "type": "stat",
+            "title": "LLM calls",
+            "description": "Rate of LLM calls completed by the agent/chatbot services, from the langchain instrumentation's gen_ai.client.operation.duration histogram count.",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 6,
+              "h": 4
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(gen_ai_client_operation_duration_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "LLM calls"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "warning"
+              }
+            ],
+            "color": "#FF9830"
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Tool calls",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Tool call rate by tool",
+            "description": "Rate of demo.tool.calls broken down by tool name (gen_ai.tool.name), summed across the agent and mcp services.",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum by (gen_ai_tool_name) (rate(demo_tool_calls_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "{{gen_ai_tool_name}}"
+              }
+            ],
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Tool call rate by service",
+            "description": "Rate of demo.tool.calls broken down by the service that recorded it: agent (direct local tool calls) vs mcp (tool calls proxied through MCP).",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum by (service_name) (rate(demo_tool_calls_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "{{service_name}}"
+              }
+            ],
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p9",
+        "type": "row",
+        "title": "Chatbot",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Chatbot request rate",
+            "description": "Rate of demo.chatbot.requests: chat messages sent from the chatbot UI to the agent service.",
+            "gridPos": {
+              "x": 0,
+              "y": 15,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum by (service_name) (rate(demo_chatbot_requests_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "{{service_name}}"
+              }
+            ],
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p11",
+        "type": "row",
+        "title": "LLM performance",
+        "gridPos": {
+          "x": 0,
+          "y": 23,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Token usage rate (input vs output)",
+            "description": "Rate of input/output tokens consumed, from the langchain instrumentation's gen_ai.client.token.usage histogram (auto-emitted once a MeterProvider is configured; not a demo-defined metric).",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum by (gen_ai_token_type) (rate(gen_ai_client_token_usage_sum{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "{{gen_ai_token_type}} tokens/sec"
+              }
+            ],
+            "unit": "none",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p13",
+            "type": "timeseries",
+            "title": "LLM call duration (p95)",
+            "description": "p95 LLM call duration by response model, from the langchain instrumentation's gen_ai.client.operation.duration histogram.",
+            "gridPos": {
+              "x": 12,
+              "y": 24,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.95, sum by (le, gen_ai_response_model) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+                "legend": "{{gen_ai_response_model}} p95"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p14",
+            "type": "timeseries",
+            "title": "LLM call rate by model",
+            "description": "Rate of completed LLM calls by response model, from the langchain instrumentation's gen_ai.client.operation.duration histogram count.",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${prometheus_datasource}",
+            "queries": [
+              {
+                "query": "sum by (gen_ai_response_model) (rate(gen_ai_client_operation_duration_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
+                "legend": "{{gen_ai_response_model}}"
+              }
+            ],
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

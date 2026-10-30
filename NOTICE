@@ -16,6 +16,15 @@ Each source directory carries its upstream LICENSE, and SOURCES.md records the c
 - grafana/clickhouse-datasource (https://github.com/grafana/clickhouse-datasource), Apache-2.0
 - Altinity/clickhouse-grafana (https://github.com/Altinity/clickhouse-grafana), MIT
 - dotdc/grafana-dashboards-kubernetes (https://github.com/dotdc/grafana-dashboards-kubernetes), Apache-2.0
+- istio/istio (https://github.com/istio/istio), Apache-2.0
+- thanos-io/thanos (https://github.com/thanos-io/thanos), Apache-2.0
+- VictoriaMetrics/VictoriaMetrics (https://github.com/VictoriaMetrics/VictoriaMetrics), Apache-2.0
+- kubernetes/ingress-nginx (https://github.com/kubernetes/ingress-nginx), Apache-2.0
+- argoproj/argo-cd (https://github.com/argoproj/argo-cd), Apache-2.0
+- oliver006/redis_exporter (https://github.com/oliver006/redis_exporter), MIT
+- kedacore/keda (https://github.com/kedacore/keda), Apache-2.0
+- open-telemetry/opentelemetry-demo (https://github.com/open-telemetry/opentelemetry-demo), Apache-2.0
+- cilium/cilium (https://github.com/cilium/cilium), Apache-2.0
 
 Third-party map data
 

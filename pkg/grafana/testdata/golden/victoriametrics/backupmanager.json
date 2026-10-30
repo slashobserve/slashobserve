@@ -1,0 +1,1043 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "VictoriaMetrics - backupmanager",
+    "uid": "gF-lxRdVz",
+    "schema_version": 39,
+    "bytes": 46892,
+    "panels": 18,
+    "rows": 4,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 18,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 18,
+      "imported": 11,
+      "partial": 7,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[1]",
+        "title": "Instances",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[2]",
+        "title": "Last backup status",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[3]",
+        "title": "Total backups stored",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[4]",
+        "title": "Backups size",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[5]",
+        "title": "Backups errors ",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[6]",
+        "title": "Last retention status",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Retention errors",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Stats",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[8]",
+        "title": "Backups configuration",
+        "type": "table",
+        "source_type": "table",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[9]",
+        "title": "Retention configuration",
+        "type": "table",
+        "source_type": "table",
+        "row": "Stats",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[10].panels[0]",
+        "title": "Max backup duration",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": "Backups",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet.",
+          "Axis labels are drawn in the SlashObserve style."
+        ],
+        "paths": [
+          "options.legend.calcs",
+          "options.xTickLabelSpacing"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[10].panels[1]",
+        "title": "Backup errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Backups",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p29",
+        "grafana_id": 29,
+        "grafana_path": "panels[10].panels[2]",
+        "title": "Backups size",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Backups",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[10].panels[3]",
+        "title": "Top 10 backups by size",
+        "type": "table",
+        "source_type": "table",
+        "row": "Backups",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[10].panels[4]",
+        "title": "Backup runs",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": "Backups",
+        "status": "partial",
+        "reasons": [
+          "Axis labels are drawn in the SlashObserve style."
+        ],
+        "paths": [
+          "options.xTickLabelSpacing"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[10].panels[5]",
+        "title": "Backups upload speed",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Backups",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[11].panels[0]",
+        "title": "Max retention duration",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": "Retention",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[11].panels[1]",
+        "title": "Retention errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Retention",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[12].panels[0]",
+        "title": "Backup duration per instance",
+        "type": "barchart",
+        "source_type": "barchart",
+        "row": "Drilldown",
+        "status": "partial",
+        "reasons": [
+          "Axis labels are drawn in the SlashObserve style."
+        ],
+        "paths": [
+          "options.xTickLabelSpacing"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]",
+          "annotations.list[2]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics - backupmanager",
+    "description": "Overview for VictoriaMetrics backupmanager v1.85.3 or higher",
+    "tags": [
+      "victoriametrics"
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "refresh": "1m",
+    "variables": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{version=~\"^vmbackupmanager.*\"}, job)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "adhoc",
+        "type": "adhoc",
+        "datasource": "${ds}"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p10",
+        "type": "row",
+        "title": "Stats",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p32",
+            "type": "stat",
+            "title": "Instances",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 3,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "count(vm_app_version{job=~\"$job\", instance=~\"$instance\", version=~\"^vmbackupmanager.+\" })",
+                "legend": "__auto",
+                "instant": true
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "type": "stat",
+            "title": "Last backup status",
+            "description": "Status of last backup operation.",
+            "gridPos": {
+              "x": 3,
+              "y": 1,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_backup_last_run_failed)",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "Success"
+              }
+            ]
+          },
+          {
+            "id": "p6",
+            "type": "stat",
+            "title": "Total backups stored",
+            "description": "Number of backups stored in remote storage.",
+            "gridPos": {
+              "x": 7,
+              "y": 1,
+              "w": 3,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_backups_stored{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ]
+          },
+          {
+            "id": "p27",
+            "type": "stat",
+            "title": "Backups size",
+            "description": "Space used in remote storage.",
+            "gridPos": {
+              "x": 10,
+              "y": 1,
+              "w": 3,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "decbytes",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ]
+          },
+          {
+            "id": "p7",
+            "type": "stat",
+            "title": "Backups errors",
+            "gridPos": {
+              "x": 13,
+              "y": 1,
+              "w": 3,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "No errors"
+              }
+            ]
+          },
+          {
+            "id": "p5",
+            "type": "stat",
+            "title": "Last retention status",
+            "description": "Status of last retention run.\n\nRetention is a process of removing old backups from remote storage.",
+            "gridPos": {
+              "x": 16,
+              "y": 1,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(vm_retention_last_run_failed)",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "Success"
+              }
+            ]
+          },
+          {
+            "id": "p8",
+            "type": "stat",
+            "title": "Retention errors",
+            "gridPos": {
+              "x": 20,
+              "y": 1,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "value": "0",
+                "text": "No errors"
+              }
+            ]
+          },
+          {
+            "id": "p22",
+            "type": "table",
+            "title": "Backups configuration",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(flag{job=~\"$job\", instance=~\"$instance\",name=~\"disableDaily|disableHourly|disableWeekly|disableMonthly\"}) by (name, value, instance)",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p21",
+            "type": "table",
+            "title": "Retention configuration",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(flag{job=~\"$job\", instance=~\"$instance\",name=~\"keep(.*)\", is_set=\"true\"}) by (name, value, instance)",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p12",
+        "type": "row",
+        "title": "Backups",
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p23",
+            "type": "barchart",
+            "title": "Max backup duration",
+            "description": "Max duration of backup run. Lower better.\n\nEach backup starts with data upload during `latest` backup. Subsequent backups (`hourly`, `daily`, `weekly`, `monthly`)  are copying date by using server-side copy. ",
+            "gridPos": {
+              "x": 0,
+              "y": 13,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"})) by (type) > 0",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "s",
+            "links": [
+              {
+                "title": "Drilldown",
+                "url": "/d/gF-lxRdVz?viewPanel=36&var-ds=$ds&var-instance=$instance&var-job=$job&${__url_time_range}",
+                "newTab": true
+              }
+            ],
+            "fill": 80,
+            "interval": "1h",
+            "display": {
+              "legend": "hidden"
+            }
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Backup errors",
+            "gridPos": {
+              "x": 12,
+              "y": 13,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
+                "legend": "{{instance}}"
+              }
+            ]
+          },
+          {
+            "id": "p29",
+            "type": "timeseries",
+            "title": "Backups size",
+            "gridPos": {
+              "x": 0,
+              "y": 21,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"}",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "decbytes",
+            "display": {
+              "legend": "hidden"
+            }
+          },
+          {
+            "id": "p28",
+            "type": "table",
+            "title": "Top 10 backups by size",
+            "gridPos": {
+              "x": 12,
+              "y": 21,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk(10, sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (backup, job, type))",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "decbytes"
+          },
+          {
+            "id": "p30",
+            "type": "barchart",
+            "title": "Backup runs",
+            "gridPos": {
+              "x": 0,
+              "y": 29,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_backups_total{job=~\"$job\", instance=~\"$instance\"}[24h])) by (type) > 0",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "none",
+            "fill": 80,
+            "stack": "normal",
+            "interval": "1d",
+            "display": {
+              "groupWidth": 0.85
+            }
+          },
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "Backups upload speed",
+            "gridPos": {
+              "x": 12,
+              "y": 29,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rollup_rate(vm_backups_uploaded_bytes_total[$__rate_interval])) by (rollup)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "binBps",
+            "display": {
+              "legend": "hidden",
+              "legendValues": [
+                "max",
+                "mean"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p18",
+        "type": "row",
+        "title": "Retention",
+        "gridPos": {
+          "x": 0,
+          "y": 13,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p26",
+            "type": "barchart",
+            "title": "Max retention duration",
+            "description": "Max duration of retention run. Lower better.\n\nRetention is a process of removing old backups from remote storage.",
+            "gridPos": {
+              "x": 0,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(increase(vm_retention_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"})) > 0",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "s",
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "fill": 80,
+            "interval": "1h"
+          },
+          {
+            "id": "p25",
+            "type": "timeseries",
+            "title": "Retention errors",
+            "gridPos": {
+              "x": 12,
+              "y": 14,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
+                "legend": "{{instance}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p34",
+        "type": "row",
+        "title": "Drilldown",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p36",
+            "type": "barchart",
+            "title": "Backup duration per instance",
+            "description": "Duration of backup run. Lower better.\n\nEach backup starts with data upload during `latest` backup. Subsequent backups (`hourly`, `daily`, `weekly`, `monthly`)  are copying date by using server-side copy.\n",
+            "gridPos": {
+              "x": 0,
+              "y": 15,
+              "w": 24,
+              "h": 11
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"}) > 0",
+                "legend": "{{instance}} - {{type}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 80,
+            "interval": "1h",
+            "display": {
+              "legend": "hidden"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

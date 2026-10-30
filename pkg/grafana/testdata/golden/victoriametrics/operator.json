@@ -1,0 +1,1370 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "VictoriaMetrics - operator",
+    "uid": "1H179hunk",
+    "schema_version": 42,
+    "bytes": 63640,
+    "panels": 23,
+    "rows": 3,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 23,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 23,
+      "imported": 8,
+      "partial": 15,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[1]",
+        "title": "Version",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.reduceOptions.fields"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[2]",
+        "title": "CRD Objects count by controller",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[3]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[4]",
+        "title": "Prometheus Objects watchers",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[5]",
+        "title": "Elected Leaders",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[6]",
+        "title": "Active workers",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Overview",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p38",
+        "grafana_id": 38,
+        "grafana_path": "panels[7]",
+        "title": "Prometheus Converter Watch events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p43",
+        "grafana_id": 43,
+        "grafana_path": "panels[8]",
+        "title": "Non-default flags",
+        "type": "table",
+        "source_type": "table",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p45",
+        "grafana_id": 45,
+        "grafana_path": "panels[9]",
+        "title": "Global settings",
+        "type": "table",
+        "source_type": "table",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[10]",
+        "title": "Reconciliation rate by controller",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[11]",
+        "title": "Log message rate",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Overview",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[13]",
+        "title": "Reconcile errors by controller",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[14]",
+        "title": "Throttled reconciliation config events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[15]",
+        "title": "Working queue depth",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[16]",
+        "title": "Reconciliation latency by controller",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[17]",
+        "title": "REST client requests",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[18]",
+        "title": "Concurrent reconcile ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[19]",
+        "title": "Go scheduling latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[20]",
+        "title": "REST client latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Troubleshooting",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[21].panels[0]",
+        "title": "Memory usage ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[21].panels[1]",
+        "title": "CPU ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[21].panels[2]",
+        "title": "Goroutines ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[21].panels[3]",
+        "title": "GC duration ($instance)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics - operator",
+    "description": "Overview for operator VictoriaMetrics v0.25.0 or higher",
+    "tags": [
+      "victoriametrics"
+    ],
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(operator_log_messages_total,job)",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
+        "refresh": "timeRange",
+        "includeAll": true
+      },
+      {
+        "name": "version",
+        "hide": "variable",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
+        "sort": "alphaDesc"
+      },
+      {
+        "name": "adhoc",
+        "type": "adhoc",
+        "datasource": "${ds}"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/operator/",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      },
+      {
+        "title": "Releases",
+        "url": "https://github.com/VictoriaMetrics/operator/releases",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p8",
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p24",
+            "type": "stat",
+            "title": "Version",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 4,
+              "h": 3
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum by(job, version) (label_replace(vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version!=\"\"}, \"version\", \"$1\", \"short_version\", \"(.*)\") or vm_app_version{job=~\"$job\", instance=~\"$instance\", short_version=\"\"})",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "graph": false,
+              "textMode": "value"
+            }
+          },
+          {
+            "id": "p14",
+            "type": "stat",
+            "title": "CRD Objects count by controller",
+            "description": "Number of objects at kubernetes cluster per each controller",
+            "gridPos": {
+              "x": 4,
+              "y": 1,
+              "w": 20,
+              "h": 7
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\"}) by (controller)",
+                "legend": "{{controller}}"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "display": {
+              "colorMode": "none"
+            }
+          },
+          {
+            "id": "p22",
+            "type": "stat",
+            "title": "Uptime",
+            "gridPos": {
+              "x": 0,
+              "y": 4,
+              "w": 4,
+              "h": 4
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "vm_app_uptime_seconds{job=~\"$job\",instance=~\"$instance\"}",
+                "legend": "{{instance}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "s",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p39",
+            "type": "stat",
+            "title": "Prometheus Objects watchers",
+            "description": " Shows per namespace watchers for Prometheus Operator objects (ServiceMonitors, PodMonitors, etc) ",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(operator_prometheus_converter_active_watchers)",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p40",
+            "type": "stat",
+            "title": "Elected Leaders",
+            "description": " Number of operator instances with obtained leader status. \n Value above 1 indicates that instances with the same job may behave incorrectly.\n It's recommend to check Operator logs. ",
+            "gridPos": {
+              "x": 4,
+              "y": 8,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(leader_election_master_status{job=~\"$job\"})",
+                "legend": "__auto"
+              }
+            ],
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p41",
+            "type": "stat",
+            "title": "Active workers",
+            "description": " Shows number of active reconcile workers",
+            "gridPos": {
+              "x": 8,
+              "y": 8,
+              "w": 4,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(controller_runtime_active_workers{job=~\"$job\"})",
+                "legend": "__auto"
+              }
+            ],
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p38",
+            "type": "timeseries",
+            "title": "Prometheus Converter Watch events",
+            "description": " Shows amount of Prometheus Operator objects processed by Operator.",
+            "gridPos": {
+              "x": 12,
+              "y": 8,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(operator_prometheus_converter_watch_events_total{job=~\"$job\"}[$__interval])) by (event_type,object_type_name)",
+                "legend": "{{object_type_name}} {{event_type}}"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ]
+            }
+          },
+          {
+            "id": "p43",
+            "type": "table",
+            "title": "Non-default flags",
+            "gridPos": {
+              "x": 0,
+              "y": 13,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+                "legend": "{{object_type_name}} {{event_type}}",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p45",
+            "type": "table",
+            "title": "Global settings",
+            "gridPos": {
+              "x": 12,
+              "y": 13,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(config_parameter{job=~\"$job\", instance=~\"$instance\", value!=\"\"}) by(job, instance, name, value)",
+                "legend": "{{object_type_name}} {{event_type}}",
+                "instant": true,
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Reconciliation rate by controller",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 12,
+              "h": 13
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=~\"requeue_after|requeue|success\"}[$__rate_interval])) by(controller)",
+                "legend": "{{controller}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Log message rate",
+            "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+            "gridPos": {
+              "x": 12,
+              "y": 18,
+              "w": 12,
+              "h": 13
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by (level)",
+                "legend": "{{label_name}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Troubleshooting",
+        "gridPos": {
+          "x": 0,
+          "y": 31,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Reconcile errors by controller",
+            "description": "Non zero metrics indicates about error with CR object definition (typos or incorrect values) or errors with kubernetes API connection.",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(controller_runtime_reconcile_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by(controller) > 0 ",
+                "legend": "{{controller}}"
+              },
+              {
+                "query": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=\"error\"}[$__rate_interval])) by(controller) > 0",
+                "legend": "result errors: {{controller}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Throttled reconciliation config events",
+            "description": "Operator limits number of reconcile configuration events to 5 events per 2 seconds by default.",
+            "gridPos": {
+              "x": 12,
+              "y": 32,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(operator_reconcile_throttled_events_total[$__rate_interval])) by(controller)",
+                "legend": "{{controller}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Working queue depth",
+            "description": "Number of objects waiting in the queue for reconciliation. Non-zero values indicate that operator cannot process CR objects changes with the given resources.",
+            "gridPos": {
+              "x": 0,
+              "y": 40,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\"}) by (name)",
+                "legend": "{{label_name}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "Reconciliation latency by controller",
+            "description": " For controllers with StatefulSet it's ok to see latency greater then 3 seconds. It could be vmalertmanager,vmcluster or vmagent in statefulMode.\n\n For other controllers, latency greater then 2 second may indicate issues with kubernetes cluster or operator's performance.\n ",
+            "gridPos": {
+              "x": 12,
+              "y": 40,
+              "w": 12,
+              "h": 11
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (le, controller) )",
+                "legend": "q.99 {{controller}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "REST client requests",
+            "description": "Number of HTTP requests to the Kubernetes API server break down by code and method",
+            "gridPos": {
+              "x": 0,
+              "y": 51,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(rest_client_requests_total{job=~\"$job\"}[$__interval])) by (method, code)",
+                "legend": "{{method}} {{code}}"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ]
+            }
+          },
+          {
+            "id": "p42",
+            "type": "timeseries",
+            "title": "Concurrent reconcile ($instance)",
+            "description": "Shows how many ongoing reconcile events are taking place, where:\n* `max` - equal to the value of flag`-controller.maxConcurrentReconciles`;\n* `current` - current number of reconcile workers processing CRD objects.\n\nWhen `current` hits `max` constantly, it means operator cannot process events in time. It should be either increased value for flag `-controller.maxConcurrentReconciles` or allocated  additional CPU resources to the operator.",
+            "gridPos": {
+              "x": 12,
+              "y": 51,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(max_over_time(controller_runtime_active_workers{job=~\"$job\"}[$__interval]))",
+                "legend": "Current"
+              },
+              {
+                "query": "min(controller_runtime_max_concurrent_reconciles{job=~\"$job\"})",
+                "legend": "Max"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "series": "Max"
+                },
+                "color": "#C4162A"
+              }
+            ]
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Go scheduling latency",
+            "description": "Shows the time goroutines have spent in runnable state before actually running.\n\n**Lower is better.**\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+            "gridPos": {
+              "x": 0,
+              "y": 59,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by (job)",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "s"
+          },
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "REST client latency",
+            "description": " Requests latency to the Kubernetes API server.",
+            "gridPos": {
+              "x": 12,
+              "y": 59,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (le, method, api))",
+                "legend": "{{method}} {{api}}"
+              }
+            ],
+            "unit": "s",
+            "display": {
+              "legendValues": [
+                "max",
+                "mean"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "row",
+        "title": "Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 67,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "Memory usage ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 68,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+                "legend": "requested from system"
+              },
+              {
+                "query": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+                "legend": "heap inuse"
+              },
+              {
+                "query": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "stack inuse"
+              },
+              {
+                "query": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "resident"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p30",
+            "type": "timeseries",
+            "title": "CPU ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 68,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) ",
+                "legend": "CPU cores used"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Goroutines ($instance)",
+            "gridPos": {
+              "x": 0,
+              "y": 76,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+                "legend": "goroutines"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "GC duration ($instance)",
+            "gridPos": {
+              "x": 12,
+              "y": 76,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+                "legend": "avg gc duration"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
