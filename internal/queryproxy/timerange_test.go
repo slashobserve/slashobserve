@@ -27,7 +27,7 @@ func TestPanelRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := PanelRange(&tt.panel, dashboard, testNow); got != tt.want {
+			if got := PanelRange(&tt.panel, dashboard, testNow, spec.TimeOptions{}); got != tt.want {
 				t.Fatalf("PanelRange = %v, want %v", got, tt.want)
 			}
 		})

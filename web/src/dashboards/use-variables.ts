@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
+import { requestZone } from "@/lib/time"
 import type { Variable } from "@/spec"
 
 import { panelRequestLimiter } from "./limiter"
@@ -32,6 +33,7 @@ type Args = {
   variables: Variable[]
   from?: string
   to?: string
+  timezone?: string
   urlVars: Record<string, string[]>
 }
 
@@ -41,6 +43,7 @@ export function useVariables({
   variables,
   from,
   to,
+  timezone,
   urlVars,
 }: Args) {
   const [knownOptions, setKnownOptions] = useState<VariableOptions>({})
@@ -56,9 +59,11 @@ export function useVariables({
           { from, to, selections: earlier }
         ),
         queryFn: ({ signal }: { signal: AbortSignal }) => {
-          const range: { from?: string; to?: string } = {}
+          const range: { from?: string; to?: string; tz?: string } = {}
           if (from !== undefined) range.from = from
           if (to !== undefined) range.to = to
+          const tz = requestZone(timezone)
+          if (tz !== undefined) range.tz = tz
           return panelRequestLimiter.run(
             () =>
               api

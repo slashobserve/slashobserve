@@ -153,9 +153,9 @@ func (h *Handler) data(c *gin.Context) {
 		return
 	}
 	now := time.Now()
-	rng, err := p.timeRange(d, now)
+	rng, opts, err := p.timeRange(d, now)
 	if err == nil {
-		rng, err = panelTimeRange(found.Panel, rng, now)
+		rng, err = panelTimeRange(found.Panel, rng, now, opts)
 	}
 	if err != nil {
 		h.fail(c, err)
@@ -312,7 +312,7 @@ func (h *Handler) values(c *gin.Context) {
 		return
 	}
 	d := v.dashboard
-	rng, err := p.timeRange(d, time.Now())
+	rng, _, err := p.timeRange(d, time.Now())
 	if err != nil {
 		h.fail(c, err)
 		return

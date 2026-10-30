@@ -5,6 +5,8 @@ import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { dashboardKeys, type Selections } from "@/api/keys"
 import { instantPanelTypes, isDataPanel, type Panel } from "@/spec"
 
+import { requestZone } from "@/lib/time"
+
 import { panelRequestLimiter } from "./limiter"
 import { withVariables } from "./search"
 import { sortSelections } from "./variables"
@@ -15,6 +17,7 @@ type Args = {
   panel: Panel
   from?: string
   to?: string
+  timezone?: string
   vars: Selections
   maxDataPoints?: number
   refreshMs: number | null
@@ -46,6 +49,7 @@ export function usePanelData({
   panel,
   from,
   to,
+  timezone,
   vars,
   maxDataPoints,
   refreshMs,
@@ -60,9 +64,16 @@ export function usePanelData({
       maxDataPoints,
     }),
     queryFn: ({ signal }) => {
-      const query: { from?: string; to?: string; max_data_points?: number } = {}
+      const query: {
+        from?: string
+        to?: string
+        tz?: string
+        max_data_points?: number
+      } = {}
       if (from !== undefined) query.from = from
       if (to !== undefined) query.to = to
+      const tz = requestZone(timezone)
+      if (tz !== undefined) query.tz = tz
       if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
       return panelRequestLimiter.run(
         () =>

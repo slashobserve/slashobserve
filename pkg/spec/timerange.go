@@ -8,14 +8,12 @@ import (
 	"time"
 )
 
-var timeExpression = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/([smhdwMy]))?$`)
+var timeExpression = regexp.MustCompile(`^now(?:([+-])([0-9]+)([smhdwMy]))?(?:/(fy|fQ|[smhdwMy]))?$`)
 
-var fixedUnits = map[string]time.Duration{
-	"s": time.Second,
-	"m": time.Minute,
-	"h": time.Hour,
-	"d": 24 * time.Hour,
-	"w": 7 * 24 * time.Hour,
+var absoluteUnitSeconds = map[string]int64{
+	"s": 1,
+	"m": 60,
+	"h": 3600,
 }
 
 const (
@@ -24,20 +22,20 @@ const (
 	maxEpochDigits  = 16
 )
 
-func ResolveTime(expr string, now time.Time, roundUp bool) (time.Time, error) {
-	t, ok := resolveTime(expr, now.UTC(), roundUp)
+func ResolveTime(expr string, now time.Time, roundUp bool, opts TimeOptions) (time.Time, error) {
+	t, ok := resolveTime(expr, opts.localNow(now), roundUp, opts)
 	if !ok {
 		return time.Time{}, fmt.Errorf("%q is not a valid time", expr)
 	}
 	return t, nil
 }
 
-func ResolveTimeRange(tr TimeRange, now time.Time) (from, to time.Time, err error) {
-	from, err = ResolveTime(tr.From, now, false)
+func ResolveTimeRange(tr TimeRange, now time.Time, opts TimeOptions) (from, to time.Time, err error) {
+	from, err = ResolveTime(tr.From, now, false, opts)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("time.from %w", err)
 	}
-	to, err = ResolveTime(tr.To, now, true)
+	to, err = ResolveTime(tr.To, now, true, opts)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("time.to %w", err)
 	}
@@ -47,10 +45,10 @@ func ResolveTimeRange(tr TimeRange, now time.Time) (from, to time.Time, err erro
 	return from, to, nil
 }
 
-func resolveTime(expr string, now time.Time, roundUp bool) (time.Time, bool) {
+func resolveTime(expr string, now time.Time, roundUp bool, opts TimeOptions) (time.Time, bool) {
 	var t time.Time
 	if m := timeExpression.FindStringSubmatch(expr); m != nil {
-		t = resolveRelative(m, now, roundUp)
+		t = resolveRelative(m, now, roundUp, opts)
 	} else if isDigits(expr) {
 		if len(expr) > maxEpochDigits {
 			return time.Time{}, false
@@ -59,21 +57,22 @@ func resolveTime(expr string, now time.Time, roundUp bool) (time.Time, bool) {
 		if err != nil {
 			return time.Time{}, false
 		}
-		t = time.UnixMilli(ms).UTC()
+		t = time.UnixMilli(ms)
 	} else {
 		parsed, err := time.Parse(time.RFC3339, expr)
 		if err != nil {
 			return time.Time{}, false
 		}
-		t = parsed.UTC()
+		t = parsed
 	}
+	t = t.UTC()
 	if t.IsZero() || t.Year() < minResolvedYear || t.Year() > maxResolvedYear {
 		return time.Time{}, false
 	}
 	return t, true
 }
 
-func resolveRelative(m []string, now time.Time, roundUp bool) time.Time {
+func resolveRelative(m []string, now time.Time, roundUp bool, opts TimeOptions) time.Time {
 	t := now
 	if m[2] != "" {
 		n, err := strconv.ParseInt(m[2], 10, 32)
@@ -91,7 +90,7 @@ func resolveRelative(m []string, now time.Time, roundUp bool) time.Time {
 	if m[4] == "" {
 		return t
 	}
-	start := startOf(t, m[4])
+	start := opts.startOf(t, m[4])
 	if !roundUp {
 		return start
 	}
@@ -99,55 +98,64 @@ func resolveRelative(m []string, now time.Time, roundUp bool) time.Time {
 }
 
 func offset(t time.Time, n int64, unit string) time.Time {
-	if d, ok := fixedUnits[unit]; ok {
-		seconds := n * int64(d/time.Second)
-		return time.Unix(t.Unix()+seconds, int64(t.Nanosecond())).UTC()
+	if seconds, ok := absoluteUnitSeconds[unit]; ok {
+		return time.Unix(t.Unix()+n*seconds, int64(t.Nanosecond())).In(t.Location())
 	}
 	return advance(t, int(n), unit)
 }
 
 func advance(t time.Time, n int, unit string) time.Time {
+	if months, ok := monthsPerUnit[unit]; ok {
+		return addMonthsClamped(t, int(months)*n)
+	}
 	switch unit {
-	case "M":
-		return addMonthsClamped(t, n)
-	case "y":
-		return addMonthsClamped(t, 12*n)
 	case "w":
 		return t.AddDate(0, 0, 7*n)
 	case "d":
 		return t.AddDate(0, 0, n)
 	default:
-		return t.Add(time.Duration(n) * fixedUnits[unit])
+		return t.Add(time.Duration(n) * time.Duration(absoluteUnitSeconds[unit]) * time.Second)
 	}
 }
 
 func addMonthsClamped(t time.Time, months int) time.Time {
 	y, mo, d := t.Date()
-	first := time.Date(y, mo+time.Month(months), 1, 0, 0, 0, 0, time.UTC)
+	loc := t.Location()
+	first := time.Date(y, mo+time.Month(months), 1, 0, 0, 0, 0, loc)
 	lastDay := first.AddDate(0, 1, -1).Day()
 	hh, mm, ss := t.Clock()
-	return time.Date(first.Year(), first.Month(), min(d, lastDay), hh, mm, ss, t.Nanosecond(), time.UTC)
+	return time.Date(first.Year(), first.Month(), min(d, lastDay), hh, mm, ss, t.Nanosecond(), loc)
 }
 
-func startOf(t time.Time, unit string) time.Time {
+func (o TimeOptions) startOf(t time.Time, unit string) time.Time {
 	y, mo, d := t.Date()
+	loc := t.Location()
 	switch unit {
 	case "s":
 		return t.Truncate(time.Second)
 	case "m":
-		return t.Truncate(time.Minute)
+		return t.Add(-time.Duration(t.Second())*time.Second - time.Duration(t.Nanosecond()))
 	case "h":
-		return t.Truncate(time.Hour)
+		return t.Add(-time.Duration(t.Minute())*time.Minute - time.Duration(t.Second())*time.Second - time.Duration(t.Nanosecond()))
 	case "d":
-		return time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
+		return time.Date(y, mo, d, 0, 0, 0, 0, loc)
 	case "w":
-		sinceMonday := (int(t.Weekday()) + 6) % 7
-		return time.Date(y, mo, d-sinceMonday, 0, 0, 0, 0, time.UTC)
+		sinceStart := (int(t.Weekday()) - int(o.WeekStart.weekday()) + 7) % 7
+		return time.Date(y, mo, d-sinceStart, 0, 0, 0, 0, loc)
 	case "M":
-		return time.Date(y, mo, 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(y, mo, 1, 0, 0, 0, 0, loc)
+	case "fQ":
+		intoQuarter := o.monthsIntoFiscalYear(mo) % 3
+		return time.Date(y, mo-time.Month(intoQuarter), 1, 0, 0, 0, 0, loc)
+	case "fy":
+		return time.Date(y, mo-time.Month(o.monthsIntoFiscalYear(mo)), 1, 0, 0, 0, 0, loc)
 	default:
-		return time.Date(y, time.January, 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(y, time.January, 1, 0, 0, 0, 0, loc)
 	}
+}
+
+func (o TimeOptions) monthsIntoFiscalYear(month time.Month) int {
+	return (int(month) - 1 - o.FiscalYearStartMonth + 12) % 12
 }
 
 func isDigits(s string) bool {

@@ -665,7 +665,7 @@ func TestConformanceObservesRealConversions(t *testing.T) {
 	}{
 		{"a converted option passes", conformanceEntry{ID: "graphTooltip=1", Path: "graphTooltip", Value: 1}, ""},
 		{"a reported option fails with its path", conformanceEntry{ID: "refresh=1d", Path: "refresh", Value: "1d"}, "reported: note refresh"},
-		{"a dropped option is named silent", conformanceEntry{ID: "weekStart=sunday", Path: "weekStart", Value: "sunday"}, "silently dropped"},
+		{"a dropped option is named silent", conformanceEntry{ID: "liveNow=true", Path: "liveNow", Value: true}, "silently dropped"},
 		{"bookkeeping does not change the Spec", conformanceEntry{ID: "uid=x", Path: "uid", Value: "abc", Expect: expectBookkeeping}, ""},
 		{"an excluded option must be reported", conformanceEntry{ID: "annotations.list[0]=q", Path: "annotations.list[0]", Value: map[string]any{"name": "q", "expr": "up"}, Expect: expectExcluded}, ""},
 		{"a with key equal to the path is a catalog error", conformanceEntry{ID: "a=1", Path: "weekStart", Value: "monday", With: map[string]any{"weekStart": "sunday"}}, "catalog error"},

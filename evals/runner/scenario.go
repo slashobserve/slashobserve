@@ -208,7 +208,7 @@ func validateExpectations(sc Scenario) error {
 		}
 	}
 	for _, from := range ex.TimeRangeFrom {
-		if _, err := spec.ResolveTime(from, time.Now(), false); err != nil {
+		if _, err := spec.ResolveTime(from, time.Now(), false, spec.TimeOptions{}); err != nil {
 			return fmt.Errorf("expect.time_range_from: %w", err)
 		}
 	}

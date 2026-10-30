@@ -1,3 +1,5 @@
+import type { Dashboard } from "@/spec"
+
 export const quickRanges: { label: string; from: string; to: string }[] = [
   { label: "Last 5 minutes", from: "now-5m", to: "now" },
   { label: "Last 15 minutes", from: "now-15m", to: "now" },
@@ -15,10 +17,10 @@ export const quickRanges: { label: string; from: string; to: string }[] = [
 ]
 
 const timeExpression =
-  /^(now([+-][1-9][0-9]*[smhdwMy])?(\/[smhdwMy])?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$/
+  /^(now([+-][1-9][0-9]*[smhdwMy])?(\/(fy|fQ|[smhdwMy]))?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$/
 const epochMillis = /^[0-9]{10,15}$/
 const relativeExpression =
-  /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/([smhdwMy]))?$/
+  /^now(?:([+-])([0-9]+)([smhdwMy]))?(?:\/(fy|fQ|[smhdwMy]))?$/
 const localDateTime =
   /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
 
@@ -119,83 +121,252 @@ export function describeRange(from: string, to: string): string {
   )
 }
 
-const fixedUnitMs = {
-  s: 1000,
-  m: 60_000,
-  h: 3_600_000,
-  d: 86_400_000,
-  w: 604_800_000,
+const absoluteUnitMs = { s: 1000, m: 60_000, h: 3_600_000 }
+
+const monthsPerUnit: Record<string, number> = { M: 1, y: 12, fQ: 3, fy: 12 }
+
+const weekStartDay = { sunday: 0, monday: 1, saturday: 6 }
+
+const nowDelayPattern = /^([1-9][0-9]{0,4})([smh])$/
+
+const maxResolvedYear = 9999
+
+export type TimeOptions = {
+  zone?: string
+  weekStart?: Dashboard["weekStart"]
+  fiscalYearStartMonth?: number
+  nowDelayMs?: number
 }
 
-function addMonthsClamped(time: Date, months: number): Date {
-  const first = new Date(
-    Date.UTC(time.getUTCFullYear(), time.getUTCMonth() + months, 1)
+type TimeSettings = Pick<
+  Dashboard,
+  "timezone" | "weekStart" | "fiscalYearStartMonth" | "nowDelay"
+>
+
+function browserZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+export function requestZone(timezone: string | undefined): string | undefined {
+  return timezone === "browser" ? browserZone() : undefined
+}
+
+function knownZone(zone: string | undefined): string | undefined {
+  if (zone === undefined) return undefined
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone })
+    return zone
+  } catch {
+    return undefined
+  }
+}
+
+function nowDelayMs(value: string | undefined): number | undefined {
+  const match = value === undefined ? null : nowDelayPattern.exec(value)
+  if (!match) return undefined
+  return Number(match[1]) * absoluteUnitMs[match[2] as "s" | "m" | "h"]
+}
+
+export function timeOptionsFor(settings: TimeSettings): TimeOptions {
+  const { timezone } = settings
+  const zone =
+    timezone === "browser"
+      ? browserZone()
+      : timezone === "utc"
+        ? undefined
+        : timezone
+  return {
+    zone: knownZone(zone),
+    weekStart: settings.weekStart,
+    fiscalYearStartMonth: settings.fiscalYearStartMonth,
+    nowDelayMs: nowDelayMs(settings.nowDelay),
+  }
+}
+
+const zoneFormats = new Map<string, Intl.DateTimeFormat>()
+
+function zoneFormat(zone: string): Intl.DateTimeFormat {
+  let format = zoneFormats.get(zone)
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    })
+    zoneFormats.set(zone, format)
+  }
+  return format
+}
+
+function zoneOffsetMs(utcMs: number, zone: string): number {
+  const parts = zoneFormat(zone).formatToParts(new Date(utcMs))
+  const part = (type: string) =>
+    Number(parts.find((candidate) => candidate.type === type)?.value)
+  const localAsUtc = Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second")
   )
-  const lastDay = new Date(
-    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)
-  ).getUTCDate()
-  return new Date(
-    Date.UTC(
-      first.getUTCFullYear(),
-      first.getUTCMonth(),
-      Math.min(time.getUTCDate(), lastDay),
-      time.getUTCHours(),
-      time.getUTCMinutes(),
-      time.getUTCSeconds(),
-      time.getUTCMilliseconds()
+  return localAsUtc - Math.floor(utcMs / 1000) * 1000
+}
+
+type LocalTime = {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+  millisecond: number
+  weekday: number
+}
+
+function localTime(utcMs: number, zone: string): LocalTime {
+  const shifted = new Date(utcMs + zoneOffsetMs(utcMs, zone))
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
+    millisecond: shifted.getUTCMilliseconds(),
+    weekday: shifted.getUTCDay(),
+  }
+}
+
+function fromLocal(
+  zone: string,
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0
+): number {
+  const guess = Date.UTC(year, month, day, hour, minute, second, millisecond)
+  if (Number.isNaN(guess)) return NaN
+  const guessOffset = zoneOffsetMs(guess, zone)
+  const candidate = guess - guessOffset
+  const candidateOffset = zoneOffsetMs(candidate, zone)
+  return candidateOffset === guessOffset ? candidate : guess - candidateOffset
+}
+
+function addMonthsClamped(ms: number, months: number, zone: string): number {
+  const local = localTime(ms, zone)
+  const first = new Date(Date.UTC(local.year, local.month + months, 1))
+  const year = first.getUTCFullYear()
+  const month = first.getUTCMonth()
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return fromLocal(
+    zone,
+    year,
+    month,
+    Math.min(local.day, lastDay),
+    local.hour,
+    local.minute,
+    local.second,
+    local.millisecond
+  )
+}
+
+function advance(ms: number, count: number, unit: string, zone: string) {
+  if (Object.hasOwn(monthsPerUnit, unit)) {
+    return addMonthsClamped(ms, monthsPerUnit[unit] * count, zone)
+  }
+  if (unit === "d" || unit === "w") {
+    const local = localTime(ms, zone)
+    return fromLocal(
+      zone,
+      local.year,
+      local.month,
+      local.day + (unit === "w" ? 7 : 1) * count,
+      local.hour,
+      local.minute,
+      local.second,
+      local.millisecond
     )
-  )
+  }
+  return ms + count * absoluteUnitMs[unit as keyof typeof absoluteUnitMs]
 }
 
-function advance(time: Date, count: number, unit: string): Date {
-  if (unit === "M") return addMonthsClamped(time, count)
-  if (unit === "y") return addMonthsClamped(time, 12 * count)
-  return new Date(
-    time.getTime() + count * fixedUnitMs[unit as keyof typeof fixedUnitMs]
-  )
-}
-
-function startOf(time: Date, unit: string): Date {
-  const year = time.getUTCFullYear()
-  const month = time.getUTCMonth()
-  const day = time.getUTCDate()
+function startOf(
+  ms: number,
+  unit: string,
+  zone: string,
+  options: TimeOptions
+): number {
+  const local = localTime(ms, zone)
+  const { year, month, day } = local
+  const monthsIntoFiscalYear =
+    (month - (options.fiscalYearStartMonth ?? 0) + 12) % 12
   switch (unit) {
     case "s":
+      return Math.floor(ms / 1000) * 1000
     case "m":
-    case "h": {
-      const size = fixedUnitMs[unit]
-      return new Date(Math.floor(time.getTime() / size) * size)
-    }
+      return ms - local.second * 1000 - local.millisecond
+    case "h":
+      return (
+        ms - local.minute * 60_000 - local.second * 1000 - local.millisecond
+      )
     case "d":
-      return new Date(Date.UTC(year, month, day))
-    case "w":
-      return new Date(Date.UTC(year, month, day - ((time.getUTCDay() + 6) % 7)))
+      return fromLocal(zone, year, month, day)
+    case "w": {
+      const first = weekStartDay[options.weekStart ?? "monday"]
+      return fromLocal(
+        zone,
+        year,
+        month,
+        day - ((local.weekday - first + 7) % 7)
+      )
+    }
     case "M":
-      return new Date(Date.UTC(year, month, 1))
+      return fromLocal(zone, year, month, 1)
+    case "fQ":
+      return fromLocal(zone, year, month - (monthsIntoFiscalYear % 3), 1)
+    case "fy":
+      return fromLocal(zone, year, month - monthsIntoFiscalYear, 1)
     default:
-      return new Date(Date.UTC(year, 0, 1))
+      return fromLocal(zone, year, 0, 1)
   }
+}
+
+function inResolvedYears(ms: number): boolean {
+  if (Number.isNaN(ms)) return false
+  const year = new Date(ms).getUTCFullYear()
+  return year >= 1 && year <= maxResolvedYear
 }
 
 export function resolveTime(
   value: string,
   now: number,
-  roundUp: boolean
+  roundUp: boolean,
+  options: TimeOptions = {}
 ): number {
   const match = relativeExpression.exec(value)
   if (!match) {
     return epochMillis.test(value) ? Number(value) : Date.parse(value)
   }
-  let time = new Date(now)
+  const zone = options.zone ?? "UTC"
+  let time = now - (options.nowDelayMs ?? 0)
   if (match[2]) {
     const count = Number(match[2]) * (match[1] === "-" ? -1 : 1)
-    time = advance(time, count, match[3])
+    time = advance(time, count, match[3], zone)
   }
-  if (match[4]) {
-    const start = startOf(time, match[4])
-    time = roundUp ? new Date(advance(start, 1, match[4]).getTime() - 1) : start
+  if (match[4] && inResolvedYears(time)) {
+    const start = startOf(time, match[4], zone, options)
+    time = roundUp ? advance(start, 1, match[4], zone) - 1 : start
   }
-  return time.getTime()
+  return inResolvedYears(time) ? time : NaN
 }
 
 export function isAbsoluteOrdered(

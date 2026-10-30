@@ -6,6 +6,7 @@ import {
   type LinkScope,
   type ResolvedLink,
 } from "@/panels/field-config"
+import type { TimeOptions } from "@/lib/time"
 import type { Link } from "@/spec"
 
 export function anchorProps(link: ResolvedLink) {
@@ -28,12 +29,14 @@ export function NewTabMark() {
 export function DashboardLinks({
   links,
   scope,
+  timeOptions,
 }: {
   links: Link[] | undefined
   scope: LinkScope
+  timeOptions: TimeOptions
 }) {
   const now = useNow()
-  const resolved = dashboardLinks(links, scope, now)
+  const resolved = dashboardLinks(links, scope, now, timeOptions)
   if (resolved.length === 0) return null
   return (
     <nav

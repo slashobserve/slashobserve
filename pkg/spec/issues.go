@@ -37,6 +37,7 @@ const (
 	CodeGeomapLayersConflict   IssueCode = "geomap_layers_conflict"
 	CodeZoomOrder              IssueCode = "zoom_order"
 	CodeActionHeaderNotAllowed IssueCode = "action_header_not_allowed"
+	CodeUnknownTimezone        IssueCode = "unknown_timezone"
 )
 
 const maxIssues = 50

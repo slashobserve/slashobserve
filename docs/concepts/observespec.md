@@ -63,18 +63,34 @@ It has one variable, two Prometheus panels and a ClickHouse table:
 `specVersion`, `title`, `time` and `panels` are required.
 The rest is optional, and an absent field means its default.
 
-| Field         | Meaning                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------- |
-| `title`       | 1 to 200 characters.                                                                                          |
-| `description` | Up to 2000 characters.                                                                                        |
-| `tags`        | Up to 20 lowercase tags of 1 to 40 characters, each starting with a letter or digit.                          |
-| `time`        | The default range, `from` and `to`. A value is relative, such as `now-6h` or `now-1d/d`, or an RFC 3339 time. |
-| `refresh`     | An auto-refresh interval such as `30s`, `1m` or `1h`.                                                         |
-| `timezone`    | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`.                                                      |
-| `cursorSync`  | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                             |
-| `variables`   | Up to 20 [variables](datasources-and-variables.md#variables).                                                 |
-| `links`       | Up to 20 links, each with a `title`, a `url` and optionally `newTab`.                                         |
-| `panels`      | 1 to 200 panels, counting the children of rows.                                                               |
+| Field                  | Meaning                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `title`                | 1 to 200 characters.                                                                                                    |
+| `description`          | Up to 2000 characters.                                                                                                  |
+| `tags`                 | Up to 20 lowercase tags of 1 to 40 characters, each starting with a letter or digit.                                    |
+| `time`                 | The default range, `from` and `to`. A value is relative, such as `now-6h`, `now-1d/d` or `now/fy`, or an RFC 3339 time. |
+| `refresh`              | An auto-refresh interval such as `30s`, `1m` or `1h`.                                                                   |
+| `timezone`             | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`. Relative times resolve in this zone.                           |
+| `weekStart`            | The first day of the week for `now/w`: `monday` (the default), `sunday` or `saturday`.                                  |
+| `fiscalYearStartMonth` | The month the fiscal year starts in for `now/fy` and `now/fQ`, from 0 (January, the default) to 11 (December).          |
+| `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                   |
+| `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                       |
+| `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                           |
+| `links`                | Up to 20 links, each with a `title`, a `url` and optionally `newTab`.                                                   |
+| `panels`               | 1 to 200 panels, counting the children of rows.                                                                         |
+
+### Relative times
+
+A relative time is `now`, optionally moved by an offset such as `-6h` or `+1d`, and optionally rounded with a slash and a unit, such as `/d`.
+The units are `s`, `m`, `h`, `d`, `w`, `M` and `y`; rounding also takes `fy` (the start of the fiscal year) and `fQ` (the start of the fiscal quarter).
+Rounding a `from` goes to the start of the period and rounding a `to` goes to its last millisecond, so `now/d` to `now/d` is the whole of today.
+
+Days, weeks, months, years and every rounding are calendar steps in the dashboard's `timezone`, so `now/d` starts at midnight in that zone and a day that changes the clock lasts 23 or 25 hours.
+Seconds, minutes and hours are exact durations.
+With `browser`, the web app sends the browser's zone to the server; without a zone, and with `utc`, times resolve in UTC.
+`nowDelay` moves `now` back before anything else, for both ends of the range.
+
+Relative times used to resolve in UTC whatever the `timezone` said, so a dashboard whose zone is not UTC now shows different ranges for `now/d`, `now/w`, `now/M`, `now/y` and day, week, month and year offsets than it did before.
 
 ## Panels and layout
 

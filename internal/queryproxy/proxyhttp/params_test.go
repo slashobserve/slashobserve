@@ -137,6 +137,19 @@ func TestParseParamsMaxDataPointsBounds(t *testing.T) {
 	}
 }
 
+func TestParseParamsTimezone(t *testing.T) {
+	p, err := parse(t, "tz=Asia/Kolkata", true)
+	if err != nil || p.timezone != "Asia/Kolkata" {
+		t.Fatalf("tz=Asia/Kolkata: %+v, %v", p, err)
+	}
+	for _, raw := range []string{"tz=", "tz=Mars/Base", "tz=Local", "tz=Asia/Kolkata&tz=utc", "tz=../etc/passwd"} {
+		_, err := parse(t, raw, true)
+		if !errors.Is(err, queryproxy.ErrInvalidRequest) || !strings.Contains(err.Error(), "tz is not a known time zone") && !strings.Contains(err.Error(), "given once") {
+			t.Errorf("parseParams(%q) = %v, want an invalid tz", raw, err)
+		}
+	}
+}
+
 func TestParseParamsRefusesMaxDataPointsWhereItIsNotAccepted(t *testing.T) {
 	if _, err := parse(t, "max_data_points=100", false); !errors.Is(err, queryproxy.ErrInvalidRequest) {
 		t.Fatalf("err = %v, want ErrInvalidRequest", err)
@@ -148,22 +161,65 @@ func TestTimeRange(t *testing.T) {
 	d := &spec.Dashboard{Time: spec.TimeRange{From: "now-1h", To: "now"}}
 
 	p, _ := parse(t, "", true)
-	rng, err := p.timeRange(d, now)
+	rng, _, err := p.timeRange(d, now)
 	if err != nil || !rng.To.Equal(now) || rng.To.Sub(rng.From) != time.Hour {
 		t.Fatalf("default range = %+v, %v", rng, err)
 	}
 
 	p, _ = parse(t, "from=now-2h&to=now-1h", true)
-	rng, err = p.timeRange(d, now)
+	rng, _, err = p.timeRange(d, now)
 	if err != nil || !rng.From.Equal(now.Add(-2*time.Hour)) || !rng.To.Equal(now.Add(-time.Hour)) {
 		t.Fatalf("explicit range = %+v, %v", rng, err)
 	}
 
 	for _, raw := range []string{"from=yesterday", "to=tomorrow-ish", "from=now&to=now-1h", "from=now-401d", "from=now&to=now"} {
 		p, _ := parse(t, raw, true)
-		if _, err := p.timeRange(d, now); !errors.Is(err, queryproxy.ErrInvalidRequest) {
+		if _, _, err := p.timeRange(d, now); !errors.Is(err, queryproxy.ErrInvalidRequest) {
 			t.Errorf("%q: err = %v, want ErrInvalidRequest", raw, err)
 		}
+	}
+}
+
+func TestTimeRangeResolvesInTheDashboardZone(t *testing.T) {
+	now := time.Date(2026, 10, 30, 20, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name      string
+		timezone  string
+		query     string
+		wantStart time.Time
+	}{
+		{"a named zone rounds at its local midnight", "Asia/Kolkata", "", time.Date(2026, 10, 30, 18, 30, 0, 0, time.UTC)},
+		{"utc rounds at utc midnight", "utc", "", time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)},
+		{"browser uses the tz parameter", "browser", "tz=America/New_York", time.Date(2026, 10, 30, 4, 0, 0, 0, time.UTC)},
+		{"browser without tz falls back to utc", "browser", "", time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)},
+		{"a named zone ignores tz", "Asia/Kolkata", "tz=America/New_York", time.Date(2026, 10, 30, 18, 30, 0, 0, time.UTC)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &spec.Dashboard{Timezone: tt.timezone, Time: spec.TimeRange{From: "now/d", To: "now"}}
+			p, err := parse(t, tt.query, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rng, _, err := p.timeRange(d, now)
+			if err != nil || !rng.From.Equal(tt.wantStart) || !rng.To.Equal(now) {
+				t.Fatalf("range = %+v, %v, want from %v to %v", rng, err, tt.wantStart, now)
+			}
+		})
+	}
+}
+
+func TestTimeRangeAppliesTheNowDelay(t *testing.T) {
+	now := time.Date(2026, 10, 30, 20, 0, 0, 0, time.UTC)
+	d := &spec.Dashboard{NowDelay: "1m", Time: spec.TimeRange{From: "now-1h", To: "now"}}
+	p, _ := parse(t, "", true)
+	rng, opts, err := p.timeRange(d, now)
+	if err != nil || !rng.To.Equal(now.Add(-time.Minute)) || rng.To.Sub(rng.From) != time.Hour {
+		t.Fatalf("range = %+v, %v", rng, err)
+	}
+	panelRng, err := panelTimeRange(&spec.Panel{TimeFrom: "now-30m"}, rng, now, opts)
+	if err != nil || !panelRng.To.Equal(now.Add(-time.Minute)) || panelRng.To.Sub(panelRng.From) != 30*time.Minute {
+		t.Fatalf("panel range = %+v, %v", panelRng, err)
 	}
 }
 
@@ -182,7 +238,7 @@ func TestPanelTimeRangeRejectsLongerThanFourHundredDays(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := panelTimeRange(&spec.Panel{TimeFrom: tt.timeFrom}, dashboard, now)
+			got, err := panelTimeRange(&spec.Panel{TimeFrom: tt.timeFrom}, dashboard, now, spec.TimeOptions{})
 			if tt.wantErr {
 				if !errors.Is(err, queryproxy.ErrInvalidRequest) {
 					t.Fatalf("err = %v, want ErrInvalidRequest", err)

@@ -20,17 +20,19 @@ const (
 )
 
 var (
-	timePattern    = regexp.MustCompile(`^(now([+-][1-9][0-9]*[smhdwMy])?(/[smhdwMy])?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$`)
-	refreshPattern = regexp.MustCompile(`^[1-9][0-9]{0,4}[smh]$`)
-	zonePattern    = regexp.MustCompile(`^(browser|utc|[A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2})$`)
-	tagPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
-	tagInvalid     = regexp.MustCompile(`[^a-z0-9_.-]`)
+	timePattern          = regexp.MustCompile(`^(now([+-][1-9][0-9]*[smhdwMy])?(/(fy|fQ|[smhdwMy]))?|[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2}))$`)
+	shortIntervalPattern = regexp.MustCompile(`^[1-9][0-9]{0,4}[smh]$`)
+	zonePattern          = regexp.MustCompile(`^(browser|utc|[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2})$`)
+	tagPattern           = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,39}$`)
+	tagInvalid           = regexp.MustCompile(`[^a-z0-9_.-]`)
 )
+
+var timeSettingKeys = []string{"weekStart", "fiscalYearStartMonth"}
 
 var silentDashboardKeys = map[string]bool{
 	"id": true, "uid": true, "version": true, "editable": true, "gnetId": true,
-	"graphTooltip": true, "fiscalYearStartMonth": true, "liveNow": true,
-	"weekStart": true, "style": true, "iteration": true, "schemaVersion": true,
+	"graphTooltip": true, "liveNow": true,
+	"style": true, "iteration": true, "schemaVersion": true,
 	"__inputs": true, "__requires": true, "__elements": true, "timepicker": true,
 	"hideControls": true, "preload": true, "revision": true, "sharedCrosshair": true,
 	"title": true, "description": true, "tags": true, "time": true, "refresh": true,
@@ -110,6 +112,9 @@ func (c *converter) convertHead() {
 	c.convertTime(dash)
 	c.convertRefresh(dash)
 	c.convertTimezone(dash)
+	c.convertWeekStart(dash)
+	c.convertFiscalYearStartMonth(dash)
+	c.convertNowDelay(dash)
 	c.convertCursorSync(dash)
 	c.convertLinks(dash)
 	c.convertAnnotations(dash)
@@ -118,7 +123,7 @@ func (c *converter) convertHead() {
 	}
 	var unknown []string
 	for _, key := range sortedKeys(dash) {
-		if !silentDashboardKeys[key] && present(dash[key]) {
+		if !silentDashboardKeys[key] && !slices.Contains(timeSettingKeys, key) && present(dash[key]) {
 			unknown = append(unknown, key)
 		}
 	}
@@ -170,7 +175,7 @@ func (c *converter) convertRefresh(dash map[string]any) {
 	case string:
 		switch {
 		case v == "":
-		case refreshPattern.MatchString(v):
+		case shortIntervalPattern.MatchString(v):
 			c.head.Refresh = v
 		default:
 			c.note("refresh", "The auto-refresh interval is not supported and is not kept.", "refresh")
@@ -188,11 +193,50 @@ func (c *converter) convertTimezone(dash map[string]any) {
 	}
 	switch {
 	case zone == "", zone == "browser", zone == "default":
-	case zonePattern.MatchString(zone):
+	case zonePattern.MatchString(zone) && spec.CheckTimezone(zone) == nil:
 		c.head.Timezone = zone
 	default:
 		c.note("timezone", "The time zone is not supported and is not kept.", "timezone")
 	}
+}
+
+func (c *converter) convertWeekStart(dash map[string]any) {
+	raw := dash["weekStart"]
+	if raw == nil || raw == "" {
+		return
+	}
+	switch day := spec.WeekStart(asString(raw)); day {
+	case spec.WeekStartMonday, spec.WeekStartSunday, spec.WeekStartSaturday:
+		c.head.WeekStart = day
+	default:
+		c.note("week start", "The first day of the week is not supported and is not kept.", "weekStart")
+	}
+}
+
+func (c *converter) convertFiscalYearStartMonth(dash map[string]any) {
+	raw := dash["fiscalYearStartMonth"]
+	if raw == nil {
+		return
+	}
+	month, ok := asInt(raw)
+	if !ok || month < 0 || month > 11 {
+		c.note("fiscal year", "The month the fiscal year starts in is not supported and is not kept.", "fiscalYearStartMonth")
+		return
+	}
+	c.head.FiscalYearStartMonth = month
+}
+
+func (c *converter) convertNowDelay(dash map[string]any) {
+	picker, _ := asObject(dash["timepicker"])
+	raw := picker["nowDelay"]
+	if raw == nil || raw == "" {
+		return
+	}
+	if delay := asString(raw); shortIntervalPattern.MatchString(delay) {
+		c.head.NowDelay = delay
+		return
+	}
+	c.note("now delay", "The delay applied to now is not supported and is not kept.", "timepicker.nowDelay")
 }
 
 func (c *converter) convertCursorSync(dash map[string]any) {
