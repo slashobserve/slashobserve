@@ -5,14 +5,20 @@ import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
 import {
+  fitChoice,
+  fitPoints,
   geoModel,
   initialView,
+  markerSymbols,
   maxMarkers,
   noLocationReason,
   skippedText,
+  symbolPath,
   viewOptions,
+  viewTuning,
 } from "./geo-model"
-import { fitBounds, project, worldView } from "./projection"
+import { clampZoom, fitBounds, project, worldView } from "./projection"
+import { regionCorners } from "./regions"
 
 function panel(extra: Partial<DataPanel> = {}): DataPanel {
   return {
@@ -337,5 +343,339 @@ describe("initialView", () => {
       ...size
     )
     expect(view.zoom).toBe(18)
+  })
+})
+
+const onQuery = (ref: string, frame: PreparedFrame): PreparedFrame => ({
+  ...frame,
+  ref,
+})
+
+describe("layers", () => {
+  const paris = onQuery(
+    "A",
+    table(
+      { name: "lat", values: [48.85] },
+      { name: "lon", values: [2.35] },
+      { name: "city", type: "string", values: ["Paris"] }
+    )
+  )
+  const tokyo = onQuery(
+    "B",
+    table({ name: "lat", values: [35.68] }, { name: "lon", values: [139.69] })
+  )
+
+  it("draws one markers layer from the flat keys when layers are absent", () => {
+    const model = build([cities()])
+    expect(model.layers).toHaveLength(1)
+    expect(model.layers[0]).toMatchObject({ kind: "markers", name: "markers" })
+    expect(model.markers).toHaveLength(3)
+    expect(model.notes).toEqual([])
+  })
+
+  it("draws two markers layers, each from its own query", () => {
+    const model = build(
+      [paris, tokyo],
+      {},
+      {
+        layers: [
+          { type: "markers", name: "Cities", query: "A", color: "critical" },
+          { type: "markers", name: "Sites", query: "B", color: "#112233" },
+        ],
+      }
+    )
+    const [first, second] = model.layers
+    expect(first).toMatchObject({ kind: "markers", name: "Cities" })
+    expect(second).toMatchObject({ kind: "markers", name: "Sites" })
+    if (first.kind !== "markers" || second.kind !== "markers") return
+    expect(first.markers.map((m) => m.label)).toEqual(["48.850, 2.350"])
+    expect(second.markers.map((m) => m.label)).toEqual(["35.680, 139.690"])
+    expect(first.markers[0].color).toBe("var(--threshold-critical)")
+    expect(second.markers[0].color).toBe("#112233")
+    expect(model.markers).toHaveLength(2)
+  })
+
+  it("keeps a layer with no query on every frame", () => {
+    const model = build([paris, tokyo], {}, { layers: [{ type: "markers" }] })
+    expect(model.markers).toHaveLength(2)
+  })
+
+  it("lets a color field win over the fixed color", () => {
+    const frame = table(
+      { name: "lat", values: [1] },
+      { name: "lon", values: [2] },
+      { name: "load", values: [95] }
+    )
+    const model = build(
+      [frame],
+      { thresholds: [{ color: "ok" }, { value: 90, color: "critical" }] },
+      { layers: [{ type: "markers", color: "#112233", colorField: "load" }] }
+    )
+    expect(model.markers[0].color).toBe("var(--threshold-critical)")
+    expect(model.markers[0].state?.level).toBe("critical")
+  })
+
+  it("reads the symbol, rotation and label text", () => {
+    const frame = table(
+      { name: "lat", values: [10, 20] },
+      { name: "lon", values: [30, 40] },
+      { name: "heading", values: [90, 180] },
+      { name: "name", type: "string", values: ["a", "b"] }
+    )
+    const model = build(
+      [frame],
+      {},
+      {
+        layers: [
+          {
+            type: "markers",
+            symbol: "triangle",
+            textField: "name",
+            textSize: 14,
+            rotationField: "heading",
+            opacity: 0.5,
+            tooltip: false,
+          },
+        ],
+      }
+    )
+    expect(model.layers[0]).toMatchObject({
+      kind: "markers",
+      textSize: 14,
+      opacity: 0.5,
+      tooltip: false,
+    })
+    const drawn = model.markers.map((m) => [m.symbol, m.rotation, m.text])
+    expect(drawn).toHaveLength(2)
+    expect(drawn).toContainEqual(["triangle", 90, "a"])
+    expect(drawn).toContainEqual(["triangle", 180, "b"])
+  })
+
+  it("falls back to a circle for an unknown symbol", () => {
+    const model = build(
+      [cities()],
+      {},
+      { layers: [{ type: "markers", symbol: "hexagon" }] }
+    )
+    expect(model.markers[0].symbol).toBe("circle")
+  })
+
+  it("draws tile layers in order with the markers", () => {
+    const model = build(
+      [cities()],
+      {},
+      {
+        layers: [
+          { type: "markers" },
+          { type: "osm", opacity: 0.4 },
+          { type: "carto", theme: "dark", labels: false },
+        ],
+      }
+    )
+    expect(model.layers.map((layer) => layer.kind)).toEqual([
+      "markers",
+      "tiles",
+      "tiles",
+    ])
+    const carto = model.layers[2]
+    expect(carto.kind === "tiles" && carto.source.template).toContain(
+      "dark_nolabels"
+    )
+    expect(model.layers[1].opacity).toBe(0.4)
+  })
+
+  it("follows the app theme for an automatic CARTO layer", () => {
+    const model = geoModel(
+      [cities()],
+      createFieldResolver(panel()),
+      displayWithDefaults("geomap", { layers: [{ type: "carto" }] }),
+      "dark"
+    )
+    const layer = model.layers[0]
+    expect(layer.kind === "tiles" && layer.source.template).toContain(
+      "dark_all"
+    )
+  })
+
+  it("shows the map, not the no-location reason, when only tiles are drawn", () => {
+    const model = build([], {}, { layers: [{ type: "osm" }] })
+    expect(model.reason).toBeNull()
+    expect(model.layers).toHaveLength(1)
+  })
+
+  it("explains an unusable custom tile layer and still draws the rest", () => {
+    const model = build(
+      [cities()],
+      {},
+      {
+        layers: [
+          { type: "xyz", name: "Weather", url: "https://x.test/tile.png" },
+          { type: "markers" },
+        ],
+      }
+    )
+    expect(model.notes).toEqual([
+      "Layer Weather needs an https URL with {z}, {x} and {y}.",
+    ])
+    expect(model.markers).toHaveLength(3)
+  })
+
+  it("notes layers that are not drawn yet and draws the rest", () => {
+    const model = build(
+      [cities()],
+      {},
+      {
+        layers: [
+          { type: "heatmap", name: "Density" },
+          { type: "route" },
+          { type: "markers" },
+        ],
+      }
+    )
+    expect(model.notes).toEqual([
+      "Layer Density is not drawn yet.",
+      "Layer route is not drawn yet.",
+    ])
+    expect(model.markers).toHaveLength(3)
+  })
+
+  it("explains missing locations when every markers layer finds none", () => {
+    const model = build(
+      [table({ name: "value", values: [1] })],
+      {},
+      { layers: [{ type: "markers" }, { type: "markers" }] }
+    )
+    expect(model.reason).toBe(noLocationReason)
+  })
+
+  it("shares the marker cap across layers", () => {
+    const rows = maxMarkers - 1
+    const big = table(
+      { name: "lat", values: Array.from({ length: rows }, () => 1) },
+      { name: "lon", values: Array.from({ length: rows }, () => 2) }
+    )
+    const model = build(
+      [big],
+      {},
+      { layers: [{ type: "markers" }, { type: "markers" }] }
+    )
+    expect(model.markers).toHaveLength(maxMarkers)
+    expect(model.truncated).toBe(rows - 1)
+  })
+})
+
+describe("fitPoints", () => {
+  const first = onQuery(
+    "A",
+    table({ name: "lat", values: [10, 20] }, { name: "lon", values: [1, 2] })
+  )
+  const second = onQuery(
+    "B",
+    table({ name: "lat", values: [30, 40] }, { name: "lon", values: [3, 4] })
+  )
+  const model = build(
+    [first, second],
+    {},
+    {
+      layers: [
+        { type: "markers", name: "one", query: "A" },
+        { type: "markers", name: "two", query: "B" },
+      ],
+    }
+  )
+
+  it("fits every markers layer by default", () => {
+    expect(fitPoints(model, { lastOnly: false })).toHaveLength(4)
+  })
+
+  it("fits only the named layer", () => {
+    const points = fitPoints(model, { layer: "two", lastOnly: false })
+    expect(points.map((p) => p.lat).sort()).toEqual([30, 40])
+  })
+
+  it("falls back to every layer when the name matches none", () => {
+    expect(
+      fitPoints(model, { layer: "missing", lastOnly: false })
+    ).toHaveLength(4)
+  })
+
+  it("keeps the last row of each series when asked", () => {
+    const points = fitPoints(model, { lastOnly: true })
+    expect(points.map((p) => p.lat).sort()).toEqual([20, 40])
+  })
+})
+
+describe("view tuning", () => {
+  it("reads zoom limits, padding and the fit choice", () => {
+    expect(viewTuning({ minZoom: 2, maxZoom: 9, fitPadding: 10 })).toEqual({
+      limits: { min: 2, max: 9 },
+      paddingPercent: 10,
+    })
+    expect(viewTuning({})).toEqual({ limits: {} })
+    expect(fitChoice({ fitLayer: "one", fitLastOnly: true })).toEqual({
+      layer: "one",
+      lastOnly: true,
+    })
+    expect(fitChoice({})).toEqual({ layer: undefined, lastOnly: false })
+  })
+
+  it("keeps every starting view inside the limits", () => {
+    const size = [600, 300] as const
+    const tuning = viewTuning({ minZoom: 3, maxZoom: 5 })
+    const points = [{ lon: 10, lat: 50 }]
+    expect(initialView(viewOptions({}), points, ...size, tuning).zoom).toBe(5)
+    expect(
+      initialView(viewOptions({ view: "world" }), points, ...size, tuning).zoom
+    ).toBe(3)
+    expect(
+      initialView(
+        viewOptions({ view: "coords", zoom: 12 }),
+        points,
+        ...size,
+        tuning
+      ).zoom
+    ).toBe(5)
+    expect(clampZoom(1, ...size, tuning.limits)).toBe(3)
+  })
+
+  it("pads the fit by a percent of the smaller side", () => {
+    const size = [600, 300] as const
+    const points = [
+      { lon: -20, lat: 10 },
+      { lon: 20, lat: 30 },
+    ]
+    const none = initialView(viewOptions({}), points, ...size, {
+      paddingPercent: 0,
+    })
+    const tenth = initialView(viewOptions({}), points, ...size, {
+      paddingPercent: 10,
+    })
+    expect(tenth).toEqual(fitBounds(points, ...size, { padding: 30 }))
+    expect(none.zoom).toBeGreaterThan(tenth.zoom)
+  })
+
+  it("fits a region id to its bounds", () => {
+    const options = viewOptions({ view: "europe" })
+    expect(options.mode).toBe("europe")
+    expect(initialView(options, [], 800, 500)).toEqual(
+      fitBounds(regionCorners("europe"), 800, 500)
+    )
+  })
+})
+
+describe("symbolPath", () => {
+  it("draws a different closed shape for every symbol", () => {
+    const paths = markerSymbols.map((symbol) => symbolPath(symbol, 10))
+    expect(new Set(paths).size).toBe(markerSymbols.length)
+    for (const path of paths) expect(path.endsWith("Z")).toBe(true)
+  })
+
+  it("draws a square at its corners and a star inside its radius", () => {
+    expect(symbolPath("square", 4)).toBe("M-4 -4L4 -4L4 4L-4 4Z")
+    const numbers = symbolPath("star", 10).match(/-?\d+(\.\d+)?/g) ?? []
+    expect(numbers).toHaveLength(20)
+    for (const value of numbers) {
+      expect(Math.abs(Number(value))).toBeLessThanOrEqual(10)
+    }
   })
 })

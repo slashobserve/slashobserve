@@ -5,26 +5,10 @@ import { displayKeysByType, type DisplayPanelType } from "@/spec"
 import { displayOptions } from "./index"
 
 const geomapKeysTheEditorPlansDeclareLater = [
-  "basemap",
-  "basemapTheme",
   "basemapLabels",
-  "esriServer",
-  "basemapUrl",
-  "basemapAttribution",
-  "basemapOpacity",
-  "minZoom",
-  "maxZoom",
   "fitLayer",
   "fitLastOnly",
-  "fitPadding",
   "sharedView",
-  "showZoom",
-  "mouseWheelZoom",
-  "showAttribution",
-  "showScale",
-  "showMeasure",
-  "showDebug",
-  "tooltip",
   "layers",
 ]
 
