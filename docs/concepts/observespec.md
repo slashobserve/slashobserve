@@ -187,6 +187,8 @@ A panel has at most 50 overrides.
 
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.
 The steps are `merge`, `seriesToRows`, `organize`, `reduce`, `joinByField`, `filterFieldsByName`, `calculateField`, `sortBy` and `limit`.
+Seven more steps reshape single fields and filter rows: `convertFieldType` (`conversions` of `field` and `to`: `number`, `string`, `time`, `boolean`, `enum` or `other`, with `dateFormat` and `joinWith`), `formatString` (`field`, `format` and, for `substring`, `start` and `end`), `formatTime` (`field`, a date `format` made of `YYYY YY MM M DD D HH H hh h mm ss SSS A a`, and `utc`), `renameByRegex` (`regex` and `renameTo`, where `$1` is a captured group), `filterByValue` (`keep` and `match`, and `filters` of `field`, `op` and `value`, or `from` and `to` for `range`), `filterByRefId` (`include` lists the query refs to keep) and `extractFields` (`field`, `format` of `auto`, `json`, `kvp`, `delimiter` or `regexp`, `paths`, `delimiter`, `regex`, `replace` and `keepTime`).
+Field names match a field's name or its series name, and a step that names a field the data does not have changes nothing.
 Prefer a query that returns the shape you need, and use a transform when it cannot.
 
 ## Rows and repeats
