@@ -8,14 +8,20 @@ import {
   calculatedRows,
   cellBox,
   cellCenter,
-  cellOpacity,
+  cellPaint,
   cellText,
+  colorPosition,
   columnAt,
   formatCounts,
+  heatmapLook,
   heatmapModel,
+  insetCell,
   isHeatmapKey,
+  labelFits,
+  legendDescription,
   legendScale,
   stepCell,
+  visibleCell,
   type HeatmapKey,
 } from "./heatmap-model"
 
@@ -238,17 +244,188 @@ describe("calculated mode", () => {
   })
 })
 
+function look(display: Record<string, unknown>, min = 1, max = 10) {
+  return heatmapLook(displayWithDefaults("heatmap", display), { min, max })
+}
+
 describe("colour scale", () => {
-  it("runs from 10% to 100% opacity", () => {
-    expect(cellOpacity(0, 10)).toBeCloseTo(0.1)
-    expect(cellOpacity(10, 10)).toBeCloseTo(1)
-    expect(cellOpacity(5, 10)).toBeCloseTo(0.55)
+  it("runs from 10% to 100% opacity of the first series color by default", () => {
+    const plain = look({}, 1, 10)
+    expect(cellPaint(plain, 0).alpha).toBeCloseTo(0.1)
+    expect(cellPaint(plain, 10).alpha).toBeCloseTo(1)
+    expect(cellPaint(plain, 5).alpha).toBeCloseTo(0.55)
+    expect(cellPaint(plain, 5).color).toBe("var(--series-1)")
+  })
+
+  it("uses the fill color of opacity mode, mapping a semantic name to its token", () => {
+    expect(cellPaint(look({ colorFill: "warning" }), 5).color).toBe(
+      "var(--threshold-warning)"
+    )
+    expect(cellPaint(look({ colorFill: "#112233" }), 5).color).toBe("#112233")
+  })
+
+  it("bends the opacity with an exponential scale and its exponent", () => {
+    const bent = look({ colorScale: "exponential" }, 0, 100)
+    expect(colorPosition(bent, 25)).toBeCloseTo(0.5)
+    const steeper = look(
+      { colorScale: "exponential", colorExponent: 2 },
+      0,
+      100
+    )
+    expect(colorPosition(steeper, 50)).toBeCloseTo(0.25)
+  })
+
+  it("leaves a scheme linear whatever the scale says", () => {
+    const scheme = look(
+      { colorMode: "scheme", colorScale: "exponential" },
+      0,
+      100
+    )
+    expect(colorPosition(scheme, 25)).toBeCloseTo(0.25)
+  })
+
+  it("starts a scheme at the lowest count and opacity at zero", () => {
+    expect(colorPosition(look({ colorMode: "scheme" }, 20, 100), 20)).toBe(0)
+    expect(colorPosition(look({}, 20, 100), 20)).toBeCloseTo(0.2)
+  })
+
+  it("takes the color range from colorMin and colorMax and clamps outside it", () => {
+    const fixed = look({ colorMin: 10, colorMax: 20 }, 1, 100)
+    expect(colorPosition(fixed, 15)).toBeCloseTo(0.5)
+    expect(colorPosition(fixed, 5)).toBe(0)
+    expect(colorPosition(fixed, 50)).toBe(1)
+  })
+
+  it("quantizes the position into the chosen number of steps", () => {
+    const stepped = look({ colorMode: "scheme", colorSteps: 4 }, 0, 100)
+    const positions = [0, 24, 25, 60, 74, 75, 99, 100].map((value) =>
+      colorPosition(stepped, value)
+    )
+    expect(positions.map((p) => Number(p.toFixed(3)))).toEqual([
+      0, 0, 0.333, 0.667, 0.667, 1, 1, 1,
+    ])
+  })
+
+  it("reverses the ramp after quantizing", () => {
+    const reversed = look(
+      { colorMode: "scheme", colorSteps: 2, colorReverse: true },
+      0,
+      100
+    )
+    expect(colorPosition(reversed, 10)).toBe(1)
+    expect(colorPosition(reversed, 90)).toBe(0)
+  })
+
+  it("paints a scheme with its ramp at full opacity", () => {
+    const paint = cellPaint(
+      look({ colorMode: "scheme", colorScheme: "reds" }),
+      10
+    )
+    expect(paint.alpha).toBe(1)
+    expect(paint.color).toBe("var(--threshold-critical)")
   })
 
   it("steps the legend from the lowest to the highest count", () => {
-    const steps = legendScale(1, 5)
+    const steps = legendScale(look({}, 1, 5))
     expect(steps.map((step) => step.value)).toEqual([1, 2, 3, 4, 5])
-    expect(steps[4].opacity).toBeCloseTo(1)
+    expect(steps[4].paint.alpha).toBeCloseTo(1)
+  })
+
+  it("draws no more legend swatches than the color steps", () => {
+    const steps = legendScale(
+      look({ colorMode: "scheme", colorSteps: 3 }, 0, 10)
+    )
+    expect(steps.map((step) => step.value)).toEqual([0, 5, 10])
+  })
+
+  it("labels the legend with the color range, which colorMin and colorMax set", () => {
+    const format = formatCounts([0, 120])
+    expect(legendDescription(look({}, 0, 120), format)).toBe(
+      "Color scale from 0 to 120"
+    )
+    expect(
+      legendDescription(look({ colorMin: 10, colorMax: 50 }, 0, 120), format)
+    ).toBe("Color scale from 10 to 50")
+  })
+})
+
+describe("hidden cells", () => {
+  it("hides null, zero and negative cells by default", () => {
+    const plain = look({})
+    expect(
+      [null, 0, -1, 0.5].map((value) => visibleCell(plain, value))
+    ).toEqual([false, false, false, true])
+  })
+
+  it("hides cells at or below hideBelow and at or above hideAbove", () => {
+    const filtered = look({ hideBelow: 2, hideAbove: 8 })
+    expect(
+      [1, 2, 3, 7, 8, 9].map((value) => visibleCell(filtered, value))
+    ).toEqual([false, false, true, true, false, false])
+  })
+
+  it("draws zeros when hideBelow is negative", () => {
+    expect(visibleCell(look({ hideBelow: -1 }), 0)).toBe(true)
+  })
+
+  it("leaves hidden cells out of the color range", () => {
+    const model = build(
+      [series([start, start + minute, start + 2 * minute], [1, 5, 100])],
+      {},
+      { hideBelow: 1, hideAbove: 100 }
+    )
+    expect([model.min, model.max]).toEqual([5, 5])
+  })
+})
+
+describe("cell look", () => {
+  it("defaults to flush square cells with no values and a legend", () => {
+    const plain = look({})
+    expect(plain).toMatchObject({
+      gap: 0,
+      radius: 0,
+      showValues: "never",
+      legend: true,
+      mode: "opacity",
+      steps: null,
+    })
+  })
+
+  it("reads the gap, radius, legend and values display keys", () => {
+    expect(
+      look({ cellGap: 3, cellRadius: 4, legend: "hidden", showValues: "auto" })
+    ).toMatchObject({ gap: 3, radius: 4, legend: false, showValues: "auto" })
+  })
+
+  it("shrinks a cell by the gap around its center, never below one pixel", () => {
+    const box = { left: 10, top: 20, width: 30, height: 12 }
+    expect(insetCell(box, 4)).toEqual({
+      left: 12,
+      top: 22,
+      width: 26,
+      height: 8,
+    })
+    expect(insetCell(box, 40)).toEqual({
+      left: 24.5,
+      top: 25.5,
+      width: 1,
+      height: 1,
+    })
+  })
+
+  it("fits a value text by cell size in auto mode and always in always mode", () => {
+    const box = { left: 0, top: 0, width: 30, height: 20 }
+    expect(labelFits("never", box, 5)).toBe(false)
+    expect(labelFits("auto", box, 20)).toBe(true)
+    expect(labelFits("auto", box, 27)).toBe(false)
+    expect(labelFits("auto", { ...box, height: 12 }, 5)).toBe(false)
+    expect(labelFits("always", { ...box, width: 2 }, 50)).toBe(true)
+  })
+
+  it("formats cell values with the cell unit and decimals", () => {
+    expect(formatCounts([1, 2], "ms", 2)(1.5)).toBe("1.50 ms")
+    expect(formatCounts([1, 2], "ms")(1.5)).toContain("ms")
+    expect(formatCounts([1, 2])(2)).toBe("2")
   })
 })
 

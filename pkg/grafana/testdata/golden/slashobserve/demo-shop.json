@@ -879,7 +879,14 @@
                 "format": "heatmap"
               }
             ],
-            "unit": "s"
+            "unit": "s",
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "oranges",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "showValues": "auto"
+            }
           },
           {
             "id": "p14",

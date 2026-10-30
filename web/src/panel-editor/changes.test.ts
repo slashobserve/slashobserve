@@ -288,9 +288,47 @@ describe("panelChanges", () => {
       wrap: "line wrap",
       showTime: "time column",
       order: "order",
+      footerFields: "footer fields",
+      footerCountRows: "footer row count",
+      cellHeight: "cell height",
+      pagination: "pagination",
+      frozenColumns: "frozen columns",
+      sortBy: "sort column",
+      sortDesc: "sort direction",
+      typeIcons: "type icons",
+      colorScheme: "color scheme",
+      colorSteps: "color steps",
+      colorScale: "opacity scale",
+      colorExponent: "opacity exponent",
+      colorFill: "opacity color",
+      colorMin: "color range start",
+      colorMax: "color range end",
+      colorReverse: "reversed colors",
+      cellGap: "cell gap",
+      cellRadius: "cell radius",
+      cellUnit: "cell value unit",
+      cellDecimals: "cell value decimals",
+      hideBelow: "lower value filter",
+      hideAbove: "upper value filter",
     }
     for (const [key, label] of Object.entries(keys)) {
       expect(labels(panel(), panel({ display: { [key]: 1 } }))).toEqual([label])
+    }
+  })
+
+  it("labels the table field props", () => {
+    const props = {
+      width: "column width",
+      minWidth: "minimum column width",
+      align: "alignment",
+      filterable: "column filter",
+      inspect: "cell inspection",
+      hideHeader: "column header",
+    }
+    for (const [key, label] of Object.entries(props)) {
+      expect(labels(panel(), { ...panel(), [key]: 1 } as DataPanel)).toEqual([
+        label,
+      ])
     }
   })
 

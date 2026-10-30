@@ -290,17 +290,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
@@ -331,17 +321,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
@@ -372,17 +352,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
@@ -855,7 +825,14 @@
             "legend": "{{le}}",
             "format": "heatmap"
           }
-        ]
+        ],
+        "display": {
+          "colorMode": "scheme",
+          "colorScheme": "blueYellowRed",
+          "colorSteps": 64,
+          "cellGap": 1,
+          "showValues": "auto"
+        }
       },
       {
         "id": "p28",
@@ -874,7 +851,14 @@
             "legend": "{{le}}",
             "format": "heatmap"
           }
-        ]
+        ],
+        "display": {
+          "colorMode": "scheme",
+          "colorScheme": "blueYellowRed",
+          "colorSteps": 64,
+          "cellGap": 1,
+          "showValues": "auto"
+        }
       },
       {
         "id": "p29",
@@ -893,7 +877,14 @@
             "legend": "{{le}}",
             "format": "heatmap"
           }
-        ]
+        ],
+        "display": {
+          "colorMode": "scheme",
+          "colorScheme": "blueYellowRed",
+          "colorSteps": 64,
+          "cellGap": 1,
+          "showValues": "auto"
+        }
       }
     ]
   }

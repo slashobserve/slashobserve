@@ -268,6 +268,10 @@ var cosmeticOptions = map[string]cosmeticOption{
 	"options.layers[].name": {
 		why: "the map shows no layer names",
 	},
+	"options.color.scale": {
+		values: []any{"exponential"},
+		why:    "exponential is Grafana's own default scale and an absent scale is imported as exponential, so writing it changes nothing",
+	},
 	"options.inlineEditing": {
 		why: "the canvas has no drag editor",
 	},

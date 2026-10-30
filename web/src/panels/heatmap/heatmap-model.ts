@@ -8,7 +8,9 @@ import {
 import type { DataPanel } from "@/spec"
 
 import type { FieldConfig, FieldResolver } from "../field-config"
+import { rangePosition, schemeColor, type ColorScheme } from "../color-scheme"
 import { isNumber } from "../reducers"
+import { thresholdColor } from "../thresholds"
 import type { PreparedField, PreparedFrame } from "../transforms"
 
 type HeatmapMode = "buckets" | "ordinal" | "calculated"
@@ -33,6 +35,9 @@ export type HeatmapModel = {
 export const calculatedRows = 16
 const legendSteps = 5
 const minOpacity = 0.1
+const defaultExponent = 0.5
+const labelFontSize = 11
+const labelPadding = 2
 
 type Entry = {
   frame: PreparedFrame
@@ -204,17 +209,99 @@ function ordinalModel(
   }
 }
 
-function extent(cells: (number | null)[][]): { min: number; max: number } {
+function extent(
+  cells: (number | null)[][],
+  shown: (value: number) => boolean
+): { min: number; max: number } {
   let min = Infinity
   let max = 0
   for (const row of cells) {
     for (const value of row) {
-      if (value === null || value <= 0) continue
+      if (value === null || !shown(value)) continue
       if (value < min) min = value
       if (value > max) max = value
     }
   }
   return { min: min === Infinity ? 0 : min, max }
+}
+
+export type ShowValues = "auto" | "always" | "never"
+
+export type HeatmapLook = {
+  mode: "scheme" | "opacity"
+  scheme: ColorScheme
+  steps: number | null
+  exponential: boolean
+  exponent: number
+  fill: string
+  reverse: boolean
+  low: number
+  high: number
+  labelLow: number
+  labelHigh: number
+  gap: number
+  radius: number
+  hideBelow: number
+  hideAbove: number | null
+  showValues: ShowValues
+  legend: boolean
+  unit: string | undefined
+  decimals: number | undefined
+}
+
+function numberOf(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
+}
+
+export function visibleCell(
+  look: Pick<HeatmapLook, "hideBelow" | "hideAbove">,
+  value: number | null
+): value is number {
+  if (value === null || value <= look.hideBelow) return false
+  return look.hideAbove === null || value < look.hideAbove
+}
+
+function shownCell(display: Record<string, unknown>) {
+  const hideBelow = numberOf(display.hideBelow) ?? 0
+  const hideAbove = numberOf(display.hideAbove) ?? null
+  return (value: number) => visibleCell({ hideBelow, hideAbove }, value)
+}
+
+export function heatmapLook(
+  display: Record<string, unknown>,
+  model: Pick<HeatmapModel, "min" | "max">
+): HeatmapLook {
+  const opacity = display.colorMode !== "scheme"
+  const min = numberOf(display.colorMin)
+  const max = numberOf(display.colorMax)
+  const high = max ?? model.max
+  return {
+    mode: opacity ? "opacity" : "scheme",
+    scheme: (display.colorScheme as ColorScheme | undefined) ?? "blues",
+    steps: numberOf(display.colorSteps) ?? null,
+    exponential: display.colorScale === "exponential",
+    exponent: numberOf(display.colorExponent) ?? defaultExponent,
+    fill:
+      typeof display.colorFill === "string"
+        ? thresholdColor(display.colorFill)
+        : "var(--series-1)",
+    reverse: display.colorReverse === true,
+    low: min ?? (opacity ? 0 : model.min),
+    high,
+    labelLow: min ?? model.min,
+    labelHigh: high,
+    gap: numberOf(display.cellGap) ?? 0,
+    radius: numberOf(display.cellRadius) ?? 0,
+    hideBelow: numberOf(display.hideBelow) ?? 0,
+    hideAbove: numberOf(display.hideAbove) ?? null,
+    showValues:
+      display.showValues === "auto" || display.showValues === "always"
+        ? display.showValues
+        : "never",
+    legend: display.legend !== "hidden",
+    unit: typeof display.cellUnit === "string" ? display.cellUnit : undefined,
+    decimals: numberOf(display.cellDecimals),
+  }
 }
 
 export function heatmapModel(
@@ -246,26 +333,98 @@ export function heatmapModel(
             queries.some((query) => query.format === "heatmap")
           )
         : ordinalModel(entries, fields)
-  return { mode, xs, unit, ...shape, ...extent(shape.cells) }
+  return {
+    mode,
+    xs,
+    unit,
+    ...shape,
+    ...extent(shape.cells, shownCell(display)),
+  }
 }
 
-export function cellOpacity(value: number, max: number): number {
-  return minOpacity + (1 - minOpacity) * (max > 0 ? value / max : 0)
+export function colorPosition(look: HeatmapLook, value: number): number {
+  let position = rangePosition(value, look.low, look.high)
+  if (look.mode === "opacity" && look.exponential) {
+    position = position ** look.exponent
+  }
+  if (look.steps !== null && look.steps > 1) {
+    const bucket = Math.min(look.steps - 1, Math.floor(position * look.steps))
+    position = bucket / (look.steps - 1)
+  }
+  return look.reverse ? 1 - position : position
 }
 
-export type LegendStep = { value: number; opacity: number }
+export type CellPaint = { color: string; alpha: number }
 
-export function legendScale(min: number, max: number): LegendStep[] {
-  return Array.from({ length: legendSteps }, (_, i) => {
-    const value = min + ((max - min) * i) / (legendSteps - 1)
-    return { value, opacity: cellOpacity(value, max) }
+export function cellPaint(look: HeatmapLook, value: number): CellPaint {
+  const position = colorPosition(look, value)
+  if (look.mode === "scheme") {
+    return { color: schemeColor(look.scheme, position), alpha: 1 }
+  }
+  return {
+    color: look.fill,
+    alpha: minOpacity + (1 - minOpacity) * position,
+  }
+}
+
+export type LegendStep = { value: number; paint: CellPaint }
+
+export function legendScale(look: HeatmapLook): LegendStep[] {
+  const count =
+    look.steps !== null && look.steps < legendSteps ? look.steps : legendSteps
+  const { labelLow, labelHigh } = look
+  return Array.from({ length: count }, (_, i) => {
+    const value =
+      count === 1
+        ? labelHigh
+        : labelLow + ((labelHigh - labelLow) * i) / (count - 1)
+    return { value, paint: cellPaint(look, value) }
   })
 }
 
-export function formatCounts(values: number[]): (value: number) => string {
-  const decimals = commonDecimals(values)
-  return (value) => formatValue(value, undefined, decimals)
+export function legendDescription(
+  look: HeatmapLook,
+  format: (value: number) => string
+): string {
+  return `Color scale from ${format(look.labelLow)} to ${format(look.labelHigh)}`
 }
+
+export function formatCounts(
+  values: number[],
+  unit?: string,
+  decimals?: number
+): (value: number) => string {
+  const shared = commonDecimals(values, unit, decimals)
+  return (value) => formatValue(value, unit, shared)
+}
+
+export type Box = { left: number; top: number; width: number; height: number }
+
+export function insetCell(box: Box, gap: number): Box {
+  const width = Math.max(1, box.width - gap)
+  const height = Math.max(1, box.height - gap)
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
+  }
+}
+
+export function labelFits(
+  show: ShowValues,
+  box: Box,
+  textWidth: number
+): boolean {
+  if (show === "never") return false
+  if (show === "always") return true
+  return (
+    textWidth + 2 * labelPadding <= box.width &&
+    labelFontSize + 2 * labelPadding <= box.height
+  )
+}
+
+export const cellLabelFontSize = labelFontSize
 
 export type HeatmapCell = { row: number; col: number }
 
@@ -324,7 +483,7 @@ export function columnAt(xs: readonly number[], x: number): number | null {
   return Math.min(xs.length - 1, Math.max(0, Math.round(position)))
 }
 
-export function edge(index: number, count: number, size: number): number {
+function edge(index: number, count: number, size: number): number {
   return Math.round((index * size) / count)
 }
 
@@ -333,7 +492,7 @@ export function cellBox(
   cell: HeatmapCell,
   width: number,
   height: number
-): { left: number; top: number; width: number; height: number } {
+): Box {
   const columns = model.xs.length
   const rows = model.rows.length
   const top = edge(rows - cell.row - 1, rows, height)

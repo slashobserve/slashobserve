@@ -359,10 +359,12 @@
         "status": "partial",
         "reasons": [
           "Exemplars are drawn on time series only.",
+          "The heatmap color scheme Warm is not supported yet.",
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
           "targets[0].exemplar",
+          "options.color.scheme",
           "color.cardColor",
           "color.colorScale",
           "color.colorScheme",
@@ -372,19 +374,8 @@
           "hideZeroBuckets",
           "highlightCards",
           "legend.show",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
-          "options.showValue",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
           "options.yAxis.axisPlacement",
@@ -1115,7 +1106,12 @@
             "legend": "{{le}}",
             "format": "heatmap"
           }
-        ]
+        ],
+        "display": {
+          "colorMode": "scheme",
+          "colorSteps": 128,
+          "cellGap": 2
+        }
       },
       {
         "id": "p85",

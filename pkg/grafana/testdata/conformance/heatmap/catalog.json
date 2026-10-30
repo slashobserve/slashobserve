@@ -24,7 +24,7 @@
     { "id": "options.color.mode=opacity", "path": "options.color.mode", "value": "opacity" },
     { "id": "options.color.scheme=Spectral", "path": "options.color.scheme", "value": "Spectral", "with": {"options.color.mode": "scheme"} },
     { "id": "options.color.fill=red", "path": "options.color.fill", "value": "red", "with": {"options.color.mode": "opacity"} },
-    { "id": "options.color.scale=exponential", "path": "options.color.scale", "value": "exponential", "with": {"options.color.mode": "opacity"} },
+    { "id": "options.color.scale=exponential", "path": "options.color.scale", "value": "exponential", "with": {"options.color.mode": "opacity"}, "expect": "cosmetic" },
     { "id": "options.color.exponent=0.8", "path": "options.color.exponent", "value": 0.8, "with": {"options.color.mode": "opacity", "options.color.scale": "exponential"} },
     { "id": "options.color.steps=32", "path": "options.color.steps", "value": 32 },
     { "id": "options.color.reverse=true", "path": "options.color.reverse", "value": true },

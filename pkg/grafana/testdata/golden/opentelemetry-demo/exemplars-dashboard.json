@@ -67,17 +67,7 @@
         ],
         "paths": [
           "targets[0].exemplar",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
@@ -132,17 +122,7 @@
         ],
         "paths": [
           "targets[0].exemplar",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
@@ -239,7 +219,14 @@
                 "format": "heatmap"
               }
             ],
-            "interval": "2m"
+            "interval": "2m",
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "showValues": "auto"
+            }
           },
           {
             "id": "p5",
@@ -299,7 +286,14 @@
                 "format": "heatmap"
               }
             ],
-            "interval": "2m"
+            "interval": "2m",
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "showValues": "auto"
+            }
           },
           {
             "id": "p1",

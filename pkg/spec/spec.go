@@ -558,6 +558,20 @@ type Display struct {
 	LegendShow         *[]string          `json:"legendShow,omitempty"`
 	Calculate          *bool              `json:"calculate,omitempty"`
 	YScale             string             `json:"yScale,omitempty"`
+	ColorScheme        string             `json:"colorScheme,omitempty"`
+	ColorSteps         int                `json:"colorSteps,omitempty"`
+	ColorScale         string             `json:"colorScale,omitempty"`
+	ColorExponent      *float64           `json:"colorExponent,omitempty"`
+	ColorFill          string             `json:"colorFill,omitempty"`
+	ColorMin           *float64           `json:"colorMin,omitempty"`
+	ColorMax           *float64           `json:"colorMax,omitempty"`
+	ColorReverse       *bool              `json:"colorReverse,omitempty"`
+	CellGap            int                `json:"cellGap,omitempty"`
+	CellRadius         int                `json:"cellRadius,omitempty"`
+	CellUnit           string             `json:"cellUnit,omitempty"`
+	CellDecimals       *int               `json:"cellDecimals,omitempty"`
+	HideBelow          *float64           `json:"hideBelow,omitempty"`
+	HideAbove          *float64           `json:"hideAbove,omitempty"`
 	BucketSize         *float64           `json:"bucketSize,omitempty"`
 	BucketCount        int                `json:"bucketCount,omitempty"`
 	BucketOffset       *float64           `json:"bucketOffset,omitempty"`

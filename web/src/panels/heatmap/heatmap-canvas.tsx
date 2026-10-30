@@ -8,14 +8,21 @@ import {
 
 import type { ResolvedTheme } from "@/lib/theme"
 
-import { resolveColor } from "../colors"
+import { readChartColors, resolveColor } from "../colors"
+import { cssColorToRgb, darkText, readableText } from "../contrast"
+import { blendOver } from "../state-timeline/timeline-layout"
 import {
   cellBox,
-  cellOpacity,
-  edge,
+  cellLabelFontSize,
+  cellPaint,
+  insetCell,
   isHeatmapKey,
+  labelFits,
   stepCell,
+  visibleCell,
+  type Box,
   type HeatmapCell,
+  type HeatmapLook,
   type HeatmapModel,
 } from "./heatmap-model"
 
@@ -28,6 +35,8 @@ export type Hover = { row: number; col: number; x: number; y: number }
 
 type Props = {
   model: HeatmapModel
+  look: HeatmapLook
+  format: (value: number) => string
   width: number
   height: number
   theme: ResolvedTheme
@@ -56,9 +65,30 @@ function strokeInset(
   )
 }
 
+function cached<T>(cache: Map<string, T>, key: string, make: () => T): T {
+  const hit = cache.get(key)
+  if (hit !== undefined) return hit
+  const made = make()
+  cache.set(key, made)
+  return made
+}
+
+function fillCell(context: CanvasRenderingContext2D, box: Box, radius: number) {
+  const rounded = Math.min(radius, box.width / 2, box.height / 2)
+  if (rounded <= 0) {
+    context.fillRect(box.left, box.top, box.width, box.height)
+    return
+  }
+  context.beginPath()
+  context.roundRect(box.left, box.top, box.width, box.height, rounded)
+  context.fill()
+}
+
 function draw(
   canvas: HTMLCanvasElement,
   model: HeatmapModel,
+  look: HeatmapLook,
+  format: (value: number) => string,
   width: number,
   height: number,
   focused: HeatmapCell | null
@@ -69,21 +99,44 @@ function draw(
   const context = canvas.getContext("2d")
   if (!context) return
   context.scale(ratio, ratio)
-  context.fillStyle = resolveColor("var(--series-1)")
-  const rows = model.rows.length
-  const columns = model.xs.length
+  const colors = new Map<string, string>()
+  const texts = new Map<string, string>()
+  const backdrop = cssColorToRgb(resolveColor("var(--background)")) ?? [
+    255, 255, 255,
+  ]
+  const resolved = (color: string) =>
+    cached(colors, color, () => resolveColor(color))
+  const textOn = (color: string, alpha: number) =>
+    cached(texts, `${alpha}|${color}`, () => {
+      const rgb = cssColorToRgb(resolved(color))
+      return rgb ? readableText(blendOver(rgb, backdrop, alpha)) : darkText
+    })
+  context.font = `${cellLabelFontSize}px ${readChartColors().font}`
+  context.textAlign = "center"
+  context.textBaseline = "middle"
   model.cells.forEach((cells, row) => {
-    const top = edge(rows - row - 1, rows, height)
-    const bottom = edge(rows - row, rows, height)
     cells.forEach((value, col) => {
-      if (value === null || value <= 0) return
-      const left = edge(col, columns, width)
-      context.globalAlpha = cellOpacity(value, model.max)
-      context.fillRect(
-        left,
-        top,
-        edge(col + 1, columns, width) - left,
-        bottom - top
+      if (!visibleCell(look, value)) return
+      const box = insetCell(
+        cellBox(model, { row, col }, width, height),
+        look.gap
+      )
+      const paint = cellPaint(look, value)
+      context.globalAlpha = paint.alpha
+      context.fillStyle = resolved(paint.color)
+      fillCell(context, box, look.radius)
+      if (look.showValues === "never") return
+      const text = format(value)
+      if (!labelFits(look.showValues, box, context.measureText(text).width)) {
+        return
+      }
+      context.globalAlpha = 1
+      context.fillStyle = textOn(paint.color, paint.alpha)
+      context.fillText(
+        text,
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+        box.width
       )
     })
   })
@@ -96,6 +149,8 @@ function draw(
 
 export function HeatmapCanvas({
   model,
+  look,
+  format,
   width,
   height,
   theme,
@@ -109,8 +164,10 @@ export function HeatmapCanvas({
   const hintId = useId()
 
   useLayoutEffect(() => {
-    if (ref.current) draw(ref.current, model, width, height, focused)
-  }, [model, width, height, theme, focused])
+    if (ref.current) {
+      draw(ref.current, model, look, format, width, height, focused)
+    }
+  }, [model, look, format, width, height, theme, focused])
 
   function move(event: PointerEvent<HTMLCanvasElement>) {
     const box = event.currentTarget.getBoundingClientRect()

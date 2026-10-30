@@ -151,20 +151,8 @@
           "legend.show",
           "options.calculation.xBuckets.mode",
           "options.calculation.yBuckets.mode",
-          "options.cellGap",
-          "options.cellValues.decimals",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
-          "options.showValue",
           "options.tooltip.show",
           "options.tooltip.yHistogram",
           "options.yAxis.axisPlacement",
@@ -1196,7 +1184,15 @@
                 "legend": "{{le}}",
                 "format": "heatmap"
               }
-            ]
+            ],
+            "display": {
+              "legend": "hidden",
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 128,
+              "cellGap": 2,
+              "cellDecimals": 5
+            }
           },
           {
             "id": "p6",

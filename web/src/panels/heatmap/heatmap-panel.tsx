@@ -12,8 +12,11 @@ import {
   cellText,
   columnAt,
   formatCounts,
+  heatmapLook,
   heatmapModel,
   type HeatmapCell,
+  type HeatmapLook,
+  legendDescription,
   legendScale,
   type HeatmapModel,
 } from "./heatmap-model"
@@ -96,33 +99,33 @@ function TimeLabels({ xs, width }: { xs: number[]; width: number }) {
 }
 
 function Legend({
-  min,
-  max,
+  look,
   format,
 }: {
-  min: number
-  max: number
+  look: HeatmapLook
   format: (value: number) => string
 }) {
   return (
     <div
+      role="img"
+      aria-label={legendDescription(look, format)}
       className="flex items-center justify-center gap-2 text-xs text-muted-foreground tabular-nums"
       style={{ height: legendHeight, marginTop: legendGap }}
     >
-      <span>{format(min)}</span>
+      <span aria-hidden="true">{format(look.labelLow)}</span>
       <span aria-hidden="true" className="flex gap-px">
-        {legendScale(min, max).map((step, index) => (
+        {legendScale(look).map((step, index) => (
           <span
             key={index}
             className="block h-3 w-6"
             style={{
-              backgroundColor: "var(--series-1)",
-              opacity: step.opacity,
+              backgroundColor: step.paint.color,
+              opacity: step.paint.alpha,
             }}
           />
         ))}
       </span>
-      <span>{format(max)}</span>
+      <span aria-hidden="true">{format(look.labelHigh)}</span>
     </div>
   )
 }
@@ -185,15 +188,18 @@ const HeatmapPanel: PanelRenderer = ({
     () => heatmapModel(frames, fields, display, panel.queries),
     [frames, fields, display, panel.queries]
   )
+  const look = useMemo(() => heatmapLook(display, model), [display, model])
   const format = useMemo(
-    () => formatCounts([model.min, model.max]),
-    [model.min, model.max]
+    () => formatCounts([model.min, model.max], look.unit, look.decimals),
+    [model.min, model.max, look.unit, look.decimals]
   )
+  const legendShown = look.legend && model.max > 0
   const rows = model.rows.length
   const columns = model.xs.length
   const labelWidth = axisWidth(model)
   const plotWidth = width - 2 * padX - labelWidth
-  const plotHeight = height - padTop - xAxisHeight - legendHeight - legendGap
+  const plotHeight =
+    height - padTop - xAxisHeight - (legendShown ? legendHeight + legendGap : 0)
   const focused = focus !== null && focus.model === model ? focus.cell : null
   const shown =
     hover ??
@@ -220,6 +226,8 @@ const HeatmapPanel: PanelRenderer = ({
             <div className="relative" style={{ width: plotWidth }}>
               <HeatmapCanvas
                 model={model}
+                look={look}
+                format={format}
                 width={plotWidth}
                 height={plotHeight}
                 theme={theme}
@@ -247,9 +255,7 @@ const HeatmapPanel: PanelRenderer = ({
           <div style={{ marginLeft: labelWidth }}>
             <TimeLabels xs={model.xs} width={plotWidth} />
           </div>
-          {model.max > 0 ? (
-            <Legend min={model.min} max={model.max} format={format} />
-          ) : null}
+          {legendShown ? <Legend look={look} format={format} /> : null}
         </>
       ) : null}
     </div>

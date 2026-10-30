@@ -728,19 +728,8 @@
           "hideZeroBuckets",
           "highlightCards",
           "legend.show",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
-          "options.showValue",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
           "options.yAxis.axisPlacement",
@@ -788,19 +777,8 @@
           "hideZeroBuckets",
           "highlightCards",
           "legend.show",
-          "options.cellGap",
-          "options.color.exponent",
-          "options.color.fill",
-          "options.color.mode",
-          "options.color.reverse",
-          "options.color.scale",
-          "options.color.scheme",
-          "options.color.steps",
           "options.exemplars.color",
-          "options.filterValues.le",
-          "options.legend.show",
           "options.rowsFrame.layout",
-          "options.showValue",
           "options.tooltip.showColorScale",
           "options.tooltip.yHistogram",
           "options.yAxis.axisPlacement",
@@ -1850,7 +1828,14 @@
                 "format": "heatmap",
                 "intervalFactor": 10
               }
-            ]
+            ],
+            "display": {
+              "colorMode": "scheme",
+              "colorScheme": "oranges",
+              "colorSteps": 64,
+              "cellGap": 1,
+              "showValues": "auto"
+            }
           },
           {
             "id": "p80",
@@ -2343,7 +2328,14 @@
                 "format": "heatmap",
                 "intervalFactor": 10
               }
-            ]
+            ],
+            "display": {
+              "legend": "hidden",
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 128,
+              "cellGap": 2
+            }
           },
           {
             "id": "p116",
@@ -2363,7 +2355,14 @@
                 "format": "heatmap",
                 "intervalFactor": 10
               }
-            ]
+            ],
+            "display": {
+              "legend": "hidden",
+              "colorMode": "scheme",
+              "colorScheme": "redYellowGreen",
+              "colorSteps": 128,
+              "cellGap": 2
+            }
           },
           {
             "id": "p71",

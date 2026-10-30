@@ -96,7 +96,24 @@ export const displayKeysByType: Record<string, readonly string[]> = {
   ],
   "heatmap": [
     "calculate",
-    "yScale"
+    "yScale",
+    "colorMode",
+    "colorScheme",
+    "colorSteps",
+    "colorScale",
+    "colorExponent",
+    "colorFill",
+    "colorMin",
+    "colorMax",
+    "colorReverse",
+    "cellGap",
+    "cellRadius",
+    "cellUnit",
+    "cellDecimals",
+    "legend",
+    "hideBelow",
+    "hideAbove",
+    "showValues"
   ],
   "histogram": [
     "bucketSize",
