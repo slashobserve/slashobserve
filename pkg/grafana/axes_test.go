@@ -300,3 +300,29 @@ func TestAxisAndLineStyleOptionsConvertOnPanelsThatDrawThem(t *testing.T) {
 		})
 	}
 }
+
+var lineStyleOptions = plotOnlyOptions[9:]
+
+func TestLineStyleOptionsAreSilentOnPanelsGrafanaNeverDrawsThemOn(t *testing.T) {
+	for _, typ := range []string{"stat", "gauge", "bargauge", "table", "piechart"} {
+		for _, tc := range lineStyleOptions {
+			t.Run(typ+" "+tc.name, func(t *testing.T) {
+				_, line := customPanelOf(t, typ, tc.custom, "")
+				requireImported(t, line)
+			})
+		}
+	}
+}
+
+func TestLineStyleOverridePropertiesAreSilentOnPanelsGrafanaNeverDrawsThemOn(t *testing.T) {
+	override := `{"matcher":{"id":"byName","options":"a"},"properties":[{"id":"custom.lineWidth","value":4},{"id":"custom.showPoints","value":"never"}]}`
+	_, line := customPanelOf(t, "stat", `{}`, override)
+	requireImported(t, line)
+}
+
+func TestAxisOptionsAreStillReportedOnPanelsThatDrawNoAxis(t *testing.T) {
+	_, line := customPanelOf(t, "stat", `{"axisLabel":"Requests"}`, "")
+	if line.Status != statusPartial || strings.Join(line.Paths, " ") != "fieldConfig.defaults.custom.axisLabel" {
+		t.Fatalf("status = %s, paths %v", line.Status, line.Paths)
+	}
+}

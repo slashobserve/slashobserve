@@ -89,17 +89,33 @@ var propHandlers = map[string]propHandler{
 	"custom.axisColorMode":     propAxisColorMode,
 }
 
-var plotPropIDs = map[string]bool{
+var lineStylePropIDs = map[string]bool{
 	"custom.lineInterpolation": true, "custom.lineWidth": true, "custom.showPoints": true, "custom.pointSize": true, "custom.spanNulls": true,
+}
+
+var axisPropIDs = map[string]bool{
 	"custom.axisLabel": true, "custom.axisSoftMin": true, "custom.axisSoftMax": true, "custom.scaleDistribution": true,
 	"custom.axisCenteredZero": true, "custom.axisWidth": true, "custom.axisGridShow": true, "custom.axisBorderShow": true, "custom.axisColorMode": true,
 }
 
 var plotPanelTypes = map[spec.PanelType]bool{spec.Timeseries: true, spec.Trend: true, spec.Candlestick: true}
 
+var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
+	spec.BarChart: true, spec.Histogram: true, spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
+}
+
+func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
+	b.consume(s.value)
+}
+
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
-	if plotPropIDs[id] && !plotPanelTypes[b.typ] {
-		return nil, false
+	if !plotPanelTypes[b.typ] {
+		if axisPropIDs[id] || (lineStylePropIDs[id] && lineStyleDrawnOnlyByGrafana[b.typ]) {
+			return nil, false
+		}
+		if lineStylePropIDs[id] {
+			return propLineStyleUnused, true
+		}
 	}
 	handler, ok := propHandlers[id]
 	return handler, ok
