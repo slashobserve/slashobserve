@@ -1,0 +1,1 @@
+{"title":"Conformance","schemaVersion":41,"time":{"from":"now-6h","to":"now"},"panels":[{"id":1,"type":"trend","title":"Panel","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prom"},"targets":[{"refId":"A","expr":"up","datasource":{"type":"prometheus","uid":"prom"}}]}]}
