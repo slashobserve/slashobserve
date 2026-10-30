@@ -123,10 +123,7 @@ export const dashboardColumns = column.columns([
 export const actionsColumn = column.display({
   id: "actions",
   header: () => <span className="sr-only">Actions</span>,
-  cell: ({ row }) =>
-    row.original.permissions.edit ? (
-      <DashboardRowMenu dashboard={row.original} />
-    ) : null,
+  cell: ({ row }) => <DashboardRowMenu dashboard={row.original} />,
   meta: {
     headerClassName: "w-10",
     cellClassName: "w-10 text-right",
