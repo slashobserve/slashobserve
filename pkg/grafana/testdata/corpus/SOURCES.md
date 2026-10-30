@@ -179,9 +179,10 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 - Commit: 0a82eca9c8e80d79b6262c3eefb24e6864401496
 - License: Apache-2.0
 - Fetched: 2026-10-30
-- Path in repository: `examples/<file>.json` for `dashboard-legacy.json`; `docs/operator-manual/notifications/<file>.json` for `grafana-dashboard.json`.
+- Path in repository: `examples/<file>.json` for `dashboard.json` and `dashboard-legacy.json`; `docs/operator-manual/notifications/<file>.json` for `grafana-dashboard.json`.
 - Files:
   - `dashboard-legacy.json`
+  - `dashboard.json`
   - `grafana-dashboard.json`
 
 ## redis-exporter
@@ -261,8 +262,8 @@ A new corpus file needs a section here and a `LICENSE` in its source directory f
 Counted over every corpus JSON file: top-level `panels`, nested row `panels`, and legacy `rows[].panels`.
 Each legacy `rows[]` entry is also counted as one `row`, although it is a dashboard-level object and not a panel.
 Legacy rows occur in these files, with their entry counts: `rfmoz/node-exporter-full-old.json` (19), `thanos/bucket-replicate.json` (2), `thanos/compact.json` (7), `thanos/overview.json` (7), `thanos/query-frontend.json` (3), `thanos/query.json` (7), `thanos/receive.json` (11), `thanos/rule.json` (6), `thanos/sidecar.json` (5), `thanos/store.json` (9).
-They account for the gap between 2153 entries and the stated 2229.
-The corpus holds 100 dashboards and 2229 panels including rows.
+They account for the gap between 2207 entries and the stated 2283.
+The corpus holds 101 dashboards and 2283 panels including rows.
 Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json` (191), `rfmoz/node-exporter-full.json` (141), `rfmoz/haproxy.json` (113).
 
 ### As written
@@ -270,15 +271,15 @@ Three files exceed 100 panels including rows: `rfmoz/node-exporter-full-old.json
 | Type | Count |
 | --- | --- |
 | timeseries | 1095 |
-| graph | 398 |
-| row | 288 |
-| stat | 164 |
+| graph | 432 |
+| row | 298 |
+| stat | 168 |
 | table | 92 |
-| gauge | 37 |
+| gauge | 38 |
 | bargauge | 27 |
 | singlestat | 26 |
-| text | 16 |
-| heatmap | 12 |
+| text | 18 |
+| heatmap | 15 |
 | piechart | 9 |
 | barchart | 8 |
 | logs | 7 |
@@ -315,14 +316,14 @@ No `table-old` panel occurs in the corpus.
 
 | Type | Count |
 | --- | --- |
-| timeseries | 1493 |
-| row | 288 |
-| stat | 190 |
+| timeseries | 1527 |
+| row | 298 |
+| stat | 194 |
 | table | 92 |
-| gauge | 37 |
+| gauge | 38 |
 | bargauge | 27 |
-| text | 16 |
-| heatmap | 12 |
+| text | 18 |
+| heatmap | 15 |
 | piechart | 9 |
 | barchart | 8 |
 | logs | 7 |

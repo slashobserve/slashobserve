@@ -100,11 +100,55 @@ func (c *converter) convertVariables() {
 		c.reportUnhandledKeys(raw, path, subject)
 		c.vars = append(c.vars, &builtVar{v: v, path: path})
 	}
+	c.dropVariablesNamingUndeclared()
 	var moved []string
 	c.vars, moved = orderByDependency(c.vars)
 	if len(moved) > 0 {
 		c.note("variables", "Variables were reordered so that each one comes after the variables its query uses.", moved...)
 	}
+}
+
+func (c *converter) dropVariablesNamingUndeclared() {
+	known := c.declaredVariables()
+	kept := c.vars[:0]
+	for _, v := range c.vars {
+		if missing := undeclaredReferences(v.v, known); len(missing) > 0 {
+			c.droppedVars[v.v.Name] = true
+			c.note("variable "+v.v.Name, undeclaredReferencesReason(missing), v.path)
+			continue
+		}
+		kept = append(kept, v)
+	}
+	c.vars = kept
+}
+
+func undeclaredReferences(v spec.Variable, known map[string]bool) []string {
+	if v.Type != spec.QueryVariable {
+		return nil
+	}
+	refs, err := spec.ScanQuery(v.Query)
+	if err != nil {
+		return nil
+	}
+	var missing []string
+	for _, ref := range spec.FlattenReferences(refs) {
+		if ref.Kind == spec.VariableRef && !known[ref.Name] && !slices.Contains(missing, ref.Name) {
+			missing = append(missing, ref.Name)
+		}
+	}
+	return missing
+}
+
+func undeclaredReferencesReason(missing []string) string {
+	names := make([]string, len(missing))
+	for i, name := range missing {
+		names[i] = "$" + name
+	}
+	that := "that name"
+	if len(missing) > 1 {
+		that = "those names"
+	}
+	return fmt.Sprintf("Its query uses %s, but this dashboard declares no variable with %s, and SlashObserve cannot keep a reference to an undeclared variable.", strings.Join(names, ", "), that)
 }
 
 func orderByDependency(vars []*builtVar) ([]*builtVar, []string) {

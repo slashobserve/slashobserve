@@ -1559,6 +1559,26 @@ func TestDashListOptionsWithoutACounterpartAreReported(t *testing.T) {
 	}
 }
 
+func TestStaticPanelsIgnoreLeftoverTargets(t *testing.T) {
+	targets := map[string]string{
+		"datasource only": `[{"datasource":{"uid":"$datasource"},"refId":"A"}]`,
+		"with a query":    `[{"refId":"A","expr":"up"},{"refId":"B","expr":"down","hide":true}]`,
+	}
+	for _, typ := range []string{"text", "dashlist", "news"} {
+		for name, list := range targets {
+			t.Run(typ+" "+name, func(t *testing.T) {
+				panel, line := convertedPanel(t, panelDoc(typ, `"targets":`+list))
+				if len(panel.Queries) != 0 || len(line.Queries) != 0 {
+					t.Errorf("queries = %v, lines = %v, want none", panel.Queries, line.Queries)
+				}
+				if line.Status != statusImported || len(line.Paths) != 0 || len(line.Reasons) != 0 {
+					t.Errorf("line = %+v, want imported with nothing reported", line)
+				}
+			})
+		}
+	}
+}
+
 func newsPanel(t *testing.T, members string) (spec.Panel, PanelLine) {
 	t.Helper()
 	return convertedPanel(t, panelDoc("news", members))
