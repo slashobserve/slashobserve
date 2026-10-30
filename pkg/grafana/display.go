@@ -67,6 +67,7 @@ var displayBuilders = map[spec.PanelType]func(*panelBuild){
 	spec.XYChart:       displayXYChart,
 	spec.Candlestick:   displayCandlestick,
 	spec.NodeGraph:     displayNodeGraph,
+	spec.Traces:        displayTraces,
 	spec.Geomap:        displayGeomap,
 	spec.Canvas:        displayCanvas,
 	spec.AlertList:     displayAlertList,

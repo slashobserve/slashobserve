@@ -659,6 +659,15 @@ type Display struct {
 	Volume             string             `json:"volume,omitempty"`
 	Layout             string             `json:"layout,omitempty"`
 	WheelZoom          *bool              `json:"wheelZoom,omitempty"`
+	SpanSearch         string             `json:"spanSearch,omitempty"`
+	ServiceNames       []string           `json:"serviceNames,omitempty"`
+	ExcludeServices    *bool              `json:"excludeServices,omitempty"`
+	SpanNames          []string           `json:"spanNames,omitempty"`
+	ExcludeSpanNames   *bool              `json:"excludeSpanNames,omitempty"`
+	MinSpanDuration    *float64           `json:"minSpanDuration,omitempty"`
+	MaxSpanDuration    *float64           `json:"maxSpanDuration,omitempty"`
+	MatchesOnly        *bool              `json:"matchesOnly,omitempty"`
+	CriticalPathOnly   *bool              `json:"criticalPathOnly,omitempty"`
 	View               string             `json:"view,omitempty"`
 	Lat                *float64           `json:"lat,omitempty"`
 	Lon                *float64           `json:"lon,omitempty"`

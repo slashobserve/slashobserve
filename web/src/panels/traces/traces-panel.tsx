@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { styleForSlot } from "../colors"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { filterSpans, spanFilters, type SpanFilters } from "./span-filters"
 import { traceModel, visibleSpans, windowRows, type Span } from "./trace-model"
 
 const rowHeight = 28
@@ -18,6 +19,7 @@ const ErrorIcon = thresholdIcons.critical
 
 type TraceProps = {
   model: Extract<ReturnType<typeof traceModel>, { reason: null }>
+  filters: SpanFilters
   width: number
   height: number
 }
@@ -32,6 +34,7 @@ function SpanRow({
   span,
   collapsed,
   open,
+  matched,
   detailsId,
   formatDuration,
   onToggle,
@@ -40,6 +43,7 @@ function SpanRow({
   span: Span
   collapsed: boolean
   open: boolean
+  matched: boolean | null
   detailsId: string
   formatDuration: (ms: number) => string
   onToggle: () => void
@@ -83,7 +87,16 @@ function SpanRow({
             {span.service ? (
               <span className="text-muted-foreground">{span.service} </span>
             ) : null}
-            <span className="text-foreground">{span.operation || span.id}</span>
+            <span
+              className={
+                matched === false ? "text-muted-foreground" : "text-foreground"
+              }
+            >
+              {span.operation || span.id}
+            </span>
+            {matched ? (
+              <span className="sr-only"> Matches the filters</span>
+            ) : null}
           </span>
           {span.error ? (
             <span className="flex shrink-0 items-center gap-1 text-foreground">
@@ -105,7 +118,8 @@ function SpanRow({
             aria-hidden="true"
             className={cn(
               "absolute top-1/2 h-3 -translate-y-1/2 rounded-sm",
-              span.error && "bg-status-critical"
+              span.error && "bg-status-critical",
+              matched === false && "opacity-30"
             )}
             style={{
               left: `${span.offset * 100}%`,
@@ -122,7 +136,7 @@ function SpanRow({
   )
 }
 
-function Trace({ model, width, height }: TraceProps) {
+function Trace({ model, filters, width, height }: TraceProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [openId, setOpenId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -130,9 +144,13 @@ function Trace({ model, width, height }: TraceProps) {
   const detailRef = useRef<HTMLDListElement>(null)
   const detailsId = useId()
 
+  const filtered = useMemo(
+    () => filterSpans(model.spans, filters),
+    [model.spans, filters]
+  )
   const rows = useMemo(
-    () => visibleSpans(model.spans, collapsed),
-    [model.spans, collapsed]
+    () => visibleSpans(filtered.spans, collapsed),
+    [filtered.spans, collapsed]
   )
   const openIndex = rows.findIndex((span) => span.id === openId)
   const windowed = rows.length > windowAfter
@@ -184,7 +202,7 @@ function Trace({ model, width, height }: TraceProps) {
           </span>
         </p>
       </div>
-      {model.notes.map((note) => (
+      {[...model.notes, ...filtered.notes].map((note) => (
         <p
           key={note}
           className="shrink-0 border-b border-border px-2 py-1.5 text-xs text-muted-foreground"
@@ -234,6 +252,11 @@ function Trace({ model, width, height }: TraceProps) {
                   span={span}
                   collapsed={collapsed.has(span.id)}
                   open={open}
+                  matched={
+                    filtered.matched === null
+                      ? null
+                      : filtered.matched.has(span.id)
+                  }
                   detailsId={detailsId}
                   formatDuration={model.formatDuration}
                   onToggle={() => toggle(span.id)}
@@ -275,8 +298,15 @@ function Trace({ model, width, height }: TraceProps) {
   )
 }
 
-const TracesPanel: PanelRenderer = ({ frames, fields, width, height }) => {
+const TracesPanel: PanelRenderer = ({
+  frames,
+  fields,
+  display,
+  width,
+  height,
+}) => {
   const model = useMemo(() => traceModel(frames, fields), [frames, fields])
+  const filters = useMemo(() => spanFilters(display), [display])
   if (model.reason !== null) {
     return (
       <div
@@ -287,7 +317,7 @@ const TracesPanel: PanelRenderer = ({ frames, fields, width, height }) => {
       </div>
     )
   }
-  return <Trace model={model} width={width} height={height} />
+  return <Trace model={model} filters={filters} width={width} height={height} />
 }
 
 export default TracesPanel

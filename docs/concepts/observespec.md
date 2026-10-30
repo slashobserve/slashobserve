@@ -181,6 +181,12 @@ With `calculate` on, `xBuckets` and `yBuckets` choose the buckets: `{ "mode": "s
 `exemplars` (on by default) draws the exemplars of queries with `exemplar: true` as diamonds in `exemplarColor` (the foreground color when absent), placed by time and value.
 `legend: "hidden"` removes the color legend under the chart.
 The agent prompt does not list these options.
+A `traces` panel filters the spans it draws.
+A span matches when it satisfies every filter that is set: `spanSearch` (text found, in any case, in its service, operation, id, attribute keys or attribute values), `serviceNames` and `spanNames` (the span's service or operation is one of the names, or none of them with `excludeServices` or `excludeSpanNames`, which compare whole names), and `minSpanDuration` and `maxSpanDuration` (milliseconds, ends included).
+The spans that do not match are dimmed and a note counts the matches, and `matchesOnly: true` hides them instead, keeping the indentation of the spans that stay.
+`criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out.
+When both options are on, only the spans that match and sit on the critical path stay.
+The agent prompt does not list these options.
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
 When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
 `alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.

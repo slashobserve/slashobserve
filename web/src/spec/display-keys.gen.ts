@@ -281,7 +281,17 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "layout",
     "wheelZoom"
   ],
-  "traces": [],
+  "traces": [
+    "spanSearch",
+    "serviceNames",
+    "excludeServices",
+    "spanNames",
+    "excludeSpanNames",
+    "minSpanDuration",
+    "maxSpanDuration",
+    "matchesOnly",
+    "criticalPathOnly"
+  ],
   "flamegraph": [],
   "geomap": [
     "view",

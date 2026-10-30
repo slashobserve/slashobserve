@@ -3,6 +3,9 @@ package grafana
 import (
 	"fmt"
 	"math"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -20,8 +23,14 @@ const (
 	fieldNameLenReason  = "A field name must be between 1 and 200 characters."
 	nodeUnitsDiffReason = "The node and edge units differ; one unit is kept for each statistic."
 	nodeArcReason       = "This arc needs a field and a color SlashObserve supports."
+	spanSearchReason    = "The span search must be between 1 and 200 characters."
+	spanNamesReason     = "Span filters take up to 50 distinct names of 1 to 200 characters."
+	spanDurationReason  = "A span duration filter is a number with the unit ns, us, ms, s, m or h, up to 24 hours."
 	minShare            = 0.1
 	maxFieldName        = 200
+	maxSpanFilterNames  = 50
+	maxSpanSearch       = 200
+	maxSpanFilterMillis = 86400000
 	maxPointSize        = 40
 	maxXYSeries         = 20
 	maxXYMatcher        = 500
@@ -462,4 +471,104 @@ func (b *panelBuild) arcOverrides() {
 		b.consume(path)
 		b.addOverride(spec.Override{Match: spec.Match{Field: field}, FieldProps: spec.FieldProps{Color: color}}, path)
 	}
+}
+
+var spanDurationPattern = regexp.MustCompile(`^(\d+(?:\.\d+)?)\s*(ns|us|µs|μs|ms|s|m|h)$`)
+
+var spanDurationMillis = map[string]float64{"ns": 1e-6, "us": 1e-3, "µs": 1e-3, "μs": 1e-3, "ms": 1, "s": 1000, "m": 60000, "h": 3600000}
+
+func displayTraces(b *panelBuild) {
+	d := b.disp()
+	const base = "options.spanFilters"
+	d.SpanSearch = b.spanSearch(base + ".query")
+	d.ServiceNames, d.ExcludeServices = b.spanNameFilter(base+".serviceName", base+".serviceNameOperator")
+	d.SpanNames, d.ExcludeSpanNames = b.spanNameFilter(base+".spanName", base+".spanNameOperator")
+	d.MinSpanDuration = b.spanDuration(base + ".from")
+	d.MaxSpanDuration = b.spanDuration(base + ".to")
+	d.MatchesOnly = b.setFlag(base + ".matchesOnly")
+	d.CriticalPathOnly = b.setFlag(base + ".criticalPathOnly")
+}
+
+func (b *panelBuild) setFlag(path string) *bool {
+	if flag, ok := b.boolOption(path); ok && *flag {
+		return flag
+	}
+	return nil
+}
+
+func (b *panelBuild) spanSearch(path string) string {
+	v, ok := b.value(path)
+	text, isText := v.(string)
+	if !ok || !isText {
+		return ""
+	}
+	text = strings.TrimSpace(text)
+	if text != "" && !validLength(text, maxSpanSearch) {
+		b.partial(path, spanSearchReason)
+		return ""
+	}
+	b.consume(path)
+	return text
+}
+
+func (b *panelBuild) spanNameFilter(path, operatorPath string) ([]string, *bool) {
+	names := b.spanNames(path)
+	if b.enumOption(operatorPath, "=", "!=") == "!=" {
+		return names, ptr(true)
+	}
+	return names, nil
+}
+
+func (b *panelBuild) spanNames(path string) []string {
+	v, ok := b.value(path)
+	if !ok {
+		return nil
+	}
+	items, isList := asArray(singleToList(v))
+	if !isList {
+		return nil
+	}
+	var names []string
+	for _, item := range items {
+		name, isText := item.(string)
+		if !isText || !validLength(name, maxFieldName) {
+			b.partial(path, spanNamesReason)
+			return nil
+		}
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	if len(names) > maxSpanFilterNames {
+		b.partial(path, spanNamesReason)
+		return nil
+	}
+	b.consume(path)
+	return names
+}
+
+func (b *panelBuild) spanDuration(path string) *float64 {
+	v, ok := b.value(path)
+	text, isText := v.(string)
+	if !ok || !isText {
+		return nil
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		b.consume(path)
+		return nil
+	}
+	m := spanDurationPattern.FindStringSubmatch(text)
+	if m == nil {
+		b.partial(path, spanDurationReason)
+		return nil
+	}
+	n, err := strconv.ParseFloat(m[1], 64)
+	millis := math.Round(n*spanDurationMillis[m[2]]*1e6) / 1e6
+	if err != nil || millis > maxSpanFilterMillis {
+		b.partial(path, spanDurationReason)
+		return nil
+	}
+	b.consume(path)
+	return &millis
 }
