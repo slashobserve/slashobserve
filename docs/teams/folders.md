@@ -7,7 +7,7 @@ Every dashboard lives in one folder.
 A new install has one folder, General, and every dashboard that existed before folders is in it.
 General is open to everyone by role, and it cannot be renamed, deleted or restricted.
 
-Editors and Admins create folders and move dashboards between them on the Dashboards page.
+Editors and Admins create folders and move dashboards between them on the Dashboards page, and delete a dashboard from its row menu there or from the dashboard's **More** menu, after a confirmation.
 A move needs Edit on both folders and saves no version.
 A folder can be deleted only when it is empty.
 A title is 1 to 100 characters and unique without regard to case.

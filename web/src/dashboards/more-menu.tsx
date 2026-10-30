@@ -7,6 +7,7 @@ import {
   LayoutGridIcon,
   LogOutIcon,
   PencilIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import {
@@ -38,8 +39,10 @@ type Props = {
   layoutBlockedByActivity: boolean
   pinned: boolean
   detailsBlockedBy: string | null
+  deleteBlockedBy: string | null
   onEditLayout: () => void
   onEditDetails: () => void
+  onDelete: () => void
   onExport: () => void
   cursorSync: CursorSync
   onCursorSyncChange: (mode: CursorSync) => void
@@ -51,8 +54,10 @@ export function MoreMenu({
   layoutBlockedByActivity,
   pinned,
   detailsBlockedBy,
+  deleteBlockedBy,
   onEditLayout,
   onEditDetails,
+  onDelete,
   onExport,
   cursorSync,
   onCursorSyncChange,
@@ -68,7 +73,7 @@ export function MoreMenu({
         render={
           <button
             type="button"
-            aria-label="More: edit layout, edit details, export, chart hover, API keys, sign out"
+            aria-label="More: edit layout, edit details, export, chart hover, delete, API keys, sign out"
             className="grid size-[30px] place-items-center rounded-control outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted"
           />
         }
@@ -145,6 +150,21 @@ export function MoreMenu({
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {mayEdit ? (
+          <>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={deleteBlockedBy !== null}
+              onClick={onDelete}
+            >
+              <Trash2Icon aria-hidden="true" />
+              {deleteBlockedBy === null
+                ? "Delete dashboard..."
+                : `Delete dashboard (${deleteBlockedBy})`}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         {roleAtLeast(principal.role, "admin") ? (
           <DropdownMenuItem onClick={() => void navigate({ to: "/keys" })}>
             <KeyIcon aria-hidden="true" />
