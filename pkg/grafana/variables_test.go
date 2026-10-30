@@ -359,3 +359,22 @@ func TestResolutionFactorImportsWhenItIsTwoToTen(t *testing.T) {
 		})
 	}
 }
+
+func TestVariableQueryNamingAnUndeclaredVariableSaysSo(t *testing.T) {
+	account := `{"name":"account","type":"query","datasource":` + promRef + `,"query":"label_values(up, accountID)"}`
+	project := `{"name":"project","type":"query","datasource":` + promRef + `,"query":"label_values(up{accountID=~\"$accountID\"}, projectID)"}`
+	panel := `{"id":1,"type":"timeseries","title":"P","gridPos":{"x":0,"y":0,"w":12,"h":4},"datasource":` + promRef + `,"targets":[{"refId":"A","expr":"up{projectID=~\"$project\"}"}]}`
+	res := convertDoc(t, dashboardJSON(templating(account, project), panel))
+
+	if names := variableNames(res); !slices.Equal(names, []string{"account"}) {
+		t.Fatalf("variables = %v, want only account", names)
+	}
+	want := "Its query uses $accountID, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable."
+	notes := notesFor(res, "variable project")
+	if len(notes) != 1 || notes[0].Reason != want || !hasPath(notes, "templating.list[1]") {
+		t.Fatalf("notes = %+v, want one with %q", notes, want)
+	}
+	if line := panelLine(t, res, "p1"); line.Status != statusPlaceholder {
+		t.Fatalf("panel using the variable = %+v, want a placeholder", line)
+	}
+}

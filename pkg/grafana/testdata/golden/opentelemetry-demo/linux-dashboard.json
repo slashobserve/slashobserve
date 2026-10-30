@@ -714,7 +714,7 @@
       {
         "subject": "variable host_count",
         "status": "partial",
-        "reason": "SlashObserve could not validate this variable: query references undeclared variable \"ip\"; declare it in variables or remove the reference.",
+        "reason": "Its query uses $ip, but this dashboard declares no variable with that name, and SlashObserve cannot keep a reference to an undeclared variable.",
         "paths": [
           "templating.list[4]"
         ]
