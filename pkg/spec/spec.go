@@ -126,28 +126,88 @@ type TimeRange struct {
 }
 
 type Variable struct {
-	Name             string         `json:"name"`
-	Label            string         `json:"label,omitempty"`
-	Description      string         `json:"description,omitempty"`
-	Hide             string         `json:"hide,omitempty"`
-	Type             VariableType   `json:"type"`
-	Datasource       string         `json:"datasource,omitempty"`
-	DatasourceType   DatasourceType `json:"datasourceType,omitempty"`
-	Query            string         `json:"query,omitempty"`
-	Regex            string         `json:"regex,omitempty"`
-	Sort             string         `json:"sort,omitempty"`
-	Refresh          string         `json:"refresh,omitempty"`
-	Options          []string       `json:"options,omitempty"`
-	Multi            bool           `json:"multi,omitempty"`
-	IncludeAll       bool           `json:"includeAll,omitempty"`
-	AllValue         string         `json:"allValue,omitempty"`
-	AllowCustomValue bool           `json:"allowCustomValue,omitempty"`
-	ApplyToAll       bool           `json:"applyToAll,omitempty"`
-	Value            string         `json:"value,omitempty"`
-	Auto             bool           `json:"auto,omitempty"`
-	AutoSteps        int            `json:"autoSteps,omitempty"`
-	AutoMin          string         `json:"autoMin,omitempty"`
-	Default          *Selection     `json:"default,omitempty"`
+	Name             string           `json:"name"`
+	Label            string           `json:"label,omitempty"`
+	Description      string           `json:"description,omitempty"`
+	Hide             string           `json:"hide,omitempty"`
+	Type             VariableType     `json:"type"`
+	Datasource       string           `json:"datasource,omitempty"`
+	DatasourceType   DatasourceType   `json:"datasourceType,omitempty"`
+	Query            string           `json:"query,omitempty"`
+	Regex            string           `json:"regex,omitempty"`
+	Sort             string           `json:"sort,omitempty"`
+	Refresh          string           `json:"refresh,omitempty"`
+	Options          []VariableOption `json:"options,omitempty"`
+	Multi            bool             `json:"multi,omitempty"`
+	IncludeAll       bool             `json:"includeAll,omitempty"`
+	AllValue         string           `json:"allValue,omitempty"`
+	AllowCustomValue bool             `json:"allowCustomValue,omitempty"`
+	ApplyToAll       bool             `json:"applyToAll,omitempty"`
+	Value            string           `json:"value,omitempty"`
+	Auto             bool             `json:"auto,omitempty"`
+	AutoSteps        int              `json:"autoSteps,omitempty"`
+	AutoMin          string           `json:"autoMin,omitempty"`
+	Default          *Selection       `json:"default,omitempty"`
+}
+
+type VariableOption struct {
+	Text  string
+	Value string
+}
+
+func PlainOption(value string) VariableOption { return VariableOption{Text: value, Value: value} }
+
+func PlainOptions(values ...string) []VariableOption {
+	out := make([]VariableOption, len(values))
+	for i, value := range values {
+		out[i] = PlainOption(value)
+	}
+	return out
+}
+
+func OptionValues(options []VariableOption) []string {
+	out := make([]string, len(options))
+	for i, option := range options {
+		out[i] = option.Value
+	}
+	return out
+}
+
+func OptionTexts(options []VariableOption) []string {
+	out := make([]string, len(options))
+	for i, option := range options {
+		out[i] = option.Text
+	}
+	return out
+}
+
+func (o VariableOption) MarshalJSON() ([]byte, error) {
+	if o.Text == o.Value {
+		return json.Marshal(o.Value)
+	}
+	return json.Marshal(struct {
+		Text  string `json:"text"`
+		Value string `json:"value"`
+	}{o.Text, o.Value})
+}
+
+func (o *VariableOption) UnmarshalJSON(b []byte) error {
+	var plain string
+	if err := json.Unmarshal(b, &plain); err == nil {
+		*o = PlainOption(plain)
+		return nil
+	}
+	var pair struct {
+		Text  string `json:"text"`
+		Value string `json:"value"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&pair); err != nil {
+		return errors.New("spec: an option must be a string or an object with text and value")
+	}
+	*o = VariableOption(pair)
+	return nil
 }
 
 type Selection struct {

@@ -233,7 +233,7 @@ func adhocDashboard(inst datasource.Instance, panelType spec.PanelType, in insta
 			return nil, nil, invalid("variable names must match %s", variableName), false
 		}
 		values := in.Variables[name]
-		variables = append(variables, spec.Variable{Name: name, Type: spec.CustomVariable, Options: slices.Clone(values), Multi: true})
+		variables = append(variables, spec.Variable{Name: name, Type: spec.CustomVariable, Options: spec.PlainOptions(values...), Multi: true})
 		selections[name] = queryproxy.Selection{Values: slices.Clone(values)}
 	}
 	dash := &spec.Dashboard{

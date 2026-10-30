@@ -199,6 +199,7 @@ func checkVariableDefinitions(vars []Variable) []Issue {
 				})
 			}
 		}
+		issues = append(issues, duplicateOptionValues(i, v)...)
 		if message := invalidDefault(v); message != "" {
 			issues = append(issues, Issue{
 				Path:    pointer("variables", strconv.Itoa(i), "default"),
@@ -206,6 +207,24 @@ func checkVariableDefinitions(vars []Variable) []Issue {
 				Message: message,
 			})
 		}
+	}
+	return issues
+}
+
+func duplicateOptionValues(variable int, v Variable) []Issue {
+	var issues []Issue
+	first := make(map[string]int, len(v.Options))
+	for j, option := range v.Options {
+		i, dup := first[option.Value]
+		if !dup {
+			first[option.Value] = j
+			continue
+		}
+		issues = append(issues, Issue{
+			Path:    pointer("variables", strconv.Itoa(variable), "options", strconv.Itoa(j)),
+			Code:    CodeDuplicateKey,
+			Message: fmt.Sprintf("option value %q of variable %q is already used by option %d", option.Value, v.Name, i),
+		})
 	}
 	return issues
 }
@@ -219,7 +238,7 @@ func invalidDefault(v Variable) string {
 		return invalidListDefault(v)
 	case IntervalVariable:
 		for _, value := range v.Default.Values {
-			if !slices.Contains(v.Options, value) {
+			if !slices.Contains(OptionValues(v.Options), value) {
 				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
 			}
 		}
@@ -237,7 +256,7 @@ func invalidListDefault(v Variable) string {
 		return fmt.Sprintf("variable %q combines %s with other values in its default; give %s alone or list the values", v.Name, SelectAll, SelectAll)
 	case v.Type == CustomVariable:
 		for _, value := range v.Default.Values {
-			if value != SelectAll && !slices.Contains(v.Options, value) {
+			if value != SelectAll && !slices.Contains(OptionValues(v.Options), value) {
 				return fmt.Sprintf("default %q of variable %q is not one of its options", value, v.Name)
 			}
 		}

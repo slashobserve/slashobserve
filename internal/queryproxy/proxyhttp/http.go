@@ -108,8 +108,13 @@ type dataResponse struct {
 
 type valuesResponse struct {
 	Values    []string `json:"values"`
+	Texts     []string `json:"texts,omitempty"`
 	Truncated bool     `json:"truncated"`
 	Cached    bool     `json:"cached"`
+}
+
+func (e valuesEntry) response(cached bool) valuesResponse {
+	return valuesResponse{Values: e.values, Texts: e.texts, Truncated: e.truncated, Cached: cached}
 }
 
 type lintRequest struct {
@@ -339,23 +344,21 @@ func (h *Handler) values(c *gin.Context) {
 	user, scope := cacheScope(ctx, v)
 	key := valuesKey(id, version, name, rng.From, rng.To, p.selections, scope)
 	if entry, _, ok := h.caches.values.Get(key); ok {
-		c.JSON(http.StatusOK, valuesResponse{Values: entry.values, Truncated: entry.truncated, Cached: true})
+		c.JSON(http.StatusOK, entry.response(true))
 		return
 	}
-	values, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
+	options, truncated, err := h.runner.VariableValues(ctx, d, name, rng, p.selections, user)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	if values == nil {
-		values = []string{}
-	}
+	entry := newValuesEntry(options, truncated)
 	if i := slices.IndexFunc(d.Variables, func(v spec.Variable) bool { return v.Name == name }); i >= 0 && d.Variables[i].Type == spec.QueryVariable {
-		if entry := (valuesEntry{values: values, truncated: truncated}); entry.cost() <= valuesMaxEntry {
+		if entry.cost() <= valuesMaxEntry {
 			h.caches.values.Put(key, entry, entry.cost())
 		}
 	}
-	c.JSON(http.StatusOK, valuesResponse{Values: values, Truncated: truncated})
+	c.JSON(http.StatusOK, entry.response(false))
 }
 
 func (h *Handler) lint(c *gin.Context) {

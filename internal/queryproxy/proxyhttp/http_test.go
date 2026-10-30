@@ -232,7 +232,7 @@ func testDashboard() *spec.Dashboard {
 		Time:        spec.TimeRange{From: "now-6h", To: "now"},
 		Variables: []spec.Variable{
 			{Name: "job", Type: spec.QueryVariable, Datasource: "prom", Query: "label_values(up, job)"},
-			{Name: "env", Type: spec.CustomVariable, Options: []string{"prod", "dev"}},
+			{Name: "env", Type: spec.CustomVariable, Options: spec.PlainOptions("prod", "dev")},
 		},
 		Panels: []spec.Panel{
 			{ID: "p_ts", Type: spec.Timeseries, Title: "ts", Datasource: "prom", Queries: []spec.Query{{Query: `up{job="$job"}`}}},
@@ -1049,6 +1049,40 @@ func TestVariableValuesAreCachedForQueryVariablesOnly(t *testing.T) {
 	}
 }
 
+func TestVariableValuesCarryTextsOnlyWhenSomeTextDiffers(t *testing.T) {
+	hn := newHarness(t)
+	hn.addVariables(
+		spec.Variable{Name: "pretty", Type: spec.CustomVariable, Options: []spec.VariableOption{{Text: "Production", Value: "prod"}, spec.PlainOption("dev"), {Text: "Staging", Value: "stg"}}},
+		spec.Variable{Name: "split", Type: spec.QueryVariable, Datasource: "prom", Query: "label_values(up, job)", Regex: "/^(?<text>[a-z])(?<value>.+)$/"},
+	)
+
+	plain := hn.get(hn.valuesPath("job", window), "")
+	if strings.Contains(plain.Body.String(), `"texts"`) {
+		t.Errorf("a list whose texts equal its values carries texts: %s", plain.Body.String())
+	}
+
+	pretty := decodeValues(t, hn.get(hn.valuesPath("pretty", window), ""))
+	if strings.Join(pretty.Values, ",") != "prod,dev,stg" || strings.Join(pretty.Texts, ",") != "Production,dev,Staging" {
+		t.Errorf("custom pairs = %+v, want values prod,dev,stg with texts Production,dev,Staging", pretty)
+	}
+
+	path := hn.valuesPath("split", window)
+	first := decodeValues(t, hn.get(path, ""))
+	_, _, lookups, _ := hn.ds.counts()
+	second := decodeValues(t, hn.get(path, ""))
+	if first.Cached || !second.Cached {
+		t.Fatalf("cached flags = %v, %v; want false, true", first.Cached, second.Cached)
+	}
+	if _, _, after, _ := hn.ds.counts(); after != lookups {
+		t.Fatalf("the cached replay ran %d more variable lookups", after-lookups)
+	}
+	for _, body := range []valuesResponse{first, second} {
+		if strings.Join(body.Values, ",") != "pi,eb" || strings.Join(body.Texts, ",") != "a,w" {
+			t.Errorf("regex pairs = %+v, want values pi,eb with texts a,w", body)
+		}
+	}
+}
+
 func TestVariableValuesOverTheEntryCapAreNotCached(t *testing.T) {
 	hn := newHarness(t)
 	hn.ds.onVariable = func(context.Context, datasource.TimeRange) ([]string, error) {
@@ -1733,7 +1767,7 @@ func TestValuesOfTheNewVariableTypes(t *testing.T) {
 	hn := newHarness(t)
 	hn.addVariables(
 		spec.Variable{Name: "const", Type: spec.ConstantVariable, Value: "shop"},
-		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: []string{"1m", "5m"}, Auto: true},
+		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: spec.PlainOptions("1m", "5m"), Auto: true},
 		spec.Variable{Name: "dsv", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus},
 		spec.Variable{Name: "tb", Type: spec.TextboxVariable},
 		spec.Variable{Name: "pf", Type: spec.AdhocVariable, Datasource: "prom"},
@@ -1764,7 +1798,7 @@ func TestPanelDataWithTheNewVariableTypes(t *testing.T) {
 	hn := newHarness(t)
 	hn.addVariables(
 		spec.Variable{Name: "const", Type: spec.ConstantVariable, Value: "shop"},
-		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: []string{"1m", "5m"}, Auto: true},
+		spec.Variable{Name: "iv", Type: spec.IntervalVariable, Options: spec.PlainOptions("1m", "5m"), Auto: true},
 		spec.Variable{Name: "tb", Type: spec.TextboxVariable},
 		spec.Variable{Name: "pf", Type: spec.AdhocVariable, Datasource: "prom"},
 	)

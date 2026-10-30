@@ -21,7 +21,7 @@ func TestApplyVariableRegex(t *testing.T) {
 		{"no group keeps the value", "/web-.*/", []string{"web-1", "api-1"}, []string{"web-1"}},
 		{"first capture group replaces the value", "/^web-(.*)$/", []string{"web-1", "api-1", "web-2"}, []string{"1", "2"}},
 		{"named value group wins over the first group", "/^(\\w+)-(?<value>\\d+)$/", []string{"web-1", "api-2"}, []string{"1", "2"}},
-		{"named text group is the fallback", "/^(\\w+)-(?<text>\\d+)$/", []string{"web-1"}, []string{"1"}},
+		{"a text group alone keeps the whole value", "/^(\\w+)-(?<text>\\d+)$/", []string{"web-1"}, []string{"web-1"}},
 		{"duplicates keep the first", "/^(\\w+)-\\d+$/", []string{"web-1", "web-2", "api-1"}, []string{"web", "api"}},
 		{"case insensitive flag", "/WEB/i", []string{"web", "api"}, []string{"web"}},
 		{"unanchored slash pattern", "/eb/", []string{"web", "api"}, []string{"web"}},
@@ -41,8 +41,38 @@ func TestApplyVariableRegex(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := spec.ApplyVariableRegex(re, tc.values); !slices.Equal(got, tc.want) {
+			if got := spec.OptionValues(spec.ApplyVariableRegex(re, tc.values)); !slices.Equal(got, tc.want) {
 				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestApplyVariableRegexKeepsTextAndValueApart(t *testing.T) {
+	cases := []struct {
+		name   string
+		regex  string
+		values []string
+		want   []spec.VariableOption
+	}{
+		{"text group alone: the value stays whole", "/^(?<text>[a-z]+)-\\d+$/", []string{"web-1", "api-2"}, []spec.VariableOption{{Text: "web", Value: "web-1"}, {Text: "api", Value: "api-2"}}},
+		{"value group alone: the text follows it", "/^[a-z]+-(?<value>\\d+)$/", []string{"web-1"}, []spec.VariableOption{spec.PlainOption("1")}},
+		{"both groups", "/^(?<text>[a-z]+)-(?<value>\\d+)$/", []string{"web-1", "api-2"}, []spec.VariableOption{{Text: "web", Value: "1"}, {Text: "api", Value: "2"}}},
+		{"both groups in either order", "/^(?<value>\\d+)-(?<text>[a-z]+)$/", []string{"1-web"}, []spec.VariableOption{{Text: "web", Value: "1"}}},
+		{"neither: the first group is both", "/^([a-z]+)-(\\d+)$/", []string{"web-1"}, []spec.VariableOption{spec.PlainOption("web")}},
+		{"no group: the whole value is both", "web-.*", []string{"web-1"}, []spec.VariableOption{spec.PlainOption("web-1")}},
+		{"values that do not match are skipped", "/^(?<text>[a-z]+)-(?<value>\\d+)$/", []string{"nope", "web-1", "9"}, []spec.VariableOption{{Text: "web", Value: "1"}}},
+		{"an empty text group falls back to the value", "/^(?<text>x*)-(?<value>\\d+)$/", []string{"-5"}, []spec.VariableOption{spec.PlainOption("5")}},
+		{"duplicate values after mapping: the first wins", "/^(?<text>[a-z]+)-(?<value>\\d+)$/", []string{"web-1", "api-1", "web-2"}, []spec.VariableOption{{Text: "web", Value: "1"}, {Text: "web", Value: "2"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			re, err := spec.CompileVariableRegex(tc.regex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := spec.ApplyVariableRegex(re, tc.values); !slices.Equal(got, tc.want) {
+				t.Fatalf("got %+v, want %+v", got, tc.want)
 			}
 		})
 	}
@@ -53,6 +83,89 @@ func TestCompileVariableRegexRejects(t *testing.T) {
 		if _, err := spec.CompileVariableRegex(in); err == nil {
 			t.Errorf("CompileVariableRegex(%q) compiled, want an error", in)
 		}
+	}
+}
+
+func sortedValues(values []string, order string) []string {
+	return spec.OptionValues(spec.SortVariableOptions(spec.PlainOptions(values...), order))
+}
+
+func TestSortVariableOptionsSortsByTextAndKeepsPairsTogether(t *testing.T) {
+	input := []spec.VariableOption{{Text: "Beta", Value: "1"}, {Text: "alpha", Value: "3"}, {Text: "Gamma", Value: "2"}}
+	cases := []struct {
+		order string
+		want  []spec.VariableOption
+	}{
+		{"alpha", []spec.VariableOption{{Text: "Beta", Value: "1"}, {Text: "Gamma", Value: "2"}, {Text: "alpha", Value: "3"}}},
+		{"alphaCaseInsensitive", []spec.VariableOption{{Text: "alpha", Value: "3"}, {Text: "Beta", Value: "1"}, {Text: "Gamma", Value: "2"}}},
+		{"alphaCaseInsensitiveDesc", []spec.VariableOption{{Text: "Gamma", Value: "2"}, {Text: "Beta", Value: "1"}, {Text: "alpha", Value: "3"}}},
+		{"", input},
+	}
+	for _, tc := range cases {
+		original := slices.Clone(input)
+		if got := spec.SortVariableOptions(input, tc.order); !slices.Equal(got, tc.want) {
+			t.Errorf("sort %q = %+v, want %+v", tc.order, got, tc.want)
+		}
+		if !slices.Equal(input, original) {
+			t.Errorf("sort %q changed its input", tc.order)
+		}
+	}
+}
+
+func TestVariableOptionJSON(t *testing.T) {
+	var got []spec.VariableOption
+	if err := json.Unmarshal([]byte(`["plain",{"text":"Production","value":"prod"}]`), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := []spec.VariableOption{spec.PlainOption("plain"), {Text: "Production", Value: "prod"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("decoded %+v, want %+v", got, want)
+	}
+	out, err := json.Marshal(append(got, spec.VariableOption{Text: "same", Value: "same"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != `["plain",{"text":"Production","value":"prod"},"same"]` {
+		t.Fatalf("encoded %s", out)
+	}
+	for _, bad := range []string{`[1]`, `[{"text":"a","value":"b","extra":1}]`} {
+		var rejected []spec.VariableOption
+		if err := json.Unmarshal([]byte(bad), &rejected); err == nil {
+			t.Errorf("decoded %s, want an error", bad)
+		}
+	}
+}
+
+func TestTextValueOptionsExample(t *testing.T) {
+	d, err := spec.Parse(readExample(t, "variables/text-value-options.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []spec.VariableOption{{Text: "Production", Value: "prod"}, {Text: "Staging", Value: "staging"}, spec.PlainOption("dev")}
+	if got := d.Variables[0].Options; !slices.Equal(got, want) {
+		t.Fatalf("options = %+v, want %+v", got, want)
+	}
+}
+
+func TestMalformedTextValueOptionsAreRejected(t *testing.T) {
+	for name, option := range map[string]string{
+		"no value":      `{"text":"Production"}`,
+		"no text":       `{"value":"prod"}`,
+		"extra key":     `{"text":"A","value":"a","hint":"x"}`,
+		"empty text":    `{"text":"","value":"a"}`,
+		"empty value":   `{"text":"A","value":""}`,
+		"long text":     `{"text":"` + strings.Repeat("x", 201) + `","value":"a"}`,
+		"long value":    `{"text":"A","value":"` + strings.Repeat("x", 201) + `"}`,
+		"not an object": `7`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			doc := `{"specVersion":"0","title":"t","time":{"from":"now-1h","to":"now"},"variables":[{"name":"v","type":"custom","options":[` + option + `]}],"panels":[{"id":"p","type":"text","content":"x","gridPos":{"x":0,"y":0,"w":6,"h":4}}]}`
+			for _, issue := range parseIssues(t, []byte(doc)) {
+				if issue.Code != spec.CodeSchema || !strings.HasPrefix(issue.Path, "/variables/0/options/0") {
+					t.Fatalf("issue = %+v, want a schema issue under /variables/0/options/0", issue)
+				}
+			}
+		})
 	}
 }
 
@@ -84,7 +197,7 @@ func TestSortVariableValues(t *testing.T) {
 	}
 	for _, tc := range cases {
 		input := slices.Clone(tc.values)
-		if got := spec.SortVariableValues(input, tc.order); !slices.Equal(got, tc.want) {
+		if got := sortedValues(input, tc.order); !slices.Equal(got, tc.want) {
 			t.Errorf("sort %q of %q = %q, want %q", tc.order, tc.values, got, tc.want)
 		}
 		if !slices.Equal(input, tc.values) {
@@ -107,7 +220,7 @@ func TestSortVariableValuesSharedCases(t *testing.T) {
 	}
 	for _, tc := range cases {
 		input := slices.Clone(tc.Values)
-		if got := spec.SortVariableValues(input, tc.Order); !slices.Equal(got, tc.Want) {
+		if got := sortedValues(input, tc.Order); !slices.Equal(got, tc.Want) {
 			t.Errorf("sort %q of %q = %q, want %q", tc.Order, tc.Values, got, tc.Want)
 		}
 		if !slices.Equal(input, tc.Values) {
@@ -119,10 +232,10 @@ func TestSortVariableValuesSharedCases(t *testing.T) {
 func TestSortVariableValuesGivesOneOrderForEveryInputOrder(t *testing.T) {
 	values := []string{"b", "A", "a", "B", "007", "7", "08", "a10", "a9"}
 	for _, order := range []string{"alphaCaseInsensitive", "alphaCaseInsensitiveDesc", "natural", "naturalDesc"} {
-		want := spec.SortVariableValues(values, order)
+		want := sortedValues(values, order)
 		reversed := slices.Clone(values)
 		slices.Reverse(reversed)
-		if got := spec.SortVariableValues(reversed, order); !slices.Equal(got, want) {
+		if got := sortedValues(reversed, order); !slices.Equal(got, want) {
 			t.Errorf("sort %q of the reversed input = %q, want %q", order, got, want)
 		}
 	}
@@ -292,6 +405,13 @@ func TestVariableDefinitionIssues(t *testing.T) {
 		{"query array default without multi", `{"name":"v","type":"query","datasource":"prom","query":"label_values(up, job)","default":["a"]}`, spec.CodeInvalidDefault, "/variables/0/default"},
 		{"datasource regex does not compile", `{"name":"ds","type":"datasource","datasourceType":"prometheus","regex":"/a(/"}`, spec.CodeInvalidRegex, "/variables/0/regex"},
 		{"adhoc from a variable query", `{"name":"f","type":"adhoc","datasource":"prom"},{"name":"v","type":"query","datasource":"prom","query":"label_values(up{x=\"$f\"}, job)"}`, spec.CodeInvalidReference, "/variables/1/query"},
+		{"duplicate option strings", `{"name":"v","type":"custom","options":["a","b","a"]}`, spec.CodeDuplicateKey, "/variables/0/options/2"},
+		{"a string and a pair with the same value", `{"name":"v","type":"custom","options":["a",{"text":"Alpha","value":"a"}]}`, spec.CodeDuplicateKey, "/variables/0/options/1"},
+		{"two pairs with the same value", `{"name":"v","type":"custom","options":[{"text":"A","value":"a"},{"text":"B","value":"a"}]}`, spec.CodeDuplicateKey, "/variables/0/options/1"},
+		{"pairs with the same text and different values", `{"name":"v","type":"custom","options":[{"text":"A","value":"a"},{"text":"A","value":"b"}]}`, "", ""},
+		{"default names a pair's value", `{"name":"v","type":"custom","options":[{"text":"Production","value":"prod"}],"default":"prod"}`, "", ""},
+		{"default names a pair's text", `{"name":"v","type":"custom","options":[{"text":"Production","value":"prod"}],"default":"Production"}`, spec.CodeInvalidDefault, "/variables/0/default"},
+		{"an interval variable takes plain strings only", `{"name":"v","type":"interval","options":[{"text":"A","value":"1m"}]}`, spec.CodeSchema, "/variables/0/options/0"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

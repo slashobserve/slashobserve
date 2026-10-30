@@ -1232,6 +1232,12 @@ components:
           type: array
           items:
             type: string
+          description: The values a selection may hold.
+        texts:
+          type: array
+          items:
+            type: string
+          description: The display text of each value, same length and order as values; present only when some text differs from its value.
         truncated:
           type: boolean
         cached:

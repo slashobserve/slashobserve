@@ -190,7 +190,7 @@ func queryVariable(name, uid, query string) spec.Variable {
 }
 
 func customVariable(name string, options ...string) spec.Variable {
-	return spec.Variable{Name: name, Type: spec.CustomVariable, Options: options}
+	return spec.Variable{Name: name, Type: spec.CustomVariable, Options: spec.PlainOptions(options...)}
 }
 
 func dashboardOf(panels []spec.Panel, variables ...spec.Variable) *spec.Dashboard {
@@ -212,4 +212,11 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+}
+
+func valueStrings(options []spec.VariableOption, truncated bool, err error) ([]string, bool, error) {
+	if options == nil {
+		return nil, truncated, err
+	}
+	return spec.OptionValues(options), truncated, err
 }

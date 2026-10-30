@@ -66,7 +66,16 @@ type dataEntry struct {
 
 type valuesEntry struct {
 	values    []string
+	texts     []string
 	truncated bool
+}
+
+func newValuesEntry(options []spec.VariableOption, truncated bool) valuesEntry {
+	entry := valuesEntry{values: spec.OptionValues(options), truncated: truncated}
+	if slices.ContainsFunc(options, func(o spec.VariableOption) bool { return o.Text != o.Value }) {
+		entry.texts = spec.OptionTexts(options)
+	}
+	return entry
 }
 
 type caches struct {
@@ -91,6 +100,9 @@ func (e valuesEntry) cost() int64 {
 	cost := int64(valuesEntryBase)
 	for _, v := range e.values {
 		cost += int64(len(v)) + valuesItemOverhead
+	}
+	for _, t := range e.texts {
+		cost += int64(len(t)) + valuesItemOverhead
 	}
 	return cost
 }

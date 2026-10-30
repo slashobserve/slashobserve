@@ -46,6 +46,7 @@
     { "file": "semantic/default-all-without-include-all.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
     { "file": "semantic/default-all-with-other-values.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
     { "file": "semantic/custom-default-not-an-option.json", "layer": "semantic", "code": "invalid_default", "path": "/variables/0/default" },
+    { "file": "semantic/duplicate-option-value.json", "layer": "semantic", "code": "duplicate_key", "path": "/variables/0/options/1" },
     { "file": "semantic/invalid-variable-regex.json", "layer": "semantic", "code": "invalid_regex", "path": "/variables/0/regex" },
     { "file": "semantic/adhoc-with-format.json", "layer": "semantic", "code": "invalid_reference", "path": "/panels/0/queries/0/query" },
     { "file": "semantic/adhoc-apply-to-all-not-clickhouse.json", "layer": "semantic", "code": "invalid_reference", "path": "/variables/1/applyToAll" },

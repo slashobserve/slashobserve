@@ -1,6 +1,7 @@
 package grafana
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -225,8 +226,37 @@ func variableNames(res *Result) []string {
 
 func TestCustomPairsSplitAtTheLastSeparator(t *testing.T) {
 	res := convertVariables(t, `{"name":"c","type":"custom","query":"a : b : c, d : e,plain"}`)
-	if got := variableNamed(t, res, "c").Options; !slices.Equal(got, []string{"c", "e", "plain"}) {
-		t.Fatalf("options = %q", got)
+	if got := variableNamed(t, res, "c").Options; !slices.Equal(got, []spec.VariableOption{{Text: "a : b", Value: "c"}, {Text: "d", Value: "e"}, spec.PlainOption("plain")}) {
+		t.Fatalf("options = %+v", got)
+	}
+	if notes := notesFor(res, "variable c"); len(notes) != 0 {
+		t.Fatalf("notes = %+v, want none: the texts are kept", notes)
+	}
+}
+
+func TestCustomPairsKeepTheirTextsAndSelectByValue(t *testing.T) {
+	res := convertVariables(t, `{"name":"env","type":"custom","query":"Production : prod,Staging : stg,Other : prod,dev","current":{"value":"stg"}}`)
+	v := variableNamed(t, res, "env")
+	want := []spec.VariableOption{{Text: "Production", Value: "prod"}, {Text: "Staging", Value: "stg"}, spec.PlainOption("dev")}
+	if !slices.Equal(v.Options, want) {
+		t.Fatalf("options = %+v, want %+v (the first of two pairs with one value wins)", v.Options, want)
+	}
+	if v.Default == nil || !slices.Equal(v.Default.Values, []string{"stg"}) {
+		t.Fatalf("default = %+v, want the value stg", v.Default)
+	}
+	data, err := json.Marshal(v)
+	if err != nil || !strings.Contains(string(data), `{"text":"Production","value":"prod"}`) || !strings.Contains(string(data), `"dev"`) {
+		t.Fatalf("variable JSON = %s (%v), want objects for pairs and a string for a plain option", data, err)
+	}
+}
+
+func TestCustomPairsWithATextOverTwoHundredCharactersAreDropped(t *testing.T) {
+	res := convertVariables(t, `{"name":"env","type":"custom","query":"`+strings.Repeat("x", 201)+` : a,Fine : b"}`)
+	if got := variableNamed(t, res, "env").Options; !slices.Equal(got, []spec.VariableOption{{Text: "Fine", Value: "b"}}) {
+		t.Fatalf("options = %+v", got)
+	}
+	if notes := notesFor(res, "variable env"); len(notes) != 1 {
+		t.Fatalf("notes = %+v, want the dropped-values note", notes)
 	}
 }
 
@@ -406,7 +436,7 @@ func TestCustomVariableUsedAsAMinStepImportsAsAnIntervalVariable(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			res := convertDoc(t, doc)
 			v := variableNamed(t, res, "resolution")
-			if v.Type != spec.IntervalVariable || !slices.Equal(v.Options, []string{"1s", "15s", "30s", "1m"}) || v.Auto {
+			if v.Type != spec.IntervalVariable || !slices.Equal(v.Options, spec.PlainOptions("1s", "15s", "30s", "1m")) || v.Auto {
 				t.Fatalf("variable = %+v, want an interval variable with the four options and no auto", v)
 			}
 			if v.Default == nil || !slices.Equal(v.Default.Values, []string{"30s"}) {
