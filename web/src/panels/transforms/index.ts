@@ -1,6 +1,7 @@
 import type { WireFrame } from "@/dashboards/queries"
 import type { DataPanel, Transform } from "@/spec"
 
+import { filterByAdhoc, type ReusedFilter } from "./ad-hoc-filter"
 import { calculateField } from "./calculate"
 import { concatenate } from "./concatenate"
 import { configFromData } from "./config-from-data"
@@ -124,10 +125,18 @@ export function applyTransforms(
 export function prepareFrames(
   panel: DataPanel,
   frames: WireFrame[],
-  datasourceTypeOf?: DatasourceTypeOf
+  datasourceTypeOf?: DatasourceTypeOf,
+  reusedFilter?: ReusedFilter
 ): PreparedFrame[] {
+  const named = applyQueryFormats(
+    panel,
+    stampSeriesNames(panel, frames, datasourceTypeOf)
+  )
+  const transforms = panel.transform ?? []
+  const after = reusedFilter?.after ?? 0
+  const source = applyTransforms(named, transforms.slice(0, after))
   return applyTransforms(
-    applyQueryFormats(panel, stampSeriesNames(panel, frames, datasourceTypeOf)),
-    panel.transform
+    filterByAdhoc(source, reusedFilter?.filters ?? []),
+    transforms.slice(after)
   )
 }

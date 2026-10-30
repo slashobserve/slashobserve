@@ -1,4 +1,7 @@
-import { isDashboardQuery, type DataPanel } from "@/spec"
+import type { Selections } from "@/api/keys"
+import { isDashboardQuery, type DataPanel, type Variable } from "@/spec"
+
+import { adhocFiltersOf, type ReusedFilter } from "./ad-hoc-filter"
 
 export function reusePanel(
   panel: DataPanel,
@@ -20,4 +23,20 @@ export function reusePanel(
     timeShift: source.timeShift,
     transform: transform.length > 0 ? transform : undefined,
   }
+}
+
+export function reusedFilterOf(
+  panel: DataPanel,
+  source: DataPanel | undefined,
+  variables: readonly Variable[],
+  selections: Selections
+): ReusedFilter | undefined {
+  const query = panel.queries.find(isDashboardQuery)
+  if (!query?.source.adHocFilters || !source) return undefined
+  const filters = adhocFiltersOf(variables, selections)
+  if (filters.length === 0) return undefined
+  const after = query.source.withTransforms
+    ? (source.transform ?? []).length
+    : 0
+  return { filters, after }
 }

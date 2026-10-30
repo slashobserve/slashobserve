@@ -1053,6 +1053,32 @@ describe("chaining", () => {
     expect(columns(out)).toEqual({ Time: [1], pod: ["b"], Value: [9] })
   })
 
+  it("filters reused rows after the source's transforms and before the panel's own", () => {
+    const rows = frame([str("pod", ["a", "b", "a"]), num("Value", [1, 2, 3])])
+    const transforms: Transform[] = [
+      { type: "limit", count: 2 },
+      { type: "sortBy", field: "Value", desc: true },
+    ]
+    const filter = { filters: [{ key: "pod", op: "=" as const, value: "a" }] }
+    const [afterSource] = prepareFrames(
+      panel([{}], transforms),
+      [rows],
+      undefined,
+      { ...filter, after: 1 }
+    )
+    expect(columns(afterSource)).toEqual({ pod: ["a"], Value: [1] })
+    const [beforeAll] = prepareFrames(
+      panel([{}], transforms),
+      [rows],
+      undefined,
+      {
+        ...filter,
+        after: 0,
+      }
+    )
+    expect(columns(beforeAll)).toEqual({ pod: ["a", "a"], Value: [3, 1] })
+  })
+
   it("returns the frames when there is nothing to apply", () => {
     const input = frame([num("Value", [1])])
     expect(applyTransforms([input], undefined)).toEqual([input])

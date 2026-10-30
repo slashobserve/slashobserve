@@ -26,6 +26,7 @@ func TestDashboardSourceParses(t *testing.T) {
 	}{
 		{"source panel only", sourcePanelJSON + "," + reusePanel("dep", 0, "", ""), spec.DashboardSource{Panel: "src"}},
 		{"with transforms", sourcePanelJSON + "," + reusePanel("dep", 0, "", `{"ref":"R","source":{"panel":"src","withTransforms":true}}`), spec.DashboardSource{Panel: "src", WithTransforms: true}},
+		{"with ad hoc filters", sourcePanelJSON + "," + reusePanel("dep", 0, "", `{"ref":"R","source":{"panel":"src","adHocFilters":true}}`), spec.DashboardSource{Panel: "src", AdHocFilters: true}},
 		{"hidden", sourcePanelJSON + "," + reusePanel("dep", 0, "", `{"hide":true,"source":{"panel":"src"}}`), spec.DashboardSource{Panel: "src"}},
 		{"source after the panel that reuses it", reusePanel("dep", 0, "", "") + "," + sourcePanelJSON, spec.DashboardSource{Panel: "src"}},
 		{"transforms of its own", sourcePanelJSON + "," + reusePanel("dep", 0, `,"transform":[{"type":"sortBy","field":"Time"}]`, ""), spec.DashboardSource{Panel: "src"}},

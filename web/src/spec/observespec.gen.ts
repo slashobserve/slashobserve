@@ -1175,6 +1175,10 @@ export interface DashboardQuery {
      * Apply the source panel's transforms to its results before this panel's own.
      */
     withTransforms?: boolean;
+    /**
+     * Filter the reused rows by the dashboard's ad hoc filters, after the source panel's transforms (when withTransforms is set) and before this panel's own: a filter applies to the rows of a frame that has a field named by its key.
+     */
+    adHocFilters?: boolean;
   };
 }
 export interface Override1 {

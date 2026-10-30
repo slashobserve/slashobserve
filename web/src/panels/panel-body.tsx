@@ -15,6 +15,7 @@ import { PanelSkeleton } from "./panel-skeleton"
 import { RendererBoundary } from "./renderer-boundary"
 import type { SharedCursor } from "./shared-cursor"
 import { prepareFrames, type DatasourceTypeOf } from "./transforms"
+import type { ReusedFilter } from "./transforms/ad-hoc-filter"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
 import { Unsupported } from "./unsupported"
 
@@ -54,6 +55,7 @@ type Props = {
   from: string | undefined
   to: string | undefined
   asTable?: boolean
+  reusedFilter?: ReusedFilter
 }
 
 export function PanelBody({
@@ -69,6 +71,7 @@ export function PanelBody({
   from,
   to,
   asTable = false,
+  reusedFilter,
 }: Props) {
   const datasources = useDatasources()
   const typeOf = useMemo<DatasourceTypeOf>(
@@ -81,12 +84,15 @@ export function PanelBody({
     [datasources.data, vars]
   )
   const frames = useMemo(
-    () => prepareFrames(panel, data.frames, typeOf),
-    [panel, data.frames, typeOf]
+    () => prepareFrames(panel, data.frames, typeOf, reusedFilter),
+    [panel, data.frames, typeOf, reusedFilter]
   )
   const ghostFrames = useMemo(
-    () => (ghost ? prepareFrames(panel, ghost.frames, typeOf) : undefined),
-    [panel, ghost, typeOf]
+    () =>
+      ghost
+        ? prepareFrames(panel, ghost.frames, typeOf, reusedFilter)
+        : undefined,
+    [panel, ghost, typeOf, reusedFilter]
   )
   const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
   const display = useMemo(

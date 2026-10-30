@@ -319,6 +319,7 @@ The source must be a data panel with queries that neither repeats nor itself reu
 The server runs the source panel's queries once, under the source's cache key, so both panels share one run.
 
 `withTransforms: true` applies the source panel's transforms to the results before the panel's own `transform` list.
+`adHocFilters: true` filters the reused rows in the browser by the selections of every ad hoc variable of the dashboard, after the source panel's transforms (when `withTransforms` is set) and before the panel's own: a filter keeps the rows whose field named by its key passes the operator (`=`, `!=`, `=~` and `!~`, the regular expressions matching the whole value), and a frame with no field of that name is left as it is.
 The panel's `overrides` match the source's query refs.
 A reusing query can set `hide`, which leaves the panel without data.
 The response of a reusing panel names the source in `meta.source_panel`.
