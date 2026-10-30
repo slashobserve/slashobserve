@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQueries, useQuery } from "@tanstack/react-query"
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -9,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 
+import { assetKeys } from "@/api/keys"
 import { assetImageUrl } from "@/lib/remote-assets"
 import { useTheme } from "@/lib/theme"
 import { outboundDomainsQuery } from "@/settings/outbound-domains"
@@ -30,19 +32,37 @@ import {
   ScaleBars,
   ZoomControls,
 } from "./controls"
+import { buildGazetteer, type Gazetteers } from "./gazetteer/lookup"
 import {
   fitChoice,
   fitPoints,
   geoModel,
   initialView,
+  layerNeeds,
   skippedText,
   symbolPath,
   truncatedText,
   viewOptions,
   viewTuning,
-  type Marker,
   type MarkersLayerModel,
+  type Tip,
 } from "./geo-model"
+import {
+  BlockedGeojsonNote,
+  DayNightLayer,
+  GeojsonLayer,
+  HeatmapLayer,
+  NetworkEdges,
+  PhotosLayer,
+  RouteLayer,
+} from "./layers/draw"
+import {
+  fetchGeojson,
+  remoteGeojson,
+  retryGeojson,
+  type Feature,
+  type RemoteGeojson,
+} from "./layers/geojson"
 import {
   clampCenter,
   clampZoom,
@@ -58,7 +78,7 @@ import {
 import { pathMeters } from "./scale"
 import { useManualView } from "./shared-view"
 import { visibleTiles } from "./tiles"
-import { worldOutline } from "./world"
+import { atlasFeatures, worldOutline, type AtlasName } from "./world"
 
 const tooltipOffset = 12
 const tooltipHeight = 120
@@ -70,6 +90,7 @@ const wheelLineStep = 0.05
 const wheelMaxStep = 1
 const keyboardHint =
   "Arrow keys pan, plus and minus zoom, 0 resets the view. View as table lists every marker."
+const geojsonStaleMs = 3_600_000
 const panKeys: Record<string, [number, number]> = {
   ArrowLeft: [-panStep, 0],
   ArrowRight: [panStep, 0],
@@ -77,7 +98,7 @@ const panKeys: Record<string, [number, number]> = {
   ArrowDown: [0, panStep],
 }
 
-type Hover = { marker: Marker; x: number; y: number }
+type Hover = { tip: Tip; x: number; y: number }
 type Drag = { startX: number; startY: number; view: View }
 
 function Tooltip({
@@ -89,9 +110,9 @@ function Tooltip({
   width: number
   height: number
 }) {
-  const { marker } = hover
+  const { tip } = hover
   const onRight = hover.x > width / 2
-  const Icon = marker.state ? thresholdIcons[marker.state.level] : null
+  const Icon = tip.state ? thresholdIcons[tip.state.level] : null
   return (
     <div
       role="tooltip"
@@ -106,10 +127,8 @@ function Tooltip({
           : { left: hover.x + tooltipOffset }),
       }}
     >
-      <div className="mb-1 text-muted-foreground tabular-nums">
-        {marker.label}
-      </div>
-      {marker.details.map((detail) => (
+      <div className="mb-1 text-muted-foreground tabular-nums">{tip.label}</div>
+      {tip.details.map((detail) => (
         <div key={detail.name} className="flex justify-between gap-3">
           <span className="min-w-0 truncate text-muted-foreground">
             {detail.name}
@@ -119,15 +138,15 @@ function Tooltip({
           </span>
         </div>
       ))}
-      {Icon && marker.state ? (
+      {Icon && tip.state ? (
         <div className="mt-1 flex items-center gap-1">
           <Icon
             className="size-3 shrink-0"
             strokeWidth={2.4}
             aria-hidden="true"
-            style={{ color: marker.color }}
+            style={{ color: tip.color }}
           />
-          <span>{marker.state.word}</span>
+          <span>{tip.state.word}</span>
         </div>
       ) : null}
     </div>
@@ -204,7 +223,7 @@ function MarkersLayer({
   width: number
   height: number
   tooltipOn: boolean
-  onHover: (marker: Marker, event: ReactPointerEvent<SVGElement>) => void
+  onHover: (tip: Tip, event: ReactPointerEvent<SVGElement>) => void
   onLeave: () => void
 }) {
   const hoverable = tooltipOn && layer.tooltip
@@ -261,18 +280,85 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)]
 }
 
+type Atlases = Partial<Record<AtlasName, Feature[]>>
+
+function useAtlases(names: readonly AtlasName[]): Atlases {
+  const [loaded, setLoaded] = useState<Atlases>({})
+  useEffect(() => {
+    let live = true
+    for (const name of names) {
+      atlasFeatures(name)
+        .then((features) => {
+          if (live) setLoaded((current) => ({ ...current, [name]: features }))
+        })
+        .catch(() => undefined)
+    }
+    return () => {
+      live = false
+    }
+  }, [names])
+  return loaded
+}
+
+function useRemoteGeojson(
+  urls: readonly string[]
+): Record<string, RemoteGeojson> {
+  const combine = useCallback(
+    (
+      results: {
+        status: "pending" | "success" | "error"
+        data: Feature[] | undefined
+        error: unknown
+      }[]
+    ) =>
+      Object.fromEntries(
+        urls.map((url, index) => [url, remoteGeojson(results[index], url)])
+      ),
+    [urls]
+  )
+  return useQueries({
+    queries: urls.map((url) => ({
+      queryKey: assetKeys.geojson(url),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        fetchGeojson(url, signal),
+      staleTime: geojsonStaleMs,
+      retry: retryGeojson,
+    })),
+    combine,
+  })
+}
+
 const GeomapPanel: PanelRenderer = ({
   frames,
   fields,
   display,
+  meta,
   width,
   height,
   stateScope,
 }) => {
   const { resolved: theme } = useTheme()
+  const needs = useMemo(() => layerNeeds(display), [display])
+  const atlases = useAtlases(needs.atlases)
+  const remote = useRemoteGeojson(needs.urls)
+  const gazetteers = useMemo(() => {
+    const books: Gazetteers = {}
+    for (const name of needs.atlases) {
+      const features = atlases[name]
+      if (features) books[name] = buildGazetteer(name, features)
+    }
+    return books
+  }, [needs, atlases])
+  const rangeEnd = Date.parse(meta.to)
   const model = useMemo(
-    () => geoModel(frames, fields, display, theme),
-    [frames, fields, display, theme]
+    () =>
+      geoModel(frames, fields, display, theme, {
+        gazetteers,
+        atlases,
+        remote,
+        time: Number.isNaN(rangeEnd) ? undefined : rangeEnd,
+      }),
+    [frames, fields, display, theme, gazetteers, atlases, remote, rangeEnd]
   )
   const basemap = useMemo(() => basemapOf(display, theme), [display, theme])
   const options = useMemo(() => viewOptions(display), [display])
@@ -388,6 +474,7 @@ const GeomapPanel: PanelRenderer = ({
     ...tileLayers.map((layer) => layer.source.attribution),
   ])
   const tooltipOn = display.tooltip !== "none"
+  const box = { left, top, size, width, height }
   const centre = unproject(view.center.x, view.center.y)
 
   function zoomBy(step: number) {
@@ -480,13 +567,13 @@ const GeomapPanel: PanelRenderer = ({
     event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
-  function showHover(marker: Marker, event: ReactPointerEvent<SVGElement>) {
+  function showHover(tip: Tip, event: ReactPointerEvent<SVGElement>) {
     if (drag.current || !frame.current) return
-    const box = frame.current.getBoundingClientRect()
+    const bounds = frame.current.getBoundingClientRect()
     setHover({
-      marker,
-      x: event.clientX - box.left,
-      y: event.clientY - box.top,
+      tip,
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
     })
   }
 
@@ -542,33 +629,82 @@ const GeomapPanel: PanelRenderer = ({
             style={{ fill: "none", stroke: "var(--border)", strokeWidth: 1 }}
           />
         ) : null}
-        {model.layers.map((layer, index) =>
-          layer.kind === "tiles" ? (
-            tileLayers.includes(layer) ? (
-              <TileLayer
-                key={index}
-                source={layer.source}
-                view={view}
-                width={width}
-                height={height}
-                opacity={layer.opacity}
-              />
-            ) : null
-          ) : (
-            <MarkersLayer
-              key={index}
-              layer={layer}
-              left={left}
-              top={top}
-              size={size}
-              width={width}
-              height={height}
-              tooltipOn={tooltipOn}
-              onHover={showHover}
-              onLeave={() => setHover(null)}
-            />
-          )
-        )}
+        {model.layers.map((layer, index) => {
+          switch (layer.kind) {
+            case "tiles":
+              return tileLayers.includes(layer) ? (
+                <TileLayer
+                  key={index}
+                  source={layer.source}
+                  view={view}
+                  width={width}
+                  height={height}
+                  opacity={layer.opacity}
+                />
+              ) : null
+            case "markers":
+              return (
+                <MarkersLayer
+                  key={index}
+                  layer={layer}
+                  left={left}
+                  top={top}
+                  size={size}
+                  width={width}
+                  height={height}
+                  tooltipOn={tooltipOn}
+                  onHover={showHover}
+                  onLeave={() => setHover(null)}
+                />
+              )
+            case "heatmap":
+              return (
+                <HeatmapLayer
+                  key={index}
+                  layer={layer}
+                  box={box}
+                  theme={theme}
+                />
+              )
+            case "geojson":
+              return (
+                <GeojsonLayer
+                  key={index}
+                  layer={layer}
+                  box={box}
+                  hoverable={tooltipOn}
+                  onHover={showHover}
+                  onLeave={() => setHover(null)}
+                />
+              )
+            case "dayNight":
+              return <DayNightLayer key={index} layer={layer} box={box} />
+            case "route":
+              return (
+                <RouteLayer
+                  key={index}
+                  layer={layer}
+                  box={box}
+                  hoverable={tooltipOn}
+                  onHover={showHover}
+                  onLeave={() => setHover(null)}
+                />
+              )
+            case "photos":
+              return (
+                <PhotosLayer
+                  key={index}
+                  layer={layer}
+                  box={box}
+                  hoverable={tooltipOn}
+                  onHover={showHover}
+                  onLeave={() => setHover(null)}
+                />
+              )
+            case "network":
+              return <NetworkEdges key={index} layer={layer} box={box} />
+          }
+        })}
         {routePixels.length > 0 ? (
           <g pointerEvents="none">
             {routePixels.length > 1 ? (
@@ -630,6 +766,12 @@ const GeomapPanel: PanelRenderer = ({
               <BlockedTilesNote host={blocked.host} />
             </>
           ) : null}
+          {model.blocked.map((host) => (
+            <span key={host}>
+              {" "}
+              <BlockedGeojsonNote host={host} />
+            </span>
+          ))}
         </span>
         <span className="flex shrink-0 gap-3">
           {display.showDebug === true ? (

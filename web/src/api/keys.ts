@@ -143,6 +143,10 @@ export const outboundDomainKeys = {
   list: () => ["outbound-domains"] as const,
 }
 
+export const assetKeys = {
+  geojson: (url: string) => ["assets", "geojson", url] as const,
+}
+
 export const newsKeys = {
   feed: (url: string) => ["news", url] as const,
 }

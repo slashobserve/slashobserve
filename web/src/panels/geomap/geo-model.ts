@@ -17,6 +17,38 @@ import {
 } from "./basemaps"
 import { decodeGeohash } from "./geohash"
 import {
+  atlasOf,
+  gazetteerName,
+  resolveLookup,
+  type Gazetteers,
+  type LookupState,
+} from "./gazetteer/lookup"
+import { dayNightModel, type DayNightModel } from "./layers/day-night"
+import {
+  geojsonModel,
+  geojsonUrlUsable,
+  tooLargeNote,
+  type DrawnFeature,
+  type Feature,
+  type RemoteGeojson,
+} from "./layers/geojson"
+import { heatmapModel, type HeatmapModel, type HeatRow } from "./layers/heatmap"
+import {
+  idText,
+  networkModel,
+  truncatedEdgesText,
+  type EdgeRow,
+  type NetworkModel,
+  type NetworkNode,
+} from "./layers/network"
+import {
+  photosModel,
+  truncatedPhotosText,
+  type PhotoRow,
+  type PhotosModel,
+} from "./layers/photos"
+import { routeModel, type RouteModel, type RouteRow } from "./layers/route"
+import {
   clampZoom,
   fitBounds,
   project,
@@ -26,8 +58,9 @@ import {
   type ZoomLimits,
 } from "./projection"
 import { isRegion, regionCorners } from "./regions"
+import type { AtlasName } from "./world"
 
-type Detail = { name: string; text: string }
+export type Detail = { name: string; text: string }
 
 export const markerSymbols = [
   "circle",
@@ -40,7 +73,7 @@ export const markerSymbols = [
 
 export type MarkerSymbol = (typeof markerSymbols)[number]
 
-export type Marker = {
+type Marker = {
   key: string
   frameIndex: number
   row: number
@@ -58,23 +91,46 @@ export type Marker = {
   state: { level: Exclude<ThresholdLevel, "base">; word: string } | null
 }
 
-export type MarkersLayerModel = {
-  kind: "markers"
-  name: string
-  opacity: number
-  tooltip: boolean
-  textSize: number
-  markers: Marker[]
-}
+export type Tip = Pick<Marker, "label" | "details" | "state" | "color">
 
-type TilesLayerModel = {
-  kind: "tiles"
-  name: string
-  opacity: number
-  source: TileSource
-}
+type LayerBase = { name: string; opacity: number }
+type Hoverable = { tooltip: boolean }
 
-type DrawnLayer = MarkersLayerModel | TilesLayerModel
+export type MarkersLayerModel = LayerBase &
+  Hoverable & { kind: "markers"; textSize: number; markers: Marker[] }
+
+type TilesLayerModel = LayerBase & { kind: "tiles"; source: TileSource }
+
+export type HeatmapLayerModel = LayerBase & { kind: "heatmap" } & HeatmapModel
+
+export type GeojsonLayerModel = LayerBase &
+  Hoverable & {
+    kind: "geojson"
+    features: DrawnFeature[]
+    corners: LonLat[]
+  }
+
+export type DayNightLayerModel = LayerBase & {
+  kind: "dayNight"
+} & DayNightModel
+
+export type RouteLayerModel = LayerBase &
+  Hoverable & { kind: "route" } & RouteModel
+
+export type PhotosLayerModel = LayerBase &
+  Hoverable & { kind: "photos" } & PhotosModel
+
+export type NetworkLayerModel = LayerBase & { kind: "network" } & NetworkModel
+
+type DrawnLayer =
+  | MarkersLayerModel
+  | TilesLayerModel
+  | HeatmapLayerModel
+  | GeojsonLayerModel
+  | DayNightLayerModel
+  | RouteLayerModel
+  | PhotosLayerModel
+  | NetworkLayerModel
 
 export type GeoModel = {
   layers: DrawnLayer[]
@@ -83,6 +139,14 @@ export type GeoModel = {
   truncated: number
   reason: string | null
   notes: string[]
+  blocked: string[]
+}
+
+export type GeoContext = {
+  gazetteers?: Gazetteers
+  atlases?: Partial<Record<AtlasName, Feature[]>>
+  remote?: Record<string, RemoteGeojson>
+  time?: number
 }
 
 export type ViewOptions = {
@@ -126,6 +190,7 @@ const geohashNames = ["geohash"]
 type Source =
   | { kind: "coords"; lat: PreparedField; lon: PreparedField }
   | { kind: "geohash"; geohash: PreparedField }
+  | { kind: "lookup"; field: PreparedField; lookup: LookupState }
 
 type Located = {
   frame: PreparedFrame
@@ -134,6 +199,7 @@ type Located = {
   row: number
   lat: number
   lon: number
+  place: string | null
   size: number | null
   sizeField: PreparedField | undefined
   colorField: PreparedField | undefined
@@ -221,9 +287,30 @@ function geohashSource(frame: PreparedFrame, layer: Layer): Source | null {
   return geohash ? { kind: "geohash", geohash } : null
 }
 
-function sourceOf(frame: PreparedFrame, layer: Layer): Source | null {
+function lookupSource(
+  frame: PreparedFrame,
+  layer: Layer,
+  gazetteers: Gazetteers
+): Source | null {
+  const field =
+    explicit(frame, layer.lookupField) ??
+    frame.fields.find((candidate) => candidate.type === "string")
+  if (!field) return null
+  return {
+    kind: "lookup",
+    field,
+    lookup: resolveLookup(gazetteerName(layer.gazetteer), gazetteers),
+  }
+}
+
+function sourceOf(
+  frame: PreparedFrame,
+  layer: Layer,
+  gazetteers: Gazetteers
+): Source | null {
   if (layer.location === "coords") return coordsSource(frame, layer)
   if (layer.location === "geohash") return geohashSource(frame, layer)
+  if (layer.location === "lookup") return lookupSource(frame, layer, gazetteers)
   const prefersGeohash =
     textOf(layer.geohashField) !== undefined &&
     textOf(layer.latField) === undefined &&
@@ -234,7 +321,8 @@ function sourceOf(frame: PreparedFrame, layer: Layer): Source | null {
 }
 
 function locationFields(source: Source): PreparedField[] {
-  return source.kind === "coords" ? [source.lat, source.lon] : [source.geohash]
+  if (source.kind === "coords") return [source.lat, source.lon]
+  return source.kind === "geohash" ? [source.geohash] : []
 }
 
 function firstNumber(
@@ -260,19 +348,26 @@ function coordinate(value: unknown): number {
   return NaN
 }
 
+function pointOf(source: Source, row: number): LonLat | null {
+  if (source.kind === "coords") {
+    return {
+      lat: coordinate(source.lat.values[row]),
+      lon: coordinate(source.lon.values[row]),
+    }
+  }
+  if (source.kind === "geohash") {
+    const value = source.geohash.values[row]
+    return typeof value === "string" ? decodeGeohash(value) : null
+  }
+  if (source.lookup.state !== "ready") return null
+  return source.lookup.gazetteer.find(source.field.values[row])
+}
+
 function position(
   source: Source,
   row: number
 ): { lat: number; lon: number } | null {
-  const point =
-    source.kind === "coords"
-      ? {
-          lat: coordinate(source.lat.values[row]),
-          lon: coordinate(source.lon.values[row]),
-        }
-      : typeof source.geohash.values[row] === "string"
-        ? decodeGeohash(source.geohash.values[row] as string)
-        : null
+  const point = pointOf(source, row)
   if (!point) return null
   const { lat, lon } = point
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
@@ -286,16 +381,18 @@ function rowsOf(frame: PreparedFrame): number {
 
 function locate(
   frames: PreparedFrame[],
-  layer: Layer
+  layer: Layer,
+  gazetteers: Gazetteers
 ): { located: Located[]; skipped: number; found: boolean } {
   const located: Located[] = []
-  const fixedColor = fixedColorOf(layer)
+  const fixedColor = fixedColorOf(layer.color)
   let skipped = 0
   let found = false
   frames.forEach((frame, frameIndex) => {
-    const source = sourceOf(frame, layer)
+    const source = sourceOf(frame, layer, gazetteers)
     if (!source) return
     found = true
+    if (source.kind === "lookup" && source.lookup.state === "pending") return
     const taken = locationFields(source)
     const sizeField = sideField(frame, layer.sizeField, taken)
     const colorField =
@@ -317,6 +414,10 @@ function locate(
         source,
         row,
         ...point,
+        place:
+          source.kind === "lookup"
+            ? String(source.field.values[row] ?? "")
+            : null,
         size: isNumber(raw) ? raw : null,
         sizeField,
         colorField,
@@ -379,8 +480,7 @@ function detailsOf(
 
 const fixedColorPattern = /^(?:ok|info|warning|critical|#[0-9a-fA-F]{6})$/
 
-function fixedColorOf(layer: Layer): string | undefined {
-  const color = layer.color
+function fixedColorOf(color: unknown): string | undefined {
   return typeof color === "string" && fixedColorPattern.test(color)
     ? thresholdColor(color)
     : undefined
@@ -417,20 +517,60 @@ function symbolOf(value: unknown): MarkerSymbol {
   return markerSymbols.find((symbol) => symbol === value) ?? "circle"
 }
 
-function markersLayer(
+function labelOf(item: Located): string {
+  return item.place ?? `${item.lat.toFixed(3)}, ${item.lon.toFixed(3)}`
+}
+
+function plainTip(item: Located, fields: FieldResolver, color: string): Tip {
+  return {
+    label: labelOf(item),
+    color,
+    state: null,
+    details: detailsOf(
+      item.frame,
+      fields,
+      locationFields(item.source),
+      item.row
+    ),
+  }
+}
+
+type Gathered = {
+  all: Located[]
+  kept: Located[]
+  skipped: number
+  truncated: number
+  found: boolean
+}
+
+function gather(
   frames: PreparedFrame[],
   layer: Layer,
-  fields: FieldResolver,
-  limit = maxMarkers
-): { markers: Marker[]; skipped: number; truncated: number; found: boolean } {
+  gazetteers: Gazetteers,
+  limit: number
+): Gathered {
   const query = textOf(layer.query)
   const own =
     query === undefined ? frames : frames.filter((frame) => frame.ref === query)
-  const { located, skipped, found } = locate(own, layer)
-  const radiusOf = sizeScale(located, layer)
-  const fixed = fixedColorOf(layer)
+  const { located, skipped, found } = locate(own, layer, gazetteers)
+  return {
+    all: located,
+    kept: located.slice(0, limit),
+    skipped,
+    truncated: Math.max(0, located.length - limit),
+    found,
+  }
+}
+
+function markersFrom(
+  gathered: Gathered,
+  layer: Layer,
+  fields: FieldResolver
+): Marker[] {
+  const radiusOf = sizeScale(gathered.all, layer)
+  const fixed = fixedColorOf(layer.color)
   const symbol = symbolOf(layer.symbol)
-  const markers = located.slice(0, limit).map((item): Marker => {
+  const markers = gathered.kept.map((item): Marker => {
     const { x, y } = project(item.lon, item.lat)
     const rotation = item.rotationField?.values[item.row]
     return {
@@ -447,7 +587,7 @@ function markersLayer(
       text: item.textField
         ? fieldText(item.frame, item.textField, fields, item.row)
         : null,
-      label: `${item.lat.toFixed(3)}, ${item.lon.toFixed(3)}`,
+      label: labelOf(item),
       details: detailsOf(
         item.frame,
         fields,
@@ -458,12 +598,7 @@ function markersLayer(
     }
   })
   markers.sort((a, b) => b.radius - a.radius)
-  return {
-    markers,
-    skipped,
-    truncated: Math.max(0, located.length - limit),
-    found,
-  }
+  return markers
 }
 
 function isRecord(value: unknown): value is Layer {
@@ -480,58 +615,401 @@ function layerOpacity(layer: Layer): number {
   return isNumber(layer.opacity) ? Math.max(0, Math.min(1, layer.opacity)) : 1
 }
 
+function layerConfigs(display: Record<string, unknown>): Layer[] {
+  return Array.isArray(display.layers)
+    ? display.layers.filter(isRecord)
+    : [flatLayer(display)]
+}
+
+export function layerNeeds(display: Record<string, unknown>): {
+  atlases: AtlasName[]
+  urls: string[]
+} {
+  const atlases = new Set<AtlasName>()
+  const urls = new Set<string>()
+  for (const config of layerConfigs(display)) {
+    if (config.type === "geojson") {
+      const url = textOf(config.url)
+      if (url !== undefined) {
+        if (geojsonUrlUsable(url)) urls.add(url)
+      } else if (
+        config.source === "countries" ||
+        config.source === "usa-states"
+      ) {
+        atlases.add(config.source)
+      }
+    }
+    const atlas = atlasOf(gazetteerName(config.gazetteer))
+    if (config.location === "lookup" && atlas !== null) atlases.add(atlas)
+  }
+  return { atlases: [...atlases], urls: [...urls] }
+}
+
+type Env = {
+  frames: PreparedFrame[]
+  fields: FieldResolver
+  context: GeoContext
+  gazetteers: Gazetteers
+  budget: number
+}
+
+type Built = {
+  layers: DrawnLayer[]
+  notes: string[]
+  skipped: number
+  truncated: number
+  used: number
+  found: boolean
+  blocked: string[]
+}
+
+function built(partial: Partial<Built>): Built {
+  return {
+    layers: [],
+    notes: [],
+    skipped: 0,
+    truncated: 0,
+    used: 0,
+    found: false,
+    blocked: [],
+    ...partial,
+  }
+}
+
+function lookupNotes(config: Layer, env: Env): string[] {
+  if (config.location !== "lookup") return []
+  const state = resolveLookup(gazetteerName(config.gazetteer), env.gazetteers)
+  return state.state === "unavailable" ? [state.note] : []
+}
+
+function locatedPart(config: Layer, env: Env, gathered: Gathered) {
+  return {
+    notes: lookupNotes(config, env),
+    skipped: gathered.skipped,
+    truncated: gathered.truncated,
+    used: gathered.kept.length,
+    found: gathered.found,
+  }
+}
+
+function common(config: Layer, name: string) {
+  return {
+    name,
+    opacity: layerOpacity(config),
+    tooltip: config.tooltip !== false,
+  }
+}
+
+function buildMarkers(config: Layer, name: string, env: Env): Built {
+  const gathered = gather(env.frames, config, env.gazetteers, env.budget)
+  return built({
+    ...locatedPart(config, env, gathered),
+    layers: [
+      {
+        kind: "markers",
+        ...common(config, name),
+        textSize: numberOf(config.textSize, defaultTextSize),
+        markers: markersFrom(gathered, config, env.fields),
+      },
+    ],
+  })
+}
+
+function memoByFrame(
+  resolve: (frame: PreparedFrame) => PreparedField | undefined
+): (frame: PreparedFrame) => PreparedField | undefined {
+  const cache = new Map<PreparedFrame, PreparedField | undefined>()
+  return (frame) => {
+    if (!cache.has(frame)) cache.set(frame, resolve(frame))
+    return cache.get(frame)
+  }
+}
+
+function buildHeatmap(config: Layer, name: string, env: Env): Built {
+  const gathered = gather(env.frames, config, env.gazetteers, env.budget)
+  const weighted = textOf(config.weightField) !== undefined
+  const weightField = memoByFrame((frame) =>
+    explicit(frame, config.weightField)
+  )
+  const rows = gathered.kept.map((item): HeatRow => {
+    const raw = weighted
+      ? coordinate(weightField(item.frame)?.values[item.row])
+      : 1
+    return {
+      frameIndex: item.frameIndex,
+      row: item.row,
+      lat: item.lat,
+      lon: item.lon,
+      weight: Number.isFinite(raw) ? raw : 0,
+    }
+  })
+  return built({
+    ...locatedPart(config, env, gathered),
+    layers: [
+      {
+        kind: "heatmap",
+        name,
+        opacity: layerOpacity(config),
+        ...heatmapModel(rows, config),
+      },
+    ],
+  })
+}
+
+function buildRoute(config: Layer, name: string, env: Env): Built {
+  const gathered = gather(env.frames, config, env.gazetteers, env.budget)
+  const fixed = fixedColorOf(config.color)
+  const timeField = memoByFrame((frame) =>
+    frame.fields.find((field) => field.type === "time")
+  )
+  const rows = gathered.kept.map((item): RouteRow => {
+    const time = timeField(item.frame)?.values[item.row]
+    return {
+      frameIndex: item.frameIndex,
+      row: item.row,
+      lat: item.lat,
+      lon: item.lon,
+      time: isNumber(time) ? time : null,
+      tip: plainTip(
+        item,
+        env.fields,
+        fixed ?? styleForSlot(item.frameIndex).color
+      ),
+    }
+  })
+  return built({
+    ...locatedPart(config, env, gathered),
+    layers: [
+      {
+        kind: "route",
+        ...common(config, name),
+        ...routeModel(rows, config, fixed),
+      },
+    ],
+  })
+}
+
+function buildPhotos(config: Layer, name: string, env: Env): Built {
+  const gathered = gather(env.frames, config, env.gazetteers, env.budget)
+  const imageField = memoByFrame((frame) => explicit(frame, config.imageField))
+  const fixed = fixedColorOf(config.color)
+  const rows = gathered.kept.map((item): PhotoRow => ({
+    frameIndex: item.frameIndex,
+    row: item.row,
+    lat: item.lat,
+    lon: item.lon,
+    url: imageField(item.frame)?.values[item.row],
+    tip: plainTip(item, env.fields, fixed ?? styleForSlot(0).color),
+  }))
+  const model = photosModel(rows, config)
+  const part = locatedPart(config, env, gathered)
+  return built({
+    ...part,
+    notes: [
+      ...part.notes,
+      ...(textOf(config.imageField) === undefined
+        ? [`Layer ${name} needs an image field.`]
+        : []),
+      ...(model.truncated > 0 ? [truncatedPhotosText(model.truncated)] : []),
+    ],
+    layers: [{ kind: "photos", ...common(config, name), ...model }],
+  })
+}
+
+function hasField(frame: PreparedFrame, name: string): boolean {
+  return frame.fields.some((field) => field.name === name)
+}
+
+function buildNetwork(config: Layer, name: string, env: Env): Built {
+  const query = textOf(config.query)
+  const own =
+    query === undefined
+      ? env.frames
+      : env.frames.filter((frame) => frame.ref === query)
+  const nodeFrames = own.filter((frame) => hasField(frame, "id"))
+  const edgeFrames = own.filter(
+    (frame) => hasField(frame, "source") && hasField(frame, "target")
+  )
+  const gathered = gather(nodeFrames, config, env.gazetteers, env.budget)
+  const nodes = gathered.all.flatMap((item): NetworkNode[] => {
+    const id = idText(
+      item.frame.fields.find((field) => field.name === "id")?.values[item.row]
+    )
+    return id === null ? [] : [{ id, lat: item.lat, lon: item.lon }]
+  })
+  const edgeRows = edgeFrames.flatMap((frame, frameIndex) => {
+    const source = frame.fields.find((field) => field.name === "source")
+    const target = frame.fields.find((field) => field.name === "target")
+    return Array.from({ length: rowsOf(frame) }, (_, row): EdgeRow => ({
+      frameIndex,
+      row,
+      source: source?.values[row],
+      target: target?.values[row],
+    }))
+  })
+  const model = networkModel(
+    nodes,
+    edgeRows,
+    config,
+    fixedColorOf(config.color)
+  )
+  const part = locatedPart(config, env, gathered)
+  return built({
+    ...part,
+    skipped: part.skipped + model.unlocated,
+    notes: [
+      ...part.notes,
+      ...(model.truncated > 0 ? [truncatedEdgesText(model.truncated)] : []),
+    ],
+    layers: [
+      { kind: "network", name, opacity: layerOpacity(config), ...model },
+      {
+        kind: "markers",
+        ...common(config, name),
+        textSize: numberOf(config.textSize, defaultTextSize),
+        markers: markersFrom(gathered, config, env.fields),
+      },
+    ],
+  })
+}
+
+function geojsonSource(
+  config: Layer,
+  name: string,
+  env: Env
+): { features: readonly Feature[]; notes: string[]; blocked: string[] } {
+  const none = { features: [], notes: [], blocked: [] }
+  const url = textOf(config.url)
+  if (url !== undefined) {
+    if (!geojsonUrlUsable(url)) {
+      return { ...none, notes: [`Layer ${name} needs an https URL.`] }
+    }
+    const remote = env.context.remote?.[url]
+    if (remote?.state === "ready") return { ...none, features: remote.features }
+    if (remote?.state === "blocked") return { ...none, blocked: [remote.host] }
+    if (remote?.state === "failed") {
+      return { ...none, notes: [`Layer ${name} could not load its GeoJSON.`] }
+    }
+    return none
+  }
+  if (config.source === "countries" || config.source === "usa-states") {
+    return { ...none, features: env.context.atlases?.[config.source] ?? [] }
+  }
+  return { ...none, notes: [`Layer ${name} needs a URL or a bundled source.`] }
+}
+
+function buildGeojson(config: Layer, name: string, env: Env): Built {
+  const { features, notes, blocked } = geojsonSource(config, name, env)
+  const model = geojsonModel(features, config, fixedColorOf)
+  return built({
+    notes: model.tooLarge ? [...notes, tooLargeNote] : notes,
+    blocked,
+    layers: [
+      {
+        kind: "geojson",
+        ...common(config, name),
+        features: model.features,
+        corners: model.corners,
+      },
+    ],
+  })
+}
+
+function buildDayNight(config: Layer, name: string, env: Env): Built {
+  const date = new Date(env.context.time ?? Date.now())
+  return built({
+    layers: [
+      {
+        kind: "dayNight",
+        name,
+        opacity: layerOpacity(config),
+        ...dayNightModel(date, config, fixedColorOf(config.nightColor)),
+      },
+    ],
+  })
+}
+
+function buildTiles(config: Layer, name: string, theme: AppTheme): Built {
+  const source = tileSource(config, theme)
+  if (!source) {
+    return built({
+      notes: [`Layer ${name} needs an https URL with {z}, {x} and {y}.`],
+    })
+  }
+  return built({
+    layers: [{ kind: "tiles", name, opacity: layerOpacity(config), source }],
+  })
+}
+
+const locatingTypes = ["markers", "heatmap", "route", "photos", "network"]
+const standaloneTypes = ["geojson", "dayNight"]
+
 export function geoModel(
   frames: PreparedFrame[],
   fields: FieldResolver,
   display: Record<string, unknown>,
-  theme: AppTheme = "light"
+  theme: AppTheme = "light",
+  context: GeoContext = {}
 ): GeoModel {
-  const configs = Array.isArray(display.layers)
-    ? display.layers.filter(isRecord)
-    : [flatLayer(display)]
   const layers: DrawnLayer[] = []
   const notes: string[] = []
+  const blocked = new Set<string>()
   let skipped = 0
   let truncated = 0
-  let budget = maxMarkers
-  let markerLayers = 0
-  let located = false
-  for (const config of configs) {
+  let locating = 0
+  let found = false
+  let standalone = false
+  const env: Env = {
+    frames,
+    fields,
+    context,
+    gazetteers: context.gazetteers ?? {},
+    budget: maxMarkers,
+  }
+  for (const config of layerConfigs(display)) {
     const type = textOf(config.type) ?? "layer"
     const name = textOf(config.name) ?? type
-    if (type === "markers") {
-      markerLayers++
-      const built = markersLayer(frames, config, fields, budget)
-      located ||= built.found
-      budget -= built.markers.length
-      skipped += built.skipped
-      truncated += built.truncated
-      layers.push({
-        kind: "markers",
-        name,
-        opacity: layerOpacity(config),
-        tooltip: config.tooltip !== false,
-        textSize: numberOf(config.textSize, defaultTextSize),
-        markers: built.markers,
-      })
-    } else if (tileLayerTypes.includes(type)) {
-      const source = tileSource(config, theme)
-      if (source) {
-        layers.push({
-          kind: "tiles",
-          name,
-          opacity: layerOpacity(config),
-          source,
-        })
-      } else {
-        notes.push(`Layer ${name} needs an https URL with {z}, {x} and {y}.`)
-      }
-    } else {
-      notes.push(`Layer ${name} is not drawn yet.`)
+    let result: Built
+    switch (type) {
+      case "markers":
+        result = buildMarkers(config, name, env)
+        break
+      case "heatmap":
+        result = buildHeatmap(config, name, env)
+        break
+      case "route":
+        result = buildRoute(config, name, env)
+        break
+      case "photos":
+        result = buildPhotos(config, name, env)
+        break
+      case "network":
+        result = buildNetwork(config, name, env)
+        break
+      case "geojson":
+        result = buildGeojson(config, name, env)
+        break
+      case "dayNight":
+        result = buildDayNight(config, name, env)
+        break
+      default:
+        result = tileLayerTypes.includes(type)
+          ? buildTiles(config, name, theme)
+          : built({ notes: [`Layer ${name} is not a layer this map knows.`] })
     }
+    if (locatingTypes.includes(type)) locating++
+    standalone ||=
+      standaloneTypes.includes(type) ||
+      result.layers.some((layer) => layer.kind === "tiles")
+    found ||= result.found
+    env.budget -= result.used
+    skipped += result.skipped
+    truncated += result.truncated
+    layers.push(...result.layers)
+    notes.push(...result.notes)
+    for (const host of result.blocked) blocked.add(host)
   }
-  const tiled = layers.some((layer) => layer.kind === "tiles")
-  if (markerLayers > 0 && !located && !tiled) {
+  if (locating > 0 && !found && !standalone) {
     return {
       layers: [],
       markers: [],
@@ -539,6 +1017,7 @@ export function geoModel(
       truncated: 0,
       reason: noLocationReason,
       notes,
+      blocked: [...blocked],
     }
   }
   return {
@@ -550,22 +1029,50 @@ export function geoModel(
     truncated,
     reason: null,
     notes,
+    blocked: [...blocked],
   }
 }
 
+type FitRow = LonLat & { frameIndex: number; row: number }
+
+function fitOf(
+  layer: DrawnLayer
+): { rows: readonly FitRow[]; fixed: readonly LonLat[] } | null {
+  switch (layer.kind) {
+    case "markers":
+      return { rows: layer.markers, fixed: [] }
+    case "heatmap":
+      return { rows: layer.points, fixed: [] }
+    case "route":
+      return { rows: layer.lines.flatMap((line) => line.points), fixed: [] }
+    case "photos":
+      return { rows: layer.photos, fixed: [] }
+    case "geojson":
+      return { rows: [], fixed: layer.corners }
+    default:
+      return null
+  }
+}
+
+function lastRows(rows: readonly FitRow[]): FitRow[] {
+  const last = new Map<number, FitRow>()
+  for (const entry of rows) {
+    const seen = last.get(entry.frameIndex)
+    if (!seen || entry.row > seen.row) last.set(entry.frameIndex, entry)
+  }
+  return [...last.values()]
+}
+
 export function fitPoints(model: GeoModel, choice: FitChoice): LonLat[] {
-  const markerLayers = model.layers.filter((layer) => layer.kind === "markers")
-  const named = markerLayers.filter((layer) => layer.name === choice.layer)
-  const chosen = named.length > 0 ? named : markerLayers
-  return chosen.flatMap((layer) => {
-    if (!choice.lastOnly) return layer.markers
-    const last = new Map<number, Marker>()
-    for (const marker of layer.markers) {
-      const seen = last.get(marker.frameIndex)
-      if (!seen || marker.row > seen.row) last.set(marker.frameIndex, marker)
-    }
-    return [...last.values()]
+  const fitting = model.layers.flatMap((layer) => {
+    const fit = fitOf(layer)
+    return fit ? [{ layer, fit }] : []
   })
+  const named = fitting.filter(({ layer }) => layer.name === choice.layer)
+  return (named.length > 0 ? named : fitting).flatMap(({ fit }) => [
+    ...(choice.lastOnly ? lastRows(fit.rows) : fit.rows),
+    ...fit.fixed,
+  ])
 }
 
 export function initialView(
