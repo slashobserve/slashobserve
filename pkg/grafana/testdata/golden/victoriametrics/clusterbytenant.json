@@ -1,0 +1,1045 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "VictoriaMetrics Cluster Per Tenant Statistic",
+    "uid": "IZFqd3lMz",
+    "schema_version": 41,
+    "bytes": 50018,
+    "panels": 19,
+    "rows": 2,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${ds}",
+      "name": "ds",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 19,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    },
+    {
+      "key": "PE8D8DB4BEE4E4B22",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 0,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 19,
+      "imported": 0,
+      "partial": 12,
+      "placeholder": 7,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Datapoints ingestion rate",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[2]",
+        "title": "Read query rate",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[3]",
+        "title": "Active time series",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[4]",
+        "title": "Time spent on queries, seconds",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[5]",
+        "title": "Disk space usage (datapoints only) ",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[6]",
+        "title": "New series over 24h ",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[7]",
+        "title": "Instant Churn Rate",
+        "type": "placeholder",
+        "source_type": "timeseries",
+        "row": "Statistic",
+        "status": "placeholder",
+        "reasons": [
+          "It uses variable project, which could not be imported."
+        ],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The panel is a placeholder, so its query is not imported."
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[9]",
+        "title": "Ingestion Rate Top 5, by account id ",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[10]",
+        "title": "Read query rate, Top 5, by account id",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[11]",
+        "title": "Time spent on queries, seconds, Top 5, by account id",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[12]",
+        "title": "Active time series, Top 5, by account id ",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.sortBy",
+          "options.legend.sortDesc",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[13]",
+        "title": "Disk space usage, Top 5, by account id ",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[14]",
+        "title": "New series over 24h, Top 5, by account id ",
+        "type": "piechart",
+        "source_type": "piechart",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.legend.displayMode",
+          "options.legend.values"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[15]",
+        "title": "Ingestion Rate, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[16]",
+        "title": "Read query rate, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[17]",
+        "title": "Time spent on queries, seconds, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p27",
+        "grafana_id": 27,
+        "grafana_path": "panels[18]",
+        "title": "Active time series, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[19]",
+        "title": "Disk space usage, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p30",
+        "grafana_id": 30,
+        "grafana_path": "panels[20]",
+        "title": "New series over 24h, Top 5, by account id",
+        "type": "table",
+        "source_type": "table",
+        "row": "Billing",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "options.frameIndex",
+          "options.sortBy[0].desc",
+          "options.sortBy[0].displayName"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${ds}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable project",
+        "status": "partial",
+        "reason": "SlashObserve could not validate this variable: query references undeclared variable \"accountID\"; declare it in variables or remove the reference.",
+        "paths": [
+          "templating.list[2]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "VictoriaMetrics Cluster Per Tenant Statistic",
+    "description": "Overview for enterprise cluster VictoriaMetrics v1.56.0 or higher",
+    "tags": [
+      "victoriametrics"
+    ],
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "account",
+        "type": "query",
+        "datasource": "${ds}",
+        "query": "label_values(vm_tenant_active_timeseries, accountID)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "adhoc",
+        "type": "adhoc",
+        "datasource": "prom"
+      }
+    ],
+    "links": [
+      {
+        "title": "Docs",
+        "url": "https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/",
+        "newTab": true
+      },
+      {
+        "title": "Community support",
+        "url": "https://victoriametrics.com/support/community-support/",
+        "newTab": true
+      },
+      {
+        "title": "Enterprise support",
+        "url": "https://victoriametrics.com/support/enterprise-support/",
+        "newTab": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p12",
+        "type": "row",
+        "title": "Statistic",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "placeholder",
+            "title": "Datapoints ingestion rate",
+            "description": "How many datapoints are inserted into storage per second by accountID and projectID",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p4",
+            "type": "placeholder",
+            "title": "Read query rate",
+            "description": "Request rate accepted by vmselect nodes per tenant",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p6",
+            "type": "placeholder",
+            "title": "Active time series",
+            "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p31",
+            "type": "placeholder",
+            "title": "Time spent on queries, seconds",
+            "description": "Time spent on query execution per tenant per second",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p10",
+            "type": "placeholder",
+            "title": "Disk space usage (datapoints only)",
+            "description": "Shows the amount of on-disk space occupied by data points only. The disk space is used for storing by datapoint and indexdb. There is no option to expose per tenant statistic for indexdb. Usually, indexed takes much less space compared to datapoints. But with a high churn rate, the size of the indexdb could grow significantly.",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p19",
+            "type": "placeholder",
+            "title": "New series over 24h",
+            "description": "Number of new series created over last 24h.",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          },
+          {
+            "id": "p34",
+            "type": "placeholder",
+            "title": "Instant Churn Rate",
+            "description": "The higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
+            "gridPos": {
+              "x": 12,
+              "y": 25,
+              "w": 12,
+              "h": 8
+            },
+            "reason": "It uses variable project, which could not be imported.",
+            "sourceType": "timeseries"
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "Billing",
+        "gridPos": {
+          "x": 0,
+          "y": 33,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p16",
+            "type": "piechart",
+            "title": "Ingestion Rate Top 5, by account id",
+            "gridPos": {
+              "x": 0,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\"}[$__range])) by (accountID), \"accountID=other\") ",
+                "legend": "{{accountID}}"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "piechart",
+            "title": "Read query rate, Top 5, by account id",
+            "gridPos": {
+              "x": 4,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "none",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p32",
+            "type": "piechart",
+            "title": "Time spent on queries, seconds, Top 5, by account id",
+            "gridPos": {
+              "x": 8,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "none",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p21",
+            "type": "piechart",
+            "title": "Active time series, Top 5, by account id",
+            "gridPos": {
+              "x": 12,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p22",
+            "type": "piechart",
+            "title": "Disk space usage, Top 5, by account id",
+            "gridPos": {
+              "x": 16,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "bytes",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p24",
+            "type": "piechart",
+            "title": "New series over 24h, Top 5, by account id",
+            "gridPos": {
+              "x": 20,
+              "y": 34,
+              "w": 4,
+              "h": 14
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "display": {
+              "legend": "bottom"
+            }
+          },
+          {
+            "id": "p25",
+            "type": "table",
+            "title": "Ingestion Rate, Top 5, by account id",
+            "gridPos": {
+              "x": 0,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_inserted_rows_total{accountID=~\"$account\"}[$__range])) by (accountID), \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "short"
+              }
+            ]
+          },
+          {
+            "id": "p26",
+            "type": "table",
+            "title": "Read query rate, Top 5, by account id",
+            "gridPos": {
+              "x": 4,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_select_requests_total{accountID=~\"$account\"}[$__rate_interval])) by (accountID), \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "short"
+              }
+            ]
+          },
+          {
+            "id": "p33",
+            "type": "table",
+            "title": "Time spent on queries, seconds, Top 5, by account id",
+            "gridPos": {
+              "x": 8,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(rate(vm_tenant_select_requests_duration_ms_total{accountID=~\"$account\"}[$__range])) by (accountID) /1000, \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "short"
+              }
+            ]
+          },
+          {
+            "id": "p27",
+            "type": "table",
+            "title": "Active time series, Top 5, by account id",
+            "gridPos": {
+              "x": 12,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(vm_tenant_active_timeseries{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "short"
+              }
+            ]
+          },
+          {
+            "id": "p28",
+            "type": "table",
+            "title": "Disk space usage, Top 5, by account id",
+            "gridPos": {
+              "x": 16,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(vm_tenant_used_tenant_bytes{accountID=~\"$account\"}) by(accountID), \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "bytes"
+              }
+            ]
+          },
+          {
+            "id": "p30",
+            "type": "table",
+            "title": "New series over 24h, Top 5, by account id",
+            "gridPos": {
+              "x": 20,
+              "y": 48,
+              "w": 4,
+              "h": 8
+            },
+            "datasource": "${ds}",
+            "queries": [
+              {
+                "query": "topk_last(5, sum(increase(vm_tenant_timeseries_created_total{accountID=~\"$account\"}[24h])) by(accountID), \"accountID=other\") ",
+                "legend": "{{label_name}}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "none",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value"
+                },
+                "unit": "short"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

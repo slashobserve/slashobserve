@@ -1,0 +1,335 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Hubble / DNS Overview (Namespace)",
+    "uid": "_f0DUpY4k",
+    "schema_version": 38,
+    "bytes": 15699,
+    "panels": 4,
+    "rows": 1,
+    "variables": 4
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 4,
+      "imported": 0,
+      "partial": 4,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[1]",
+        "title": "DNS queries",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p41",
+        "grafana_id": 41,
+        "grafana_path": "panels[2]",
+        "title": "Top 10 DNS queries",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[3]",
+        "title": "Missing DNS responses",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p43",
+        "grafana_id": 43,
+        "grafana_path": "panels[4]",
+        "title": "DNS errors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]",
+          "links[1]"
+        ]
+      },
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "The regular expression is not supported and is not applied.",
+        "paths": [
+          "templating.list[0].regex"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Hubble / DNS Overview (Namespace)",
+    "tags": [
+      "kubecon-demo"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Data Source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(cilium_version, cluster)",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "source_namespace",
+        "label": "Source Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(source_namespace)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "destination_namespace",
+        "label": "Destination Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(destination_namespace)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p2",
+        "type": "row",
+        "title": "DNS",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "DNS queries",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_queries_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (source) > 0",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p41",
+            "type": "bargauge",
+            "title": "Top 10 DNS queries",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_dns_queries_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])*60) by (query))",
+                "legend": "{{query}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              }
+            ],
+            "display": {
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p39",
+            "type": "timeseries",
+            "title": "Missing DNS responses",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "round(sum(rate(hubble_dns_queries_total{cluster=~\"$cluster\", source_namespace=~\"$source_namespace\", destination_namespace=~\"$destination_namespace\"}[$__rate_interval])) by (source) - sum(label_replace(sum(rate(hubble_dns_responses_total{cluster=~\"$cluster\", source_namespace=~\"$destination_namespace\", destination_namespace=~\"$source_namespace\"}[$__rate_interval])) by (destination), \"source\", \"$1\", \"destination\", \"(.*)\")) without (destination), 0.001) > 0",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p43",
+            "type": "timeseries",
+            "title": "DNS errors",
+            "gridPos": {
+              "x": 12,
+              "y": 10,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_responses_total{cluster=~\"$cluster\", source_namespace=~\"$destination_namespace\", destination_namespace=~\"$source_namespace\", rcode!=\"No Error\"}[$__rate_interval])) by (destination, rcode) > 0",
+                "legend": "{{destination}}: {{rcode}}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

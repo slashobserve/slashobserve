@@ -1,0 +1,748 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Spanmetrics Demo Dashboard",
+    "uid": "W2gX2zHVk48",
+    "schema_version": 40,
+    "bytes": 27181,
+    "panels": 8,
+    "rows": 3,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "webstore-metrics",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 8,
+      "imported": 0,
+      "partial": 8,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[0]",
+        "title": "",
+        "type": "text",
+        "source_type": "text",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "HTML text is shown as Markdown."
+        ],
+        "paths": [
+          "options.mode"
+        ],
+        "queries": []
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[2]",
+        "title": "Top 3x3 - Service Latency - quantile95",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "Service Level - Throughput and Latencies",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "Top 7 Services Mean Rate over Range",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Service Level - Throughput and Latencies",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.displayMode",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[4]",
+        "title": "Top 7 Services Mean ERROR Rate over Range",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "Service Level - Throughput and Latencies",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.displayMode",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p22",
+        "grafana_id": 22,
+        "grafana_path": "panels[6]",
+        "title": "Top 7 span_names and Errors  (APM Table)",
+        "type": "table",
+        "source_type": "table",
+        "row": "span_names Level - Throughput",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "This color scheme is not supported yet; series use the default palette.",
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.overrides[0].properties[1]",
+          "fieldConfig.overrides[1].properties[0]",
+          "fieldConfig.overrides[1].properties[1]",
+          "transformations[2].options.reduce.include",
+          "transformations[3].options.reduce.include"
+        ],
+        "queries": [
+          {
+            "ref_id": "Rate",
+            "ref": "Rate",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "Error Rate",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [
+              "refId Error Rate -> B"
+            ],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p25",
+        "grafana_id": 25,
+        "grafana_path": "panels[8]",
+        "title": "Top 3x3 - span_name Latency - quantile95",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "span_name Level - Latencies",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[9]",
+        "title": "Top 7 Highest Endpoint Latencies  Mean Over Range ",
+        "type": "bargauge",
+        "source_type": "bargauge",
+        "row": "span_name Level - Latencies",
+        "status": "partial",
+        "reasons": [
+          "This color scheme is not supported yet; series use the default palette.",
+          "Bar styles are drawn in the SlashObserve style.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Size limits are not kept."
+        ],
+        "paths": [
+          "fieldConfig.defaults.color",
+          "options.displayMode",
+          "options.legend.showLegend",
+          "options.minVizHeight",
+          "options.minVizWidth"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[10]",
+        "title": "Top 7 Latencies Over Range ",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "span_name Level - Latencies",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some legend values are not supported yet.",
+          "Smoothed or stepped lines are drawn straight.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "options.legend.calcs",
+          "fieldConfig.defaults.custom.lineInterpolation",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Spanmetrics Demo Dashboard",
+    "description": "Spanmetrics way of demo application view.",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "refresh": "5m",
+    "variables": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": "prom",
+        "query": "query_result(count by (service_name)(count_over_time(traces_span_metrics_calls_total[$__range])))",
+        "regex": "/.*service_name=\"(.*)\".*/",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "span_name",
+        "type": "query",
+        "datasource": "prom",
+        "query": "query_result(sum ({__name__=~\".*traces_span_metrics_calls_total\",service_name=~\"$service\"})  by (span_name))",
+        "regex": "/.*span_name=\"(.*)\".*/",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p26",
+        "type": "text",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 2
+        },
+        "content": "This dashboard uses RED metrics generated for all services by the spanmetrics connector configured in the OpenTelemetry Collector.\n<br>\nChart panels may require 5 minutes after the Demo is started before rendering data."
+      },
+      {
+        "id": "p24",
+        "type": "row",
+        "title": "Service Level - Throughput and Latencies",
+        "gridPos": {
+          "x": 0,
+          "y": 2,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "gauge",
+            "title": "Top 3x3 - Service Latency - quantile95",
+            "gridPos": {
+              "x": 0,
+              "y": 3,
+              "w": 12,
+              "h": 20
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7,histogram_quantile(0.50, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name)))",
+                "legend": "{{service_name}}-quantile_0.50",
+                "hide": true
+              },
+              {
+                "query": "topk(7,histogram_quantile(0.95, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])) by (le,service_name)))",
+                "legend": "{{service_name}}",
+                "instant": true
+              },
+              {
+                "query": "histogram_quantile(0.99, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name))",
+                "legend": "quantile99",
+                "hide": true
+              },
+              {
+                "query": "histogram_quantile(0.999, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name))",
+                "legend": "quantile999",
+                "hide": true
+              }
+            ],
+            "unit": "ms",
+            "thresholds": [
+              {
+                "color": "info"
+              },
+              {
+                "value": 2,
+                "color": "ok"
+              },
+              {
+                "value": 64,
+                "color": "warning"
+              },
+              {
+                "value": 128,
+                "color": "warning"
+              },
+              {
+                "value": 256,
+                "color": "critical"
+              }
+            ],
+            "interval": "5m"
+          },
+          {
+            "id": "p4",
+            "type": "bargauge",
+            "title": "Top 7 Services Mean Rate over Range",
+            "gridPos": {
+              "x": 12,
+              "y": 3,
+              "w": 12,
+              "h": 13
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7,sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])))",
+                "legend": "{{service_name}}",
+                "instant": true
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 2,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "info"
+              },
+              {
+                "value": 2,
+                "color": "warning"
+              },
+              {
+                "value": 10,
+                "color": "critical"
+              }
+            ],
+            "interval": "5m",
+            "display": {
+              "reduce": "mean",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p15",
+            "type": "bargauge",
+            "title": "Top 7 Services Mean ERROR Rate over Range",
+            "gridPos": {
+              "x": 12,
+              "y": 16,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7,sum(rate(traces_span_metrics_calls_total{status_code=\"STATUS_CODE_ERROR\",service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])) by (service_name))",
+                "legend": "{{service_name}}",
+                "instant": true
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 4,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 1,
+                "color": "warning"
+              },
+              {
+                "value": 15,
+                "color": "critical"
+              }
+            ],
+            "interval": "5m",
+            "display": {
+              "reduce": "mean",
+              "orientation": "vertical"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "span_names Level - Throughput",
+        "gridPos": {
+          "x": 0,
+          "y": 23,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p22",
+            "type": "table",
+            "title": "Top 7 span_names and Errors  (APM Table)",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 24,
+              "h": 11
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "Rate",
+                "query": "topk(7, sum(rate(traces_span_metrics_calls_total{service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])) by (span_name,service_name)) ",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "query": "topk(7, sum(rate(traces_span_metrics_calls_total{status_code=\"STATUS_CODE_ERROR\",service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])) by (span_name,service_name))",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 2,
+            "transform": [
+              {
+                "type": "joinByField",
+                "field": "span_name"
+              },
+              {
+                "type": "organize",
+                "exclude": [
+                  "Time 1",
+                  "Time 2"
+                ],
+                "rename": {
+                  "Value #Error Rate": "Error Rate",
+                  "Value #Rate": "Rate",
+                  "service_name 1": "Rate in Service",
+                  "service_name 2": "Error Rate in Service"
+                }
+              },
+              {
+                "type": "calculateField",
+                "alias": "bRate",
+                "reduceRow": "sum"
+              },
+              {
+                "type": "calculateField",
+                "alias": "eRate",
+                "reduceRow": "sum"
+              },
+              {
+                "type": "organize",
+                "exclude": [
+                  "Error Rate",
+                  "Rate"
+                ],
+                "rename": {
+                  "Rate in Service": "Service",
+                  "bRate": "Rate",
+                  "eRate": "Error Rate",
+                  "span_name": "span_name Name"
+                },
+                "order": [
+                  "span_name",
+                  "Rate",
+                  "bRate",
+                  "eRate",
+                  "Error Rate",
+                  "Rate in Service",
+                  "Error Rate in Service"
+                ]
+              },
+              {
+                "type": "sortBy",
+                "field": "Rate",
+                "desc": true
+              }
+            ],
+            "interval": "5m"
+          }
+        ]
+      },
+      {
+        "id": "p20",
+        "type": "row",
+        "title": "span_name Level - Latencies",
+        "gridPos": {
+          "x": 0,
+          "y": 35,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p25",
+            "type": "gauge",
+            "title": "Top 3x3 - span_name Latency - quantile95",
+            "gridPos": {
+              "x": 0,
+              "y": 36,
+              "w": 12,
+              "h": 13
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7,histogram_quantile(0.50, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name)))",
+                "legend": "{{service_name}}-quantile_0.50",
+                "hide": true
+              },
+              {
+                "query": "topk(7,histogram_quantile(0.95, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__range])) by (le,span_name)))",
+                "legend": "{{span_name}}",
+                "instant": true
+              },
+              {
+                "query": "histogram_quantile(0.99, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name))",
+                "legend": "quantile99",
+                "hide": true
+              },
+              {
+                "query": "histogram_quantile(0.999, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])) by (le,service_name))",
+                "legend": "quantile999",
+                "hide": true
+              }
+            ],
+            "unit": "ms",
+            "thresholds": [
+              {
+                "color": "info"
+              },
+              {
+                "value": 2,
+                "color": "ok"
+              },
+              {
+                "value": 64,
+                "color": "warning"
+              },
+              {
+                "value": 128,
+                "color": "warning"
+              },
+              {
+                "value": 256,
+                "color": "critical"
+              }
+            ],
+            "interval": "5m"
+          },
+          {
+            "id": "p10",
+            "type": "bargauge",
+            "title": "Top 7 Highest Endpoint Latencies  Mean Over Range",
+            "gridPos": {
+              "x": 12,
+              "y": 36,
+              "w": 12,
+              "h": 13
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7, sum by (span_name,service_name)(increase(traces_span_metrics_duration_milliseconds_sum{service_name=~\"${service}\", span_name=~\"$span_name\"}[5m]) / increase(traces_span_metrics_duration_milliseconds_count{service_name=~\"${service}\",span_name=~\"$span_name\"}[5m\n])))",
+                "legend": "{{span_name}} [{{service_name}}]",
+                "instant": true
+              }
+            ],
+            "unit": "ms",
+            "decimals": 2,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "interval": "5m",
+            "display": {
+              "reduce": "mean",
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p16",
+            "type": "timeseries",
+            "title": "Top 7 Latencies Over Range",
+            "gridPos": {
+              "x": 0,
+              "y": 49,
+              "w": 24,
+              "h": 12
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(7,sum by (span_name,service_name)(increase(traces_span_metrics_duration_milliseconds_sum{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval]) / increase(traces_span_metrics_duration_milliseconds_count{service_name=~\"$service\", span_name=~\"$span_name\"}[$__rate_interval])))",
+                "legend": "[{{service_name}}]  {{span_name}}"
+              }
+            ],
+            "unit": "ms",
+            "fill": 15,
+            "interval": "5m",
+            "display": {
+              "legendValues": [
+                "mean",
+                "max",
+                "delta"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

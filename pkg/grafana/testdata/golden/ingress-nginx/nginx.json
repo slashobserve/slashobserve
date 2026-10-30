@@ -1,0 +1,1176 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "NGINX Ingress controller",
+    "uid": "nginx",
+    "schema_version": 39,
+    "bytes": 53393,
+    "panels": 14,
+    "rows": 0,
+    "variables": 6
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 14,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 14,
+      "imported": 5,
+      "partial": 9,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[0]",
+        "title": "Controller Request Volume",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p82",
+        "grafana_id": 82,
+        "grafana_path": "panels[1]",
+        "title": "Controller Connections",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[2]",
+        "title": "Controller Success Rate (non-4|5xx responses)",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p81",
+        "grafana_id": 81,
+        "grafana_path": "panels[3]",
+        "title": "Config Reloads",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p83",
+        "grafana_id": 83,
+        "grafana_path": "panels[4]",
+        "title": "Last Config Failed",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p86",
+        "grafana_id": 86,
+        "grafana_path": "panels[5]",
+        "title": "Ingress Request Volume",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p87",
+        "grafana_id": 87,
+        "grafana_path": "panels[6]",
+        "title": "Ingress Success Rate (non-4|5xx responses)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[3]",
+          "fieldConfig.defaults.custom.spanNulls",
+          "options.legend.displayMode",
+          "options.tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[7]",
+        "title": "Network I/O pressure",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p77",
+        "grafana_id": 77,
+        "grafana_path": "panels[8]",
+        "title": "Average Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p79",
+        "grafana_id": 79,
+        "grafana_path": "panels[9]",
+        "title": "Average CPU Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[10]",
+        "title": "Ingress Percentile Response Times and Transfer Rates",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[3]",
+          "fieldConfig.overrides[1].properties[2]",
+          "fieldConfig.overrides[2].properties[2]",
+          "fieldConfig.overrides[3].properties[2]",
+          "fieldConfig.overrides[4].properties[3]",
+          "fieldConfig.overrides[5].properties[2]",
+          "fieldConfig.overrides[5].properties[3]",
+          "fieldConfig.overrides[6].properties[3]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p91",
+        "grafana_id": 91,
+        "grafana_path": "panels[11]",
+        "title": "Ingress Percentile Response Times (Ingress Namespaces)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "targets[2].exemplar"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p89",
+        "grafana_id": 89,
+        "grafana_path": "panels[12]",
+        "title": "Ingress Request Latency Heatmap (Ingress Namespaces)",
+        "type": "heatmap",
+        "source_type": "heatmap",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "color.cardColor",
+          "color.colorScale",
+          "color.colorScheme",
+          "color.exponent",
+          "color.mode",
+          "dataFormat",
+          "hideZeroBuckets",
+          "highlightCards",
+          "legend.show",
+          "options.cellGap",
+          "options.color.exponent",
+          "options.color.fill",
+          "options.color.mode",
+          "options.color.reverse",
+          "options.color.scale",
+          "options.color.scheme",
+          "options.color.steps",
+          "options.exemplars.color",
+          "options.filterValues.le",
+          "options.legend.show",
+          "options.rowsFrame.layout",
+          "options.showValue",
+          "options.tooltip.showColorScale",
+          "options.tooltip.yHistogram",
+          "options.yAxis.axisPlacement",
+          "options.yAxis.reverse",
+          "options.yAxis.unit",
+          "reverseYBuckets",
+          "tooltip.show",
+          "tooltip.showHistogram",
+          "xAxis.show",
+          "yAxis.format",
+          "yAxis.logBase",
+          "yAxis.show",
+          "yBucketBound"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p85",
+        "grafana_id": 85,
+        "grafana_path": "panels[13]",
+        "title": "Ingress Certificate Expiry",
+        "type": "table",
+        "source_type": "table",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[2]",
+          "options.footer.enablePagination"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "annotations",
+        "status": "partial",
+        "reason": "Annotation queries are not supported yet.",
+        "paths": [
+          "annotations.list[1]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "NGINX Ingress controller",
+    "tags": [
+      "nginx"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_config_hash, controller_namespace)",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "controller_class",
+        "label": "Controller Class",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_config_hash{namespace=~\"$namespace\"}, controller_class) ",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "controller",
+        "label": "Controller",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_config_hash{namespace=~\"$namespace\",controller_class=~\"$controller_class\"}, controller_pod) ",
+        "sort": "alpha",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "exported_namespace",
+        "label": "Ingress Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_requests{namespace=~\"$namespace\",controller_class=~\"$controller_class\",controller_pod=~\"$controller\"}, exported_namespace) ",
+        "sort": "alpha",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "ingress",
+        "label": "Ingress",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_requests{namespace=~\"$namespace\",controller_class=~\"$controller_class\",controller_pod=~\"$controller\",exported_namespace=~\"$exported_namespace\"}, ingress) ",
+        "sort": "alpha",
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p20",
+        "type": "stat",
+        "title": "Controller Request Volume",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "round(sum(irate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",namespace=~\"$namespace\"}[2m])), 0.001)",
+            "interval": "4s"
+          }
+        ],
+        "unit": "ops",
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "color": "#1f78c1",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "reduce": "mean",
+          "colorMode": "none",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p82",
+        "type": "stat",
+        "title": "Controller Connections",
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(avg_over_time(nginx_ingress_controller_nginx_process_connections{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",state=\"active\"}[2m]))",
+            "interval": "4s"
+          }
+        ],
+        "unit": "none",
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "color": "#1f78c1",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "reduce": "mean",
+          "colorMode": "none",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p21",
+        "type": "stat",
+        "title": "Controller Success Rate (non-4|5xx responses)",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",namespace=~\"$namespace\",status!~\"[4-5].*\"}[2m])) / sum(rate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",namespace=~\"$namespace\"}[2m]))",
+            "interval": "4s"
+          }
+        ],
+        "unit": "percentunit",
+        "thresholds": [
+          {
+            "color": "#f53636"
+          },
+          {
+            "value": 95,
+            "color": "warning"
+          },
+          {
+            "value": 99,
+            "color": "#32ac2d"
+          }
+        ],
+        "color": "#1f78c1",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "reduce": "mean",
+          "colorMode": "none",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p81",
+        "type": "stat",
+        "title": "Config Reloads",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 3,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "avg(irate(nginx_ingress_controller_success{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\"}[1m])) * 60",
+            "interval": "4s"
+          }
+        ],
+        "unit": "none",
+        "decimals": 0,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "color": "#1f78c1",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "reduce": "sum",
+          "colorMode": "none",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p83",
+        "type": "stat",
+        "title": "Last Config Failed",
+        "gridPos": {
+          "x": 21,
+          "y": 0,
+          "w": 3,
+          "h": 3
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "count(nginx_ingress_controller_config_last_reload_successful{controller_pod=~\"$controller\",controller_namespace=~\"$namespace\"} == 0)",
+            "instant": true,
+            "interval": "4s"
+          }
+        ],
+        "unit": "none",
+        "decimals": 0,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "color": "#1f78c1",
+        "mappings": [
+          {
+            "special": "null",
+            "text": "N/A"
+          }
+        ],
+        "maxDataPoints": 100,
+        "display": {
+          "reduce": "mean",
+          "colorMode": "none",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": "p86",
+        "type": "timeseries",
+        "title": "Ingress Request Volume",
+        "gridPos": {
+          "x": 0,
+          "y": 3,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "round(sum(irate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",exported_namespace=~\"$exported_namespace\",ingress=~\"$ingress\"}[2m])) by (ingress), 0.001)",
+            "legend": "{{ ingress }}",
+            "interval": "10s"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "mean"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p87",
+        "type": "timeseries",
+        "title": "Ingress Success Rate (non-4|5xx responses)",
+        "gridPos": {
+          "x": 12,
+          "y": 3,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(rate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",namespace=~\"$namespace\",exported_namespace=~\"$exported_namespace\",ingress=~\"$ingress\",status!~\"[4-5].*\"}[2m])) by (ingress) / sum(rate(nginx_ingress_controller_requests{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",namespace=~\"$namespace\",exported_namespace=~\"$exported_namespace\",ingress=~\"$ingress\"}[2m])) by (ingress)",
+            "legend": "{{ ingress }}",
+            "interval": "10s"
+          }
+        ],
+        "unit": "percentunit",
+        "overrides": [
+          {
+            "match": {
+              "series": "max - istio-proxy"
+            },
+            "color": "#890f02"
+          },
+          {
+            "match": {
+              "series": "max - master"
+            },
+            "color": "#bf1b00"
+          },
+          {
+            "match": {
+              "series": "max - prometheus"
+            },
+            "color": "#bf1b00"
+          }
+        ],
+        "display": {
+          "legend": "right",
+          "legendValues": [
+            "mean"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p32",
+        "type": "timeseries",
+        "title": "Network I/O pressure",
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 8,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum (irate (nginx_ingress_controller_request_size_sum{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\"}[2m]))",
+            "legend": "Received",
+            "interval": "10s"
+          },
+          {
+            "query": "- sum (irate (nginx_ingress_controller_response_size_sum{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\"}[2m]))",
+            "legend": "Sent",
+            "interval": "10s"
+          }
+        ],
+        "unit": "Bps",
+        "fill": 10,
+        "display": {
+          "legend": "hidden",
+          "legendValues": [
+            "mean",
+            "lastNotNull"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p77",
+        "type": "timeseries",
+        "title": "Average Memory Usage",
+        "gridPos": {
+          "x": 8,
+          "y": 10,
+          "w": 8,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "avg(nginx_ingress_controller_nginx_process_resident_memory_bytes{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\"}) ",
+            "legend": "nginx",
+            "interval": "10s"
+          }
+        ],
+        "unit": "bytes",
+        "overrides": [
+          {
+            "match": {
+              "series": "max - istio-proxy"
+            },
+            "color": "#890f02"
+          },
+          {
+            "match": {
+              "series": "max - master"
+            },
+            "color": "#bf1b00"
+          },
+          {
+            "match": {
+              "series": "max - prometheus"
+            },
+            "color": "#bf1b00"
+          }
+        ],
+        "display": {
+          "legend": "hidden",
+          "legendValues": [
+            "mean",
+            "lastNotNull"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p79",
+        "type": "timeseries",
+        "title": "Average CPU Usage",
+        "gridPos": {
+          "x": 16,
+          "y": 10,
+          "w": 8,
+          "h": 6
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "avg (rate (nginx_ingress_controller_nginx_process_cpu_seconds_total{controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\"}[2m])) ",
+            "legend": "nginx",
+            "interval": "10s"
+          }
+        ],
+        "unit": "none",
+        "display": {
+          "legend": "hidden",
+          "legendValues": [
+            "mean",
+            "lastNotNull"
+          ],
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p75",
+        "type": "table",
+        "title": "Ingress Percentile Response Times and Transfer Rates",
+        "description": "This data is real time, independent of dashboard time range",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(0.50, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le, ingress))",
+            "legend": "{{ ingress }}",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "histogram_quantile(0.90, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le, ingress))",
+            "legend": "{{ ingress }}",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le, ingress))",
+            "legend": "{{ destination_service }}",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(irate(nginx_ingress_controller_request_size_sum{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (ingress)",
+            "legend": "{{ ingress }}",
+            "instant": true,
+            "format": "table"
+          },
+          {
+            "query": "sum(irate(nginx_ingress_controller_response_size_sum{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (ingress)",
+            "legend": "{{ ingress }}",
+            "instant": true,
+            "format": "table"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "ingress"
+            },
+            "unit": "short",
+            "decimals": 2,
+            "displayName": "Ingress"
+          },
+          {
+            "match": {
+              "field": "Value #A"
+            },
+            "unit": "dtdurations",
+            "displayName": "P50 Latency"
+          },
+          {
+            "match": {
+              "field": "Value #B"
+            },
+            "unit": "dtdurations",
+            "displayName": "P90 Latency"
+          },
+          {
+            "match": {
+              "field": "Value #C"
+            },
+            "unit": "dtdurations",
+            "displayName": "P99 Latency"
+          },
+          {
+            "match": {
+              "field": "Value #D"
+            },
+            "unit": "Bps",
+            "decimals": 2,
+            "displayName": "IN"
+          },
+          {
+            "match": {
+              "field": "Time"
+            },
+            "unit": "short",
+            "decimals": 2
+          },
+          {
+            "match": {
+              "field": "Value #E"
+            },
+            "unit": "Bps",
+            "decimals": 2,
+            "displayName": "OUT"
+          }
+        ],
+        "transform": [
+          {
+            "type": "merge"
+          }
+        ]
+      },
+      {
+        "id": "p91",
+        "type": "timeseries",
+        "title": "Ingress Percentile Response Times (Ingress Namespaces)",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "ref": "C",
+            "query": "histogram_quantile(0.80, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
+            "legend": "P80"
+          },
+          {
+            "ref": "D",
+            "query": "histogram_quantile(0.90, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
+            "legend": "P90"
+          },
+          {
+            "ref": "E",
+            "query": "histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le))",
+            "legend": "P99"
+          }
+        ],
+        "unit": "s",
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p89",
+        "type": "heatmap",
+        "title": "Ingress Request Latency Heatmap (Ingress Namespaces)",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 7
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum(increase(nginx_ingress_controller_request_duration_seconds_bucket{ingress!=\"\",controller_pod=~\"$controller\",controller_class=~\"$controller_class\",controller_namespace=~\"$namespace\",ingress=~\"$ingress\",exported_namespace=~\"$exported_namespace\"}[2m])) by (le)",
+            "legend": "{{le}}",
+            "format": "heatmap"
+          }
+        ]
+      },
+      {
+        "id": "p85",
+        "type": "table",
+        "title": "Ingress Certificate Expiry",
+        "gridPos": {
+          "x": 0,
+          "y": 31,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "avg(nginx_ingress_controller_ssl_expire_time_seconds{kubernetes_pod_name=~\"$controller\",namespace=~\"$namespace\",ingress=~\"$ingress\"}) by (host) - time()",
+            "legend": "{{ host }}",
+            "interval": "1s"
+          }
+        ],
+        "unit": "short",
+        "decimals": 2,
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ],
+        "overrides": [
+          {
+            "match": {
+              "field": "Last *"
+            },
+            "unit": "s",
+            "thresholds": [
+              {
+                "color": "#f53636"
+              },
+              {
+                "value": 0,
+                "color": "warning"
+              },
+              {
+                "value": 691200,
+                "color": "#32ac2d"
+              }
+            ],
+            "displayName": "TTL"
+          },
+          {
+            "match": {
+              "field": "Field"
+            },
+            "displayName": "Host"
+          }
+        ],
+        "transform": [
+          {
+            "type": "reduce",
+            "reducers": [
+              "lastNotNull"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

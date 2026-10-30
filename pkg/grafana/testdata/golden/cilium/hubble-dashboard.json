@@ -1,0 +1,1774 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Hubble Metrics and Monitoring",
+    "uid": "5HftnJAWz",
+    "schema_version": 18,
+    "bytes": 73159,
+    "panels": 33,
+    "rows": 5,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 33,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 33,
+      "imported": 22,
+      "partial": 11,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[1]",
+        "title": "Flows processed Per Node",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "General Processing",
+        "status": "partial",
+        "reasons": [
+          "The series override option fillBelowTo is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "seriesOverrides[0].fillBelowTo",
+          "seriesOverrides[1].fillBelowTo",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p32",
+        "grafana_id": 32,
+        "grafana_path": "panels[2]",
+        "title": "Flows Types",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "General Processing",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p59",
+        "grafana_id": 59,
+        "grafana_path": "panels[3]",
+        "title": "L7 Flow Distribution",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "General Processing",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[4]",
+        "title": "Trace Flow Distribution",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "General Processing",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[6]",
+        "title": "Forwarded vs Dropped",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "panels[7]",
+        "title": "Drop Reason",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p34",
+        "grafana_id": 34,
+        "grafana_path": "panels[8]",
+        "title": "Protocol Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[9]",
+        "title": "Top 10 Port Distribution",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[10]",
+        "title": "TCPv4",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p62",
+        "grafana_id": 62,
+        "grafana_path": "panels[11]",
+        "title": "Missing TCPv4 SYN-ACKs",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Alerts are not supported yet."
+        ],
+        "paths": [
+          "alert"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p35",
+        "grafana_id": 35,
+        "grafana_path": "panels[12]",
+        "title": "TCPv6",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p63",
+        "grafana_id": 63,
+        "grafana_path": "panels[13]",
+        "title": "Missing TCPv6 SYN-ACKs",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Alerts are not supported yet."
+        ],
+        "paths": [
+          "alert"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p31",
+        "grafana_id": 31,
+        "grafana_path": "panels[14]",
+        "title": "ICMPv4",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p64",
+        "grafana_id": 64,
+        "grafana_path": "panels[15]",
+        "title": "Missing ICMPv4 Echo-Reply",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "partial",
+        "reasons": [
+          "Alerts are not supported yet."
+        ],
+        "paths": [
+          "alert"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p36",
+        "grafana_id": 36,
+        "grafana_path": "panels[16]",
+        "title": "ICMPv6",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p65",
+        "grafana_id": 65,
+        "grafana_path": "panels[17]",
+        "title": "Missing ICMPv6 Echo-Reply",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p43",
+        "grafana_id": 43,
+        "grafana_path": "panels[19]",
+        "title": "Denies by Reason",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network Policy",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p61",
+        "grafana_id": 61,
+        "grafana_path": "panels[20]",
+        "title": "Denied Packets by Protocol",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network Policy",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p55",
+        "grafana_id": 55,
+        "grafana_path": "panels[21]",
+        "title": "Top 10 Source Pods with Denied Packets",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network Policy",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p54",
+        "grafana_id": 54,
+        "grafana_path": "panels[22]",
+        "title": "Top 10 Destination Pods with Denied Packets",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Network Policy",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p45",
+        "grafana_id": 45,
+        "grafana_path": "panels[24]",
+        "title": "HTTP Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "HTTP",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p49",
+        "grafana_id": 49,
+        "grafana_path": "panels[25]",
+        "title": "HTTP responses",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "HTTP",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[26]",
+        "title": "HTTP Request/Response Latency (p50)",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "HTTP",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p58",
+        "grafana_id": 58,
+        "grafana_path": "panels[27]",
+        "title": "HTTP Request/Response Latency (p99)",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "HTTP",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p53",
+        "grafana_id": 53,
+        "grafana_path": "panels[28]",
+        "title": "HTTP Protocol Usage",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "HTTP",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[30]",
+        "title": "DNS Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[31]",
+        "title": "DNS responses",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p66",
+        "grafana_id": 66,
+        "grafana_path": "panels[32]",
+        "title": "Missing DNS Responses",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Alerts are not supported yet."
+        ],
+        "paths": [
+          "alert"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p40",
+        "grafana_id": 40,
+        "grafana_path": "panels[33]",
+        "title": "DNS Response Record Type",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p57",
+        "grafana_id": 57,
+        "grafana_path": "panels[34]",
+        "title": "DNS Response IPs Returned",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[35]",
+        "title": "DNS Errors",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[36]",
+        "title": "Pods with DNS errors",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[37]",
+        "title": "Top 10 DNS Queries per minute",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "DNS",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "legend.alignAsTable",
+          "legend.sort",
+          "legend.sortDesc",
+          "tooltip.sort"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Hubble Metrics and Monitoring",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "General Processing",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "Flows processed Per Node",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "avg(sum(rate(hubble_flows_processed_total[1m])) by (pod))",
+                "legend": "avg"
+              },
+              {
+                "query": "min(sum(rate(hubble_flows_processed_total[1m])) by (pod))",
+                "legend": "min"
+              },
+              {
+                "query": "max(sum(rate(hubble_flows_processed_total[1m])) by (pod))",
+                "legend": "max"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "max"
+                },
+                "style": "points"
+              },
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "fill": 0
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "style": "points"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p32",
+            "type": "timeseries",
+            "title": "Flows Types",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total[1m])) by (pod, type)",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p59",
+            "type": "timeseries",
+            "title": "L7 Flow Distribution",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total{type=\"L7\"}[1m])) by (pod, subtype)",
+                "legend": "{{subtype}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p60",
+            "type": "timeseries",
+            "title": "Trace Flow Distribution",
+            "gridPos": {
+              "x": 12,
+              "y": 6,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total{type=\"Trace\"}[1m])) by (pod, subtype)",
+                "legend": "{{subtype}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p16",
+        "type": "row",
+        "title": "Network",
+        "gridPos": {
+          "x": 0,
+          "y": 11,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p33",
+            "type": "timeseries",
+            "title": "Forwarded vs Dropped",
+            "gridPos": {
+              "x": 0,
+              "y": 12,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_flows_processed_total[1m])) by (pod, verdict)",
+                "legend": "{{verdict}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Drop Reason",
+            "gridPos": {
+              "x": 12,
+              "y": 12,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_drop_total[1m])) by (pod, reason)",
+                "legend": "{{reason}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p34",
+            "type": "timeseries",
+            "title": "Protocol Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum (rate(hubble_port_distribution_total[1m])) by (pod, protocol)",
+                "legend": "{{protocol}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "stack": "percent",
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Top 10 Port Distribution",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum (rate(hubble_port_distribution_total{port!=\"0\"}[1m])) by (pod, port, protocol))",
+                "legend": "{{port}}/{{protocol}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "TCPv4",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_tcp_flags_total{family=\"IPv4\"}[1m])) by (pod, flag)",
+                "legend": "{{flag}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "FIN"
+                },
+                "unit": "short",
+                "axis": "right"
+              },
+              {
+                "match": {
+                  "series": "RST"
+                },
+                "unit": "short",
+                "axis": "right"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p62",
+            "type": "timeseries",
+            "title": "Missing TCPv4 SYN-ACKs",
+            "gridPos": {
+              "x": 12,
+              "y": 22,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(rate(hubble_tcp_flags_total{family=\"IPv4\", flag=\"SYN\"}[1m])) by (pod) - sum(rate(hubble_tcp_flags_total{family=\"IPv4\", flag=\"SYN-ACK\"}[1m])) by (pod)",
+                "legend": "Missing SYN-ACK"
+              }
+            ],
+            "unit": "pps",
+            "thresholds": [
+              {
+                "value": 0.2,
+                "color": "critical"
+              }
+            ],
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "FIN"
+                },
+                "unit": "short",
+                "axis": "right"
+              },
+              {
+                "match": {
+                  "series": "RST"
+                },
+                "unit": "short",
+                "axis": "right"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p35",
+            "type": "timeseries",
+            "title": "TCPv6",
+            "gridPos": {
+              "x": 0,
+              "y": 27,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_tcp_flags_total{family=\"IPv6\"}[1m])) by (pod, flag)",
+                "legend": "{{flag}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p63",
+            "type": "timeseries",
+            "title": "Missing TCPv6 SYN-ACKs",
+            "gridPos": {
+              "x": 12,
+              "y": 27,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(rate(hubble_tcp_flags_total{family=\"IPv6\", flag=\"SYN\"}[1m])) by (pod) - sum(rate(hubble_tcp_flags_total{family=\"IPv6\", flag=\"SYN-ACK\"}[1m])) by (pod)",
+                "legend": "Missing SYN-ACK"
+              }
+            ],
+            "unit": "pps",
+            "thresholds": [
+              {
+                "value": 0.2,
+                "color": "critical"
+              }
+            ],
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "FIN"
+                },
+                "unit": "short",
+                "axis": "right"
+              },
+              {
+                "match": {
+                  "series": "RST"
+                },
+                "unit": "short",
+                "axis": "right"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p31",
+            "type": "timeseries",
+            "title": "ICMPv4",
+            "gridPos": {
+              "x": 0,
+              "y": 32,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_icmp_total{family=\"IPv4\"}[1m])) by (pod, type)",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p64",
+            "type": "timeseries",
+            "title": "Missing ICMPv4 Echo-Reply",
+            "gridPos": {
+              "x": 12,
+              "y": 32,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(rate(hubble_icmp_total{family=\"IPv4\", type=\"EchoRequest\"}[1m])) by (pod) - sum(rate(hubble_icmp_total{family=\"IPv4\", type=\"EchoReply\"}[1m])) by (pod)",
+                "legend": "Missing ICMP Echo-Reply"
+              }
+            ],
+            "unit": "pps",
+            "thresholds": [
+              {
+                "value": 0.1,
+                "color": "critical"
+              }
+            ],
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p36",
+            "type": "timeseries",
+            "title": "ICMPv6",
+            "gridPos": {
+              "x": 0,
+              "y": 37,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_icmp_total{family=\"IPv6\"}[1m])) by (pod, type)",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p65",
+            "type": "timeseries",
+            "title": "Missing ICMPv6 Echo-Reply",
+            "gridPos": {
+              "x": 12,
+              "y": 37,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(rate(hubble_icmp_total{family=\"IPv6\", type=\"EchoRequest\"}[1m])) by (pod) - sum(rate(hubble_icmp_total{family=\"IPv6\", type=\"EchoReply\"}[1m])) by (pod)",
+                "legend": "Missing ICMP Echo-Reply"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p42",
+        "type": "row",
+        "title": "Network Policy",
+        "gridPos": {
+          "x": 0,
+          "y": 42,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p43",
+            "type": "timeseries",
+            "title": "Denies by Reason",
+            "gridPos": {
+              "x": 0,
+              "y": 43,
+              "w": 12,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_drop_total{reason=\"POLICY_DENIED\"}[1m])) by (pod, reason)",
+                "legend": "{{reason}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p61",
+            "type": "timeseries",
+            "title": "Denied Packets by Protocol",
+            "gridPos": {
+              "x": 12,
+              "y": 43,
+              "w": 12,
+              "h": 4
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_drop_total{reason=\"POLICY_DENIED\"}[1m])) by (pod, protocol)",
+                "legend": "{{protocol}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p55",
+            "type": "timeseries",
+            "title": "Top 10 Source Pods with Denied Packets",
+            "gridPos": {
+              "x": 0,
+              "y": 47,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_drop_total{reason=\"POLICY_DENIED\"}[1m])) by (pod, source))",
+                "legend": "{{source}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p54",
+            "type": "timeseries",
+            "title": "Top 10 Destination Pods with Denied Packets",
+            "gridPos": {
+              "x": 12,
+              "y": 47,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_drop_total{reason=\"POLICY_DENIED\"}[1m])) by (pod, destination))",
+                "legend": "{{destination}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p47",
+        "type": "row",
+        "title": "HTTP",
+        "gridPos": {
+          "x": 0,
+          "y": 52,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p45",
+            "type": "timeseries",
+            "title": "HTTP Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 53,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_requests_total[1m])) by (pod, method)",
+                "legend": "{{method}}"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p49",
+            "type": "timeseries",
+            "title": "HTTP responses",
+            "gridPos": {
+              "x": 12,
+              "y": 53,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_responses_total[1m])) by (pod, status)",
+                "legend": "{{status}}"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p51",
+            "type": "timeseries",
+            "title": "HTTP Request/Response Latency (p50)",
+            "gridPos": {
+              "x": 0,
+              "y": 59,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.5, rate(hubble_http_request_duration_seconds_bucket[1m]))",
+                "legend": "{{method}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p58",
+            "type": "timeseries",
+            "title": "HTTP Request/Response Latency (p99)",
+            "gridPos": {
+              "x": 12,
+              "y": 59,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, rate(hubble_http_request_duration_seconds_bucket[1m]))",
+                "legend": "{{method}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p53",
+            "type": "timeseries",
+            "title": "HTTP Protocol Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_requests_total[5m])) by (pod, protocol)",
+                "legend": "{{protocol}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 0,
+            "fill": 10,
+            "stack": "percent",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "DNS",
+        "gridPos": {
+          "x": 0,
+          "y": 69,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "DNS Requests",
+            "gridPos": {
+              "x": 0,
+              "y": 70,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_queries_total[1m])) by (pod, qtypes)",
+                "legend": "{{qtypes}}"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "DNS responses",
+            "gridPos": {
+              "x": 8,
+              "y": 70,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_responses_total{rcode=\"No Error\"}[1m])) by (pod, qtypes)",
+                "legend": "{{qtypes}}"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p66",
+            "type": "timeseries",
+            "title": "Missing DNS Responses",
+            "gridPos": {
+              "x": 16,
+              "y": 70,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_queries_total[1m])) by (pod, qtypes) - sum(rate(hubble_dns_responses_total[1m])) by (pod, qtypes)",
+                "legend": "{{qtypes}}"
+              }
+            ],
+            "unit": "reqps",
+            "thresholds": [
+              {
+                "value": 0.5,
+                "color": "critical"
+              }
+            ],
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p40",
+            "type": "timeseries",
+            "title": "DNS Response Record Type",
+            "gridPos": {
+              "x": 0,
+              "y": 75,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_response_types_total[1m])) by (pod, type)",
+                "legend": "{{type}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p57",
+            "type": "timeseries",
+            "title": "DNS Response IPs Returned",
+            "gridPos": {
+              "x": 12,
+              "y": 75,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_responses_total{rcode=\"No Error\"}[1m])) by (pod,ips_returned)",
+                "legend": "{{ips_returned}}"
+              }
+            ],
+            "unit": "reqps",
+            "decimals": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p28",
+            "type": "timeseries",
+            "title": "DNS Errors",
+            "gridPos": {
+              "x": 0,
+              "y": 80,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_dns_responses_total{rcode!=\"No Error\"}[1m])) by (pod, qtypes, rcode)",
+                "legend": "{{rcode}} ({{qtypes}})"
+              }
+            ],
+            "unit": "short",
+            "decimals": 4,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p56",
+            "type": "timeseries",
+            "title": "Pods with DNS errors",
+            "gridPos": {
+              "x": 12,
+              "y": 80,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10,sum(rate(hubble_dns_responses_total{rcode!=\"No Error\"}[1m])) by (pod, destination))",
+                "legend": "{{destination}}"
+              }
+            ],
+            "unit": "short",
+            "decimals": 4,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "Top 10 DNS Queries per minute",
+            "gridPos": {
+              "x": 0,
+              "y": 85,
+              "w": 24,
+              "h": 6
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "topk(10, sum(rate(hubble_dns_queries_total[10m])*60) by (query, qtypes))",
+                "legend": "{{query}} ({{qtypes}})"
+              }
+            ],
+            "unit": "none",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

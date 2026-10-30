@@ -1,0 +1,886 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Thanos / Query Frontend",
+    "uid": "7c68ed2ef2355474f058dd27f0471f7a",
+    "schema_version": 14,
+    "bytes": 36267,
+    "panels": 11,
+    "rows": 3,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 11,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 11,
+      "imported": 0,
+      "partial": 11,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "rows[0].panels[0]",
+        "title": "Rate of requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Query Frontend API",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "rows[0].panels[1]",
+        "title": "Rate of queries",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Query Frontend API",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "rows[0].panels[2]",
+        "title": "Errors",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Query Frontend API",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "rows[0].panels[3]",
+        "title": "Duration",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Query Frontend API",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this query are not supported yet.",
+          "The series override option fillGradient is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].logBase",
+          "targets[1].logBase",
+          "targets[2].logBase",
+          "seriesOverrides[0].fillGradient",
+          "seriesOverrides[1].fillGradient",
+          "seriesOverrides[2].fillGradient",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "rows[1].panels[0]",
+        "title": "Requests",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cache Operations",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "rows[1].panels[1]",
+        "title": "Querier cache gets vs misses",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cache Operations",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "rows[1].panels[2]",
+        "title": "Cortex fetched keys",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cache Operations",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p8",
+        "grafana_id": 8,
+        "grafana_path": "rows[1].panels[3]",
+        "title": "Cortex cache hits",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Cache Operations",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "rows[2].panels[0]",
+        "title": "Memory Used",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "F",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "rows[2].panels[1]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "rows[2].panels[2]",
+        "title": "GC Time Quantiles",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Resources",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Thanos / Query Frontend",
+    "tags": [
+      "thanos-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "interval",
+        "label": "interval",
+        "type": "interval",
+        "options": [
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "6h",
+          "12h"
+        ],
+        "auto": true,
+        "autoSteps": 300,
+        "autoMin": "10s",
+        "default": "5m"
+      },
+      {
+        "name": "job",
+        "label": "job",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(up{job=~\".*thanos-query-frontend.*\"}, job)",
+        "sort": "alphaDesc",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p12",
+        "type": "row",
+        "title": "Query Frontend API",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p1",
+            "type": "timeseries",
+            "title": "Rate of requests",
+            "description": "Shows rate of requests against Query Frontend for the given time.",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, handler, code) (rate(http_requests_total{job=~\"$job\", handler=\"query-frontend\"}[$interval]))",
+                "legend": "{{job}} {{handler}} {{code}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/1../"
+                },
+                "color": "#EAB839"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/2../"
+                },
+                "color": "#37872D"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/3../"
+                },
+                "color": "#E0B400"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/4../"
+                },
+                "color": "#1F60C4"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/5../"
+                },
+                "color": "#C4162A"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Rate of queries",
+            "description": "Shows rate of queries passing through Query Frontend",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, handler, code) (rate(thanos_query_frontend_queries_total{job=~\"$job\", op=\"query_range\"}[$interval]))",
+                "legend": "{{job}} {{handler}} {{code}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "seriesRegex": "/1../"
+                },
+                "color": "#EAB839"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/2../"
+                },
+                "color": "#37872D"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/3../"
+                },
+                "color": "#E0B400"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/4../"
+                },
+                "color": "#1F60C4"
+              },
+              {
+                "match": {
+                  "seriesRegex": "/5../"
+                },
+                "color": "#C4162A"
+              }
+            ]
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Errors",
+            "description": "Shows ratio of errors compared to the total number of handled requests against Query Frontend.",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, code) (rate(http_requests_total{job=~\"$job\", handler=\"query-frontend\",code=~\"5..\"}[$interval])) / ignoring (code) group_left() sum by (job) (rate(http_requests_total{job=~\"$job\", handler=\"query-frontend\"}[$interval]))",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "error"
+                },
+                "color": "#E24D42"
+              }
+            ]
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Duration",
+            "description": "Shows how long has it taken to handle requests in quantiles.",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.50, sum by (job, le) (rate(http_request_duration_seconds_bucket{job=~\"$job\", handler=\"query-frontend\"}[$interval]))) * 1",
+                "legend": "p50 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "histogram_quantile(0.90, sum by (job, le) (rate(http_request_duration_seconds_bucket{job=~\"$job\", handler=\"query-frontend\"}[$interval]))) * 1",
+                "legend": "p90 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "histogram_quantile(0.99, sum by (job, le) (rate(http_request_duration_seconds_bucket{job=~\"$job\", handler=\"query-frontend\"}[$interval]))) * 1",
+                "legend": "p99 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "p99"
+                },
+                "color": "#FA6400",
+                "fill": 10
+              },
+              {
+                "match": {
+                  "series": "p90"
+                },
+                "color": "#E0B400",
+                "fill": 10
+              },
+              {
+                "match": {
+                  "series": "p50"
+                },
+                "color": "#37872D",
+                "fill": 100
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "row",
+        "title": "Cache Operations",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Requests",
+            "description": "Show rate of cache requests.",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, tripperware) (rate(cortex_cache_request_duration_seconds_count{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "{{job}} {{tripperware}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal"
+          },
+          {
+            "id": "p6",
+            "type": "timeseries",
+            "title": "Querier cache gets vs misses",
+            "description": "Show rate of Querier cache gets vs misses.",
+            "gridPos": {
+              "x": 6,
+              "y": 9,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, tripperware) (rate(querier_cache_gets_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "Cache gets - {{job}} {{tripperware}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum by (job, tripperware) (rate(querier_cache_misses_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "Cache misses - {{job}} {{tripperware}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal"
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Cortex fetched keys",
+            "description": "Shows rate of cortex fetched keys.",
+            "gridPos": {
+              "x": 12,
+              "y": 9,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, tripperware) (rate(cortex_cache_fetched_keys_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "{{job}} {{tripperware}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal"
+          },
+          {
+            "id": "p8",
+            "type": "timeseries",
+            "title": "Cortex cache hits",
+            "description": "Shows rate of cortex cache hits.",
+            "gridPos": {
+              "x": 18,
+              "y": 9,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, tripperware) (rate(cortex_cache_hits_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "{{job}} {{tripperware}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal"
+          }
+        ]
+      },
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "Resources",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": true,
+        "panels": [
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "Memory Used",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_memstats_alloc_bytes{job=~\"$job\"}",
+                "legend": "alloc all {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "go_memstats_heap_alloc_bytes{job=~\"$job\"}",
+                "legend": "alloc heap {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "rate(go_memstats_alloc_bytes_total{job=~\"$job\"}[30s])",
+                "legend": "alloc rate all {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "rate(go_memstats_heap_alloc_bytes{job=~\"$job\"}[30s])",
+                "legend": "alloc rate heap {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "go_memstats_stack_inuse_bytes{job=~\"$job\"}",
+                "legend": "inuse heap {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "go_memstats_heap_inuse_bytes{job=~\"$job\"}",
+                "legend": "inuse stack {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 10
+          },
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 8,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{job=~\"$job\"}",
+                "legend": "{{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "GC Time Quantiles",
+            "gridPos": {
+              "x": 16,
+              "y": 17,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_gc_duration_seconds{job=~\"$job\"}",
+                "legend": "{{quantile}} {{instance}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10
+          }
+        ]
+      }
+    ]
+  }
+}

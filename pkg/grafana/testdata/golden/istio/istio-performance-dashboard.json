@@ -1,0 +1,899 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Istio Performance Dashboard",
+    "uid": "",
+    "schema_version": 38,
+    "bytes": 40763,
+    "panels": 13,
+    "rows": 6,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 12,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 13,
+      "imported": 13,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[1]",
+        "title": "Performance Dashboard README",
+        "type": "text",
+        "source_type": "text",
+        "row": "Performance Dashboard Notes",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "vCPU / 1k rps",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "vCPU Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[4]",
+        "title": "vCPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "vCPU Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p902",
+        "grafana_id": 902,
+        "grafana_path": "panels[6]",
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory and Data Rates",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[7]",
+        "title": "Bytes transferred / sec",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Memory and Data Rates",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[9]",
+        "title": "Istio Components by Version",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istio Component Versions",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p72",
+        "grafana_id": 72,
+        "grafana_path": "panels[11]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[12]",
+        "title": "vCPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p702",
+        "grafana_id": 702,
+        "grafana_path": "panels[13]",
+        "title": "Disk",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Proxy Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[15]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istiod Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "I",
+            "ref": "I",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "H",
+            "ref": "H",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "F",
+            "ref": "F",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "G",
+            "ref": "G",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p602",
+        "grafana_id": 602,
+        "grafana_path": "panels[16]",
+        "title": "vCPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istiod Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p74",
+        "grafana_id": 74,
+        "grafana_path": "panels[17]",
+        "title": "Disk",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istiod Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p402",
+        "grafana_id": 402,
+        "grafana_path": "panels[18]",
+        "title": "Goroutines",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istiod Resource Usage",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Istio Performance Dashboard",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p21",
+        "type": "row",
+        "title": "Performance Dashboard Notes",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p19",
+            "type": "text",
+            "title": "Performance Dashboard README",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 24,
+              "h": 6
+            },
+            "content": "The charts on this dashboard are intended to show Istio main components cost in terms of resources utilization under steady load.\n\n- **vCPU / 1k rps:** shows vCPU utilization by the main Istio components normalized by 1000 requests/second. When idle or low traffic, this chart will be blank. The curve for istio-proxy refers to the services sidecars only.\n- **vCPU:** vCPU utilization by Istio components, not normalized.\n- **Memory:** memory footprint for the components. Telemetry and policy are normalized by 1k rps, and no data is shown  when there is no traffic. For ingress and istio-proxy, the data is per instance.\n- **Bytes transferred / sec:** shows the number of bytes flowing through each Istio component.\n\n\n"
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "vCPU Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 7,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "vCPU / 1k rps",
+            "gridPos": {
+              "x": 0,
+              "y": 8,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "(sum(irate(container_cpu_usage_seconds_total{pod=~\"istio-ingressgateway-.*\",container=\"istio-proxy\"}[$__rate_interval])) / (round(sum(irate(istio_requests_total{source_workload=\"istio-ingressgateway\", reporter=\"source\"}[$__rate_interval])), 0.001)/1000))",
+                "legend": "istio-ingressgateway"
+              },
+              {
+                "query": "(sum(irate(container_cpu_usage_seconds_total{namespace!=\"istio-system\",container=\"istio-proxy\"}[$__rate_interval]))/ (round(sum(irate(istio_requests_total[$__rate_interval])), 0.001)/1000))/ (sum(irate(istio_requests_total{source_workload=\"istio-ingressgateway\"}[$__rate_interval])) >bool 10)",
+                "legend": "istio-proxy"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "vCPU",
+            "gridPos": {
+              "x": 12,
+              "y": 8,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{pod=~\"istio-ingressgateway-.*\",container=\"istio-proxy\"}[$__rate_interval]))",
+                "legend": "istio-ingressgateway"
+              },
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{namespace!=\"istio-system\",container=\"istio-proxy\"}[$__rate_interval]))",
+                "legend": "istio-proxy"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p13",
+        "type": "row",
+        "title": "Memory and Data Rates",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p902",
+            "type": "timeseries",
+            "title": "Memory Usage",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{pod=~\"istio-ingressgateway-.*\"}) / count(container_memory_working_set_bytes{pod=~\"istio-ingressgateway-.*\",container!=\"POD\"})",
+                "legend": "per istio-ingressgateway"
+              },
+              {
+                "query": "sum(container_memory_working_set_bytes{namespace!=\"istio-system\",container=\"istio-proxy\"}) / count(container_memory_working_set_bytes{namespace!=\"istio-system\",container=\"istio-proxy\"})",
+                "legend": "per istio proxy"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Bytes transferred / sec",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(irate(istio_response_bytes_sum{source_workload=\"istio-ingressgateway\", reporter=\"source\"}[$__rate_interval]))",
+                "legend": "istio-ingressgateway"
+              },
+              {
+                "query": "sum(irate(istio_response_bytes_sum{source_workload_namespace!=\"istio-system\", reporter=\"source\"}[$__rate_interval])) + sum(irate(istio_request_bytes_sum{source_workload_namespace!=\"istio-system\", reporter=\"source\"}[$__rate_interval]))",
+                "legend": "istio-proxy"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p17",
+        "type": "row",
+        "title": "Istio Component Versions",
+        "gridPos": {
+          "x": 0,
+          "y": 25,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p15",
+            "type": "timeseries",
+            "title": "Istio Components by Version",
+            "gridPos": {
+              "x": 0,
+              "y": 26,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(istio_build) by (component, tag)",
+                "legend": "{{ component }}: {{ tag }}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p71",
+        "type": "row",
+        "title": "Proxy Resource Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 34,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p72",
+            "type": "timeseries",
+            "title": "Memory",
+            "gridPos": {
+              "x": 0,
+              "y": 35,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(container_memory_working_set_bytes{container=\"istio-proxy\"})",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "timeseries",
+            "title": "vCPU",
+            "gridPos": {
+              "x": 6,
+              "y": 35,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{container=\"istio-proxy\"}[$__rate_interval]))",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p702",
+            "type": "timeseries",
+            "title": "Disk",
+            "gridPos": {
+              "x": 12,
+              "y": 35,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(container_fs_usage_bytes{container=\"istio-proxy\"})",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p69",
+        "type": "row",
+        "title": "Istiod Resource Usage",
+        "gridPos": {
+          "x": 0,
+          "y": 42,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p5",
+            "type": "timeseries",
+            "title": "Memory",
+            "gridPos": {
+              "x": 0,
+              "y": 43,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "ref": "I",
+                "query": "process_virtual_memory_bytes{app=\"istiod\"}",
+                "legend": "Virtual Memory",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "ref": "H",
+                "query": "process_resident_memory_bytes{app=\"istiod\"}",
+                "legend": "Resident Memory",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "ref": "A",
+                "query": "go_memstats_heap_sys_bytes{app=\"istiod\"}",
+                "legend": "heap sys",
+                "intervalFactor": 2,
+                "hide": true
+              },
+              {
+                "query": "go_memstats_heap_alloc_bytes{app=\"istiod\"}",
+                "legend": "heap alloc",
+                "intervalFactor": 2,
+                "hide": true
+              },
+              {
+                "ref": "F",
+                "query": "go_memstats_alloc_bytes{app=\"istiod\"}",
+                "legend": "Alloc",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "ref": "E",
+                "query": "go_memstats_heap_inuse_bytes{app=\"istiod\"}",
+                "legend": "Heap in-use",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "go_memstats_stack_inuse_bytes{app=\"istiod\"}",
+                "legend": "Stack in-use",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "ref": "C",
+                "query": "sum(container_memory_working_set_bytes{container=~\"discovery|istio-proxy\", pod=~\"istiod-.*\"})",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "ref": "B",
+                "query": "container_memory_working_set_bytes{container=~\"discovery|istio-proxy\", pod=~\"istiod-.*\"}",
+                "legend": "{{ container }} (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p602",
+            "type": "timeseries",
+            "title": "vCPU",
+            "gridPos": {
+              "x": 6,
+              "y": 43,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{container=~\"discovery|istio-proxy\", pod=~\"istiod-.*\"}[$__rate_interval]))",
+                "legend": "Total (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum(rate(container_cpu_usage_seconds_total{container=~\"discovery|istio-proxy\", pod=~\"istiod-.*\"}[$__rate_interval])) by (container)",
+                "legend": "{{ container }} (k8s)",
+                "interval": "2s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "irate(process_cpu_seconds_total{app=\"istiod\"}[$__rate_interval])",
+                "legend": "pilot (self-reported)",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p74",
+            "type": "timeseries",
+            "title": "Disk",
+            "gridPos": {
+              "x": 12,
+              "y": 43,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "process_open_fds{app=\"istiod\"}",
+                "legend": "Open FDs (pilot)",
+                "intervalFactor": 2,
+                "hide": true
+              },
+              {
+                "query": "container_fs_usage_bytes{ container=~\"discovery|istio-proxy\", pod=~\"istiod-.*\"}",
+                "legend": "{{ container }}",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p402",
+            "type": "timeseries",
+            "title": "Goroutines",
+            "gridPos": {
+              "x": 18,
+              "y": 43,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "go_goroutines{app=\"istiod\"}",
+                "legend": "Number of Goroutines",
+                "interval": "2s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "legend": "hidden",
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

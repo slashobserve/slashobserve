@@ -1,0 +1,626 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Istio Mesh Dashboard",
+    "uid": "1a9a8ea49444aae205c7737573e894f9",
+    "schema_version": 39,
+    "bytes": 23394,
+    "panels": 7,
+    "rows": 2,
+    "variables": 1
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 7,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 7,
+      "imported": 0,
+      "partial": 7,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Traffic Volume",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.calcs",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[2]",
+        "title": "Success Rate",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.calcs",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[3]",
+        "title": "4xxs",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.calcs",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p5",
+        "grafana_id": 5,
+        "grafana_path": "panels[4]",
+        "title": "5xxs",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode",
+          "options.legend.calcs",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p6",
+        "grafana_id": 6,
+        "grafana_path": "panels[5]",
+        "title": "HTTP/gRPC Workloads",
+        "type": "table",
+        "source_type": "table",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[3]",
+          "fieldConfig.overrides[7].properties[0]",
+          "fieldConfig.overrides[8].properties[0]",
+          "fieldConfig.overrides[9].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "requests",
+            "ref": "requests",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "p50",
+            "ref": "p50",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "p90",
+            "ref": "p90",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "p99",
+            "ref": "p99",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "success",
+            "ref": "success",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "TCP Workloads",
+        "type": "table",
+        "source_type": "table",
+        "row": "Global Traffic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[0]",
+          "fieldConfig.overrides[5].properties[0]",
+          "fieldConfig.overrides[6].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "recv",
+            "ref": "recv",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "sent",
+            "ref": "sent",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p9",
+        "grafana_id": 9,
+        "grafana_path": "panels[8]",
+        "title": "Istio Component Versions",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Istio Component Versions",
+        "status": "partial",
+        "reasons": [
+          "Gradient fill is not part of the SlashObserve look."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.gradientMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "dashboard links",
+        "status": "partial",
+        "reason": "Only plain links are supported; links to other dashboards and other kinds are not kept.",
+        "paths": [
+          "links[0]",
+          "links[1]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Istio Mesh Dashboard",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "15s",
+    "timezone": "utc",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p1",
+        "type": "row",
+        "title": "Global Traffic",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p2",
+            "type": "stat",
+            "title": "Traffic Volume",
+            "description": "Total requests in the cluster",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "round(sum (rate(istio_requests_total{reporter=~\"source|waypoint\"}[$__rate_interval])), 0.01)"
+              }
+            ],
+            "unit": "reqps",
+            "color": "#5794F2",
+            "fill": 10,
+            "interval": "5s"
+          },
+          {
+            "id": "p3",
+            "type": "stat",
+            "title": "Success Rate",
+            "description": "Total success rate of requests in the cluster",
+            "gridPos": {
+              "x": 6,
+              "y": 1,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum (rate(istio_requests_total{reporter=~\"source|waypoint\",response_code!~\"5..\"}[$__rate_interval])) / sum (rate(istio_requests_total{reporter=~\"source|waypoint\"}[$__rate_interval]))"
+              }
+            ],
+            "unit": "percentunit",
+            "color": "#5794F2",
+            "fill": 10,
+            "interval": "5s"
+          },
+          {
+            "id": "p4",
+            "type": "stat",
+            "title": "4xxs",
+            "description": "Total 4xx requests in in the cluster",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "round(sum (rate(istio_requests_total{reporter=~\"source|waypoint\",response_code=~\"4..\"}[$__rate_interval])), 0.01)or vector(0)"
+              }
+            ],
+            "unit": "reqps",
+            "color": "#5794F2",
+            "fill": 10,
+            "interval": "5s"
+          },
+          {
+            "id": "p5",
+            "type": "stat",
+            "title": "5xxs",
+            "description": "Total 5xx requests in in the cluster",
+            "gridPos": {
+              "x": 18,
+              "y": 1,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "round(sum (rate(istio_requests_total{reporter=~\"source|waypoint\",response_code=~\"5..\"}[$__rate_interval])), 0.01)or vector(0)"
+              }
+            ],
+            "unit": "reqps",
+            "color": "#5794F2",
+            "fill": 10,
+            "interval": "5s"
+          },
+          {
+            "id": "p6",
+            "type": "table",
+            "title": "HTTP/gRPC Workloads",
+            "description": "Request information for HTTP services",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 24,
+              "h": 16
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "ref": "requests",
+                "query": "label_join(sum by (destination_workload,destination_workload_namespace,destination_service) (rate(istio_requests_total{reporter=~\"source|waypoint\"}[$__rate_interval])), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "p50",
+                "query": "label_join(histogram_quantile(0.5, sum by (le,destination_workload,destination_workload_namespace) (rate(istio_request_duration_milliseconds_bucket{reporter=~\"source|waypoint\"}[$__rate_interval]))), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "p90",
+                "query": "label_join(histogram_quantile(0.9, sum by (le,destination_workload,destination_workload_namespace) (rate(istio_request_duration_milliseconds_bucket{reporter=~\"source|waypoint\"}[$__rate_interval]))), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "p99",
+                "query": "label_join(histogram_quantile(0.99, sum by (le,destination_workload,destination_workload_namespace) (rate(istio_request_duration_milliseconds_bucket{reporter=~\"source|waypoint\"}[$__rate_interval]))), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "success",
+                "query": "label_join(sum by (destination_workload,destination_workload_namespace) (rate(istio_requests_total{reporter=~\"source|waypoint\",response_code!~\"5..\"}[$__rate_interval]))/sum by (destination_workload,destination_workload_namespace) (rate(istio_requests_total{reporter=~\"source|waypoint\"}[$__rate_interval])), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value #requests"
+                },
+                "unit": "reqps",
+                "decimals": 2,
+                "displayName": "Requests"
+              },
+              {
+                "match": {
+                  "field": "Value #p50"
+                },
+                "unit": "ms",
+                "decimals": 2,
+                "displayName": "P50 Latency"
+              },
+              {
+                "match": {
+                  "field": "Value #p90"
+                },
+                "unit": "ms",
+                "decimals": 2,
+                "displayName": "P90 Latency"
+              },
+              {
+                "match": {
+                  "field": "Value #p99"
+                },
+                "unit": "ms",
+                "decimals": 2,
+                "displayName": "P99 Latency"
+              },
+              {
+                "match": {
+                  "field": "Value #success"
+                },
+                "unit": "percentunit",
+                "decimals": 2,
+                "thresholds": [
+                  {
+                    "color": "critical"
+                  },
+                  {
+                    "value": 0.95,
+                    "color": "warning"
+                  },
+                  {
+                    "value": 1,
+                    "color": "ok"
+                  }
+                ],
+                "displayName": "Success Rate"
+              },
+              {
+                "match": {
+                  "field": "destination_workload_var"
+                },
+                "displayName": "Workload"
+              },
+              {
+                "match": {
+                  "field": "destination_service"
+                },
+                "displayName": "Service"
+              }
+            ],
+            "transform": [
+              {
+                "type": "merge"
+              }
+            ],
+            "interval": "5s"
+          },
+          {
+            "id": "p7",
+            "type": "table",
+            "title": "TCP Workloads",
+            "description": "Bytes sent and recieived information for TCP services",
+            "gridPos": {
+              "x": 0,
+              "y": 22,
+              "w": 24,
+              "h": 16
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "ref": "recv",
+                "query": "label_join(sum by (destination_workload,destination_workload_namespace,destination_service) (rate(istio_tcp_received_bytes_total{reporter=~\"source|waypoint\"}[$__rate_interval])), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "sent",
+                "query": "label_join(sum by (destination_workload,destination_workload_namespace,destination_service) (rate(istio_tcp_sent_bytes_total{reporter=~\"source|waypoint\"}[$__rate_interval])), \"destination_workload_var\", \".\", \"destination_workload\", \"destination_workload_namespace\")",
+                "legend": "{{ destination_workload}}.{{ destination_workload_namespace }}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Value #recv"
+                },
+                "unit": "bps",
+                "decimals": 2,
+                "displayName": "Bytes Received"
+              },
+              {
+                "match": {
+                  "field": "Value #sent"
+                },
+                "unit": "bps",
+                "decimals": 2,
+                "displayName": "Bytes Sent"
+              },
+              {
+                "match": {
+                  "field": "destination_workload_var"
+                },
+                "displayName": "Workload"
+              },
+              {
+                "match": {
+                  "field": "destination_service"
+                },
+                "displayName": "Service"
+              }
+            ],
+            "transform": [
+              {
+                "type": "merge"
+              }
+            ],
+            "interval": "5s"
+          }
+        ]
+      },
+      {
+        "id": "p8",
+        "type": "row",
+        "title": "Istio Component Versions",
+        "gridPos": {
+          "x": 0,
+          "y": 38,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p9",
+            "type": "timeseries",
+            "title": "Istio Component Versions",
+            "description": "Version number of each running instance",
+            "gridPos": {
+              "x": 0,
+              "y": 39,
+              "w": 24,
+              "h": 8
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (component,tag) (istio_build)",
+                "legend": "{{component}} ({{tag}})"
+              }
+            ],
+            "fill": 10,
+            "interval": "5s"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Argo CD Notifications",
+    "uid": "3qXvXigMz",
+    "schema_version": 21,
+    "bytes": 6363,
+    "panels": 2,
+    "rows": 0,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 2,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 2,
+      "imported": 2,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[0]",
+        "title": "Trigger Evaluations",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[1]",
+        "title": "Notification deliveries",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Argo CD Notifications",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "interval",
+        "type": "interval",
+        "options": [
+          "1m",
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "2h",
+          "4h",
+          "8h"
+        ],
+        "auto": true,
+        "autoSteps": 30,
+        "autoMin": "10s",
+        "default": "1m"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p4",
+        "type": "timeseries",
+        "title": "Trigger Evaluations",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "${datasource}",
+        "queries": [
+          {
+            "query": "sum(increase(argocd_notifications_trigger_eval_total[$interval])) by (name)"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "Notification deliveries",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "${datasource}",
+        "queries": [
+          {
+            "query": "sum(increase(argocd_notifications_deliveries_total[$interval])) by (service)"
+          }
+        ],
+        "unit": "short",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      }
+    ]
+  }
+}

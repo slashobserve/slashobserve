@@ -1,0 +1,234 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "[Image-Provider] NGINX Metrics",
+    "uid": "6fb665e0-cb81-40a5-bd21-a9485c5477b4",
+    "schema_version": 41,
+    "bytes": 8097,
+    "panels": 4,
+    "rows": 0,
+    "variables": 0
+  },
+  "datasources": [
+    {
+      "key": "webstore-metrics",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 4,
+      "imported": 4,
+      "partial": 0,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "panels[0]",
+        "title": "Accepted connections",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[1]",
+        "title": "Connections handled",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[2]",
+        "title": "Total number of client requests",
+        "type": "stat",
+        "source_type": "stat",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "panels[3]",
+        "title": "Number of connections by state",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "[Image-Provider] NGINX Metrics",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": "p1",
+        "type": "stat",
+        "title": "Accepted connections",
+        "description": "The total number of accepted client connections",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 5,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "nginx_connections_accepted_total",
+            "legend": "__auto"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ]
+      },
+      {
+        "id": "p3",
+        "type": "stat",
+        "title": "Connections handled",
+        "description": "The total number of handled connections",
+        "gridPos": {
+          "x": 5,
+          "y": 0,
+          "w": 5,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "nginx_connections_handled_total",
+            "legend": "{{__name__}}"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          },
+          {
+            "value": 80,
+            "color": "critical"
+          }
+        ]
+      },
+      {
+        "id": "p4",
+        "type": "stat",
+        "title": "Total number of client requests",
+        "description": "The total number of client requests",
+        "gridPos": {
+          "x": 10,
+          "y": 0,
+          "w": 9,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "nginx_requests_total",
+            "legend": "{{__name__}}"
+          }
+        ],
+        "thresholds": [
+          {
+            "color": "ok"
+          }
+        ]
+      },
+      {
+        "id": "p2",
+        "type": "timeseries",
+        "title": "Number of connections by state",
+        "description": "The current number of nginx connections by state",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 19,
+          "h": 11
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "nginx_connections_current",
+            "legend": "{{state}}"
+          }
+        ]
+      }
+    ]
+  }
+}

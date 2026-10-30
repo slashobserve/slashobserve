@@ -1,0 +1,524 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Request Handling Performance",
+    "uid": "4GFbkOsZk",
+    "schema_version": 39,
+    "bytes": 26198,
+    "panels": 8,
+    "rows": 0,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "Prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 8,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 8,
+      "imported": 2,
+      "partial": 6,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p91",
+        "grafana_id": 91,
+        "grafana_path": "panels[0]",
+        "title": "Request Latency Percentiles",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p94",
+        "grafana_id": 94,
+        "grafana_path": "panels[1]",
+        "title": "Upstream Response Latency Percentiles",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p93",
+        "grafana_id": 93,
+        "grafana_path": "panels[2]",
+        "title": "Request Rate by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p98",
+        "grafana_id": 98,
+        "grafana_path": "panels[3]",
+        "title": "Median Upstream Response Time by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p100",
+        "grafana_id": 100,
+        "grafana_path": "panels[4]",
+        "title": "Response Error Rate by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p102",
+        "grafana_id": 102,
+        "grafana_path": "panels[5]",
+        "title": "Upstream Response Time by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p101",
+        "grafana_id": 101,
+        "grafana_path": "panels[6]",
+        "title": "Response Error Rate by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p99",
+        "grafana_id": 99,
+        "grafana_path": "panels[7]",
+        "title": "Average Response Size by Method and Path",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Request Handling Performance",
+    "tags": [
+      "nginx"
+    ],
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "ingress",
+        "label": "Service Ingress",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(nginx_ingress_controller_requests, ingress) ",
+        "sort": "alphaDesc",
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p91",
+        "type": "timeseries",
+        "title": "Request Latency Percentiles",
+        "description": "Total time for NGINX and upstream servers to process a request and send a response",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "ref": "D",
+            "query": "histogram_quantile(\n  0.5,\n  sum by (le)(\n    rate(\n      nginx_ingress_controller_request_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".5"
+          },
+          {
+            "query": "histogram_quantile(\n  0.95,\n  sum by (le)(\n    rate(\n    nginx_ingress_controller_request_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".95"
+          },
+          {
+            "ref": "A",
+            "query": "histogram_quantile(\n  0.99,\n  sum by (le)(\n    rate(\n      nginx_ingress_controller_request_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".99"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p94",
+        "type": "timeseries",
+        "title": "Upstream Response Latency Percentiles",
+        "description": "The time spent on receiving the response from the upstream server",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "ref": "D",
+            "query": "histogram_quantile(\n  0.5,\n  sum by (le)(\n    rate(\n      nginx_ingress_controller_response_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".5"
+          },
+          {
+            "query": "histogram_quantile(\n  0.95,\n  sum by (le)(\n    rate(\n    nginx_ingress_controller_response_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".95"
+          },
+          {
+            "ref": "A",
+            "query": "histogram_quantile(\n  0.99,\n  sum by (le)(\n    rate(\n      nginx_ingress_controller_response_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": ".99"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p93",
+        "type": "timeseries",
+        "title": "Request Rate by Method and Path",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "  sum by (method, host, path)(\n    rate(\n      nginx_ingress_controller_request_duration_seconds_count{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n",
+            "legend": "{{ method }} {{ host }}{{path }}"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p98",
+        "type": "timeseries",
+        "title": "Median Upstream Response Time by Method and Path",
+        "description": "For each path observed, its median upstream response time",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "histogram_quantile(\n  .5,\n  sum by (le, method, host, path)(\n    rate(\n      nginx_ingress_controller_response_duration_seconds_bucket{\n        ingress =~ \"$ingress\"\n      }[5m]\n    )\n  )\n)",
+            "legend": "{{ method }} {{ host }}{{path }}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p100",
+        "type": "timeseries",
+        "title": "Response Error Rate by Method and Path",
+        "description": "Percentage of 4xx and 5xx responses among all responses.",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (method, host, path) (rate(nginx_ingress_controller_request_duration_seconds_count{\n  ingress =~ \"$ingress\",\n  status =~ \"[4-5].*\"\n}[5m])) / sum by (method, host, path) (rate(nginx_ingress_controller_request_duration_seconds_count{\n  ingress =~ \"$ingress\",\n}[5m]))",
+            "legend": "{{ method }} {{ host }}{{path }}"
+          }
+        ],
+        "unit": "percentunit",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p102",
+        "type": "timeseries",
+        "title": "Upstream Response Time by Method and Path",
+        "description": "For each path observed, the sum of upstream request time",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "sum by (method, host, path) (rate(nginx_ingress_controller_response_duration_seconds_sum{ingress =~ \"$ingress\"}[5m]))",
+            "legend": "{{ method }} {{ host }}{{path }}"
+          }
+        ],
+        "unit": "s",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p101",
+        "type": "timeseries",
+        "title": "Response Error Rate by Method and Path",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "query": "  sum (\n    rate(\n      nginx_ingress_controller_request_duration_seconds_count{\n        ingress =~ \"$ingress\",\n        status =~\"[4-5].*\",\n      }[5m]\n    )\n  ) by(method, host, path, status)\n",
+            "legend": "{{ method }} {{ host }}{{path }} {{ status }}"
+          }
+        ],
+        "unit": "reqps",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p99",
+        "type": "timeseries",
+        "title": "Average Response Size by Method and Path",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": "prom",
+        "queries": [
+          {
+            "ref": "D",
+            "query": "sum (\n  rate (\n      nginx_ingress_controller_response_size_sum {\n        ingress =~ \"$ingress\",\n      }[5m]\n  )\n)  by (method, host, path) / sum (\n  rate(\n      nginx_ingress_controller_response_size_count {\n        ingress =~ \"$ingress\",\n      }[5m]\n  )\n) by (method, host, path)\n",
+            "legend": "{{ method }} {{ host }}{{path }}"
+          },
+          {
+            "ref": "A",
+            "query": "    sum (rate(nginx_ingress_controller_response_size_bucket{\n        ingress =~ \"$ingress\",\n    }[5m])) by (le)\n",
+            "legend": "{{le}}",
+            "hide": true
+          }
+        ],
+        "unit": "decbytes",
+        "fill": 10,
+        "display": {
+          "legend": "right",
+          "tooltip": "all"
+        }
+      }
+    ]
+  }
+}

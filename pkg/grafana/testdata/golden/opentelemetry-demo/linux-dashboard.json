@@ -1,0 +1,1883 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Linux",
+    "uid": "otel-demo-hostmetrics",
+    "schema_version": 41,
+    "bytes": 80584,
+    "panels": 19,
+    "rows": 3,
+    "variables": 5
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "DS_PROMETHEUS",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 13,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    },
+    {
+      "key": "webstore-metrics",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 2,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    },
+    {
+      "key": "fej9ntb4ninswf",
+      "name": null,
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 19,
+      "imported": 3,
+      "partial": 16,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p300",
+        "grafana_id": 300,
+        "grafana_path": "panels[1]",
+        "title": "Host Metadata",
+        "type": "table",
+        "source_type": "table",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.align"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p301",
+        "grafana_id": 301,
+        "grafana_path": "panels[2]",
+        "title": "CPU Metadata",
+        "type": "table",
+        "source_type": "table",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.align"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[3]",
+        "title": "CPU Busy",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[4]",
+        "title": "RAM Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p154",
+        "grafana_id": 154,
+        "grafana_path": "panels[5]",
+        "title": "FS Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p155",
+        "grafana_id": 155,
+        "grafana_path": "panels[6]",
+        "title": "Sys Load (5m avg)",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "sysload_5m",
+            "ref": "sysload_5m",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[7]",
+        "title": "Sys Load (15m avg)",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "sysload_15m",
+            "ref": "sysload_15m",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p21",
+        "grafana_id": 21,
+        "grafana_path": "panels[8]",
+        "title": "SWAP Used",
+        "type": "gauge",
+        "source_type": "gauge",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "options.orientation"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p14",
+        "grafana_id": 14,
+        "grafana_path": "panels[9]",
+        "title": "CPU Cores",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "overview【 $host_name】",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p75",
+        "grafana_id": 75,
+        "grafana_path": "panels[10]",
+        "title": "RAM Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "overview【 $host_name】",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[11]",
+        "title": "SWAP Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "The query is empty."
+        ],
+        "paths": [
+          "targets[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The query is empty."
+          }
+        ]
+      },
+      {
+        "panel_id": "p23",
+        "grafana_id": 23,
+        "grafana_path": "panels[12]",
+        "title": "FS Total",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "overview【 $host_name】",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p15",
+        "grafana_id": 15,
+        "grafana_path": "panels[13]",
+        "title": "Uptime",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "overview【 $host_name】",
+        "status": "partial",
+        "reasons": [
+          "The query is empty."
+        ],
+        "paths": [
+          "targets[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The query is empty."
+          }
+        ]
+      },
+      {
+        "panel_id": "p77",
+        "grafana_id": 77,
+        "grafana_path": "panels[15]",
+        "title": "CPU",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic",
+        "status": "partial",
+        "reasons": [
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "busy system",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [
+              "refId busy system -> A"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "busy user",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [
+              "refId busy user -> B"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "busy wait",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [
+              "refId busy wait -> C"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "busy irq",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [
+              "refId busy irq -> D"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "busy other",
+            "ref": "E",
+            "datasource": "prom",
+            "rewrites": [
+              "refId busy other -> E"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "idle",
+            "ref": "idle",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p78",
+        "grafana_id": 78,
+        "grafana_path": "panels[16]",
+        "title": "Memory",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[19].properties[2].value.group",
+          "fieldConfig.overrides[22].properties[2].value.group"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p74",
+        "grafana_id": 74,
+        "grafana_path": "panels[17]",
+        "title": "Network Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "receive",
+            "ref": "receive",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "transmit",
+            "ref": "transmit",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p42",
+        "grafana_id": 42,
+        "grafana_path": "panels[18]",
+        "title": "I/O Usage Read / Write",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Basic",
+        "status": "partial",
+        "reasons": [
+          "The query is empty.",
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some Grafana options of this panel are not supported yet.",
+          "Smoothed or stepped lines are drawn straight."
+        ],
+        "paths": [
+          "targets[2]",
+          "fieldConfig.overrides[0].properties[0]",
+          "fieldConfig.defaults.custom.axisLabel",
+          "fieldConfig.defaults.custom.lineInterpolation"
+        ],
+        "queries": [
+          {
+            "ref_id": "read",
+            "ref": "read",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "write",
+            "ref": "write",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": null,
+            "datasource": null,
+            "rewrites": [],
+            "dropped": "The query is empty."
+          }
+        ]
+      },
+      {
+        "panel_id": "p270",
+        "grafana_id": 270,
+        "grafana_path": "panels[19]",
+        "title": "Network traffic",
+        "type": "table",
+        "source_type": "table",
+        "row": "Details",
+        "status": "partial",
+        "reasons": [
+          "Some transformations are not supported yet."
+        ],
+        "paths": [
+          "transformations[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "transmit_bytes",
+            "ref": "transmit_bytes",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "receive_bytes",
+            "ref": "receive_bytes",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "receive_dropped_packets",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [
+              "refId receive_dropped_packets -> C"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "transmit_dropped_packets",
+            "ref": "D",
+            "datasource": "prom",
+            "rewrites": [
+              "refId transmit_dropped_packets -> D"
+            ],
+            "dropped": null
+          },
+          {
+            "ref_id": "receive_errors",
+            "ref": "receive_errors",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "transmit_errors",
+            "ref": "transmit_errors",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p269",
+        "grafana_id": 269,
+        "grafana_path": "panels[20]",
+        "title": "Disk usage",
+        "type": "table",
+        "source_type": "table",
+        "row": "Details",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Some transformations are not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0].properties[0]",
+          "transformations[0]",
+          "transformations[2].options.binary",
+          "transformations[3].options.binary",
+          "options.frameIndex"
+        ],
+        "queries": [
+          {
+            "ref_id": "free",
+            "ref": "free",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "total",
+            "ref": "total",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": [
+      {
+        "subject": "variable DS_PROMETHEUS",
+        "status": "partial",
+        "reason": "The regular expression is not supported and is not applied.",
+        "paths": [
+          "templating.list[0].regex"
+        ]
+      },
+      {
+        "subject": "variable k8s_cluster_name",
+        "status": "partial",
+        "reason": "Some Grafana options of this variable are not supported yet.",
+        "paths": [
+          "templating.list[1].allowCustomValue"
+        ]
+      },
+      {
+        "subject": "variable host_name",
+        "status": "partial",
+        "reason": "Case-insensitive sorting is not supported; the values are sorted case-sensitively.",
+        "paths": [
+          "templating.list[3].sort"
+        ]
+      },
+      {
+        "subject": "variable host_count",
+        "status": "partial",
+        "reason": "SlashObserve could not validate this variable: query references undeclared variable \"ip\"; declare it in variables or remove the reference.",
+        "paths": [
+          "templating.list[4]"
+        ]
+      }
+    ]
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Linux",
+    "description": "OpenTelemetry Collector hostmetrics",
+    "tags": [
+      "linux",
+      "opentelemetry"
+    ],
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Data Source",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "k8s_cluster_name",
+        "label": "K8s Cluster",
+        "description": "When deploying PostgreSQL on Kubernetes, name of the Kubernetes cluster.  \nFor other deployments, select \"All\".",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(otelcol_process_uptime,k8s_cluster_name)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "node_name",
+        "label": "K8s node",
+        "description": "When monitoring Kubernetes, name of the K8s node.\nFor other deployments, select \"All\".",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(otelcol_process_uptime{k8s_cluster_name=~\"$k8s_cluster_name\"},k8s_node_name)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "host_name",
+        "label": "Host",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(otelcol_process_uptime_seconds_total,host_name)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": ".*",
+        "default": "docker-desktop"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p267",
+        "type": "row",
+        "title": "overview【 $host_name】",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p300",
+            "type": "table",
+            "title": "Host Metadata",
+            "description": "Host and OS metadata from resourcedetection processor",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 12,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "target_info{service_name=\"otelcol-contrib\", host_name=~\"$host_name\"}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "transform": [
+              {
+                "type": "filterFieldsByName",
+                "includeRegex": "host_name|host_arch|os_type|os_description"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "host_arch": "Architecture",
+                  "host_name": "Hostname",
+                  "os_description": "OS Description",
+                  "os_type": "OS Type"
+                }
+              }
+            ]
+          },
+          {
+            "id": "p301",
+            "type": "table",
+            "title": "CPU Metadata",
+            "description": "CPU metadata from resourcedetection processor",
+            "gridPos": {
+              "x": 12,
+              "y": 1,
+              "w": 12,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "target_info{service_name=\"otelcol-contrib\", host_name=~\"$host_name\"}",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "transform": [
+              {
+                "type": "filterFieldsByName",
+                "includeRegex": "host_cpu_vendor_id|host_cpu_family|host_cpu_model_id|host_cpu_model_name|host_cpu_cache_l2_size|host_cpu_stepping"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "host_cpu_cache_l2_size": "L2 Cache",
+                  "host_cpu_family": "CPU Family",
+                  "host_cpu_model_id": "Model ID",
+                  "host_cpu_model_name": "Model Name",
+                  "host_cpu_stepping": "Stepping",
+                  "host_cpu_vendor_id": "CPU Vendor"
+                }
+              }
+            ]
+          },
+          {
+            "id": "p20",
+            "type": "gauge",
+            "title": "CPU Busy",
+            "description": "Busy state of all CPU cores together\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/cpuscraper/documentation.md",
+            "gridPos": {
+              "x": 0,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(system_cpu_utilization_ratio{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\", state!=\"idle\"})",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p16",
+            "type": "gauge",
+            "title": "RAM Used",
+            "description": "Non available RAM memory\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/memoryscraper/documentation.md",
+            "gridPos": {
+              "x": 3,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "system_memory_utilization_ratio{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"$node_name\", host_name=~\"$host_name\", job=\"\", state=\"used\"}",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ]
+          },
+          {
+            "id": "p154",
+            "type": "gauge",
+            "title": "FS Used",
+            "description": "Used FS\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/hostmetricsreceiver#collecting-host-metrics-from-inside-a-container-linux-only",
+            "gridPos": {
+              "x": 6,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "1 \n-\nsum(system_filesystem_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"free\"}) \n/ \nsum(system_filesystem_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "percentunit",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 80,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p155",
+            "type": "gauge",
+            "title": "Sys Load (5m avg)",
+            "description": "Busy state of all CPU cores together (5 min average)\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/loadscraper/documentation.md",
+            "gridPos": {
+              "x": 9,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "sysload_5m",
+                "query": "system_cpu_load_average_5m{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"} ",
+                "legend": "__auto",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p19",
+            "type": "gauge",
+            "title": "Sys Load (15m avg)",
+            "description": "Busy state of all CPU cores together (15 min average)\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/loadscraper/documentation.md",
+            "gridPos": {
+              "x": 12,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "sysload_15m",
+                "query": "system_cpu_load_average_15m{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"} ",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 85,
+                "color": "warning"
+              },
+              {
+                "value": 95,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p21",
+            "type": "gauge",
+            "title": "SWAP Used",
+            "description": "Used Swap\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/pagingscraper/documentation.md",
+            "gridPos": {
+              "x": 15,
+              "y": 5,
+              "w": 3,
+              "h": 4
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(system_paging_usage_bytes { k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"used\" })\n/\nsum(system_paging_usage_bytes { k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "percent",
+            "decimals": 1,
+            "min": 0,
+            "max": 100,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 10,
+                "color": "warning"
+              },
+              {
+                "value": 25,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ]
+          },
+          {
+            "id": "p14",
+            "type": "stat",
+            "title": "CPU Cores",
+            "description": "Total number of CPU cores",
+            "gridPos": {
+              "x": 18,
+              "y": 5,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "system_cpu_logical_count{ k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"used\" }",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "short",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p75",
+            "type": "stat",
+            "title": "RAM Total",
+            "description": "Total RAM",
+            "gridPos": {
+              "x": 20,
+              "y": 5,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "system_memory_limit_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}",
+                "legend": "__auto",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p18",
+            "type": "stat",
+            "title": "SWAP Total",
+            "description": "Total SWAP",
+            "gridPos": {
+              "x": 22,
+              "y": 5,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(system_paging_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "legend": "__auto",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p23",
+            "type": "stat",
+            "title": "FS Total",
+            "description": "Total FS\n\nhttps://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/hostmetricsreceiver/internal/scraper/filesystemscraper/documentation.md",
+            "gridPos": {
+              "x": 18,
+              "y": 7,
+              "w": 2,
+              "h": 2
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(system_filesystem_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "decimals": 0,
+            "thresholds": [
+              {
+                "color": "#32ac2d"
+              },
+              {
+                "value": 70,
+                "color": "warning"
+              },
+              {
+                "value": 90,
+                "color": "#f53636"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "id": "p15",
+            "type": "stat",
+            "title": "Uptime",
+            "description": "System uptime",
+            "gridPos": {
+              "x": 20,
+              "y": 7,
+              "w": 4,
+              "h": 2
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "system_uptime_seconds{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}",
+                "legend": "__auto",
+                "instant": true,
+                "interval": "240s"
+              }
+            ],
+            "unit": "s",
+            "decimals": 1,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ],
+            "mappings": [
+              {
+                "special": "null",
+                "text": "N/A"
+              }
+            ],
+            "maxDataPoints": 100,
+            "display": {
+              "colorMode": "none",
+              "graph": false,
+              "orientation": "horizontal"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p266",
+        "type": "row",
+        "title": "Basic",
+        "gridPos": {
+          "x": 0,
+          "y": 9,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p77",
+            "type": "timeseries",
+            "title": "CPU",
+            "gridPos": {
+              "x": 0,
+              "y": 10,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum (irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"system\"}[$__rate_interval])) \n/\nsum ((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Busy System",
+                "interval": "240s"
+              },
+              {
+                "query": "sum (irate(system_cpu_time_seconds_total{kk8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"user\"}[$__rate_interval])) \n/ \nsum ((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Busy User",
+                "interval": "240s"
+              },
+              {
+                "query": "sum(irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"wait\"}[$__rate_interval])) \n/ \nsum ((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Busy Wait",
+                "interval": "240s"
+              },
+              {
+                "query": "sum (irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=~\".*irq\"}[$__rate_interval])) \n/\nsum((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Busy IRQs",
+                "interval": "240s"
+              },
+              {
+                "query": "sum(irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state!~\".*irq\", state!=\"idle\", state!=\"user\", state!=\"wait\", state!=\"system\"}[$__rate_interval]))\n/\nsum ((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Busy Other",
+                "interval": "240s"
+              },
+              {
+                "ref": "idle",
+                "query": "sum by(host_name) (irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"idle\"}[$__rate_interval])) \n/ \non(host_name) group_left sum by (host_name)((irate(system_cpu_time_seconds_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"}[$__rate_interval])))",
+                "legend": "Idle",
+                "interval": "240s"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "fill": 40,
+            "stack": "percent",
+            "overrides": [
+              {
+                "match": {
+                  "series": "Busy System"
+                },
+                "color": "#890F02"
+              },
+              {
+                "match": {
+                  "series": "Busy User"
+                },
+                "color": "#5794F2"
+              },
+              {
+                "match": {
+                  "series": "Busy Wait"
+                },
+                "color": "#FADE2A"
+              },
+              {
+                "match": {
+                  "series": "Idle"
+                },
+                "color": "#7EB26D"
+              },
+              {
+                "match": {
+                  "series": "Busy IRQs"
+                },
+                "color": "#FFF899"
+              },
+              {
+                "match": {
+                  "series": "Busy Other"
+                },
+                "color": "#FFB357"
+              },
+              {
+                "match": {
+                  "series": "Idle"
+                },
+                "color": "#73BF69"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p78",
+            "type": "timeseries",
+            "title": "Memory",
+            "gridPos": {
+              "x": 6,
+              "y": 10,
+              "w": 5,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(system_memory_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "legend": "Available",
+                "interval": "240s"
+              },
+              {
+                "query": "sum(system_memory_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"free\"})",
+                "legend": "RAM Free",
+                "interval": "240s"
+              },
+              {
+                "query": "sum(system_memory_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=~\"cached|buffered\"})",
+                "legend": "RAM Cache + Buffer",
+                "interval": "240s"
+              },
+              {
+                "ref": "E",
+                "query": "sum(system_memory_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"used\"})",
+                "legend": "Used",
+                "interval": "240s"
+              }
+            ],
+            "unit": "bytes",
+            "min": 0,
+            "fill": 40,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "Apps"
+                },
+                "color": "#629E51"
+              },
+              {
+                "match": {
+                  "series": "Buffers"
+                },
+                "color": "#614D93"
+              },
+              {
+                "match": {
+                  "series": "Cache"
+                },
+                "color": "#6D1F62"
+              },
+              {
+                "match": {
+                  "series": "Cached"
+                },
+                "color": "#511749"
+              },
+              {
+                "match": {
+                  "series": "Committed"
+                },
+                "color": "#508642"
+              },
+              {
+                "match": {
+                  "series": "Free"
+                },
+                "color": "#0A437C"
+              },
+              {
+                "match": {
+                  "series": "Hardware Corrupted - Amount of RAM that the kernel identified as corrupted / not working"
+                },
+                "color": "#CFFAFF"
+              },
+              {
+                "match": {
+                  "series": "Inactive"
+                },
+                "color": "#584477"
+              },
+              {
+                "match": {
+                  "series": "PageTables"
+                },
+                "color": "#0A50A1"
+              },
+              {
+                "match": {
+                  "series": "Page_Tables"
+                },
+                "color": "#0A50A1"
+              },
+              {
+                "match": {
+                  "series": "RAM_Free"
+                },
+                "color": "#E0F9D7"
+              },
+              {
+                "match": {
+                  "series": "SWAP Used"
+                },
+                "color": "#BF1B00"
+              },
+              {
+                "match": {
+                  "series": "Slab"
+                },
+                "color": "#806EB7"
+              },
+              {
+                "match": {
+                  "series": "Slab_Cache"
+                },
+                "color": "#E0752D"
+              },
+              {
+                "match": {
+                  "series": "Swap"
+                },
+                "color": "#BF1B00"
+              },
+              {
+                "match": {
+                  "series": "Swap Used"
+                },
+                "color": "#BF1B00"
+              },
+              {
+                "match": {
+                  "series": "Swap_Cache"
+                },
+                "color": "#C15C17"
+              },
+              {
+                "match": {
+                  "series": "Swap_Free"
+                },
+                "color": "#2F575E"
+              },
+              {
+                "match": {
+                  "series": "Unused"
+                },
+                "color": "#EAB839"
+              },
+              {
+                "match": {
+                  "series": "RAM Total"
+                },
+                "color": "#E0F9D7",
+                "fill": 0,
+                "stack": "normal"
+              },
+              {
+                "match": {
+                  "series": "RAM Cache + Buffer"
+                },
+                "color": "#052B51"
+              },
+              {
+                "match": {
+                  "series": "RAM Free"
+                },
+                "color": "#7EB26D"
+              },
+              {
+                "match": {
+                  "series": "Available"
+                },
+                "color": "#DEDAF7",
+                "fill": 0,
+                "stack": "normal"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p74",
+            "type": "timeseries",
+            "title": "Network Traffic",
+            "gridPos": {
+              "x": 11,
+              "y": 10,
+              "w": 6,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "receive",
+                "query": "sum (rate(system_network_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", direction=\"receive\", job=\"\"}[$__rate_interval]))",
+                "legend": "Receive",
+                "interval": "240s"
+              },
+              {
+                "ref": "transmit",
+                "query": "sum (rate(system_network_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", direction=\"transmit\", job=\"\"}[$__rate_interval]))",
+                "legend": "Transmit",
+                "interval": "240s"
+              }
+            ],
+            "unit": "binBps",
+            "fill": 40,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p42",
+            "type": "timeseries",
+            "title": "I/O Usage Read / Write",
+            "gridPos": {
+              "x": 17,
+              "y": 10,
+              "w": 7,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "read",
+                "query": "sum(irate(system_disk_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", direction=\"read\"}[$__rate_interval]))",
+                "legend": "Read",
+                "interval": "240s"
+              },
+              {
+                "ref": "write",
+                "query": "sum(irate(system_disk_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", direction=\"write\"}[$__rate_interval]))",
+                "legend": "Write",
+                "interval": "240s"
+              }
+            ],
+            "unit": "Bps",
+            "fill": 40,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p272",
+        "type": "row",
+        "title": "Details",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p270",
+            "type": "table",
+            "title": "Network traffic",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 15,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "transmit_bytes",
+                "query": "sum by(device) (rate(system_network_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\", direction=\"transmit\"}[$__rate_interval]))",
+                "legend": "__auto"
+              },
+              {
+                "ref": "receive_bytes",
+                "query": "sum by(device) (rate(system_network_io_bytes_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\", direction=\"receive\"}[$__rate_interval]))",
+                "legend": "__auto"
+              },
+              {
+                "query": "sum by(device) (rate(system_network_dropped_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\",direction=\"receive\"}[$__rate_interval]))",
+                "legend": "__auto"
+              },
+              {
+                "query": "sum by(device) (rate(system_network_dropped_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\",direction=\"transmit\"}[$__rate_interval]))",
+                "legend": "__auto"
+              },
+              {
+                "ref": "receive_errors",
+                "query": "sum by(device) (rate(system_network_errors_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\",direction=\"receive\"}[$__rate_interval]))",
+                "legend": "__auto"
+              },
+              {
+                "ref": "transmit_errors",
+                "query": "sum by(device) (rate(system_network_errors_total{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", job=\"\",direction=\"transmit\"}[$__rate_interval]))",
+                "legend": "__auto"
+              }
+            ],
+            "overrides": [
+              {
+                "match": {
+                  "field": "Trend #transmit_bytes"
+                },
+                "unit": "binBps"
+              },
+              {
+                "match": {
+                  "field": "Trend #receive_bytes"
+                },
+                "unit": "binBps"
+              },
+              {
+                "match": {
+                  "field": "Trend #receive_dropped_packets"
+                },
+                "unit": "pps"
+              },
+              {
+                "match": {
+                  "field": "Trend #transmit_dropped_packets"
+                },
+                "unit": "pps"
+              },
+              {
+                "match": {
+                  "field": "Trend #receive_errors"
+                },
+                "unit": "pps"
+              },
+              {
+                "match": {
+                  "field": "Trend #transmit_errors"
+                },
+                "unit": "pps"
+              }
+            ],
+            "transform": [
+              {
+                "type": "joinByField",
+                "mode": "outer",
+                "field": "device"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "Trend #receive": "Receive",
+                  "Trend #receive_bytes": "Receive",
+                  "Trend #receive_dropped_packets": "Receive dropped",
+                  "Trend #receive_errors": "Transmit err",
+                  "Trend #transmit": "Transmit",
+                  "Trend #transmit_bytes": "Transmit",
+                  "Trend #transmit_dropped_packets": "Transmit dropped",
+                  "Trend #transmit_errors": "Receive err",
+                  "device": "Interface"
+                },
+                "order": [
+                  "device",
+                  "Trend #transmit_bytes",
+                  "Trend #transmit_dropped_packets",
+                  "Trend #receive_errors",
+                  "Trend #receive_bytes",
+                  "Trend #receive_dropped_packets",
+                  "Trend #transmit_errors"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "p269",
+            "type": "table",
+            "title": "Disk usage",
+            "gridPos": {
+              "x": 15,
+              "y": 18,
+              "w": 9,
+              "h": 8
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "ref": "free",
+                "query": "sum by(mountpoint) (system_filesystem_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\", state=\"free\"})",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              },
+              {
+                "ref": "total",
+                "query": "sum by(mountpoint) (system_filesystem_usage_bytes{k8s_cluster_name=~\"$k8s_cluster_name\", k8s_node_name=~\"${node_name}\", host_name=~\"$host_name\"})",
+                "legend": "__auto",
+                "instant": true,
+                "format": "table"
+              }
+            ],
+            "unit": "bytes",
+            "overrides": [
+              {
+                "match": {
+                  "field": "Used %"
+                },
+                "unit": "percentunit",
+                "min": 0,
+                "max": 1
+              }
+            ],
+            "transform": [
+              {
+                "type": "merge"
+              },
+              {
+                "type": "organize",
+                "rename": {
+                  "Used %": "Used %",
+                  "Value #free (lastNotNull)": "Free",
+                  "Value #total (lastNotNull)": "Total",
+                  "mountpoint": "Mount",
+                  "used": "Used"
+                }
+              },
+              {
+                "type": "sortBy",
+                "field": "Mount"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

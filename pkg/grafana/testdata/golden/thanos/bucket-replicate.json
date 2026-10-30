@@ -1,0 +1,431 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Thanos / BucketReplicate",
+    "uid": "65ffb86cd2688b9e4db4d1ea231a5a9a",
+    "schema_version": 14,
+    "bytes": 16376,
+    "panels": 4,
+    "rows": 2,
+    "variables": 3
+  },
+  "datasources": [
+    {
+      "key": "${datasource}",
+      "name": "datasource",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 4,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 4,
+      "imported": 0,
+      "partial": 4,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p1",
+        "grafana_id": 1,
+        "grafana_path": "rows[0].panels[0]",
+        "title": "Rate",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Bucket Replicate Runs",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p2",
+        "grafana_id": 2,
+        "grafana_path": "rows[0].panels[1]",
+        "title": "Errors",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Bucket Replicate Runs",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "linewidth",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "rows[0].panels[2]",
+        "title": "Duration",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Bucket Replicate Runs",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this query are not supported yet.",
+          "The series override option fillGradient is not supported yet.",
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "targets[0].logBase",
+          "targets[1].logBase",
+          "targets[2].logBase",
+          "seriesOverrides[0].fillGradient",
+          "seriesOverrides[1].fillGradient",
+          "seriesOverrides[2].fillGradient",
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "rows[1].panels[0]",
+        "title": "Metrics",
+        "type": "timeseries",
+        "source_type": "graph",
+        "row": "Bucket Replication",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "nullPointMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "",
+            "ref": "A",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "B",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "C",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "D",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "",
+            "ref": "E",
+            "datasource": "${datasource}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Thanos / BucketReplicate",
+    "tags": [
+      "thanos-mixin"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "timezone": "utc",
+    "variables": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "interval",
+        "label": "interval",
+        "type": "interval",
+        "options": [
+          "5m",
+          "10m",
+          "30m",
+          "1h",
+          "6h",
+          "12h"
+        ],
+        "auto": true,
+        "autoSteps": 300,
+        "autoMin": "10s",
+        "default": "5m"
+      },
+      {
+        "name": "job",
+        "label": "job",
+        "type": "query",
+        "datasource": "${datasource}",
+        "query": "label_values(up{job=~\".*thanos-bucket-replicate.*\"}, job)",
+        "sort": "alphaDesc",
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p5",
+        "type": "row",
+        "title": "Bucket Replicate Runs",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p1",
+            "type": "timeseries",
+            "title": "Rate",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job) (rate(thanos_replicate_replication_runs_total{result=\"error\", job=~\"$job\"}[$interval])) / sum by (job) (rate(thanos_replicate_replication_runs_total{job=~\"$job\"}[$interval]))",
+                "legend": "error",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "error"
+                },
+                "color": "#E24D42"
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "type": "timeseries",
+            "title": "Errors",
+            "description": "Shows rate of errors.",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job, result) (rate(thanos_replicate_replication_runs_total{result=\"error\", job=~\"$job\"}[$__rate_interval]))",
+                "legend": "{{result}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "fill": 100,
+            "stack": "normal"
+          },
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Duration",
+            "description": "Shows how long has it taken to run a replication cycle.",
+            "gridPos": {
+              "x": 16,
+              "y": 1,
+              "w": 8,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.50, sum by (job, le) (rate(thanos_replicate_replication_run_duration_seconds_bucket{result=\"success\",  job=~\"$job\"}[$interval]))) * 1",
+                "legend": "p50 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "histogram_quantile(0.90, sum by (job, le) (rate(thanos_replicate_replication_run_duration_seconds_bucket{result=\"success\",  job=~\"$job\"}[$interval]))) * 1",
+                "legend": "p90 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "histogram_quantile(0.99, sum by (job, le) (rate(thanos_replicate_replication_run_duration_seconds_bucket{result=\"success\",  job=~\"$job\"}[$interval]))) * 1",
+                "legend": "p99 {{job}}",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "p99"
+                },
+                "color": "#FA6400",
+                "fill": 10
+              },
+              {
+                "match": {
+                  "series": "p90"
+                },
+                "color": "#E0B400",
+                "fill": 10
+              },
+              {
+                "match": {
+                  "series": "p50"
+                },
+                "color": "#37872D",
+                "fill": 100
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Bucket Replication",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "Metrics",
+            "gridPos": {
+              "x": 0,
+              "y": 9,
+              "w": 24,
+              "h": 7
+            },
+            "datasource": "${datasource}",
+            "queries": [
+              {
+                "query": "sum by (job) (rate(blocks_meta_synced{state=\"loaded\", job=~\"$job\"}[$__rate_interval]))",
+                "legend": "meta loads",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum by (job) (rate(blocks_meta_synced{state=\"failed\", job=~\"$job\"}[$__rate_interval]))",
+                "legend": "partial meta reads",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum by (job) (rate(thanos_replicate_blocks_already_replicated_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "already replicated blocks",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum by (job) (rate(thanos_replicate_blocks_replicated_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "replicated blocks",
+                "interval": "10s",
+                "intervalFactor": 2
+              },
+              {
+                "query": "sum by (job) (rate(thanos_replicate_objects_replicated_total{job=~\"$job\"}[$__rate_interval]))",
+                "legend": "replicated objects",
+                "interval": "10s",
+                "intervalFactor": 2
+              }
+            ],
+            "unit": "short",
+            "min": 0,
+            "fill": 10
+          }
+        ]
+      }
+    ]
+  }
+}

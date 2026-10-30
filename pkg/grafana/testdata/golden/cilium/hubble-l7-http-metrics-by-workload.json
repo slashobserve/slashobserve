@@ -1,0 +1,793 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "export",
+    "title": "Hubble L7 HTTP Metrics by Workload",
+    "uid": "3g264CZVz",
+    "schema_version": 38,
+    "bytes": 41272,
+    "panels": 11,
+    "rows": 3,
+    "variables": 7
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "prometheus",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 11,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 11,
+      "imported": 3,
+      "partial": 8,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p16",
+        "grafana_id": 16,
+        "grafana_path": "panels[1]",
+        "title": "Incoming Request Volume",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "General",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p17",
+        "grafana_id": 17,
+        "grafana_path": "panels[2]",
+        "title": "Incoming Request Success Rate (non-5xx responses)",
+        "type": "stat",
+        "source_type": "stat",
+        "row": "General",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p18",
+        "grafana_id": 18,
+        "grafana_path": "panels[3]",
+        "title": "Request Duration",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "General",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p3",
+        "grafana_id": 3,
+        "grafana_path": "panels[5]",
+        "title": "Incoming Requests by Source and Response Code",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Source",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p7",
+        "grafana_id": 7,
+        "grafana_path": "panels[6]",
+        "title": "Incoming Request Success Rate (non-5xx responses) By Source",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Source",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p4",
+        "grafana_id": 4,
+        "grafana_path": "panels[7]",
+        "title": "HTTP Request Duration by Source",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Source",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "targets[2].exemplar",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p20",
+        "grafana_id": 20,
+        "grafana_path": "panels[8]",
+        "title": "CPU Usage by Source",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Source",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p10",
+        "grafana_id": 10,
+        "grafana_path": "panels[10]",
+        "title": "Incoming Requests by Destination and Response Code",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Destination",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p11",
+        "grafana_id": 11,
+        "grafana_path": "panels[11]",
+        "title": "Incoming Request Success Rate (non-5xx responses) By Destination",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Destination",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p12",
+        "grafana_id": 12,
+        "grafana_path": "panels[12]",
+        "title": "HTTP Request Duration by Destination",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Destination",
+        "status": "partial",
+        "reasons": [
+          "Exemplars are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "targets[0].exemplar",
+          "targets[1].exemplar",
+          "targets[2].exemplar",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p19",
+        "grafana_id": 19,
+        "grafana_path": "panels[13]",
+        "title": "CPU Usage by Destination",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Requests by Destination",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "prom",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Hubble L7 HTTP Metrics by Workload",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "cluster",
+        "label": "Cluster",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total, cluster)",
+        "sort": "alphaDesc"
+      },
+      {
+        "name": "destination_namespace",
+        "label": "Destination Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\"}, destination_namespace)",
+        "sort": "alphaDesc",
+        "refresh": "timeRange"
+      },
+      {
+        "name": "destination_workload",
+        "label": "Destination Workload",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\"}, destination_workload)",
+        "sort": "alphaDesc"
+      },
+      {
+        "name": "reporter",
+        "label": "Reporter",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total, reporter)"
+      },
+      {
+        "name": "source_namespace",
+        "label": "Source Namespace",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\"}, source_namespace)",
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "source_workload",
+        "label": "Source Workload",
+        "type": "query",
+        "datasource": "prom",
+        "query": "label_values(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", source_namespace=~\"${source_namespace}\"}, source_workload)",
+        "multi": true,
+        "includeAll": true
+      }
+    ],
+    "panels": [
+      {
+        "id": "p14",
+        "type": "row",
+        "title": "General",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p16",
+            "type": "stat",
+            "title": "Incoming Request Volume",
+            "gridPos": {
+              "x": 0,
+              "y": 1,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "round(sum(rate(hubble_http_requests_total{reporter=~\"${reporter}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\"}[$__rate_interval])), 0.001)"
+              }
+            ],
+            "unit": "reqps",
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p17",
+            "type": "stat",
+            "title": "Incoming Request Success Rate (non-5xx responses)",
+            "gridPos": {
+              "x": 8,
+              "y": 1,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", status!~\"5.*\"}[$__rate_interval]))\n/\nsum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\"}[$__rate_interval]))",
+                "legend": "{{ cluster }} {{ method }} {{ source_namespace }}/{{ source_workload }}"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "thresholds": [
+              {
+                "color": "ok"
+              },
+              {
+                "value": 80,
+                "color": "critical"
+              }
+            ]
+          },
+          {
+            "id": "p18",
+            "type": "timeseries",
+            "title": "Request Duration",
+            "gridPos": {
+              "x": 16,
+              "y": 1,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.50, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\"}[$__rate_interval])) by (le))",
+                "legend": "P50"
+              },
+              {
+                "query": "histogram_quantile(0.95, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\"}[$__rate_interval])) by (le))",
+                "legend": "P95"
+              },
+              {
+                "query": "histogram_quantile(0.99, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\"}[$__rate_interval])) by (le))",
+                "legend": "P99"
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p6",
+        "type": "row",
+        "title": "Requests by Source",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p3",
+            "type": "timeseries",
+            "title": "Incoming Requests by Source and Response Code",
+            "gridPos": {
+              "x": 0,
+              "y": 7,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "round(sum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, source_namespace, source_workload, status), 0.001)",
+                "legend": "{{ cluster }} {{ method }} {{ source_namespace }}/{{ source_workload }}: {{ status }}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "max",
+                "mean",
+                "sum",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p7",
+            "type": "timeseries",
+            "title": "Incoming Request Success Rate (non-5xx responses) By Source",
+            "gridPos": {
+              "x": 12,
+              "y": 7,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\",status!~\"5.*\"}[$__rate_interval])) by (cluster, source_namespace, source_workload)\n/\nsum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, source_namespace, source_workload)",
+                "legend": "{{ cluster }} {{ method }} {{ source_namespace }}/{{ source_workload }}"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "min",
+                "max",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p4",
+            "type": "timeseries",
+            "title": "HTTP Request Duration by Source",
+            "gridPos": {
+              "x": 0,
+              "y": 17,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.50, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, source_namespace, source_workload, le))",
+                "legend": "{{ cluster }} {{ source_namespace }}/{{ source_workload }} P50"
+              },
+              {
+                "query": "histogram_quantile(0.95, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, source_namespace, source_workload, le))",
+                "legend": "{{ cluster }} {{ source_namespace }}/{{ source_workload }} P95"
+              },
+              {
+                "query": "histogram_quantile(0.99, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, source_namespace, source_workload, le))",
+                "legend": "{{ cluster }} {{ source_namespace }}/{{ source_workload }} P99"
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p20",
+            "type": "timeseries",
+            "title": "CPU Usage by Source",
+            "gridPos": {
+              "x": 12,
+              "y": 17,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(\n    node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{cluster=~\"${cluster}\", namespace=~\"${destination_namespace}\"}\n  * on(namespace,pod)\n    group_left(workload, workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=~\"${cluster}\", namespace=~\"${destination_namespace}\", workload=~\"${source_workload}\"}\n) by (namespace, workload)",
+                "legend": "{{ cluster }} {{ namespace }}/{{ workload }}"
+              }
+            ],
+            "unit": "none",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "p9",
+        "type": "row",
+        "title": "Requests by Destination",
+        "gridPos": {
+          "x": 0,
+          "y": 27,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p10",
+            "type": "timeseries",
+            "title": "Incoming Requests by Destination and Response Code",
+            "gridPos": {
+              "x": 0,
+              "y": 28,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "round(sum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload, status), 0.001)",
+                "legend": "{{ cluster }} {{ method }} {{ destination_namespace }}/{{ destination_workload }}: {{ status }}"
+              }
+            ],
+            "unit": "reqps",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "max",
+                "mean",
+                "sum",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p11",
+            "type": "timeseries",
+            "title": "Incoming Request Success Rate (non-5xx responses) By Destination",
+            "gridPos": {
+              "x": 12,
+              "y": 28,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\",status!~\"5.*\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload)\n/\nsum(rate(hubble_http_requests_total{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload)",
+                "legend": "{{ cluster }} {{ method }} {{ destination_namespace }}/{{ destination_workload }}"
+              }
+            ],
+            "unit": "percentunit",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "mean",
+                "min",
+                "max",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p12",
+            "type": "timeseries",
+            "title": "HTTP Request Duration by Destination",
+            "gridPos": {
+              "x": 0,
+              "y": 38,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.50, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload, le))",
+                "legend": "{{ cluster }} {{ destination_namespace }}/{{ destination_workload }} P50"
+              },
+              {
+                "query": "histogram_quantile(0.95, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload, le))",
+                "legend": "{{ cluster }} {{ destination_namespace }}/{{ destination_workload }} P95"
+              },
+              {
+                "query": "histogram_quantile(0.99, sum(rate(hubble_http_request_duration_seconds_bucket{cluster=~\"${cluster}\", destination_namespace=~\"${destination_namespace}\", destination_workload=~\"${destination_workload}\", reporter=\"${reporter}\", source_namespace=~\"${source_namespace}\", source_workload=~\"${source_workload}\"}[$__rate_interval])) by (cluster, destination_namespace, destination_workload, le))",
+                "legend": "{{ cluster }} {{ destination_namespace }}/{{ destination_workload }} P99"
+              }
+            ],
+            "unit": "s",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p19",
+            "type": "timeseries",
+            "title": "CPU Usage by Destination",
+            "gridPos": {
+              "x": 12,
+              "y": 38,
+              "w": 12,
+              "h": 10
+            },
+            "datasource": "prom",
+            "queries": [
+              {
+                "query": "sum(\n    node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{cluster=~\"${cluster}\", namespace=~\"${destination_namespace}\"}\n  * on(namespace,pod)\n    group_left(workload, workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster=~\"${cluster}\", namespace=~\"${destination_namespace}\", workload=\"${destination_workload}\"}\n) by (namespace, workload)",
+                "legend": "{{ cluster }} {{ namespace }}/{{ workload }}"
+              }
+            ],
+            "unit": "none",
+            "min": 0,
+            "display": {
+              "legendValues": [
+                "min",
+                "max",
+                "mean",
+                "lastNotNull"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

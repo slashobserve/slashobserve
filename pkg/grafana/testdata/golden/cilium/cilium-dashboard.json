@@ -1,0 +1,5146 @@
+{
+  "input_error": null,
+  "summary": {
+    "format": "classic",
+    "title": "Cilium Metrics",
+    "uid": "vtuWtdumz",
+    "schema_version": 40,
+    "bytes": 284152,
+    "panels": 77,
+    "rows": 3,
+    "variables": 2
+  },
+  "datasources": [
+    {
+      "key": "${DS_PROMETHEUS}",
+      "name": "DS_PROMETHEUS",
+      "type": "prometheus",
+      "kind": "prometheus",
+      "panels": 70,
+      "match": "prom",
+      "matched_by": "only",
+      "candidates": [
+        "prom"
+      ]
+    }
+  ],
+  "report": {
+    "importer_version": "<version>",
+    "verified": false,
+    "counts": {
+      "total": 77,
+      "imported": 36,
+      "partial": 41,
+      "placeholder": 0,
+      "unverified": 0
+    },
+    "panels": [
+      {
+        "panel_id": "p76",
+        "grafana_id": 76,
+        "grafana_path": "panels[0]",
+        "title": "Errors & Warnings",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p96",
+        "grafana_id": 96,
+        "grafana_path": "panels[1]",
+        "title": "CPU Usage per node",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": null,
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[1].properties[0]",
+          "fieldConfig.overrides[1].properties[1]",
+          "fieldConfig.overrides[2].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p26",
+        "grafana_id": 26,
+        "grafana_path": "panels[3]",
+        "title": "Virtual Memory Bytes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Generic",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[0]",
+          "fieldConfig.overrides[4].properties[1]",
+          "fieldConfig.overrides[5].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p24",
+        "grafana_id": 24,
+        "grafana_path": "panels[4]",
+        "title": "Resident memory status",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Generic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p98",
+        "grafana_id": 98,
+        "grafana_path": "panels[5]",
+        "title": "Open file descriptors",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Generic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p178",
+        "grafana_id": 178,
+        "grafana_path": "panels[6]",
+        "title": "System-wide BPF memory usage",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Generic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p194",
+        "grafana_id": 194,
+        "grafana_path": "panels[7]",
+        "title": "BPF map pressure",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Generic",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p152",
+        "grafana_id": 152,
+        "grafana_path": "panels[9]",
+        "title": "API call latency (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p153",
+        "grafana_id": 153,
+        "grafana_path": "panels[10]",
+        "title": "API call latency (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p156",
+        "grafana_id": 156,
+        "grafana_path": "panels[11]",
+        "title": "# API calls (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p157",
+        "grafana_id": 157,
+        "grafana_path": "panels[12]",
+        "title": "# API calls (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p159",
+        "grafana_id": 159,
+        "grafana_path": "panels[13]",
+        "title": "API return codes (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p158",
+        "grafana_id": 158,
+        "grafana_path": "panels[14]",
+        "title": "API return codes (sum all nodes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "API",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p144",
+        "grafana_id": 144,
+        "grafana_path": "panels[16]",
+        "title": "BPF",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p146",
+        "grafana_id": 146,
+        "grafana_path": "panels[17]",
+        "title": "# system calls (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p145",
+        "grafana_id": 145,
+        "grafana_path": "panels[18]",
+        "title": "# system calls (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p140",
+        "grafana_id": 140,
+        "grafana_path": "panels[19]",
+        "title": "system call latency (avg node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p148",
+        "grafana_id": 148,
+        "grafana_path": "panels[20]",
+        "title": "system call latency (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p142",
+        "grafana_id": 142,
+        "grafana_path": "panels[21]",
+        "title": "map ops (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p147",
+        "grafana_id": 147,
+        "grafana_path": "panels[22]",
+        "title": "map ops (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p143",
+        "grafana_id": 143,
+        "grafana_path": "panels[23]",
+        "title": "map ops (sum failures)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p182",
+        "grafana_id": 182,
+        "grafana_path": "panels[24]",
+        "title": "kvstore",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p184",
+        "grafana_id": 184,
+        "grafana_path": "panels[25]",
+        "title": "# operations (sum all nodes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p186",
+        "grafana_id": 186,
+        "grafana_path": "panels[26]",
+        "title": "# operations (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p188",
+        "grafana_id": 188,
+        "grafana_path": "panels[27]",
+        "title": "latency (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p190",
+        "grafana_id": 190,
+        "grafana_path": "panels[28]",
+        "title": "latency (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p192",
+        "grafana_id": 192,
+        "grafana_path": "panels[29]",
+        "title": "Events received (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p47",
+        "grafana_id": 47,
+        "grafana_path": "panels[30]",
+        "title": "Cilium network information",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p81",
+        "grafana_id": 81,
+        "grafana_path": "panels[31]",
+        "title": "Forwarded Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p111",
+        "grafana_id": 111,
+        "grafana_path": "panels[32]",
+        "title": "Forwarded Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p56",
+        "grafana_id": 56,
+        "grafana_path": "panels[33]",
+        "title": "IPv4 Conntrack TCP",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[17].properties[0]",
+          "fieldConfig.overrides[17].properties[1]",
+          "fieldConfig.overrides[18].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p128",
+        "grafana_id": 128,
+        "grafana_path": "panels[34]",
+        "title": "IPv6 Conntrack TCP",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[17].properties[0]",
+          "fieldConfig.overrides[17].properties[1]",
+          "fieldConfig.overrides[18].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p129",
+        "grafana_id": 129,
+        "grafana_path": "panels[35]",
+        "title": "IPv4 Conntrack Non-TCP",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[17].properties[0]",
+          "fieldConfig.overrides[17].properties[1]",
+          "fieldConfig.overrides[18].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p130",
+        "grafana_id": 130,
+        "grafana_path": "panels[36]",
+        "title": "IPv6 Conntrack Non-TCP",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[17].properties[0]",
+          "fieldConfig.overrides[17].properties[1]",
+          "fieldConfig.overrides[18].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "E",
+            "ref": "E",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p87",
+        "grafana_id": 87,
+        "grafana_path": "panels[37]",
+        "title": "Allocated Addresses",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p79",
+        "grafana_id": 79,
+        "grafana_path": "panels[38]",
+        "title": "Datapath Conntrack Dump Resets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p106",
+        "grafana_id": 106,
+        "grafana_path": "panels[39]",
+        "title": "Service Updates",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p89",
+        "grafana_id": 89,
+        "grafana_path": "panels[40]",
+        "title": "Connectivity Health",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p39",
+        "grafana_id": 39,
+        "grafana_path": "panels[41]",
+        "title": "Dropped Egress Packets",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p93",
+        "grafana_id": 93,
+        "grafana_path": "panels[42]",
+        "title": "Node Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[2].properties[0]",
+          "fieldConfig.overrides[2].properties[1]",
+          "fieldConfig.overrides[3].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p113",
+        "grafana_id": 113,
+        "grafana_path": "panels[43]",
+        "title": "Dropped Egress Traffic",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p91",
+        "grafana_id": 91,
+        "grafana_path": "panels[44]",
+        "title": "Nodes",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[2].properties[0]",
+          "fieldConfig.overrides[2].properties[1]",
+          "fieldConfig.overrides[3].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p28",
+        "grafana_id": 28,
+        "grafana_path": "panels[45]",
+        "title": "Policy",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p53",
+        "grafana_id": 53,
+        "grafana_path": "panels[46]",
+        "title": "L7 forwarded request",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p123",
+        "grafana_id": 123,
+        "grafana_path": "panels[47]",
+        "title": "DNS proxy request latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p114",
+        "grafana_id": 114,
+        "grafana_path": "panels[48]",
+        "title": "Policy Denies: L3/L4",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p37",
+        "grafana_id": 37,
+        "grafana_path": "panels[49]",
+        "title": "Policy Denies: L7",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p104",
+        "grafana_id": 104,
+        "grafana_path": "panels[50]",
+        "title": "Policy Identity Update Latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[4].properties[0]",
+          "fieldConfig.overrides[4].properties[1]",
+          "fieldConfig.overrides[5].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p102",
+        "grafana_id": 102,
+        "grafana_path": "panels[51]",
+        "title": "Policy Apply Latency",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[6].properties[0]",
+          "fieldConfig.overrides[6].properties[1]",
+          "fieldConfig.overrides[7].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p33",
+        "grafana_id": 33,
+        "grafana_path": "panels[52]",
+        "title": "Endpoints policy enforcement status",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p100",
+        "grafana_id": 100,
+        "grafana_path": "panels[53]",
+        "title": "Proxy Redirects",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[3].properties[0]",
+          "fieldConfig.overrides[3].properties[1]",
+          "fieldConfig.overrides[4].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p117",
+        "grafana_id": 117,
+        "grafana_path": "panels[54]",
+        "title": "Policy Calculation Time",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[3].properties[0]",
+          "fieldConfig.overrides[3].properties[1]",
+          "fieldConfig.overrides[4].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p85",
+        "grafana_id": 85,
+        "grafana_path": "panels[55]",
+        "title": "Policies Per Node",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[3].properties[0]",
+          "fieldConfig.overrides[3].properties[1]",
+          "fieldConfig.overrides[4].properties[0]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "C",
+            "ref": "C",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "D",
+            "ref": "D",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p73",
+        "grafana_id": 73,
+        "grafana_path": "panels[56]",
+        "title": "Endpoints",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p55",
+        "grafana_id": 55,
+        "grafana_path": "panels[57]",
+        "title": "Endpoint regeneration time (90th percentile)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p115",
+        "grafana_id": 115,
+        "grafana_path": "panels[58]",
+        "title": "Endpoint regeneration time (99th percentile)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p49",
+        "grafana_id": 49,
+        "grafana_path": "panels[59]",
+        "title": "Endpoint regenerations",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p51",
+        "grafana_id": 51,
+        "grafana_path": "panels[60]",
+        "title": "Cilium endpoint state",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some Grafana options of this panel are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.defaults.custom.spanNulls"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p74",
+        "grafana_id": 74,
+        "grafana_path": "panels[61]",
+        "title": "Controllers",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p70",
+        "grafana_id": 70,
+        "grafana_path": "panels[62]",
+        "title": "Controllers",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          },
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p68",
+        "grafana_id": 68,
+        "grafana_path": "panels[63]",
+        "title": "Controller Durations",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p60",
+        "grafana_id": 60,
+        "grafana_path": "panels[64]",
+        "title": "Kubernetes integration",
+        "type": "text",
+        "source_type": "text",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": []
+      },
+      {
+        "panel_id": "p163",
+        "grafana_id": 163,
+        "grafana_path": "panels[65]",
+        "title": "apiserver latency (average node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p165",
+        "grafana_id": 165,
+        "grafana_path": "panels[66]",
+        "title": "apiserver latency (max node)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p168",
+        "grafana_id": 168,
+        "grafana_path": "panels[67]",
+        "title": "apiserver #calls (sum all nodes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p166",
+        "grafana_id": 166,
+        "grafana_path": "panels[68]",
+        "title": "apiserver calls (sum all nodes)",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet.",
+          "Legend tables are not supported; the legend is a plain list."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]",
+          "options.legend.displayMode"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p172",
+        "grafana_id": 172,
+        "grafana_path": "panels[69]",
+        "title": "Valid, Unnecessary K8s Events Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p174",
+        "grafana_id": 174,
+        "grafana_path": "panels[70]",
+        "title": "Invalid, Unnecessary K8s Events Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p175",
+        "grafana_id": 175,
+        "grafana_path": "panels[71]",
+        "title": "Valid, Necessary K8s Events Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p173",
+        "grafana_id": 173,
+        "grafana_path": "panels[72]",
+        "title": "Invalid, Necessary K8s Events Received",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "partial",
+        "reasons": [
+          "Some overrides use matchers or properties that are not supported yet."
+        ],
+        "paths": [
+          "fieldConfig.overrides[0]",
+          "fieldConfig.overrides[1]"
+        ],
+        "queries": [
+          {
+            "ref_id": "A",
+            "ref": "A",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p108",
+        "grafana_id": 108,
+        "grafana_path": "panels[73]",
+        "title": "CiliumNetworkPolicy Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p119",
+        "grafana_id": 119,
+        "grafana_path": "panels[74]",
+        "title": "NetworkPolicy Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p109",
+        "grafana_id": 109,
+        "grafana_path": "panels[75]",
+        "title": "Pod Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p122",
+        "grafana_id": 122,
+        "grafana_path": "panels[76]",
+        "title": "Node Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p118",
+        "grafana_id": 118,
+        "grafana_path": "panels[77]",
+        "title": "Service Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p120",
+        "grafana_id": 120,
+        "grafana_path": "panels[78]",
+        "title": "Endpoints Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      },
+      {
+        "panel_id": "p121",
+        "grafana_id": 121,
+        "grafana_path": "panels[79]",
+        "title": "Namespace Events",
+        "type": "timeseries",
+        "source_type": "timeseries",
+        "row": "Cilium",
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
+        "queries": [
+          {
+            "ref_id": "B",
+            "ref": "B",
+            "datasource": "${DS_PROMETHEUS}",
+            "rewrites": [],
+            "dropped": null
+          }
+        ]
+      }
+    ],
+    "notes": []
+  },
+  "spec": {
+    "specVersion": "0",
+    "title": "Cilium Metrics",
+    "description": "Dashboard for Cilium (https://cilium.io/) metrics",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "timezone": "utc",
+    "cursorSync": "crosshair",
+    "variables": [
+      {
+        "name": "DS_PROMETHEUS",
+        "label": "Prometheus",
+        "type": "datasource",
+        "datasourceType": "prometheus",
+        "default": "prom"
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "datasource": "${DS_PROMETHEUS}",
+        "query": "label_values(cilium_version, pod)",
+        "sort": "alpha",
+        "refresh": "timeRange",
+        "includeAll": true,
+        "allValue": "cilium.*"
+      }
+    ],
+    "panels": [
+      {
+        "id": "p76",
+        "type": "timeseries",
+        "title": "Errors & Warnings",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 5
+        },
+        "datasource": "${DS_PROMETHEUS}",
+        "queries": [
+          {
+            "query": "sum(rate(cilium_errors_warnings_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, level) * 60",
+            "legend": "{{level}}"
+          }
+        ],
+        "unit": "opm",
+        "fill": 10,
+        "overrides": [
+          {
+            "match": {
+              "series": "error"
+            },
+            "color": "#890f02"
+          },
+          {
+            "match": {
+              "series": "warning"
+            },
+            "color": "#c15c17"
+          }
+        ],
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p96",
+        "type": "timeseries",
+        "title": "CPU Usage per node",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 5
+        },
+        "datasource": "${DS_PROMETHEUS}",
+        "queries": [
+          {
+            "query": "min(irate(cilium_process_cpu_seconds_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod) * 100",
+            "legend": "min"
+          },
+          {
+            "query": "avg(irate(cilium_process_cpu_seconds_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod) * 100",
+            "legend": "avg"
+          },
+          {
+            "query": "max(irate(cilium_process_cpu_seconds_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod) * 100",
+            "legend": "max"
+          }
+        ],
+        "unit": "percent",
+        "fill": 35,
+        "overrides": [
+          {
+            "match": {
+              "series": "avg"
+            },
+            "color": "#cffaff"
+          }
+        ],
+        "display": {
+          "tooltip": "all"
+        }
+      },
+      {
+        "id": "p161",
+        "type": "row",
+        "title": "Generic",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p26",
+            "type": "timeseries",
+            "title": "Virtual Memory Bytes",
+            "gridPos": {
+              "x": 0,
+              "y": 6,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_process_virtual_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "Min Virtual Memory"
+              },
+              {
+                "query": "avg(cilium_process_virtual_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "Average Virtual Memory"
+              },
+              {
+                "query": "max(cilium_process_virtual_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "Max Virtual Memory"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "AVG_virtual_memory_bytes"
+                },
+                "color": "#508642"
+              },
+              {
+                "match": {
+                  "series": "Average Virtual Memory"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "MAX_virtual_memory_bytes"
+                },
+                "color": "#e5ac0e"
+              },
+              {
+                "match": {
+                  "series": "Max Virtual Memory"
+                },
+                "color": "#584477"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p24",
+            "type": "timeseries",
+            "title": "Resident memory status",
+            "gridPos": {
+              "x": 8,
+              "y": 6,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "avg(cilium_process_resident_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "AVG_resident_memory_bytes"
+              },
+              {
+                "ref": "D",
+                "query": "max(cilium_process_resident_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "MAX_resident_memory_bytes_max"
+              },
+              {
+                "ref": "E",
+                "query": "min(cilium_process_resident_memory_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "MIN_resident_memory_bytes_min"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "MAX_resident_memory_bytes_max"
+                },
+                "color": "#e5ac0e"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p98",
+            "type": "timeseries",
+            "title": "Open file descriptors",
+            "gridPos": {
+              "x": 16,
+              "y": 6,
+              "w": 8,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(cilium_process_open_fds{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "all nodes"
+              },
+              {
+                "query": "min(cilium_process_open_fds{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "min/node"
+              },
+              {
+                "query": "avg(cilium_process_open_fds{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "avg/node"
+              },
+              {
+                "query": "max(cilium_process_open_fds{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "max/node"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "all nodes"
+                },
+                "color": "#e5a8e2"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p178",
+            "type": "timeseries",
+            "title": "System-wide BPF memory usage",
+            "description": "BPF memory usage in the entire system including components not managed by Cilium.",
+            "gridPos": {
+              "x": 0,
+              "y": 11,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "C",
+                "query": "avg(cilium_bpf_maps_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"} + cilium_bpf_progs_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "AVG_bpf_memory_bytes_avg"
+              },
+              {
+                "ref": "D",
+                "query": "max(cilium_bpf_maps_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"} + cilium_bpf_progs_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "MAX_bpf_memory_bytes_max"
+              },
+              {
+                "ref": "E",
+                "query": "min(cilium_bpf_maps_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"} + cilium_bpf_progs_virtual_memory_max_bytes{k8s_app=\"cilium\", pod=~\"$pod\"})",
+                "legend": "MIN_bpf_memory_bytes_min"
+              }
+            ],
+            "unit": "bytes",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "MAX_resident_memory_bytes_max"
+                },
+                "color": "#e5ac0e"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p194",
+            "type": "timeseries",
+            "title": "BPF map pressure",
+            "description": "Fill percentage of BPF maps, tagged by map name",
+            "gridPos": {
+              "x": 12,
+              "y": 11,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "cilium_bpf_map_pressure{k8s_app=\"cilium\", pod=~\"$pod\"}"
+              }
+            ],
+            "unit": "percentunit",
+            "max": 1,
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p155",
+        "type": "row",
+        "title": "API",
+        "gridPos": {
+          "x": 0,
+          "y": 17,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p152",
+            "type": "timeseries",
+            "title": "API call latency (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 18,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_agent_api_process_time_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p153",
+            "type": "timeseries",
+            "title": "API call latency (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 18,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(cilium_agent_api_process_time_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p156",
+            "type": "timeseries",
+            "title": "# API calls (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 24,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}} "
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p157",
+            "type": "timeseries",
+            "title": "# API calls (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 24,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}} "
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p159",
+            "type": "timeseries",
+            "title": "API return codes (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 30,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path, return_code)",
+                "legend": "{{return_code}} ({{method}} {{path}} )"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p158",
+            "type": "timeseries",
+            "title": "API return codes (sum all nodes)",
+            "gridPos": {
+              "x": 12,
+              "y": 30,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_agent_api_process_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path, return_code)",
+                "legend": "{{return_code}} ({{method}} {{path}} )"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "p72",
+        "type": "row",
+        "title": "Cilium",
+        "gridPos": {
+          "x": 0,
+          "y": 36,
+          "w": 24,
+          "h": 1
+        },
+        "panels": [
+          {
+            "id": "p144",
+            "type": "text",
+            "title": "BPF",
+            "gridPos": {
+              "x": 0,
+              "y": 37,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p146",
+            "type": "timeseries",
+            "title": "# system calls (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 38,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_bpf_syscall_duration_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, operation)",
+                "legend": "{{operation}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p145",
+            "type": "timeseries",
+            "title": "# system calls (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 38,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(cilium_bpf_syscall_duration_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, operation)",
+                "legend": "{{operation}}"
+              }
+            ],
+            "unit": "ops",
+            "decimals": 0,
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p140",
+            "type": "timeseries",
+            "title": "system call latency (avg node)",
+            "gridPos": {
+              "x": 0,
+              "y": 46,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_bpf_syscall_duration_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/ rate(cilium_bpf_syscall_duration_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, operation)",
+                "legend": "{{operation}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p148",
+            "type": "timeseries",
+            "title": "system call latency (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 46,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(cilium_bpf_syscall_duration_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/ rate(cilium_bpf_syscall_duration_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, operation)",
+                "legend": "{{operation}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p142",
+            "type": "timeseries",
+            "title": "map ops (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 52,
+              "w": 8,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "topk(5, avg(rate(cilium_bpf_map_ops_total{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])) by (pod, map_name, operation))",
+                "legend": "{{map_name}} {{operation}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p147",
+            "type": "timeseries",
+            "title": "map ops (max node)",
+            "gridPos": {
+              "x": 8,
+              "y": 52,
+              "w": 8,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "topk(5, max(rate(cilium_bpf_map_ops_total{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])) by (pod, map_name, operation))",
+                "legend": "{{map_name}} {{operation}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p143",
+            "type": "timeseries",
+            "title": "map ops (sum failures)",
+            "gridPos": {
+              "x": 16,
+              "y": 52,
+              "w": 8,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_bpf_map_ops_total{k8s_app=\"cilium\",outcome=\"fail\", pod=~\"$pod\"}[5m])) by (pod, map_name, operation)",
+                "legend": "{{map_name}} {{operation}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p182",
+            "type": "text",
+            "title": "kvstore",
+            "gridPos": {
+              "x": 0,
+              "y": 58,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p184",
+            "type": "timeseries",
+            "title": "# operations (sum all nodes)",
+            "gridPos": {
+              "x": 0,
+              "y": 59,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(kvstore_operations_total{pod=~\"$pod\"}[1m])) by (pod, scope, action)",
+                "legend": "{{scope}} {{action}}"
+              }
+            ],
+            "unit": "ops",
+            "decimals": 0,
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p186",
+            "type": "timeseries",
+            "title": "# operations (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 59,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(kvstore_operations_total{pod=~\"$pod\"}[1m])) by (pod, scope, action)",
+                "legend": "{{scope}} {{action}}"
+              }
+            ],
+            "unit": "ops",
+            "decimals": 0,
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p188",
+            "type": "timeseries",
+            "title": "latency (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 64,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "topk(5, avg(rate(cilium_kvstore_operations_duration_seconds_sum{pod=~\"$pod\"}[1m])) by (pod, action, scope) / avg(rate(cilium_kvstore_operations_duration_seconds_count{pod=~\"$pod\"}[1m])) by (pod, action, scope))",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p190",
+            "type": "timeseries",
+            "title": "latency (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 64,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "topk(5, max(rate(cilium_kvstore_operations_duration_seconds_sum{pod=~\"$pod\"}[1m])) by (pod, action, scope) / avg(rate(cilium_kvstore_operations_duration_seconds_count{pod=~\"$pod\"}[1m])) by (pod, action, scope))",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p192",
+            "type": "timeseries",
+            "title": "Events received (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 69,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kvstore_events_queue_seconds_count{pod=~\"$pod\"}[1m])) by (pod, scope, action)",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p47",
+            "type": "text",
+            "title": "Cilium network information",
+            "gridPos": {
+              "x": 0,
+              "y": 75,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p81",
+            "type": "timeseries",
+            "title": "Forwarded Packets",
+            "gridPos": {
+              "x": 0,
+              "y": 76,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_forward_count_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, direction)",
+                "legend": "{{direction}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p111",
+            "type": "timeseries",
+            "title": "Forwarded Traffic",
+            "gridPos": {
+              "x": 12,
+              "y": 76,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_forward_bytes_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, direction) * 8",
+                "legend": "{{direction}}"
+              }
+            ],
+            "unit": "bps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p56",
+            "type": "timeseries",
+            "title": "IPv4 Conntrack TCP",
+            "gridPos": {
+              "x": 0,
+              "y": 82,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "max"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv4\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv4\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted max"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Alive  ipv4"
+                },
+                "color": "#0a50a1"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv4 non-TCP"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 TCP"
+                },
+                "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 non-TCP"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive CT entries ipv6"
+                },
+                "color": "#badff4"
+              },
+              {
+                "match": {
+                  "series": "Deleted CT entries ipv4"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4 non-TCP"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv6"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "L7 denied request"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "L7 forwarded request"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#e0f9d7"
+              },
+              {
+                "match": {
+                  "series": "deleted"
+                },
+                "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "deleted max"
+                },
+                "color": "#447ebc"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#629e51"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p128",
+            "type": "timeseries",
+            "title": "IPv6 Conntrack TCP",
+            "gridPos": {
+              "x": 12,
+              "y": 82,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "max"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv6\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv6\", protocol=\"TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted max"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Alive  ipv4"
+                },
+                "color": "#0a50a1"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv4 non-TCP"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 TCP"
+                },
+                "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 non-TCP"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive CT entries ipv6"
+                },
+                "color": "#badff4"
+              },
+              {
+                "match": {
+                  "series": "Deleted CT entries ipv4"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4 non-TCP"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv6"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "L7 denied request"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "L7 forwarded request"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#e0f9d7"
+              },
+              {
+                "match": {
+                  "series": "deleted"
+                },
+                "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "deleted max"
+                },
+                "color": "#447ebc"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#629e51"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p129",
+            "type": "timeseries",
+            "title": "IPv4 Conntrack Non-TCP",
+            "gridPos": {
+              "x": 0,
+              "y": 88,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv4\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "max"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv4\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv4\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted max"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Alive  ipv4"
+                },
+                "color": "#0a50a1"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv4 non-TCP"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 TCP"
+                },
+                "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 non-TCP"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive CT entries ipv6"
+                },
+                "color": "#badff4"
+              },
+              {
+                "match": {
+                  "series": "Deleted CT entries ipv4"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4 non-TCP"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv6"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "L7 denied request"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "L7 forwarded request"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#e0f9d7"
+              },
+              {
+                "match": {
+                  "series": "deleted"
+                },
+                "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "deleted max"
+                },
+                "color": "#447ebc"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#629e51"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p130",
+            "type": "timeseries",
+            "title": "IPv6 Conntrack Non-TCP",
+            "gridPos": {
+              "x": 12,
+              "y": 88,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"alive\", family=\"ipv6\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "max"
+              },
+              {
+                "query": "avg(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv6\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted"
+              },
+              {
+                "query": "max(cilium_datapath_conntrack_gc_entries{k8s_app=\"cilium\", status=\"deleted\", family=\"ipv6\", protocol=\"non-TCP\", pod=~\"$pod\"}) by (family,status)",
+                "legend": "deleted max"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Alive  ipv4"
+                },
+                "color": "#0a50a1"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv4 non-TCP"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 TCP"
+                },
+                "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "Alive  ipv6 non-TCP"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "Alive CT entries ipv6"
+                },
+                "color": "#badff4"
+              },
+              {
+                "match": {
+                  "series": "Deleted CT entries ipv4"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv4 non-TCP"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Deleted ipv6"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "L7 denied request"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "L7 forwarded request"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#e0f9d7"
+              },
+              {
+                "match": {
+                  "series": "deleted"
+                },
+                "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "deleted max"
+                },
+                "color": "#447ebc"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#629e51"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#629e51"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p87",
+            "type": "timeseries",
+            "title": "Allocated Addresses",
+            "gridPos": {
+              "x": 0,
+              "y": 94,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(cilium_ip_addresses{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod, family)\n",
+                "legend": "{{family}}"
+              }
+            ],
+            "unit": "short",
+            "overrides": [
+              {
+                "match": {
+                  "series": "ipv4"
+                },
+                "color": "#5195ce"
+              },
+              {
+                "match": {
+                  "series": "ipv6"
+                },
+                "color": "#6d1f62"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "mean",
+                "lastNotNull",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p79",
+            "type": "timeseries",
+            "title": "Datapath Conntrack Dump Resets",
+            "gridPos": {
+              "x": 12,
+              "y": 94,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(cilium_datapath_conntrack_dump_resets_total{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod, area, family, name)",
+                "legend": "{{name}} {{area}} {{family}}"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "dump_interrupts conntrack ipv4"
+                },
+                "color": "#ea6460"
+              },
+              {
+                "match": {
+                  "series": "dump_interrupts conntrack ipv6"
+                },
+                "color": "#58140c"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p106",
+            "type": "timeseries",
+            "title": "Service Updates",
+            "gridPos": {
+              "x": 0,
+              "y": 99,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_services_events_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, action)",
+                "legend": "{{action}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p89",
+            "type": "timeseries",
+            "title": "Connectivity Health",
+            "gridPos": {
+              "x": 12,
+              "y": 99,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(cilium_unreachable_nodes{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "unreachable nodes"
+              },
+              {
+                "query": "sum(cilium_unreachable_health_endpoints{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "unreachable health endpoints"
+              }
+            ],
+            "unit": "short",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p39",
+            "type": "timeseries",
+            "title": "Dropped Egress Packets",
+            "gridPos": {
+              "x": 0,
+              "y": 104,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_drop_count_total{direction=\"EGRESS\", k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (reason)",
+                "legend": "{{reason}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p93",
+            "type": "timeseries",
+            "title": "Node Events",
+            "gridPos": {
+              "x": 12,
+              "y": 104,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_nodes_all_events_received_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, event_type, source) * 60",
+                "legend": "{{eventType}} {{source}}"
+              }
+            ],
+            "unit": "opm",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Avg"
+                },
+                "color": "#cca300"
+              },
+              {
+                "match": {
+                  "series": "Max"
+                },
+                "color": "#a7966f"
+              },
+              {
+                "match": {
+                  "series": "add k8s"
+                },
+                "unit": "short"
+              },
+              {
+                "match": {
+                  "series": "delete k8s"
+                },
+                "unit": "short"
+              },
+              {
+                "match": {
+                  "series": "update k8s"
+                },
+                "unit": "short"
+              },
+              {
+                "match": {
+                  "series": "add local-node"
+                },
+                "unit": "short"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p113",
+            "type": "timeseries",
+            "title": "Dropped Egress Traffic",
+            "gridPos": {
+              "x": 0,
+              "y": 109,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_drop_bytes_total{direction=\"EGRESS\", k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (reason) * 8",
+                "legend": "{{reason}}"
+              }
+            ],
+            "unit": "bps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p91",
+            "type": "timeseries",
+            "title": "Nodes",
+            "gridPos": {
+              "x": 12,
+              "y": 109,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(cilium_nodes_all_num{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "Average Nodes"
+              },
+              {
+                "query": "min(cilium_nodes_all_num{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "Min Nodes"
+              },
+              {
+                "query": "max(cilium_nodes_all_num{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "Max Nodes"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Average Nodes"
+                },
+                "color": "#eab839"
+              },
+              {
+                "match": {
+                  "series": "Max Nodes"
+                },
+                "color": "#c15c17"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p28",
+            "type": "text",
+            "title": "Policy",
+            "gridPos": {
+              "x": 0,
+              "y": 114,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p53",
+            "type": "timeseries",
+            "title": "L7 forwarded request",
+            "gridPos": {
+              "x": 0,
+              "y": 115,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum by(rule, proxy_type) (rate(cilium_policy_l7_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m]))",
+                "legend": "{{proxy_type}} - {{rule}}"
+              }
+            ],
+            "unit": "reqps",
+            "fill": 10,
+            "overrides": [
+              {
+                "match": {
+                  "series": "L7 denied request"
+                },
+                "color": "#ea6460"
+              },
+              {
+                "match": {
+                  "series": "L7 forwarded request"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "denied"
+                },
+                "color": "#bf1b00"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p123",
+            "type": "timeseries",
+            "title": "DNS proxy request latency",
+            "description": "99th percentile of DNS proxy request processing latency, by span",
+            "gridPos": {
+              "x": 12,
+              "y": 115,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "histogram_quantile(0.99, sum by(scope, le) (rate(cilium_proxy_upstream_reply_seconds_bucket{protocol_l7=\"dns\", k8s_app=\"cilium\", pod=~\"$pod\", scope!=\"totalTime\"}[5m]))) \n",
+                "legend": "{{scope}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 34,
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p114",
+            "type": "timeseries",
+            "title": "Policy Denies: L3/L4",
+            "gridPos": {
+              "x": 0,
+              "y": 120,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_drop_count_total{k8s_app=\"cilium\", pod=~\"$pod\", reason=\"Policy denied\"}[1m])) by (direction)",
+                "legend": "{{direction}}"
+              }
+            ],
+            "unit": "pps",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p37",
+            "type": "timeseries",
+            "title": "Policy Denies: L7",
+            "gridPos": {
+              "x": 12,
+              "y": 120,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_policy_l7_total{rule=\"denied\", k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (proxy_type)",
+                "legend": "{{reason}}"
+              }
+            ],
+            "unit": "ops",
+            "fill": 10,
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p104",
+            "type": "timeseries",
+            "title": "Policy Identity Update Latency",
+            "description": "End-to-end duration to apply incremental identity updates to the policy control and data planes.",
+            "gridPos": {
+              "x": 0,
+              "y": 125,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, sum by(le) (rate(cilium_policy_incremental_update_duration_bucket{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])))",
+                "legend": "99%"
+              },
+              {
+                "query": "histogram_quantile(0.5, sum by(le) (rate(cilium_policy_incremental_update_duration_bucket{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])))",
+                "legend": "50%"
+              }
+            ],
+            "unit": "s",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#64b0c8"
+              },
+              {
+                "match": {
+                  "series": "count"
+                },
+                "color": "#9ac48a"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#5195ce"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#6ed0e0"
+              },
+              {
+                "match": {
+                  "series": "avg count"
+                },
+                "unit": "opm"
+              },
+              {
+                "match": {
+                  "series": "max count"
+                },
+                "unit": "opm"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p102",
+            "type": "timeseries",
+            "title": "Policy Apply Latency",
+            "description": "The time taken for new or updated network policy to be applied to all affected endpoints",
+            "gridPos": {
+              "x": 12,
+              "y": 125,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, sum by(le) (rate(cilium_policy_implementation_delay_bucket{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])))",
+                "legend": "99%"
+              },
+              {
+                "query": "histogram_quantile(0.5, sum by(le) (rate(cilium_policy_implementation_delay_bucket{k8s_app=\"cilium\", pod=~\"$pod\"}[5m])))  ",
+                "legend": "50%"
+              }
+            ],
+            "unit": "s",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "average duration"
+                },
+                "color": "#d683ce"
+              },
+              {
+                "match": {
+                  "series": "folds"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "max duration"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "max trigger"
+                },
+                "color": "#967302"
+              },
+              {
+                "match": {
+                  "series": "min duration"
+                },
+                "color": "#584477"
+              },
+              {
+                "match": {
+                  "series": "min trigger"
+                },
+                "color": "#fceaca"
+              },
+              {
+                "match": {
+                  "series": "folds"
+                },
+                "unit": "short"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p33",
+            "type": "timeseries",
+            "title": "Endpoints policy enforcement status",
+            "gridPos": {
+              "x": 0,
+              "y": 130,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "sum(cilium_policy_endpoint_enforcement_status{k8s_app=\"cilium\", pod=~\"$pod\"}) by (enforcement)",
+                "legend": "{{enforcement}}",
+                "instant": true,
+                "interval": "1s"
+              }
+            ],
+            "unit": "short",
+            "style": "bars",
+            "fill": 100,
+            "overrides": [
+              {
+                "match": {
+                  "series": "both"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "egress"
+                },
+                "color": "#e5ac0e"
+              },
+              {
+                "match": {
+                  "series": "ingress"
+                },
+                "color": "#e0752d"
+              },
+              {
+                "match": {
+                  "series": "none"
+                },
+                "color": "#bf1b00"
+              }
+            ],
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p100",
+            "type": "timeseries",
+            "title": "Proxy Redirects",
+            "gridPos": {
+              "x": 6,
+              "y": 130,
+              "w": 6,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_proxy_redirects{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_proxy_redirects{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_proxy_redirects{k8s_app=\"cilium\", pod=~\"$pod\"}) by (pod)",
+                "legend": "max"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#b7dbab"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#59844c"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#2f575e"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p117",
+            "type": "timeseries",
+            "title": "Policy Calculation Time",
+            "description": "Endpoint policy calculation time by stage. Shows the 99th-percentile.",
+            "gridPos": {
+              "x": 12,
+              "y": 130,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "histogram_quantile(0.99, sum by(scope, le) (rate(cilium_endpoint_regeneration_time_stats_seconds_bucket{scope=~\"proxyConfiguration|endpointPolicyCalculation|selectorPolicyCalculation|proxyPolicyCalculation\",k8s_app=\"cilium\",status=\"success\",pod=~\"$pod\"}[5m])))",
+                "legend": "__auto"
+              }
+            ],
+            "unit": "s",
+            "fill": 35,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "avg"
+                },
+                "color": "#f9d9f9"
+              },
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#806eb7"
+              },
+              {
+                "match": {
+                  "series": "min"
+                },
+                "color": "#806eb7"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p85",
+            "type": "timeseries",
+            "title": "Policies Per Node",
+            "gridPos": {
+              "x": 0,
+              "y": 135,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "min(cilium_policy{k8s_app=\"cilium\", pod=~\"$pod\"}) by(pod)",
+                "legend": "min"
+              },
+              {
+                "query": "avg(cilium_policy{k8s_app=\"cilium\", pod=~\"$pod\"}) by(pod)",
+                "legend": "avg"
+              },
+              {
+                "query": "max(cilium_policy{k8s_app=\"cilium\", pod=~\"$pod\"}) by(pod)",
+                "legend": "max"
+              },
+              {
+                "query": "sum(cilium_policy_change_total{k8s_app=\"cilium\", pod=~\"$pod\", outcome=\"failure\"}) by (pod)",
+                "legend": "policy change errors"
+              }
+            ],
+            "unit": "short",
+            "fill": 35,
+            "overrides": [
+              {
+                "match": {
+                  "series": "max"
+                },
+                "color": "#f2c96d"
+              },
+              {
+                "match": {
+                  "series": "policy change errors"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "policy errors"
+                },
+                "color": "#bf1b00"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p73",
+            "type": "text",
+            "title": "Endpoints",
+            "gridPos": {
+              "x": 0,
+              "y": 140,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p55",
+            "type": "timeseries",
+            "title": "Endpoint regeneration time (90th percentile)",
+            "gridPos": {
+              "x": 0,
+              "y": 141,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(histogram_quantile(0.90, rate(cilium_endpoint_regeneration_time_stats_seconds_bucket{k8s_app=\"cilium\", scope!=\"total\", pod=~\"$pod\"}[5m]))) by (scope)",
+                "legend": "{{scope}}"
+              }
+            ],
+            "unit": "s",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p115",
+            "type": "timeseries",
+            "title": "Endpoint regeneration time (99th percentile)",
+            "gridPos": {
+              "x": 12,
+              "y": 141,
+              "w": 12,
+              "h": 9
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(histogram_quantile(0.99, rate(cilium_endpoint_regeneration_time_stats_seconds_bucket{k8s_app=\"cilium\", scope!=\"total\", pod=~\"$pod\"}[5m]))) by (scope)",
+                "legend": "{{scope}}"
+              }
+            ],
+            "unit": "s",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p49",
+            "type": "timeseries",
+            "title": "Endpoint regenerations",
+            "gridPos": {
+              "x": 0,
+              "y": 150,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_endpoint_regenerations_total{k8s_app=\"cilium\", pod=~\"$pod\"}[30s])) by(outcome)",
+                "legend": "{{outcome}}"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "overrides": [
+              {
+                "match": {
+                  "series": "fail"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "fail/min"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "success"
+                },
+                "color": "#447ebc"
+              },
+              {
+                "match": {
+                  "series": "success/min"
+                },
+                "color": "#3f6833"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ]
+            }
+          },
+          {
+            "id": "p51",
+            "type": "timeseries",
+            "title": "Cilium endpoint state",
+            "gridPos": {
+              "x": 12,
+              "y": 150,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(cilium_endpoint_state{k8s_app=\"cilium\", pod=~\"$pod\"}) by (endpoint_state)",
+                "legend": "{{endpoint_state}}"
+              }
+            ],
+            "unit": "short",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "disconnecting"
+                },
+                "color": "#614d93"
+              },
+              {
+                "match": {
+                  "series": "ready"
+                },
+                "color": "#51dc5f"
+              },
+              {
+                "match": {
+                  "series": "waiting-to-regenerate"
+                },
+                "color": "#0a50a1"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "lastNotNull"
+              ]
+            }
+          },
+          {
+            "id": "p74",
+            "type": "text",
+            "title": "Controllers",
+            "gridPos": {
+              "x": 0,
+              "y": 155,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p70",
+            "type": "timeseries",
+            "title": "Controllers",
+            "gridPos": {
+              "x": 0,
+              "y": 156,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_controllers_runs_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod)",
+                "legend": "Runs"
+              },
+              {
+                "query": "sum(cilium_controllers_failing{k8s_app=\"cilium\", pod=~\"$pod\"}) by(pod)",
+                "legend": "Failed"
+              }
+            ],
+            "unit": "opm",
+            "fill": 30,
+            "overrides": [
+              {
+                "match": {
+                  "series": "Failed"
+                },
+                "color": "#bf1b00"
+              },
+              {
+                "match": {
+                  "series": "Failing"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "Runs"
+                },
+                "color": "#5195ce"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p68",
+            "type": "timeseries",
+            "title": "Controller Durations",
+            "gridPos": {
+              "x": 12,
+              "y": 156,
+              "w": 12,
+              "h": 5
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_controllers_runs_duration_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, status) / sum(rate(cilium_controllers_runs_duration_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, status)",
+                "legend": "{{status}}"
+              }
+            ],
+            "unit": "s",
+            "style": "bars",
+            "fill": 100,
+            "overrides": [
+              {
+                "match": {
+                  "series": "duration failure"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "duration success"
+                },
+                "color": "#508642"
+              },
+              {
+                "match": {
+                  "series": "failure"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "runs failure"
+                },
+                "color": "#890f02"
+              },
+              {
+                "match": {
+                  "series": "runs success"
+                },
+                "color": "#7eb26d"
+              },
+              {
+                "match": {
+                  "series": "success"
+                },
+                "color": "#508642"
+              }
+            ],
+            "display": {
+              "legendValues": [
+                "mean",
+                "max",
+                "min"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p60",
+            "type": "text",
+            "title": "Kubernetes integration",
+            "gridPos": {
+              "x": 0,
+              "y": 161,
+              "w": 24,
+              "h": 1
+            },
+            "content": ""
+          },
+          {
+            "id": "p163",
+            "type": "timeseries",
+            "title": "apiserver latency (average node)",
+            "gridPos": {
+              "x": 0,
+              "y": 162,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "avg(rate(cilium_k8s_client_api_latency_time_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/rate(cilium_k8s_client_api_latency_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p165",
+            "type": "timeseries",
+            "title": "apiserver latency (max node)",
+            "gridPos": {
+              "x": 12,
+              "y": 162,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "max(rate(cilium_k8s_client_api_latency_time_seconds_sum{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])/rate(cilium_k8s_client_api_latency_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}}"
+              }
+            ],
+            "unit": "s",
+            "fill": 10,
+            "display": {
+              "legend": "right",
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p168",
+            "type": "timeseries",
+            "title": "apiserver #calls (sum all nodes)",
+            "gridPos": {
+              "x": 0,
+              "y": 169,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_k8s_client_api_latency_time_seconds_count{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, path)",
+                "legend": "{{method}} {{path}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean",
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p166",
+            "type": "timeseries",
+            "title": "apiserver calls (sum all nodes)",
+            "gridPos": {
+              "x": 12,
+              "y": 169,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_k8s_client_api_calls_total{k8s_app=\"cilium\", pod=~\"$pod\"}[1m])) by (pod, method, return_code)",
+                "legend": "{{method}} {{return_code}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legend": "right",
+              "legendValues": [
+                "max"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p172",
+            "type": "timeseries",
+            "title": "Valid, Unnecessary K8s Events Received",
+            "gridPos": {
+              "x": 0,
+              "y": 177,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_kubernetes_events_received_total{k8s_app=\"cilium\", equal=\"true\", valid=\"true\", pod=~\"$pod\"}[5m])) by (pod, scope, action)",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p174",
+            "type": "timeseries",
+            "title": "Invalid, Unnecessary K8s Events Received",
+            "gridPos": {
+              "x": 12,
+              "y": 177,
+              "w": 12,
+              "h": 6
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_kubernetes_events_received_total{k8s_app=\"cilium\", equal=\"true\", valid=\"false\", pod=~\"$pod\"}[5m])) by (pod, scope, action)",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "short",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p175",
+            "type": "timeseries",
+            "title": "Valid, Necessary K8s Events Received",
+            "gridPos": {
+              "x": 0,
+              "y": 183,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_kubernetes_events_received_total{k8s_app=\"cilium\", equal=\"false\", valid=\"true\", pod=~\"$pod\"}[5m])) by (pod, scope, action, valid)",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p173",
+            "type": "timeseries",
+            "title": "Invalid, Necessary K8s Events Received",
+            "gridPos": {
+              "x": 12,
+              "y": 183,
+              "w": 12,
+              "h": 8
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "query": "sum(rate(cilium_kubernetes_events_received_total{k8s_app=\"cilium\", equal=\"false\", valid=\"false\", pod=~\"$pod\"}[5m])) by (pod, scope, action)",
+                "legend": "{{action}} {{scope}}"
+              }
+            ],
+            "unit": "ops",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "legendValues": [
+                "mean"
+              ],
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p108",
+            "type": "timeseries",
+            "title": "CiliumNetworkPolicy Events",
+            "gridPos": {
+              "x": 0,
+              "y": 191,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"CiliumNetworkPolicy\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}} avg"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p119",
+            "type": "timeseries",
+            "title": "NetworkPolicy Events",
+            "gridPos": {
+              "x": 12,
+              "y": 191,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"NetworkPolicy\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}} avg"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "create avg"
+                },
+                "color": "#70dbed"
+              },
+              {
+                "match": {
+                  "series": "delete avg"
+                },
+                "color": "#e24d42"
+              },
+              {
+                "match": {
+                  "series": "update avg"
+                },
+                "color": "#e0f9d7"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p109",
+            "type": "timeseries",
+            "title": "Pod Events",
+            "gridPos": {
+              "x": 0,
+              "y": 198,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"Pod\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}} avg"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "create avg"
+                },
+                "color": "#70dbed"
+              },
+              {
+                "match": {
+                  "series": "delete avg"
+                },
+                "color": "#e24d42"
+              },
+              {
+                "match": {
+                  "series": "update avg"
+                },
+                "color": "#e0f9d7"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p122",
+            "type": "timeseries",
+            "title": "Node Events",
+            "gridPos": {
+              "x": 12,
+              "y": 198,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"Node\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}} avg"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "overrides": [
+              {
+                "match": {
+                  "series": "create avg"
+                },
+                "color": "#70dbed"
+              },
+              {
+                "match": {
+                  "series": "delete avg"
+                },
+                "color": "#e24d42"
+              },
+              {
+                "match": {
+                  "series": "update avg"
+                },
+                "color": "#e0f9d7"
+              }
+            ],
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p118",
+            "type": "timeseries",
+            "title": "Service Events",
+            "gridPos": {
+              "x": 0,
+              "y": 205,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"Service\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}}"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p120",
+            "type": "timeseries",
+            "title": "Endpoints Events",
+            "gridPos": {
+              "x": 12,
+              "y": 205,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"Endpoint\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}}"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          },
+          {
+            "id": "p121",
+            "type": "timeseries",
+            "title": "Namespace Events",
+            "gridPos": {
+              "x": 0,
+              "y": 212,
+              "w": 12,
+              "h": 7
+            },
+            "datasource": "${DS_PROMETHEUS}",
+            "queries": [
+              {
+                "ref": "B",
+                "query": "avg(rate(cilium_kubernetes_events_total{k8s_app=\"cilium\", scope=\"Namespace\", pod=~\"$pod\"}[1m])) by (pod, action) * 60",
+                "legend": "{{action}}"
+              }
+            ],
+            "unit": "opm",
+            "style": "bars",
+            "fill": 100,
+            "stack": "normal",
+            "display": {
+              "tooltip": "all"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
