@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest"
 
+import { displayWithDefaults } from "@/spec"
+
 import {
+  barSpan,
+  blendOver,
+  borderWidth,
   labelWidth,
-  legendHeight,
-  legendItems,
   rowHeight,
+  segmentOpacity,
+  segmentSpan,
   showsText,
+  textPlacement,
+  timelineDisplay,
   timeToX,
 } from "./timeline-layout"
 
@@ -44,23 +51,118 @@ describe("timeline layout", () => {
     expect(showsText("always", 200, 13)).toBe(false)
     expect(showsText("always", 200, 14)).toBe(true)
   })
+})
 
-  it("keeps twelve legend items and counts the rest", () => {
-    const states = Array.from({ length: 15 }, (_, index) => ({
-      text: `s${index}`,
-      color: "red",
-    }))
-    const { shown, more, labels } = legendItems(states)
-    expect(shown).toHaveLength(12)
-    expect(more).toBe(3)
-    expect(labels.at(-1)).toBe("and 3 more")
-    expect(legendItems(states.slice(0, 4))).toMatchObject({ more: 0 })
-    expect(legendItems(states.slice(0, 4)).labels).toHaveLength(4)
+describe("barSpan", () => {
+  it("leaves a 2 pixel gap under the bar when no row height is written", () => {
+    expect(barSpan(32, undefined)).toEqual({ offset: 0, size: 30 })
+    expect(barSpan(2, undefined)).toEqual({ offset: 0, size: 1 })
   })
 
-  it("estimates the legend lines from the width", () => {
-    expect(legendHeight([], 300)).toBe(0)
-    expect(legendHeight(["Up", "Down"], 600)).toBe(26)
-    expect(legendHeight(["Up", "Down", "Unknown"], 100)).toBe(62)
+  it("takes the written share of the row and centers the bar in it", () => {
+    expect(barSpan(30, 0.5)).toEqual({ offset: 7.5, size: 15 })
+    expect(barSpan(30, 1)).toEqual({ offset: 0, size: 30 })
+    expect(barSpan(4, 0.1)).toEqual({ offset: 1.5, size: 1 })
+  })
+})
+
+describe("segmentSpan", () => {
+  it("keeps the 1 pixel trailing gap of a segment and the 1 pixel inset of a cell", () => {
+    expect(segmentSpan(100, 40, undefined, false)).toEqual({
+      offset: 100,
+      size: 39,
+    })
+    expect(segmentSpan(100, 40, undefined, true)).toEqual({
+      offset: 101,
+      size: 37,
+    })
+    expect(segmentSpan(100, 1, undefined, true).size).toBe(1)
+  })
+
+  it("takes the written share of the width and centers it", () => {
+    expect(segmentSpan(100, 40, 0.5, true)).toEqual({ offset: 110, size: 20 })
+    expect(segmentSpan(100, 40, 1, true)).toEqual({ offset: 100, size: 40 })
+    expect(segmentSpan(100, 2, 0.1, true).size).toBe(1)
+  })
+})
+
+describe("segmentOpacity and borderWidth", () => {
+  it("draws opaque unless a fill above 0 is written", () => {
+    expect(segmentOpacity(undefined)).toBe(1)
+    expect(segmentOpacity(0)).toBe(1)
+    expect(segmentOpacity(70)).toBe(0.7)
+    expect(segmentOpacity(100)).toBe(1)
+  })
+
+  it("draws no border unless a line width is written", () => {
+    expect(borderWidth(undefined)).toBe(0)
+    expect(borderWidth(0)).toBe(0)
+    expect(borderWidth(3)).toBe(3)
+  })
+})
+
+describe("blendOver", () => {
+  it("mixes a color with the backdrop by opacity", () => {
+    expect(blendOver([0, 100, 200], [255, 255, 255], 1)).toEqual([0, 100, 200])
+    expect(blendOver([0, 100, 200], [255, 255, 255], 0)).toEqual([
+      255, 255, 255,
+    ])
+    expect(blendOver([0, 100, 200], [200, 100, 0], 0.5)).toEqual([
+      100, 100, 100,
+    ])
+  })
+})
+
+describe("textPlacement", () => {
+  it("anchors text to the left, middle or right of a segment", () => {
+    expect(textPlacement("left", 100)).toEqual({ x: 6, anchor: "start" })
+    expect(textPlacement("center", 100)).toEqual({ x: 50, anchor: "middle" })
+    expect(textPlacement("right", 100)).toEqual({ x: 94, anchor: "end" })
+  })
+})
+
+describe("timelineDisplay", () => {
+  it("reads the defaults of a state timeline", () => {
+    expect(timelineDisplay(displayWithDefaults("state-timeline", {}))).toEqual({
+      showValues: "auto",
+      rowHeight: undefined,
+      columnWidth: undefined,
+      alignValue: "left",
+      legend: "bottom",
+      legendMode: undefined,
+      legendWidth: undefined,
+      tooltip: "single",
+      tooltipSort: "desc",
+      tooltipHideZeros: false,
+      tooltipMaxWidth: undefined,
+      tooltipMaxHeight: undefined,
+    })
+  })
+
+  it("falls back to left alignment where the type has none", () => {
+    expect(
+      timelineDisplay(displayWithDefaults("status-history", {})).alignValue
+    ).toBe("left")
+  })
+
+  it("passes the written options through", () => {
+    const written = timelineDisplay(
+      displayWithDefaults("state-timeline", {
+        rowHeight: 0.5,
+        alignValue: "right",
+        legend: "right",
+        legendMode: "table",
+        tooltip: "all",
+        tooltipSort: "asc",
+      })
+    )
+    expect(written).toMatchObject({
+      rowHeight: 0.5,
+      alignValue: "right",
+      legend: "right",
+      legendMode: "table",
+      tooltip: "all",
+      tooltipSort: "asc",
+    })
   })
 })

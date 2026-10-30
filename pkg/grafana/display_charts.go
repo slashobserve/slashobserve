@@ -10,7 +10,7 @@ import (
 
 const (
 	datagridReason      = "Editing cells is not supported; the grid is shown as a table."
-	rowHeightReason     = "Row height and column width are fixed."
+	shareReason         = "Only row heights and column widths from 0.1 to 1 are supported."
 	forceLayoutReason   = "The force layout is drawn layered."
 	xyMappingReason     = "Only a manual mapping with one series and an X field chosen by name is supported; the fields are picked automatically."
 	xyMatcherReason     = "Choosing the Y, color and size fields is not supported; they are picked automatically."
@@ -19,7 +19,7 @@ const (
 	fieldNameLenReason  = "A field name must be between 1 and 200 characters."
 	nodeUnitsDiffReason = "The node and edge units differ; one unit is kept for each statistic."
 	nodeArcReason       = "This arc needs a field and a color SlashObserve supports."
-	statusDefaultSize   = 0.9
+	minShare            = 0.1
 	maxFieldName        = 200
 	maxPointSize        = 40
 )
@@ -45,6 +45,19 @@ func (b *panelBuild) fractionOption(path string) *float64 {
 	f, isNumber := numberValue(v)
 	if !isNumber || f <= 0 || f > 1 {
 		b.partial(path, widthReason)
+		return nil
+	}
+	return &f
+}
+
+func (b *panelBuild) shareOption(path string) *float64 {
+	v, ok := b.take(path)
+	if !ok {
+		return nil
+	}
+	f, isNumber := numberValue(v)
+	if !isNumber || f < minShare || f > 1 {
+		b.partial(path, shareReason)
 		return nil
 	}
 	return &f
@@ -76,11 +89,9 @@ func displayBarChart(b *panelBuild) {
 func displayStatusHistory(b *panelBuild) {
 	d := b.disp()
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
-	for _, path := range []string{"options.rowHeight", "options.colWidth"} {
-		if v, ok := b.value(path); ok && !sameJSON(v, statusDefaultSize) {
-			b.partial(path, rowHeightReason)
-		}
-	}
+	d.RowHeight = b.shareOption("options.rowHeight")
+	d.ColumnWidth = b.shareOption("options.colWidth")
+	b.timelineLegendAndTooltip(d)
 }
 
 func displayTrend(b *panelBuild) {

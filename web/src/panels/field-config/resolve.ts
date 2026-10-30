@@ -54,6 +54,11 @@ export type FieldConfig = {
 
 export type FieldResolver = {
   configFor(frame: PreparedFrame, field: PreparedField): FieldConfig
+  isSet(
+    frame: PreparedFrame,
+    field: PreparedField,
+    key: keyof FieldConfig
+  ): boolean
   seriesName(frame: PreparedFrame, field: PreparedField): string
   displayName(frame: PreparedFrame, field: PreparedField): string
 }
@@ -95,13 +100,22 @@ const fieldPropKeys = [
   "cell",
 ] as const satisfies readonly (keyof FieldProps)[]
 
-type Resolved = { seriesName: string; displayName: string; config: FieldConfig }
+type Resolved = {
+  seriesName: string
+  displayName: string
+  config: FieldConfig
+  given: ReadonlySet<keyof FieldConfig>
+}
 
 function withProps(config: FieldConfig, props: FieldProps): FieldConfig {
   const given = fieldPropKeys.flatMap((key) =>
     props[key] === undefined ? [] : [[key, props[key]] as const]
   )
   return { ...config, ...Object.fromEntries(given) }
+}
+
+function givenKeys(props: FieldProps): (keyof FieldConfig)[] {
+  return fieldPropKeys.filter((key) => props[key] !== undefined)
 }
 
 function displayNameOf(
@@ -124,6 +138,7 @@ export function createFieldResolver(panel: DataPanel): FieldResolver {
     } as FieldConfig,
     panel
   )
+  const baseGiven = givenKeys(panel)
   const overrides = (panel.overrides ?? []).map((override) => ({
     matches: compileMatch(override.match),
     props: override,
@@ -133,15 +148,19 @@ export function createFieldResolver(panel: DataPanel): FieldResolver {
   function resolve(frame: PreparedFrame, field: PreparedField): Resolved {
     const seriesName = preparedSeriesName(frame, field)
     let config = field.config ? withProps(base, field.config) : base
+    const given = new Set(baseGiven)
+    if (field.config) givenKeys(field.config).forEach((key) => given.add(key))
     for (const { matches, props } of overrides) {
       if (matches({ frame, field, seriesName })) {
         config = withProps(config, props)
+        givenKeys(props).forEach((key) => given.add(key))
       }
     }
     return {
       seriesName,
       displayName: displayNameOf(config.displayName, frame, field, seriesName),
       config,
+      given,
     }
   }
 
@@ -161,6 +180,7 @@ export function createFieldResolver(panel: DataPanel): FieldResolver {
 
   return {
     configFor: (frame, field) => resolved(frame, field).config,
+    isSet: (frame, field, key) => resolved(frame, field).given.has(key),
     seriesName: (frame, field) => resolved(frame, field).seriesName,
     displayName: (frame, field) => resolved(frame, field).displayName,
   }

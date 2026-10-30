@@ -4,7 +4,13 @@ import { createFieldResolver } from "@/panels/field-config"
 import type { PreparedFrame } from "@/panels/transforms"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
-import { mergeValuesOf, segmentAt, timelineModel } from "./timeline-model"
+import {
+  joinNulls,
+  mergeValuesOf,
+  segmentAt,
+  timelineModel,
+  withoutStates,
+} from "./timeline-model"
 
 const range = { from: 0, to: 100 }
 
@@ -245,8 +251,8 @@ describe("mergeValuesOf", () => {
 
 describe("segmentAt", () => {
   const segments = [
-    { from: 0, to: 10, text: "a", color: "red" },
-    { from: 20, to: 30, text: "b", color: "blue" },
+    { from: 0, to: 10, text: "a", color: "red", value: null },
+    { from: 20, to: 30, text: "b", color: "blue", value: null },
   ]
 
   it("finds the segment that holds the time", () => {
@@ -260,5 +266,98 @@ describe("segmentAt", () => {
     expect(segmentAt(segments, 30)).toBeNull()
     expect(segmentAt(segments, -1)).toBeNull()
     expect(segmentAt([], 5)).toBeNull()
+  })
+})
+
+describe("null joining", () => {
+  const sample = (at: number, text: string | null) => ({
+    at,
+    text,
+    color: null,
+    value: null,
+  })
+  const samples = [
+    sample(0, "up"),
+    sample(10, null),
+    sample(20, null),
+    sample(30, "up"),
+    sample(40, null),
+  ]
+
+  it("keeps every null while joining is off", () => {
+    expect(joinNulls(samples, false)).toEqual(samples)
+  })
+
+  it("drops a null run between two states when joining every gap", () => {
+    expect(joinNulls(samples, true).map(({ at }) => at)).toEqual([0, 30, 40])
+  })
+
+  it("joins only gaps up to the given milliseconds and keeps longer ones", () => {
+    expect(joinNulls(samples, 30).map(({ at }) => at)).toEqual([0, 30, 40])
+    expect(joinNulls(samples, 29).map(({ at }) => at)).toEqual([
+      0, 10, 20, 30, 40,
+    ])
+  })
+
+  it("never joins a leading or trailing run", () => {
+    const edges = [sample(0, null), sample(10, "up"), sample(20, null)]
+    expect(joinNulls(edges, true)).toEqual(edges)
+  })
+
+  it("lets a state last across the joined gap in the model", () => {
+    const { rows } = build([series("a", [1, null, 1, 2])], {
+      spanNulls: true,
+    } as Partial<DataPanel>)
+    expect(
+      rows[0].segments.map(({ from, to, text }) => [from, to, text])
+    ).toEqual([
+      [0, 30, "1"],
+      [30, 100, "2"],
+    ])
+  })
+})
+
+describe("fill and line width", () => {
+  it("draws opaque segments without a border when neither is written", () => {
+    const { rows } = build([series("a", [1])])
+    expect(rows[0]).toMatchObject({ opacity: 1, border: 0 })
+  })
+
+  it("takes the opacity from fill and the border from line width", () => {
+    const { rows } = build([series("a", [1])], {
+      fill: 40,
+      lineWidth: 3,
+    } as Partial<DataPanel>)
+    expect(rows[0]).toMatchObject({ opacity: 0.4, border: 3 })
+  })
+
+  it("lets an override change one series", () => {
+    const { rows } = build([series("a", [1]), series("b", [1])], {
+      fill: 70,
+      overrides: [{ match: { series: "b" }, fill: 20, lineWidth: 0 }],
+    } as unknown as Partial<DataPanel>)
+    expect(rows.map(({ opacity, border }) => [opacity, border])).toEqual([
+      [0.7, 0],
+      [0.2, 0],
+    ])
+  })
+})
+
+describe("segment values", () => {
+  it("keeps the number behind a number state and none for text", () => {
+    const numbers = build([series("a", [0, 2])])
+    expect(numbers.rows[0].segments.map(({ value }) => value)).toEqual([0, 2])
+    const text = build([series("a", ["up"], "string")])
+    expect(text.rows[0].segments[0].value).toBeNull()
+  })
+})
+
+describe("withoutStates", () => {
+  it("drops the segments of hidden states and keeps every row and state", () => {
+    const model = build([series("a", [1, 2, 1])])
+    const shown = withoutStates(model, new Set(["2"]))
+    expect(shown.rows[0].segments.map(({ text }) => text)).toEqual(["1", "1"])
+    expect(shown.states).toBe(model.states)
+    expect(withoutStates(model, new Set())).toBe(model)
   })
 })

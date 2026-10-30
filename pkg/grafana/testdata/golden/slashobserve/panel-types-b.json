@@ -249,7 +249,7 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Row height is fixed."
+          "A row height in pixels is not supported; rows share the height of the panel."
         ],
         "paths": [
           "rowHeight"

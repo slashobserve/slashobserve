@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 7,
-      "imported": 4,
-      "partial": 3,
+      "imported": 5,
+      "partial": 2,
       "placeholder": 0,
       "unverified": 0
     },
@@ -43,15 +43,9 @@
         "type": "state-timeline",
         "source_type": "state-timeline",
         "row": null,
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "fieldConfig.defaults.custom.lineWidth",
-          "options.alignValue",
-          "options.legend.showLegend"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -321,8 +315,12 @@
           }
         ],
         "fill": 70,
+        "lineWidth": 0,
         "display": {
-          "showValues": "never"
+          "legend": "hidden",
+          "showValues": "never",
+          "rowHeight": 0.9,
+          "alignValue": "center"
         }
       },
       {

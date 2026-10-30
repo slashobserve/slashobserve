@@ -123,6 +123,14 @@ The legend of a `timeseries` or `trend` panel is a `list` or a `table` (`legendM
 A `timeseries`, `trend` or `candlestick` tooltip that lists all series is sorted by `tooltipSort` (`none` for series order, `asc` or `desc`, which is the default), can drop zero values with `tooltipHideZeros`, can show the running total of a stacked series with `tooltipCumulative`, and is clipped to `tooltipMaxWidth` and `tooltipMaxHeight` pixels (100 to 2000).
 A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: "hidden"` (`shown` by default).
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
+A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
+When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
+`alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.
+These two types take the same `legend`, `legendMode` and `legendWidth` as a time series, where the legend lists the states and clicking one hides its segments, and `tooltip` (`single`, `all` or `hidden`), `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
+`legendValues`, legend sorting and legend calculations do not apply to them.
+Their `fill` field prop (0 to 100) sets how opaque the bars are, and `lineWidth` (0 to 10) draws a border around them.
+A timeline written without `fill` is opaque and one written without `lineWidth` has no border, and a `fill` of 0 is drawn opaque.
+`spanNulls` joins a gap between two values into the earlier state: `true` joins every gap and a number joins gaps up to that many milliseconds.
 A `stat`, `gauge`, `bargauge` or `piechart` panel shows one value per number field, reduced by `reduce`.
 Three optional `display` keys change that.
 `allValues: true` shows one value per row of each field instead, at most `limit` rows per field (1 to 5000, 5000 when absent), labelled by the first text field of the row, else the row's time, else its row number.

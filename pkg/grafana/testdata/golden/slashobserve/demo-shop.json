@@ -5,7 +5,7 @@
     "title": "Demo shop (Grafana)",
     "uid": "demo-shop",
     "schema_version": 39,
-    "bytes": 66933,
+    "bytes": 66932,
     "panels": 27,
     "rows": 6,
     "variables": 2
@@ -1049,7 +1049,15 @@
                 "color": "critical"
               }
             ],
-            "fill": 70
+            "fill": 70,
+            "lineWidth": 1,
+            "display": {
+              "legend": "right",
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "rowHeight": 0.8,
+              "alignValue": "center"
+            }
           },
           {
             "id": "p19",
@@ -1092,8 +1100,13 @@
               }
             ],
             "fill": 70,
+            "lineWidth": 1,
             "display": {
-              "showValues": "never"
+              "tooltip": "all",
+              "tooltipSort": "none",
+              "showValues": "never",
+              "rowHeight": 0.8,
+              "columnWidth": 0.8
             }
           },
           {

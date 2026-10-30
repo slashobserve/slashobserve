@@ -488,6 +488,25 @@ func displayStateTimeline(b *panelBuild) {
 		d.MergeValues = flag
 	}
 	d.ShowValues = b.enumOption("options.showValue", "auto", "always", "never")
+	d.RowHeight = b.shareOption("options.rowHeight")
+	d.AlignValue = b.enumOption("options.alignValue", "left", "center", "right")
+	b.timelineLegendAndTooltip(d)
+}
+
+func (b *panelBuild) timelineLegendAndTooltip(d *spec.Display) {
+	b.legendAndTooltip(d)
+	b.tooltipOptions(d)
+	if _, ok := b.value("options.legend"); !ok {
+		return
+	}
+	table := b.enumOption("options.legend.displayMode", "table", "list") == "table"
+	if v, ok := b.boolOption("options.legend.asTable"); ok && *v {
+		table = true
+	}
+	if table {
+		d.LegendMode = "table"
+	}
+	b.legendWidth(d, "options.legend.width")
 }
 
 func displayLogs(b *panelBuild) {

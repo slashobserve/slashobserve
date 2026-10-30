@@ -3,6 +3,7 @@ import { displayValue, type FieldResolver } from "../field-config"
 import { seriesKey, uniqueKey } from "../frames"
 import { isNumber } from "../reducers"
 import type { PreparedField, PreparedFrame } from "../transforms"
+import { borderWidth, segmentOpacity } from "./timeline-layout"
 
 export type TimeRange = { from: number; to: number }
 
@@ -11,17 +12,31 @@ export type Segment = {
   to: number
   text: string
   color: string
+  value: number | null
 }
 
-export type TimelineRow = { key: string; name: string; segments: Segment[] }
+export type TimelineRow = {
+  key: string
+  name: string
+  segments: Segment[]
+  opacity: number
+  border: number
+}
 
-export type TimelineState = { text: string; color: string }
+type TimelineState = { text: string; color: string }
 
 export type TimelineModel = { rows: TimelineRow[]; states: TimelineState[] }
 
-type Sample = { at: number; text: string | null; color: string | null }
+type Sample = {
+  at: number
+  text: string | null
+  color: string | null
+  value: number | null
+}
 
 type RawSegment = Omit<Segment, "color"> & { color: string | null }
+
+type RawRow = Omit<TimelineRow, "segments"> & { segments: RawSegment[] }
 
 export function mergeValuesOf(display: Record<string, unknown>): boolean {
   return display.mergeValues !== false
@@ -46,13 +61,42 @@ function samplesOf(
     if (!isNumber(at)) return
     const value = field.values[index]
     if (value === null || value === undefined) {
-      samples.push({ at, text: null, color: null })
+      samples.push({ at, text: null, color: null, value: null })
       return
     }
     const shown = displayValue(value, config)
-    samples.push({ at, text: shown.text, color: shown.color })
+    samples.push({
+      at,
+      text: shown.text,
+      color: shown.color,
+      value: isNumber(value) ? value : null,
+    })
   })
   return samples.sort((a, b) => a.at - b.at)
+}
+
+export function joinNulls(
+  samples: Sample[],
+  spanNulls: boolean | number
+): Sample[] {
+  if (spanNulls === false) return samples
+  const kept: Sample[] = []
+  let previous: Sample | null = null
+  let gap: Sample[] = []
+  for (const sample of samples) {
+    if (sample.text === null) {
+      gap.push(sample)
+      continue
+    }
+    const joined =
+      previous !== null &&
+      (spanNulls === true || sample.at - previous.at <= spanNulls)
+    if (gap.length > 0 && !joined) kept.push(...gap)
+    gap = []
+    kept.push(sample)
+    previous = sample
+  }
+  return [...kept, ...gap]
 }
 
 function segmentsOf(
@@ -73,7 +117,13 @@ function segmentsOf(
       open.to = to
       return
     }
-    open = { from, to, text: sample.text, color: sample.color }
+    open = {
+      from,
+      to,
+      text: sample.text,
+      color: sample.color,
+      value: sample.value,
+    }
     segments.push(open)
   })
   return segments
@@ -88,16 +138,27 @@ export function timelineModel(
 ): TimelineModel {
   const merge = !cells && mergeValuesOf(display)
   const seen = new Map<string, number>()
-  const raw: { key: string; name: string; segments: RawSegment[] }[] = []
+  const raw: RawRow[] = []
   for (const frame of frames) {
     for (const field of frame.fields) {
-      if (!isShown(field) || fields.configFor(frame, field).hidden) continue
+      const config = fields.configFor(frame, field)
+      if (!isShown(field) || config.hidden) continue
       const samples = samplesOf(frame, field, fields)
       if (!samples) continue
       raw.push({
         key: uniqueKey(seen, seriesKey(frame, field.name)),
         name: fields.displayName(frame, field),
-        segments: segmentsOf(samples, range, merge),
+        segments: segmentsOf(
+          joinNulls(samples, config.spanNulls),
+          range,
+          merge
+        ),
+        opacity: segmentOpacity(
+          fields.isSet(frame, field, "fill") ? config.fill : undefined
+        ),
+        border: borderWidth(
+          fields.isSet(frame, field, "lineWidth") ? config.lineWidth : undefined
+        ),
       })
     }
   }
@@ -109,9 +170,8 @@ export function timelineModel(
   }
   const palette = (text: string) => styleForSlot(slots.get(text) ?? 0).color
   const states = new Map<string, TimelineState>()
-  const rows = raw.map(({ key, name, segments }) => ({
-    key,
-    name,
+  const rows = raw.map(({ segments, ...row }) => ({
+    ...row,
     segments: segments.map((segment) => {
       const color = segment.color ?? palette(segment.text)
       if (!states.has(segment.text)) {
@@ -121,6 +181,20 @@ export function timelineModel(
     }),
   }))
   return { rows, states: [...states.values()] }
+}
+
+export function withoutStates(
+  model: TimelineModel,
+  hidden: ReadonlySet<string>
+): TimelineModel {
+  if (hidden.size === 0) return model
+  return {
+    states: model.states,
+    rows: model.rows.map((row) => ({
+      ...row,
+      segments: row.segments.filter(({ text }) => !hidden.has(text)),
+    })),
+  }
 }
 
 export function segmentAt(segments: Segment[], at: number): Segment | null {

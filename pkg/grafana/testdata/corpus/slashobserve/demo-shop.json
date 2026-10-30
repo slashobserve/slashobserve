@@ -1183,17 +1183,17 @@
       },
       "id": 18,
       "options": {
-        "alignValue": "left",
+        "alignValue": "center",
         "legend": {
           "displayMode": "list",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "mergeValues": true,
-        "rowHeight": 0.9,
+        "rowHeight": 0.8,
         "showValue": "auto",
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -1277,16 +1277,16 @@
       },
       "id": 19,
       "options": {
-        "colWidth": 0.9,
+        "colWidth": 0.8,
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
-        "rowHeight": 0.9,
+        "rowHeight": 0.8,
         "showValue": "never",
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },

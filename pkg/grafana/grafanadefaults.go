@@ -221,7 +221,7 @@ var partialReasons = map[string]string{
 	"options.barRadius":                             "Bars are drawn in the SlashObserve style.",
 	"options.fullHighlight":                         "Highlighting a whole bar group is not supported yet.",
 	"options.includeAllFields":                      "Drawing the other fields as lines is not supported yet.",
-	"rowHeight":                                     "Row height is fixed.",
+	"rowHeight":                                     "A row height in pixels is not supported; rows share the height of the panel.",
 	"options.controls":                              "Map controls are not configurable.",
 	"options.layers":                                "Some layer options are not supported yet.",
 	"options.panZoom":                               "Panning and zooming the canvas is not supported.",

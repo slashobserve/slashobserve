@@ -30,6 +30,8 @@ const (
 
 	colorSchemeReason = "This color scheme is not supported yet; series use the default palette."
 	logBaseReason     = "Only log base 2 and 10 are supported."
+
+	timelineFillReason = "A fully transparent fill is drawn opaque."
 )
 
 type propSite struct {
@@ -108,6 +110,21 @@ var lineStyleDrawnOnlyByGrafana = map[spec.PanelType]bool{
 	spec.BarChart: true, spec.Histogram: true, spec.StateTimeline: true, spec.StatusHistory: true, spec.XYChart: true,
 }
 
+var timelinePanelTypes = map[spec.PanelType]bool{spec.StateTimeline: true, spec.StatusHistory: true}
+
+var timelineDrawnProps = map[string]propHandler{
+	"custom.lineWidth": propTimelineLineWidth,
+	"custom.spanNulls": propSpanNulls,
+}
+
+func propTimelineLineWidth(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
+	b.consume(s.value)
+	if f, ok := numberValue(v); ok {
+		width := int(math.Round(min(max(f, 0), maxLineWidth)))
+		p.LineWidth = &width
+	}
+}
+
 func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 	b.consume(s.value)
 }
@@ -115,6 +132,9 @@ func propLineStyleUnused(b *panelBuild, _ *spec.FieldProps, _ any, s propSite) {
 func (b *panelBuild) propHandler(id string) (propHandler, bool) {
 	if tableCellProps[id] && b.typ != spec.Table {
 		return nil, false
+	}
+	if handler, drawn := timelineDrawnProps[id]; drawn && timelinePanelTypes[b.typ] {
+		return handler, true
 	}
 	if !plotPanelTypes[b.typ] {
 		if axisPropIDs[id] || (lineStylePropIDs[id] && lineStyleDrawnOnlyByGrafana[b.typ]) {
@@ -484,6 +504,9 @@ func propFillOpacity(b *panelBuild, p *spec.FieldProps, v any, s propSite) {
 	b.consume(s.value)
 	if f, ok := numberValue(v); ok {
 		fill := int(math.Round(min(max(f, 0), 100)))
+		if fill == 0 && timelinePanelTypes[b.typ] {
+			b.partial(s.at(""), timelineFillReason)
+		}
 		p.Fill = &fill
 	}
 }

@@ -97,7 +97,12 @@ export const specDefaults = {
     "histogram": {},
     "state-timeline": {
       "mergeValues": true,
-      "showValues": "auto"
+      "showValues": "auto",
+      "alignValue": "left",
+      "legend": "bottom",
+      "tooltip": "single",
+      "tooltipSort": "desc",
+      "tooltipHideZeros": false
     },
     "logs": {
       "wrap": false,
@@ -121,7 +126,11 @@ export const specDefaults = {
       "tooltip": "single"
     },
     "status-history": {
-      "showValues": "auto"
+      "showValues": "auto",
+      "legend": "bottom",
+      "tooltip": "single",
+      "tooltipSort": "desc",
+      "tooltipHideZeros": false
     },
     "trend": {
       "legend": "bottom",
