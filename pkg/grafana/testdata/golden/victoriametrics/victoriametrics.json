@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 76,
-      "imported": 60,
-      "partial": 16,
+      "imported": 61,
+      "partial": 15,
       "placeholder": 0,
       "unverified": 0
     },
@@ -1169,13 +1169,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Troubleshooting",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.hideZeros"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -2449,7 +2445,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2646,7 +2643,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2907,7 +2905,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2985,7 +2984,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3019,7 +3019,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3128,7 +3129,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3191,7 +3193,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3305,7 +3308,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -3355,7 +3359,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3395,7 +3400,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3461,7 +3467,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3582,7 +3589,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3620,7 +3628,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3738,7 +3747,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipHideZeros": true
             }
           }
         ]
@@ -3874,7 +3884,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3920,7 +3931,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3951,7 +3963,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3984,7 +3997,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4256,7 +4270,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4287,7 +4302,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4683,7 +4699,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {

@@ -10,6 +10,11 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "legendHideZero",
     "legendHideEmpty",
     "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipCumulative",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight",
     "xAxis"
   ],
   "stat": [
@@ -117,6 +122,11 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "legendHideZero",
     "legendHideEmpty",
     "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipCumulative",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight",
     "xAxis"
   ],
   "xychart": [
@@ -139,6 +149,11 @@ export const displayKeysByType: Record<string, readonly string[]> = {
     "volume",
     "legend",
     "tooltip",
+    "tooltipSort",
+    "tooltipHideZeros",
+    "tooltipCumulative",
+    "tooltipMaxWidth",
+    "tooltipMaxHeight",
     "xAxis"
   ],
   "nodeGraph": [

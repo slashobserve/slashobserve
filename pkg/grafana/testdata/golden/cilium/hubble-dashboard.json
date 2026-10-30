@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 33,
-      "imported": 22,
-      "partial": 11,
+      "imported": 28,
+      "partial": 5,
       "placeholder": 0,
       "unverified": 0
     },
@@ -45,13 +45,11 @@
         "row": "General Processing",
         "status": "partial",
         "reasons": [
-          "The series override option fillBelowTo is not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "The series override option fillBelowTo is not supported yet."
         ],
         "paths": [
           "seriesOverrides[0].fillBelowTo",
-          "seriesOverrides[1].fillBelowTo",
-          "tooltip.sort"
+          "seriesOverrides[1].fillBelowTo"
         ],
         "queries": [
           {
@@ -85,13 +83,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "General Processing",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -110,13 +104,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "General Processing",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -135,13 +125,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "General Processing",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -202,13 +188,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -227,13 +209,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Network",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -772,13 +750,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "DNS",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -869,7 +843,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -977,7 +952,8 @@
             "unit": "ops",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1000,7 +976,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1094,7 +1071,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1140,7 +1118,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1163,7 +1142,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1209,7 +1189,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1232,7 +1213,8 @@
             "unit": "short",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1262,7 +1244,8 @@
             ],
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1285,7 +1268,8 @@
             "unit": "short",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1309,7 +1293,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1345,7 +1330,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1368,7 +1354,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1391,7 +1378,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1414,7 +1402,8 @@
             "unit": "pps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1451,7 +1440,8 @@
             "decimals": 1,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1475,7 +1465,8 @@
             "decimals": 1,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1498,7 +1489,8 @@
             "unit": "s",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1521,7 +1513,8 @@
             "unit": "s",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1546,7 +1539,8 @@
             "fill": 10,
             "stack": "percent",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1582,7 +1576,8 @@
             "unit": "reqps",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1606,7 +1601,8 @@
             "decimals": 1,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1635,7 +1631,8 @@
             ],
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1659,7 +1656,8 @@
             "decimals": 1,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1683,7 +1681,8 @@
             "decimals": 1,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1707,7 +1706,8 @@
             "decimals": 4,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1731,7 +1731,8 @@
             "decimals": 4,
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {

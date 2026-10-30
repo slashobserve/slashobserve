@@ -161,6 +161,7 @@ func displayCandlestick(b *panelBuild) {
 	d.Close = b.fieldNameOption("options.fields.close")
 	d.Volume = b.fieldNameOption("options.fields.volume")
 	b.legendAndTooltip(d)
+	b.tooltipOptions(d)
 }
 
 func (b *panelBuild) candleColor(path string) string {

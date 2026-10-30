@@ -175,12 +175,10 @@
         "row": null,
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[3]",
-          "options.tooltip.sort"
+          "fieldConfig.overrides[3]"
         ],
         "queries": [
           {
@@ -776,7 +774,8 @@
           "legendValues": [
             "mean"
           ],
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -825,7 +824,8 @@
           "legendValues": [
             "mean"
           ],
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "asc"
         }
       },
       {
@@ -863,7 +863,8 @@
           ],
           "legendMode": "list",
           "legendWidth": 200,
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -1084,7 +1085,8 @@
         ],
         "unit": "s",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {

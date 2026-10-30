@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 44,
-      "imported": 2,
-      "partial": 42,
+      "imported": 7,
+      "partial": 37,
       "placeholder": 0,
       "unverified": 0
     },
@@ -188,8 +188,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -217,8 +216,7 @@
         "paths": [
           "nullPointMode",
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -246,8 +244,7 @@
         "paths": [
           "nullPointMode",
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -272,8 +269,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -298,8 +294,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -324,8 +319,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -394,8 +388,7 @@
         ],
         "paths": [
           "nullPointMode",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -415,13 +408,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -440,13 +429,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Controller Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -471,8 +456,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -498,8 +482,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -525,8 +508,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -552,8 +534,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -579,8 +560,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -606,8 +586,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -627,13 +606,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cluster Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -652,13 +627,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cluster Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -677,13 +648,9 @@
         "type": "timeseries",
         "source_type": "graph",
         "row": "Cluster Stats",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -707,8 +674,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unitScale",
-          "tooltip.sort"
+          "fieldConfig.defaults.unitScale"
         ],
         "queries": [
           {
@@ -733,8 +699,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.unitScale",
-          "tooltip.sort"
+          "fieldConfig.defaults.unitScale"
         ],
         "queries": [
           {
@@ -880,8 +845,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -906,8 +870,7 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -933,8 +896,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -960,8 +922,7 @@
         ],
         "paths": [
           "fieldConfig.defaults.unitScale",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -1027,8 +988,7 @@
         ],
         "paths": [
           "nullPointMode",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -1055,8 +1015,7 @@
         ],
         "paths": [
           "nullPointMode",
-          "paceLength",
-          "tooltip.sort"
+          "paceLength"
         ],
         "queries": [
           {
@@ -2554,7 +2513,8 @@
             "fill": 10,
             "spanNulls": true,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2655,7 +2615,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2685,7 +2646,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2715,7 +2677,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2745,7 +2708,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2775,7 +2739,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2805,7 +2770,8 @@
               ],
               "legendHideZero": true,
               "legendHideEmpty": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -2841,7 +2807,8 @@
             "unit": "short",
             "fill": 10,
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

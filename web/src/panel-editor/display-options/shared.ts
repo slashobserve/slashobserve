@@ -121,6 +121,45 @@ export const tooltip: DisplayOption = {
   ],
 }
 
+export const tooltipSort: DisplayOption = {
+  kind: "choice",
+  key: "tooltipSort",
+  label: "Tooltip sort",
+  options: [
+    { value: "none", label: "Series order" },
+    { value: "asc", label: "Ascending" },
+    { value: "desc", label: "Descending" },
+  ],
+}
+
+export const tooltipHideZeros: DisplayOption = {
+  kind: "toggle",
+  key: "tooltipHideZeros",
+  label: "Hide zero values in the tooltip",
+}
+
+export const tooltipCumulative: DisplayOption = {
+  kind: "toggle",
+  key: "tooltipCumulative",
+  label: "Show stacked totals in the tooltip",
+}
+
+export const tooltipMaxWidth: DisplayOption = {
+  kind: "number",
+  key: "tooltipMaxWidth",
+  label: "Tooltip max width",
+  hint: "Pixels",
+  rule: { min: 100, max: 2000, integer: true },
+}
+
+export const tooltipMaxHeight: DisplayOption = {
+  kind: "number",
+  key: "tooltipMaxHeight",
+  label: "Tooltip max height",
+  hint: "Pixels",
+  rule: { min: 100, max: 2000, integer: true },
+}
+
 export const xAxis: DisplayOption = {
   kind: "choice",
   key: "xAxis",

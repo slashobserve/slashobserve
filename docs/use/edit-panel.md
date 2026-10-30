@@ -83,6 +83,7 @@ The settings column has:
 - The display options that belong to the chosen type.
   For Time series and Trend panels the legend options are **Legend** (bottom, right or hidden), **Legend values**, **Legend mode** (List or Table, "Table when values are shown" until you choose), **Sort legend by** (Name or one of the legend values, "Series order" until you choose), **Sort descending**, **Legend width** (pixels, for a legend on the right), **Hide series that are all zero** and **Hide series with no values**.
   A series hidden from the legend is still drawn.
+  Time series, Trend and Candlestick panels also have **Tooltip sort** (Series order, Ascending or Descending, which is the default), **Hide zero values in the tooltip**, **Show stacked totals in the tooltip** and **Tooltip max width** and **Tooltip max height** (pixels, 100 to 2000); the sort, zero and total options apply to a tooltip that lists all series.
   For Stat, Gauge, Bar gauge and Pie chart panels, **Calculation** picks how each field is reduced to one value.
   **Show every value** shows one value per row instead, **Row limit** (1 to 5000) caps the rows shown per field, and **Fields** shows a field by name or by a pattern such as `/^cpu/` instead of every number field.
   A Stat panel also has **Alignment** (Auto or Center), **Title size** and **Value size** (pixels, empty for the default), **Show percent change** with its **Percent change color** (Standard, Inverted or Same as value, applied to the arrow only) and **Wide layout**, which puts the name beside the value on wide tiles.

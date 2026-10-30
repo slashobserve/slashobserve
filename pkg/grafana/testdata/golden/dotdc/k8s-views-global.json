@@ -1212,7 +1212,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1626,7 +1627,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1663,7 +1665,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1713,7 +1716,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1746,7 +1750,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1781,7 +1786,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1816,7 +1822,8 @@
               ],
               "legendSortBy": "max",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1863,7 +1870,8 @@
             "axisLabel": "BANDWIDTH",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1896,7 +1904,8 @@
             "axisLabel": "DROPPED PACKETS",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {

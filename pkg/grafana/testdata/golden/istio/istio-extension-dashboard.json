@@ -272,7 +272,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -300,7 +301,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -337,7 +339,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -369,7 +372,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -397,7 +401,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -436,7 +441,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -462,7 +468,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

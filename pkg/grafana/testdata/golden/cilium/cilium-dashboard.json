@@ -2105,7 +2105,8 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -2157,7 +2158,8 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -2238,7 +2240,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2281,7 +2284,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2325,7 +2329,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2369,7 +2374,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2394,7 +2400,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -2435,7 +2442,8 @@
               "legendValues": [
                 "mean"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2463,7 +2471,8 @@
               "legendValues": [
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2491,7 +2500,8 @@
               "legendValues": [
                 "mean"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2519,7 +2529,8 @@
               "legendValues": [
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2547,7 +2558,8 @@
               "legendValues": [
                 "mean"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2575,7 +2587,8 @@
               "legendValues": [
                 "mean"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -2631,7 +2644,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2692,7 +2706,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2721,7 +2736,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2745,7 +2761,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2769,7 +2786,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2793,7 +2811,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2898,7 +2917,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2927,7 +2947,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2953,7 +2974,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -2989,7 +3011,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3013,7 +3036,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3169,7 +3193,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3325,7 +3350,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3481,7 +3507,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3637,7 +3664,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3681,7 +3709,8 @@
                 "max",
                 "min"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3719,7 +3748,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3743,7 +3773,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3771,7 +3802,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3795,7 +3827,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3870,7 +3903,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3894,7 +3928,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -3952,7 +3987,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4008,7 +4044,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4037,7 +4074,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4061,7 +4099,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4085,7 +4124,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4164,7 +4204,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4249,7 +4290,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4371,7 +4413,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4429,7 +4472,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4501,7 +4545,8 @@
                 "lastNotNull"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4543,7 +4588,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4573,7 +4619,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4743,7 +4790,8 @@
                 "max"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4812,7 +4860,8 @@
                 "min"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4850,7 +4899,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4876,7 +4926,8 @@
             "display": {
               "legend": "right",
               "legendMode": "table",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4906,7 +4957,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4936,7 +4988,8 @@
               "legendValues": [
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4966,7 +5019,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -4996,7 +5050,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5026,7 +5081,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5056,7 +5112,8 @@
                 "mean"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5083,7 +5140,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5130,7 +5188,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5177,7 +5236,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5224,7 +5284,8 @@
               }
             ],
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5251,7 +5312,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5278,7 +5340,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -5305,7 +5368,8 @@
             "points": "never",
             "stack": "normal",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

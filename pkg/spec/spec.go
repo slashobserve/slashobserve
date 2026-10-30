@@ -366,6 +366,11 @@ type Display struct {
 	LegendHideZero     *bool              `json:"legendHideZero,omitempty"`
 	LegendHideEmpty    *bool              `json:"legendHideEmpty,omitempty"`
 	Tooltip            string             `json:"tooltip,omitempty"`
+	TooltipSort        string             `json:"tooltipSort,omitempty"`
+	TooltipHideZeros   *bool              `json:"tooltipHideZeros,omitempty"`
+	TooltipCumulative  *bool              `json:"tooltipCumulative,omitempty"`
+	TooltipMaxWidth    int                `json:"tooltipMaxWidth,omitempty"`
+	TooltipMaxHeight   int                `json:"tooltipMaxHeight,omitempty"`
 	XAxis              string             `json:"xAxis,omitempty"`
 	Reduce             string             `json:"reduce,omitempty"`
 	AllValues          *bool              `json:"allValues,omitempty"`

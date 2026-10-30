@@ -29,8 +29,8 @@
     "verified": false,
     "counts": {
       "total": 103,
-      "imported": 71,
-      "partial": 32,
+      "imported": 77,
+      "partial": 26,
       "placeholder": 0,
       "unverified": 0
     },
@@ -1459,13 +1459,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Health and Weight",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1486,12 +1482,10 @@
         "row": "Health and Weight",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.tooltip.sort"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1655,13 +1649,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Health and Weight",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1806,13 +1796,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1838,13 +1824,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1872,12 +1854,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.tooltip.sort"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1913,12 +1893,10 @@
         "row": "Cache / Compressor",
         "status": "partial",
         "reasons": [
-          "Some overrides use matchers or properties that are not supported yet.",
-          "Some Grafana options of this panel are not supported yet."
+          "Some overrides use matchers or properties that are not supported yet."
         ],
         "paths": [
-          "fieldConfig.overrides[0].properties[0]",
-          "options.tooltip.sort"
+          "fieldConfig.overrides[0].properties[0]"
         ],
         "queries": [
           {
@@ -1952,13 +1930,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -1977,13 +1951,9 @@
         "type": "timeseries",
         "source_type": "timeseries",
         "row": "Cache / Compressor",
-        "status": "partial",
-        "reasons": [
-          "Some Grafana options of this panel are not supported yet."
-        ],
-        "paths": [
-          "options.tooltip.sort"
-        ],
+        "status": "imported",
+        "reasons": [],
+        "paths": [],
         "queries": [
           {
             "ref_id": "A",
@@ -4810,7 +4780,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -4844,7 +4815,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5060,7 +5032,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5290,7 +5263,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5332,7 +5306,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5380,7 +5355,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5428,7 +5404,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5457,7 +5434,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -5486,7 +5464,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           }
         ]

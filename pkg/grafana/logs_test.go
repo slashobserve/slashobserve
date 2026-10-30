@@ -135,3 +135,10 @@ func TestLogsInfiniteScrollingIsReportedWithItsOwnReason(t *testing.T) {
 		t.Fatalf("display = %+v, status %s", d, line.Status)
 	}
 }
+
+func TestLogsInfiniteScrollingAtGrafanasDefaultStaysSilent(t *testing.T) {
+	_, line := logsPanel(t, `{"enableInfiniteScrolling":false}`)
+	if line.Status != statusImported || len(line.Paths) != 0 {
+		t.Fatalf("status %s, paths %v", line.Status, line.Paths)
+	}
+}

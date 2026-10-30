@@ -642,7 +642,8 @@
         "spanNulls": true,
         "display": {
           "legend": "hidden",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -683,7 +684,8 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -716,7 +718,8 @@
         "points": "never",
         "spanNulls": true,
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -748,7 +751,8 @@
             "lastNotNull"
           ],
           "legendMode": "list",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -782,7 +786,8 @@
         "spanNulls": true,
         "stack": "normal",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -835,7 +840,8 @@
           }
         ],
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {
@@ -863,7 +869,8 @@
         "fill": 10,
         "points": "never",
         "display": {
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {

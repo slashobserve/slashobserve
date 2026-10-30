@@ -46,6 +46,9 @@ export const specDefaults = {
       "legendHideZero": false,
       "legendHideEmpty": false,
       "tooltip": "single",
+      "tooltipSort": "desc",
+      "tooltipHideZeros": false,
+      "tooltipCumulative": false,
       "xAxis": "shown"
     },
     "stat": {
@@ -127,6 +130,9 @@ export const specDefaults = {
       "legendHideZero": false,
       "legendHideEmpty": false,
       "tooltip": "single",
+      "tooltipSort": "desc",
+      "tooltipHideZeros": false,
+      "tooltipCumulative": false,
       "xAxis": "shown"
     },
     "xychart": {
@@ -143,6 +149,9 @@ export const specDefaults = {
       "downColor": "critical",
       "legend": "bottom",
       "tooltip": "single",
+      "tooltipSort": "desc",
+      "tooltipHideZeros": false,
+      "tooltipCumulative": false,
       "xAxis": "shown"
     },
     "nodeGraph": {

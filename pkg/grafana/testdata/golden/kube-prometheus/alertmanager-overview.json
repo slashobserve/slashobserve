@@ -236,7 +236,8 @@
             "stack": "normal",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -269,7 +270,8 @@
             "stack": "normal",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -316,7 +318,8 @@
             "repeat": "integration",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -355,7 +358,8 @@
             "repeat": "integration",
             "display": {
               "legend": "hidden",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

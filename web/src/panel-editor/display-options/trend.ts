@@ -10,6 +10,11 @@ import {
   legendValues,
   legendWidth,
   tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipCumulative,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
   xAxis,
 } from "./shared"
 
@@ -24,5 +29,10 @@ export const trend: readonly DisplayOption[] = [
   legendHideZero,
   legendHideEmpty,
   tooltip,
+  tooltipSort,
+  tooltipHideZeros,
+  tooltipCumulative,
+  tooltipMaxWidth,
+  tooltipMaxHeight,
   xAxis,
 ]

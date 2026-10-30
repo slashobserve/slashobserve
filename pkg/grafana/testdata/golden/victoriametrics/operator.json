@@ -935,7 +935,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -964,7 +965,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]
@@ -1010,7 +1012,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1039,7 +1042,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1068,7 +1072,8 @@
                 "max",
                 "mean"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1099,7 +1104,8 @@
               ],
               "legendSortBy": "mean",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1257,7 +1263,8 @@
                 "lastNotNull",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1281,7 +1288,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1305,7 +1313,8 @@
             "fill": 10,
             "points": "never",
             "display": {
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1333,7 +1342,8 @@
                 "mean",
                 "max"
               ],
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

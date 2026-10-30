@@ -91,8 +91,7 @@
         ],
         "paths": [
           "options.annotations.clustering",
-          "options.annotations.multiLane",
-          "options.tooltip.sort"
+          "options.annotations.multiLane"
         ],
         "queries": [
           {
@@ -1063,7 +1062,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "asc"
             }
           },
           {
@@ -1526,7 +1526,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1558,7 +1559,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1600,7 +1602,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1634,7 +1637,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -1668,7 +1672,8 @@
               ],
               "legendSortBy": "lastNotNull",
               "legendSortDesc": true,
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           }
         ]

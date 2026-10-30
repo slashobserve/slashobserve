@@ -352,7 +352,8 @@
                 "sum"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {
@@ -558,7 +559,8 @@
                 "sum"
               ],
               "legendMode": "list",
-              "tooltip": "all"
+              "tooltip": "all",
+              "tooltipSort": "none"
             }
           },
           {

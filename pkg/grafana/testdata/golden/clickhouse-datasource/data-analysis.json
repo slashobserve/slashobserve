@@ -1019,7 +1019,8 @@
         ],
         "display": {
           "legend": "right",
-          "tooltip": "all"
+          "tooltip": "all",
+          "tooltipSort": "none"
         }
       },
       {

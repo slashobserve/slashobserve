@@ -188,6 +188,9 @@ describe("spec defaults", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "single",
+      tooltipSort: "desc",
+      tooltipHideZeros: false,
+      tooltipCumulative: false,
       xAxis: "shown",
     })
   })
@@ -208,6 +211,9 @@ describe("spec defaults", () => {
       legendHideZero: false,
       legendHideEmpty: false,
       tooltip: "all",
+      tooltipSort: "desc",
+      tooltipHideZeros: false,
+      tooltipCumulative: false,
       xAxis: "shown",
     })
   })
