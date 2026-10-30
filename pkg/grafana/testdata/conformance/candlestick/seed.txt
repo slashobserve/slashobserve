@@ -181,6 +181,7 @@ options.legend.displayMode=table
 options.legend.isVisible=false
 options.legend.sortBy=Mean
 options.legend.sortDesc=true
+options.legend.width=200
 options.tooltip.hideZeros=true
 options.tooltip.maxHeight=200
 options.tooltip.maxWidth=300

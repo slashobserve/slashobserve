@@ -204,7 +204,7 @@
     { "id": "options.legend.isVisible=false", "path": "options.legend.isVisible", "value": false },
     { "id": "options.legend.sortBy=Mean", "path": "options.legend.sortBy", "value": "Mean", "with": {"options.legend.displayMode": "table", "options.legend.calcs": ["mean"]} },
     { "id": "options.legend.sortDesc=true", "path": "options.legend.sortDesc", "value": true, "with": {"options.legend.displayMode": "table", "options.legend.calcs": ["mean"]} },
-    { "id": "options.legend.width=200", "path": "options.legend.width", "value": 200, "with": {"options.legend.placement": "right"}, "expect": "cosmetic" },
+    { "id": "options.legend.width=200", "path": "options.legend.width", "value": 200, "with": {"options.legend.placement": "right"} },
     { "id": "options.tooltip.mode=multi", "path": "options.tooltip.mode", "value": "multi" },
     { "id": "options.tooltip.mode=none", "path": "options.tooltip.mode", "value": "none" },
     { "id": "options.tooltip.sort=asc", "path": "options.tooltip.sort", "value": "asc" },

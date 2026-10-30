@@ -158,6 +158,7 @@ options.legend.displayMode=table
 options.legend.isVisible=false
 options.legend.sortBy=Mean
 options.legend.sortDesc=true
+options.legend.width=200
 options.text.percentSize=14
 options.text.titleSize=12
 options.text.valueSize=20
