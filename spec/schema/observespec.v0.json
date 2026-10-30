@@ -1174,6 +1174,11 @@
         },
         "newTab": {
           "type": "boolean"
+        },
+        "oneClick": {
+          "x-omitFromPrompt": true,
+          "description": "A data link on a stat, gauge, bar gauge or table cell that makes the whole tile, bar, gauge or cell the link when it is the only data link there.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -1268,6 +1273,11 @@
         },
         "max": {
           "type": "number"
+        },
+        "fieldMinMax": {
+          "x-omitFromPrompt": true,
+          "description": "Gauges and bar gauges that find their range from the data: true ranges each field by its own values, false (the default) by the values of every field shown. Other panels already range each field by its own values.",
+          "type": "boolean"
         },
         "thresholds": {
           "$ref": "#/$defs/thresholds"

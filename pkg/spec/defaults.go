@@ -41,6 +41,7 @@ type FieldPropsDefaults struct {
 	Filterable        bool    `json:"filterable"`
 	Inspect           bool    `json:"inspect"`
 	HideHeader        bool    `json:"hideHeader"`
+	FieldMinMax       bool    `json:"fieldMinMax"`
 }
 
 type QueryDefaults struct {

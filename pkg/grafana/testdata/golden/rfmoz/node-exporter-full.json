@@ -2860,7 +2860,6 @@
           "Some Grafana options of this panel are not supported yet."
         ],
         "paths": [
-          "fieldConfig.defaults.fieldMinMax",
           "options.legend.showLegend"
         ],
         "queries": [

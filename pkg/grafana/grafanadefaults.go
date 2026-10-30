@@ -43,6 +43,7 @@ var grafanaDefaults = map[string]any{
 	"fieldConfig.defaults.custom.cellOptions.type":       "auto",
 	"fieldConfig.defaults.custom.inspect":                false,
 	"fieldConfig.defaults.custom.filterable":             false,
+	"fieldConfig.defaults.fieldMinMax":                   false,
 	"options.tooltip.mode":                               "single",
 	"options.tooltip.sort":                               "none",
 	"options.tooltip.hideZeros":                          false,
@@ -243,6 +244,10 @@ type cosmeticOption struct {
 var defaultDash = []any{10, 10}
 
 var cosmeticOptions = map[string]cosmeticOption{
+	"fieldConfig.defaults.fieldMinMax": {
+		values: []any{true, false},
+		why:    "only gauges and bar gauges share one range across fields, and every other panel ranges each field by its own values or by none",
+	},
 	"fieldConfig.defaults.custom.lineStyle.dash": {
 		values: []any{defaultDash},
 		why:    "10, 10 is the pattern Grafana draws for a dashed line, and the renderer draws every dashed line with one pattern",
